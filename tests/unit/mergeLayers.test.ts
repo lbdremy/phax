@@ -271,6 +271,36 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("brief: scalar override across three layers", () => {
+    const project = makeProject({ brief: { command: "project-brief" } });
+    const globalUser = makeOverlay({ brief: { command: "global-brief" } });
+    const localUser = makeOverlay({ brief: { command: "local-brief" } });
+
+    it("resolves from the local layer, then global once local is cleared, then project", () => {
+      expect(mergeConfigLayers({ project, globalUser, localUser }).brief).toEqual({
+        command: "local-brief",
+      });
+      expect(mergeConfigLayers({ project, globalUser }).brief).toEqual({
+        command: "global-brief",
+      });
+      expect(mergeConfigLayers({ project }).brief).toEqual({ command: "project-brief" });
+    });
+
+    it("a user layer can declare brief when the project config has none", () => {
+      const result = mergeConfigLayers({ project: makeProject(), localUser });
+      expect(result.brief).toEqual({ command: "local-brief" });
+    });
+
+    it("omits brief entirely when no layer configures it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        globalUser: makeOverlay({ state: { root: "~/.global" } }),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect("brief" in result).toBe(false);
+    });
+  });
+
   describe("planAuditor across three layers", () => {
     const project = makeProject({ planAuditor: { command: "project-auditor" } });
     const globalUser = makeOverlay({ planAuditor: { command: "global-auditor" } });

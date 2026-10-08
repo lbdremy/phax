@@ -15,6 +15,15 @@ export const PublishConfigSchema = Schema.Struct({
 
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
+export const BriefConfigSchema = Schema.Struct({
+  command: Schema.NonEmptyString.annotations({
+    description:
+      "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief answer, carrying its own $schema, on stdout. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.",
+  }),
+});
+
+export type BriefConfig = Schema.Schema.Type<typeof BriefConfigSchema>;
+
 export const PlanAuditorConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
@@ -210,6 +219,7 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
+  brief: Schema.optional(BriefConfigSchema),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(
     Schema.Struct({
@@ -256,6 +266,7 @@ export interface ResolvedConfig {
   readonly fileReconciliationMode: "report_only" | "warn";
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
+  readonly brief?: BriefConfig;
   readonly planAuditor?: PlanAuditorConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
@@ -294,6 +305,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
+  brief: Schema.optional(BriefConfigSchema),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(
     Schema.Struct({
