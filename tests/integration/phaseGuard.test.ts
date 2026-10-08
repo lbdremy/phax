@@ -31,7 +31,7 @@ function runCli(cwd: string, args: string[]): SpawnSyncReturns<string> {
 }
 
 const guardMessage = (command: string): string =>
-  `✗ phax ${command} is not available inside a phase worktree; phax brief is`;
+  `✗ phax ${command} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)`;
 
 beforeAll(() => {
   base = realpathSync(mkdtempSync(join(tmpdir(), "phax-phase-guard-")));

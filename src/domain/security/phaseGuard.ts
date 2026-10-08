@@ -103,5 +103,5 @@ export function phaseGuardRefusal(
     );
   return allowed
     ? undefined
-    : `✗ phax ${commandPath} is not available inside a phase worktree; phax brief is`;
+    : `✗ phax ${commandPath} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)`;
 }
