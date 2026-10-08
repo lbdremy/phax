@@ -41,7 +41,7 @@ describe("phase guard — classification", () => {
   it("refuses the commands that act on phax state or an artifact's lifecycle", () => {
     for (const path of ["run", "resume", "archive", "unlock", "artifact approve", "records sync"]) {
       expect(phaseGuardRefusal(path), path).toBe(
-        `✗ phax ${path} is not available inside a phase worktree; phax brief is`,
+        `✗ phax ${path} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)`,
       );
     }
   });
