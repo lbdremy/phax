@@ -215,7 +215,9 @@ cross-field checks registered by id so the build writes the same list into the s
       `completes-spec`, mirrored in the plan document; refused on a plan without a spec;
       `phax artifact new plan --spec … --last | --not-last` required; no lint advisories; live
       plans by hand.
-- [ ] **Add `completes-spec` to live plans once 0.20 is installed.** Shipped 2026-10-07 (PR #123)
+- [x] **Add `completes-spec` to live plans once 0.20 is installed.** Nothing to add: on
+      2026-10-08 0.20.0 was installed, no run was open, and the only live plan
+      (`smolvm-isolation-spike`) has no source spec, so it takes no key. Shipped 2026-10-07 (PR #123)
       after 0.19.0, which refuses the key as unknown frontmatter: until 0.20 is installed, plans
       authored and run here carry no key. After installing it, every live plan with a source spec
       (not under `archive/`) gains `completes-spec: true|false` in its frontmatter **and**
