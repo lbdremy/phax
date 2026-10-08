@@ -82,6 +82,20 @@ jobs:
       - name: Smoke-test the schemas package tarball
         run: pnpm exec tsx scripts/schemas-smoke.ts
 
+      # Last, since it rewrites the tree: cut the next patch release in place,
+      # typecheck it and run the tests that read what a cut changes, so a test
+      # that holds only until the next cut fails here rather than at release.
+      - name: Use Node 24 for the release rehearsal
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Release rehearsal
+        run: |
+          current="$(node -p 'require("./package.json").version')"
+          next="$(node -p "const [a, b, c] = '${current}'.split('.').map(Number); [a, b, c + 1].join('.')")"
+          scripts/release.sh --rehearse "${next}"
+
   # Report-only security audit. Does not gate CI yet (FAIL_ON=none +
   # continue-on-error); the report is uploaded as an artifact for review. Flip
   # to blocking (drop the env override and continue-on-error) once the tree is

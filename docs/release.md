@@ -80,8 +80,11 @@ The version must be `MAJOR.MINOR.PATCH` and newer than the current one — pre-r
    - appends the new version to the release ledger `packages/schemas/releases.json`, which the docs site reads to serve every release's schemas;
    - rewrites the one `gate-diagnostics` `$schema` literal that `examples/hello-world/audit.mjs` prints to the new version, so the example's document names the release that reads it. The cut refuses, before writing anything, when that file is missing or holds a number of such literals other than one;
 2. regenerates the usage spec and the CLI docs;
-3. stages exactly the paths the cut changed (renames included) and the regenerated files, and commits `chore: release v1.2.3`;
-4. creates the signed tag `v1.2.3` and pushes the commit and the tag.
+3. runs `pnpm typecheck`, `pnpm test:type` and `pnpm test` on the cut. If one fails, it stops with nothing committed, tagged or pushed, and prints how to undo the cut;
+4. stages exactly the paths the cut changed (renames included) and the regenerated files, and commits `chore: release v1.2.3`;
+5. creates the signed tag `v1.2.3` and pushes the commit and the tag.
+
+`scripts/release.sh --rehearse 1.2.3` does steps 1 and 2, typechecks the cut and runs only the tests that read what a cut changes (`tests/unit/schemasPackage/` and `tests/unit/site/`), then stops, leaving the cut in the working tree. CI rehearses the next patch release this way as its last step on every push and pull request, in seconds. A test that holds only until the next cut, such as one that reads the package's own version as an older release, then fails on the pull request that adds it, not at release time.
 
 To see what a cut changes without touching the tree, dry-run it on a copy:
 

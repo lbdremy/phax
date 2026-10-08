@@ -387,6 +387,13 @@ describe("CI workflow: the schemas package smoke", () => {
     expect(indexOf(ciSteps, (step) => step.run === "pnpm build")).toBeLessThan(smoke);
   });
 
+  it("rehearses a release cut as its last step, under Node 24", () => {
+    const rehearsal = indexOf(ciSteps, runs("scripts/release.sh --rehearse"));
+    // The cut rewrites the tree, so nothing may run after it.
+    expect(rehearsal).toBe(ciSteps.length - 1);
+    expect(nodeVersion(setupNodeBefore(ciSteps, rehearsal)!)).toBe("24");
+  });
+
   it("pins every setup-node step to the same SHA", () => {
     const pins = new Set(ciSteps.filter(isSetupNode).map((step) => step.uses));
     expect(pins.size).toBe(1);
@@ -401,6 +408,19 @@ describe("release script invariants", () => {
     const cut = releaseScript.indexOf("pnpm exec tsx scripts/release-cut.ts");
     expect(cut).toBeGreaterThan(-1);
     expect(cut).toBeLessThan(releaseScript.indexOf("pnpm gen:usage-spec"));
+  });
+
+  it("runs the whole suite on the cut before committing it", () => {
+    expect(releaseScript).toContain("CUT_TESTS=(pnpm test)");
+    const tests = releaseScript.indexOf('"${CUT_TESTS[@]}"');
+    expect(tests).toBeGreaterThan(releaseScript.indexOf("pnpm gen:usage-spec"));
+    expect(tests).toBeLessThan(releaseScript.indexOf("git commit"));
+  });
+
+  it("stops a rehearsal before committing", () => {
+    const stop = releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then\n  echo "done:');
+    expect(stop).toBeGreaterThan(-1);
+    expect(stop).toBeLessThan(releaseScript.indexOf("git commit"));
   });
 
   it("leaves the version bump to the cut", () => {

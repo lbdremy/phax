@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --rehearse cuts the release, typechecks it and runs the tests that read what
+# a cut changes (the schemas package's formats and the docs site's served
+# schemas), then stops: no commit, no tag, no push, and the cut stays in the
+# working tree. CI rehearses every change this way, in seconds, so a test
+# that holds only until the next cut fails on the pull request that adds it.
+# A real release runs the whole suite on the cut before committing.
+REHEARSE=false
+if [[ "${1:-}" == "--rehearse" ]]; then
+  REHEARSE=true
+  shift
+fi
+
 VERSION="${1:-}"
 VERSION="${VERSION#v}" # strip leading v if present
 
 if [[ -z "$VERSION" ]]; then
-  echo "usage: scripts/release.sh <version>"
+  echo "usage: scripts/release.sh [--rehearse] <version>"
   echo "example: scripts/release.sh 0.1.2"
   exit 1
 fi
@@ -50,6 +62,25 @@ fi
 echo "regenerating usage spec and CLI docs"
 pnpm gen:usage-spec
 pnpm docs:cli
+
+CUT_TESTS=(pnpm test)
+if [[ "$REHEARSE" == true ]]; then
+  CUT_TESTS=(pnpm exec vitest run tests/unit/schemasPackage tests/unit/site)
+fi
+
+echo "testing the cut"
+if ! { pnpm typecheck && pnpm test:type && "${CUT_TESTS[@]}"; }; then
+  echo "error: the tests fail on the cut; nothing is committed or tagged"
+  if [[ "$REHEARSE" == false ]]; then
+    echo "undo the cut: git reset --hard HEAD && git clean -fd -- packages/schemas/snapshots"
+  fi
+  exit 1
+fi
+
+if [[ "$REHEARSE" == true ]]; then
+  echo "done: the tests pass on a ${VERSION} cut (rehearsal, nothing committed)"
+  exit 0
+fi
 
 echo "committing"
 # -A stages the cut's renames and removals too.
