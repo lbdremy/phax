@@ -394,7 +394,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Two hooks let your own tools inform a run: a gate step that prints diagnostics, and one provider. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+Three hooks let your own tools inform a run: a gate step that prints diagnostics, a brief provider and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
 
 ### Diagnostics gate steps
 
@@ -459,6 +459,90 @@ phax writes the same bytes to every declaring step of every attempt, then closes
 ```bash
 node ./audit.mjs < checks-attempt-01.request.json
 ```
+
+### Brief provider
+
+```json
+{ "brief": { "command": "node ./brief.mjs" } }
+```
+
+A brief tells the agent what the project's standard expects of some paths, and how each expectation stands there. Declare `brief` in `phax.json`, `phax.local.json` or `~/.phax/config.json`; a nearer layer overrides a farther one. phax ties it to no gate step: a brief informs and never blocks, and the gate still decides. phax judges nothing in the answer; it only reads it by its `$schema`.
+
+phax asks for a brief at two moments:
+
+- **Pushed**, once when a phase starts fresh, before the agent's first turn. The answer goes into the first prompt under `## Brief for this phase`, compact: one line per guarantee, its non-`met` places with state, location and due, 50 guarantees at most. phax asks once per phase: a re-entry after a rate limit shows the recorded brief again, and a resumed phase gets no new section.
+- **Pulled**, with `phax brief [path…]`, by the agent or by you, at any time. It prints the whole form: every guarantee and place, with `what` and `repair`. It exits 0 on any answer, `[]` included, and 1 otherwise.
+
+The request on stdin has two variants. Inside a phase, it carries the phase facts and `files`:
+
+```json
+{
+  "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+  "phase": "phase-02",
+  "base": "3f9c2a7d1e8b4c6a0f5d9e2b7a1c4d8e6f0b3a5c",
+  "terminal": false,
+  "phases": [
+    { "id": "phase-01", "files": ["src/greet.ts"] },
+    { "id": "phase-02", "files": ["src/cli.ts", "tests/cli.test.ts"] },
+    { "id": "phase-03", "files": ["README.md"] }
+  ],
+  "files": null
+}
+```
+
+Outside a phase (`phax brief src/greet.ts` in your own checkout), it carries `files` alone:
+
+```json
+{ "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json", "files": ["src/greet.ts"] }
+```
+
+- **`phase`**, **`base`**, **`terminal`** and **`phases`** hold the same values as the phase's [gate request](#gate-request).
+- **`files`** is `null` for the phase's brief (the pushed one, and `phax brief` with no path): brief the files of the `phases` entry whose `id` is `phase`. Otherwise it lists working-tree-root-relative paths, deduplicated, in the order given. phax never checks they exist; a path may name a file the phase has yet to create.
+
+The provider runs from the working tree's root, the phase worktree inside a phase. It answers:
+
+```json
+{
+  "$schema": "https://docs.phax.run/schemas/brief-answer/0.20.0.json",
+  "guarantees": [
+    {
+      "id": "hw-no-io",
+      "statement": "nothing under src/ imports a node: module",
+      "places": [
+        {
+          "location": { "file": "src/greet.ts", "line": 1 },
+          "state": "forbidden",
+          "due": "this-phase",
+          "what": "imports node:fs",
+          "repair": "remove the import; greet is pure"
+        },
+        { "location": { "file": "src/cli.ts" }, "state": "met" }
+      ]
+    }
+  ]
+}
+```
+
+- A guarantee has an `id`, a `statement` and at least one place. Each place has a `location` (`file`, optional `line`) and a `state`: `met` carries nothing else; `missing` and `forbidden` carry `due`, `what` and `repair`; `accepted` carries `what`.
+- **`due`** is `"this-phase"` or `"later"`, from what the later `phases` entries still plan, and `null` when the request carried no phase facts.
+- The order is your rank, most important first; phax never re-sorts. Extra keys are ignored. `{ "$schema": …, "guarantees": [] }` means nothing to report.
+- `$schema` names the phax release whose answer shape you wrote. A later phax keeps reading it; an answer without `$schema`, naming another format, or naming a release newer than the running phax is refused by name.
+
+A brief that fails (a non-zero exit, output that is not JSON, a refused answer, or more than 60 seconds; the limit is fixed) never fails the phase. A pushed brief becomes a run-output warning and a line in the prompt saying the brief is unavailable and why; a pulled one prints the reason and exits 1.
+
+Inside a phase, phax writes the phase's request to `.phax-context/brief-request.json` when the phase starts or resumes; `phax brief` reads its phase from there, from any directory of the worktree. Replay the phase's brief in the worktree:
+
+```bash
+node ./brief.mjs < .phax-context/brief-request.json
+```
+
+Every brief of a phase is recorded in its phase folder: `brief-00.json` for the pushed one, `brief-01.json` onwards for each pull, in call order. Each holds the request as sent and the outcome, the answer as printed. The phase record carries them; `phax records explain <commit> --briefs` prints them. A pull after the phase's record is written is answered and not recorded. Replay a recorded brief:
+
+```bash
+jq -c .request brief-01.json | node ./brief.mjs
+```
+
+In `secure` mode the in-phase agent is granted `phax brief` (source `brief` in `security.json`) whenever a brief provider is configured, and a pull runs inside the agent's sandbox. Inside a phase worktree phax refuses every command but `phax brief` and the read-only ones, as a guard against mistakes; the sandbox's write scope is the boundary. The authoring `--brief` flag and `docs/briefs/` are something else: a brief a person writes for an authoring session.
 
 ### Plan auditor
 
