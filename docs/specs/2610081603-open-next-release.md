@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-08
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-08
+  baseline: 3e73cf3
 ---
 # Open the next release: `$schema` stamps name the format's shape
 
