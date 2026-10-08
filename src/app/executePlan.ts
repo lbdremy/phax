@@ -91,6 +91,7 @@ import type { BriefRequestFile } from "../schemas/brief.js";
 import type { GateRequest } from "../schemas/gateRequest.js";
 import { stampBriefRequest } from "./briefProvider.js";
 import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./pushedBrief.js";
+import { closePulledBriefs } from "./pullBrief.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
@@ -428,6 +429,8 @@ export function executePlan(
       startIndex,
     });
     const gateCommandStrings = gateSteps.map((s) => s.command);
+    // A configured brief provider grants the in-phase agent `phax brief`.
+    const briefCommands = config.brief !== undefined ? ["phax brief"] : [];
 
     let branch;
     if (startIndex === 0) {
@@ -664,6 +667,7 @@ export function executePlan(
         const resumeFrozenResult = computeFrozenAgentCommands({
           configCommands: securityPolicy.agentCommands,
           gateCommands: gateCommandStrings,
+          briefCommands,
           requiredCommands: plan.run.requiredCommands,
           provider: binding.provider,
         });
@@ -833,6 +837,7 @@ export function executePlan(
         const frozenResult = computeFrozenAgentCommands({
           configCommands: securityPolicy.agentCommands,
           gateCommands: gateCommandStrings,
+          briefCommands,
           requiredCommands: plan.run.requiredCommands,
           provider: resolution.selected.provider,
         });
@@ -1206,6 +1211,16 @@ export function executePlan(
         );
       }
 
+      // The pulled briefs land in the phase folder before the record lists it,
+      // whether or not records are on, and the folder closes to later pulls.
+      if (config.brief !== undefined) {
+        yield* closePulledBriefs({
+          worktreePath: worktreePath as string,
+          phaseFolderPath,
+          phaseId: phase.id,
+        });
+      }
+
       // Terminal committed outcome: assemble and write this phase's record onto
       // phax/records/v1 before any run-completion bookkeeping, so no record is
       // ever written for phax's own archival commit (spec §5.1). The source sha
@@ -1431,14 +1446,29 @@ export function executePlan(
     // outcomes, and the phase writes its record when it later commits or fails.
     // Best-effort — never masks the original failure, and a no-op when records
     // are off or the phase never resolved a provider binding.
+    // The pulled briefs are collected first so the record carries them; a
+    // paused phase keeps accumulating pulls across sessions instead.
     Effect.tapError((e) =>
-      !isResumablePauseError(e) &&
-      currentPhaseId !== undefined &&
-      currentPhaseFolderPath !== undefined &&
-      currentProvider !== undefined &&
-      currentModel !== undefined &&
-      currentEffort !== undefined
-        ? writeRecordForPhase({
+      Effect.gen(function* () {
+        if (isResumablePauseError(e) || currentPhaseId === undefined) return;
+        if (
+          config.brief !== undefined &&
+          currentWorktreePath !== undefined &&
+          currentPhaseFolderPath !== undefined
+        ) {
+          yield* closePulledBriefs({
+            worktreePath: currentWorktreePath,
+            phaseFolderPath: currentPhaseFolderPath,
+            phaseId: currentPhaseId,
+          });
+        }
+        if (
+          currentPhaseFolderPath !== undefined &&
+          currentProvider !== undefined &&
+          currentModel !== undefined &&
+          currentEffort !== undefined
+        ) {
+          yield* writeRecordForPhase({
             phaseId: currentPhaseId,
             phaseFolderPath: currentPhaseFolderPath,
             provider: currentProvider,
@@ -1447,8 +1477,9 @@ export function executePlan(
             sessionId: currentSessionId,
             outcome: "failed",
             failOnRefusal: false,
-          }).pipe(Effect.catchAll(() => Effect.void))
-        : Effect.void,
+          }).pipe(Effect.catchAll(() => Effect.void));
+        }
+      }),
     ),
     // A rate/usage limit pauses the run instead of failing it: dispatch
     // RateLimitDetected so the reducer transitions run+phase to `rate_limited`,

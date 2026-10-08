@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
+import { isInPhaseWorktree } from "../app/loadConfig.js";
+import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
 import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
@@ -59,13 +61,21 @@ export function buildProgram(): Command {
       "kdl",
     );
 
-  program.hook("preAction", async () => {
+  program.hook("preAction", async (_root, actionCommand) => {
     const opts = program.opts<{ usage?: boolean; usageFormat?: string }>();
     if (opts.usage === true) {
       // Resolves only via process.exit() inside runUsageFlagAndExit — which is
       // itself timeout-bounded — so Commander never proceeds to the matched
       // subcommand's action, and a wedged write can't hang here forever.
       await runUsageFlagAndExit(opts.usageFormat ?? "kdl");
+    }
+    // The phase guard: inside a phase worktree, refuse before the action runs.
+    if (isInPhaseWorktree(process.cwd())) {
+      const refusal = phaseGuardRefusal(commandPath(actionCommand), actionCommand.opts());
+      if (refusal !== undefined) {
+        consoleOutput.error(refusal);
+        process.exit(1);
+      }
     }
   });
 
@@ -371,6 +381,13 @@ export function buildProgram(): Command {
   for (const cmd of program.commands) applyCliDocs(cmd, "");
 
   return program;
+}
+
+// The space-joined subcommand path, e.g. `artifact new spec`.
+function commandPath(cmd: Command): string {
+  const names: string[] = [];
+  for (let c: Command | null = cmd; c?.parent; c = c.parent) names.unshift(c.name());
+  return names.join(" ");
 }
 
 // Applied after all command registrations; iterates by path so nested commands

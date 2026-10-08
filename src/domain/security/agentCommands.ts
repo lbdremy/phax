@@ -4,7 +4,7 @@ import type { ProviderId } from "../routing/types.js";
 
 export interface AgentCommandRecord {
   readonly command: string;
-  readonly source: "config" | "gate";
+  readonly source: "config" | "gate" | "brief";
   readonly explicit: boolean;
   readonly requiredByPlan: boolean;
   readonly enforcement: CommandEnforcement;
@@ -26,14 +26,17 @@ function canEnforcePrefix(enforcement: CommandEnforcement): boolean {
 export function computeFrozenAgentCommands(input: {
   readonly configCommands: readonly string[];
   readonly gateCommands: readonly string[];
+  /** Granted by a configured brief provider (`phax brief`), after config and gate entries. */
+  readonly briefCommands: readonly string[];
   readonly requiredCommands: readonly string[];
   readonly provider: ProviderId;
 }): { readonly records: readonly AgentCommandRecord[]; readonly degraded: boolean } {
   const enforcement = PROVIDER_SECURITY_CAPABILITIES[input.provider].commandEnforcement;
   const normalisedRequired = new Set(input.requiredCommands.map(normalise).filter(Boolean));
 
-  // Build ordered, deduplicated map: config entries take precedence over gate entries.
-  const seen = new Map<string, { source: "config" | "gate"; explicit: boolean }>();
+  // Build ordered, deduplicated map: config entries take precedence over gate
+  // entries, which take precedence over brief entries.
+  const seen = new Map<string, { source: AgentCommandRecord["source"]; explicit: boolean }>();
 
   for (const raw of input.configCommands) {
     const cmd = normalise(raw);
@@ -46,6 +49,13 @@ export function computeFrozenAgentCommands(input: {
     const cmd = normalise(raw);
     if (cmd && !seen.has(cmd)) {
       seen.set(cmd, { source: "gate", explicit: false });
+    }
+  }
+
+  for (const raw of input.briefCommands) {
+    const cmd = normalise(raw);
+    if (cmd && !seen.has(cmd)) {
+      seen.set(cmd, { source: "brief", explicit: false });
     }
   }
 

@@ -6,6 +6,8 @@ import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
+import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
+import { PHAX_CONTEXT_DIR } from "./worktree.js";
 import {
   type ResolvedConfig,
   type PhaxUserOverlay,
@@ -162,9 +164,9 @@ export function describeConfigSources(cwd: string = process.cwd()): ConfigSource
   };
 }
 
-function findGitCommonDir(startDir: string): string | undefined {
+function findGitDir(startDir: string, flag: "--git-dir" | "--git-common-dir"): string | undefined {
   try {
-    const dir = execSync("git rev-parse --path-format=absolute --git-common-dir", {
+    const dir = execSync(`git rev-parse --path-format=absolute ${flag}`, {
       cwd: startDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
@@ -180,6 +182,8 @@ export interface WorkingTreeLocation {
   readonly root: string;
   /** The repository's main checkout: the parent of git's common dir. */
   readonly mainRoot: string;
+  /** True in a linked worktree: its git dir differs from the common dir. */
+  readonly isLinkedWorktree: boolean;
 }
 
 /**
@@ -191,10 +195,25 @@ export interface WorkingTreeLocation {
 export function locateWorkingTree(cwd: string): WorkingTreeLocation | undefined {
   const root = findGitRoot(cwd);
   if (!root) return undefined;
-  const commonDir = findGitCommonDir(cwd);
+  const commonDir = findGitDir(cwd, "--git-common-dir");
+  const gitDir = findGitDir(cwd, "--git-dir");
   const mainRoot =
     commonDir !== undefined && basename(commonDir) === ".git" ? dirname(commonDir) : root;
-  return { root, mainRoot };
+  const isLinkedWorktree = commonDir !== undefined && gitDir !== undefined && gitDir !== commonDir;
+  return { root, mainRoot, isLinkedWorktree };
+}
+
+/**
+ * Whether `cwd` is inside a phase worktree (the phase guard's detection rule):
+ * a linked worktree whose root holds `.phax-context/`.
+ */
+export function isInPhaseWorktree(cwd: string): boolean {
+  const tree = locateWorkingTree(cwd);
+  if (tree === undefined) return false;
+  return isPhaseWorktree({
+    isLinkedWorktree: tree.isLinkedWorktree,
+    hasPhaxContext: existsSync(join(tree.root, PHAX_CONTEXT_DIR)),
+  });
 }
 
 export function locatePhaxConfig(cwd: string): string | undefined {

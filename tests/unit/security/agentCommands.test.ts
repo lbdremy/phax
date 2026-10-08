@@ -10,6 +10,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
       const { records, degraded } = computeFrozenAgentCommands({
         configCommands: ["deno"],
         gateCommands: [],
+        briefCommands: [],
         requiredCommands: [],
         provider,
       });
@@ -22,6 +23,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
     });
@@ -33,6 +35,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "mistral-vibe",
     });
@@ -44,6 +47,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -57,6 +61,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: ["deno fmt"],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -69,6 +74,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: [],
       gateCommands: ["git commit"],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -80,6 +86,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -93,6 +100,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno fmt", "git commit"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
     });
@@ -106,6 +114,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno  fmt"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
     });
@@ -119,6 +128,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records } = computeFrozenAgentCommands({
       configCommands: ["", "  "],
       gateCommands: [""],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -129,6 +139,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: ["git commit", "deno"],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -141,6 +152,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records: claude } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
     });
@@ -149,10 +161,77 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records: codex } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      briefCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
     });
     expect(codex[0]?.enforcement).toBe("none");
+  });
+});
+
+describe("computeFrozenAgentCommands — brief grant", () => {
+  it("a brief command is appended after config and gate entries with source brief", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["deno"],
+      gateCommands: ["git commit"],
+      briefCommands: ["phax brief"],
+      requiredCommands: [],
+      provider: "claude-code",
+    });
+    expect(records.map((r) => r.command)).toEqual(["deno", "git commit", "phax brief"]);
+    expect(records[2]).toMatchObject({ source: "brief", explicit: false, degraded: false });
+  });
+
+  it("a config entry `phax brief` keeps source config and appears once", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["phax  brief"],
+      gateCommands: [],
+      briefCommands: ["phax brief"],
+      requiredCommands: [],
+      provider: "claude-code",
+    });
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ command: "phax brief", source: "config", explicit: true });
+  });
+
+  it("a gate entry `phax brief` keeps source gate", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: [],
+      gateCommands: ["phax brief"],
+      briefCommands: ["phax brief"],
+      requiredCommands: [],
+      provider: "claude-code",
+    });
+    expect(records).toHaveLength(1);
+    expect(records[0]?.source).toBe("gate");
+  });
+
+  it("an empty brief list leaves the records unchanged", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["deno fmt"],
+      gateCommands: ["git commit"],
+      briefCommands: [],
+      requiredCommands: [],
+      provider: "claude-code",
+    });
+    expect(records.map((r) => [r.command, r.source])).toEqual([
+      ["deno fmt", "config"],
+      ["git commit", "gate"],
+    ]);
+  });
+
+  it("`phax brief` is degraded on a provider without prefix enforcement", () => {
+    for (const provider of ["codex-cli", "mistral-vibe"] as const) {
+      const { records, degraded } = computeFrozenAgentCommands({
+        configCommands: [],
+        gateCommands: [],
+        briefCommands: ["phax brief"],
+        requiredCommands: [],
+        provider,
+      });
+      expect(records[0]?.degraded, provider).toBe(true);
+      expect(degraded, provider).toBe(true);
+    }
   });
 });
 
