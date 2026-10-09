@@ -59,7 +59,7 @@ describe("parseDocument", () => {
     expectFailure(
       result,
       "$schema",
-      `phase-record-manifest written by phax ${NEWER_RELEASE} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
+      `phase-record-manifest ${NEWER_RELEASE} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
     );
     expect(result.ok ? "" : result.error.message).toBe(
       newerReleaseMessage("phase-record-manifest", NEWER_RELEASE, PACKAGE_VERSION),

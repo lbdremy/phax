@@ -283,10 +283,10 @@ describe("defineFormat, pre-schema slot filled: $schema documents", () => {
     expectFailure(
       filled.parse(at0_12("99.0.0")),
       "$schema",
-      "gate-diagnostics written by phax 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
+      "gate-diagnostics 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
     );
     expect(newerReleaseMessage("gate-diagnostics", "99.0.0", "0.13.0")).toBe(
-      "gate-diagnostics written by phax 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
+      "gate-diagnostics 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
     );
   });
 
@@ -336,12 +336,26 @@ describe("defineFormat, pre-schema slot filled: a `next` current shape in a deve
     });
   });
 
-  it("falls back to the latest released shape when next rejects it", () => {
-    expect(filled.parse(at0_12("0.13.0"))).toEqual({
-      ok: true,
-      shape: "0.12.0",
-      value: at0_12("0.13.0"),
-    });
+  it("fails a document at its own release that only a released shape accepts with next's violation", () => {
+    const released = counted(R0_12);
+    const current = counted(NEXT);
+    const format = defineFormat<FilledShapes>(
+      {
+        id: "gate-diagnostics",
+        label: "toy document",
+        preSchema: shape(PRE_SCHEMA),
+        releases: [
+          ["0.10.0", shape(R0_10)],
+          ["0.12.0", released],
+        ],
+        current: { name: "next", shape: current },
+      },
+      TOY_RELEASES,
+    );
+    const result = format.parse(at0_12("0.13.0"));
+    expectFailure(result, "d");
+    expect(current.calls()).toBe(1);
+    expect(released.calls()).toBe(0);
   });
 
   it("never tries next below the package's own release", () => {
@@ -452,6 +466,63 @@ describe("defineFormat, a $schema document below the first supported release", (
       format.parse(at0_12("0.18.0")),
       "$schema",
       newerReleaseMessage("gate-diagnostics", "0.18.0", "0.17.0"),
+    );
+  });
+});
+
+// A package opened at 0.21.0: the stamp names a shape, so a format that last
+// changed in an earlier release keeps reading that release's shape.
+function openedAt(
+  packageVersion: string,
+  currentName: "0.17.0" | "0.20.0",
+  firstSupportedRelease: string | null = null,
+) {
+  return defineFormat<{
+    "pre-schema": typeof PRE_SCHEMA.Type;
+    "0.17.0": typeof R0_12.Type;
+    "0.20.0": typeof R0_12.Type;
+  }>(
+    {
+      id: "gate-diagnostics",
+      label: "toy document",
+      preSchema: shape(PRE_SCHEMA),
+      releases: [],
+      current: { name: currentName, shape: shape(R0_12) },
+    },
+    { packageVersion, firstSupportedRelease },
+  );
+}
+
+describe("defineFormat, a package opened above a format's shape", () => {
+  it("reads the shape's release and the opened version as that shape", () => {
+    const format = openedAt("0.21.0", "0.20.0");
+    expect(format.parse(at0_12("0.20.0"))).toMatchObject({ ok: true, shape: "0.20.0" });
+    expect(format.parse(at0_12("0.21.0"))).toMatchObject({ ok: true, shape: "0.20.0" });
+  });
+
+  it("reads a stamp between releases as the latest shape at or below it", () => {
+    const format = openedAt("0.21.0", "0.17.0");
+    expect(format.parse(at0_12("0.19.0"))).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("refuses stamps above its own version as newer, naming both versions", () => {
+    const format = openedAt("0.20.0", "0.20.0");
+    for (const release of ["0.21.0", "0.22.0"]) {
+      expectFailure(
+        format.parse(at0_12(release)),
+        "$schema",
+        `gate-diagnostics ${release} is newer than @lbdremy/phax-schemas 0.20.0 — upgrade the package`,
+      );
+    }
+  });
+
+  it("never gives its opened version the development-build message, only a release below the first supported one", () => {
+    const format = openedAt("0.21.0", "0.20.0", "0.17.0");
+    expect(format.parse(at0_12("0.21.0"))).toMatchObject({ ok: true, shape: "0.20.0" });
+    expectFailure(
+      format.parse(at0_12("0.16.0")),
+      "$schema",
+      developmentBuildMessage(url("0.16.0"), "0.17.0"),
     );
   });
 });

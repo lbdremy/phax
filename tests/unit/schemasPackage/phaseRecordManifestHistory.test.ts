@@ -55,7 +55,7 @@ describe("parsePhaseRecordManifest across shapes (ac-history-read)", () => {
       ok: false,
       error: {
         path: "$schema",
-        message: `phase-record-manifest written by phax ${release} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
+        message: `phase-record-manifest ${release} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
       },
     });
   });

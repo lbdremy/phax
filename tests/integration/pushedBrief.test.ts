@@ -34,6 +34,7 @@ import {
   type GateStep,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const HANDOFF_CONTENT = [
@@ -410,7 +411,7 @@ describe("a failing pushed brief never blocks the phase", () => {
         kind: "answer",
         stdout: JSON.stringify({ ...ANSWER, $schema: schemaUrl("brief-answer", "99.0.0") }),
       },
-      reason: "brief answer refused at $schema: brief-answer written by phax 99.0.0",
+      reason: `brief answer refused at $schema: brief-answer 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it; this phax reads ${currentSchemaUrl("brief-answer")}`,
     },
   ];
 
