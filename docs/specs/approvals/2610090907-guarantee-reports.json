@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.20.0.json",
+  "artifact": "docs/specs/2610090907-guarantee-reports.md",
+  "specFingerprint": "c0cd888b0cec4428e5316e825e0a4d38b052455d0f73d2362079981d54c4c26f",
+  "approvedAt": "2026-10-09T09:57:02.445Z",
+  "baseline": "bd0a63161d24f4a3ef5739a09d2d100c580958a0"
+}

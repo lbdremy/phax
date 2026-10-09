@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-09
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-09
+  baseline: bd0a631
 ---
 # Guarantee reports: a gate report and a brief report over shared definitions, carrying only what someone acts on
 
