@@ -6,6 +6,7 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 
 const stateRoot = "/fake-state";
@@ -380,5 +381,132 @@ describe("generateReviewHandoff", () => {
 
     expect(impl.getFile(`${runPath}/global-file-reconciliation.md`)).toBeDefined();
     expect(impl.getFile(`${runPath}/global-file-reconciliation.json`)).toBeDefined();
+  });
+});
+
+const HW_NOTE = "src/greet.ts now prints a farewell; check the wording with the maintainers";
+const DOCS_NOTE = "the README example still shows the old greeting";
+
+function checkedReport(review: ReadonlyArray<{ owner: string; note: string }>): string {
+  return `${JSON.stringify(
+    { $schema: currentSchemaUrl("gate-report"), outcome: "checked", findings: [], review },
+    null,
+    2,
+  )}\n`;
+}
+
+function setGateAttempt(
+  impl: ReturnType<typeof makeFakeFileSystem>["impl"],
+  phaseId: string,
+  attempt: string,
+  reports: Readonly<Record<string, string>>,
+): void {
+  impl.setFile(`${runPath}/${phaseId}/checks-attempt-${attempt}.log`, "$ node ./audit.mjs\n");
+  for (const [step, content] of Object.entries(reports)) {
+    impl.setFile(`${runPath}/${phaseId}/checks-attempt-${attempt}.report-${step}.json`, content);
+  }
+}
+
+async function generateHandoff(
+  impl: ReturnType<typeof makeFakeFileSystem>["impl"],
+  layers: ReturnType<typeof setupLayers>["layers"],
+  phaseIds: readonly string[],
+): Promise<string> {
+  for (const phaseId of phaseIds) {
+    setupPhaseFiles(impl, phaseId, makeEmptyReconciliationJson(phaseId));
+  }
+  await Effect.runPromise(
+    generateReviewHandoff(makeRunReviewInfo(phaseIds), { allowPartial: false }).pipe(
+      Effect.provide(layers),
+    ),
+  );
+  return impl.getFile(`${runPath}/review-handoff.md`)!;
+}
+
+describe("generateReviewHandoff — review notes", () => {
+  it("Review notes reach the review, grouped by owner", async () => {
+    const { impl, layers } = setupLayers();
+    setGateAttempt(impl, "phase-01", "01", {
+      "01": checkedReport([{ owner: "hw-maintainers", note: HW_NOTE }]),
+    });
+    setGateAttempt(impl, "phase-02", "01", {
+      "01": checkedReport([{ owner: "docs-team", note: DOCS_NOTE }]),
+    });
+    setGateAttempt(impl, "phase-03", "01", {
+      "01": checkedReport([{ owner: "hw-maintainers", note: HW_NOTE }]),
+    });
+
+    const handoff = await generateHandoff(impl, layers, ["phase-01", "phase-02", "phase-03"]);
+
+    expect(handoff).toContain(
+      [
+        "## Review notes",
+        "",
+        "Notes the gate steps left for a person. None was sent to the agent.",
+        "",
+        "### hw-maintainers",
+        "",
+        `- ${HW_NOTE} (phase-01, phase-03)`,
+        "",
+        "### docs-team",
+        "",
+        `- ${DOCS_NOTE} (phase-02)`,
+        "",
+        "## Phase details",
+      ].join("\n"),
+    );
+    expect(handoff.split(HW_NOTE)).toHaveLength(2);
+  });
+
+  it("Only the last gate attempt counts", async () => {
+    const { impl, layers } = setupLayers();
+    setGateAttempt(impl, "phase-01", "01", {
+      "01": checkedReport([{ owner: "hw-maintainers", note: HW_NOTE }]),
+    });
+    setGateAttempt(impl, "phase-01", "02", { "01": checkedReport([]) });
+
+    const handoff = await generateHandoff(impl, layers, ["phase-01"]);
+
+    expect(handoff).not.toContain("## Review notes");
+    expect(handoff).not.toContain(HW_NOTE);
+  });
+
+  it("reads every report of the last attempt in step order", async () => {
+    const { impl, layers } = setupLayers();
+    setGateAttempt(impl, "phase-01", "02", {
+      "02": checkedReport([{ owner: "b-team", note: "from step 2" }]),
+      "01": checkedReport([{ owner: "a-team", note: "from step 1" }]),
+    });
+
+    const handoff = await generateHandoff(impl, layers, ["phase-01"]);
+
+    expect(handoff.indexOf("### a-team")).toBeGreaterThan(0);
+    expect(handoff.indexOf("### b-team")).toBeGreaterThan(handoff.indexOf("### a-team"));
+  });
+
+  it("skips refused, unreadable and other-format reports without failing", async () => {
+    const { impl, layers } = setupLayers();
+    setGateAttempt(impl, "phase-01", "01", {
+      "01": JSON.stringify({
+        $schema: currentSchemaUrl("gate-report"),
+        outcome: "refused",
+        reason: "the audit tool is not installed",
+        remedy: "install it",
+      }),
+      "02": "not json",
+      "03": JSON.stringify({ $schema: currentSchemaUrl("brief-report"), rules: [], findings: [] }),
+    });
+
+    const handoff = await generateHandoff(impl, layers, ["phase-01"]);
+
+    expect(handoff).not.toContain("## Review notes");
+  });
+
+  it("renders no section when no phase ran a gate", async () => {
+    const { impl, layers } = setupLayers();
+
+    const handoff = await generateHandoff(impl, layers, ["phase-01"]);
+
+    expect(handoff).not.toContain("## Review notes");
   });
 });

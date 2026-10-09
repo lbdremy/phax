@@ -75,4 +75,17 @@ describe("buildPrBody", () => {
     });
     expect(truncated).toBe(false);
   });
+
+  it("keeps ## Review notes when an oversized ## Phase details is cut at 60000 bytes", () => {
+    const reviewNotes =
+      "## Review notes\n\nNotes the gate steps left for a person. None was sent to the agent.\n\n### hw-maintainers\n\n- src/greet.ts now prints a farewell (phase-01, phase-03)";
+    const phaseDetails = `## Phase details\n\n${"- a line of phase details\n".repeat(5000)}`;
+    const { body, truncated } = buildPrBody({
+      reviewHandoffMd: `# Run Review Handoff\n\n${reviewNotes}\n\n${phaseDetails}`,
+      branch: "phax/my-run",
+    });
+    expect(truncated).toBe(true);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(DEFAULT_PR_BODY_MAX_BYTES);
+    expect(body).toContain(reviewNotes);
+  });
 });

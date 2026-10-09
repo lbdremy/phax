@@ -6,10 +6,13 @@ import {
   renderGlobalReconciliationMarkdown,
   type GlobalFileReconciliation,
 } from "../domain/reconciliation/global.js";
+import { parseReportName } from "../domain/gate/reportPath.js";
+import { gatherReviewNotes, renderReviewNotes } from "../domain/review/reviewNotes.js";
 import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
+import type { ReviewNote } from "../schemas/gateReport.js";
+import { readGateReport, readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { SOURCE_SPEC_OUTCOME_FILENAME } from "./completeRunArtifacts.js";
 
 export interface PhaseContent {
@@ -31,6 +34,8 @@ export interface ReviewHandoffInputs {
   readonly phaseContents: readonly PhaseContent[];
   // The run folder's source-spec-outcome.md, when run completion wrote one.
   readonly sourceSpecOutcomeMd: string | undefined;
+  // The `## Review notes` section, when a phase's last gate attempt left a note.
+  readonly reviewNotesMd: string | undefined;
 }
 
 // Reads the source-spec outcome run completion left in the run folder, or
@@ -45,6 +50,70 @@ export function loadSourceSpecOutcome(
       return undefined;
     }
     return yield* fs.readText(path);
+  });
+}
+
+// The review notes of one phase's last gate attempt (the highest
+// `checks-attempt-NN.log`): those of every checked report of that attempt, in
+// step order. A missing, unreadable or refused report contributes nothing,
+// and earlier attempts are never read.
+function loadLastAttemptReviewNotes(
+  phaseFolderPath: string,
+): Effect.Effect<readonly ReviewNote[], never, FileSystem> {
+  const none: readonly ReviewNote[] = [];
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    if (!(yield* fs.exists(phaseFolderPath))) return none;
+    const names = yield* fs.list(phaseFolderPath);
+    let lastAttempt = 0;
+    for (const name of names) {
+      const match = /^checks-attempt-(\d{2,})\.log$/.exec(name);
+      if (match !== null) lastAttempt = Math.max(lastAttempt, Number(match[1]));
+    }
+    if (lastAttempt === 0) return none;
+    const reports = names
+      .flatMap((name) => {
+        const parsed = parseReportName(name);
+        return parsed?.attempt === lastAttempt ? [{ name, step: parsed.step }] : [];
+      })
+      .toSorted((a, b) => a.step - b.step);
+    const notes: ReviewNote[] = [];
+    for (const { name } of reports) {
+      notes.push(...(yield* readCheckedReviewNotes(join(phaseFolderPath, name))));
+    }
+    return notes;
+  }).pipe(Effect.orElseSucceed(() => none));
+}
+
+function readCheckedReviewNotes(
+  path: string,
+): Effect.Effect<readonly ReviewNote[], never, FileSystem> {
+  const none: readonly ReviewNote[] = [];
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const read = readGateReport(parsed);
+    if (Either.isLeft(read) || read.right.outcome !== "checked") return none;
+    return read.right.review;
+  }).pipe(Effect.orElseSucceed(() => none));
+}
+
+// The review handoff's `## Review notes` section, gathered from each phase's
+// last gate attempt, or undefined when no phase left a note.
+export function loadReviewNotes(
+  info: RunReviewInfo,
+): Effect.Effect<string | undefined, never, FileSystem> {
+  return Effect.gen(function* () {
+    const phaseIds = info.phaseStatuses
+      .toSorted((a, b) => a.phaseIndex - b.phaseIndex)
+      .map((p) => p.phaseId);
+    const phases = [];
+    for (const phaseId of phaseIds) {
+      const notes = yield* loadLastAttemptReviewNotes(join(info.runPath, phaseId));
+      phases.push({ phaseId, notes });
+    }
+    return renderReviewNotes(gatherReviewNotes(phases));
   });
 }
 
@@ -155,7 +224,8 @@ export function loadReviewHandoffInputs(
     );
     const { phaseContents } = yield* loadPhaseContents(info);
     const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
+    const reviewNotesMd = yield* loadReviewNotes(info);
 
-    return { global, globalMd, phaseContents, sourceSpecOutcomeMd };
+    return { global, globalMd, phaseContents, sourceSpecOutcomeMd, reviewNotesMd };
   });
 }
