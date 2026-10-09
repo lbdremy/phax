@@ -45,7 +45,7 @@ export const SMOKE_RECORD_KEY = `${RUN_ID}/${PHASE_ID}`;
 
 /**
  * A made-up phase record manifest, written as phax writes it: encoded through
- * phax's own file schema, `$schema` first at the running release.
+ * phax's own file schema, `$schema` first at the format's current stamp.
  */
 export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManifestFile {
   return Schema.encodeSync(RunRecordManifestFileSchema)(
