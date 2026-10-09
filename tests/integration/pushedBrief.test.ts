@@ -24,7 +24,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { BriefGuarantee } from "../../src/schemas/brief.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -328,7 +328,7 @@ describe("executePlan pushes the phase's brief", () => {
         "phases",
         "files",
       ]);
-      expect(sent["$schema"]).toBe(schemaUrl("brief-request", PHAX_RELEASE));
+      expect(sent["$schema"]).toBe(currentSchemaUrl("brief-request"));
       expect(sent["files"]).toBeNull();
       const { $schema: _gateSchema, ...gateFacts } = await readJson(
         join(runPath, phaseId, "checks-attempt-01.request.json"),

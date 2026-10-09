@@ -25,16 +25,9 @@ import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../src/schemas/gateDiagnostics.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-
-// The release phax stamps: the root package.json version, read here rather
-// than through the generated constant.
-const rootVersion = (
-  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
-    version: string;
-  }
-).version;
 
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
@@ -78,7 +71,7 @@ function printed(diagnostics: ReadonlyArray<object>, release: string = PHAX_RELE
 }
 
 // The expected document every malformed-answer error states, verbatim.
-const expectedDocument = `expected {"$schema": "${schemaUrl("gate-diagnostics", PHAX_RELEASE)}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
+const expectedDocument = `expected {"$schema": "${currentSchemaUrl("gate-diagnostics")}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 describe("runGates", () => {
   it("succeeds when all commands exit 0", async () => {
@@ -275,7 +268,7 @@ describe("runGates", () => {
       expect(raw).toBeDefined();
       const record = JSON.parse(raw!) as GateAttribution;
       expect(Object.keys(record)[0]).toBe("$schema");
-      expect(record).toHaveProperty("$schema", schemaUrl("gate-attribution", rootVersion));
+      expect(record).toHaveProperty("$schema", currentSchemaUrl("gate-attribution"));
       expect(record).not.toHaveProperty("version");
       expect(record.phase).toBe(phaseId);
       expect(record.steps).toEqual([
@@ -368,7 +361,7 @@ describe("runGates", () => {
       const written = JSON.parse(doc!) as Record<string, unknown>;
       expect(Object.keys(written)[0]).toBe("$schema");
       expect(written).toEqual({
-        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [consoleFinding],
       });
     });
@@ -624,7 +617,7 @@ describe("runGates", () => {
       const file = JSON.parse(saved!) as Record<string, unknown>;
       expect(Object.keys(file)).toEqual(["$schema", "diagnostics"]);
       expect(file).toEqual({
-        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [cycle],
       });
     });
@@ -720,7 +713,7 @@ describe("runGates", () => {
         { command: "node ./audit.mjs", surface: "structural", result: "fail" },
       ]);
       expect(JSON.parse(fakeFs.impl.getFile(diagnosticsPath)!)).toEqual({
-        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [completion],
       });
     });

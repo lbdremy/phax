@@ -104,7 +104,7 @@ describe("parseDocument", () => {
         ok: true,
         format: formatId,
         shape: CURRENT_SHAPES[formatId],
-        value: validDocuments[formatId],
+        value: document,
       });
     },
   );

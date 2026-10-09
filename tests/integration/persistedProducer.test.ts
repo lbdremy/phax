@@ -3,10 +3,9 @@
 // gate run, a file reconciliation, a pushed brief, a phase record and a
 // compliance review —
 // then check every persisted file they wrote. Each starts with `$schema`
-// naming its format at the root package.json release, carries no `version`,
+// naming its format at that format's current stamp, carries no `version`,
 // and is identified by `parseDocument` from its content alone. Every value
 // here is made up.
-import { readFileSync } from "node:fs";
 import { basename } from "node:path/posix";
 import { Effect, Either, Layer } from "effect";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -51,17 +50,9 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
-
-// The release phax names in `$schema`: the root package.json version, read
-// here rather than through the generated constant.
-const rootVersion = (
-  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
-    readonly version: string;
-  }
-).version;
 
 const STATE_ROOT = "/state";
 const REPO_ROOT = "/work/example-repo";
@@ -632,10 +623,10 @@ describe("every persisted file phax writes", () => {
     expect(locations).not.toContain("docs/specs/approvals.json");
   });
 
-  it("starts with $schema naming its format at the root package.json release", () => {
+  it("starts with $schema naming its format's current stamp", () => {
     for (const { location, format, document } of written) {
       expect(Object.keys(document)[0], location).toBe("$schema");
-      expect(document["$schema"], location).toBe(schemaUrl(format, rootVersion));
+      expect(document["$schema"], location).toBe(schemaUrl(format, CURRENT_STAMPS[format]));
     }
   });
 

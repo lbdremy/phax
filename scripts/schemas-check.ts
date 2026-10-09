@@ -2,7 +2,10 @@
 // packages/schemas/src/generated/index.ts against the root package.json
 // version, the lowest release-named snapshot and every format's current shape
 // name (`next`, else its highest release-named snapshot), phax's src/schemas/release.ts
-// (PHAX_RELEASE) against the root package.json version, packages/schemas/history.lock.json
+// against the root package.json version (PHAX_RELEASE) and every format's
+// current stamp (CURRENT_STAMPS: its highest release-named snapshot, or the
+// package.json version while a `next` snapshot exists — a drifted stamp is
+// reported by format), packages/schemas/history.lock.json
 // against the bytes of every frozen module under phax's src/schemas/history/
 // (keyed by repo-relative path), and every format's JSON Schema snapshots
 // under packages/schemas/snapshots/<format id>/ against the schema its
@@ -15,6 +18,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   WRITE_COMMAND,
+  currentStamps,
   refreshLock,
   renderGeneratedIndex,
   renderLock,
@@ -188,8 +192,41 @@ function snapshotsAfter(
   return snapshots;
 }
 
-function releaseModuleOf(state: SchemasState): string {
-  return renderReleaseModule({ packageVersion: state.packageVersion });
+function releaseModuleOf(
+  state: SchemasState,
+  currentShapes: SchemasState["currentShapes"],
+): string {
+  return renderReleaseModule({ packageVersion: state.packageVersion, currentShapes });
+}
+
+/** Format id → stamp, read line by line from a release module's `CURRENT_STAMPS` entries. */
+function committedStamps(releaseModule: string): ReadonlyMap<string, string> {
+  const stamps = new Map<string, string>();
+  for (const [, quoted, bare, stamp] of releaseModule.matchAll(
+    /^ {2}(?:"([^"]+)"|([A-Za-z_$][\w$]*)): "([^"]*)",$/gm,
+  )) {
+    const id = quoted ?? bare;
+    if (id !== undefined && stamp !== undefined) stamps.set(id, stamp);
+  }
+  return stamps;
+}
+
+/**
+ * One finding per format whose committed `CURRENT_STAMPS` entry differs from
+ * the stamp the snapshots and package.json give it, or is missing.
+ */
+function stampFindings(state: SchemasState, releaseModule: string): string[] {
+  const committed = committedStamps(releaseModule);
+  const expected = currentStamps(state);
+  return FORMAT_IDS.flatMap((id) => {
+    const want = expected[id];
+    const have = committed.get(id);
+    if (want === undefined || have === want) return [];
+    return [
+      `✗ ${RELEASE_MODULE} stamps ${id} with ${have ?? "no stamp"}, but its current stamp is ` +
+        `${want} — run ${WRITE_COMMAND}`,
+    ];
+  });
 }
 
 /** Every finding, one `✗ …` line each; empty when the derived files are current. */
@@ -204,10 +241,16 @@ export function checkSchemas(state: SchemasState): string[] {
     );
   }
   findings.push(...currentShapeNames(state.snapshots).findings);
-  if (state.releaseModule !== releaseModuleOf(state)) {
+  if (state.releaseModule !== releaseModuleOf(state, state.currentShapes)) {
+    const drifted =
+      state.releaseModule === undefined ? [] : stampFindings(state, state.releaseModule);
     findings.push(
-      `✗ ${RELEASE_MODULE} does not match package.json version ${state.packageVersion} — ` +
-        `run ${WRITE_COMMAND}`,
+      ...(drifted.length > 0
+        ? drifted
+        : [
+            `✗ ${RELEASE_MODULE} does not match package.json version ${state.packageVersion} — ` +
+              `run ${WRITE_COMMAND}`,
+          ]),
     );
   }
   const { mismatched } = refreshLock(state.lock, state.historyFiles);
@@ -275,7 +318,7 @@ export function writeSchemas(state: SchemasState): {
   const currentShapes = currentShapeNames(snapshotsAfter(state, writes, removals)).names;
   return {
     generatedIndex: generatedIndexOf(state, currentShapes),
-    releaseModule: releaseModuleOf(state),
+    releaseModule: releaseModuleOf(state, currentShapes),
     lock: renderLock(lock),
     mismatched,
     snapshotWrites: writes,

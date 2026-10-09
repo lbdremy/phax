@@ -17,6 +17,7 @@ import {
 import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
 import { FileSystem, type FileSystemOps } from "../../../src/ports/fs.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import type { SpecApprovalRecord } from "../../../src/schemas/specApprovalRecord.js";
 import {
@@ -683,7 +684,7 @@ describe("approval record store: one file per artifact", () => {
       "sourceSpec",
     ]);
     expect(file).toEqual({
-      $schema: schemaUrl("plan-approval-record", PHAX_RELEASE),
+      $schema: currentSchemaUrl("plan-approval-record"),
       artifact: PLAN,
       ...planRecord,
     });
@@ -701,7 +702,7 @@ describe("approval record store: one file per artifact", () => {
       "baseline",
     ]);
     expect(file).toEqual({
-      $schema: schemaUrl("spec-approval-record", PHAX_RELEASE),
+      $schema: currentSchemaUrl("spec-approval-record"),
       artifact: SPEC,
       ...specRecord,
     });

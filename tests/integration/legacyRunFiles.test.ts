@@ -24,6 +24,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const NAMESPACE = "example";
@@ -135,7 +136,7 @@ describe("a run status written before $schema", () => {
 
     const runStatus = readJson(runStatusPath);
     expect(Object.keys(runStatus)[0]).toBe("$schema");
-    expect(runStatus["$schema"]).toBe(schemaUrl("run-status", rootVersion));
+    expect(runStatus["$schema"]).toBe(currentSchemaUrl("run-status"));
     expect(runStatus).not.toHaveProperty("version");
     expect(
       withoutKeys(runStatus, "$schema", "state", "updatedAt", "stoppedReason", "lastError"),

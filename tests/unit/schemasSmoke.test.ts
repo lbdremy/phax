@@ -16,7 +16,7 @@ import {
   smokeRecordManifest,
   strayPackages,
 } from "../../scripts/schemas-smoke.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { homePaths, strings } from "./schemasPackage/documents.js";
 
@@ -25,9 +25,11 @@ const repoRoot = join(import.meta.dirname, "../..");
 describe("the smoke record manifest", () => {
   const manifest = smokeRecordManifest();
 
-  it("is written as phax writes it: $schema first, at the running release, no version", () => {
+  it("is written as phax writes it: $schema first, at the format's current stamp, no version", () => {
     expect(Object.keys(manifest)[0]).toBe("$schema");
-    expect(manifest.$schema).toBe(schemaUrl("phase-record-manifest", PHAX_RELEASE));
+    expect(manifest.$schema).toBe(
+      schemaUrl("phase-record-manifest", CURRENT_STAMPS["phase-record-manifest"]),
+    );
     expect(Object.hasOwn(manifest, "version")).toBe(false);
   });
 

@@ -28,7 +28,7 @@ import {
   type GateStep,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const HANDOFF_CONTENT = [
@@ -258,7 +258,7 @@ describe("executePlan writes each phase's gate request", () => {
     const raw = await readRequest(runPath, "phase-02", "01");
     const request = JSON.parse(raw) as Record<string, unknown>;
     expect(Object.keys(request)).toEqual(["$schema", "phase", "base", "terminal", "phases"]);
-    expect(request["$schema"]).toBe(schemaUrl("gate-request", PHAX_RELEASE));
+    expect(request["$schema"]).toBe(schemaUrl("gate-request", CURRENT_STAMPS["gate-request"]));
     expect(String(request["$schema"])).toMatch(
       /^https:\/\/docs\.phax\.run\/schemas\/gate-request\//,
     );

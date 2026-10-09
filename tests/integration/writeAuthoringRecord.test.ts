@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,15 +15,8 @@ import {
 } from "../../src/app/writeAuthoringRecord.js";
 import { decodeAuthoringRecordManifestFile } from "../../src/schemas/authoringRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
-
-// The release phax names in `$schema`: the root package.json version.
-const rootVersion = (
-  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
-    version: string;
-  }
-).version;
 
 const fakeGitHub = makeFakeGitHub();
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer);
@@ -140,7 +133,7 @@ describe("writeAuthoringRecord (real git)", () => {
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isLeft(decoded)) return;
     expect(decoded.right).toEqual({
-      $schema: schemaUrl("authoring-record-manifest", rootVersion),
+      $schema: currentSchemaUrl("authoring-record-manifest"),
       kind: "authoring",
       authoringId: AUTHORING_ID,
       artifact: ARTIFACT,

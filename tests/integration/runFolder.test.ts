@@ -12,7 +12,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodeRunStatusFile, decodePhaseStatusFile } from "../../src/schemas/status.js";
 import { decodeRegistryFile } from "../../src/schemas/registry.js";
@@ -115,7 +115,7 @@ describe("createRunFolder", () => {
     expect(raw).toBeDefined();
     const written = JSON.parse(raw!) as Record<string, unknown>;
     expect(Object.keys(written)[0]).toBe("$schema");
-    expect(written["$schema"]).toBe(schemaUrl("run-status", PHAX_RELEASE));
+    expect(written["$schema"]).toBe(schemaUrl("run-status", CURRENT_STAMPS["run-status"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodeRunStatusFile(written);
     expect(Either.isRight(decoded)).toBe(true);
@@ -137,7 +137,7 @@ describe("createRunFolder", () => {
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/phax-plan.json`);
     const written = JSON.parse(raw!) as Record<string, unknown>;
     expect(Object.keys(written)[0]).toBe("$schema");
-    expect(written["$schema"]).toBe(schemaUrl("phax-plan", PHAX_RELEASE));
+    expect(written["$schema"]).toBe(schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodePhaxPlanFile(written);
     expect(Either.isRight(decoded)).toBe(true);
@@ -200,7 +200,7 @@ describe("createPhaseFolder", () => {
     expect(raw).toBeDefined();
     const written = JSON.parse(raw!) as Record<string, unknown>;
     expect(Object.keys(written)[0]).toBe("$schema");
-    expect(written["$schema"]).toBe(schemaUrl("phase-status", PHAX_RELEASE));
+    expect(written["$schema"]).toBe(schemaUrl("phase-status", CURRENT_STAMPS["phase-status"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodePhaseStatusFile(written);
     expect(Either.isRight(decoded)).toBe(true);

@@ -9,7 +9,7 @@ import type { BranchName } from "../../src/domain/branded.js";
 import type { ResolvedComplianceReviewConfig } from "../../src/schemas/phaxConfig.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const stateRoot = "/fake-state";
@@ -178,7 +178,9 @@ describe("reviewCompliance", () => {
       unknown
     >;
     expect(Object.keys(durable)[0]).toBe("$schema");
-    expect(durable["$schema"]).toBe(schemaUrl("compliance-review", PHAX_RELEASE));
+    expect(durable["$schema"]).toBe(
+      schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+    );
     expect(durable).not.toHaveProperty("version");
     const { version: _version, ...verdict } = JSON.parse(validComplianceJson) as Record<
       string,

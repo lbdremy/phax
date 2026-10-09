@@ -1,21 +1,13 @@
-import { readFileSync } from "node:fs";
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { readRegistry, removeRun, upsertRun, setRunStatus } from "../../src/app/registry.js";
 import { RegistryCorruptionError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import type { RegistryEntry } from "../../src/schemas/registry.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const stateRoot = "/fake-state";
-
-// The release phax stamps: the root package.json version, read here rather
-// than through the generated constant.
-const rootVersion = (
-  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
-    version: string;
-  }
-).version;
 
 const makeEntry = (shortName: string, overrides?: Partial<RegistryEntry>): RegistryEntry => ({
   namespace: "test-project",
@@ -55,7 +47,7 @@ describe("a registry written before $schema (ac-own-legacy)", () => {
       unknown
     >;
     expect(Object.keys(parsed)).toEqual(["$schema", "runs"]);
-    expect(parsed["$schema"]).toBe(schemaUrl("registry", rootVersion));
+    expect(parsed["$schema"]).toBe(currentSchemaUrl("registry"));
     expect(parsed).not.toHaveProperty("version");
     expect(parsed["runs"]).toEqual([...legacy.runs, makeEntry("run-c")]);
   });
@@ -75,7 +67,7 @@ describe("a registry written before $schema (ac-own-legacy)", () => {
       unknown
     >;
     expect(Object.keys(parsed)).toEqual(["$schema", "runs"]);
-    expect(parsed["$schema"]).toBe(schemaUrl("registry", rootVersion));
+    expect(parsed["$schema"]).toBe(currentSchemaUrl("registry"));
   });
 });
 
@@ -334,7 +326,7 @@ describe("removeRun", () => {
       unknown
     >;
     expect(Object.keys(parsed)).toEqual(["$schema", "runs"]);
-    expect(parsed["$schema"]).toBe(schemaUrl("registry", rootVersion));
+    expect(parsed["$schema"]).toBe(currentSchemaUrl("registry"));
     expect(parsed["runs"]).toEqual([before[0], before[2], before[3]]);
   });
 
