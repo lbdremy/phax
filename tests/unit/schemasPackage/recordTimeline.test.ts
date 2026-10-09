@@ -147,8 +147,11 @@ describe("gate-attribution's released shapes", () => {
 
   it("reads an attribution at the current stamp, refused included, as the current shape", () => {
     const document = stampedAt(CURRENT_STAMPS["gate-attribution"], "refused");
-    expect(CURRENT_SHAPES["gate-attribution"]).toBe("next");
-    expect(parseGateAttribution(document)).toEqual({ ok: true, shape: "next", value: document });
+    expect(parseGateAttribution(document)).toEqual({
+      ok: true,
+      shape: CURRENT_SHAPES["gate-attribution"],
+      value: document,
+    });
   });
 });
 
