@@ -1,6 +1,7 @@
 import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
+import type { GateFinding } from "../schemas/gateReport.js";
 import type { PruneRefusal } from "./prune.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
@@ -68,6 +69,13 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   /** Diagnostics decoded from a `output: "diagnostics"` step; empty for a
    *  plain step or a provider error that returned no decodable document. */
   diagnostics: readonly GateDiagnostic[];
+  /** The findings of a checked gate report that failed its step, with the
+   *  step's 1-based position among the steps the attempt ran. Null for a log
+   *  step, a broken step or a diagnostics step. */
+  reportFindings: {
+    readonly step: number;
+    readonly findings: readonly GateFinding[];
+  } | null;
   stderrExcerpt?: string;
 }> {}
 

@@ -233,6 +233,23 @@ const MIXED_DIAGNOSTICS = JSON.stringify({
   ],
 });
 
+// A report step's stdout, stamped at the format's current stamp: one finding.
+const FAILING_REPORT = JSON.stringify({
+  $schema: currentSchemaUrl("gate-report"),
+  outcome: "checked",
+  findings: [
+    {
+      id: "example-pure src/domain/example.ts",
+      rule: "a module under src/domain/ imports no node: module",
+      location: { file: "src/domain/example.ts", lines: [3, 3] },
+      message: "imports node:fs",
+      related: [],
+      guide: null,
+    },
+  ],
+  review: [],
+});
+
 // A brief provider's stdout, stamped at the format's current stamp.
 const BRIEF_ANSWER = JSON.stringify({
   $schema: currentSchemaUrl("brief-answer"),
@@ -281,6 +298,7 @@ function formatAt(
   if (name === "brief-request.json") return "brief-request";
   if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";
   if (name.endsWith(".diagnostics.json")) return "gate-diagnostics";
+  if (/\.report-\d{2,}\.json$/.test(name)) return "gate-report";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     return location.includes("authoring/") ? "authoring-record-manifest" : "phase-record-manifest";
@@ -467,6 +485,27 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     }),
   );
 
+  // A second gate attempt with a report step: the gate saves the report as
+  // printed, so the step's own stamp is the format's current one.
+  shell.impl.setResponse("pnpm report", { exitCode: 0, stdout: FAILING_REPORT, stderr: "" });
+  await run(
+    runGates({
+      steps: [
+        {
+          command: "pnpm report",
+          surface: "structural",
+          firing: "every-phase",
+          output: "gate-report",
+        },
+      ],
+      cwd: WORKTREE,
+      attemptLogPath: `${PHASE_FOLDER}/checks-attempt-02.log`,
+      attributionPath: `${PHASE_FOLDER}/gate-attribution.json`,
+      phaseId: "phase-01",
+      gateRequest: "",
+    }),
+  );
+
   // A file reconciliation.
   const reconciled = await run(
     reconcilePhaseFiles({
@@ -596,7 +635,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 /**
  * The formats no writer produces: the old approval ledgers, read only to
  * migrate them to record files and never written again, the brief answer and
- * the two reports.
+ * the brief report.
  */
 const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "plan-approvals",
@@ -604,9 +643,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a brief answer as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-answer",
-  // Temporary: nothing saves a gate report yet. The gate saves each readable
-  // one as checks-attempt-NN.report-SS.json once report steps land.
-  "gate-report",
   // phax never writes a brief report as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-report",

@@ -6,10 +6,15 @@ import { Shell, type ShellError, type ShellRunResult } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
   currentSchemaUrl,
+  describeReportError,
   readGateDiagnosticsAnswer,
+  readGateReport,
   readRunStatusFile,
   withSchemaUrl,
+  type ReportError,
 } from "../schemas/persisted.js";
+import type { GateFinding } from "../schemas/gateReport.js";
+import { reportPathFor } from "../domain/gate/reportPath.js";
 import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
 import {
@@ -23,6 +28,11 @@ import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
+}
+
+/** A report step's stdout that is no JSON document at all, as the reader's malformed error. */
+function unreadableReport(reason: string): ReportError {
+  return { kind: "malformed", reads: currentSchemaUrl("gate-report"), reason };
 }
 
 const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${currentSchemaUrl("gate-diagnostics")}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
@@ -67,6 +77,8 @@ function parseCommandTokens(raw: string): readonly [string, ...string[]] {
 export interface RunGatesOptions {
   readonly steps: readonly GateStep[];
   readonly cwd: string;
+  /** The attempt's log. A report step's readable gate report is saved beside
+   *  it as `reportPathFor(attemptLogPath, <the step's 1-based position>)`. */
   readonly attemptLogPath: string;
   /** When provided together with `phaseId`, the steps that ran (up to and
    *  including the first failure) are recorded here as a GateAttribution. */
@@ -115,6 +127,10 @@ export function runGates(
       readonly exitCode: number;
       readonly message: string;
       readonly diagnostics: readonly GateDiagnostic[];
+      readonly reportFindings?: {
+        readonly step: number;
+        readonly findings: readonly GateFinding[];
+      };
       readonly stderr: string;
       readonly document?: GateDiagnosticsDocument;
     }): Effect.Effect<never, GateFailedError | FsError> {
@@ -143,13 +159,14 @@ export function runGates(
             exitCode: params.exitCode,
             logPath: attemptLogPath,
             diagnostics: params.diagnostics,
+            reportFindings: params.reportFindings ?? null,
             ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
           }),
         );
       });
     }
 
-    for (const step of steps) {
+    for (const [index, step] of steps.entries()) {
       const rawCommand = step.command;
       const command = parseCommandTokens(rawCommand);
       logLines.push(`$ ${rawCommand}`);
@@ -170,6 +187,90 @@ export function runGates(
       if (result.stderr) logLines.push(result.stderr.trimEnd());
       logLines.push(`exit ${result.exitCode}`);
       logLines.push("");
+
+      if (step.output === "gate-report") {
+        // The step promised a gate report on stdout; the verdict comes from the
+        // report. Anything else is a broken step: it fails with the raw log,
+        // and nothing is saved beside it.
+        function unread(error: ReportError) {
+          const line = describeReportError(error);
+          logLines.push(`provider error: ${line}`);
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message: `Gate step "${rawCommand}": ${line}`,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        if (result.stdout.trim() === "") {
+          return yield* unread(unreadableReport("the step printed nothing on stdout"));
+        }
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(result.stdout) as unknown;
+        } catch (cause) {
+          return yield* unread(
+            unreadableReport(
+              `stdout is not JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+            ),
+          );
+        }
+        const read = readGateReport(parsed);
+        if (Either.isLeft(read)) return yield* unread(read.left);
+
+        // A readable report is saved first, whatever the verdict, as the step
+        // printed it: never re-serialized, trimmed or re-stamped.
+        const position = index + 1;
+        yield* fs.writeAtomic(reportPathFor(attemptLogPath, position), result.stdout);
+
+        const report = read.right;
+        if (report.outcome === "refused") {
+          // Until refusals pause the phase, a refusal is a broken step.
+          logLines.push(`provider error: refused: ${report.reason} — remedy: ${report.remedy}`);
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return yield* failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message: `Gate step "${rawCommand}" refused to run: ${report.reason} (remedy: ${report.remedy})`,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        if (report.findings.length === 0) {
+          // Review notes never fail a step.
+          if (result.exitCode === 0) {
+            stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
+            continue;
+          }
+          const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no finding`;
+          logLines.push(`provider error: ${message}`);
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return yield* failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        // Any finding fails the step, whatever the exit code. The findings
+        // keep the report's order.
+        const count = report.findings.length;
+        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+        return yield* failGate({
+          rawCommand,
+          exitCode: result.exitCode,
+          message: `Gate command failed: ${rawCommand} (${count === 1 ? "1 finding" : `${count} findings`})`,
+          diagnostics: [],
+          reportFindings: { step: position, findings: report.findings },
+          stderr: result.stderr,
+        });
+      }
 
       if (step.output === "diagnostics") {
         // The step promised a versioned diagnostics document on stdout. Read it

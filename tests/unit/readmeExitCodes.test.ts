@@ -99,6 +99,7 @@ describe("exitCodeForError families", () => {
         exitCode: 1,
         logPath: "/tmp/gate.log",
         diagnostics: [],
+        reportFindings: null,
       }),
     ],
     [5, new AgentInvocationError({ message: "agent failed" })],

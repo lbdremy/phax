@@ -1,11 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { execFileSync, execSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, readFileSync, readdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  cpSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
-import { parseBriefAnswer } from "../../packages/schemas/src/index.js";
-import { readBriefAnswer, readGateDiagnosticsAnswer } from "../../src/schemas/persisted.js";
+import { parseBriefAnswer, parseGateReport } from "../../packages/schemas/src/index.js";
+import {
+  currentSchemaUrl,
+  describeReportError,
+  readBriefAnswer,
+  readGateReport,
+} from "../../src/schemas/persisted.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePlanAuditResponse } from "../../src/schemas/planAudit.js";
 import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
@@ -50,42 +63,90 @@ function git(args: readonly string[], cwd: string): string {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
+// Read as phax reads a report step's output, and as a consumer reads it
+// through the schemas package.
+function reportOf(stdout: string) {
+  const printed: unknown = JSON.parse(stdout);
+  expect(parseGateReport(printed).ok).toBe(true);
+  const result = readGateReport(printed);
+  if (Either.isLeft(result)) throw new Error(describeReportError(result.left));
+  if (result.right.outcome !== "checked") throw new Error("expected a checked report");
+  return result.right;
+}
+
 describe("examples/hello-world audit provider", () => {
   const auditScript = join(exampleDir, "audit.mjs");
 
-  // Read as phax reads a gate step's document: accepted means the example's
-  // stamp names an answer release this build reads.
-  it("prints an empty diagnostics list on the example tree (no src/ node: imports)", () => {
+  it("prints a checked gate report with no finding on the example tree (no src/)", () => {
     const { stdout, status } = runScript(auditScript, TERMINAL_REQUEST, exampleDir);
     expect(status).toBe(0);
-    expect(readGateDiagnosticsAnswer(JSON.parse(stdout))).toEqual(
-      Either.right({ diagnostics: [] }),
-    );
+    expect(reportOf(stdout)).toEqual({
+      $schema: currentSchemaUrl("gate-report"),
+      outcome: "checked",
+      findings: [],
+      review: [],
+    });
   });
 
-  it("reports one HW_NO_IO invariant for a node: import in a temp copy with a violating file", () => {
+  it("reports both rules over the files it audits, with the shipped guide", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-hw-"));
     cpSync(exampleDir, tmpDir, { recursive: true });
     mkdirSync(join(tmpDir, "src"), { recursive: true });
-    writeFileSync(join(tmpDir, "src/x.ts"), 'import { readFileSync } from "node:fs";\n');
+    writeFileSync(
+      join(tmpDir, "src/greet.ts"),
+      [
+        'import { readFileSync } from "node:fs";',
+        'import { join } from "node:path";',
+        'import { existsSync } from "node:fs";',
+        "export function greet(name: string): string {",
+        "  return `Hello, ${name}!`;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(tmpDir, "src/farewell.ts"), "const bye = 'bye';\n");
 
     const { stdout, status } = runScript(auditScript, TERMINAL_REQUEST, tmpDir);
     expect(status).toBe(0);
-    const result = readGateDiagnosticsAnswer(JSON.parse(stdout));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      const [finding, ...rest] = result.right.diagnostics;
-      expect(rest).toEqual([]);
-      expect(finding?.rule).toBe("HW_NO_IO");
-      expect(finding?.class).toBe("invariant");
-      expect(finding?.location).toEqual({ file: "src/x.ts", line: 1 });
-    }
+    const guide = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
+    expect(reportOf(stdout).findings).toEqual([
+      {
+        id: "exports-function src/farewell.ts",
+        rule: "a module under src/ exports its function",
+        location: { file: "src/farewell.ts", lines: null },
+        message: "no exported function",
+        related: [],
+        guide: null,
+      },
+      {
+        id: "no-node-import src/greet.ts node:fs",
+        rule: "a module under src/ imports no node: module",
+        location: { file: "src/greet.ts", lines: [1, 1] },
+        message: "imports node:fs",
+        related: [],
+        guide,
+      },
+      {
+        id: "no-node-import src/greet.ts node:path",
+        rule: "a module under src/ imports no node: module",
+        location: { file: "src/greet.ts", lines: [2, 2] },
+        message: "imports node:path",
+        related: [],
+        guide,
+      },
+    ]);
+    // The guide the findings name ships with the example.
+    expect(existsSync(join(exampleDir, guide.read))).toBe(true);
+
+    // Ids are stable across runs.
+    expect(runScript(auditScript, TERMINAL_REQUEST, tmpDir).stdout).toBe(stdout);
   });
 
   describe("scoped by the gate request's base", () => {
     function repoWithCleanBase(): { dir: string; base: string } {
       const dir = mkdtempSync(join(tmpdir(), "phax-hw-base-"));
       cpSync(auditScript, join(dir, "audit.mjs"));
+      cpSync(join(exampleDir, "rules.mjs"), join(dir, "rules.mjs"));
       mkdirSync(join(dir, "src"));
       writeFileSync(join(dir, "src/greet.ts"), "export const greet = () => 'hi';\n");
       git(["init", "-q"], dir);
@@ -103,11 +164,10 @@ describe("examples/hello-world audit provider", () => {
       writeFileSync(join(dir, "request.json"), gateRequest(base, false));
 
       const stdout = execSync("node ./audit.mjs < request.json", { cwd: dir, encoding: "utf8" });
-      const result = readGateDiagnosticsAnswer(JSON.parse(stdout));
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.diagnostics.map((d) => d.location.file)).toEqual(["src/io.ts"]);
-      }
+      expect(reportOf(stdout).findings.map((f) => f.id)).toEqual([
+        "no-node-import src/io.ts node:fs",
+        "exports-function src/io.ts",
+      ]);
     });
 
     it("prints no finding when nothing changed since a base that already holds the file", () => {
@@ -119,9 +179,7 @@ describe("examples/hello-world audit provider", () => {
 
       const { stdout, status } = runScript("audit.mjs", gateRequest(base, false), dir);
       expect(status).toBe(0);
-      const parsed = JSON.parse(stdout);
-      expect(parsed.$schema).toMatch(/^https:\/\/docs\.phax\.run\/schemas\/gate-diagnostics\//);
-      expect(readGateDiagnosticsAnswer(parsed)).toEqual(Either.right({ diagnostics: [] }));
+      expect(reportOf(stdout).findings).toEqual([]);
     });
   });
 });
@@ -228,10 +286,11 @@ describe("examples/hello-world phax.json", () => {
     const scripts = readdirSync(exampleDir)
       .filter((f) => f.endsWith(".mjs"))
       .toSorted();
-    expect(scripts).toEqual(["audit-plan.mjs", "audit.mjs", "brief.mjs"]);
+    // rules.mjs is no hook: audit.mjs (and, later, brief.mjs) import it.
+    expect(scripts).toEqual(["audit-plan.mjs", "audit.mjs", "brief.mjs", "rules.mjs"]);
   });
 
-  it("decodes with decodePhaxConfig and has brief, planAuditor and a diagnostics step", () => {
+  it("decodes with decodePhaxConfig and has brief, planAuditor and a report step", () => {
     const raw = JSON.parse(readFileSync(join(exampleDir, "phax.json"), "utf8"));
     const result = decodePhaxConfig(raw);
     expect(Either.isRight(result)).toBe(true);
@@ -240,9 +299,9 @@ describe("examples/hello-world phax.json", () => {
       expect(config.brief?.command).toBe("node ./brief.mjs");
       expect(config.planAuditor?.command).toBe("node ./audit-plan.mjs");
       const steps = config.gateProfiles?.["standard"] ?? [];
-      const diagStep = steps.find((s) => s.output === "diagnostics");
-      expect(diagStep?.command).toBe("node ./audit.mjs");
-      expect(diagStep?.input).toBe("gate-request");
+      const reportStep = steps.find((s) => s.output === "gate-report");
+      expect(reportStep?.command).toBe("node ./audit.mjs");
+      expect(reportStep?.input).toBe("gate-request");
     }
   });
 });

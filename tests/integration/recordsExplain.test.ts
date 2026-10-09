@@ -20,7 +20,7 @@ import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { explainRecord, gateArtifactsInOrder } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -403,10 +403,13 @@ describe("records explain and list (real git)", () => {
     expect(listed.records).toMatchObject([{ kind: "phase", phaseId, outcome: "committed" }]);
   });
 
-  it("orders gate artifacts by attempt, a request directly after its log", () => {
+  it("orders gate artifacts by attempt: a log, its request, then its reports in step order", () => {
     const artifacts = new Map<string, Uint8Array>([
       ["checks-attempt-10.log", bytes("ten")],
+      ["checks-attempt-10.report-01.json", bytes("{}")],
+      ["checks-attempt-02.report-03.json", bytes("{}")],
       ["checks-attempt-02.log", bytes("two")],
+      ["checks-attempt-02.report-01.json", bytes("{}")],
       ["checks-attempt-02.request.json", bytes("{}")],
       ["checks-attempt-01.log", bytes("one")],
       ["checks-attempt-01.diagnostics.json", bytes("{}")],
@@ -416,7 +419,10 @@ describe("records explain and list (real git)", () => {
       "checks-attempt-01.log",
       "checks-attempt-02.log",
       "checks-attempt-02.request.json",
+      "checks-attempt-02.report-01.json",
+      "checks-attempt-02.report-03.json",
       "checks-attempt-10.log",
+      "checks-attempt-10.report-01.json",
     ]);
   });
 
@@ -557,6 +563,71 @@ describe("records explain and list (real git)", () => {
         "gate log two",
         "--- checks-attempt-02.request.json ---",
         '{"attempt":2}',
+      ]);
+    });
+
+    it("prints each attempt's gate reports after its log and request, as stored", async () => {
+      const runId = "run-reports-1786800000014";
+      const phaseId = "phase-01";
+      const sha = commitWithTrailers(repoDir, runId, phaseId);
+      const manifest: RunRecordManifest = {
+        runId,
+        phaseId,
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local"],
+      };
+      // Made-up reports, pretty-printed with a trailing newline as a step
+      // might print them; explain shows the stored bytes unchanged.
+      const checked = `${JSON.stringify(
+        {
+          $schema: currentSchemaUrl("gate-report"),
+          outcome: "checked",
+          findings: [],
+          review: [{ owner: "hw-maintainers", note: "whether the greeting reads well" }],
+        },
+        null,
+        2,
+      )}\n`;
+      const refused = `${JSON.stringify(
+        {
+          $schema: currentSchemaUrl("gate-report"),
+          outcome: "refused",
+          reason: "the checks need hw-rules 2, and 1 is installed",
+          remedy: "pnpm add -D hw-rules@2",
+        },
+        null,
+        2,
+      )}\n`;
+      await writeFullRecordCommit(repoDir, manifest, {
+        "checks-attempt-02.report-01.json": checked,
+        "checks-attempt-02.log": "gate log two",
+        "checks-attempt-01.report-01.json": refused,
+        "checks-attempt-01.request.json": '{"attempt":1}',
+        "checks-attempt-01.log": "gate log one",
+      });
+
+      const withGates = await records(["explain", sha, "--gates"]);
+      expect(withGates.code).toBe(0);
+      const gateLines = withGates.logs.slice(
+        withGates.logs.indexOf("--- checks-attempt-01.log ---"),
+      );
+      expect(gateLines).toEqual([
+        "--- checks-attempt-01.log ---",
+        "gate log one",
+        "--- checks-attempt-01.request.json ---",
+        '{"attempt":1}',
+        "--- checks-attempt-01.report-01.json ---",
+        refused,
+        "--- checks-attempt-02.log ---",
+        "gate log two",
+        "--- checks-attempt-02.report-01.json ---",
+        checked,
       ]);
     });
 

@@ -19,7 +19,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 
@@ -222,5 +222,96 @@ describe("executePlan — agent command grants in secure mode", () => {
     }
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
     expect((await readPosture()).agentCommands).toEqual(EXPECTED_RECORDS);
+  });
+
+  it("grants nothing because a gate report or its guide names a command", async () => {
+    const reportCommand = "node ./audit.mjs";
+    const base = makeConfig(stateRoot);
+    const config: ResolvedConfig = {
+      ...base,
+      raw: {
+        ...base.raw,
+        gateProfiles: {
+          full: [
+            {
+              command: reportCommand,
+              surface: "structural",
+              firing: "every-phase",
+              output: "gate-report",
+            },
+          ],
+        },
+      },
+    };
+    // A made-up failing report whose rule, message, related why and guide all
+    // name commands the agent was never granted.
+    const report = JSON.stringify({
+      $schema: currentSchemaUrl("gate-report"),
+      outcome: "checked",
+      findings: [
+        {
+          id: "lint src/x.ts",
+          rule: "pnpm exec hw-lint passes on src/x.ts",
+          location: { file: "src/x.ts", lines: null },
+          message: "run pnpm exec hw-lint --fix",
+          related: [{ file: "package.json", lines: null, why: "npx hw-fix is declared here" }],
+          guide: { summary: "run cargo fix, then make", read: "guides/hw-fix.md" },
+        },
+      ],
+      review: [{ owner: "hw-maintainers", note: "consider pip install hw-tools" }],
+    });
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse(reportCommand, { exitCode: 1, stdout: report, stderr: "" });
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse(session("sess-01"));
+    for (let i = 0; i < 4; i++) fakeBackend.impl.addResumeResponse(session(`sess-01-${i}`));
+
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      makeFakeGitHub().layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# Grants Run", plan, config, undefined, true).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# Grants Run",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+          securityMode: "secure",
+        }).pipe(Effect.provide(layer)),
+      ),
+    );
+
+    const granted = ["node", reportCommand];
+    expect(fakeBackend.impl.runCalls[0]?.options.agentCommands).toEqual(granted);
+    expect(fakeBackend.impl.resumeCalls.length).toBeGreaterThan(0);
+    for (const call of fakeBackend.impl.resumeCalls) {
+      expect(call.options.agentCommands).toEqual(granted);
+    }
+    const posture = Either.getOrThrow(
+      decodeSecurityPosture(
+        JSON.parse(await readFile(join(runPath, "phase-01", "security.json"), "utf8")),
+      ),
+    );
+    expect(posture.agentCommands.map((record) => record.command)).toEqual(granted);
   });
 });
