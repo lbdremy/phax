@@ -340,7 +340,7 @@ describe("the generator serves the schemas", () => {
       "served-json-schemas",
     ]);
     expect(schemasLine(result.summary)).toBe(
-      "site: schemas — 14 served (ledger: 1 × 14 formats), ledger agrees with package.json",
+      "site: schemas — 14 served (ledger: 1 × 14 formats), ledger ends at or below package.json",
     );
   });
 

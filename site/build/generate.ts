@@ -191,7 +191,7 @@ export function schemasLine(summary: SiteSummary): string | undefined {
   if (schemas === null) return undefined;
   return (
     `site: schemas — ${schemas.served} served ` +
-    `(ledger: ${schemas.releases} × ${schemas.formats} formats), ledger agrees with package.json`
+    `(ledger: ${schemas.releases} × ${schemas.formats} formats), ledger ends at or below package.json`
   );
 }
 
