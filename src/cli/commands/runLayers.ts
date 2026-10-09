@@ -38,6 +38,7 @@ import {
   ArtifactValidationError,
   ConfigValidationError,
   GateFailedError,
+  GateStepRefusedError,
   InvalidArtifactTransitionError,
   LockConflictError,
   ModelPreflightError,
@@ -155,7 +156,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
 export function exitCodeForError(err: unknown): number {
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
   if (err instanceof UnsafeGitStateError) return 3;
-  if (err instanceof GateFailedError) return 4;
+  if (err instanceof GateFailedError || err instanceof GateStepRefusedError) return 4;
   if (
     err instanceof AgentInvocationError ||
     err instanceof AgentSessionIdMissingError ||

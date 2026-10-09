@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import {
   ConfigValidationError,
+  GateStepRefusedError,
   ModelPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -543,6 +544,52 @@ async function setupSuccessRun(executePlanResult: Partial<ExecutePlanResult> = {
   const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
   executePlan.mockReturnValue(Effect.succeed(makeExecutePlanResult(executePlanResult)));
 }
+
+describe("runRun — a refused gate report", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const refusal = new GateStepRefusedError({
+    message:
+      'Gate step "node ./audit.mjs" refused to run: the checks need hw-rules 2, and 1 is installed (remedy: pnpm add -D hw-rules@2)',
+    command: "node ./audit.mjs",
+    reason: "the checks need hw-rules 2, and 1 is installed",
+    remedy: "pnpm add -D hw-rules@2",
+    exitCode: 0,
+    logPath: "/fake-state/runs/acme.fixbug/phase-01/checks-attempt-01.log",
+    phaseId: "phase-01",
+  });
+
+  it("maps to exit 4", async () => {
+    const { exitCodeForError } = await vi.importActual<
+      typeof import("../../../src/cli/commands/runLayers.js")
+    >("../../../src/cli/commands/runLayers.js");
+    expect(exitCodeForError(refusal)).toBe(4);
+  });
+
+  it("names the step, the reason and the remedy, says no fix attempt was made, and exits with the refusal's code", async () => {
+    await setupSuccessRun();
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.fail(refusal));
+    const layers = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
+    layers.exitCodeForError.mockReturnValueOnce(4);
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, warnings } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(4);
+    expect(layers.exitCodeForError).toHaveBeenCalledWith(refusal);
+    const warned = warnings.join("\n");
+    expect(warned).toContain(
+      "phase-01 gate: `node ./audit.mjs` refused to run: the checks need hw-rules 2, and 1 is installed",
+    );
+    expect(warned).toContain("remedy: pnpm add -D hw-rules@2");
+    expect(warned).toContain("No fix attempt was made. Fix the cause, then: phax resume fixbug");
+    expect(warned).toContain("resume-instructions.md");
+  });
+});
 
 describe("runRun — success recap output", () => {
   beforeEach(() => {

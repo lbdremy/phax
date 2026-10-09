@@ -182,6 +182,7 @@ export function run(
         worktreePath: cmd.ctx.worktreePath,
         sessionId: cmd.ctx.sessionId,
         rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
+        refusal: cmd.ctx.refusal,
         now: new Date(),
         platform,
       }).pipe(Effect.asVoid);

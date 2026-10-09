@@ -21,6 +21,7 @@ import {
   CommitPausedError,
   GateAttemptsExhaustedError,
   GateFailedError,
+  GateStepRefusedError,
   HandoffPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
@@ -121,6 +122,10 @@ function isNoChangesError(e: unknown): e is PhaseHadNoChangesError {
 
 function isGateAttemptsExhaustedError(e: unknown): e is GateAttemptsExhaustedError {
   return e instanceof GateAttemptsExhaustedError;
+}
+
+function isGateStepRefusedError(e: unknown): e is GateStepRefusedError {
+  return e instanceof GateStepRefusedError;
 }
 
 function isHandoffPausedError(e: unknown): e is HandoffPausedError {
@@ -226,6 +231,7 @@ export type ExecutePlanError =
   | AgentSessionIdMissingError
   | GateFailedError
   | GateAttemptsExhaustedError
+  | GateStepRefusedError
   | HandoffValidationError
   | HandoffPausedError
   | CommitPausedError
@@ -367,6 +373,7 @@ export function executePlan(
       isRateLimitError(e) ||
       isNoChangesError(e) ||
       isGateAttemptsExhaustedError(e) ||
+      isGateStepRefusedError(e) ||
       isHandoffPausedError(e) ||
       isCommitPausedError(e) ||
       isCleanupPausedError(e) ||
@@ -1517,6 +1524,14 @@ export function executePlan(
     // non-zero exit code. The run is already in `interrupted` state with phase
     // `gates_exhausted`, ready for `phax resume`.
     Effect.catchIf(isGateAttemptsExhaustedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
+    // A refused gate report pauses the run the same way: GateStepRefused was
+    // dispatched inside the fix loop (interrupted, phase `gates_exhausted`,
+    // resume-instructions.md written), so we just re-raise here.
+    Effect.catchIf(isGateStepRefusedError, (e) =>
       Effect.gen(function* () {
         return yield* Effect.fail(e);
       }),

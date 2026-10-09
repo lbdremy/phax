@@ -106,6 +106,17 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     sessionId,
     command: "pnpm test",
   },
+  GateStepRefused: {
+    ...base,
+    type: "GateStepRefused",
+    phaseId,
+    attempt: 1,
+    worktreePath,
+    sessionId,
+    command: "node ./audit.mjs",
+    reason: "the checks need hw-rules 2, and 1 is installed",
+    remedy: "pnpm add -D hw-rules@2",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {

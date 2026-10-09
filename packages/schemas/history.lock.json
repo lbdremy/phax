@@ -2,6 +2,7 @@
   "src/schemas/history/authoring-record-manifest/pre-schema.ts": "88b78714e008259144c422ea9f93413cc126fbaa63eb552803ed7d20f7593003",
   "src/schemas/history/compliance-review/pre-schema.ts": "5448180a590a421b5e3516ce28c97bdaf1eb0706963365e56ae668b3d5334d78",
   "src/schemas/history/gate-attribution/0.17.0.ts": "aa646c2d2df86a2a9cd4f3f82b85b9c1016cb5bb866e9a0b9e57b372fa18df69",
+  "src/schemas/history/gate-attribution/0.20.0.ts": "a0dea9de0d6aeb90599415b9674f184b0716d87a11cbdac5f914836409c6b90e",
   "src/schemas/history/gate-attribution/pre-schema.ts": "11b785e822639301f742bc3b2309687e61b6e4eea8e669c415279d6e66a8eac2",
   "src/schemas/history/phase-file-reconciliation/pre-schema.ts": "9d0e70a9abdf1cc387baa8d5699b04a8af268d09706a064bd6abb42f232ddd75",
   "src/schemas/history/phase-record-manifest/pre-schema.ts": "52b8e7460da5b97133a92e7dad7bdb5738f6013d1d0da90f55a4ea909f3203a8",

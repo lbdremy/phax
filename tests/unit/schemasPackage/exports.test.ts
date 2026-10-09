@@ -73,6 +73,7 @@ describe("schemas package entry", () => {
       "GateAttributionPreSchemaSchema",
       "GateAttributionSchema",
       "GateAttributionV0_17_0Schema",
+      "GateAttributionV0_20_0Schema",
       "GateReportSchema",
       "GateRequestSchema",
       "PhaseFileReconciliationPreSchemaSchema",

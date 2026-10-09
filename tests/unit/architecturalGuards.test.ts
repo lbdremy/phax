@@ -523,6 +523,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/authoring-record-manifest/pre-schema.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",
   "src/schemas/history/gate-attribution/0.17.0.ts",
+  "src/schemas/history/gate-attribution/0.20.0.ts",
   "src/schemas/history/gate-attribution/pre-schema.ts",
   "src/schemas/history/phase-file-reconciliation/pre-schema.ts",
   "src/schemas/history/phase-record-manifest/pre-schema.ts",

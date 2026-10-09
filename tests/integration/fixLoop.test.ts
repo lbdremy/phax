@@ -84,6 +84,30 @@ const baseOpts = {
   gateRequest,
 };
 
+/** The spec's made-up node:fs finding in src/greet.ts, at the given line. */
+function greetFs(line: number) {
+  return {
+    id: "no-node-import src/greet.ts node:fs",
+    rule: "a module under src/ imports no node: module",
+    location: { file: "src/greet.ts", lines: [line, line] },
+    message: "imports node:fs",
+    related: [],
+    guide: { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" },
+  };
+}
+
+/** The spec's made-up finding for a module with no exported function. */
+function exportsFunction(file: string) {
+  return {
+    id: `exports-function ${file}`,
+    rule: "a module under src/ exports its function",
+    location: { file, lines: null },
+    message: "no exported function",
+    related: [],
+    guide: null,
+  };
+}
+
 function makeResumeResult(newSessionId = "sess-fixed") {
   return {
     sessionId: newSessionId as ClaudeSessionId,
@@ -346,6 +370,114 @@ describe("runGatesWithFixLoop", () => {
         findingsSection.indexOf("no-console"),
       );
       expect(prompt).not.toMatch(/pending|optional/i);
+    });
+
+    describe("still failing, by id alone", () => {
+      const failing = (findings: ReadonlyArray<object>) =>
+        JSON.stringify({ $schema: reportUrl, outcome: "checked", findings, review: [] });
+      const attempt1 = failing([greetFs(1), exportsFunction("src/greet.ts")]);
+      const attempt2 = failing([greetFs(4), exportsFunction("src/farewell.ts")]);
+
+      it("marks the finding whose id the same step listed in the previous attempt, wherever it now is", async () => {
+        const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+        seedStatusFiles(fakeFs);
+        fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-1"));
+        fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-2"));
+        fakeShell.impl.enqueue(
+          { exitCode: 1, stdout: attempt1, stderr: "" },
+          { exitCode: 1, stdout: attempt2, stderr: "" },
+          { exitCode: 0, stdout: passingReport, stderr: "" },
+        );
+
+        await Effect.runPromise(
+          runGatesWithFixLoop({ ...baseOpts, steps: reportStep, maxFixAttempts: 2 }).pipe(
+            Effect.provide(layer),
+          ),
+        );
+
+        expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
+        expect(fakeBackend.impl.resumeCalls[0]!.prompt).not.toContain("still failing");
+        const prompt = fakeBackend.impl.resumeCalls[1]!.prompt;
+        expect(prompt).toContain("- src/greet.ts:4 · still failing\n");
+        expect(prompt).toContain("- src/farewell.ts\n");
+        expect(prompt.split("still failing")).toHaveLength(2);
+        expect(prompt).not.toContain("exports-function src/greet.ts");
+        expect(prompt).not.toMatch(/\bfixed\b/i);
+      });
+
+      it("marks nothing when the previous attempt failed on a step that ran before the report step", async () => {
+        const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+        seedStatusFiles(fakeFs);
+        fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-1"));
+        fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-2"));
+        fakeShell.impl.enqueue(
+          { exitCode: 1, stdout: "", stderr: "test failure" },
+          { exitCode: 0, stdout: "ok", stderr: "" },
+          { exitCode: 1, stdout: attempt2, stderr: "" },
+          { exitCode: 0, stdout: "ok", stderr: "" },
+          { exitCode: 0, stdout: passingReport, stderr: "" },
+        );
+
+        await Effect.runPromise(
+          runGatesWithFixLoop({
+            ...baseOpts,
+            steps: [...baseOpts.steps, ...reportStep],
+            maxFixAttempts: 2,
+          }).pipe(Effect.provide(layer)),
+        );
+
+        expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
+        const prompt = fakeBackend.impl.resumeCalls[1]!.prompt;
+        expect(prompt).toContain("**Failed step:** `node ./audit.mjs` (2 findings)");
+        expect(prompt).not.toContain("still failing");
+      });
+
+      it("marks across a resume, from the previous attempt's saved report", async () => {
+        const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+        seedStatusFiles(fakeFs);
+        fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.log`, "$ node ./audit.mjs");
+        fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.report-01.json`, attempt1);
+        fakeBackend.impl.addResumeResponse(makeResumeResult());
+        fakeShell.impl.enqueue(
+          { exitCode: 1, stdout: attempt2, stderr: "" },
+          { exitCode: 0, stdout: passingReport, stderr: "" },
+        );
+
+        await Effect.runPromise(
+          runGatesWithFixLoop({ ...baseOpts, steps: reportStep, startAttempt: 3 }).pipe(
+            Effect.provide(layer),
+          ),
+        );
+
+        expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+        expect(fakeBackend.impl.resumeCalls[0]!.prompt).toContain(
+          "- src/greet.ts:4 · still failing\n",
+        );
+      });
+
+      it("marks nothing when the previous attempt's report is unreadable or refused", async () => {
+        for (const saved of [
+          "not json",
+          JSON.stringify({ $schema: reportUrl, outcome: "refused", reason: "r", remedy: "m" }),
+        ]) {
+          const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+          seedStatusFiles(fakeFs);
+          fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.report-01.json`, saved);
+          fakeBackend.impl.addResumeResponse(makeResumeResult());
+          fakeShell.impl.enqueue(
+            { exitCode: 1, stdout: attempt2, stderr: "" },
+            { exitCode: 0, stdout: passingReport, stderr: "" },
+          );
+
+          await Effect.runPromise(
+            runGatesWithFixLoop({ ...baseOpts, steps: reportStep, startAttempt: 3 }).pipe(
+              Effect.provide(layer),
+            ),
+          );
+
+          expect(fakeBackend.impl.resumeCalls[0]!.prompt).not.toContain("still failing");
+        }
+      });
     });
   });
 

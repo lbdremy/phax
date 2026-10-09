@@ -502,6 +502,83 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return assertNever(state);
       }
 
+    // A refusal reuses the exhaustion pause: same phase state and stop reason,
+    // its own lastError, resume instructions and trace.
+    case "GateStepRefused":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "gates_failed") {
+            return handled(
+              {
+                run: "interrupted",
+                phase: { state: "gates_exhausted", attempt: event.attempt },
+              },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: {
+                      stoppedReason: "gates_exhausted",
+                      lastError: `Gate step refused: ${event.command} — ${event.reason}`,
+                    },
+                  },
+                },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Gate step refused",
+                    kind: "gate_refused",
+                    phaseId: event.phaseId,
+                    worktreePath: event.worktreePath as string,
+                    sessionId: event.sessionId as string,
+                    refusal: {
+                      command: event.command,
+                      reason: event.reason,
+                      remedy: event.remedy,
+                    },
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "gate.refused",
+                  status: "failed",
+                  boundary: "gate",
+                  details: {
+                    phaseId: event.phaseId,
+                    attempt: event.attempt,
+                    command: event.command,
+                    reason: event.reason,
+                    remedy: event.remedy,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "resume.available",
+                  status: "info",
+                  boundary: "resume-instructions.md",
+                  details: { resumeCommand: `phax resume ${event.run}` },
+                },
+              ],
+            );
+          }
+          return unexpected(`gate step refused while phase is ${ps}`);
+        }
+        case "rate_limited":
+        case "interrupted":
+          return stale("gate step refused on paused/interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`gate step refused while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`gate step refused on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
+
     case "HandoffRequested":
       switch (state.run) {
         case "running": {

@@ -313,6 +313,10 @@ export {
   type GateAttributionV0_17_0,
 } from "../../../src/schemas/history/gate-attribution/0.17.0.js";
 export {
+  GateAttributionV0_20_0Schema,
+  type GateAttributionV0_20_0,
+} from "../../../src/schemas/history/gate-attribution/0.20.0.js";
+export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";

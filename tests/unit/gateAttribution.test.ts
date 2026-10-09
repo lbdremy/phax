@@ -55,7 +55,21 @@ describe("GateAttributionFileSchema", () => {
     expect(Either.isLeft(decoded)).toBe(true);
   });
 
-  it("rejects a step whose result is outside pass | fail", () => {
+  it("decodes a step a refused gate report stopped", () => {
+    const record: GateAttribution = {
+      phase: "phase-01",
+      steps: [
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "node ./audit.mjs", surface: "structural", result: "refused" },
+      ],
+    };
+
+    expect(decodeGateAttributionFile(encodeGateAttributionFile(stamped(record)))).toEqual(
+      Either.right(stamped(record)),
+    );
+  });
+
+  it("rejects a step whose result is outside pass | fail | refused", () => {
     const decoded = decodeGateAttributionFile(
       stamped({
         phase: "phase-01",
