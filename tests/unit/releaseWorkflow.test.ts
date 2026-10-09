@@ -152,6 +152,16 @@ describe("release workflow: two packages in lockstep", () => {
     expect(check.run).toContain("packages/schemas/package.json");
   });
 
+  // Only the cut appends the ledger, so a tag on an opening commit fails here.
+  it("checks the release ledger's last entry against the tag", () => {
+    const check =
+      releaseSteps[
+        indexOf(releaseSteps, (step) => step.name === "Verify package versions match tag")
+      ]!;
+    expect(check.run).toContain("require('./packages/schemas/releases.json').releases.at(-1)");
+    expect(check.run).toMatch(/if \[ "\$TAG_VERSION" != "\$LEDGER_LAST" \]/);
+  });
+
   it("smokes the schemas package under Node 20", () => {
     const smoke = indexOf(releaseSteps, runs(SMOKE));
     expect(nodeVersion(setupNodeBefore(releaseSteps, smoke)!)).toBe("20");
@@ -349,6 +359,12 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     expect(verify).toBeLessThan(indexOf(steps, runs("pnpm site:build")));
   });
 
+  it("refuses a tag whose release ledger does not end at it, as release.yml does", () => {
+    const verify = steps[indexOf(steps, (s) => s.name === "Verify the tag is this release")]!;
+    expect(verify.run).toContain("require('./packages/schemas/releases.json').releases.at(-1)");
+    expect(verify.run).toMatch(/if \[ "\$RELEASE_TAG" != "v\$\{LEDGER_LAST\}" \]/);
+  });
+
   it("builds the site, then runs release.yml's four deploy steps verbatim", () => {
     const build = indexOf(steps, runs("pnpm site:build"));
     expect(indexOf(steps, runs("pnpm install"))).toBeLessThan(build);
@@ -394,6 +410,13 @@ describe("CI workflow: the schemas package smoke", () => {
     expect(nodeVersion(setupNodeBefore(ciSteps, rehearsal)!)).toBe("24");
   });
 
+  it("rehearses the opened version package.json names, with no patch arithmetic", () => {
+    const rehearsal = ciSteps[indexOf(ciSteps, runs("scripts/release.sh --rehearse"))]!;
+    expect(rehearsal.run?.trim()).toBe(
+      `scripts/release.sh --rehearse "$(node -p 'require("./package.json").version')"`,
+    );
+  });
+
   it("pins every setup-node step to the same SHA", () => {
     const pins = new Set(ciSteps.filter(isSetupNode).map((step) => step.uses));
     expect(pins.size).toBe(1);
@@ -402,29 +425,89 @@ describe("CI workflow: the schemas package smoke", () => {
 
 // scripts/release.sh tags and pushes, so it never runs in a test: these read it as text.
 const releaseScript = readFileSync(join(import.meta.dirname, "../../scripts/release.sh"), "utf-8");
+// open_version, defined above the cut, regenerates and commits too.
+const cut = releaseScript.indexOf("pnpm exec tsx scripts/release-cut.ts");
+const releaseCommit = releaseScript.indexOf('git commit -m "chore: release v${VERSION}"');
 
 describe("release script invariants", () => {
   it("cuts the schemas package's shapes before regenerating the usage spec", () => {
-    const cut = releaseScript.indexOf("pnpm exec tsx scripts/release-cut.ts");
     expect(cut).toBeGreaterThan(-1);
-    expect(cut).toBeLessThan(releaseScript.indexOf("pnpm gen:usage-spec"));
+    expect(releaseScript.indexOf("pnpm gen:usage-spec", cut)).toBeGreaterThan(cut);
   });
 
   it("runs the whole suite on the cut before committing it", () => {
     expect(releaseScript).toContain("CUT_TESTS=(pnpm test)");
     const tests = releaseScript.indexOf('"${CUT_TESTS[@]}"');
-    expect(tests).toBeGreaterThan(releaseScript.indexOf("pnpm gen:usage-spec"));
-    expect(tests).toBeLessThan(releaseScript.indexOf("git commit"));
+    expect(tests).toBeGreaterThan(releaseScript.indexOf("pnpm gen:usage-spec", cut));
+    expect(releaseCommit).toBeGreaterThan(-1);
+    expect(tests).toBeLessThan(releaseCommit);
   });
 
   it("stops a rehearsal before committing", () => {
     const stop = releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then\n  echo "done:');
     expect(stop).toBeGreaterThan(-1);
-    expect(stop).toBeLessThan(releaseScript.indexOf("git commit"));
+    expect(stop).toBeLessThan(releaseCommit);
   });
 
-  it("leaves the version bump to the cut", () => {
+  it("leaves the version bump to the opening", () => {
     expect(releaseScript).not.toContain("npm pkg set");
+    expect(releaseScript).toContain('pnpm exec tsx scripts/release-open.ts "${next}"');
+  });
+
+  it("offers --open, refused with --rehearse, committing the opening without pushing", () => {
+    expect(releaseScript).toContain('elif [[ "${1:-}" == "--open" ]]; then');
+    expect(releaseScript).toContain("error: --open and --rehearse cannot be combined");
+    expect(releaseScript).toContain('git commit -m "chore: open v${next}"');
+    const open = releaseScript.indexOf('if [[ "$OPEN" == true ]]; then');
+    const openEnd = releaseScript.indexOf("exit 0", open);
+    expect(open).toBeGreaterThan(-1);
+    expect(releaseScript.slice(open, openEnd)).toContain('open_version "${VERSION}"');
+    expect(releaseScript.slice(open, openEnd)).not.toMatch(/^\s*git push/m);
+    expect(releaseScript.slice(open, openEnd)).toContain("finish with git push");
+    // The dirty-tree refusal precedes it.
+    expect(releaseScript.indexOf("working tree is dirty")).toBeLessThan(open);
+  });
+
+  it("opens the next minor after pushing the tag, then pushes, before the final lines", () => {
+    const tagPush = releaseScript.indexOf('git push origin "v${VERSION}"');
+    const opening = releaseScript.indexOf('open_version "${NEXT_VERSION}"');
+    const finalLines = releaseScript.indexOf('echo "approve the staged npm packages at:"');
+    expect(tagPush).toBeGreaterThan(-1);
+    expect(opening).toBeGreaterThan(tagPush);
+    expect(finalLines).toBeGreaterThan(opening);
+    const pushAfter = releaseScript.indexOf("git push", opening);
+    expect(pushAfter).toBeGreaterThan(opening);
+    expect(pushAfter).toBeLessThan(finalLines);
+    expect(releaseScript).toContain('NEXT_VERSION="${MAJOR}.$((MINOR + 1)).0"');
+  });
+
+  it("names the --open remedy when the opening fails, and git push when only the push does", () => {
+    expect(releaseScript).toContain(
+      'echo "✗ v${VERSION} is released but ${NEXT_VERSION} is not opened — finish with: scripts/release.sh --open ${NEXT_VERSION}"',
+    );
+    expect(releaseScript).toContain("git reset --hard HEAD");
+    expect(releaseScript).toMatch(/is committed, but not pushed — finish with: git push"/);
+  });
+
+  // set -e does not apply inside a function called from an if condition.
+  it("checks every command's status inside open_version", () => {
+    const body = /^open_version\(\) \{\n([\s\S]*?)\n\}$/m.exec(releaseScript)?.[1];
+    expect(body).toBeDefined();
+    for (const line of (body ?? "").split("\n").map((l) => l.trim())) {
+      if (/^(pnpm|git) /.test(line)) expect(line, line).toMatch(/\|\| return 1$/);
+    }
+  });
+
+  it("parses with bash -n", () => {
+    const result = spawnSync(
+      "bash",
+      ["-n", join(import.meta.dirname, "../../scripts/release.sh")],
+      {
+        encoding: "utf8",
+      },
+    );
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
   });
 
   it("stays bash 3.2 compatible (no mapfile)", () => {

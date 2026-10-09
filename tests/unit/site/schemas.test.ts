@@ -85,8 +85,8 @@ describe("servedSchemas on the real ledger and snapshots", () => {
   // first names it; every format with a pre-schema shape from 0.17.0.
   it("serves one /schemas/<id>/<release>.json per format and release from the format's first, 0.17.0 byte for byte", () => {
     expect(ledger?.releases[0]).toBe("0.17.0");
-    expect(ledger?.releases.at(-1)).toBe(realVersion);
     if (ledger === undefined) return;
+    expect(compareReleases(ledger.releases.at(-1) ?? "", realVersion)).toBeLessThanOrEqual(0);
     for (const id of PRE_SCHEMA_FORMAT_IDS) expect(servedFrom(id), id).toBe("0.17.0");
     const served = servedSchemas(ledger, real.snapshots);
     expect([...served.files.keys()].toSorted()).toEqual(
@@ -110,6 +110,15 @@ describe("servedSchemas on the real ledger and snapshots", () => {
   it("agrees with package.json and the snapshots", () => {
     if (ledger === undefined) return;
     expect(checkLedger(ledger, realVersion, namesOf(real.snapshots))).toEqual([]);
+  });
+
+  // Between releases package.json names the opened version, which the ledger
+  // trails: nothing is served at it until the cut appends it.
+  it("serves nothing at an opened package.json version", () => {
+    if (ledger === undefined) return;
+    const served = [...servedSchemas(ledger, real.snapshots).files.keys()];
+    const opened = compareReleases(ledger.releases.at(-1) ?? "", realVersion) < 0;
+    expect(served.some((path) => path.endsWith(`/${realVersion}.json`))).toBe(!opened);
   });
 
   it("is committed as 2-space JSON plus a newline", () => {
@@ -239,15 +248,19 @@ describe("checkLedger", () => {
     expect(checkLedger({ releases: ["0.17.0", "0.18.0"] }, "0.18.0", names)).toEqual([]);
   });
 
-  it("fails a last entry that differs from package.json", () => {
-    expect(checkLedger({ releases: ["0.17.0", "0.18.0"] }, "0.19.0", names)).toEqual([
-      "✗ release ledger: last entry 0.18.0, package.json version 0.19.0",
+  it("passes a last entry below package.json's opened version", () => {
+    expect(checkLedger({ releases: ["0.17.0", "0.18.0"] }, "0.19.0", names)).toEqual([]);
+    expect(checkLedger({ releases: ["0.17.0", "0.18.0"] }, "1.0.0", names)).toEqual([]);
+  });
+
+  it("fails a last entry above package.json, naming the entry", () => {
+    expect(checkLedger({ releases: ["0.17.0", "0.18.0"] }, "0.17.5", names)).toEqual([
+      "✗ release ledger: last entry 0.18.0 is above package.json version 0.17.5",
     ]);
   });
 
   it("fails a release-named snapshot whose release the ledger lacks", () => {
     expect(checkLedger({ releases: ["0.17.0"] }, "0.18.0", names)).toEqual([
-      "✗ release ledger: last entry 0.17.0, package.json version 0.18.0",
       "✗ packages/schemas/snapshots/registry/0.18.0.schema.json: release 0.18.0 is not in the release ledger",
     ]);
   });
@@ -331,10 +344,10 @@ describe("the generator serves the schemas", () => {
     );
   });
 
-  it("fails on a ledger that disagrees with package.json, writing nothing", () => {
-    const result = generate("0.18.0");
+  it("fails on a ledger above package.json, writing nothing", () => {
+    const result = generate("0.16.0");
     expect(result.findings).toContain(
-      "✗ release ledger: last entry 0.17.0, package.json version 0.18.0",
+      "✗ release ledger: last entry 0.17.0 is above package.json version 0.16.0",
     );
     expect(result.files.size).toBe(0);
     expect(result.publicFiles.size).toBe(0);
