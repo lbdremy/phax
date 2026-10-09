@@ -1,7 +1,0 @@
-{
-  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.20.0.json",
-  "artifact": "docs/specs/2610081603-open-next-release.md",
-  "specFingerprint": "e8c012d5d7d9f281e72feacd130468892ae88f292bc699894b489fafde804b74",
-  "approvedAt": "2026-10-08T16:17:27.863Z",
-  "baseline": "3e73cf30ade80a0316bdbedbe8430dbe0fab92b1"
-}
