@@ -44,6 +44,13 @@ describe("docs/release.md documents the docs site", () => {
     expect(process).toContain("vX-Y-Z");
   });
 
+  it("describes the opened version and re-opening with --open", () => {
+    const process = sectionOf("## Release process");
+    expect(process).toContain("opened version");
+    expect(process).toContain("scripts/release.sh --open");
+    expect(process).toContain("chore: open v");
+  });
+
   it("verifies the docs site and the previous preview URL in step 5", () => {
     const verify = sectionOf("### 5. Verify");
     expect(verify).toContain("schemas/registry/");

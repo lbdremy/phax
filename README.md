@@ -415,7 +415,7 @@ A gate step with `"output": "diagnostics"` prints a JSON document instead of a l
 }
 ```
 
-`$schema` names the `gate-diagnostics` release the document is written for. A document without it fails the step, and so does one stamped with a release newer than the running phax.
+`$schema` names the `gate-diagnostics` shape the document is written in: the release that last changed the format. phax names the shape it reads whenever it refuses a document. A document without `$schema` fails the step, and so does one stamped newer than the running phax or in an older shape. For example, phax 0.21.0 sends `gate-request/0.20.0` and reads `gate-diagnostics/0.20.0` for as long as neither format changes, so a step that prints `gate-diagnostics/0.20.0` keeps working across phax releases; when a release changes the format, phax refuses the old stamp and names the URL it now reads.
 
 The step must print the document every time it runs, `{ "$schema": …, "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step. phax never decides when a finding is due, so report only what is: the [gate request](#gate-request) is how a step learns what the phase changed and what later phases will bring. The failing findings, not the raw log, are what the agent is asked to fix.
 
@@ -526,7 +526,7 @@ The provider runs from the working tree's root, the phase worktree inside a phas
 - A guarantee has an `id`, a `statement` and at least one place. Each place has a `location` (`file`, optional `line`) and a `state`: `met` carries nothing else; `missing` and `forbidden` carry `due`, `what` and `repair`; `accepted` carries `what`.
 - **`due`** is `"this-phase"` or `"later"`, from what the later `phases` entries still plan, and `null` when the request carried no phase facts.
 - The order is your rank, most important first; phax never re-sorts. Extra keys are ignored. `{ "$schema": …, "guarantees": [] }` means nothing to report.
-- `$schema` names the phax release whose answer shape you wrote. A later phax keeps reading it; an answer without `$schema`, naming another format, or naming a release newer than the running phax is refused by name.
+- `$schema` names the `brief-answer` shape the answer is written in: the release that last changed the format. A later phax keeps reading it for as long as the format does not change. An answer without `$schema`, naming another format, stamped newer than the running phax or in an older shape is refused by name, and the refusal names the shape phax reads.
 
 A brief that fails (a non-zero exit, output that is not JSON, a refused answer, or more than 60 seconds; the limit is fixed) never fails the phase. A pushed brief becomes a run-output warning and a line in the prompt saying the brief is unavailable and why; a pulled one prints the reason and exits 1.
 
@@ -556,7 +556,7 @@ Reviews a plan's shape for `phax plans lint` (never during a run). It receives e
 
 ## Persisted formats
 
-Every file phax writes starts with `$schema`, naming its format and the phax release that wrote it, for example `https://docs.phax.run/schemas/run-status/0.17.0.json`. Each URL serves that format's JSON Schema, and stays up for good. Files written before 0.17.0 have no `$schema`.
+Every file phax writes starts with `$schema`, naming its format and that format's shape — the release that last changed the format, not the release that wrote the file — for example `https://docs.phax.run/schemas/run-status/0.17.0.json`. Each URL serves that format's JSON Schema, and stays up for good. Files written before 0.17.0 have no `$schema`.
 
 | Format                                       | Format id                   | Where it lives                                                             | Read it with                   | JSON Schema                                  |
 | -------------------------------------------- | --------------------------- | -------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------- |

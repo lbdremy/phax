@@ -25,17 +25,10 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const NAMESPACE = "example";
 const SHORT_NAME = "example-run";
 const CREATED_AT = "2026-01-01T09:00:00.000Z";
-
-const rootVersion = (
-  JSON.parse(readFileSync(join(import.meta.dirname, "../../package.json"), "utf8")) as {
-    readonly version: string;
-  }
-).version;
 
 const preSchemaRunStatus = {
   version: 1,
@@ -52,7 +45,7 @@ const preSchemaRunStatus = {
 };
 
 const phaseStatus = {
-  $schema: schemaUrl("phase-status", rootVersion),
+  $schema: currentSchemaUrl("phase-status"),
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",
