@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610091304-guarantee-reports.md
 completes-spec: true
 approved:
