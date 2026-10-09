@@ -67,7 +67,7 @@ each saying what *surface* it verifies and *when* it fires:
     { "command": "pnpm test",      "surface": "local",      "firing": "every-phase" },
     { "command": "pnpm audit:architecture",
                                    "surface": "structural", "firing": "every-phase",
-                                   "output": "diagnostics" },
+                                   "output": "gate-report" },
     { "command": "pnpm build",     "surface": "product",    "firing": "terminal" }
   ]
 }
@@ -85,12 +85,15 @@ one with all the context of what it just did — and tells it to fix the failure
 the gate again. A phase only advances when its gate is green. A phase that produced no
 changes stops the run with a clear exit code instead of committing nothing and pretending.
 
-A step that declares `"output": "diagnostics"` feeds the fix loop something better than a raw
-log: a list of **structured findings** — rule, location, message, and a repair pointer — so the
-agent is told *which* rule broke and where the guide that fixes it lives, instead of parsing
-stdout by eye. Invariants ("this forbidden thing is present") and completion findings ("this
-required thing is missing") both fail the step. phax doesn't schedule them: the auditor knows
-what it checks, and reports a missing piece only once it is due.
+A step that declares `"output": "gate-report"` feeds the fix loop something better than a raw
+log: a **gate report**. Its findings each carry a rule, a location, a message and, when the
+check has one, a guide file to read — so the agent is told *which* rule broke, where, and which
+file explains the fix, instead of parsing stdout by eye. Any finding fails the step. The report
+can also leave review notes, which never reach the agent: they go to the person reviewing the
+run, in the review handoff and the PR body. And a step that cannot run its checks says so with
+a refusal and a remedy, which goes to the operator: the phase stops without spending a fix
+attempt. phax doesn't schedule findings: the step knows what it checks, and reports only what
+fails now.
 
 The same principle reaches back to the plan itself. Turning `plan.md` into the structured form
 that drives a run is a **deterministic parser first**: a well-formed plan extracts instantly,

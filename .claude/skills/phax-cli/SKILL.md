@@ -98,21 +98,28 @@ scope is the boundary.
 ## Gate steps, briefs and records
 
 These are `phax.json` keys rather than commands, so `--usage` does not show them. The
-README (sections *Diagnostics gate steps*, *Gate request*, *Brief provider*, *Plan
+README (sections *Gate report steps*, *Gate request*, *Brief provider*, *Plan
 auditor*) holds the exact formats.
 
-- **`"output": "diagnostics"`** on a gate step: the step prints a JSON document with
-  `$schema` and `diagnostics`, and phax reads the verdict from it, not from the exit code.
-  An `invariant` or `completion` finding fails the step; the findings are what the agent is
-  asked to fix.
+- **`"output": "gate-report"`** on a gate step: the step prints a gate report on stdout,
+  and phax reads the verdict from it, not from the exit code. A checked report carries
+  findings (rule, location, message, related locations, and a guide file the agent reads)
+  and review notes; any finding fails the step, and the findings are what the agent is
+  asked to fix. Review notes fail nothing and go to the review handoff, never the agent. A
+  refused report (reason and remedy) stops the phase with exit 4 and no fix attempt;
+  `phax resume` runs the gate again. Each readable report is saved as
+  `checks-attempt-NN.report-SS.json`.
 - **`"input": "gate-request"`** on a gate step: the step gets `{$schema, phase, base,
   terminal, phases}` on stdin, the facts it needs to decide what is due now and what a
   later phase is planned to bring. Each attempt's request is saved as
   `checks-attempt-NN.request.json`; `phax records explain <commit> --gates` prints it after
   its log.
-- **`brief`** (a provider command): tells the agent what the project's standard expects of
-  some paths and how each expectation stands. It is pushed into a phase's first prompt and
-  pulled with `phax brief [path…]`, from inside a phase or from your own checkout. A brief
+- **`brief`** (`command` and `push`, both required): the provider answers with a brief
+  report, the rules over some paths and the findings there with their due. It is pushed
+  into a phase's first prompt and pulled with `phax brief [path…]`, which prints the whole
+  report, from inside a phase or from your own checkout. `push` chooses what the first
+  prompt lists: `"findings"` (the findings due in this phase) or `"findings-and-rules"`
+  (those findings, then the rules over the phase's planned files). A brief
   never blocks; the gate still decides. In `secure` mode the phase agent is granted
   `phax brief` (source `brief` in `security.json`). Each brief is recorded as
   `brief-NN.json`; `phax records explain <commit> --briefs` prints them.

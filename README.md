@@ -394,7 +394,9 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Three hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+Three hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider that answers with a brief report, and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+
+The two reports share one location, guide and finding, and phax routes each fact to whoever acts on it: findings and their guides go to the agent, review notes to the reviewer, and a refusal to you.
 
 ### Gate report steps
 
@@ -439,15 +441,35 @@ The verdict:
 
 - Any finding fails the step, whatever the exit code. The fix prompt lists each finding with its rule, location, message, related locations and guide, and tells the agent to read each guide's file before changing code.
 - An empty `findings` list passes the step on exit 0: `{ "$schema": …, "outcome": "checked", "findings": [], "review": [] }`.
+- A refused report stops the phase without a fix attempt (below).
 - Anything else is a broken step that fails with the raw log: empty or non-JSON output, a document without `$schema` or in another format, a duplicate `id`, a `lines` pair out of order, a key the format does not name, or an empty list on a non-zero exit. The failure names the gate-report URL phax reads.
 
 `$schema` names the `gate-report` shape the report is written in: the release that last changed the format. A report stamped newer than the running phax, or in an older shape, fails the step too, and phax names the URL it reads. The step must print a report every time it runs. phax never decides when a finding is due, so report only what is: the [gate request](#gate-request) is how a step learns what the phase changed and what later phases will bring.
+
+A step that cannot run its checks says so with a refused report, which carries exactly these keys:
+
+```json
+{
+  "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+  "outcome": "refused",
+  "reason": "the checks need hw-rules 2, and 1 is installed",
+  "remedy": "pnpm add -D hw-rules@2"
+}
+```
+
+A refusal goes to you, not to the agent, whatever the exit code. No later step runs, no fix attempt is made, and the run exits 4, naming the step, the reason and the remedy. The phase pauses as it does when its fix attempts run out (`gates_exhausted`), and `phax resume` runs the gate again before any agent turn, with the full `agent.maxFixAttempts` budget. `gate-attribution.json` records the step as `refused`.
+
+Review notes are for the person who reviews the run. They never fail a step and never reach the agent. phax gathers the notes of each phase's last gate attempt into a `## Review notes` section of the review handoff and the PR body, one group per `owner`, with a note several phases left listed once, naming those phases.
+
+When a step fails again on the next attempt, the fix prompt marks each finding whose `id` the same step listed in the previous attempt as `still failing`, wherever it now sits. Nothing else from earlier attempts reaches the agent.
+
+Nothing in a report grants a command. When a guide asks the agent to run a tool, grant it yourself through `security.agentCommands`.
 
 phax saves every readable report exactly as printed, beside the attempt's log, as `checks-attempt-NN.report-SS.json`, where `SS` is the step's position among the steps the attempt runs. `phax records explain --gates` prints each report after its attempt's log and request.
 
 ### Gate request
 
-A gate step that declares `"input": "gate-request"` gets a JSON request on stdin, whatever its `output`:
+A gate step that declares `"input": "gate-request"` gets a JSON request on stdin, whatever its `output`. A report step reads the request when it declares `input`, and does not have to declare it:
 
 ```json
 {
@@ -478,7 +500,7 @@ A gate step that declares `"input": "gate-request"` gets a JSON request on stdin
 - **`terminal`** is `true` exactly when the gated phase is the run's terminal phase, the one `terminal` steps fire on.
 - **`phases`** is every phase of the run in execution order, each with its planned files to create and edit (optional files excluded).
 
-phax sends facts, never a judgement: the step decides what is due. Read stdin to its end, then parse it. The past is `git diff --name-only <base>` plus the untracked files (`git ls-files --others --exclude-standard`). The future is the `phases` entries after `phase`, so a finding a later phase is planned to fix need not fail this one. When `terminal` is `true`, audit everything. A report step still prints `{"$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json", "outcome": "checked", ...}`, never a document without `$schema`.
+phax sends facts and decides nothing: the step decides what is due. Read stdin to its end, then parse it. The past is `git diff --name-only <base>` plus the untracked files (`git ls-files --others --exclude-standard`). The future is the `phases` entries after `phase`, so a finding a later phase is planned to fix need not fail this one. When `terminal` is `true`, audit everything. A report step still prints `{"$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json", "outcome": "checked", ...}`, never a document without `$schema`.
 
 phax writes the same bytes to every declaring step of every attempt, then closes stdin. Before an attempt's first declaring step it saves them beside the attempt's log as `checks-attempt-NN.request.json`, and the log shows `stdin: checks-attempt-NN.request.json` right after the step's `$` line; `phax records explain --gates` prints the request after its attempt's log. To replay a verdict, run the step on the saved copy in the phase's worktree:
 
@@ -751,7 +773,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
 - `phax review-code [FLAGS] <short-name>` — Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
 - `phax adjust-plan <FLAGS> <plan>` — Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.
-- `phax brief [path]…` — Asks the brief provider configured as "brief": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json which guarantees of the project's standard range over the given paths, and how each stands there. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.
+- `phax brief [path]…` — Asks the brief provider configured as "brief": { "command": …, "push": … } in phax.json, phax.local.json or ~/.phax/config.json which rules cover the given paths, what fails there and how to fix it. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.
 - `phax init [--force] [--yes]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.

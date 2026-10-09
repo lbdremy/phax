@@ -199,16 +199,16 @@ spec of its own. In this order:
       1. ~~`open-next-release`~~ (Shipped: the `open-next-release` spec, §9 decided
          2026-10-08.) Stamps name the format's shape: consumers upgrade only when a format
          changes.
-      2. `guarantee-reports` (`docs/specs/2610090907-guarantee-reports.md`, Approved, §9 decided
-         2026-10-09): `gate-report` and `brief-report` replace `gate-diagnostics` and
-         `brief-answer` with no shim. The agent gets only what it can act on: only open legs
-         travel, no accepted debt, repairs are a blueprint or skill path, the gate report lists
-         only what fails now, a refusal stops the phase, judgement goes to the review.
+      2. ~~`guarantee-reports`~~ (Shipped: the `guarantee-reports` spec,
+         `docs/specs/2610091304-guarantee-reports.md`.) `gate-report` and `brief-report` replace
+         the old gate and brief answer formats with no shim. The agent gets only what it can act
+         on: only open legs travel, no accepted debt, a guide is a file to read, the gate report
+         lists only what fails now, a refusal stops the phase, review notes go to the review.
       3. A `decision` class that stops the phase for the owner, joining the parked
          `phase-decision-requests` spec.
 
-      steme's side, not phax's: its target stamps `gate-diagnostics/0.19.0`, which phax 0.20
-      refuses; its brief answers carry steme's own `$schema` and an object `repair`; its copy of
+      steme's side, not phax's: its target stamps the retired gate format at 0.19.0, which phax
+      0.20 refuses; it must now print `gate-report` and `brief-report`; its brief answers carry steme's own `$schema` and an object `repair`; its copy of
       the brief-request schema pins 0.19.0.
 
 The coordination note's other asks (changes 1–3, 6, 7): a stable identity on a finding, accepted
