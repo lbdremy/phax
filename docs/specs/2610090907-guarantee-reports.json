@@ -73,7 +73,7 @@
     },
     {
       "path": "https://code.claude.com/docs/en/plugins-reference",
-      "note": "Read 2026-10-09 through a research agent, together with the skills and cli-reference pages. `--plugin-dir <path>` loads a plugin for the session only, can be repeated and writes nothing. A directory with SKILL.md at its root loads as a single skill. Plugin skills are namespaced `plugin:skill`. Skills load at process start. Codex's and Vibe's skill docs could not be read in this session, so no mechanism of theirs is verified."
+      "note": "Read 2026-10-09 through a research agent, together with the skills and cli-reference pages. `--plugin-dir <path>` loads a plugin for the session only, can be repeated and writes nothing. A directory with SKILL.md at its root loads as a single skill. Plugin skills are namespaced `plugin:skill`. Skills load at process start. Codex's and Vibe's skill docs could not be read in this session, so no mechanism of theirs is verified. Not used in the end: phax loads no skill (§9 Q3)."
     },
     {
       "path": "examples/hello-world/",
@@ -95,7 +95,7 @@
   "context": "A gate step that declares `\"output\": \"diagnostics\"` prints a `gate-diagnostics` document: `{$schema, diagnostics: [{rule, class: invariant|completion, location: {file, line?}, message, repair}]}`. Any finding fails the step, whatever the exit code. An empty list passes on exit 0 and is a provider error on a non-zero exit. On a failing attempt, phax writes the decoded findings, re-stamped, as `checks-attempt-NN.diagnostics.json`. The fix prompt lists each finding as `rule at file:line — message`, then `repair guide: <repair>`. Gate attribution records each step as `pass` or `fail`. Steps run fail-fast.\n\nA brief provider answers a `brief-answer`: guarantees `{id, statement, places}`, where each place is `{location, state: met|missing|forbidden|accepted, due?, what?, repair?}`. The pushed brief gives one line per guarantee with its non-met places, 50 guarantees at most. `phax brief` prints every place with `what` and `repair`. Each call is kept, answer as printed, in a `brief-NN.json` record.\n\nThe review handoff is also the PR body, after a header, cut from the end at 60000 bytes. It carries nothing from a gate step or a brief answer.\n\nThe gate request and the brief request keep their shapes:\n- gate request: `{$schema, phase, base, terminal, phases}`;\n- brief request: the same facts plus `files`, or `files` alone outside a phase.\n\nopen-next-release (Approved) makes a stamp name a format's shape. A new format is born at the opened version (0.21.0 after the 0.20.0 release), and an older shape is refused by name.\n\nsteme, the first provider, restructured its guarantee model:\n- A guarantee is made of legs (obligations and prohibitions), applied at places (steme's instances), and keyed in steme's ledger by (place, guarantee, leg).\n- Repairs are rendered into the unit as files, each with a one-line description: a blueprint document (BLUEPRINT.md), or a skill directory (SKILL.md), one per place and sharing a name.\n- Accepted debt is steme's own baseline input.\n- A preflight can refuse to run.\n- What is left to a person's judgement has an owner.\n\nEach fix attempt resumes the agent session as a new process: `claude --resume`, `codex exec resume` or `vibe --resume`. Vibe is skipped in secure mode.",
   "problem": "Both formats flatten steme's model, and both send things nobody acts on.\n- A diagnostic's `rule` is one string, where steme has a guarantee and a leg. Its `message` merges the statement, the instance and the finding. Nothing identifies a finding across attempts.\n- A location is a file and a single line. Any other file the leg involves appears only in prose.\n- A repair is a string, where steme has a document to read or a skill to load.\n- The brief answer carries met places and accepted debt, which the agent cannot act on. The pushed brief mixes places due later with places due now.\n- Something steme leaves to a person can only become a finding the agent is told to fix, or be dropped. It never reaches the reviewer.\n- A provider that declines to run can only print an empty document or exit non-zero. That reads as a pass or as a broken script, and either way it spends a fix attempt on something the agent cannot change.\n- The gate and the brief state the same facts in two unrelated shapes, so a provider keeps two serializers that can drift apart.",
   "productGoal": {
-    "statement": "A gate step answers with a gate report, and a brief provider answers with a brief report. The two formats share one set of definitions: guarantee, leg, place, location, finding and repair. Each format carries only what its reader acts on:\n- The gate report lists the open legs that fail now, with their findings and repairs, and the judgements left to a person.\n- The brief report lists each guarantee's legs, and the open legs at the requested paths with their due and repair.\n\nphax routes each fact to whoever acts on it:\n- the failing legs and their repairs go to the fix attempt, with skills loaded as skills where the provider can load them;\n- the legs due this phase go to the pushed brief;\n- the whole brief goes to `phax brief`;\n- judgement goes to the reviewer through the review handoff;\n- a refusal goes to the operator, without spending a fix attempt.\n\nToday's two formats are removed with no shim and no leftover name.",
+    "statement": "A gate step answers with a gate report, and a brief provider answers with a brief report. The two formats share one set of definitions: guarantee, leg, place, location, finding and repair. Each format carries only what its reader acts on:\n- The gate report lists the open legs that fail now, with their findings and repairs, and the judgements left to a person.\n- The brief report lists each guarantee's legs, and the open legs at the requested paths with their due and repair.\n\nphax routes each fact to whoever acts on it:\n- the failing legs and their repairs go to the fix attempt, a skill named by its path, for the agent's provider to find like any other skill in the repository;\n- the legs due this phase go to the pushed brief;\n- the whole brief goes to `phax brief`;\n- judgement goes to the reviewer through the review handoff;\n- a gate step's refusal goes to the operator, without spending a fix attempt.\n\nToday's two formats are removed with no shim and no leftover name.",
     "guidingRule": "The agent gets only what it can act on; anything else is too much information — and a provider sends only what someone acts on."
   },
   "terminology": [
@@ -105,7 +105,7 @@
     },
     {
       "term": "brief report",
-      "definition": "The document a brief provider prints in answer to the brief request. Its format is `brief-report`. It holds each guarantee over the requested paths with all its legs, and the open legs there with their due and repair. Its outcome is `audited` or `refused`."
+      "definition": "The document a brief provider prints in answer to the brief request. Its format is `brief-report`. It holds each guarantee over the requested paths with all its legs, and the open legs there with their due and repair. It has a single outcome: a provider that declines to run exits non-zero instead."
     },
     {
       "term": "report step",
@@ -145,7 +145,7 @@
     },
     {
       "term": "repair",
-      "definition": "A file that tells how to close an open leg, with a one-line `description`. A `blueprint` carries the `path` of its document (a BLUEPRINT.md), which the agent reads and follows. A `skill` carries its `name` and the `path` of the directory that holds its SKILL.md."
+      "definition": "A file that tells how to close an open leg, with a one-line `description`. A `blueprint` carries the `path` of its document (a BLUEPRINT.md), which the agent reads and follows. A `skill` carries its `name` and the `path` of the directory that holds its SKILL.md; the skill sits in the repository like any other skill, where the agent's provider finds it, and phax loads nothing."
     },
     {
       "term": "judgement",
@@ -153,19 +153,15 @@
     },
     {
       "term": "refused report",
-      "definition": "A report with outcome `refused`: the provider declined to run (steme's preflight). It carries a `reason` and a `remedy` for the operator."
+      "definition": "A gate report with outcome `refused`: the provider declined to run (steme's preflight). It carries a `reason` and a `remedy` for the operator. A brief report has no refused form."
     },
     {
       "term": "readable report",
-      "definition": "A report that phax decoded under its own `$schema`, whether audited or refused. Anything else a provider prints is unreadable."
+      "definition": "A report that phax decoded under its own `$schema`: an audited or refused gate report, or a brief report. Anything else a provider prints is unreadable."
     },
     {
       "term": "broken step",
       "definition": "A report step that printed no readable gate report, or printed an audited report with no open leg but exited non-zero. It fails the step, and the fix attempt gets the raw log, as for a log step."
-    },
-    {
-      "term": "loaded name",
-      "definition": "The name the agent uses to invoke a skill phax loaded into its session. phax chooses it so that two skills with the same `name` stay distinct."
     }
   ],
   "requirements": [
@@ -227,7 +223,7 @@
       "id": "outcomes",
       "title": "Two outcomes",
       "pattern": "ubiquitous",
-      "statement": "Each report shall be exactly one of two outcomes: `audited`, carrying its guarantees, or `refused`, carrying a `reason` and a `remedy` for the operator."
+      "statement": "A gate report shall be exactly one of two outcomes: `audited`, carrying its guarantees, or `refused`, carrying a `reason` and a `remedy` for the operator. A brief report has no outcome key: it is always an audited report."
     },
     {
       "id": "gate-shape",
@@ -321,33 +317,9 @@
     },
     {
       "id": "skill-load",
-      "title": "A skill is loaded as a skill",
-      "pattern": "optional",
-      "statement": "WHERE the agent's provider can load skills THE system SHALL load each skill repair in the failing step's report into the fix attempt's session through that provider's own skill mechanism. The fix prompt SHALL give the skill's loaded name and description, without pasting its content."
-    },
-    {
-      "id": "skill-fallback",
-      "title": "Without skill loading, the path is named",
-      "pattern": "optional",
-      "statement": "WHERE the agent's provider cannot load skills THE fix prompt SHALL give each skill repair's name, its description and the path of its SKILL.md, with an instruction to read it and follow it."
-    },
-    {
-      "id": "skill-missing",
-      "title": "A skill path without SKILL.md",
-      "pattern": "unwanted",
-      "statement": "IF a skill repair's path holds no SKILL.md THEN phax shall load nothing from it. The fix prompt shall give the repair's description and say that no SKILL.md exists at that path, and the run output shall warn once per attempt, naming the step and the path."
-    },
-    {
-      "id": "skill-distinct",
-      "title": "Same-named skills stay apart",
-      "pattern": "event",
-      "statement": "WHEN two skill repairs for one fix attempt share a `name` but not a `path` THE system SHALL load both, each under a loaded name no other skill in the session has, and SHALL load a repeated path only once."
-    },
-    {
-      "id": "skill-no-files",
-      "title": "Loading a skill writes nothing into the worktree",
+      "title": "A skill is named, not loaded",
       "pattern": "ubiquitous",
-      "statement": "phax shall write no file into the phase's worktree in order to load a skill, and nothing it uses to load one shall enter the phase's commit."
+      "statement": "The fix prompt shall show a skill repair as its name, its description and the path of its SKILL.md, with an instruction to use the skill. phax shall load nothing, paste no SKILL.md and add no file to make the skill available: it sits in the repository like any other skill."
     },
     {
       "id": "grants-nothing",
@@ -375,9 +347,9 @@
     },
     {
       "id": "brief-refused",
-      "title": "A refused brief is a failed brief",
-      "pattern": "event",
-      "statement": "WHEN a brief provider prints a refused brief report THE system SHALL treat the brief as failed. The pushed brief's unavailable line SHALL give the reason, and the run-output warning and `phax brief` SHALL give both the reason and the remedy, with `phax brief` exiting 1."
+      "title": "A declining brief provider is a failed brief",
+      "pattern": "unwanted",
+      "statement": "IF a brief provider declines to run THEN it shall exit non-zero, and phax shall treat the brief as failed, as for any provider that exits non-zero: the pushed brief's unavailable line and `phax brief` give its stderr, and `phax brief` exits 1."
     },
     {
       "id": "review-judgement",
@@ -401,7 +373,7 @@
       "id": "save-brief",
       "title": "Brief reports are recorded as printed",
       "pattern": "event",
-      "statement": "WHEN a brief provider prints a readable brief report THE system SHALL keep it in that call's brief record exactly as printed, including a refused one."
+      "statement": "WHEN a brief provider prints a readable brief report THE system SHALL keep it in that call's brief record exactly as printed."
     },
     {
       "id": "explain-gates",
@@ -448,10 +420,10 @@
       "after": "The same definitions as the gate report. In place of judgements, every open leg carries a `due`, and `legs` lists every leg of the guarantee, whether or not it is open, because it says what a file there must and must not do, even a file not written yet. `places` may be empty. `due` is \"this-phase\" | \"later\" | null (null when the request carried no phase facts).\n\n{\n  \"$schema\": \"https://docs.phax.run/schemas/brief-report/0.21.0.json\",\n  \"outcome\": \"audited\",\n  \"guarantees\": [\n    {\n      \"id\": \"hw-pure-module\",\n      \"statement\": \"a module under src/ exports its function and performs no I/O\",\n      \"legs\": [\n        { \"id\": \"exports-function\", \"kind\": \"obligation\",  \"statement\": \"it exports its function\" },\n        { \"id\": \"no-node-import\",   \"kind\": \"prohibition\", \"statement\": \"it imports no node: module\" }\n      ],\n      \"places\": [\n        {\n          \"id\": \"greet\",\n          \"location\": { \"file\": \"src/greet.ts\", \"range\": null },\n          \"open\": [\n            { \"leg\": \"no-node-import\", \"due\": \"this-phase\",\n              \"findings\": [ { \"what\": \"imports node:fs\",\n                              \"location\": { \"file\": \"src/greet.ts\", \"range\": { \"start\": 1, \"end\": 1 } }, \"related\": [] } ],\n              \"repair\": { \"kind\": \"skill\", \"description\": \"move I/O out of the module and into its caller\",\n                          \"name\": \"no-io\", \"path\": \"repairs/no-io\" } }\n          ]\n        },\n        {\n          \"id\": \"farewell\",\n          \"location\": { \"file\": \"src/farewell.ts\", \"range\": null },\n          \"open\": [\n            { \"leg\": \"exports-function\", \"due\": \"later\",\n              \"findings\": [ { \"what\": \"the file does not exist yet\",\n                              \"location\": { \"file\": \"src/farewell.ts\", \"range\": null }, \"related\": [] } ],\n              \"repair\": { \"kind\": \"blueprint\", \"description\": \"lay out a pure module\",\n                          \"path\": \"repairs/pure-module/BLUEPRINT.md\" } }\n          ]\n        }\n      ]\n    }\n  ]\n}\n\nNothing to report: { \"$schema\": …, \"outcome\": \"audited\", \"guarantees\": [] }. The provider's order is its rank."
     },
     {
-      "surface": "api: refused report, either format",
+      "surface": "api: refused gate report",
       "binding": "normative",
       "before": null,
-      "after": "The provider declined to run, for example because steme's preflight failed:\n\n{\n  \"$schema\": \"https://docs.phax.run/schemas/gate-report/0.21.0.json\",\n  \"outcome\": \"refused\",\n  \"reason\": \"the standard needs pack hw-core 2, and 1 is installed\",\n  \"remedy\": \"steme pack install hw-core@2\"\n}\n\nA brief provider prints the same keys under \"https://docs.phax.run/schemas/brief-report/0.21.0.json\" (§9 Q1). The exit code does not matter for a refused report."
+      "after": "The provider declined to run, for example because steme's preflight failed:\n\n{\n  \"$schema\": \"https://docs.phax.run/schemas/gate-report/0.21.0.json\",\n  \"outcome\": \"refused\",\n  \"reason\": \"the standard needs pack hw-core 2, and 1 is installed\",\n  \"remedy\": \"steme pack install hw-core@2\"\n}\n\nThe exit code does not matter for a refused report. A brief report has no refused form: a brief provider that declines to run exits non-zero, with its reason on stderr (§9 Q1)."
     },
     {
       "surface": "config: gate step output in phax.json",
@@ -463,7 +435,7 @@
       "surface": "internal: fix prompt after a report step fails",
       "binding": "indicative",
       "before": "## Diagnostics\n\n- HW_NO_IO at src/greet.ts:1 — greet must not perform I/O\n  repair guide: plan.md#phase-01-greet-function\n\nFull output: …/checks-attempt-01.log",
-      "after": "# Gate checks failed — fix required\n\nGate run (attempt 2) failed.\n\n**Failed step:** `node ./audit.mjs` (2 failing legs)\n\n## Failing legs\n\n### hw-pure-module — a module under src/ exports its function and performs no I/O\n\nAt greet (src/greet.ts):\n- no-node-import · prohibition · still failing — it imports no node: module\n  - src/greet.ts:4 — imports node:fs\n    - also involves src/cli.ts:3-5 — the caller, where the read belongs\n  - repair: skill `greet:no-io`, loaded in this session — move I/O out of the module and into its caller\n\nAt farewell (src/farewell.ts):\n- exports-function · obligation — it exports its function\n  - src/farewell.ts — no exported function\n  - repair: blueprint — lay out a pure module. Read repairs/pure-module/BLUEPRINT.md and follow it.\n\nFull output: …/checks-attempt-02.log\n\n## Required action\n\nUse each leg's repair, then fix every leg under **Failing legs**.\n(the remaining Required action lines as today)\n\nThe `still failing` mark is normative; the rest of the layout is indicative.\n\nVariants of the repair line:\n- A skill on a provider that cannot load skills: `- repair: skill no-io — move I/O out of the module and into its caller. Read repairs/no-io/SKILL.md and follow it.`\n- A skill whose path holds no SKILL.md: `- repair: skill no-io — move I/O out of the module and into its caller. Not loaded: repairs/no-io/SKILL.md does not exist.`\n- A leg with `repair: null` gets no repair line.\n\nThe prompt never shows a judgement, a leg that is not open, or a fixed or new count. A broken step's fix prompt is today's raw-log prompt."
+      "after": "# Gate checks failed — fix required\n\nGate run (attempt 2) failed.\n\n**Failed step:** `node ./audit.mjs` (2 failing legs)\n\n## Failing legs\n\n### hw-pure-module — a module under src/ exports its function and performs no I/O\n\nAt greet (src/greet.ts):\n- no-node-import · prohibition · still failing — it imports no node: module\n  - src/greet.ts:4 — imports node:fs\n    - also involves src/cli.ts:3-5 — the caller, where the read belongs\n  - repair: skill `no-io` — move I/O out of the module and into its caller. Use the skill (repairs/no-io/SKILL.md).\n\nAt farewell (src/farewell.ts):\n- exports-function · obligation — it exports its function\n  - src/farewell.ts — no exported function\n  - repair: blueprint — lay out a pure module. Read repairs/pure-module/BLUEPRINT.md and follow it.\n\nFull output: …/checks-attempt-02.log\n\n## Required action\n\nUse each leg's repair, then fix every leg under **Failing legs**.\n(the remaining Required action lines as today)\n\nThe `still failing` mark is normative; the rest of the layout is indicative.\n\nA leg with `repair: null` gets no repair line. The skill line is the same on every agent provider: phax loads nothing.\n\nThe prompt never shows a judgement, a leg that is not open, or a fixed or new count. A broken step's fix prompt is today's raw-log prompt."
     },
     {
       "surface": "internal: pushed brief in the phase's first prompt",
@@ -475,13 +447,13 @@
       "surface": "cli: phax brief [path…]",
       "binding": "indicative",
       "before": "hw-no-io — nothing under src/ imports a node: module\n  forbidden  src/greet.ts:1   due this phase\n    what:    imports node:fs\n    repair:  remove the import; greet is pure\n  met        src/cli.ts",
-      "after": "$ phax brief src/greet.ts src/farewell.ts\nhw-pure-module — a module under src/ exports its function and performs no I/O\n  must      exports-function   it exports its function\n  must not  no-node-import     it imports no node: module\n  greet  src/greet.ts\n    no-node-import     due this phase\n      found:   src/greet.ts:1 — imports node:fs\n      repair:  skill no-io — move I/O out of the module and into its caller (repairs/no-io/SKILL.md)\n  farewell  src/farewell.ts\n    exports-function   due later\n      found:   src/farewell.ts — the file does not exist yet\n      repair:  blueprint — lay out a pure module (repairs/pure-module/BLUEPRINT.md)\n$? = 0\n\nRefused:\n✗ brief refused: the standard needs pack hw-core 2, and 1 is installed — remedy: steme pack install hw-core@2\n$? = 1\n\nThe exit codes are otherwise unchanged: 0 for any audited report, `[]` included; 1 otherwise."
+      "after": "$ phax brief src/greet.ts src/farewell.ts\nhw-pure-module — a module under src/ exports its function and performs no I/O\n  must      exports-function   it exports its function\n  must not  no-node-import     it imports no node: module\n  greet  src/greet.ts\n    no-node-import     due this phase\n      found:   src/greet.ts:1 — imports node:fs\n      repair:  skill no-io — move I/O out of the module and into its caller (repairs/no-io/SKILL.md)\n  farewell  src/farewell.ts\n    exports-function   due later\n      found:   src/farewell.ts — the file does not exist yet\n      repair:  blueprint — lay out a pure module (repairs/pure-module/BLUEPRINT.md)\n$? = 0\n\nA provider that declines to run exits non-zero:\n✗ brief failed: the provider exited 2: the standard needs pack hw-core 2\n$? = 1\n\nThe exit codes are unchanged: 0 for any readable brief report, `[]` included; 1 otherwise."
     },
     {
-      "surface": "cli: run output on a refusal, a missing SKILL.md and an old-format answer",
+      "surface": "cli: run output on a refusal and an old-format answer",
       "binding": "indicative",
       "before": "✗ Gate command failed: node ./audit.mjs (0 diagnostic(s))   — then a fix attempt on the raw log",
-      "after": "✗ phase-01 gate: `node ./audit.mjs` refused to run: the standard needs pack hw-core 2, and 1 is installed\n  remedy: steme pack install hw-core@2\n  No fix attempt was made. Fix the cause, then: phax resume my-project.greet\n$? = 4   (exit code normative)\n\n⚠ phase-01 gate: skill `no-io` names repairs/no-io, which holds no SKILL.md; it was not loaded\n\n⚠ phase-01 brief unavailable: refused: the standard needs pack hw-core 2, and 1 is installed — remedy: steme pack install hw-core@2\n\n✗ Gate step \"node ./audit.mjs\": gate-diagnostics is not read by this phax — it reads https://docs.phax.run/schemas/gate-report/0.21.0.json"
+      "after": "✗ phase-01 gate: `node ./audit.mjs` refused to run: the standard needs pack hw-core 2, and 1 is installed\n  remedy: steme pack install hw-core@2\n  No fix attempt was made. Fix the cause, then: phax resume my-project.greet\n$? = 4   (exit code normative)\n\n✗ Gate step \"node ./audit.mjs\": gate-diagnostics is not read by this phax — it reads https://docs.phax.run/schemas/gate-report/0.21.0.json"
     },
     {
       "surface": "file: review-handoff.md and the PR body — Left to judgement",
@@ -493,7 +465,7 @@
       "surface": "file: a phase folder's gate attempt and brief files",
       "binding": "indicative",
       "before": "checks-attempt-01.log\nchecks-attempt-01.request.json\nchecks-attempt-01.diagnostics.json   (failing diagnostics step only; decoded findings, re-stamped by phax)\nbrief-00.json, brief-01.json        (outcome.answer: the brief-answer as printed)",
-      "after": "checks-attempt-01.log               (unchanged; it still holds each step's stdout)\nchecks-attempt-01.request.json\nchecks-attempt-01.report-04.json    (the gate report printed by the profile's 4th step, byte for byte; one per report step that printed a readable report, whether it passed, failed or refused)\nbrief-00.json, brief-01.json        (brief-record shape unchanged; outcome.answer: the brief report as printed, a refused one included)\n\nNo .diagnostics.json is written. Saving each readable report as printed is normative; the file name is indicative."
+      "after": "checks-attempt-01.log               (unchanged; it still holds each step's stdout)\nchecks-attempt-01.request.json\nchecks-attempt-01.report-04.json    (the gate report printed by the profile's 4th step, byte for byte; one per report step that printed a readable report, whether it passed, failed or refused)\nbrief-00.json, brief-01.json        (brief-record shape unchanged; outcome.answer: the brief report as printed)\n\nNo .diagnostics.json is written. Saving each readable report as printed is normative; the file name is indicative."
     },
     {
       "surface": "file: gate-attribution step result",
@@ -538,8 +510,8 @@
     "Any shim: no alias for `\"output\": \"diagnostics\"`, no reading of a `gate-diagnostics` or `brief-answer` answer, no upgrade note, and no special handling of past runs' `.diagnostics.json` or `brief-NN.json`.",
     "Accepted debt, met, clear or unexamined legs, leg states and repair freshness, in either format. Stale repairs are the provider's business.",
     "A third repair kind, inline steps, or carrying a blueprint's tool command (`steme lay`). A gate without repair files prints a log.",
-    "phax reading, checking or pasting a blueprint document or a SKILL.md, or checking whether a finding is true, a due is right or a file exists. The one exception: phax checks that a SKILL.md exists, because it must load it.",
-    "Loading skills at phase start or in the pushed brief. Skills are loaded only into fix attempts.",
+    "phax reading, checking or pasting a blueprint document or a SKILL.md, or checking whether a finding is true, a due is right or a file exists.",
+    "phax loading a skill into any session, at phase start or in a fix attempt. A skill sits in the repository like any other skill, where the agent's provider finds it.",
     "Judgement in any agent prompt, in the pushed brief or in `phax brief`.",
     "Columns in a range, or any location unit other than whole lines.",
     "Severity or rank beyond the provider's order."
@@ -619,9 +591,9 @@
     {
       "id": "ac-outcomes",
       "name": "Two outcomes only",
-      "given": "a gate report with `\"outcome\": \"skipped\"`, and a refused gate report with no `remedy`",
+      "given": "a gate report with `\"outcome\": \"skipped\"`, a refused gate report with no `remedy`, and a brief report with `\"outcome\": \"refused\"`",
       "when": "the gate reads each",
-      "then": "each fails the step as a broken step, with no fix attempt withheld.",
+      "then": "the two gate reports each fail the step as a broken step, and the brief report is unreadable, so the brief is unavailable.",
       "refs": [
         "outcomes"
       ]
@@ -724,43 +696,12 @@
     },
     {
       "id": "ac-skill-load",
-      "name": "A skill is loaded, not pasted",
-      "given": "a phase on Claude Code, the §6 gate report, and `repairs/no-io/SKILL.md` in the worktree",
+      "name": "A skill is named, not loaded",
+      "given": "a phase on any agent provider, the §6 gate report, and `repairs/no-io/SKILL.md` in the worktree",
       "when": "the fix attempt runs",
-      "then": "the resumed session lists the skill under the loaded name the prompt gives, with the description `move I/O out of the module and into its caller`. The prompt contains no line of SKILL.md. After the attempt, `git status` in the worktree shows no file phax added, and the phase's commit contains none.",
+      "then": "the fix prompt gives the skill `no-io`, its description `move I/O out of the module and into its caller` and `repairs/no-io/SKILL.md`, with an instruction to use the skill. It contains no line of SKILL.md. phax passes no skill-loading flag to the provider, and after the attempt `git status` in the worktree shows no file phax added.",
       "refs": [
-        "skill-load",
-        "skill-no-files"
-      ]
-    },
-    {
-      "id": "ac-skill-fallback",
-      "name": "Without skill loading, the SKILL.md path is named",
-      "given": "the same report on a provider declared unable to load skills (Codex, per §9 Q3)",
-      "when": "the fix attempt runs",
-      "then": "the fix prompt gives `no-io`, its description and `repairs/no-io/SKILL.md`, with an instruction to read it and follow it. It contains no line of SKILL.md.",
-      "refs": [
-        "skill-fallback"
-      ]
-    },
-    {
-      "id": "ac-skill-missing",
-      "name": "A skill path with no SKILL.md",
-      "given": "the §6 gate report with greet's skill path changed to `repairs/gone`, where no SKILL.md exists, on Claude Code",
-      "when": "the fix attempt runs",
-      "then": "no skill is loaded from it. The fix prompt gives the description and says `repairs/gone/SKILL.md` does not exist. The run output shows one warning naming `node ./audit.mjs` and `repairs/gone`.",
-      "refs": [
-        "skill-missing"
-      ]
-    },
-    {
-      "id": "ac-skill-distinct",
-      "name": "Same-named skills are both loaded",
-      "given": "on Claude Code, a gate report whose places greet and farewell each list `no-node-import` with a skill named `no-io`, at `repairs/greet/no-io` and `repairs/farewell/no-io`, plus a third open leg repeating `repairs/greet/no-io`",
-      "when": "the fix attempt runs",
-      "then": "the session has exactly two loaded skills from the report, under two different loaded names. The fix prompt gives each place's skill by its own loaded name.",
-      "refs": [
-        "skill-distinct"
+        "skill-load"
       ]
     },
     {
@@ -816,12 +757,21 @@
     },
     {
       "id": "ac-brief-refused",
-      "name": "A refused brief fails the brief, recorded whole",
-      "given": "a brief provider that prints the §6 refused report under the `brief-report` `$schema`",
+      "name": "A declining brief provider is a failed brief",
+      "given": "a brief provider that writes `the standard needs pack hw-core 2` to stderr and exits 2",
       "when": "a phase starts fresh, and then the agent runs `phax brief src/greet.ts`",
-      "then": "the first prompt's unavailable line gives the reason and not the remedy. The run-output warning gives both. `phax brief` prints both and exits 1. `brief-00.json` and `brief-01.json` each hold the refused report as printed. The phase continues.",
+      "then": "the first prompt's unavailable line gives the provider's stderr. `phax brief` prints it and exits 1. The phase continues.",
       "refs": [
-        "brief-refused",
+        "brief-refused"
+      ]
+    },
+    {
+      "id": "ac-save-brief",
+      "name": "Brief reports are recorded as printed",
+      "given": "a brief provider that prints the §6 brief report with its keys in a different order and extra whitespace",
+      "when": "a phase starts fresh, and then the agent runs `phax brief src/farewell.ts`",
+      "then": "`brief-00.json` and `brief-01.json` each hold the report byte for byte as the provider printed it in their answered outcome.",
+      "refs": [
         "save-brief"
       ]
     },
@@ -891,7 +841,7 @@
       "name": "The README describes the reports",
       "given": "the README after the change",
       "when": "§Extend phax and §Persisted formats are read",
-      "then": "they describe the gate report with the §6 example, `\"output\": \"gate-report\"`, the verdict rule, the refusal, the repair kinds and skill loading, the brief report, the pushed and pulled briefs, `Left to judgement`, and granting a repair's tool through `security.agentCommands`. They list the `gate-report` and `brief-report` rows, and neither `gate-diagnostics` nor `brief-answer` appears anywhere in the README.",
+      "then": "they describe the gate report with the §6 example, `\"output\": \"gate-report\"`, the verdict rule, the gate report's refusal, the repair kinds (a skill named by its path, never loaded by phax), the brief report, the pushed and pulled briefs, `Left to judgement`, and granting a repair's tool through `security.agentCommands`. They list the `gate-report` and `brief-report` rows, and neither `gate-diagnostics` nor `brief-answer` appears anywhere in the README.",
       "refs": [
         "docs"
       ]
@@ -900,7 +850,7 @@
   "openQuestions": [
     {
       "id": "Q1",
-      "question": "Does the brief report have the gate report's `refused` outcome, for a brief provider whose preflight declines to run? The arbitration defines the refusal for the gate only.",
+      "question": "Does the brief report have the gate report's `refused` outcome, for a brief provider whose preflight declines to run? The arbitration defines the refusal for the gate only. (Decided by the author on 2026-10-09; not reopened.)",
       "options": [
         {
           "id": "refused",
@@ -913,12 +863,12 @@
           "abandons": "The remedy as a fact. steme states one preflight refusal in two ways, structured to the gate and as stderr to the brief, and the operator gets a bare stderr line, or nothing, where the gate names the fix."
         }
       ],
-      "recommendation": "refused",
-      "rationale": "steme's preflight is one fact, and the shared definitions exist so that a provider states each fact the same way in both formats. It costs one variant on an existing failure path. The governing rule still holds: the agent gets only the reason line, which tells it not to rely on the brief, and the remedy goes only to the operator, who can act on it."
+      "recommendation": "exit",
+      "rationale": "Decided by the author on 2026-10-09, against the draft's recommendation: no. A brief provider that declines to run exits non-zero with its reason, and phax shows it like any other failed brief. The brief report keeps a single outcome; the structured refusal and its remedy are the gate's, where the operator acts on them."
     },
     {
       "id": "Q2",
-      "question": "Does phax refuse a report that carries a key its format does not name, or ignore it as answers are read today?",
+      "question": "Does phax refuse a report that carries a key its format does not name, or ignore it as answers are read today? (Decided by the author on 2026-10-09; not reopened.)",
       "options": [
         {
           "id": "refuse",
@@ -932,12 +882,17 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "The governing rule shapes the formats themselves: a provider sends only what someone acts on, and a strict decode is how phax holds that rule without judging content. The requests phax sends are already strict. Answers are versioned, so a new key arrives with a new stamp, and strictness costs no forward compatibility that the stamp does not already cost. It also makes the old habits (debt, met legs, freshness) fail loudly instead of passing silently."
+      "rationale": "Decided by the author on 2026-10-09, as recommended. The governing rule shapes the formats themselves: a provider sends only what someone acts on, and a strict decode is how phax holds that rule without judging content. The requests phax sends are already strict. Answers are versioned, so a new key arrives with a new stamp, and strictness costs no forward compatibility that the stamp does not already cost. It also makes the old habits (debt, met legs, freshness) fail loudly instead of passing silently."
     },
     {
       "id": "Q3",
-      "question": "Which agent providers load a skill repair into a resumed fix-attempt session at ship, and how? Claude Code's per-invocation plugin directory is documented. This authoring session could not verify a mechanism for Codex or Mistral Vibe.",
+      "question": "Which agent providers load a skill repair into a fix-attempt session, and how? (Decided by the author on 2026-10-09; not reopened.)",
       "options": [
+        {
+          "id": "repo",
+          "label": "None: phax loads nothing. A skill sits in the repository like any other skill, where the agent's provider finds it, and the fix prompt names it and its SKILL.md path",
+          "abandons": "A skill guaranteed to be invocable as a skill: if the provider renders it somewhere the agent's harness does not discover skills, the agent reads SKILL.md as a file."
+        },
         {
           "id": "fallback",
           "label": "Claude Code loads skills through its per-invocation plugin directory. Codex and Mistral Vibe are declared unable and get the SKILL.md path, until a probe shows a per-invocation mechanism that writes nothing into the worktree or the user's home.",
@@ -954,35 +909,32 @@
           "abandons": "The operator's provider setup for that attempt. Auth, model configuration and the operator's own skills move, or must be copied, for each provider on every fix attempt."
         }
       ],
-      "recommendation": "fallback",
-      "rationale": "Reading the SKILL.md path is already the decided behavior for a provider that cannot load skills, so the fallback is a supported path, not a gap. It breaks none of this spec's constraints. Claude Code's mechanism writes nothing and namespaces plugin skills, which also keeps same-named skills apart. Declaring the capability per adapter lets Codex or Vibe switch on later, behind a probe, with no change to either format. Vibe is skipped in secure mode anyway."
+      "recommendation": "repo",
+      "rationale": "Decided by the author on 2026-10-09, against the draft's recommendation: skills are available in the repository like any other skill, so phax needs no integration. The fix prompt names the skill and its path on every provider; phax passes no skill-loading flag, writes nothing and resolves no name collision. Where the provider puts its skills is the provider's business."
     }
   ],
   "planningNote": {
     "settled": [
       "Green field. These go with no shim and no leftover name: `gate-diagnostics`, `brief-answer`, `\"output\": \"diagnostics\"`, the `.diagnostics.json` write and its path helper, both answer readers with LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE and LAST_RELEASE_WITHOUT_BRIEF_ANSWER, DIAGNOSTICS_EXPECTED_SHAPE, the `diagnostics` field of the GateFailed event, and the frozen gate-diagnostics history modules with their history.lock entries.",
       "Two new formats, `gate-report` and `brief-report`, are born at the opened version (0.21.0 once open-next-release has landed). Each is read only under its own `$schema`, by open-next-release's stamp rules.",
-      "The gate request and the brief request keep their shapes and stamps. The brief-record keeps its shape, and its answered outcome holds the brief report as printed, a refused one included.",
+      "The gate request and the brief request keep their shapes and stamps. The brief-record keeps its shape, and its answered outcome holds the brief report as printed.",
       "Unchanged from brief-provider: the pushed and pulled moments, the 60 s limit, brief recording, `phax brief`'s exit codes, the phase guard and the `phax brief` grant.",
       "The pushed brief's cap now counts lines (open legs due this phase) and stays at 50.",
       "A report step does not have to declare `\"input\": \"gate-request\"`. What is due now is the provider's business.",
       "`still failing` compares against the phase's immediately previous gate attempt, and only when that attempt failed on the same step with an audited gate report.",
-      "Claude Code loads a skill per invocation with `--plugin-dir`, per its documentation read on 2026-10-09: the flag can be repeated and is session-only, a directory with SKILL.md at its root loads as a single skill, and plugin skills are namespaced `plugin:skill`. Each resumed fix attempt is a new process, so the skill is loaded at its start.",
       "The §9 recommendations are defaults until the author arbitrates them."
     ],
     "open": [
       "The saved report's file name, and the wording of the fix prompt, the pushed brief, `phax brief`, the `Left to judgement` section and the run-output lines.",
-      "The loaded-name scheme that keeps same-named skills distinct (for example `<place id>:<name>`), and what happens when place ids collide as well.",
-      "Whether Codex and Mistral Vibe have a per-invocation skill mechanism that writes nothing into the worktree or home. Probe each before declaring it capable (§9 Q3).",
       "How the stop on a refusal shows in run and phase state (the existing gate-failure pause or a distinct reason), keeping exit 4, an unspent budget and `phax resume` running the gate first.",
       "Whether gate-attribution (new `refused` result) and brief-record (answer description) get `next` snapshots.",
       "Whether hello-world's audit.mjs and brief.mjs share one module that computes the guarantee."
     ],
     "constraints": [
-      "phax judges nothing in a report. Its decode checks are structural only: keys, ids, references between legs and open legs, range order, and the two shape rules of the gate report. The one file phax looks for is a SKILL.md, because it must load it.",
-      "No back-compat shims. Explicit per-variant enums: outcome (`audited` | `refused`), leg kind, repair kind, due and gate-attribution result.",
+      "phax judges nothing in a report. Its decode checks are structural only: keys, ids, references between legs and open legs, range order, and the two shape rules of the gate report.",
+      "No back-compat shims. Explicit per-variant enums: the gate report's outcome (`audited` | `refused`), leg kind, repair kind, due and gate-attribution result.",
       "A brief informs and never blocks. The gate's verdict is the provider's list.",
-      "No command is granted from a report or a repair. Loading a skill writes nothing into the worktree, and nothing used to load one enters the phase's commit.",
+      "No command is granted from a report or a repair. phax loads no skill and adds no file to make one available.",
       "Served schema URLs are never withdrawn. Follow the gate-pending precedent: a frozen copy kept outside `packages/schemas/snapshots/`, with the deploy guard unchanged.",
       "Docs to update: the README's Extend phax intro, \"Gate report steps\" (renamed from \"Diagnostics gate steps\"), \"Gate request\", \"Brief provider\" and §Persisted formats; the `phax-cli` and `phax-planning` skills where they mention diagnostics; NEXT_STEPS.md's steme section; and the `oracle-phases` spec's diagnostics wording.",
       "Tests to update: tests/integration/exampleProviders.test.ts, the gate, fix-loop and fix-prompt tests, brief render and pull, review handoff and publish body, records explain, the schemas package suite, the example-stamp test, and the site's schemas and deploy-guard tests."
@@ -992,6 +944,6 @@
     "kind": "page",
     "page": "README §Extend phax (rendered on docs.phax.run): \"Gate report steps\" (replacing \"Diagnostics gate steps\"), \"Gate request\" and \"Brief provider\", plus the `gate-report` and `brief-report` rows in §Persisted formats",
     "reader": "The author of a gate step or brief provider (steme first), deciding what to print, and the operator who wires it into phax.json and grants any tool its repairs call for through `security.agentCommands`",
-    "example": "The hello-world audit.mjs prints a gate report in which greet's `no-node-import` is open, with the skill `no-io`. The step fails. On Claude Code the fix attempt's session has the skill loaded, and the fix prompt shows the leg, its finding at src/greet.ts:1 and the skill's description. brief.mjs answers `phax brief src/farewell.ts` for a file not yet written: it gives the guarantee's two legs, what the file must and must not do, and farewell's open `exports-function` with the blueprint `repairs/pure-module/BLUEPRINT.md`."
+    "example": "The hello-world audit.mjs prints a gate report in which greet's `no-node-import` is open, with the skill `no-io`. The step fails. The fix prompt shows the leg, its finding at src/greet.ts:1, and the skill `no-io` by its description and path, for the agent to use like any other skill in the repository. brief.mjs answers `phax brief src/farewell.ts` for a file not yet written: it gives the guarantee's two legs, what the file must and must not do, and farewell's open `exports-function` with the blueprint `repairs/pure-module/BLUEPRINT.md`."
   }
 }
