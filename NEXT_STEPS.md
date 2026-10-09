@@ -233,6 +233,16 @@ cross-field checks registered by id so the build writes the same list into the s
       cut they run. Brief: `docs/briefs/open-next-release.md`. PR #127 (CI rehearses a cut in
       seconds; `release.sh` tests the cut before committing) catches the symptom meanwhile.
 
+- [ ] **The served schemas still say a stamp names the release that wrote the file.** Found
+      2026-10-09 reviewing the open-next-release run (PR #128): `schemaUrlField`'s description
+      (`src/schemas/schemaUrl.ts`) reads "the phax release that wrote this file", is copied
+      into every snapshot and served on docs.phax.run, and contradicts the README and
+      `docs/release.md`. Rewording it changes every format's snapshot, so every stamp would
+      move at once for a description-only change: the forced upgrade open-next-release
+      removed. Decide first whether an annotation-only change is a new shape (the snapshot
+      comparison could leave descriptions out, or the rewording could ride a release that
+      changes most formats anyway). Frozen snapshots keep the old wording either way.
+
 - [x] **A run completes its source spec even when more plans are to come.** (Shipped: the `completes-spec` spec.) Found
       2026-09-29 on `schemas-package` plan 1/5 (PR #104): at run end phax completed the
       plan (correct) and the spec (`f8d2366`, spec moved to `archive/`, its approval

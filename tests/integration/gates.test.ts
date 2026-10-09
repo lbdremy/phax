@@ -554,14 +554,14 @@ describe("runGates", () => {
       };
     }
 
-    it("passes an empty list at the running release on exit 0", async () => {
+    it("passes an empty list at the current stamp on exit 0", async () => {
       const { result, saved, results } = await gate(printed([]));
       expect(Either.isRight(result)).toBe(true);
       expect(saved).toBeUndefined();
       expect(results).toEqual(["pass"]);
     });
 
-    it("treats an empty list at the running release on a non-zero exit as a provider error", async () => {
+    it("treats an empty list at the current stamp on a non-zero exit as a provider error", async () => {
       const { error, saved, results } = await gate(printed([]), 1);
       expect(error?.message).toBe('Gate step "node ./audit.mjs" exited 1 with no diagnostics');
       expect(error?.diagnostics).toEqual([]);
@@ -569,7 +569,7 @@ describe("runGates", () => {
       expect(results).toEqual(["fail"]);
     });
 
-    it("states the expected document, with the running release, when stdout is not JSON", async () => {
+    it("states the expected document, with the current stamp, when stdout is not JSON", async () => {
       const { error, log, saved, results } = await gate("not json");
       expect(error?.message).toContain(
         "declared diagnostics output but returned none: invalid JSON",

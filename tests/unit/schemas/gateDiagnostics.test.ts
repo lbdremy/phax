@@ -7,7 +7,7 @@ import {
   withSchemaUrl,
 } from "../../../src/schemas/persisted.js";
 
-// A document a gate step prints, stamped at the running release.
+// A document a gate step prints, stamped at the format's current stamp.
 function printed(diagnostics: ReadonlyArray<object>) {
   return { $schema: currentSchemaUrl("gate-diagnostics"), diagnostics };
 }

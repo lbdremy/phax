@@ -211,7 +211,7 @@ approved:
 # Example spec
 `;
 
-// A gate step's stdout, stamped at the running release: one invariant and one
+// A gate step's stdout, stamped at the format's current stamp: one invariant and one
 // completion, both failing.
 const MIXED_DIAGNOSTICS = JSON.stringify({
   $schema: currentSchemaUrl("gate-diagnostics"),
@@ -233,7 +233,7 @@ const MIXED_DIAGNOSTICS = JSON.stringify({
   ],
 });
 
-// A brief provider's stdout, stamped at the running release.
+// A brief provider's stdout, stamped at the format's current stamp.
 const BRIEF_ANSWER = JSON.stringify({
   $schema: currentSchemaUrl("brief-answer"),
   guarantees: [
@@ -480,7 +480,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   if (Either.isLeft(reconciled)) throw new Error("reconcilePhaseFiles failed");
 
   // A pushed brief: the phase request file in the worktree, and brief-00.json
-  // in the phase folder, from a provider answering at the running release.
+  // in the phase folder, from a provider answering at the format's current stamp.
   shell.impl.setResponse("node ./brief.mjs", { exitCode: 0, stdout: BRIEF_ANSWER, stderr: "" });
   const briefRequest = stampBriefRequest(
     phaseBriefRequest(
