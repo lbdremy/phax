@@ -8,7 +8,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const runPath = "/state/runs/my-run";
@@ -115,7 +115,10 @@ describe("dispatch — handled transitions", () => {
     };
     expect(persisted.state).toBe("running");
     expect(Object.keys(persisted)[0]).toBe("$schema");
-    expect(persisted).toHaveProperty("$schema", schemaUrl("run-status", PHAX_RELEASE));
+    expect(persisted).toHaveProperty(
+      "$schema",
+      schemaUrl("run-status", CURRENT_STAMPS["run-status"]),
+    );
     expect(persisted).not.toHaveProperty("version");
   });
 
@@ -165,7 +168,10 @@ describe("dispatch — handled transitions", () => {
     expect(persisted.state).toBe("committed");
     expect(persisted.commitHash).toBe("deadbeef12345678");
     expect(Object.keys(persisted)[0]).toBe("$schema");
-    expect(persisted).toHaveProperty("$schema", schemaUrl("phase-status", PHAX_RELEASE));
+    expect(persisted).toHaveProperty(
+      "$schema",
+      schemaUrl("phase-status", CURRENT_STAMPS["phase-status"]),
+    );
     expect(persisted).not.toHaveProperty("version");
   });
 });

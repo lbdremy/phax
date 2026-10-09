@@ -161,10 +161,10 @@ describe.each(READERS)("read%sRecordFile", (kind, read, file, record, path, form
     expect(message({ version: 1, ...without(file, "$schema") })).toContain("has no $schema");
   });
 
-  it("refuses a document written by a newer release", () => {
+  it("refuses a document stamped newer than the running version", () => {
     const newer = { ...file, $schema: schemaUrl(format, NEWER_RELEASE) };
     expect(message(newer)).toBe(
-      `${path}: ${label} written by phax ${NEWER_RELEASE} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      `${path}: ${label} ${NEWER_RELEASE} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
     );
   });
 

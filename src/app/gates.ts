@@ -5,6 +5,7 @@ import { GateFailedError } from "../domain/errors.js";
 import { Shell, type ShellError, type ShellRunResult } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
+  currentSchemaUrl,
   readGateDiagnosticsAnswer,
   readRunStatusFile,
   withSchemaUrl,
@@ -16,8 +17,6 @@ import {
   type GateDiagnostic,
   type GateDiagnosticsDocument,
 } from "../schemas/gateDiagnostics.js";
-import { PHAX_RELEASE } from "../schemas/release.js";
-import { schemaUrl } from "../schemas/schemaUrl.js";
 import { diagnosticsPathFor } from "../domain/gate/diagnosticsPath.js";
 import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
@@ -26,12 +25,12 @@ export interface GateOutcome {
   readonly attemptLogPath: string;
 }
 
-const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${schemaUrl("gate-diagnostics", PHAX_RELEASE)}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
+const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${currentSchemaUrl("gate-diagnostics")}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 /**
  * The exact bytes of a phase's gate request: what a declaring step reads on
  * stdin and what is saved as `checks-attempt-NN.request.json`. Stamped with
- * the running release's `$schema`, two-space indented, no trailing newline.
+ * gate-request's current stamp, two-space indented, no trailing newline.
  */
 export function serializeGateRequest(request: GateRequest): string {
   return JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2);

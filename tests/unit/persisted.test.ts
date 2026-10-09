@@ -5,6 +5,7 @@ import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   LAST_RELEASE_WITHOUT_BRIEF_ANSWER,
+  currentSchemaUrl,
   describeBriefAnswerError,
   readBriefAnswer,
   readBriefRecordFile,
@@ -33,8 +34,13 @@ import {
   type PersistedReadError,
   type PersistedSpec,
 } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { compareReleases, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
+import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
+import {
+  FORMAT_IDS,
+  compareReleases,
+  schemaUrl,
+  type FormatId,
+} from "../../src/schemas/schemaUrl.js";
 import {
   EXAMPLE_BASE,
   latestPreSchema,
@@ -197,23 +203,33 @@ describe("readSchemaBornPersisted", () => {
     expect(toy.calls).toEqual({ current: 0 });
   });
 
-  it("refuses a document a newer release wrote, before decoding it", () => {
+  it("refuses a document stamped newer than the running version, before decoding it", () => {
     const toy = bornSpec();
     const release = `${Number(PHAX_RELEASE.split(".")[0]) + 1}.0.0`;
     const doc = { $schema: schemaUrl("plan-approval-record", release), name: "gamma" };
     expect(left(readSchemaBornPersisted(doc, toy)).message).toBe(
-      `${FILE}: toy record written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      `${FILE}: toy record ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
     );
     expect(toy.calls).toEqual({ current: 0 });
   });
 });
 
 describe("withSchemaUrl", () => {
-  it("puts $schema first, naming the format at the running release", () => {
+  it("puts $schema first, naming the format at its current stamp", () => {
     const stamped = withSchemaUrl("registry", { runs: [] });
     expect(Object.keys(stamped)).toEqual(["$schema", "runs"]);
-    expect(stamped.$schema).toBe(schemaUrl("registry", PHAX_RELEASE));
-    expect(stamped.$schema).toBe(`https://docs.phax.run/schemas/registry/${PHAX_RELEASE}.json`);
+    expect(stamped.$schema).toBe(currentSchemaUrl("registry"));
+    expect(stamped.$schema).toBe(
+      `https://docs.phax.run/schemas/registry/${CURRENT_STAMPS.registry}.json`,
+    );
+  });
+
+  // A format that last changed before the running version is stamped with that
+  // earlier release; no stamp is ever above the running version.
+  it.each(FORMAT_IDS)("stamps %s with its current stamp, not the running version", (id) => {
+    expect(withSchemaUrl(id, {}).$schema).toBe(currentSchemaUrl(id));
+    expect(currentSchemaUrl(id)).toBe(schemaUrl(id, CURRENT_STAMPS[id]));
+    expect(compareReleases(CURRENT_STAMPS[id], PHAX_RELEASE)).toBeLessThanOrEqual(0);
   });
 
   it("keeps the value's own keys in their order", () => {
@@ -585,7 +601,7 @@ describe("documents from another release", () => {
       _tag: "PersistedReadError",
       file,
       format: id,
-      message: `${file}: ${label} written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      message: `${file}: ${label} ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
     });
   });
 });

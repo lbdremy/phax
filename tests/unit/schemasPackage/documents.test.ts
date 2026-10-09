@@ -36,7 +36,7 @@ import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import {
   FORMAT_IDS,
   PRE_SCHEMA_FORMAT_IDS,
@@ -147,11 +147,11 @@ describe("the test documents", () => {
   });
 
   it.each(FORMAT_IDS)(
-    "%s: the valid document carries $schema first, at the running release, and no version",
+    "%s: the valid document carries $schema first, at its format's current stamp, and no version",
     (id) => {
       const document = validDocuments[id];
       expect(Object.keys(document)[0]).toBe("$schema");
-      expect(document["$schema"]).toBe(schemaUrl(id, PHAX_RELEASE));
+      expect(document["$schema"]).toBe(schemaUrl(id, CURRENT_STAMPS[id]));
       expect(Object.hasOwn(document, "version")).toBe(false);
     },
   );

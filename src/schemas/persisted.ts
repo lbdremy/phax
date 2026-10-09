@@ -5,8 +5,9 @@
 // and pass the file path only so it appears in messages. It never imports
 // packages/.
 //
-// First, it refuses a document whose `$schema` names a release newer than the
-// running one: reading it would drop the fields that release added, and the
+// A `$schema` stamp names a format's shape, not the build that wrote it. First,
+// it refuses a document whose stamp is newer than the running version
+// (`PHAX_RELEASE`): reading it would drop the fields that shape added, and the
 // next write would lose them. Releases compare as semver, through the
 // `compareReleases` the schemas package also uses.
 //
@@ -16,7 +17,8 @@
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. A format born with `$schema` has no
 // pre-schema decoder, so a document of it without `$schema` is refused. On the
-// way out, `withSchemaUrl` stamps the `$schema` a writer puts first.
+// way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
+// format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
 //
 // It also reads the two answers phax decodes with a file decoder: the
 // `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`)
@@ -65,7 +67,7 @@ import {
   type PhaseFileReconciliation,
 } from "./reconciliation.js";
 import { decodeRegistryFile, type Registry } from "./registry.js";
-import { PHAX_RELEASE } from "./release.js";
+import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -187,7 +189,7 @@ function readCurrent<Current, InMemory>(
       readError(
         file,
         format,
-        `${label} written by phax ${named.release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+        `${label} ${named.release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
       ),
     );
   }
@@ -231,14 +233,23 @@ export function readSchemaBornPersisted<Current, InMemory>(
 type Reader<T> = (file: string, input: unknown) => Either.Either<T, PersistedReadError>;
 
 /**
- * `value` as the file phax writes: `$schema` first, naming `formatId` at the
- * running release, then the value's own keys.
+ * The `$schema` phax writes for `formatId`: its current stamp, which names the
+ * format's current shape (the release that last changed it, or the running
+ * version while it has a `next` snapshot), not the running version.
+ */
+export function currentSchemaUrl(formatId: FormatId): string {
+  return schemaUrl(formatId, CURRENT_STAMPS[formatId]);
+}
+
+/**
+ * `value` as the file phax writes: `$schema` first, naming `formatId`'s
+ * current shape (`currentSchemaUrl`), then the value's own keys.
  */
 export function withSchemaUrl<T extends object>(
   formatId: FormatId,
   value: T,
 ): { readonly $schema: string } & T {
-  return { $schema: schemaUrl(formatId, PHAX_RELEASE), ...value };
+  return { $schema: currentSchemaUrl(formatId), ...value };
 }
 
 /** Reads `~/.phax/registry.json`. The pre-schema registry carries every fact phax needs. */
