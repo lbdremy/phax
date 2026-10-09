@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610081603-open-next-release.md
 completes-spec: true
 approved:
