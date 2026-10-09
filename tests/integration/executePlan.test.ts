@@ -2620,11 +2620,11 @@ describe("executePlan — phase start on the no-provider baseline", () => {
   });
 });
 
-describe("executePlan — a green diagnostics gate", () => {
+describe("executePlan — a green gate-report gate", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-green-diagnostics-test-"));
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-green-gate-report-test-"));
   });
 
   afterEach(async () => {
@@ -2645,7 +2645,7 @@ describe("executePlan — a green diagnostics gate", () => {
               command: "node ./audit.mjs",
               surface: "local",
               firing: "every-phase",
-              output: "diagnostics",
+              output: "gate-report",
             },
           ],
         },
@@ -2669,8 +2669,10 @@ describe("executePlan — a green diagnostics gate", () => {
     fakeShell.impl.setResponse("node ./audit.mjs", {
       exitCode: 0,
       stdout: JSON.stringify({
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [],
+        $schema: currentSchemaUrl("gate-report"),
+        outcome: "checked",
+        findings: [],
+        review: [],
       }),
       stderr: "",
     });

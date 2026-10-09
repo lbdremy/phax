@@ -62,6 +62,6 @@ describe("the gate-request document", () => {
   });
 
   it("rejects a $schema naming another format", () => {
-    expect(decodes({ ...request(), $schema: currentSchemaUrl("gate-diagnostics") })).toBe(false);
+    expect(decodes({ ...request(), $schema: currentSchemaUrl("gate-report") })).toBe(false);
   });
 });

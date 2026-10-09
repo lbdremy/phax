@@ -34,11 +34,9 @@ import {
 } from "./formats/recordManifests.js";
 import {
   gateAttributionFormat,
-  gateDiagnosticsFormat,
   gateRequestFormat,
   phaseFileReconciliationFormat,
   type GateAttributionShapes,
-  type GateDiagnosticsShapes,
   type GateRequestShapes,
   type PhaseFileReconciliationShapes,
 } from "./formats/recordTimeline.js";
@@ -190,27 +188,19 @@ export {
   type PhaseFileReconciliationFile as PhaseFileReconciliation,
 } from "../../../src/schemas/reconciliation.js";
 export {
-  GateDiagnosticsFileSchema as GateDiagnosticsSchema,
-  type GateDiagnosticsFile as GateDiagnostics,
-} from "../../../src/schemas/gateDiagnostics.js";
-export {
   GateRequestFileSchema as GateRequestSchema,
   type GateRequestFile as GateRequest,
 } from "../../../src/schemas/gateRequest.js";
 export {
   parseGateAttribution,
-  parseGateDiagnostics,
   parseGateRequest,
   parsePhaseFileReconciliation,
   toLatestGateAttribution,
-  toLatestGateDiagnostics,
   toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   type GateAttributionShape,
-  type GateDiagnosticsShape,
   type GateRequestShape,
   type LatestGateAttribution,
-  type LatestGateDiagnostics,
   type LatestGateRequest,
   type LatestPhaseFileReconciliation,
   type PhaseFileReconciliationShape,
@@ -323,10 +313,6 @@ export {
   type GateAttributionV0_17_0,
 } from "../../../src/schemas/history/gate-attribution/0.17.0.js";
 export {
-  GateDiagnosticsV0_17_0Schema,
-  type GateDiagnosticsV0_17_0,
-} from "../../../src/schemas/history/gate-diagnostics/0.17.0.js";
-export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
@@ -342,10 +328,6 @@ export {
   PhaseFileReconciliationPreSchemaSchema,
   type PhaseFileReconciliationPreSchema,
 } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
-export {
-  GateDiagnosticsPreSchemaSchema,
-  type GateDiagnosticsPreSchema,
-} from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 
 // Fails to compile when a format id has no entry: parseDocument reads every one.
 type EveryFormat<M extends { readonly [F in FormatId]: unknown }> = M;
@@ -364,7 +346,6 @@ type DocumentShapes = EveryFormat<{
   "plan-document": PlanDocumentShapes;
   "gate-attribution": GateAttributionShapes;
   "phase-file-reconciliation": PhaseFileReconciliationShapes;
-  "gate-diagnostics": GateDiagnosticsShapes;
   "plan-approval-record": PlanApprovalRecordShapes;
   "spec-approval-record": SpecApprovalRecordShapes;
   "gate-request": GateRequestShapes;
@@ -401,7 +382,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "plan-document": planDocumentFormat,
     "gate-attribution": gateAttributionFormat,
     "phase-file-reconciliation": phaseFileReconciliationFormat,
-    "gate-diagnostics": gateDiagnosticsFormat,
     "plan-approval-record": planApprovalRecordFormat,
     "spec-approval-record": specApprovalRecordFormat,
     "gate-request": gateRequestFormat,

@@ -394,30 +394,56 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Three hooks let your own tools inform a run: a gate step that prints diagnostics, a brief provider and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+Three hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
 
-### Diagnostics gate steps
+### Gate report steps
 
-A gate step with `"output": "diagnostics"` prints a JSON document instead of a log, and phax reads its verdict from that document rather than from its exit code:
+A gate step with `"output": "gate-report"` prints a gate report on stdout, and phax judges the step from that report rather than from its exit code:
 
 ```json
 {
-  "$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json",
-  "diagnostics": [
+  "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+  "outcome": "checked",
+  "findings": [
     {
-      "rule": "no-cycles",
-      "class": "invariant",
-      "location": { "file": "src/a.ts", "line": 3 },
-      "message": "…",
-      "repair": "…"
+      "id": "no-node-import src/greet.ts node:fs",
+      "rule": "a module under src/ imports no node: module",
+      "location": { "file": "src/greet.ts", "lines": [1, 1] },
+      "message": "imports node:fs",
+      "related": [
+        { "file": "src/cli.ts", "lines": [3, 5], "why": "the caller, where the read belongs" }
+      ],
+      "guide": { "summary": "keep I/O in the module's caller", "read": "guides/no-node-import.md" }
+    },
+    {
+      "id": "exports-function src/farewell.ts",
+      "rule": "a module under src/ exports its function",
+      "location": { "file": "src/farewell.ts", "lines": null },
+      "message": "no exported function",
+      "related": [],
+      "guide": null
+    }
+  ],
+  "review": [
+    {
+      "owner": "hw-maintainers",
+      "note": "whether 'Hello, <name>!' is the greeting the product wants"
     }
   ]
 }
 ```
 
-`$schema` names the `gate-diagnostics` shape the document is written in: the release that last changed the format. phax names the shape it reads whenever it refuses a document. A document without `$schema` fails the step, and so does one stamped newer than the running phax or in an older shape. For example, phax 0.21.0 sends `gate-request/0.20.0` and reads `gate-diagnostics/0.20.0` for as long as neither format changes, so a step that prints `gate-diagnostics/0.20.0` keeps working across phax releases; when a release changes the format, phax refuses the old stamp and names the URL it now reads.
+Every key shown is required, and a key not shown is refused at any level. `lines` is `[start, end]`, 1-based and inclusive, or `null` for the whole file. `guide` may be `null`, and `findings`, `related` and `review` may be empty. `id` belongs to the step: keep it stable across runs of the same check. phax compares ids by equality only and never shows them. `read` names a file, relative to the working tree, that the agent reads; phax never opens it.
 
-The step must print the document every time it runs, `{ "$schema": …, "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step. phax never decides when a finding is due, so report only what is: the [gate request](#gate-request) is how a step learns what the phase changed and what later phases will bring. The failing findings, not the raw log, are what the agent is asked to fix.
+The verdict:
+
+- Any finding fails the step, whatever the exit code. The fix prompt lists each finding with its rule, location, message, related locations and guide, and tells the agent to read each guide's file before changing code.
+- An empty `findings` list passes the step on exit 0: `{ "$schema": …, "outcome": "checked", "findings": [], "review": [] }`.
+- Anything else is a broken step that fails with the raw log: empty or non-JSON output, a document without `$schema` or in another format, a duplicate `id`, a `lines` pair out of order, a key the format does not name, or an empty list on a non-zero exit. The failure names the gate-report URL phax reads.
+
+`$schema` names the `gate-report` shape the report is written in: the release that last changed the format. A report stamped newer than the running phax, or in an older shape, fails the step too, and phax names the URL it reads. The step must print a report every time it runs. phax never decides when a finding is due, so report only what is: the [gate request](#gate-request) is how a step learns what the phase changed and what later phases will bring.
+
+phax saves every readable report exactly as printed, beside the attempt's log, as `checks-attempt-NN.report-SS.json`, where `SS` is the step's position among the steps the attempt runs. `phax records explain --gates` prints each report after its attempt's log and request.
 
 ### Gate request
 
@@ -428,7 +454,7 @@ A gate step that declares `"input": "gate-request"` gets a JSON request on stdin
   "command": "node ./audit.mjs",
   "surface": "structural",
   "firing": "every-phase",
-  "output": "diagnostics",
+  "output": "gate-report",
   "input": "gate-request"
 }
 ```
@@ -452,7 +478,7 @@ A gate step that declares `"input": "gate-request"` gets a JSON request on stdin
 - **`terminal`** is `true` exactly when the gated phase is the run's terminal phase, the one `terminal` steps fire on.
 - **`phases`** is every phase of the run in execution order, each with its planned files to create and edit (optional files excluded).
 
-phax sends facts, never a judgement: the step decides what is due. Read stdin to its end, then parse it. The past is `git diff --name-only <base>` plus the untracked files (`git ls-files --others --exclude-standard`). The future is the `phases` entries after `phase`, so a finding a later phase is planned to fix need not fail this one. When `terminal` is `true`, audit everything. A diagnostics step still prints `{"$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json", "diagnostics": [...]}`, never a document without `$schema`.
+phax sends facts, never a judgement: the step decides what is due. Read stdin to its end, then parse it. The past is `git diff --name-only <base>` plus the untracked files (`git ls-files --others --exclude-standard`). The future is the `phases` entries after `phase`, so a finding a later phase is planned to fix need not fail this one. When `terminal` is `true`, audit everything. A report step still prints `{"$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json", "outcome": "checked", ...}`, never a document without `$schema`.
 
 phax writes the same bytes to every declaring step of every attempt, then closes stdin. Before an attempt's first declaring step it saves them beside the attempt's log as `checks-attempt-NN.request.json`, and the log shows `stdin: checks-attempt-NN.request.json` right after the step's `$` line; `phax records explain --gates` prints the request after its attempt's log. To replay a verdict, run the step on the saved copy in the phase's worktree:
 
@@ -573,7 +599,6 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | Authoring record manifest                    | `authoring-record-manifest` | `authoring/<authoringId>/record.json` on `phax/records/v1`                 | `parseAuthoringRecordManifest` | `json/authoring-record-manifest.schema.json` |
 | Gate attribution                             | `gate-attribution`          | `<record>/gate-attribution.json`                                           | `parseGateAttribution`         | `json/gate-attribution.schema.json`          |
 | File reconciliation                          | `phase-file-reconciliation` | `<record>/file-reconciliation.json`                                        | `parsePhaseFileReconciliation` | `json/phase-file-reconciliation.schema.json` |
-| Gate diagnostics                             | `gate-diagnostics`          | `<record>/checks-attempt-NN.diagnostics.json`                              | `parseGateDiagnostics`         | `json/gate-diagnostics.schema.json`          |
 | Gate request                                 | `gate-request`              | `<record>/checks-attempt-NN.request.json`                                  | `parseGateRequest`             | `json/gate-request.schema.json`              |
 | Brief request                                | `brief-request`             | `<worktree>/.phax-context/brief-request.json`, `request` in a brief record | `parseBriefRequest`            | `json/brief-request.schema.json`             |
 | Brief answer                                 | `brief-answer`              | the brief provider's stdout, `outcome.answer` in a brief record            | `parseBriefAnswer`             | `json/brief-answer.schema.json`              |

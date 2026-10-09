@@ -85,7 +85,7 @@ describe("schemas-check on the committed tree", () => {
       });
     });
     expect(rendered.map(({ id, release }) => `${id}/${release}`)).toEqual(
-      expect.arrayContaining(["gate-attribution/0.17.0", "gate-diagnostics/0.17.0"]),
+      expect.arrayContaining(["gate-attribution/0.17.0", "phase-status/0.17.0"]),
     );
     for (const { id, release, content } of rendered) {
       const snapshot = state.snapshots.get(id)?.get(`${release}.schema.json`);
@@ -389,13 +389,13 @@ describe("renderReleaseModule", () => {
   it("stamps a release-named current shape as itself and a next one as the package version", () => {
     const rendered = renderReleaseModule({
       packageVersion: "1.3.0",
-      currentShapes: { registry: "1.1.0", "run-status": "next", "gate-diagnostics": "1.2.0" },
+      currentShapes: { registry: "1.1.0", "run-status": "next", "gate-attribution": "1.2.0" },
     });
     expect(rendered).toContain(
       "export const CURRENT_STAMPS = {\n" +
         '  registry: "1.1.0",\n' +
         '  "run-status": "1.3.0",\n' +
-        '  "gate-diagnostics": "1.2.0",\n' +
+        '  "gate-attribution": "1.2.0",\n' +
         "} as const;\n",
     );
   });
@@ -447,10 +447,10 @@ describe("refreshLock and renderGeneratedIndex", () => {
     const rendered = renderGeneratedIndex({
       packageVersion: "1.2.3",
       firstSupportedRelease: "0.17.0",
-      currentShapes: { "gate-diagnostics": "next", registry: "0.17.0" },
+      currentShapes: { "gate-attribution": "next", registry: "0.17.0" },
     });
     expect(rendered).toContain(
-      'export const CURRENT_SHAPES = {\n  registry: "0.17.0",\n  "gate-diagnostics": "next",\n} as const;\n',
+      'export const CURRENT_SHAPES = {\n  registry: "0.17.0",\n  "gate-attribution": "next",\n} as const;\n',
     );
   });
 });
@@ -470,7 +470,7 @@ describe("firstSupportedRelease", () => {
     const snapshots = new Map([
       ["registry", dir("pre-schema", "0.18.0", "next")],
       ["run-status", dir("pre-schema", "0.17.0", "0.20.0")],
-      ["gate-diagnostics", dir("0.9.1")],
+      ["gate-attribution", dir("0.9.1")],
     ]);
     expect(firstSupportedRelease(snapshots)).toBe("0.9.1");
   });

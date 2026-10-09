@@ -1,4 +1,3 @@
-import type { GateDiagnostic } from "../../schemas/gateDiagnostics.js";
 import type { GateFinding } from "../../schemas/gateReport.js";
 import type { ReportLocation, ReportRelatedLocation } from "../../schemas/report.js";
 
@@ -8,7 +7,6 @@ export interface BuildFixPromptInput {
   readonly attempt: number;
   readonly logContent: string;
   readonly logPath: string;
-  readonly diagnostics: readonly GateDiagnostic[];
   /** The findings of the checked gate report that failed the step, or null:
    *  a log step or a broken step gets the raw-log prompt. */
   readonly reportFindings: {
@@ -24,17 +22,6 @@ const REQUIRED_ACTION_TAIL = [
   "Make sure to run the failed command after your changes to verify the gate now passes.",
   "The gate run will be re-attempted automatically after your changes.",
 ];
-
-function renderDiagnostic(diagnostic: GateDiagnostic): string {
-  const location =
-    diagnostic.location.line === undefined
-      ? diagnostic.location.file
-      : `${diagnostic.location.file}:${diagnostic.location.line}`;
-  return [
-    `- ${diagnostic.rule} at ${location} — ${diagnostic.message}`,
-    `  repair guide: ${diagnostic.repair}`,
-  ].join("\n");
-}
 
 /** `file`, `file:N` when the lines start and end on one line, or `file:N-M`. */
 function renderLocation(location: ReportLocation | ReportRelatedLocation): string {
@@ -63,7 +50,7 @@ function renderFinding(finding: GateFinding): string {
 }
 
 export function buildFixPrompt(input: BuildFixPromptInput): string {
-  const { command, exitCode, attempt, logContent, logPath, diagnostics, reportFindings } = input;
+  const { command, exitCode, attempt, logContent, logPath, reportFindings } = input;
 
   if (reportFindings !== null) {
     const { findings } = reportFindings;
@@ -88,44 +75,23 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
     ].join("\n");
   }
 
-  if (diagnostics.length === 0) {
-    return [
-      "# Gate checks failed — fix required",
-      "",
-      `Gate run (attempt ${attempt}) failed.`,
-      "",
-      `**Failed command:** \`${command}\``,
-      `**Exit code:** ${exitCode}`,
-      "",
-      "## Gate output",
-      "",
-      "```",
-      logContent,
-      "```",
-      "",
-      "## Required action",
-      "",
-      "Fix all issues revealed by the gate output above.",
-      ...REQUIRED_ACTION_TAIL,
-    ].join("\n");
-  }
-
   return [
     "# Gate checks failed — fix required",
     "",
     `Gate run (attempt ${attempt}) failed.`,
     "",
-    `**Failed step:** \`${command}\` (${diagnostics.length} diagnostic(s))`,
+    `**Failed command:** \`${command}\``,
+    `**Exit code:** ${exitCode}`,
     "",
-    "## Diagnostics",
+    "## Gate output",
     "",
-    diagnostics.map(renderDiagnostic).join("\n"),
-    "",
-    `Full output: ${logPath}`,
+    "```",
+    logContent,
+    "```",
     "",
     "## Required action",
     "",
-    "Read each repair guide above before changing code, then fix every diagnostic listed under **Diagnostics**.",
+    "Fix all issues revealed by the gate output above.",
     ...REQUIRED_ACTION_TAIL,
   ].join("\n");
 }

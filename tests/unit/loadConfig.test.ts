@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
+import { ConfigValidationError } from "../../src/domain/errors.js";
 import {
   DEFAULT_EXTRACT_MODEL,
   DEFAULT_CODE_REVIEW_MODEL,
@@ -100,6 +101,62 @@ describe("loadConfig namespace resolution", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left.message).toContain("PHAX project name is missing");
+    }
+  });
+});
+
+const OUTPUT_REFUSAL = 'gate step "node ./audit.mjs": output must be "log" or "gate-report"';
+
+function auditStep(output: string) {
+  return { command: "node ./audit.mjs", surface: "local", firing: "every-phase", output };
+}
+
+describe("loadConfig gate step output", () => {
+  it("refuses a diagnostics step in a project profile, naming the step and both values", () => {
+    writePhaxJson({ ...baseConfig, gateProfiles: { fast: [auditStep("diagnostics")] } });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ConfigValidationError);
+      expect(result.left.message).toContain(OUTPUT_REFUSAL);
+    }
+  });
+
+  it("refuses any other output in a workspace profile", () => {
+    writePhaxJson({
+      ...baseConfig,
+      workspaces: [
+        {
+          id: "ui",
+          name: "UI",
+          path: ".",
+          gateProfiles: {
+            fast: [
+              { command: "pnpm test", surface: "local", firing: "every-phase" },
+              auditStep("json"),
+            ],
+          },
+        },
+      ],
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain(OUTPUT_REFUSAL);
+    }
+  });
+
+  it("loads a gate-report step that declares no input", () => {
+    writePhaxJson({ ...baseConfig, gateProfiles: { fast: [auditStep("gate-report")] } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.raw.gateProfiles["fast"]?.[0]).toEqual({
+        command: "node ./audit.mjs",
+        surface: "local",
+        firing: "every-phase",
+        output: "gate-report",
+      });
     }
   });
 });

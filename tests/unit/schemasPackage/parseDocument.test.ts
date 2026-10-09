@@ -184,7 +184,7 @@ const Toy = Schema.Struct({ $schema: Schema.String, a: Schema.String });
 type ToyShapes = { "pre-schema": typeof PreSchemaToy.Type; "0.12.0": typeof Toy.Type };
 const toy = defineFormat<ToyShapes>(
   {
-    id: "gate-diagnostics",
+    id: "gate-attribution",
     label: "toy document",
     preSchema: toyShape(PreSchemaToy),
     releases: [],
@@ -192,32 +192,32 @@ const toy = defineFormat<ToyShapes>(
   },
   { packageVersion: "0.13.0", firstSupportedRelease: null },
 );
-const parseToyDocument = makeDocumentParser<{ "gate-diagnostics": ToyShapes }>(
-  { "gate-diagnostics": toy },
+const parseToyDocument = makeDocumentParser<{ "gate-attribution": ToyShapes }>(
+  { "gate-attribution": toy },
   { packageVersion: "0.13.0" },
 );
 
 describe("makeDocumentParser", () => {
   it("identifies two documents with identical content the same way, whatever their files are named", () => {
-    const content = JSON.stringify({ $schema: schemaUrl("gate-diagnostics", "0.12.0"), a: "x" });
+    const content = JSON.stringify({ $schema: schemaUrl("gate-attribution", "0.12.0"), a: "x" });
     const files = new Map([
-      ["gate-diagnostics.json", content],
+      ["gate-attribution.json", content],
       ["renamed-copy.json", content],
     ]);
     const results = [...files.values()].map((text) => parseToyDocument(JSON.parse(text)));
     for (const result of results) {
       expect(result).toEqual({
         ok: true,
-        format: "gate-diagnostics",
+        format: "gate-attribution",
         shape: "0.12.0",
-        value: { $schema: schemaUrl("gate-diagnostics", "0.12.0"), a: "x" },
+        value: { $schema: schemaUrl("gate-attribution", "0.12.0"), a: "x" },
       });
     }
   });
 
   it("resolves a later release to the latest shape at or below it", () => {
-    const result = parseToyDocument({ $schema: schemaUrl("gate-diagnostics", "0.13.0"), a: "x" });
-    expect(result.ok && result.format === "gate-diagnostics" && result.shape).toBe("0.12.0");
+    const result = parseToyDocument({ $schema: schemaUrl("gate-attribution", "0.13.0"), a: "x" });
+    expect(result.ok && result.format === "gate-attribution" && result.shape).toBe("0.12.0");
   });
 
   it("names another format as unknown to the parser with its own package version", () => {
@@ -235,7 +235,7 @@ describe("makeDocumentParser", () => {
   });
 
   it("reports the definition's own failure when the document does not match its shape", () => {
-    const result = parseToyDocument({ $schema: schemaUrl("gate-diagnostics", "0.12.0"), a: 1 });
+    const result = parseToyDocument({ $schema: schemaUrl("gate-attribution", "0.12.0"), a: 1 });
     expectFailure(result, "a");
   });
 

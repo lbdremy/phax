@@ -240,4 +240,28 @@ describe("loadConfig invalid user file error handling", () => {
       expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
     }
   });
+
+  it("refuses a diagnostics gate step in phax.local.json, naming the step and both values", () => {
+    writeProjectConfig(baseConfig);
+    writeLocalUserConfig({
+      gateProfiles: {
+        fast: [
+          {
+            command: "node ./audit.mjs",
+            surface: "local",
+            firing: "every-phase",
+            output: "diagnostics",
+          },
+        ],
+      },
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.left.message).toContain(
+        'gate step "node ./audit.mjs": output must be "log" or "gate-report"',
+      );
+    }
+  });
 });

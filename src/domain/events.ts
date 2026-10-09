@@ -1,6 +1,5 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
 import type { RateLimitError, UsageLimitError } from "./errors.js";
-import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 
 export interface PhaxEventBase {
@@ -85,9 +84,6 @@ export interface GateFailed extends PhaxEventBase {
   readonly exitCode: number;
   readonly logPath: string;
   readonly attempt: number;
-  /** Diagnostics decoded from a `output: "diagnostics"` step; empty for a
-   *  plain step or a provider error that returned no decodable document. */
-  readonly diagnostics: readonly GateDiagnostic[];
 }
 
 export interface FixStarted extends PhaxEventBase {

@@ -24,7 +24,6 @@ import { NodeShellLayer } from "../../src/infra/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsFile } from "../../src/schemas/gateDiagnostics.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -59,22 +58,25 @@ function stepWithSurface(command: string, surface: Surface): GateStep {
   return { command, surface, firing: "every-phase", output: "log" };
 }
 
-function diagnosticsStep(command: string): GateStep {
-  return { command, surface: "local", firing: "every-phase", output: "diagnostics" };
+/** A checked report stamped gate-report at `release`. */
+function stamped(findings: ReadonlyArray<object>, release: string): string {
+  return JSON.stringify({
+    $schema: schemaUrl("gate-report", release),
+    outcome: "checked",
+    findings,
+    review: [],
+  });
 }
 
-const diagnosticsPath = "/fake/runs/my-run/phase-01/checks-attempt-01.diagnostics.json";
-
-/** The document a diagnostics step prints: `$schema` naming gate-diagnostics at `release`. */
-function printed(
-  diagnostics: ReadonlyArray<object>,
-  release: string = CURRENT_STAMPS["gate-diagnostics"],
-): string {
-  return JSON.stringify({ $schema: schemaUrl("gate-diagnostics", release), diagnostics });
+/** A checked report at the current stamp. */
+function report(findings: ReadonlyArray<object>): string {
+  return JSON.stringify({
+    $schema: currentSchemaUrl("gate-report"),
+    outcome: "checked",
+    findings,
+    review: [],
+  });
 }
-
-// The expected document every malformed-answer error states, verbatim.
-const expectedDocument = `expected {"$schema": "${currentSchemaUrl("gate-diagnostics")}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 describe("runGates", () => {
   it("succeeds when all commands exit 0", async () => {
@@ -315,227 +317,25 @@ describe("runGates", () => {
     });
   });
 
-  describe("diagnostics output", () => {
-    const consoleFinding = {
-      rule: "no-console",
-      class: "invariant",
-      location: { file: "src/index.ts", line: 12 },
-      message: "Unexpected console statement",
-      repair: "Remove the console.log call",
-    } as const;
-    const oneDiagnostic = printed([consoleFinding]);
-
-    it("fails a non-empty document whatever the exit code and persists it", async () => {
-      const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setResponse("pnpm audit", {
-        exitCode: 1,
-        stdout: oneDiagnostic,
-        stderr: "",
-      });
-
-      const result = await Effect.runPromise(
-        Effect.either(
-          runGates({
-            steps: [diagnosticsStep("pnpm audit")],
-            cwd,
-            attemptLogPath: logPath,
-            gateRequest,
-            attributionPath,
-            phaseId,
-          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-        ),
-      );
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(GateFailedError);
-        const err = result.left as GateFailedError;
-        expect(err.diagnostics).toHaveLength(1);
-        expect(err.diagnostics[0]?.rule).toBe("no-console");
-        expect(err.diagnostics[0]?.location).toEqual({ file: "src/index.ts", line: 12 });
-      }
-
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
-
-      const doc = fakeFs.impl.getFile(diagnosticsPath);
-      expect(doc).toBeDefined();
-      const written = JSON.parse(doc!) as Record<string, unknown>;
-      expect(Object.keys(written)[0]).toBe("$schema");
-      expect(written).toEqual({
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [consoleFinding],
-      });
-    });
-
-    it("passes on exit 0 with an empty list and writes no diagnostics file", async () => {
-      const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setResponse("pnpm audit", {
-        exitCode: 0,
-        stdout: printed([]),
-        stderr: "",
-      });
-
-      const outcome = await Effect.runPromise(
-        runGates({
-          steps: [diagnosticsStep("pnpm audit")],
-          cwd,
-          attemptLogPath: logPath,
-          gateRequest,
-          attributionPath,
-          phaseId,
-        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-      );
-
-      expect(outcome.attemptLogPath).toBe(logPath);
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "pass" }]);
-    });
-
-    it("treats a non-zero exit with an empty list as a provider error", async () => {
-      const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setResponse("pnpm audit", {
-        exitCode: 2,
-        stdout: printed([]),
-        stderr: "",
-      });
-
-      const result = await Effect.runPromise(
-        Effect.either(
-          runGates({
-            steps: [diagnosticsStep("pnpm audit")],
-            cwd,
-            attemptLogPath: logPath,
-            gateRequest,
-            attributionPath,
-            phaseId,
-          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-        ),
-      );
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err).toBeInstanceOf(GateFailedError);
-        expect(err.diagnostics).toEqual([]);
-        expect(err.exitCode).toBe(2);
-        expect(err.message).toContain("pnpm audit");
-        expect(err.message).toContain("2");
-      }
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
-    });
-
-    it("treats non-JSON stdout as a provider error naming the step and expected shape", async () => {
-      const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setResponse("pnpm audit", {
-        exitCode: 0,
-        stdout: "not json at all",
-        stderr: "",
-      });
-
-      const result = await Effect.runPromise(
-        Effect.either(
-          runGates({
-            steps: [diagnosticsStep("pnpm audit")],
-            cwd,
-            attemptLogPath: logPath,
-            gateRequest,
-            attributionPath,
-            phaseId,
-          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-        ),
-      );
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err).toBeInstanceOf(GateFailedError);
-        expect(err.diagnostics).toEqual([]);
-        expect(err.message).toContain("pnpm audit");
-        expect(err.message).toContain("declared diagnostics output but returned none");
-        expect(err.message).toContain("diagnostics");
-        expect(err.message).toContain("rule");
-        expect(err.message).toContain("location");
-        expect(err.message).toContain("message");
-        expect(err.message).toContain("repair");
-      }
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
-    });
-
-    it("treats a schema-mismatch document as a provider error naming the expected shape", async () => {
-      const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setResponse("pnpm audit", {
-        exitCode: 0,
-        stdout: JSON.stringify({
-          $schema: currentSchemaUrl("gate-diagnostics"),
-          wrong: "shape",
-        }),
-        stderr: "",
-      });
-
-      const result = await Effect.runPromise(
-        Effect.either(
-          runGates({
-            steps: [diagnosticsStep("pnpm audit")],
-            cwd,
-            attemptLogPath: logPath,
-            gateRequest,
-            attributionPath,
-            phaseId,
-          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-        ),
-      );
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err).toBeInstanceOf(GateFailedError);
-        expect(err.diagnostics).toEqual([]);
-        expect(err.message).toContain("pnpm audit");
-        expect(err.message).toContain("declared diagnostics output but returned none");
-        expect(err.message).toContain("diagnostics");
-        expect(err.message).toContain("rule");
-        expect(err.message).toContain("location");
-        expect(err.message).toContain("message");
-        expect(err.message).toContain("repair");
-      }
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
-    });
-  });
-
-  describe("the versioned document", () => {
+  describe("the versioned report", () => {
+    const reportUrl = currentSchemaUrl("gate-report");
     const cycle = {
-      rule: "no-cycles",
-      class: "invariant",
-      location: { file: "src/example/a.ts", line: 2 },
+      id: "no-cycles src/example/a.ts",
+      rule: "no module imports itself through another",
+      location: { file: "src/example/a.ts", lines: [2, 2] },
       message: "a imports b, which imports a",
-      repair: "move the shared type into its own module",
+      related: [],
+      guide: null,
     } as const;
 
-    async function gate(
-      stdout: string,
-      exitCode = 0,
-      gateSteps: readonly GateStep[] = [diagnosticsStep("node ./audit.mjs")],
-    ) {
+    async function gate(stdout: string, exitCode = 0) {
       const fakeFs = makeFakeFileSystem();
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("node ./audit.mjs", { exitCode, stdout, stderr: "" });
       const result = await Effect.runPromise(
         Effect.either(
           runGates({
-            steps: gateSteps,
+            steps: [reportStep("node ./audit.mjs")],
             cwd,
             attemptLogPath: logPath,
             gateRequest,
@@ -549,137 +349,73 @@ describe("runGates", () => {
         result,
         error: Either.isLeft(result) ? (result.left as GateFailedError) : undefined,
         log: fakeFs.impl.getFile(logPath)!,
-        saved: fakeFs.impl.getFile(diagnosticsPath),
+        saved: savedReports(fakeFs),
         results: attribution.steps.map((step) => step.result),
       };
     }
 
-    it("passes an empty list at the current stamp on exit 0", async () => {
-      const { result, saved, results } = await gate(printed([]));
-      expect(Either.isRight(result)).toBe(true);
-      expect(saved).toBeUndefined();
-      expect(results).toEqual(["pass"]);
-    });
-
-    it("treats an empty list at the current stamp on a non-zero exit as a provider error", async () => {
-      const { error, saved, results } = await gate(printed([]), 1);
-      expect(error?.message).toBe('Gate step "node ./audit.mjs" exited 1 with no diagnostics');
-      expect(error?.diagnostics).toEqual([]);
-      expect(saved).toBeUndefined();
-      expect(results).toEqual(["fail"]);
-    });
-
-    it("states the expected document, with the current stamp, when stdout is not JSON", async () => {
-      const { error, log, saved, results } = await gate("not json");
-      expect(error?.message).toContain(
-        "declared diagnostics output but returned none: invalid JSON",
+    it("refuses a document without $schema, naming the URL phax reads", async () => {
+      const { error, log, saved, results } = await gate(
+        JSON.stringify({ outcome: "checked", findings: [cycle], review: [] }),
+        1,
       );
-      expect(error?.message).toContain(expectedDocument);
-      expect(log).toContain(`provider error: step declared diagnostics output but returned none`);
-      expect(log).toContain(expectedDocument);
-      expect(saved).toBeUndefined();
-      expect(results).toEqual(["fail"]);
-    });
-
-    it.each([
-      ["no $schema", JSON.stringify({ diagnostics: [] })],
-      [
-        "a gate-attribution $schema",
-        JSON.stringify({ $schema: currentSchemaUrl("gate-attribution"), diagnostics: [] }),
-      ],
-      ["a gate-diagnostics 0.18.0 $schema", printed([], "0.18.0")],
-    ])("fails a document with %s as malformed", async (_name, stdout) => {
-      const { error, saved, results } = await gate(stdout);
-      expect(error).toBeInstanceOf(GateFailedError);
-      expect(error?.message).toContain("declared diagnostics output but returned none");
-      expect(error?.message.endsWith(expectedDocument)).toBe(true);
-      expect(error?.diagnostics).toEqual([]);
-      expect(saved).toBeUndefined();
-      expect(results).toEqual(["fail"]);
-    });
-
-    it("refuses a newer release by name, states the expected document and lists none of its findings", async () => {
-      const { error, log, saved, results } = await gate(printed([cycle], "99.0.0"), 1);
-      const refusal = `gate-diagnostics 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it — ${expectedDocument}`;
+      const refusal = `a gate-report document carries $schema; this phax reads ${reportUrl}`;
       expect(error?.message).toBe(`Gate step "node ./audit.mjs": ${refusal}`);
-      expect(error?.diagnostics).toEqual([]);
+      expect(error?.reportFindings).toBeNull();
       expect(log).toContain(`provider error: ${refusal}`);
-      expect(saved).toBeUndefined();
+      expect(saved).toEqual([]);
+      expect(results).toEqual(["fail"]);
+    });
+
+    it("refuses a newer release by name and lists none of its findings", async () => {
+      const { error, log, saved, results } = await gate(stamped([cycle], "99.0.0"), 1);
+      const refusal = `gate-report 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it; this phax reads ${reportUrl}`;
+      expect(error?.message).toBe(`Gate step "node ./audit.mjs": ${refusal}`);
+      expect(error?.reportFindings).toBeNull();
+      expect(log).toContain(`provider error: ${refusal}`);
+      expect(saved).toEqual([]);
       expect(results).toEqual(["fail"]);
     });
 
     it("refuses an older shape, naming the URL phax reads, and lists none of its findings", async () => {
-      // A made-up stamp between the last saved-file-only release and the current stamp.
-      const { error, log, saved, results } = await gate(printed([cycle], "0.19.5"), 1);
-      const refusal = `gate-diagnostics 0.19.5 is an older shape — this phax reads ${currentSchemaUrl("gate-diagnostics")}`;
+      // A made-up stamp below the current one.
+      const { error, log, saved, results } = await gate(stamped([cycle], "0.20.0"), 1);
+      const refusal = `gate-report 0.20.0 is an older shape — this phax reads ${reportUrl}`;
       expect(error?.message).toBe(`Gate step "node ./audit.mjs": ${refusal}`);
-      expect(error?.diagnostics).toEqual([]);
+      expect(error?.reportFindings).toBeNull();
       expect(log).toContain(`provider error: ${refusal}`);
-      expect(saved).toBeUndefined();
+      expect(saved).toEqual([]);
       expect(results).toEqual(["fail"]);
     });
 
-    it("keeps the print verbatim in the log and re-stamps the saved file", async () => {
-      const print = JSON.stringify({
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [cycle],
-        generator: "audit.mjs",
-      });
-      const { error, log, saved } = await gate(print, 1);
-      expect(error?.diagnostics).toEqual([cycle]);
+    it("keeps the print verbatim in the log", async () => {
+      const print = stamped([cycle], CURRENT_STAMPS["gate-report"]);
+      const { error, log } = await gate(print, 1);
+      expect(error?.reportFindings).toEqual({ step: 1, findings: [cycle] });
       expect(log.split("\n")).toContain(print);
-      const file = JSON.parse(saved!) as Record<string, unknown>;
-      expect(Object.keys(file)).toEqual(["$schema", "diagnostics"]);
-      expect(file).toEqual({
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [cycle],
-      });
-    });
-
-    it("fails a stamped completion finding on a non-terminal phase and saves the current shape", async () => {
-      const completion = {
-        rule: "wire-adapters",
-        class: "completion",
-        location: { file: "src/example/b.ts" },
-        message: "the adapter is not wired",
-        repair: "wire it up",
-      } as const;
-      const nonTerminal = selectGateSteps([diagnosticsStep("node ./audit.mjs")], false);
-      const { error, saved, results } = await gate(printed([completion]), 0, nonTerminal);
-      expect(error?.diagnostics).toEqual([completion]);
-      expect(results).toEqual(["fail"]);
-      expect(decodeGateDiagnosticsFile(JSON.parse(saved!))).toEqual(
-        Either.right({
-          $schema: currentSchemaUrl("gate-diagnostics"),
-          diagnostics: [completion],
-        }),
-      );
     });
   });
 
   describe("verdict", () => {
-    const completion = {
-      rule: "wire-adapters",
-      class: "completion",
-      location: { file: "src/core/x.ts" },
+    const wiring = {
+      id: "wire-adapters src/core/x.ts",
+      rule: "every adapter is wired",
+      location: { file: "src/core/x.ts", lines: null },
       message: "the adapter is not wired",
-      repair: "wire it up",
+      related: [],
+      guide: null,
     } as const;
 
-    const invariant = {
-      rule: "no-console",
-      class: "invariant",
-      location: { file: "src/index.ts", line: 3 },
+    const noConsole = {
+      id: "no-console src/index.ts",
+      rule: "no console call ships",
+      location: { file: "src/index.ts", lines: [3, 3] },
       message: "no console",
-      repair: "remove it",
+      related: [],
+      guide: null,
     } as const;
 
-    const auditStep: GateStep = {
-      command: "node ./audit.mjs",
-      surface: "structural",
-      firing: "every-phase",
-      output: "diagnostics",
-    };
+    const auditStep: GateStep = reportStep("node ./audit.mjs");
 
     function run(opts: {
       readonly steps: readonly GateStep[];
@@ -701,38 +437,8 @@ describe("runGates", () => {
       return { fakeFs, fakeShell, effect };
     }
 
-    it("fails a completion finding on a non-terminal phase, records fail and saves the file", async () => {
-      const { fakeFs, effect } = run({
-        steps: selectGateSteps([auditStep], false),
-        setup: (shell) => {
-          shell.impl.setResponse("node ./audit.mjs", {
-            exitCode: 0,
-            stdout: printed([completion]),
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err).toBeInstanceOf(GateFailedError);
-        expect(err.message).toBe("Gate command failed: node ./audit.mjs (1 diagnostic(s))");
-        expect(err.diagnostics).toEqual([completion]);
-      }
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([
-        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
-      ]);
-      expect(JSON.parse(fakeFs.impl.getFile(diagnosticsPath)!)).toEqual({
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [completion],
-      });
-    });
-
     it("gives the same verdict, file and failure on a terminal and a non-terminal phase", async () => {
+      const reportPath = "/fake/runs/my-run/phase-01/checks-attempt-01.report-01.json";
       const outcomes = await Promise.all(
         [false, true].map(async (isTerminal) => {
           const { fakeFs, effect } = run({
@@ -740,7 +446,7 @@ describe("runGates", () => {
             setup: (shell) => {
               shell.impl.setResponse("node ./audit.mjs", {
                 exitCode: 1,
-                stdout: printed([completion, invariant]),
+                stdout: report([wiring, noConsole]),
                 stderr: "",
               });
             },
@@ -752,15 +458,16 @@ describe("runGates", () => {
             message: err.message,
             command: err.command,
             exitCode: err.exitCode,
-            diagnostics: err.diagnostics,
-            saved: fakeFs.impl.getFile(diagnosticsPath),
+            reportFindings: err.reportFindings,
+            saved: fakeFs.impl.getFile(reportPath),
             attribution: fakeFs.impl.getFile(attributionPath),
           };
         }),
       );
 
-      expect(outcomes[0]?.diagnostics).toEqual([completion, invariant]);
-      expect(outcomes[0]?.message).toBe("Gate command failed: node ./audit.mjs (2 diagnostic(s))");
+      expect(outcomes[0]?.reportFindings).toEqual({ step: 1, findings: [wiring, noConsole] });
+      expect(outcomes[0]?.message).toBe("Gate command failed: node ./audit.mjs (2 findings)");
+      expect(outcomes[0]?.saved).toBe(report([wiring, noConsole]));
       expect(outcomes[1]).toEqual(outcomes[0]);
     });
 
@@ -777,7 +484,7 @@ describe("runGates", () => {
           shell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok", stderr: "" });
           shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: printed([]),
+            stdout: report([]),
             stderr: "",
           });
         },
@@ -797,9 +504,9 @@ describe("runGates", () => {
       expect(log.some((line) => line.startsWith("stdin:"))).toBe(false);
     });
 
-    it("records only pass or fail and writes only diagnostics files beside the log", async () => {
+    it("records only pass or fail and writes only report files beside the log", async () => {
       const fakeFs = makeFakeFileSystem();
-      const answers = [[completion], [invariant, completion], []];
+      const answers = [[wiring], [noConsole, wiring], []];
       const results: string[] = [];
       for (const [index, answer] of answers.entries()) {
         const attemptLogPath = `/fake/runs/my-run/phase-01/checks-attempt-0${index + 1}.log`;
@@ -810,7 +517,7 @@ describe("runGates", () => {
           setup: (shell) => {
             shell.impl.setResponse("node ./audit.mjs", {
               exitCode: 0,
-              stdout: printed(answer),
+              stdout: report(answer),
               stderr: "",
             });
           },
@@ -822,10 +529,13 @@ describe("runGates", () => {
 
       expect(results).toEqual(["fail", "fail", "pass"]);
       expect(
-        [...fakeFs.impl.files.keys()].filter(
-          (path) => /\.[a-z]+\.json$/.test(path) && !path.endsWith(".diagnostics.json"),
-        ),
-      ).toEqual([]);
+        [...fakeFs.impl.files.keys()].filter((path) => path.endsWith(".json")).toSorted(),
+      ).toEqual([
+        "/fake/runs/my-run/phase-01/checks-attempt-01.report-01.json",
+        "/fake/runs/my-run/phase-01/checks-attempt-02.report-01.json",
+        "/fake/runs/my-run/phase-01/checks-attempt-03.report-01.json",
+        attributionPath,
+      ]);
     });
 
     it("keeps the profile order, the stop at the first failure, terminal firing and attribution", async () => {
@@ -853,7 +563,7 @@ describe("runGates", () => {
           shell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
           shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: printed([completion]),
+            stdout: report([wiring]),
             stderr: "",
           });
         },
@@ -924,11 +634,12 @@ function readAttribution(ws: Workspace): GateAttribution {
 // exercised. Every script and request is made up and lives in a temp dir.
 describe("runGates with a declaring step (Node shell)", () => {
   const finding = {
-    rule: "no-node-io",
-    class: "invariant",
-    location: { file: "src/io.ts" },
+    id: "no-node-io src/io.ts",
+    rule: "a module under src/ does no node: I/O",
+    location: { file: "src/io.ts", lines: null },
     message: "src/io.ts imports node:fs",
-    repair: "move the I/O behind a port",
+    related: [],
+    guide: null,
   };
   const scripts: Readonly<Record<string, string>> = {
     // Copies stdin to the file named by its argument, then summarises it.
@@ -948,10 +659,17 @@ describe("runGates with a declaring step (Node shell)", () => {
     ].join("\n"),
     // Exits with its argument at once, never reading stdin.
     "exit.mjs": "process.exit(Number(process.argv[2] ?? 0));",
-    // Reads stdin to end of file, then reports one finding.
-    "diag.mjs": [
+    // Reads stdin to end of file, then prints a gate report with one finding.
+    "report.mjs": [
       "for await (const _ of process.stdin);",
-      `console.log(${JSON.stringify(printed([finding]))});`,
+      `console.log(${JSON.stringify(
+        JSON.stringify({
+          $schema: currentSchemaUrl("gate-report"),
+          outcome: "checked",
+          findings: [finding],
+          review: [],
+        }),
+      )});`,
     ].join("\n"),
   };
 
@@ -1048,14 +766,17 @@ describe("runGates with a declaring step (Node shell)", () => {
     }
   });
 
-  it("fails a declaring diagnostics step that reports one finding", async () => {
+  it("fails a declaring report step that reports one finding", async () => {
     const ws = workspace();
 
-    const result = await runReal(ws, [declaring("node ./diag.mjs", { output: "diagnostics" })]);
+    const result = await runReal(ws, [declaring("node ./report.mjs", { output: "gate-report" })]);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect((result.left as GateFailedError).diagnostics).toEqual([finding]);
+      expect((result.left as GateFailedError).reportFindings).toEqual({
+        step: 1,
+        findings: [finding],
+      });
     }
     expect(readAttribution(ws).steps.map((s) => s.result)).toEqual(["fail"]);
   });
@@ -1197,7 +918,6 @@ describe("runGates with a report step", () => {
         const err = failure(result);
         expect(err.exitCode).toBe(exitCode);
         expect(err.reportFindings).toEqual({ step: 1, findings: [greetFinding, farewellFinding] });
-        expect(err.diagnostics).toEqual([]);
         expect(attribution.steps).toEqual([
           { command: "node ./audit.mjs", surface: "structural", result: "fail" },
         ]);
@@ -1258,7 +978,14 @@ describe("runGates with a report step", () => {
 
   it("refuses another format by name, naming the gate-report URL", async () => {
     const others = [
-      ["gate-diagnostics", { $schema: schemaUrl("gate-diagnostics", "0.20.0"), diagnostics: [] }],
+      // A retired format, refused by name all the same.
+      [
+        "gate-diagnostics",
+        {
+          $schema: "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json",
+          diagnostics: [],
+        },
+      ],
       [
         "brief-report",
         {
@@ -1423,9 +1150,6 @@ describe("runGates with a report step", () => {
     expect(fakeFs.impl.getFile(reportPath)).toBe(first);
     expect(fakeFs.impl.getFile("/fake/runs/my-run/phase-01/checks-attempt-02.report-01.json")).toBe(
       second,
-    );
-    expect([...fakeFs.impl.files.keys()].filter((p) => p.endsWith(".diagnostics.json"))).toEqual(
-      [],
     );
 
     // Until a refusal pauses the phase, it is a broken step with the raw log.

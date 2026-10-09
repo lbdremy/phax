@@ -170,7 +170,7 @@ setInterval(() => {}, 1000);
   it.each([
     ["no $schema", { guarantees: [] }],
     ["a newer release", { $schema: schemaUrl("brief-answer", "99.0.0"), guarantees: [] }],
-    ["another format", { $schema: currentSchemaUrl("gate-diagnostics"), guarantees: [] }],
+    ["another format", { $schema: currentSchemaUrl("brief-request"), guarantees: [] }],
     ["not a url", { $schema: "not a url", guarantees: [] }],
   ])("refuses an answer with %s at $schema", async (_label, document) => {
     const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));

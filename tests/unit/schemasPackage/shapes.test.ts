@@ -45,7 +45,7 @@ const UNSUPPORTED = "toy document older than the first release that writes $sche
 // the package's generated values never change what a toy reads.
 const TOY_RELEASES = { packageVersion: "0.13.0", firstSupportedRelease: null } as const;
 
-const url = (release: string) => schemaUrl("gate-diagnostics", release);
+const url = (release: string) => schemaUrl("gate-attribution", release);
 
 // ── variant (a): the pre-schema slot unfilled, phax's current decoder reads it
 
@@ -58,7 +58,7 @@ const CURRENT = Schema.Struct({
 
 const unfilled = defineFormat<{ "pre-schema": typeof CURRENT.Type }>(
   {
-    id: "gate-diagnostics",
+    id: "gate-attribution",
     label: "toy document",
     releases: [],
     current: { name: "pre-schema", shape: shape(CURRENT) },
@@ -121,7 +121,7 @@ describe("defineFormat, pre-schema slot unfilled: a document with $schema", () =
     expectFailure(
       unfilled.parse({ $schema: url("0.12.0"), a: "x", b: 1 }),
       "$schema",
-      "no gate-diagnostics shape is known at release 0.12.0",
+      "no gate-attribution shape is known at release 0.12.0",
     );
   });
 
@@ -129,7 +129,7 @@ describe("defineFormat, pre-schema slot unfilled: a document with $schema", () =
     expectFailure(
       unfilled.parse({ $schema: url("99.0.0"), a: "x", b: 1 }),
       "$schema",
-      newerReleaseMessage("gate-diagnostics", "99.0.0", "0.13.0"),
+      newerReleaseMessage("gate-attribution", "99.0.0", "0.13.0"),
     );
   });
 });
@@ -152,7 +152,7 @@ describe("defineFormat, an injected first supported release", () => {
   it("names it when the pre-schema decoder rejects a document", () => {
     const known = defineFormat<{ "pre-schema": typeof CURRENT.Type }>(
       {
-        id: "gate-diagnostics",
+        id: "gate-attribution",
         label: "toy document",
         releases: [],
         current: { name: "pre-schema", shape: shape(CURRENT) },
@@ -200,7 +200,7 @@ function filledFormat() {
   const current = counted(NEXT);
   const format = defineFormat<FilledShapes>(
     {
-      id: "gate-diagnostics",
+      id: "gate-attribution",
       label: "toy document",
       preSchema: shape(PRE_SCHEMA),
       releases: [
@@ -219,7 +219,7 @@ const { format: filled } = filledFormat();
 // A frozen pre-schema module below a release-named current shape.
 const releasedCurrent = defineFormat<Omit<FilledShapes, "next">>(
   {
-    id: "gate-diagnostics",
+    id: "gate-attribution",
     label: "toy document",
     preSchema: shape(PRE_SCHEMA),
     releases: [["0.10.0", shape(R0_10)]],
@@ -275,7 +275,7 @@ describe("defineFormat, pre-schema slot filled: $schema documents", () => {
     expectFailure(
       filled.parse(at0_10("0.9.0")),
       "$schema",
-      "no gate-diagnostics shape is known at release 0.9.0",
+      "no gate-attribution shape is known at release 0.9.0",
     );
   });
 
@@ -283,10 +283,10 @@ describe("defineFormat, pre-schema slot filled: $schema documents", () => {
     expectFailure(
       filled.parse(at0_12("99.0.0")),
       "$schema",
-      "gate-diagnostics 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
+      "gate-attribution 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
     );
-    expect(newerReleaseMessage("gate-diagnostics", "99.0.0", "0.13.0")).toBe(
-      "gate-diagnostics 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
+    expect(newerReleaseMessage("gate-attribution", "99.0.0", "0.13.0")).toBe(
+      "gate-attribution 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
     );
   });
 
@@ -307,13 +307,13 @@ describe("defineFormat, pre-schema slot filled: $schema documents", () => {
     expectFailure(
       filled.parse({ ...at0_12("0.12.0"), $schema: registry }),
       "$schema",
-      `${registry} is a registry document, not a gate-diagnostics`,
+      `${registry} is a registry document, not a gate-attribution`,
     );
   });
 
   it.each([
-    ["another host", "https://example.com/schemas/gate-diagnostics/0.12.0.json"],
-    ["a two-part release", "https://docs.phax.run/schemas/gate-diagnostics/0.12.json"],
+    ["another host", "https://example.com/schemas/gate-attribution/0.12.0.json"],
+    ["a two-part release", "https://docs.phax.run/schemas/gate-attribution/0.12.json"],
     ["a number", 12],
     ["null", null],
   ])("fails a malformed $schema (%s), naming the expected form", (_label, value) => {
@@ -341,7 +341,7 @@ describe("defineFormat, pre-schema slot filled: a `next` current shape in a deve
     const current = counted(NEXT);
     const format = defineFormat<FilledShapes>(
       {
-        id: "gate-diagnostics",
+        id: "gate-attribution",
         label: "toy document",
         preSchema: shape(PRE_SCHEMA),
         releases: [
@@ -367,7 +367,7 @@ describe("defineFormat, pre-schema slot filled: a `next` current shape in a deve
 // the slots every phax format fills before its first `$schema` release.
 const unreleased = defineFormat<{ "pre-schema": typeof PRE_SCHEMA.Type; next: typeof NEXT.Type }>(
   {
-    id: "gate-diagnostics",
+    id: "gate-attribution",
     label: "toy document",
     preSchema: shape(PRE_SCHEMA),
     releases: [],
@@ -389,14 +389,14 @@ describe("defineFormat, a `next` current shape and no release yet", () => {
     const result = unreleased.parse({ ...atNext("0.13.0"), b: "one" });
     expectFailure(result, "b");
     if (result.ok) return;
-    expect(result.error.message).not.toContain("no gate-diagnostics shape is known");
+    expect(result.error.message).not.toContain("no gate-attribution shape is known");
   });
 
   it("names a lower release with no shape", () => {
     expectFailure(
       unreleased.parse(atNext("0.12.0")),
       "$schema",
-      "no gate-diagnostics shape is known at release 0.12.0",
+      "no gate-attribution shape is known at release 0.12.0",
     );
   });
 });
@@ -412,7 +412,7 @@ function firstRelease(firstSupportedRelease: string | null) {
     "0.17.0": typeof R0_12.Type;
   }>(
     {
-      id: "gate-diagnostics",
+      id: "gate-attribution",
       label: "toy document",
       preSchema,
       releases: [],
@@ -455,7 +455,7 @@ describe("defineFormat, a $schema document below the first supported release", (
     expectFailure(
       format.parse(at0_12("0.16.0")),
       "$schema",
-      "no gate-diagnostics shape is known at release 0.16.0",
+      "no gate-attribution shape is known at release 0.16.0",
     );
     expect(format.parse(at0_12("0.17.0"))).toMatchObject({ ok: true, shape: "0.17.0" });
   });
@@ -465,7 +465,7 @@ describe("defineFormat, a $schema document below the first supported release", (
     expectFailure(
       format.parse(at0_12("0.18.0")),
       "$schema",
-      newerReleaseMessage("gate-diagnostics", "0.18.0", "0.17.0"),
+      newerReleaseMessage("gate-attribution", "0.18.0", "0.17.0"),
     );
   });
 });
@@ -483,7 +483,7 @@ function openedAt(
     "0.20.0": typeof R0_12.Type;
   }>(
     {
-      id: "gate-diagnostics",
+      id: "gate-attribution",
       label: "toy document",
       preSchema: shape(PRE_SCHEMA),
       releases: [],
@@ -511,7 +511,7 @@ describe("defineFormat, a package opened above a format's shape", () => {
       expectFailure(
         format.parse(at0_12(release)),
         "$schema",
-        `gate-diagnostics ${release} is newer than @lbdremy/phax-schemas 0.20.0 — upgrade the package`,
+        `gate-attribution ${release} is newer than @lbdremy/phax-schemas 0.20.0 — upgrade the package`,
       );
     }
   });

@@ -21,7 +21,6 @@ import {
 } from "../../../packages/schemas/src/formats/recordManifests.js";
 import {
   gateAttributionFormat,
-  gateDiagnosticsFormat,
   gateRequestFormat,
   phaseFileReconciliationFormat,
 } from "../../../packages/schemas/src/formats/recordTimeline.js";
@@ -89,7 +88,6 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "authoring-record-manifest": authoringRecordManifestFormat.current.shape.decode,
   "gate-attribution": gateAttributionFormat.current.shape.decode,
   "phase-file-reconciliation": phaseFileReconciliationFormat.current.shape.decode,
-  "gate-diagnostics": gateDiagnosticsFormat.current.shape.decode,
   "spec-document": specDocumentFormat.current.shape.decode,
   "plan-document": planDocumentFormat.current.shape.decode,
   "plan-approval-record": planApprovalRecordFormat.current.shape.decode,
@@ -151,7 +149,6 @@ describe("the JSON Schema table", () => {
       authoringRecordManifestFormat,
       gateAttributionFormat,
       phaseFileReconciliationFormat,
-      gateDiagnosticsFormat,
       specDocumentFormat,
       planDocumentFormat,
       planApprovalRecordFormat,
@@ -178,17 +175,16 @@ describe("the JSON Schema table", () => {
       "phase-status",
       "gate-attribution",
       "phase-file-reconciliation",
-      "gate-diagnostics",
       "brief-answer",
     ]);
   });
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 23 files and no failure", () => {
+  it("renders 22 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(23);
+    expect(rendered.files.size).toBe(22);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

@@ -98,7 +98,6 @@ describe("exitCodeForError families", () => {
         command: "pnpm test",
         exitCode: 1,
         logPath: "/tmp/gate.log",
-        diagnostics: [],
         reportFindings: null,
       }),
     ],

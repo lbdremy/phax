@@ -28,8 +28,8 @@ export function makeGateRequest(input: MakeGateRequestInput): GateRequest {
 }
 
 /**
- * Names the gate request saved next to a gate attempt log, mirroring
- * `diagnosticsPathFor`: `checks-attempt-01.log` → `checks-attempt-01.request.json`.
+ * Names the gate request saved next to a gate attempt log:
+ * `checks-attempt-01.log` → `checks-attempt-01.request.json`.
  * A path that does not end in `.log` simply gets `.request.json` appended.
  */
 export function requestPathFor(attemptLogPath: string): string {

@@ -198,13 +198,34 @@ describe("gate profile decode (attributed steps)", () => {
     }
   });
 
-  it("decodes a step with output: diagnostics", () => {
+  it("decodes a step with output: gate-report and no input", () => {
     const decoded = decodePhaxConfig({
       ...baseConfig,
       gateProfiles: {
         full: [
           {
-            command: "pnpm test",
+            command: "node ./audit.mjs",
+            surface: "local",
+            firing: "every-phase",
+            output: "gate-report",
+          },
+        ],
+      },
+    });
+    expect(Either.isRight(decoded)).toBe(true);
+    if (Either.isRight(decoded)) {
+      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("gate-report");
+      expect(decoded.right.gateProfiles["full"]?.[0]?.input).toBeUndefined();
+    }
+  });
+
+  it("rejects a step with output: diagnostics", () => {
+    const decoded = decodePhaxConfig({
+      ...baseConfig,
+      gateProfiles: {
+        full: [
+          {
+            command: "node ./audit.mjs",
             surface: "local",
             firing: "every-phase",
             output: "diagnostics",
@@ -212,10 +233,7 @@ describe("gate profile decode (attributed steps)", () => {
         ],
       },
     });
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("diagnostics");
-    }
+    expect(Either.isLeft(decoded)).toBe(true);
   });
 
   it("rejects a step whose output is outside the closed enum", () => {

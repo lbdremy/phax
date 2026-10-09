@@ -9,7 +9,6 @@ import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
-import * as gateDiagnostics from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import * as phaseFileReconciliation from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import * as phaseRecordManifest from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import * as phaseStatus from "../../../src/schemas/history/phase-status/pre-schema.js";
@@ -40,7 +39,6 @@ const FROZEN_MODULES: { readonly [F in PreSchemaFormatId]: object } = {
   "authoring-record-manifest": authoringRecordManifest,
   "gate-attribution": gateAttribution,
   "phase-file-reconciliation": phaseFileReconciliation,
-  "gate-diagnostics": gateDiagnostics,
   "spec-document": specDocument,
   "plan-document": planDocument,
 };
@@ -75,9 +73,6 @@ describe("schemas package entry", () => {
       "GateAttributionPreSchemaSchema",
       "GateAttributionSchema",
       "GateAttributionV0_17_0Schema",
-      "GateDiagnosticsPreSchemaSchema",
-      "GateDiagnosticsSchema",
-      "GateDiagnosticsV0_17_0Schema",
       "GateReportSchema",
       "GateRequestSchema",
       "PhaseFileReconciliationPreSchemaSchema",
@@ -115,7 +110,6 @@ describe("schemas package entry", () => {
       "parseComplianceReview",
       "parseDocument",
       "parseGateAttribution",
-      "parseGateDiagnostics",
       "parseGateReport",
       "parseGateRequest",
       "parsePhaseFileReconciliation",
@@ -138,7 +132,6 @@ describe("schemas package entry", () => {
       "toLatestBriefRequest",
       "toLatestComplianceReview",
       "toLatestGateAttribution",
-      "toLatestGateDiagnostics",
       "toLatestGateReport",
       "toLatestGateRequest",
       "toLatestPhaseFileReconciliation",
@@ -220,11 +213,9 @@ describe("schemas package entry", () => {
     const { GateAttributionFileSchema } = await import("../../../src/schemas/gateAttribution.js");
     const { PhaseFileReconciliationFileSchema } =
       await import("../../../src/schemas/reconciliation.js");
-    const { GateDiagnosticsFileSchema } = await import("../../../src/schemas/gateDiagnostics.js");
     const { GateRequestFileSchema } = await import("../../../src/schemas/gateRequest.js");
     expect(entry.GateAttributionSchema).toBe(GateAttributionFileSchema);
     expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationFileSchema);
-    expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsFileSchema);
     expect(entry.GateRequestSchema).toBe(GateRequestFileSchema);
   });
 

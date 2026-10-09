@@ -13,10 +13,6 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
-// The $schema a diagnostics step prints: gate-diagnostics at its current stamp.
-const diagnosticsSchema = currentSchemaUrl("gate-diagnostics");
-const noDiagnostics = JSON.stringify({ $schema: diagnosticsSchema, diagnostics: [] });
-
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
 const phaseFolderPath = `${runPath}/phase-01`;
@@ -223,96 +219,6 @@ describe("runGatesWithFixLoop", () => {
     expect(prompt).toContain("pnpm test");
   });
 
-  it("feeds diagnostics into the fix prompt for a diagnostics step and omits the raw log", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
-
-    seedStatusFiles(fakeFs);
-    fakeBackend.impl.addResumeResponse(makeResumeResult());
-    const diagnosticsDocument = JSON.stringify({
-      $schema: diagnosticsSchema,
-      diagnostics: [
-        {
-          rule: "no-console",
-          class: "invariant",
-          location: { file: "src/index.ts", line: 12 },
-          message: "Unexpected console statement",
-          repair: "Remove the console.log call",
-        },
-      ],
-    });
-    fakeShell.impl.enqueue(
-      { exitCode: 1, stdout: diagnosticsDocument, stderr: "" },
-      { exitCode: 0, stdout: noDiagnostics, stderr: "" },
-    );
-
-    await Effect.runPromise(
-      runGatesWithFixLoop({
-        ...baseOpts,
-        steps: [
-          { command: "pnpm test", surface: "local", firing: "every-phase", output: "diagnostics" },
-        ] as const,
-      }).pipe(Effect.provide(layer)),
-    );
-
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
-    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
-    expect(prompt).toContain("no-console");
-    expect(prompt).toContain("Remove the console.log call");
-    expect(prompt).not.toContain("## Gate output");
-  });
-
-  it("feeds an invariant and a completion into the fix prompt alike, in provider order", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
-
-    seedStatusFiles(fakeFs);
-    fakeBackend.impl.addResumeResponse(makeResumeResult());
-    const mixedDocument = JSON.stringify({
-      $schema: diagnosticsSchema,
-      diagnostics: [
-        {
-          rule: "no-console",
-          class: "invariant",
-          location: { file: "src/index.ts", line: 12 },
-          message: "Unexpected console statement",
-          repair: "Remove the console.log call",
-        },
-        {
-          rule: "missing-wiring",
-          class: "completion",
-          location: { file: "src/core/billing/port.ts" },
-          message: "billing port is not wired up",
-          repair: "wire the port into the adapter registry",
-        },
-      ],
-    });
-    fakeShell.impl.enqueue(
-      { exitCode: 1, stdout: mixedDocument, stderr: "" },
-      { exitCode: 0, stdout: noDiagnostics, stderr: "" },
-    );
-
-    await Effect.runPromise(
-      runGatesWithFixLoop({
-        ...baseOpts,
-        steps: [
-          { command: "pnpm audit", surface: "local", firing: "every-phase", output: "diagnostics" },
-        ] as const,
-      }).pipe(Effect.provide(layer)),
-    );
-
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
-    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
-    expect(prompt).toContain("**Failed step:** `pnpm audit` (2 diagnostic(s))");
-    const diagnosticsSection = prompt.slice(
-      prompt.indexOf("## Diagnostics"),
-      prompt.indexOf("## Required action"),
-    );
-    expect(diagnosticsSection.indexOf("no-console")).toBeGreaterThan(-1);
-    expect(diagnosticsSection.indexOf("missing-wiring")).toBeGreaterThan(
-      diagnosticsSection.indexOf("no-console"),
-    );
-    expect(prompt).not.toMatch(/pending|optional/i);
-  });
-
   describe("a report step", () => {
     const reportUrl = currentSchemaUrl("gate-report");
     const reportStep = [
@@ -390,6 +296,56 @@ describe("runGatesWithFixLoop", () => {
       expect(prompt).not.toContain("hw-maintainers");
       expect(prompt).not.toContain("whether the greeting reads well");
       expect(prompt).not.toContain("## Gate output");
+    });
+
+    it("lists a failing report's findings in the fix prompt in report order", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      const twoFindings = JSON.stringify({
+        $schema: reportUrl,
+        outcome: "checked",
+        findings: [
+          {
+            id: "no-console src/index.ts",
+            rule: "no-console",
+            location: { file: "src/index.ts", lines: [12, 12] },
+            message: "Unexpected console statement",
+            related: [],
+            guide: null,
+          },
+          {
+            id: "missing-wiring src/core/billing/port.ts",
+            rule: "missing-wiring",
+            location: { file: "src/core/billing/port.ts", lines: null },
+            message: "billing port is not wired up",
+            related: [],
+            guide: null,
+          },
+        ],
+        review: [],
+      });
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: twoFindings, stderr: "" },
+        { exitCode: 0, stdout: passingReport, stderr: "" },
+      );
+
+      await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, steps: reportStep }).pipe(Effect.provide(layer)),
+      );
+
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+      const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+      expect(prompt).toContain("**Failed step:** `node ./audit.mjs` (2 findings)");
+      const findingsSection = prompt.slice(
+        prompt.indexOf("## Findings"),
+        prompt.indexOf("## Required action"),
+      );
+      expect(findingsSection.indexOf("no-console")).toBeGreaterThan(-1);
+      expect(findingsSection.indexOf("missing-wiring")).toBeGreaterThan(
+        findingsSection.indexOf("no-console"),
+      );
+      expect(prompt).not.toMatch(/pending|optional/i);
     });
   });
 

@@ -20,14 +20,12 @@
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
 // format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
 //
-// It also reads the two answers phax decodes with a file decoder: the
-// `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`)
-// and the `brief-answer` document a brief provider prints (`readBriefAnswer`).
-// Each reads only stamps from its format's current stamp up to the running
-// version, refuses an older shape by name, and names the URL it reads. The
-// `gate-report` and `brief-report` documents that replace them are read the
-// same way (`readGateReport`, `readBriefReport`), and refuse any other
-// format by name.
+// It also reads the answers phax decodes with a file decoder: the
+// `brief-answer` document a brief provider prints (`readBriefAnswer`), and the
+// `gate-report` and `brief-report` documents (`readGateReport`,
+// `readBriefReport`). Each reads only stamps from its format's current stamp
+// up to the running version, refuses an older shape by name, and names the URL
+// it reads; the report readers also refuse any other format by name.
 import { Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
@@ -52,7 +50,6 @@ import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
-import { decodeGateDiagnosticsFile, type GateDiagnosticsDocument } from "./gateDiagnostics.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
@@ -440,75 +437,6 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
 export interface AnswerBounds {
   readonly current: string;
   readonly running: string;
-}
-
-/**
- * The last release whose `gate-diagnostics` shape described only the file phax
- * saves. A stamp at or below it names that shape, never a gate step's answer.
- * A historical fact: it never moves at a release cut.
- */
-const LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE = "0.19.0";
-
-/** Why a gate step's diagnostics document was not read. */
-export type GateDiagnosticsAnswerError =
-  | { readonly kind: "malformed"; readonly reason: string }
-  | { readonly kind: "newer"; readonly message: string }
-  | { readonly kind: "older"; readonly message: string };
-
-function malformed(reason: string): Either.Either<never, GateDiagnosticsAnswerError> {
-  return Either.left({ kind: "malformed", reason });
-}
-
-/**
- * Reads the parsed document a diagnostics gate step printed. Never throws. In
- * order:
- * 1. a non-object is malformed;
- * 2. a document without its own `$schema` key is malformed: there is no
- *    unversioned reading;
- * 3. a `$schema` that is not a `gate-diagnostics` schema URL is malformed;
- * 4. a stamp above `bounds.running` is refused as `newer`, by name;
- * 5. a stamp at or below `LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE` is
- *    malformed: it names the saved file's shape;
- * 6. a stamp below `bounds.current` is refused as `older`, naming the URL
- *    this phax reads;
- * 7. a document the file decoder rejects is malformed, with the first
- *    violation.
- * The decoded document keeps only `diagnostics`: `$schema` and any extra key
- * are dropped.
- */
-export function readGateDiagnosticsAnswer(
-  input: unknown,
-  bounds: AnswerBounds = { current: CURRENT_STAMPS["gate-diagnostics"], running: PHAX_RELEASE },
-): Either.Either<GateDiagnosticsDocument, GateDiagnosticsAnswerError> {
-  if (!isDocumentObject(input)) return malformed("the document is not a JSON object");
-  if (!Object.hasOwn(input, "$schema")) return malformed("the document has no $schema");
-  const named = parseSchemaUrl(input["$schema"]);
-  if (named === undefined || named.formatId !== "gate-diagnostics") {
-    return malformed(`$schema ${JSON.stringify(input["$schema"])} does not name gate-diagnostics`);
-  }
-  const { release } = named;
-  if (compareReleases(release, bounds.running) > 0) {
-    return Either.left({
-      kind: "newer",
-      message: `gate-diagnostics ${release} is newer than this phax (${bounds.running}) — upgrade phax to read it`,
-    });
-  }
-  if (compareReleases(release, LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE) <= 0) {
-    return malformed(
-      `gate-diagnostics ${release} names the saved file's shape, not a gate step's document`,
-    );
-  }
-  if (compareReleases(release, bounds.current) < 0) {
-    return Either.left({
-      kind: "older",
-      message: `gate-diagnostics ${release} is an older shape — this phax reads ${schemaUrl("gate-diagnostics", bounds.current)}`,
-    });
-  }
-  const decoded = decodeGateDiagnosticsFile(input);
-  if (Either.isLeft(decoded)) {
-    return malformed(`schema mismatch: ${formatFirstViolation(decoded.left)}`);
-  }
-  return Either.right({ diagnostics: decoded.right.diagnostics });
 }
 
 /**

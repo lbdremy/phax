@@ -28,13 +28,13 @@ describe("example $schema literals", () => {
       stampLiterals(
         [
           '{ "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json" }',
-          '  $schema: "https://docs.phax.run/schemas/gate-diagnostics/0.17.0.json",',
+          '  $schema: "https://docs.phax.run/schemas/gate-report/0.21.0.json",',
           "names its format, e.g. `https://docs.phax.run/schemas/run-status/0.17.0.json`.",
         ].join("\n"),
       ),
     ).toEqual([
       { format: "brief-request", stamp: "0.20.0" },
-      { format: "gate-diagnostics", stamp: "0.17.0" },
+      { format: "gate-report", stamp: "0.21.0" },
     ]);
   });
 

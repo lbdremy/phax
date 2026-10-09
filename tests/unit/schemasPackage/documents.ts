@@ -29,7 +29,6 @@ import {
 import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
-import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
 import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
 import {
@@ -44,10 +43,6 @@ import {
   GateAttributionPreSchemaSchema,
   type GateAttributionPreSchema,
 } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
-import {
-  GateDiagnosticsPreSchemaSchema,
-  type GateDiagnosticsPreSchema,
-} from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import {
   PhaseFileReconciliationPreSchemaSchema,
   type PhaseFileReconciliationPreSchema,
@@ -341,18 +336,6 @@ const phaseFileReconciliation: PhaseFileReconciliationPreSchema = {
   hasDeviations: false,
 };
 
-const gateDiagnostics: GateDiagnosticsPreSchema = {
-  diagnostics: [
-    {
-      class: "invariant",
-      rule: "no-io-in-domain",
-      location: { file: "src/domain/example.ts", line: 12 },
-      message: "src/domain/example.ts imports node:fs",
-      repair: "read the file through the fs port",
-    },
-  ],
-};
-
 const gateRequest: GateRequest = {
   phase: "phase-02",
   base: EXAMPLE_BASE,
@@ -531,7 +514,6 @@ export const preSchemaDocuments: { readonly [F in PreSchemaFormatId]: Doc } = {
     PhaseFileReconciliationPreSchemaSchema,
     phaseFileReconciliation,
   ),
-  "gate-diagnostics": encoded(GateDiagnosticsPreSchemaSchema, gateDiagnostics),
   "spec-document": encoded(SpecDocumentPreSchemaSchema, specDocument),
   "plan-document": encoded(PlanDocumentPreSchemaSchema, planDocument),
 };
@@ -592,10 +574,6 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "phase-file-reconciliation": encoded(
     PhaseFileReconciliationFileSchema,
     withSchemaUrl("phase-file-reconciliation", phaseFileReconciliation),
-  ),
-  "gate-diagnostics": encoded(
-    GateDiagnosticsFileSchema,
-    withSchemaUrl("gate-diagnostics", gateDiagnostics),
   ),
   "spec-document": encoded(
     SpecDocumentFileSchema,

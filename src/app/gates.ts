@@ -7,7 +7,6 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import {
   currentSchemaUrl,
   describeReportError,
-  readGateDiagnosticsAnswer,
   readGateReport,
   readRunStatusFile,
   withSchemaUrl,
@@ -17,12 +16,6 @@ import type { GateFinding } from "../schemas/gateReport.js";
 import { reportPathFor } from "../domain/gate/reportPath.js";
 import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
-import {
-  encodeGateDiagnosticsFile,
-  type GateDiagnostic,
-  type GateDiagnosticsDocument,
-} from "../schemas/gateDiagnostics.js";
-import { diagnosticsPathFor } from "../domain/gate/diagnosticsPath.js";
 import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
 
@@ -34,8 +27,6 @@ export interface GateOutcome {
 function unreadableReport(reason: string): ReportError {
   return { kind: "malformed", reads: currentSchemaUrl("gate-report"), reason };
 }
-
-const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${currentSchemaUrl("gate-diagnostics")}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 /**
  * The exact bytes of a phase's gate request: what a declaring step reads on
@@ -119,38 +110,21 @@ export function runGates(
       );
     }
 
-    /** Persist the transcript + attribution, optionally the diagnostics
-     *  document, and fail the gate. Called once a step is judged to have failed;
-     *  the caller has already recorded the `fail` step result. */
+    /** Persist the transcript + attribution and fail the gate. Called once a
+     *  step is judged to have failed; the caller has already recorded the
+     *  `fail` step result. */
     function failGate(params: {
       readonly rawCommand: string;
       readonly exitCode: number;
       readonly message: string;
-      readonly diagnostics: readonly GateDiagnostic[];
       readonly reportFindings?: {
         readonly step: number;
         readonly findings: readonly GateFinding[];
       };
       readonly stderr: string;
-      readonly document?: GateDiagnosticsDocument;
     }): Effect.Effect<never, GateFailedError | FsError> {
       return Effect.gen(function* () {
         yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
-        if (params.document !== undefined) {
-          // phax's own write under the running release, from the decoded
-          // findings only: never the printed document, whose release and extra
-          // keys stay in the log.
-          yield* fs.writeAtomic(
-            diagnosticsPathFor(attemptLogPath),
-            JSON.stringify(
-              encodeGateDiagnosticsFile(
-                withSchemaUrl("gate-diagnostics", { diagnostics: params.document.diagnostics }),
-              ),
-              null,
-              2,
-            ),
-          );
-        }
         yield* writeAttribution();
         return yield* Effect.fail(
           new GateFailedError({
@@ -158,7 +132,6 @@ export function runGates(
             command: params.rawCommand,
             exitCode: params.exitCode,
             logPath: attemptLogPath,
-            diagnostics: params.diagnostics,
             reportFindings: params.reportFindings ?? null,
             ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
           }),
@@ -200,7 +173,6 @@ export function runGates(
             rawCommand,
             exitCode: result.exitCode,
             message: `Gate step "${rawCommand}": ${line}`,
-            diagnostics: [],
             stderr: result.stderr,
           });
         }
@@ -235,7 +207,6 @@ export function runGates(
             rawCommand,
             exitCode: result.exitCode,
             message: `Gate step "${rawCommand}" refused to run: ${report.reason} (remedy: ${report.remedy})`,
-            diagnostics: [],
             stderr: result.stderr,
           });
         }
@@ -253,7 +224,6 @@ export function runGates(
             rawCommand,
             exitCode: result.exitCode,
             message,
-            diagnostics: [],
             stderr: result.stderr,
           });
         }
@@ -266,88 +236,8 @@ export function runGates(
           rawCommand,
           exitCode: result.exitCode,
           message: `Gate command failed: ${rawCommand} (${count === 1 ? "1 finding" : `${count} findings`})`,
-          diagnostics: [],
           reportFindings: { step: position, findings: report.findings },
           stderr: result.stderr,
-        });
-      }
-
-      if (step.output === "diagnostics") {
-        // The step promised a versioned diagnostics document on stdout. Read it
-        // through the bridge; the verdict comes from the document, not the
-        // exit code.
-        function returnedNone(reason: string) {
-          logLines.push(
-            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
-          );
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-          return failGate({
-            rawCommand,
-            exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
-            diagnostics: [],
-            stderr: result.stderr,
-          });
-        }
-
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(result.stdout) as unknown;
-        } catch (cause) {
-          return yield* returnedNone(
-            `invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
-          );
-        }
-
-        const answer = readGateDiagnosticsAnswer(parsed);
-        if (Either.isLeft(answer)) {
-          if (answer.left.kind === "malformed") return yield* returnedNone(answer.left.reason);
-          // Every refusal names the URL phax reads: an older-shape message
-          // already does; a newer one gains the expected document.
-          const refusal =
-            answer.left.kind === "newer"
-              ? `${answer.left.message}${DIAGNOSTICS_EXPECTED_SHAPE}`
-              : answer.left.message;
-          logLines.push(`provider error: ${refusal}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-          return yield* failGate({
-            rawCommand,
-            exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}": ${refusal}`,
-            diagnostics: [],
-            stderr: result.stderr,
-          });
-        }
-
-        const document = answer.right;
-
-        if (document.diagnostics.length === 0) {
-          if (result.exitCode === 0) {
-            stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
-            continue;
-          }
-          const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no diagnostics`;
-          logLines.push(`provider error: ${message}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-          return yield* failGate({
-            rawCommand,
-            exitCode: result.exitCode,
-            message,
-            diagnostics: [],
-            stderr: result.stderr,
-          });
-        }
-
-        // Every finding fails the step, invariant and completion alike, whatever
-        // the exit code. The findings keep the provider's order.
-        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-        return yield* failGate({
-          rawCommand,
-          exitCode: result.exitCode,
-          message: `Gate command failed: ${rawCommand} (${document.diagnostics.length} diagnostic(s))`,
-          diagnostics: document.diagnostics,
-          stderr: result.stderr,
-          document,
         });
       }
 
@@ -357,7 +247,6 @@ export function runGates(
           rawCommand,
           exitCode: result.exitCode,
           message: `Gate command failed: ${rawCommand} (exit ${result.exitCode})`,
-          diagnostics: [],
           stderr: result.stderr,
         });
       }

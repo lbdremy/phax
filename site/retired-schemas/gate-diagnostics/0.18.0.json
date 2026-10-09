@@ -16,9 +16,15 @@
   },
   "type": "object",
   "required": [
+    "$schema",
     "diagnostics"
   ],
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The gate-diagnostics format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-diagnostics/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-diagnostics\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
     "diagnostics": {
       "type": "array",
       "items": {

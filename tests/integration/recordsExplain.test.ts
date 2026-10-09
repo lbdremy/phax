@@ -412,6 +412,7 @@ describe("records explain and list (real git)", () => {
       ["checks-attempt-02.report-01.json", bytes("{}")],
       ["checks-attempt-02.request.json", bytes("{}")],
       ["checks-attempt-01.log", bytes("one")],
+      // A retired gate file an older record may still carry: never printed.
       ["checks-attempt-01.diagnostics.json", bytes("{}")],
       ["prompt.md", bytes("p")],
     ]);
@@ -546,6 +547,7 @@ describe("records explain and list (real git)", () => {
         "checks-attempt-02.log": "gate log two",
         "checks-attempt-01.request.json": '{"attempt":1}',
         "checks-attempt-01.log": "gate log one",
+        // A retired gate file an older record may still carry: never printed.
         "checks-attempt-01.diagnostics.json": '{"diagnostics":[]}',
       });
 
