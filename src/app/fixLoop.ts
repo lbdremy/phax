@@ -211,7 +211,6 @@ export function runGatesWithFixLoop(
         exitCode: error.exitCode,
         logPath: error.logPath,
         attempt,
-        diagnostics: error.diagnostics,
       };
       yield* dispatch(gateFailedEvent, dispatchCtx);
 
@@ -253,7 +252,6 @@ export function runGatesWithFixLoop(
         attempt,
         logContent,
         logPath: error.logPath,
-        diagnostics: error.diagnostics,
         reportFindings: error.reportFindings,
       });
 

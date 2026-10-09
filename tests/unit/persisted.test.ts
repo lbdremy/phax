@@ -14,7 +14,6 @@ import {
   readBriefRequestFile,
   readComplianceReviewFile,
   readGateAttributionFile,
-  readGateDiagnosticsAnswer,
   readGateReport,
   readPersisted,
   readPhaseFileReconciliationFile,
@@ -33,7 +32,6 @@ import {
   withSchemaUrl,
   type AnswerBounds,
   type BriefAnswerError,
-  type GateDiagnosticsAnswerError,
   type MissingFact,
   type PersistedReadError,
   type PersistedSpec,
@@ -616,116 +614,6 @@ describe("documents from another release", () => {
 const UNCHANGED = { current: "0.20.0", running: "0.21.0" } as const;
 const CHANGED = { current: "0.21.0", running: "0.21.0" } as const;
 
-function refusal(input: unknown, bounds?: AnswerBounds): GateDiagnosticsAnswerError {
-  const result = readGateDiagnosticsAnswer(input, bounds);
-  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
-  return result.left;
-}
-
-describe("readGateDiagnosticsAnswer", () => {
-  const invariant = {
-    rule: "no-cycles",
-    class: "invariant",
-    location: { file: "src/example/a.ts", line: 4 },
-    message: "a imports b, which imports a",
-    repair: "move the shared type into its own module",
-  } as const;
-
-  const at = (release: string) => ({
-    $schema: schemaUrl("gate-diagnostics", release),
-    diagnostics: [invariant],
-  });
-
-  it("decodes a document at the current stamp and drops $schema and extra keys", () => {
-    const result = readGateDiagnosticsAnswer({
-      $schema: currentSchemaUrl("gate-diagnostics"),
-      diagnostics: [invariant],
-      generator: "example-audit",
-    });
-    expect(result).toEqual(Either.right({ diagnostics: [invariant] }));
-  });
-
-  it("reads every stamp from the current stamp up to the running version", () => {
-    for (const release of ["0.20.0", "0.20.1", "0.21.0"]) {
-      expect(readGateDiagnosticsAnswer(at(release), UNCHANGED)).toEqual(
-        Either.right({ diagnostics: [invariant] }),
-      );
-    }
-    expect(readGateDiagnosticsAnswer(at("0.21.0"), CHANGED)).toEqual(
-      Either.right({ diagnostics: [invariant] }),
-    );
-  });
-
-  it("refuses a stamp above the running version by name", () => {
-    expect(refusal(at("0.22.0"), UNCHANGED)).toEqual({
-      kind: "newer",
-      message: "gate-diagnostics 0.22.0 is newer than this phax (0.21.0) — upgrade phax to read it",
-    });
-  });
-
-  it("refuses a stamp below the current stamp as an older shape, naming the URL it reads", () => {
-    expect(refusal(at("0.20.0"), CHANGED)).toEqual({
-      kind: "older",
-      message:
-        "gate-diagnostics 0.20.0 is an older shape — this phax reads https://docs.phax.run/schemas/gate-diagnostics/0.21.0.json",
-    });
-  });
-
-  it("keeps the saved-file refusal at or below 0.19.0, whatever the bounds", () => {
-    for (const bounds of [UNCHANGED, CHANGED]) {
-      expect(refusal(at("0.18.0"), bounds)).toEqual({
-        kind: "malformed",
-        reason: "gate-diagnostics 0.18.0 names the saved file's shape, not a gate step's document",
-      });
-    }
-  });
-
-  it.each([
-    ["no $schema", { diagnostics: [] }],
-    ["a gate-attribution URL", { $schema: currentSchemaUrl("gate-attribution"), diagnostics: [] }],
-    ["a malformed URL", { $schema: "https://example.com/gate-diagnostics.json", diagnostics: [] }],
-    ["the 0.18.0 release", { $schema: schemaUrl("gate-diagnostics", "0.18.0"), diagnostics: [] }],
-    [
-      "a schema violation",
-      {
-        $schema: currentSchemaUrl("gate-diagnostics"),
-        diagnostics: [{ ...invariant, class: "warning" }],
-      },
-    ],
-  ])("refuses %s as malformed", (_name, input) => {
-    const error = refusal(input);
-    expect(error.kind).toBe("malformed");
-    expect(error.kind === "malformed" ? error.reason : "").not.toBe("");
-  });
-
-  it("refuses a non-object as malformed and never throws", () => {
-    for (const value of [null, undefined, 3, "text", ["a"], { $schema: 4 }]) {
-      expect(refusal(value).kind).toBe("malformed");
-    }
-  });
-
-  // The reader decodes every answer release with the current decoder, which is
-  // right only while one answer shape exists. An answer shape is the `next`
-  // snapshot or a release-named one newer than 0.19.0, the last release whose
-  // shape described only the saved file.
-  it("is written for a single answer shape", () => {
-    const dir = resolve(
-      dirname(fileURLToPath(import.meta.url)),
-      "../../packages/schemas/snapshots/gate-diagnostics",
-    );
-    const answerShapes = readdirSync(dir)
-      .map((file) => file.replace(/\.schema\.json$/, ""))
-      .filter(
-        (name) =>
-          name === "next" || (/^\d+\.\d+\.\d+$/.test(name) && compareReleases(name, "0.19.0") > 0),
-      );
-    expect(
-      answerShapes,
-      "a second gate-diagnostics answer shape: teach readGateDiagnosticsAnswer to decode each answer release with its own shape",
-    ).toHaveLength(1);
-  });
-});
-
 function briefRefusal(input: unknown, bounds?: AnswerBounds): BriefAnswerError {
   const result = readBriefAnswer(input, bounds);
   if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
@@ -814,7 +702,7 @@ describe("readBriefAnswer", () => {
   });
 
   it.each([
-    ["a gate-diagnostics URL", currentSchemaUrl("gate-diagnostics")],
+    ["a gate-attribution URL", currentSchemaUrl("gate-attribution")],
     ["not a url", "not a url"],
     ["a number", 4],
   ])("refuses %s at $schema, naming the value", (_name, value) => {
@@ -939,7 +827,7 @@ const REPORT_READERS: ReadonlyArray<ReportReaderCase> = [
     at: gateReportAt,
     url: GATE_REPORT_URL,
     others: [
-      ["gate-diagnostics", "0.20.0", { diagnostics: [] }],
+      ["gate-request", "0.20.0", withoutKey(validDocuments["gate-request"], "$schema")],
       ["brief-report", "0.21.0", { rules: [], findings: [] }],
     ],
   },

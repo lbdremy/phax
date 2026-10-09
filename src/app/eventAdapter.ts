@@ -162,7 +162,6 @@ export function adaptGateRun(
           exitCode: e.exitCode,
           logPath: e.logPath,
           attempt,
-          diagnostics: e.diagnostics,
         }),
     ),
   );

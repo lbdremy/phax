@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buildFixPrompt } from "../../src/domain/gate/fixPrompt.js";
-import type { GateDiagnostic } from "../../src/schemas/gateDiagnostics.js";
 import type { GateFinding } from "../../src/schemas/gateReport.js";
 
 const baseInput = {
@@ -9,7 +8,6 @@ const baseInput = {
   attempt: 2,
   logContent: "some log output",
   logPath: "/phase-01/checks-attempt-02.log",
-  diagnostics: [] as readonly GateDiagnostic[],
   reportFindings: null,
 };
 
@@ -45,7 +43,7 @@ function headings(prompt: string): string[] {
 }
 
 describe("buildFixPrompt", () => {
-  it("renders the raw-log prompt when there are no diagnostics", () => {
+  it("renders the raw-log prompt when there are no report findings", () => {
     const prompt = buildFixPrompt(baseInput);
 
     expect(prompt).toContain("# Gate checks failed — fix required");
@@ -55,126 +53,19 @@ describe("buildFixPrompt", () => {
     expect(prompt).toContain("## Gate output");
     expect(prompt).toContain("some log output");
     expect(prompt).toContain("Fix all issues revealed by the gate output above.");
-    expect(prompt).not.toContain("## Diagnostics");
-    expect(prompt).not.toContain("repair guide:");
+    expect(prompt).not.toContain("## Findings");
+    expect(prompt).not.toContain("guide:");
   });
 
-  it("renders file:line for a diagnostic with a line", () => {
-    const diagnostics: readonly GateDiagnostic[] = [
-      {
-        rule: "no-unused-vars",
-        class: "invariant",
-        location: { file: "src/foo.ts", line: 12 },
-        message: "unused variable 'x'",
-        repair: "remove the unused declaration",
-      },
-    ];
+  it("has no section beyond the gate output and the required action in the raw-log prompt", () => {
+    const prompt = buildFixPrompt(baseInput);
 
-    const prompt = buildFixPrompt({ ...baseInput, diagnostics });
-
-    expect(prompt).toContain("## Diagnostics");
-    expect(prompt).toContain("no-unused-vars at src/foo.ts:12 — unused variable 'x'");
-    expect(prompt).toContain("repair guide: remove the unused declaration");
-  });
-
-  it("renders file only for a diagnostic without a line", () => {
-    const diagnostics: readonly GateDiagnostic[] = [
-      {
-        rule: "missing-license",
-        class: "invariant",
-        location: { file: "package.json" },
-        message: "license field is missing",
-        repair: "add a license field",
-      },
-    ];
-
-    const prompt = buildFixPrompt({ ...baseInput, diagnostics });
-
-    expect(prompt).toContain("missing-license at package.json — license field is missing");
-  });
-
-  it("tells the agent to read repair guides before changing code and omits the raw log", () => {
-    const diagnostics: readonly GateDiagnostic[] = [
-      {
-        rule: "no-unused-vars",
-        class: "invariant",
-        location: { file: "src/foo.ts", line: 12 },
-        message: "unused variable 'x'",
-        repair: "remove the unused declaration",
-      },
-    ];
-
-    const prompt = buildFixPrompt({ ...baseInput, diagnostics });
-
-    expect(prompt).toContain(
-      "Read each repair guide above before changing code, then fix every diagnostic listed under **Diagnostics**.",
-    );
-    expect(prompt).not.toContain("## Gate output");
-    expect(prompt).not.toContain("some log output");
-    expect(prompt).toContain(`Full output: ${baseInput.logPath}`);
-    expect(prompt).toContain("**Failed step:** `pnpm test` (1 diagnostic(s))");
-  });
-
-  it("renders a completion then an invariant in provider order, exactly as two failing findings", () => {
-    const completion: GateDiagnostic = {
-      rule: "missing-wiring",
-      class: "completion",
-      location: { file: "src/core/billing/port.ts" },
-      message: "billing port is not wired up",
-      repair: "wire the port into the adapter registry",
-    };
-    const invariant: GateDiagnostic = {
-      rule: "no-unused-vars",
-      class: "invariant",
-      location: { file: "src/foo.ts", line: 12 },
-      message: "unused variable 'x'",
-      repair: "remove the unused declaration",
-    };
-
-    const prompt = buildFixPrompt({ ...baseInput, diagnostics: [completion, invariant] });
-
-    const start = prompt.indexOf("## Diagnostics");
-    const end = prompt.indexOf("## Required action");
-    expect(prompt.slice(start, end)).toBe(
-      [
-        "## Diagnostics",
-        "",
-        "- missing-wiring at src/core/billing/port.ts — billing port is not wired up",
-        "  repair guide: wire the port into the adapter registry",
-        "- no-unused-vars at src/foo.ts:12 — unused variable 'x'",
-        "  repair guide: remove the unused declaration",
-        "",
-        `Full output: ${baseInput.logPath}`,
-        "",
-        "",
-      ].join("\n"),
-    );
-    expect(prompt).toContain("**Failed step:** `pnpm test` (2 diagnostic(s))");
-  });
-
-  it("has no section beyond the gate output or diagnostics and the required action, in either prompt", () => {
-    const diagnostics: readonly GateDiagnostic[] = [
-      {
-        rule: "missing-wiring",
-        class: "completion",
-        location: { file: "src/core/billing/port.ts" },
-        message: "billing port is not wired up",
-        repair: "wire the port into the adapter registry",
-      },
-    ];
-
-    expect(headings(buildFixPrompt(baseInput))).toEqual([
+    expect(headings(prompt)).toEqual([
       "# Gate checks failed — fix required",
       "## Gate output",
       "## Required action",
     ]);
-    const withDiagnostics = buildFixPrompt({ ...baseInput, diagnostics });
-    expect(headings(withDiagnostics)).toEqual([
-      "# Gate checks failed — fix required",
-      "## Diagnostics",
-      "## Required action",
-    ]);
-    expect(withDiagnostics).not.toMatch(/optional/i);
+    expect(prompt).not.toMatch(/optional/i);
   });
 });
 

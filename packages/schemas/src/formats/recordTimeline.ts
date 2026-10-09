@@ -1,6 +1,5 @@
 // A phase record's timeline files: its gate attribution, its file
-// reconciliation, and each fix-loop attempt's gate diagnostics document and
-// gate request.
+// reconciliation, and each fix-loop attempt's gate request.
 // Each pre-schema and released shape that is no longer
 // current is phax's frozen module under src/schemas/history/; each current
 // shape, named by `CURRENT_SHAPES` (`next` until a release renames it), is
@@ -11,12 +10,6 @@ import {
   type GateAttribution,
   type GateAttributionFile,
 } from "../../../../src/schemas/gateAttribution.js";
-import {
-  GateDiagnosticsFileSchema,
-  decodeGateDiagnosticsFile,
-  type GateDiagnosticsDocument,
-  type GateDiagnosticsFile,
-} from "../../../../src/schemas/gateDiagnostics.js";
 import {
   GateRequestFileSchema,
   decodeGateRequestFile,
@@ -33,16 +26,6 @@ import {
   decodeGateAttributionV0_17_0,
   type GateAttributionV0_17_0,
 } from "../../../../src/schemas/history/gate-attribution/0.17.0.js";
-import {
-  GateDiagnosticsPreSchemaSchema,
-  decodeGateDiagnosticsPreSchema,
-  type GateDiagnosticsPreSchema,
-} from "../../../../src/schemas/history/gate-diagnostics/pre-schema.js";
-import {
-  GateDiagnosticsV0_17_0Schema,
-  decodeGateDiagnosticsV0_17_0,
-  type GateDiagnosticsV0_17_0,
-} from "../../../../src/schemas/history/gate-diagnostics/0.17.0.js";
 import {
   PhaseFileReconciliationPreSchemaSchema,
   decodePhaseFileReconciliationPreSchema,
@@ -159,53 +142,6 @@ export type LatestPhaseFileReconciliation = PhaseFileReconciliation;
 export function toLatestPhaseFileReconciliation(
   value: PhaseFileReconciliationPreSchema | PhaseFileReconciliationFile,
 ): LatestPhaseFileReconciliation {
-  if ("$schema" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
-  }
-  return value;
-}
-
-// ── gate diagnostics
-
-export type GateDiagnosticsShapes = {
-  "pre-schema": GateDiagnosticsPreSchema;
-  "0.17.0": GateDiagnosticsV0_17_0;
-} & {
-  [K in CurrentShapeName<"gate-diagnostics">]: GateDiagnosticsFile;
-};
-
-/** The id of every gate diagnostics shape the package reads. */
-export type GateDiagnosticsShape = keyof GateDiagnosticsShapes;
-
-export const gateDiagnosticsFormat = defineFormat<GateDiagnosticsShapes>({
-  id: "gate-diagnostics",
-  label: "gate diagnostics document",
-  preSchema: { schema: GateDiagnosticsPreSchemaSchema, decode: decodeGateDiagnosticsPreSchema },
-  releases: [
-    ["0.17.0", { schema: GateDiagnosticsV0_17_0Schema, decode: decodeGateDiagnosticsV0_17_0 }],
-  ],
-  current: {
-    name: CURRENT_SHAPES["gate-diagnostics"],
-    shape: { schema: GateDiagnosticsFileSchema, decode: decodeGateDiagnosticsFile },
-  },
-});
-
-/** Reads an attempt's `checks-attempt-NN.diagnostics.json`. Never throws. */
-export const parseGateDiagnostics: (input: unknown) => ParsedShape<GateDiagnosticsShapes> =
-  gateDiagnosticsFormat.parse;
-
-/** The latest gate diagnostics document: phax's in-memory value, with no `$schema`. */
-export type LatestGateDiagnostics = GateDiagnosticsDocument;
-
-/**
- * Upgrades a parsed gate diagnostics document in memory: drops `$schema`,
- * keeps every other fact. An older finding's fields all fit the latest type;
- * its recorded keys are kept as read.
- */
-export function toLatestGateDiagnostics(
-  value: GateDiagnosticsPreSchema | GateDiagnosticsV0_17_0 | GateDiagnosticsFile,
-): LatestGateDiagnostics {
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;

@@ -92,7 +92,6 @@ const samples = {
     exitCode: 1,
     logPath: "/tmp/gate.log",
     attempt: 0,
-    diagnostics: [],
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
@@ -199,7 +198,7 @@ function visit(event: PhaxEvent): string {
     case "GatePassed":
       return `${event.type}:${event.attempt}`;
     case "GateFailed":
-      return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}:${event.diagnostics.length}`;
+      return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}`;
     case "HandoffMissing":
       return `${event.type}:${event.missingSections.join(",")}`;
     case "CommitCreated":

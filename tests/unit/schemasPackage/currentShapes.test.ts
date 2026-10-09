@@ -25,7 +25,6 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
-  parseGateDiagnostics,
   parseGateReport,
   parseGateRequest,
   parsePhaseFileReconciliation,
@@ -47,7 +46,6 @@ import {
   toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestGateAttribution,
-  toLatestGateDiagnostics,
   toLatestGateReport,
   toLatestGateRequest,
   toLatestPhaseFileReconciliation,
@@ -203,7 +201,6 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
     parsePhaseFileReconciliation,
     toLatestPhaseFileReconciliation,
   ),
-  "gate-diagnostics": latest(parseGateDiagnostics, toLatestGateDiagnostics),
   "spec-document": latest(parseSpecDocument, toLatestSpecDocument),
   "plan-document": latest(parsePlanDocument, toLatestPlanDocument),
   "plan-approval-record": latest(parsePlanApprovalRecord, toLatestPlanApprovalRecord),
@@ -218,7 +215,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
-// phax never reads gate diagnostics documents or gate requests back, and reads
+// phax never reads gate requests back, and reads
 // a brief answer only as a provider's answer, through readBriefAnswer. It
 // reads a gate report or a brief report only as a provider's answer too,
 // through readGateReport and readBriefReport, which name no file.
@@ -234,7 +231,6 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "authoring-record-manifest": readRecordManifestFile,
   "gate-attribution": readGateAttributionFile,
   "phase-file-reconciliation": readPhaseFileReconciliationFile,
-  "gate-diagnostics": undefined,
   "spec-document": readSpecDocumentFile,
   "plan-document": readPlanDocumentFile,
   "plan-approval-record": readPlanRecordFile,

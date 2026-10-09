@@ -211,28 +211,6 @@ approved:
 # Example spec
 `;
 
-// A gate step's stdout, stamped at the format's current stamp: one invariant and one
-// completion, both failing.
-const MIXED_DIAGNOSTICS = JSON.stringify({
-  $schema: currentSchemaUrl("gate-diagnostics"),
-  diagnostics: [
-    {
-      rule: "no-io-in-domain",
-      class: "invariant",
-      location: { file: "src/domain/example.ts", line: 3 },
-      message: "src/domain/example.ts imports node:fs",
-      repair: "read the file through the fs port",
-    },
-    {
-      rule: "wire-example",
-      class: "completion",
-      location: { file: "src/example.ts" },
-      message: "the example module is not wired yet",
-      repair: "wire it in a later phase",
-    },
-  ],
-});
-
 // A report step's stdout, stamped at the format's current stamp: one finding.
 const FAILING_REPORT = JSON.stringify({
   $schema: currentSchemaUrl("gate-report"),
@@ -297,7 +275,6 @@ function formatAt(
   if (name === "file-reconciliation.json") return "phase-file-reconciliation";
   if (name === "brief-request.json") return "brief-request";
   if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";
-  if (name.endsWith(".diagnostics.json")) return "gate-diagnostics";
   if (/\.report-\d{2,}\.json$/.test(name)) return "gate-report";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
@@ -457,8 +434,8 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     authoringKinds.set(authored.right.authoringId, format);
   }
 
-  // One gate run: request, attribution and diagnostics documents.
-  shell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: MIXED_DIAGNOSTICS, stderr: "" });
+  // One gate run: request, attribution and report documents.
+  shell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: FAILING_REPORT, stderr: "" });
   await run(
     runGates({
       steps: [
@@ -466,7 +443,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
           command: "pnpm audit",
           surface: "local",
           firing: "every-phase",
-          output: "diagnostics",
+          output: "gate-report",
           input: "gate-request",
         },
       ],

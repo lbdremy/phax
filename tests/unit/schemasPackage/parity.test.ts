@@ -9,7 +9,6 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
-  parseGateDiagnostics,
   parseGateReport,
   parseGateRequest,
   parsePhaseFileReconciliation,
@@ -43,7 +42,6 @@ import {
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
@@ -178,14 +176,6 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodePhaseFileReconciliationFile,
     wrongType: ["hasDeviations", "yes"],
     required: "phaseId",
-    excess: "ignore",
-  },
-  "gate-diagnostics": {
-    id: "gate-diagnostics",
-    parse: parseGateDiagnostics,
-    phax: decodeGateDiagnosticsFile,
-    wrongType: ["diagnostics", {}],
-    required: "diagnostics",
     excess: "ignore",
   },
   "spec-document": {
@@ -390,8 +380,6 @@ function withFirst(document: Doc, list: string, fields: Doc): Doc {
   return { ...document, [list]: [{ ...head, ...fields }, ...rest] };
 }
 
-const completion = (validDocuments["gate-diagnostics"]["diagnostics"] as ReadonlyArray<Doc>)[1];
-
 // Rejects that reach inside a document: each one a refinement or a nested
 // literal phax's decoder checks.
 const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
@@ -444,12 +432,6 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "gate-attribution",
     "a step whose result is outside its literals",
     withFirst(validDocuments["gate-attribution"], "steps", { result: "skipped" }),
-    "rejected",
-  ],
-  [
-    "gate-diagnostics",
-    "a diagnostic at line 0",
-    { diagnostics: [{ ...completion, location: { file: "a.ts", line: 0 } }] },
     "rejected",
   ],
   [

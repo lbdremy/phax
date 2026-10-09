@@ -11,7 +11,6 @@ import {
   parseAuthoringRecordManifest,
   parseComplianceReview,
   parseGateAttribution,
-  parseGateDiagnostics,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -27,7 +26,6 @@ import type { ParseFailure } from "../../../packages/schemas/src/parsed.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
-import * as gateDiagnostics from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import * as phaseFileReconciliation from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import * as phaseRecordManifest from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import * as phaseStatus from "../../../src/schemas/history/phase-status/pre-schema.js";
@@ -111,11 +109,6 @@ const FROZEN: { readonly [F in PreSchemaFormatId]: FrozenModule } = {
     decode: phaseFileReconciliation.decodePhaseFileReconciliationPreSchema,
     parse: parsePhaseFileReconciliation,
   },
-  "gate-diagnostics": {
-    schema: gateDiagnostics.GateDiagnosticsPreSchemaSchema,
-    decode: gateDiagnostics.decodeGateDiagnosticsPreSchema,
-    parse: parseGateDiagnostics,
-  },
   "spec-document": {
     schema: specDocument.SpecDocumentPreSchemaSchema,
     decode: specDocument.decodeSpecDocumentPreSchema,
@@ -140,7 +133,6 @@ const MODULES = {
   "authoring-record-manifest": authoringRecordManifest,
   "gate-attribution": gateAttribution,
   "phase-file-reconciliation": phaseFileReconciliation,
-  "gate-diagnostics": gateDiagnostics,
   "spec-document": specDocument,
   "plan-document": planDocument,
 } satisfies { readonly [F in PreSchemaFormatId]: object };

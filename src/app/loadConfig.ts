@@ -21,7 +21,7 @@ import {
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { resolveRecordsConfig } from "../schemas/recordsConfig.js";
-import { formatParseError } from "../schemas/formatError.js";
+import { formatConfigParseError } from "../schemas/formatError.js";
 
 const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`;
 
@@ -131,7 +131,7 @@ function readUserOverlay(
   if (Either.isLeft(decoded)) {
     return Either.left(
       new ConfigValidationError({
-        message: `Invalid user config at "${filePath}":\n${formatParseError(decoded.left)}`,
+        message: `Invalid user config at "${filePath}":\n${formatConfigParseError(raw, decoded.left)}`,
         path: filePath,
       }),
     );
@@ -264,7 +264,7 @@ export function loadConfig(
   if (Either.isLeft(decoded)) {
     return Either.left(
       new ConfigValidationError({
-        message: `Invalid phax.json at "${configPath}":\n${formatParseError(decoded.left)}`,
+        message: `Invalid phax.json at "${configPath}":\n${formatConfigParseError(raw, decoded.left)}`,
         path: configPath,
       }),
     );

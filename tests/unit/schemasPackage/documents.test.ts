@@ -16,13 +16,11 @@ import {
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
-import { decodeGateDiagnosticsPreSchema } from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import { decodePhaseFileReconciliationPreSchema } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestPreSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "../../../src/schemas/history/phase-status/pre-schema.js";
@@ -77,7 +75,6 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "authoring-record-manifest": decodeAuthoringRecordManifestFile,
   "gate-attribution": decodeGateAttributionFile,
   "phase-file-reconciliation": decodePhaseFileReconciliationFile,
-  "gate-diagnostics": decodeGateDiagnosticsFile,
   "spec-document": decodeSpecDocumentFile,
   "plan-document": decodePlanDocumentFile,
   "plan-approval-record": decodePlanRecordFile,
@@ -103,7 +100,6 @@ const FROZEN_DECODERS: { readonly [F in PreSchemaFormatId]: Decode } = {
   "authoring-record-manifest": decodeAuthoringRecordManifestPreSchema,
   "gate-attribution": decodeGateAttributionPreSchema,
   "phase-file-reconciliation": decodePhaseFileReconciliationPreSchema,
-  "gate-diagnostics": decodeGateDiagnosticsPreSchema,
   "spec-document": decodeSpecDocumentPreSchema,
   "plan-document": decodePlanDocumentPreSchema,
 };

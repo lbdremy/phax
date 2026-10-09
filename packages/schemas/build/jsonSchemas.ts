@@ -12,7 +12,6 @@ import {
 } from "../src/formats/recordManifests.js";
 import {
   gateAttributionFormat,
-  gateDiagnosticsFormat,
   gateRequestFormat,
   phaseFileReconciliationFormat,
 } from "../src/formats/recordTimeline.js";
@@ -83,7 +82,6 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "authoring-record-manifest": authoringRecordManifestFormat,
   "gate-attribution": gateAttributionFormat,
   "phase-file-reconciliation": phaseFileReconciliationFormat,
-  "gate-diagnostics": gateDiagnosticsFormat,
   "spec-document": specDocumentFormat,
   "plan-document": planDocumentFormat,
   "plan-approval-record": planApprovalRecordFormat,
@@ -112,7 +110,6 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "authoring-record-manifest": "error",
   "gate-attribution": "ignore",
   "phase-file-reconciliation": "ignore",
-  "gate-diagnostics": "ignore",
   "spec-document": "error",
   "plan-document": "error",
   "plan-approval-record": "error",

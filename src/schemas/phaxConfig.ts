@@ -60,14 +60,11 @@ const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 const FiringSchema = Schema.Literal("every-phase", "terminal");
 export type Firing = Schema.Schema.Type<typeof FiringSchema>;
 
-const GateOutputSchema = Schema.Literal("log", "diagnostics", "gate-report");
+const GateOutputSchema = Schema.Literal("log", "gate-report");
 export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
 
 const GATE_OUTPUT_DESCRIPTION =
-  '"log" (default) streams raw command output. "gate-report": phax reads a gate report {"$schema": "https://docs.phax.run/schemas/gate-report/<release>.json", "outcome": "checked", "findings", "review"} on stdout, judges the step from it and saves it as printed as checks-attempt-NN.report-SS.json, SS being the step\'s position among the steps the attempt runs. Any finding fails the step whatever the exit code; an empty list passes on exit 0; anything else is a broken step that fails with the raw log. A report step does not have to declare input.' +
-  ' "diagnostics" expects {"$schema": "https://docs.phax.run/schemas/gate-diagnostics/<release>.json", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout.' +
-  " Verdict rules: a non-empty list fails the step whatever the exit code, an invariant and a completion alike; exit 0 with an empty list passes; a missing, undecodable or malformed document (one without $schema included), or a non-zero exit with an empty list, is a provider error that fails the step with the raw log; a document from a newer release is refused by name." +
-  " A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt.";
+  '"log" (default) streams raw command output. "gate-report": phax reads a gate report {"$schema": "https://docs.phax.run/schemas/gate-report/<release>.json", "outcome": "checked", "findings", "review"} on stdout, judges the step from it and saves it as printed as checks-attempt-NN.report-SS.json, SS being the step\'s position among the steps the attempt runs. Any finding fails the step whatever the exit code; an empty list passes on exit 0; anything else is a broken step that fails with the raw log. A report step does not have to declare input.';
 
 const GATE_INPUT_DESCRIPTION =
   "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.";

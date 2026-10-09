@@ -4,19 +4,15 @@ import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/g
 import {
   parseDocument,
   parseGateAttribution,
-  parseGateDiagnostics,
   parseGateRequest,
   parsePhaseFileReconciliation,
   parseRecordManifest,
   toLatestGateAttribution,
-  toLatestGateDiagnostics,
   toLatestGateRequest,
   toLatestPhaseFileReconciliation,
-  type LatestGateDiagnostics,
 } from "../../../packages/schemas/src/index.js";
 import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import {
@@ -62,12 +58,6 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
     parse: parsePhaseFileReconciliation,
     phax: decodePhaseFileReconciliationFile,
     toLatest: toLatestPhaseFileReconciliation,
-  },
-  {
-    id: "gate-diagnostics",
-    parse: parseGateDiagnostics,
-    phax: decodeGateDiagnosticsFile,
-    toLatest: toLatestGateDiagnostics,
   },
 ];
 
@@ -129,10 +119,8 @@ type Folder = { readonly [name: string]: Doc };
 
 function folder(documents: { readonly [F in PreSchemaFormatId]: Doc }): Folder {
   return {
-    "checks-attempt-02.diagnostics.json": documents["gate-diagnostics"],
     "record.json": documents["phase-record-manifest"],
     "file-reconciliation.json": documents["phase-file-reconciliation"],
-    "checks-attempt-01.diagnostics.json": documents["gate-diagnostics"],
     "gate-attribution.json": documents["gate-attribution"],
   };
 }
@@ -195,30 +183,6 @@ describe.each(RECORD_FOLDERS)(
       const { phaseId } = record.value;
       expect(attribution.value.phase).toBe(phaseId);
       expect(reconciliation.value.phaseId).toBe(phaseId);
-    });
-
-    it("orders the fix-loop attempts by the numbers in their file names", () => {
-      const attempts: Array<{
-        readonly attempt: number;
-        readonly diagnostics: LatestGateDiagnostics;
-      }> = [];
-      for (const name of contents.keys()) {
-        const match = /^checks-attempt-(\d+)\.diagnostics\.json$/.exec(name);
-        if (match === null) continue;
-        const result = parseGateDiagnostics(read(name));
-        expect(result, name).toMatchObject({ ok: true, shape: shape("gate-diagnostics") });
-        if (result.ok) {
-          attempts.push({
-            attempt: Number(match[1]),
-            diagnostics: toLatestGateDiagnostics(result.value),
-          });
-        }
-      }
-      const ordered = attempts.toSorted((a, b) => a.attempt - b.attempt);
-      expect(ordered.map(({ attempt }) => attempt)).toEqual([1, 2]);
-      for (const { diagnostics } of ordered) {
-        expect(diagnostics.diagnostics.map((entry) => entry.class)).toEqual(["invariant"]);
-      }
     });
   },
 );

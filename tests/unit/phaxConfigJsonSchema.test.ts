@@ -50,7 +50,7 @@ describe("getPhaxConfigJsonSchema", () => {
     const stepSchema = findGateStepSchema(schema);
     expect(stepSchema).toBeDefined();
     const properties = stepSchema?.["properties"] as Record<string, unknown>;
-    expect(properties["output"]).toMatchObject({ enum: ["log", "diagnostics", "gate-report"] });
+    expect(properties["output"]).toMatchObject({ enum: ["log", "gate-report"] });
     const required = (stepSchema?.["required"] as string[] | undefined) ?? [];
     expect(required).not.toContain("output");
   });
@@ -123,7 +123,7 @@ describe("getPhaxConfigJsonSchema", () => {
     expect(desc).toContain("findings");
   });
 
-  it("has a description on gate step output mentioning diagnostics shape and verdict rules", () => {
+  it("has a description on gate step output naming the gate report shape and verdict rules", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const stepSchema = findGateStepSchema(schema);
     expect(stepSchema).toBeDefined();
@@ -132,21 +132,21 @@ describe("getPhaxConfigJsonSchema", () => {
     const desc = output["description"] as string | undefined;
     expect(typeof desc).toBe("string");
     for (const token of [
-      "diagnostics",
-      "rule",
-      "location",
-      "file",
-      "line",
-      "message",
-      "repair",
-      "non-empty",
-      "empty list",
-      "provider error",
+      "gate-report",
       "$schema",
+      "https://docs.phax.run/schemas/gate-report/",
+      "outcome",
+      "checked",
+      "findings",
+      "review",
+      "checks-attempt-NN.report-SS.json",
+      "Any finding fails the step whatever the exit code",
+      "empty list passes on exit 0",
+      "broken step",
     ]) {
       expect(desc, `missing token: ${token}`).toContain(token);
     }
-    for (const token of ["scope", "closed", "pending"]) {
+    for (const token of ["diagnostics", "scope", "closed", "pending"]) {
       expect(desc, `unexpected token: ${token}`).not.toContain(token);
     }
   });

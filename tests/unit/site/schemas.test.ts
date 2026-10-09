@@ -131,7 +131,7 @@ describe("servedSchemas on a made-up ledger", () => {
   const served = servedSchemas({ releases: ["0.17.0", "0.18.0"] }, snapshots);
 
   it("serves each format's latest release-named snapshot at or before each release", () => {
-    expect(served.files.size).toBe(28);
+    expect(served.files.size).toBe(26);
     expect(served.files.get("/schemas/registry/0.18.0.json")).toBe(
       snapshots.get("registry")?.get("0.18.0"),
     );
@@ -340,7 +340,7 @@ describe("the generator serves the schemas", () => {
       "served-json-schemas",
     ]);
     expect(schemasLine(result.summary)).toBe(
-      "site: schemas — 14 served (ledger: 1 × 14 formats), ledger ends at or below package.json",
+      "site: schemas — 13 served (ledger: 1 × 13 formats), ledger ends at or below package.json",
     );
   });
 

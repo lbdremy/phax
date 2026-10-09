@@ -193,7 +193,7 @@ describe("the brief-answer document", () => {
   });
 
   it("rejects a $schema naming another format", () => {
-    const foreign = { ...answer(), $schema: currentSchemaUrl("gate-diagnostics") };
+    const foreign = { ...answer(), $schema: currentSchemaUrl("brief-request") };
     expect(decodes(decodeBriefAnswerFile, foreign)).toBe(false);
   });
 });

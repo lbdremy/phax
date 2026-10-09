@@ -8,7 +8,7 @@ import { Schema } from "effect";
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
 /**
- * Every persisted format: the fourteen of spec §4 phax still writes, then the two approval
+ * Every persisted format: the thirteen of spec §4 phax still writes, then the two approval
  * record formats of spec approval-record-files, then the gate request of spec
  * gate-request, then the brief request, answer and record of spec
  * brief-provider, then the gate report and brief report of spec guarantee-reports,
@@ -27,7 +27,6 @@ export const FORMAT_IDS = [
   "authoring-record-manifest",
   "gate-attribution",
   "phase-file-reconciliation",
-  "gate-diagnostics",
   "spec-document",
   "plan-document",
   "plan-approval-record",
