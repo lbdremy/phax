@@ -149,8 +149,11 @@ describe("brief-record's released shapes", () => {
   it("reads a record at the current stamp as the current shape", () => {
     const document = recordStampedAt(CURRENT_STAMPS["brief-record"]);
     expect(CURRENT_STAMPS["brief-record"]).toBe("0.21.0");
-    expect(CURRENT_SHAPES["brief-record"]).toBe("next");
-    expect(parseBriefRecord(document)).toEqual({ ok: true, shape: "next", value: document });
+    expect(parseBriefRecord(document)).toEqual({
+      ok: true,
+      shape: CURRENT_SHAPES["brief-record"],
+      value: document,
+    });
   });
 });
 
