@@ -53,6 +53,12 @@ jobs:
             echo "Version mismatch: tag=${RELEASE_TAG}, package.json=${PKG_VERSION}"
             exit 1
           fi
+          # Only the cut appends the ledger, so a tag on an opening commit fails here.
+          LEDGER_LAST="$(node -p "require('./packages/schemas/releases.json').releases.at(-1)")"
+          if [ "$RELEASE_TAG" != "v${LEDGER_LAST}" ]; then
+            echo "Ledger mismatch: tag=${RELEASE_TAG}, packages/schemas/releases.json ends at ${LEDGER_LAST}"
+            exit 1
+          fi
 
       - name: Build the docs site
         run: pnpm site:build

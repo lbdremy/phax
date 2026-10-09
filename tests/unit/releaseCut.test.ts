@@ -1,8 +1,10 @@
 // Simulates a release cut on a temporary copy of the tree: the release commit
 // keeps the snapshot gate green, and the copy's package reads documents at
 // the new release. The real tree is never cut; every test checks it is
-// untouched. X is the next minor of the root version, so a real release never
-// needs this test edited.
+// untouched. O is the opened version: package.json's when the real tree is
+// already opened above the ledger, else the next minor of the ledger's last
+// entry, opened on the copy first. So a real release or opening never needs
+// this test edited.
 import {
   cpSync,
   existsSync,
@@ -18,7 +20,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { sha256 } from "../../packages/schemas/build/generated.js";
 import { snapshotPath } from "../../packages/schemas/build/snapshots.js";
 import {
@@ -30,8 +32,15 @@ import {
   preSchemaUnsupportedMessage,
 } from "../../packages/schemas/src/shapes.js";
 import { cutRelease } from "../../scripts/release-cut.js";
-import { checkSchemas, readSchemasState } from "../../scripts/schemas-check.js";
-import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
+import { openRelease } from "../../scripts/release-open.js";
+import { applySchemasWrite, checkSchemas, readSchemasState } from "../../scripts/schemas-check.js";
+import {
+  FORMAT_IDS,
+  compareReleases,
+  isRelease,
+  schemaUrl,
+  type FormatId,
+} from "../../src/schemas/schemaUrl.js";
 import {
   preSchemaDocuments,
   validDocuments,
@@ -59,8 +68,7 @@ const GENERATED_INDEX = "packages/schemas/src/generated/index.ts";
 const RELEASE_MODULE = "src/schemas/release.ts";
 const LOCK = "packages/schemas/history.lock.json";
 const LEDGER = "packages/schemas/releases.json";
-const EXAMPLE_AUDIT = "examples/hello-world/audit.mjs";
-const EXAMPLE_BRIEF = "examples/hello-world/brief.mjs";
+const EXAMPLES = ["examples/hello-world/audit.mjs", "examples/hello-world/brief.mjs"];
 /** Every path the cut could touch, as files or directories. */
 const CUT_SCOPE = [
   ...MANIFESTS,
@@ -69,20 +77,10 @@ const CUT_SCOPE = [
   RELEASE_MODULE,
   LOCK,
   LEDGER,
-  EXAMPLE_AUDIT,
-  EXAMPLE_BRIEF,
+  ...EXAMPLES,
 ];
-
-/** Each example script with the format of the one `$schema` literal it prints. */
-const EXAMPLE_SCRIPTS = [
-  [EXAMPLE_AUDIT, "gate-diagnostics"],
-  [EXAMPLE_BRIEF, "brief-answer"],
-] as const;
-
-/** The `format` `$schema` literal an example script prints at `release`. */
-function exampleStamp(release: string, format: FormatId = "gate-diagnostics"): string {
-  return `"${schemaUrl(format, release)}"`;
-}
+/** The files a cut never changes. */
+const UNCUT = [...MANIFESTS, RELEASE_MODULE, ...EXAMPLES];
 
 function ledgerOf(root: string): ReadonlyArray<string> {
   return (JSON.parse(readFileSync(join(root, LEDGER), "utf8")) as { releases: string[] }).releases;
@@ -101,9 +99,11 @@ function nextMinor(release: string): string {
   return `${major}.${minor + 1}.0`;
 }
 
+const realLedger = ledgerOf(repoRoot);
+const lastRelease = realLedger.at(-1)!;
 const rootVersion = versionOf(repoRoot);
-const X = nextMinor(rootVersion);
-const Y = nextMinor(X);
+const realOpened = compareReleases(rootVersion, lastRelease) > 0;
+const O = realOpened ? rootVersion : nextMinor(lastRelease);
 
 /** Repo-relative path → sha256 of every file under `paths` (files or directories) in `root`. */
 function hashTree(root: string, paths: ReadonlyArray<string>): Map<string, string> {
@@ -133,7 +133,6 @@ function differences(
 
 const realBefore = hashTree(repoRoot, CUT_SCOPE);
 const copies: string[] = [];
-let copy = "";
 
 function makeCopy(): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-release-cut-")));
@@ -146,6 +145,13 @@ function makeCopy(): string {
   return root;
 }
 
+/** A copy whose manifests name O, opened with `openRelease` when the real tree is not. */
+function openedCopy(): string {
+  const root = makeCopy();
+  if (!realOpened) openRelease(root, O);
+  return root;
+}
+
 async function importFrom<T>(root: string, path: string): Promise<T> {
   return (await import(pathToFileURL(join(root, path)).href)) as T;
 }
@@ -155,17 +161,13 @@ function formatsWithNext(root: string): FormatId[] {
   return FORMAT_IDS.filter((id) => existsSync(join(root, snapshotPath(id, "next"))));
 }
 
-// What the copy's first cut to X must produce, derived from the real tree:
-// every renamed `next` becomes X, every other format keeps its current shape.
+// What the cut of O must produce, derived from the real tree: every renamed
+// `next` becomes O, every other format keeps its current shape.
 const renamed = formatsWithNext(repoRoot);
 const expectedShapes = Object.fromEntries(
-  FORMAT_IDS.map((id) => [id, renamed.includes(id) ? X : CURRENT_SHAPES[id]]),
+  FORMAT_IDS.map((id) => [id, renamed.includes(id) ? O : CURRENT_SHAPES[id]]),
 );
-const expectedFirstSupported = FIRST_SUPPORTED_RELEASE ?? (renamed.length > 0 ? X : null);
-
-beforeEach(() => {
-  copy = makeCopy();
-});
+const expectedFirstSupported = FIRST_SUPPORTED_RELEASE ?? (renamed.length > 0 ? O : null);
 
 afterEach(() => {
   expect(hashTree(repoRoot, CUT_SCOPE)).toEqual(realBefore);
@@ -175,60 +177,90 @@ afterAll(() => {
   for (const root of copies) rmSync(root, { recursive: true, force: true });
 });
 
-describe("cutRelease on a copy of the tree", () => {
-  it(`cuts ${X}: manifests, snapshots and generated files, with the gate green`, async () => {
+describe("cutRelease on an opened copy of the tree", () => {
+  it(`cuts ${O}: renames next snapshots, regenerates the shapes, appends the ledger, with the gate green`, async () => {
+    const copy = openedCopy();
     const before = hashTree(copy, ["."]);
     const nextBytes = new Map(
       renamed.map((id) => [id, readFileSync(join(copy, snapshotPath(id, "next")))]),
     );
 
-    const { changed } = cutRelease(copy, X);
+    const { changed } = cutRelease(copy, O);
 
-    for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(X);
     for (const id of FORMAT_IDS) {
       expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(false);
     }
     for (const [id, bytes] of nextBytes) {
-      expect(readFileSync(join(copy, snapshotPath(id, X)))).toEqual(bytes);
+      expect(readFileSync(join(copy, snapshotPath(id, O)))).toEqual(bytes);
     }
     const after = hashTree(copy, ["."]);
+    for (const path of UNCUT) expect(after.get(path), path).toBe(before.get(path));
     for (const [path, hash] of before) {
       if (path.endsWith("/pre-schema.schema.json")) expect(after.get(path)).toBe(hash);
     }
     expect(after.get(LOCK)).toBe(before.get(LOCK));
+    expect(readFileSync(join(copy, LEDGER), "utf8")).toBe(
+      `${JSON.stringify({ releases: [...realLedger, O] }, null, 2)}\n`,
+    );
 
     const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
-    expect(generated.PACKAGE_VERSION).toBe(X);
+    expect(generated.PACKAGE_VERSION).toBe(O);
     expect(generated.FIRST_SUPPORTED_RELEASE).toBe(expectedFirstSupported);
     expect(generated.CURRENT_SHAPES).toEqual(expectedShapes);
-    expect(readFileSync(join(copy, RELEASE_MODULE), "utf8")).toContain(
-      `export const PHAX_RELEASE = ${JSON.stringify(X)};`,
-    );
 
     expect(checkSchemas(readSchemasState(copy))).toEqual([]);
     expect(changed).toEqual(differences(before, after));
   });
 
-  it(`leaves the copy's package reading documents at ${X}`, async () => {
-    cutRelease(copy, X);
+  // A format whose decoder changed since its last release: its release
+  // snapshot no longer matches the render, and a `next` snapshot does.
+  it(`renames a planted next snapshot to ${O}, leaving the manifests, stamps and examples alone`, async () => {
+    const copy = openedCopy();
+    const id = FORMAT_IDS.find((format) => !renamed.includes(format))!;
+    const latest = CURRENT_SHAPES[id];
+    expect(isRelease(latest)).toBe(true);
+    const latestPath = join(copy, snapshotPath(id, latest));
+    const bytes = readFileSync(latestPath);
+    writeFileSync(join(copy, snapshotPath(id, "next")), bytes);
+    const changedLatest = { ...(JSON.parse(bytes.toString("utf8")) as object), $comment: "old" };
+    writeFileSync(latestPath, `${JSON.stringify(changedLatest, null, 2)}\n`);
+    applySchemasWrite(copy);
+    expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(true);
+    const before = hashTree(copy, ["."]);
+
+    const { changed } = cutRelease(copy, O);
+
+    expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(false);
+    expect(readFileSync(join(copy, snapshotPath(id, O)))).toEqual(bytes);
+    const after = hashTree(copy, ["."]);
+    for (const path of UNCUT) expect(after.get(path), path).toBe(before.get(path));
+    expect(changed).toEqual(differences(before, after));
+    expect(changed).toContain(snapshotPath(id, "next"));
+    expect(changed).toContain(snapshotPath(id, O));
+    const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
+    expect(generated.CURRENT_SHAPES[id]).toBe(O);
+  });
+
+  it(`leaves the copy's package reading documents at ${O}`, async () => {
+    const copy = openedCopy();
+    cutRelease(copy, O);
     const pkg = await importFrom<PackageEntry>(copy, "packages/schemas/src/index.ts");
     const id = "phase-record-manifest";
     const shape = expectedShapes[id];
-    const atX = withKey(validDocuments[id], "$schema", schemaUrl(id, X));
+    const atO = withKey(validDocuments[id], "$schema", schemaUrl(id, O));
 
-    expect(pkg.parsePhaseRecordManifest(atX)).toMatchObject({ ok: true, shape });
-    expect(pkg.parseDocument(atX)).toMatchObject({ ok: true, format: id, shape });
+    expect(pkg.parsePhaseRecordManifest(atO)).toMatchObject({ ok: true, shape });
+    expect(pkg.parseDocument(atO)).toMatchObject({ ok: true, format: id, shape });
 
-    // A development build stamps the release it is heading for before that
-    // release is cut: below the first supported release, no decoder tries it.
-    const developmentRelease = FIRST_SUPPORTED_RELEASE === null ? rootVersion : "0.0.0";
+    // Below the first supported release, no decoder tries a stamp.
+    const developmentRelease = FIRST_SUPPORTED_RELEASE === null ? lastRelease : "0.0.0";
     const developmentUrl = schemaUrl(id, developmentRelease);
     const development = withKey(validDocuments[id], "$schema", developmentUrl);
     expect(pkg.parsePhaseRecordManifest(development)).toEqual({
       ok: false,
       error: {
         path: "$schema",
-        message: developmentBuildMessage(developmentUrl, expectedFirstSupported ?? X),
+        message: developmentBuildMessage(developmentUrl, expectedFirstSupported ?? O),
       },
     });
 
@@ -247,146 +279,80 @@ describe("cutRelease on a copy of the tree", () => {
       ).slice(0, -" ()".length);
       expect(rejected.error.message.startsWith(older)).toBe(true);
       expect(rejected.error.message).toContain(
-        `phax ${expectedFirstSupported ?? X}, the first supported release`,
+        `phax ${expectedFirstSupported ?? O}, the first supported release`,
       );
     }
   });
 
-  it(`cuts ${Y} after ${X} without renaming anything`, async () => {
-    cutRelease(copy, X);
+  it(`cuts ${nextMinor(O)}, opened after ${O}, changing only the ledger`, () => {
+    const copy = openedCopy();
+    cutRelease(copy, O);
+    openRelease(copy, nextMinor(O));
     const before = hashTree(copy, ["."]);
 
-    const { changed } = cutRelease(copy, Y);
+    const { changed } = cutRelease(copy, nextMinor(O));
 
     const after = hashTree(copy, ["."]);
-    expect(differences(before, after)).toEqual(
-      [
-        ...MANIFESTS,
-        GENERATED_INDEX,
-        RELEASE_MODULE,
-        LEDGER,
-        EXAMPLE_AUDIT,
-        EXAMPLE_BRIEF,
-      ].toSorted(),
-    );
-    expect(readFileSync(join(copy, EXAMPLE_AUDIT), "utf8")).toContain(exampleStamp(Y));
-    expect(readFileSync(join(copy, EXAMPLE_BRIEF), "utf8")).toContain(
-      exampleStamp(Y, "brief-answer"),
-    );
-    expect(ledgerOf(copy).slice(-2)).toEqual([X, Y]);
-    expect(changed).toEqual(differences(before, after));
-    for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(Y);
-    const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
-    expect(generated.PACKAGE_VERSION).toBe(Y);
-    expect(generated.FIRST_SUPPORTED_RELEASE).toBe(expectedFirstSupported);
-    expect(generated.CURRENT_SHAPES).toEqual(expectedShapes);
-    expect(readFileSync(join(copy, RELEASE_MODULE), "utf8")).toContain(
-      `export const PHAX_RELEASE = ${JSON.stringify(Y)};`,
-    );
+    expect(differences(before, after)).toEqual([LEDGER]);
+    expect(changed).toEqual([LEDGER]);
+    expect(ledgerOf(copy).slice(-2)).toEqual([O, nextMinor(O)]);
     expect(checkSchemas(readSchemasState(copy))).toEqual([]);
   });
 
-  it(`appends ${X} to the release ledger and reports it`, () => {
-    const before = ledgerOf(copy);
-
-    const { changed } = cutRelease(copy, X);
-
-    expect(ledgerOf(copy)).toEqual([...before, X]);
-    expect(readFileSync(join(copy, LEDGER), "utf8")).toBe(
-      `${JSON.stringify({ releases: [...before, X] }, null, 2)}\n`,
-    );
-    expect(changed).toContain(LEDGER);
-  });
-
-  it.each(EXAMPLE_SCRIPTS)(
-    `rewrites %s's %s stamp to ${X}, keeping every other byte, and reports it`,
-    (script, format) => {
-      const before = readFileSync(join(copy, script), "utf8");
-      expect(before).toContain(exampleStamp(rootVersion, format));
-
-      const { changed } = cutRelease(copy, X);
-
-      expect(readFileSync(join(copy, script), "utf8")).toBe(
-        before.replace(exampleStamp(rootVersion, format), exampleStamp(X, format)),
-      );
-      expect(changed).toContain(script);
-    },
-  );
-
   describe("refuses before writing anything", () => {
-    it.each(EXAMPLE_SCRIPTS)("a missing %s", (script) => {
-      rmSync(join(copy, script));
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(`${script} is missing — nothing cut`);
-      expect(hashTree(copy, ["."])).toEqual(before);
-    });
-
-    it.each(
-      EXAMPLE_SCRIPTS.flatMap(([script, format]) => [
-        [
-          script,
-          format,
-          "without a stamp",
-          (content: string) => content.replace(exampleStamp(rootVersion, format), '""'),
-          0,
-        ] as const,
-        [
-          script,
-          format,
-          "with a duplicated stamp",
-          (content: string) => `${content}// ${exampleStamp(rootVersion, format)}\n`,
-          2,
-        ] as const,
-      ]),
-    )("%s (%s) %s", (script, format, _label, edit, found) => {
-      const path = join(copy, script);
-      writeFileSync(path, edit(readFileSync(path, "utf8")));
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(
-        `${script} must hold exactly one ${format} $schema literal, found ${found} — nothing cut`,
-      );
-      expect(hashTree(copy, ["."])).toEqual(before);
-    });
-
-    it("a missing release ledger", () => {
-      rmSync(join(copy, LEDGER));
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(`${LEDGER} is missing — nothing cut`);
-      expect(hashTree(copy, ["."])).toEqual(before);
-    });
-
-    it("an out-of-order release ledger", () => {
-      writeLedger(copy, [rootVersion, "0.0.1", rootVersion]);
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow("not strictly increasing — nothing cut");
-      expect(hashTree(copy, ["."])).toEqual(before);
-    });
-
-    it("a release ledger whose last entry is not the package.json version", () => {
-      writeLedger(copy, ["0.0.1"]);
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(
-        `${LEDGER}: last entry 0.0.1, package.json version ${rootVersion} — nothing cut`,
-      );
-      expect(hashTree(copy, ["."])).toEqual(before);
-    });
-
-    it.each([
-      ["a malformed version", "1.2", "is not a release"],
-      ["the current version", rootVersion, "is not newer than"],
-      ["an older version", "0.0.1", "is not newer than"],
-    ])("%s", (_label, version, message) => {
+    function expectRefused(copy: string, version: string, message: string): void {
       const before = hashTree(copy, ["."]);
       expect(() => cutRelease(copy, version)).toThrow(message);
       expect(hashTree(copy, ["."])).toEqual(before);
+    }
+
+    it.each([
+      ["the next minor", nextMinor(O)],
+      ["the last release", lastRelease],
+    ])(`a version other than ${O}: %s`, (_label, version) => {
+      expectRefused(
+        openedCopy(),
+        version,
+        `${version} is not the opened version ${O} — re-open first: scripts/release.sh --open ${version}`,
+      );
     });
 
-    it(`an existing ${X} snapshot`, () => {
-      const existing = snapshotPath("registry", X);
+    it(`a release ledger that already ends at ${O}`, () => {
+      const copy = openedCopy();
+      writeLedger(copy, [...realLedger, O]);
+      expectRefused(copy, O, `${O} is not newer than the last release ${O} — nothing cut`);
+    });
+
+    it("a missing release ledger", () => {
+      const copy = openedCopy();
+      rmSync(join(copy, LEDGER));
+      expectRefused(copy, O, `${LEDGER} is missing — nothing cut`);
+    });
+
+    it.each([
+      ["not JSON", "{", "is not JSON — nothing cut"],
+      ["without releases", "{}\n", 'must hold { "releases": ["X.Y.Z", …] } — nothing cut'],
+    ])("a release ledger %s", (_label, text, message) => {
+      const copy = openedCopy();
+      writeFileSync(join(copy, LEDGER), text);
+      expectRefused(copy, O, message);
+    });
+
+    it("an out-of-order release ledger", () => {
+      const copy = openedCopy();
+      writeLedger(copy, [lastRelease, "0.0.1", lastRelease]);
+      expectRefused(copy, O, "not strictly increasing — nothing cut");
+    });
+
+    it("a malformed version", () => {
+      expectRefused(openedCopy(), "1.2", "1.2 is not a release (X.Y.Z)");
+    });
+
+    it(`an existing ${O} snapshot`, () => {
+      const copy = openedCopy();
+      const existing = snapshotPath("registry", O);
       writeFileSync(join(copy, existing), "{}\n");
-      const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(`${existing} already exists`);
-      expect(hashTree(copy, ["."])).toEqual(before);
+      expectRefused(copy, O, `${existing} already exists`);
     });
   });
 });

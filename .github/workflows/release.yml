@@ -87,9 +87,11 @@ jobs:
       - name: Prepare npm wrapper
         run: deno run --allow-read --allow-write scripts/prepare-npm.ts "${{ github.ref_name }}"
 
-      # release.sh bumps packages/schemas/package.json in the release commit;
-      # prepare-npm.ts sets npm/package.json. Both must equal the tag before
-      # anything is staged.
+      # Between releases packages/schemas/package.json names the opened
+      # version; prepare-npm.ts sets npm/package.json. Both must equal the tag
+      # before anything is staged. The cut appends the tag's version to the
+      # release ledger, which the opening never does, so the ledger's last
+      # entry must equal the tag too: a tag on an opening commit fails here.
       - name: Verify package versions match tag
         run: |
           TAG_VERSION="${{ github.ref_name }}"
@@ -102,6 +104,11 @@ jobs:
               STATUS=1
             fi
           done
+          LEDGER_LAST="$(node -p "require('./packages/schemas/releases.json').releases.at(-1)")"
+          if [ "$TAG_VERSION" != "$LEDGER_LAST" ]; then
+            echo "Ledger mismatch: tag=${TAG_VERSION}, packages/schemas/releases.json ends at ${LEDGER_LAST}"
+            STATUS=1
+          fi
           exit "$STATUS"
 
       # docs.phax.run deploys after every fallible check and before anything

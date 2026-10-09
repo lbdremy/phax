@@ -1,6 +1,7 @@
 // The JSON Schemas docs.phax.run serves at every `$schema` URL a released
 // phax writes. The release ledger (packages/schemas/releases.json, appended
-// by the release cut) lists every release; for each release and each format,
+// by the release cut) lists every cut release, never the opened version
+// package.json names between releases; for each release and each format,
 // the format's latest release-named snapshot at or before that release is
 // served at /schemas/<format id>/<release>.json, byte for byte. `pre-schema`
 // and `next` are never served. A retired format (no longer in FORMAT_IDS)
@@ -94,8 +95,10 @@ function firstSnapshotRelease(
 /**
  * Every finding about the ledger, as `✗ …` lines: an entry that is not
  * X.Y.Z, entries not strictly increasing, a first entry that is not the first
- * supported release, a last entry that is not the package.json version, and
- * a release-named snapshot whose release the ledger lacks. `snapshotNames`
+ * supported release, a last entry above the package.json version, and a
+ * release-named snapshot whose release the ledger lacks. Between releases
+ * package.json names the opened version, which the ledger trails until the
+ * cut appends it; on a release commit the two are equal. `snapshotNames`
  * maps a format id to its snapshot names (`pre-schema`, `next`, `X.Y.Z`).
  */
 export function checkLedger(
@@ -129,8 +132,10 @@ export function checkLedger(
       `✗ release ledger: first entry ${first}, first supported release ${firstSupported}`,
     );
   }
-  if (last !== packageVersion) {
-    findings.push(`✗ release ledger: last entry ${last}, package.json version ${packageVersion}`);
+  if (isRelease(last) && isRelease(packageVersion) && compareReleases(last, packageVersion) > 0) {
+    findings.push(
+      `✗ release ledger: last entry ${last} is above package.json version ${packageVersion}`,
+    );
   }
   const listed = new Set(releases);
   for (const [formatId, names] of [...snapshotNames].toSorted(([left], [right]) =>
