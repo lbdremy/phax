@@ -172,6 +172,36 @@ describe("buildWhatsNext", () => {
     });
   });
 
+  describe("gate_refused scenario", () => {
+    const refusal = {
+      kind: "gate_refused",
+      shortName: "hello-world.greet",
+      phaseId: "phase-01",
+      command: "node ./audit.mjs",
+      reason: "the checks need hw-rules 2, and 1 is installed",
+      remedy: "pnpm add -D hw-rules@2",
+    } as const;
+
+    it("names the step, the reason and the remedy, and says no fix attempt was made", () => {
+      const wn = buildWhatsNext(refusal, NOW);
+      expect(wn.headline).toBe(
+        [
+          "phase-01 gate: `node ./audit.mjs` refused to run: the checks need hw-rules 2, and 1 is installed",
+          "  remedy: pnpm add -D hw-rules@2",
+          "  No fix attempt was made. Fix the cause, then: phax resume hello-world.greet",
+        ].join("\n"),
+      );
+    });
+
+    it("ends with resuming the run, which re-runs the gate first", () => {
+      const wn = buildWhatsNext(refusal, NOW);
+      expect(wn.steps[0]?.detail).toEqual(["pnpm add -D hw-rules@2"]);
+      expect(wn.steps[0]?.command).toBe("phax enter-phase hello-world.greet phase-01");
+      expect(wn.steps.at(-1)?.command).toBe("phax resume hello-world.greet");
+      expect(renderWhatsNext(wn)).toContain("refused to run");
+    });
+  });
+
   describe("phase_no_changes scenario", () => {
     it("produces resume and enter-phase steps", () => {
       const wn = buildWhatsNext(

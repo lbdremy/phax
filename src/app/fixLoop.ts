@@ -7,6 +7,7 @@ import {
   type AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
   GateFailedError,
+  GateStepRefusedError,
   type RateLimitError,
   type RegistryCorruptionError,
   type SecurityEnforcementError,
@@ -30,6 +31,8 @@ import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
+import { reportPathFor } from "../domain/gate/reportPath.js";
+import { readGateReport } from "../schemas/persisted.js";
 
 export interface RunGatesWithFixLoopOptions {
   readonly steps: readonly GateStep[];
@@ -58,6 +61,7 @@ export function runGatesWithFixLoop(
 ): Effect.Effect<
   GateOutcome,
   | GateAttemptsExhaustedError
+  | GateStepRefusedError
   | FsError
   | ShellError
   | GitError
@@ -105,6 +109,30 @@ export function runGatesWithFixLoop(
     return join(phaseFolderPath, `checks-attempt-${String(attempt).padStart(2, "0")}.log`);
   }
 
+  /**
+   * The finding ids of the same step's checked report in the previous gate
+   * attempt, read from its saved file so the mark holds across a resume. A
+   * first attempt, or a report that is missing, unreadable or refused, gives
+   * the empty set.
+   */
+  function previousFindingIds(
+    attempt: number,
+    step: number,
+  ): Effect.Effect<ReadonlySet<string>, never, FileSystem> {
+    const none: ReadonlySet<string> = new Set<string>();
+    if (attempt <= 1) return Effect.succeed(none);
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = reportPathFor(logPath(attempt - 1), step);
+      if (!(yield* fs.exists(path))) return none;
+      const raw = yield* fs.readText(path);
+      const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+      const read = readGateReport(parsed);
+      if (Either.isLeft(read) || read.right.outcome !== "checked") return none;
+      return new Set(read.right.findings.map((finding) => finding.id));
+    }).pipe(Effect.orElseSucceed(() => none));
+  }
+
   function loop(
     attempt: number,
     currentSessionId: ClaudeSessionId,
@@ -112,6 +140,7 @@ export function runGatesWithFixLoop(
   ): Effect.Effect<
     GateOutcome,
     | GateAttemptsExhaustedError
+    | GateStepRefusedError
     | FsError
     | ShellError
     | GitError
@@ -169,6 +198,50 @@ export function runGatesWithFixLoop(
       }
 
       const error = gateResult.left;
+
+      if (error instanceof GateStepRefusedError) {
+        // A refusal goes to the operator: the gate is recorded as rejected and
+        // the phase pauses, with no fix prompt and no fix attempt counted.
+        yield* telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            step: `gate.run`,
+            result: "failure",
+          }),
+        );
+        yield* telemetry.recordEvent(
+          makeGateEvaluatedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            gate: "checks",
+            result: "rejected",
+            reason: `refused: ${error.command}`,
+          }),
+        );
+        const gateFailedEvent: PhaxEvent = {
+          ...eventBase(),
+          type: "GateFailed",
+          command: error.command,
+          exitCode: error.exitCode,
+          logPath: error.logPath,
+          attempt,
+        };
+        yield* dispatch(gateFailedEvent, dispatchCtx);
+        const refusedEvent: PhaxEvent = {
+          ...eventBase(),
+          type: "GateStepRefused",
+          attempt,
+          phaseId: phaseId as PhaseId,
+          worktreePath: resolvedWorktreePath as WorktreePath,
+          sessionId: currentSessionId,
+          command: error.command,
+          reason: error.reason,
+          remedy: error.remedy,
+        };
+        yield* dispatch(refusedEvent, dispatchCtx);
+        return yield* Effect.fail(error);
+      }
 
       if (!(error instanceof GateFailedError)) {
         return yield* Effect.fail(error);
@@ -246,6 +319,10 @@ export function runGatesWithFixLoop(
 
       const fs = yield* FileSystem;
       const logContent = yield* fs.readText(logPath(attempt));
+      const stillFailing =
+        error.reportFindings === null
+          ? new Set<string>()
+          : yield* previousFindingIds(attempt, error.reportFindings.step);
       const fixPrompt = buildFixPrompt({
         command: error.command,
         exitCode: error.exitCode,
@@ -253,6 +330,7 @@ export function runGatesWithFixLoop(
         logContent,
         logPath: error.logPath,
         reportFindings: error.reportFindings,
+        stillFailing,
       });
 
       yield* telemetry.recordEvent(

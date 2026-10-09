@@ -13,6 +13,9 @@ export interface BuildFixPromptInput {
     readonly step: number;
     readonly findings: readonly GateFinding[];
   } | null;
+  /** The ids the same step's checked report listed in the phase's previous
+   *  gate attempt: each finding with one of them is marked `still failing`. */
+  readonly stillFailing: ReadonlySet<string>;
 }
 
 const REQUIRED_ACTION_TAIL = [
@@ -31,13 +34,15 @@ function renderLocation(location: ReportLocation | ReportRelatedLocation): strin
 }
 
 /**
- * One finding: its location, then its rule, what was found, each related
- * location with its why, and its guide. Never its id: the id is the
- * provider's, compared by phax and never shown.
+ * One finding: its location, marked `still failing` when the previous attempt
+ * listed its id, then its rule, what was found, each related location with
+ * its why, and its guide. Never its id: the id is the provider's, compared by
+ * phax and never shown.
  */
-function renderFinding(finding: GateFinding): string {
+function renderFinding(finding: GateFinding, stillFailing: ReadonlySet<string>): string {
+  const mark = stillFailing.has(finding.id) ? " · still failing" : "";
   return [
-    `- ${renderLocation(finding.location)}`,
+    `- ${renderLocation(finding.location)}${mark}`,
     `  rule: ${finding.rule}`,
     `  found: ${finding.message}`,
     ...finding.related.map(
@@ -50,7 +55,7 @@ function renderFinding(finding: GateFinding): string {
 }
 
 export function buildFixPrompt(input: BuildFixPromptInput): string {
-  const { command, exitCode, attempt, logContent, logPath, reportFindings } = input;
+  const { command, exitCode, attempt, logContent, logPath, reportFindings, stillFailing } = input;
 
   if (reportFindings !== null) {
     const { findings } = reportFindings;
@@ -64,7 +69,7 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
       "",
       "## Findings",
       "",
-      findings.map(renderFinding).join("\n"),
+      findings.map((finding) => renderFinding(finding, stillFailing)).join("\n"),
       "",
       `Full output: ${logPath}`,
       "",

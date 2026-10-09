@@ -405,7 +405,9 @@ export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
 
 type GateStepResult = GateAttribution["steps"][number];
 
-function isPassOrFail(step: { readonly result: string }): step is GateStepResult {
+function isPassOrFail(step: { readonly result: string }): step is GateStepResult & {
+  readonly result: "pass" | "fail";
+} {
   return step.result === "pass" || step.result === "fail";
 }
 

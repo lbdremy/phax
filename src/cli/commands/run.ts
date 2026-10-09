@@ -9,6 +9,7 @@ import {
   AgentInvocationError,
   ConfigValidationError,
   GateAttemptsExhaustedError,
+  GateStepRefusedError,
   PhaseHadNoChangesError,
   PlanStaleError,
   RateLimitError,
@@ -469,6 +470,26 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           renderWhatsNext(
             buildWhatsNext(
               { kind: "gates_exhausted", shortName, phaseId: err.phaseId },
+              new Date(),
+            ),
+          ),
+        );
+        out.warn(`See ${join(runFolder, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (err instanceof GateStepRefusedError) {
+        out.warn(`Run "${qualName}" paused: a gate step refused to run.`);
+        out.warn(
+          renderWhatsNext(
+            buildWhatsNext(
+              {
+                kind: "gate_refused",
+                shortName,
+                phaseId: err.phaseId,
+                command: err.command,
+                reason: err.reason,
+                remedy: err.remedy,
+              },
               new Date(),
             ),
           ),

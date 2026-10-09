@@ -84,6 +84,19 @@ export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsEx
   phaseId: string;
 }> {}
 
+/** A report step printed a refused gate report: the phase stops without a fix
+ *  attempt, and the operator acts on the remedy. */
+export class GateStepRefusedError extends Data.TaggedError("GateStepRefusedError")<{
+  message: string;
+  command: string;
+  reason: string;
+  remedy: string;
+  /** The step's exit code, which does not decide anything for a refusal. */
+  exitCode: number;
+  logPath: string;
+  phaseId: string;
+}> {}
+
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{
   message: string;
   attempt: number;

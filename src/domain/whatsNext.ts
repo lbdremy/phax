@@ -31,6 +31,14 @@ export type WhatsNextScenario =
       readonly phaseId?: string | undefined;
     }
   | {
+      readonly kind: "gate_refused";
+      readonly shortName: string;
+      readonly phaseId: string;
+      readonly command: string;
+      readonly reason: string;
+      readonly remedy: string;
+    }
+  | {
       readonly kind: "phase_no_changes";
       readonly shortName: string;
       readonly phaseId: string;
@@ -126,6 +134,26 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           {
             title: "If the session was lost, reset the phase instead",
             command: `phax reset-phase ${scenario.shortName} ${phaseArg}`,
+          },
+        ],
+      };
+    }
+    case "gate_refused": {
+      return {
+        headline: [
+          `${scenario.phaseId} gate: \`${scenario.command}\` refused to run: ${scenario.reason}`,
+          `  remedy: ${scenario.remedy}`,
+          `  No fix attempt was made. Fix the cause, then: phax resume ${scenario.shortName}`,
+        ].join("\n"),
+        steps: [
+          {
+            title: "Apply the remedy in the phase worktree",
+            detail: [scenario.remedy],
+            command: `phax enter-phase ${scenario.shortName} ${scenario.phaseId}`,
+          },
+          {
+            title: "Resume — the gate is re-run first, with the full fix budget",
+            command: `phax resume ${scenario.shortName}`,
           },
         ],
       };

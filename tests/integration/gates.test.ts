@@ -16,7 +16,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { runGates, serializeGateRequest } from "../../src/app/gates.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
-import { GateFailedError } from "../../src/domain/errors.js";
+import { GateFailedError, GateStepRefusedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -839,6 +839,13 @@ function failure(result: Either.Either<unknown, unknown>): GateFailedError {
   return result.left as GateFailedError;
 }
 
+/** The gate's refusal; fails the test when the gate did not refuse. */
+function refusedWith(result: Either.Either<unknown, unknown>): GateStepRefusedError {
+  if (Either.isRight(result)) throw new Error("expected the gate to refuse");
+  expect(result.left).toBeInstanceOf(GateStepRefusedError);
+  return result.left as GateStepRefusedError;
+}
+
 /** The paths of every gate report the fake filesystem holds. */
 function savedReports(fakeFs: ReturnType<typeof makeFakeFileSystem>): string[] {
   return [...fakeFs.impl.files.keys()].filter((path) => /\.report-\d+\.json$/.test(path));
@@ -1152,15 +1159,62 @@ describe("runGates with a report step", () => {
       second,
     );
 
-    // Until a refusal pauses the phase, it is a broken step with the raw log.
-    const err = failure(result);
-    expect(err.reportFindings).toBeNull();
-    expect(err.message).toBe(
-      'Gate step "node ./audit.mjs" refused to run: the checks need hw-rules 2, and 1 is installed (remedy: pnpm add -D hw-rules@2)',
-    );
-    expect(fakeFs.impl.getFile(secondLog)).toContain(
-      "provider error: refused: the checks need hw-rules 2, and 1 is installed — remedy: pnpm add -D hw-rules@2",
-    );
+    expect(refusedWith(result).logPath).toBe(secondLog);
+    expect(savedReports(fakeFs)).toHaveLength(2);
+  });
+
+  describe("a refused report stops the gate for the operator", () => {
+    for (const exitCode of [0, 1]) {
+      it(`fails with the step, the reason and the remedy on exit ${exitCode}`, async () => {
+        const { result, fakeFs, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+          "node ./audit.mjs": { exitCode, stdout: JSON.stringify(refused) },
+        });
+
+        const err = refusedWith(result);
+        expect(err).toMatchObject({
+          command: "node ./audit.mjs",
+          reason: "the checks need hw-rules 2, and 1 is installed",
+          remedy: "pnpm add -D hw-rules@2",
+          exitCode,
+          logPath,
+          phaseId,
+        });
+        expect(err.message).toBe(
+          'Gate step "node ./audit.mjs" refused to run: the checks need hw-rules 2, and 1 is installed (remedy: pnpm add -D hw-rules@2)',
+        );
+        expect(attribution.steps).toEqual([
+          { command: "node ./audit.mjs", surface: "structural", result: "refused" },
+        ]);
+        expect(fakeFs.impl.getFile(logPath)).toContain(
+          "refused: the checks need hw-rules 2, and 1 is installed — remedy: pnpm add -D hw-rules@2",
+        );
+        expect(fakeFs.impl.getFile(logPath)).not.toContain("provider error");
+      });
+    }
+
+    it("saves the refused report as printed", async () => {
+      const stdout = `${JSON.stringify(refused, null, 2)}\n`;
+      const { fakeFs } = await runWith([reportStep("node ./audit.mjs")], {
+        "node ./audit.mjs": { exitCode: 3, stdout },
+      });
+
+      expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
+    });
+
+    it("runs no step after a refusal", async () => {
+      const { result, fakeFs, fakeShell, attribution } = await runWith(
+        [reportStep("node ./audit.mjs"), ...steps("pnpm test")],
+        {
+          "node ./audit.mjs": { exitCode: 0, stdout: JSON.stringify(refused) },
+          "pnpm test": { exitCode: 0, stdout: "ok" },
+        },
+      );
+
+      refusedWith(result);
+      expect(fakeShell.impl.calls).toHaveLength(1);
+      expect(fakeFs.impl.getFile(logPath)).not.toContain("$ pnpm test");
+      expect(attribution.steps).toHaveLength(1);
+    });
   });
 
   it("judges nothing in the content: a missing file and a missing guide still fail the step", async () => {

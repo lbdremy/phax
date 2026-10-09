@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { join } from "node:path";
 import { type KeepAwakePlatform, type NextStep, buildWhatsNext } from "../domain/whatsNext.js";
+import type { GateRefusal } from "../domain/effects.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 
 export interface ResumeInstructionsInput {
@@ -21,6 +22,8 @@ export interface ResumeInstructionsInput {
   readonly sessionId?: string | undefined;
   /** The raw limit message from Claude Code, for context. */
   readonly rawMessage?: string | undefined;
+  /** The refused step, its reason and its remedy (kind `gate_refused`). */
+  readonly refusal?: GateRefusal | undefined;
   /** Current wall time — injected so the builder stays pure/testable. */
   readonly now: Date;
   /** Host platform — injected so the builder stays pure/testable. */
@@ -61,6 +64,40 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
     "## Why it stopped",
     "",
     `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
+    "",
+    ...stepsToMarkdown(wn.steps),
+  ];
+  return lines.join("\n");
+}
+
+function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const refusal = input.refusal ?? {
+    command: "(unknown)",
+    reason: "(not recorded)",
+    remedy: "(not recorded)",
+  };
+  const wn = buildWhatsNext(
+    { kind: "gate_refused", shortName: input.shortName, phaseId, ...refusal },
+    input.now,
+  );
+
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    `This run paused because the gate step \`${refusal.command}\` refused to run.`,
+    "No fix attempt was made. Fix the cause, then resume — the gate is re-run first,",
+    "with the full fix budget.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Step:** \`${refusal.command}\``,
+    `- **Refused because:** ${refusal.reason}`,
+    `- **Remedy:** ${refusal.remedy}`,
     `- **Current phase:** ${phaseId}`,
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
@@ -188,6 +225,9 @@ function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInpu
 export function buildResumeInstructions(input: ResumeInstructionsInput): string {
   if (input.kind === "gates_exhausted") {
     return buildGateExhaustionInstructions(input);
+  }
+  if (input.kind === "gate_refused") {
+    return buildGateRefusalInstructions(input);
   }
   if (input.kind === "commit_failed") {
     return buildCommitFailedInstructions(input);

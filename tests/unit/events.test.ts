@@ -105,6 +105,18 @@ const samples = {
     sessionId,
     command: "pnpm test",
   },
+  GateStepRefused: {
+    ...base,
+    type: "GateStepRefused",
+    phase: phaseId,
+    phaseId,
+    attempt: 1,
+    worktreePath,
+    sessionId,
+    command: "node ./audit.mjs",
+    reason: "the checks need hw-rules 2, and 1 is installed",
+    remedy: "pnpm add -D hw-rules@2",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {
@@ -199,6 +211,8 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.attempt}`;
     case "GateFailed":
       return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}`;
+    case "GateStepRefused":
+      return `${event.type}:${event.command}:${event.remedy}`;
     case "HandoffMissing":
       return `${event.type}:${event.missingSections.join(",")}`;
     case "CommitCreated":

@@ -88,3 +88,36 @@ describe("buildResumeInstructions — gates_exhausted variant", () => {
     expect(md).toContain("<phase-id>");
   });
 });
+
+describe("buildResumeInstructions — gate_refused variant", () => {
+  const refusedBase: ResumeInstructionsInput = {
+    ...BASE,
+    shortName: "hello-world.greet",
+    kind: "gate_refused",
+    reason: "Gate step refused",
+    phaseId: "phase-01",
+    worktreePath: "/worktrees/hello-world.greet/phase-01",
+    refusal: {
+      command: "node ./audit.mjs",
+      reason: "the checks need hw-rules 2, and 1 is installed",
+      remedy: "pnpm add -D hw-rules@2",
+    },
+  };
+
+  it("says the step refused, with its reason and its remedy", () => {
+    const md = buildResumeInstructions(refusedBase);
+    expect(md).toContain("the gate step `node ./audit.mjs` refused to run");
+    expect(md).toContain("the checks need hw-rules 2, and 1 is installed");
+    expect(md).toContain("pnpm add -D hw-rules@2");
+  });
+
+  it("says no fix attempt was made", () => {
+    expect(buildResumeInstructions(refusedBase)).toContain("No fix attempt was made.");
+  });
+
+  it("ends with phax resume <short name>", () => {
+    const md = buildResumeInstructions(refusedBase);
+    expect(md.trimEnd().endsWith("phax resume hello-world.greet\n```")).toBe(true);
+    expect(md).not.toContain("reset-phase");
+  });
+});

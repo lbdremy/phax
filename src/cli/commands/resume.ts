@@ -7,6 +7,7 @@ import { decodePublication } from "../../schemas/publication.js";
 import {
   AgentInvocationError,
   GateAttemptsExhaustedError,
+  GateStepRefusedError,
   PhaseHadNoChangesError,
   RateLimitError,
   UsageLimitError,
@@ -275,6 +276,26 @@ export async function runResume(
           renderWhatsNext(
             buildWhatsNext(
               { kind: "gates_exhausted", shortName, phaseId: err.phaseId },
+              new Date(),
+            ),
+          ),
+        );
+        out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (err instanceof GateStepRefusedError) {
+        out.warn(`Run "${qualifiedName}" paused: a gate step refused to run.`);
+        out.warn(
+          renderWhatsNext(
+            buildWhatsNext(
+              {
+                kind: "gate_refused",
+                shortName,
+                phaseId: err.phaseId,
+                command: err.command,
+                reason: err.reason,
+                remedy: err.remedy,
+              },
               new Date(),
             ),
           ),

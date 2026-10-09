@@ -14,6 +14,7 @@ import {
 import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import {
   schemaUrl,
@@ -109,6 +110,45 @@ describe.each(FORMATS)("$id", (format) => {
       ok: false,
       error: { path: "$schema", message: belowOwnReleaseMessage(format.id, "0.1.0") },
     });
+  });
+});
+
+// gate-attribution gained `refused` after 0.20.0: each stamp reads as the shape
+// its release wrote.
+function attributionSteps(result: string) {
+  return [{ command: "node ./audit.mjs", surface: "structural", result }];
+}
+
+function attributionStampedAt(release: string, result: string) {
+  return {
+    $schema: schemaUrl("gate-attribution", release),
+    phase: "phase-01",
+    steps: attributionSteps(result),
+  };
+}
+
+describe("gate-attribution's released shapes", () => {
+  const stampedAt = attributionStampedAt;
+
+  it("reads a 0.20.0 attribution as shape 0.20.0", () => {
+    const document = stampedAt("0.20.0", "fail");
+    const parsed = parseGateAttribution(document);
+    expect(parsed).toEqual({ ok: true, shape: "0.20.0", value: document });
+    if (!parsed.ok || parsed.shape !== "0.20.0") return;
+    expect(toLatestGateAttribution(parsed.value)).toEqual({
+      phase: "phase-01",
+      steps: attributionSteps("fail"),
+    });
+  });
+
+  it("refuses refused in a 0.20.0 attribution", () => {
+    expect(parseGateAttribution(stampedAt("0.20.0", "refused"))).toMatchObject({ ok: false });
+  });
+
+  it("reads an attribution at the current stamp, refused included, as the current shape", () => {
+    const document = stampedAt(CURRENT_STAMPS["gate-attribution"], "refused");
+    expect(CURRENT_SHAPES["gate-attribution"]).toBe("next");
+    expect(parseGateAttribution(document)).toEqual({ ok: true, shape: "next", value: document });
   });
 });
 

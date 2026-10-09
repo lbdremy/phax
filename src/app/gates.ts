@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { basename, join } from "node:path";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
-import { GateFailedError } from "../domain/errors.js";
+import { GateFailedError, GateStepRefusedError } from "../domain/errors.js";
 import { Shell, type ShellError, type ShellRunResult } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
@@ -72,7 +72,8 @@ export interface RunGatesOptions {
    *  it as `reportPathFor(attemptLogPath, <the step's 1-based position>)`. */
   readonly attemptLogPath: string;
   /** When provided together with `phaseId`, the steps that ran (up to and
-   *  including the first failure) are recorded here as a GateAttribution. */
+   *  including the first failure or refusal) are recorded here as a
+   *  GateAttribution. */
   readonly attributionPath?: string;
   readonly phaseId?: string;
   /** The phase's serialized gate request (`serializeGateRequest`). Written on
@@ -83,7 +84,11 @@ export interface RunGatesOptions {
 
 export function runGates(
   opts: RunGatesOptions,
-): Effect.Effect<GateOutcome, GateFailedError | FsError | ShellError, Shell | FileSystem> {
+): Effect.Effect<
+  GateOutcome,
+  GateFailedError | GateStepRefusedError | FsError | ShellError,
+  Shell | FileSystem
+> {
   const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest } = opts;
   const requestPath = requestPathFor(attemptLogPath);
   return Effect.gen(function* () {
@@ -200,15 +205,23 @@ export function runGates(
 
         const report = read.right;
         if (report.outcome === "refused") {
-          // Until refusals pause the phase, a refusal is a broken step.
-          logLines.push(`provider error: refused: ${report.reason} — remedy: ${report.remedy}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-          return yield* failGate({
-            rawCommand,
-            exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" refused to run: ${report.reason} (remedy: ${report.remedy})`,
-            stderr: result.stderr,
-          });
+          // A refusal stops the gate for the operator, whatever the exit code:
+          // no later step runs, and the fix loop makes no attempt.
+          logLines.push(`refused: ${report.reason} — remedy: ${report.remedy}`);
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "refused" });
+          yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
+          yield* writeAttribution();
+          return yield* Effect.fail(
+            new GateStepRefusedError({
+              message: `Gate step "${rawCommand}" refused to run: ${report.reason} (remedy: ${report.remedy})`,
+              command: rawCommand,
+              reason: report.reason,
+              remedy: report.remedy,
+              exitCode: result.exitCode,
+              logPath: attemptLogPath,
+              phaseId: phaseId ?? "",
+            }),
+          );
         }
 
         if (report.findings.length === 0) {

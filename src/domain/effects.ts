@@ -14,6 +14,7 @@ export interface ResumeContext {
     | "Usage limit"
     | "No changes"
     | "Gate checks failed"
+    | "Gate step refused"
     | "Commit failed"
     | "Cleanup failed"
     | "Artifact completion failed";
@@ -22,6 +23,7 @@ export interface ResumeContext {
     | "usage_limit"
     | "no_changes"
     | "gates_exhausted"
+    | "gate_refused"
     | "commit_failed"
     | "cleanup_failed"
     | "artifact_completion_failed";
@@ -30,6 +32,14 @@ export interface ResumeContext {
   readonly worktreePath?: string | undefined;
   readonly sessionId?: string | undefined;
   readonly rawMessage?: string | undefined;
+  /** The refused step, its reason and its remedy; set for kind `gate_refused`. */
+  readonly refusal?: GateRefusal | undefined;
+}
+
+export interface GateRefusal {
+  readonly command: string;
+  readonly reason: string;
+  readonly remedy: string;
 }
 
 export interface PersistState {

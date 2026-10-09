@@ -105,6 +105,19 @@ export interface FixAttemptsExhausted extends PhaxEventBase {
   readonly command: string;
 }
 
+// A report step refused to run. Pauses the phase as FixAttemptsExhausted does,
+// with no fix attempt made.
+export interface GateStepRefused extends PhaxEventBase {
+  readonly type: "GateStepRefused";
+  readonly attempt: number;
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly sessionId: ClaudeSessionId;
+  readonly command: string;
+  readonly reason: string;
+  readonly remedy: string;
+}
+
 export interface HandoffRequested extends PhaxEventBase {
   readonly type: "HandoffRequested";
 }
@@ -203,6 +216,7 @@ export type PhaxEvent =
   | FixStarted
   | FixCompleted
   | FixAttemptsExhausted
+  | GateStepRefused
   | HandoffRequested
   | HandoffValidated
   | HandoffMissing

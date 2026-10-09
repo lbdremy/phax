@@ -18,7 +18,7 @@ export const CURRENT_SHAPES = {
   "spec-approvals": "0.17.0",
   "phase-record-manifest": "0.17.0",
   "authoring-record-manifest": "0.17.0",
-  "gate-attribution": "0.20.0",
+  "gate-attribution": "next",
   "phase-file-reconciliation": "0.17.0",
   "spec-document": "0.17.0",
   "plan-document": "0.20.0",

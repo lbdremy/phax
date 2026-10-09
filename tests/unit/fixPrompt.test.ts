@@ -9,6 +9,7 @@ const baseInput = {
   logContent: "some log output",
   logPath: "/phase-01/checks-attempt-02.log",
   reportFindings: null,
+  stillFailing: new Set<string>(),
 };
 
 // The spec's made-up checked example: two findings, the first with a related
@@ -161,5 +162,46 @@ describe("buildFixPrompt for a failing gate report", () => {
 
     expect(prompt).toContain("Read guides/no-node-import.md and follow it.");
     expect(prompt.split("guides/no-node-import.md")).toHaveLength(2);
+  });
+
+  it("marks no finding still failing when no id is carried over", () => {
+    expect(buildFixPrompt(reportInput)).not.toContain("still failing");
+  });
+});
+
+describe("buildFixPrompt — still failing", () => {
+  it("marks each finding whose id the previous attempt listed, after its location", () => {
+    const prompt = buildFixPrompt({
+      ...reportInput,
+      reportFindings: {
+        step: 1,
+        findings: [
+          { ...greetFinding, location: { file: "src/greet.ts", lines: [4, 4] } },
+          farewellFinding,
+        ],
+      },
+      stillFailing: new Set([greetFinding.id, "exports-function src/greet.ts"]),
+    });
+
+    expect(prompt).toContain("- src/greet.ts:4 · still failing\n");
+    expect(prompt).toContain("- src/farewell.ts\n");
+    expect(prompt.split("still failing")).toHaveLength(2);
+  });
+
+  it("never shows a carried-over id, a fixed count or a new count", () => {
+    const prompt = buildFixPrompt({
+      ...reportInput,
+      stillFailing: new Set([greetFinding.id, "exports-function src/greet.ts"]),
+    });
+
+    expect(prompt).not.toContain("exports-function src/greet.ts");
+    expect(prompt).not.toContain(greetFinding.id);
+    expect(prompt).not.toMatch(/\d+ (fixed|new)\b/i);
+    expect(prompt).not.toMatch(/\bfixed\b/i);
+  });
+
+  it("marks nothing in the raw-log prompt", () => {
+    const prompt = buildFixPrompt({ ...baseInput, stillFailing: new Set([greetFinding.id]) });
+    expect(prompt).not.toContain("still failing");
   });
 });
