@@ -9,7 +9,8 @@ import {
 import { outsideBriefRequest, phaseBriefRequest } from "../domain/brief/request.js";
 import { FileSystem } from "../ports/fs.js";
 import type { Shell } from "../ports/shell.js";
-import type { BriefAnswer, BriefRequestFile, PhaseBriefRequest } from "../schemas/brief.js";
+import type { BriefRequestFile, PhaseBriefRequest } from "../schemas/brief.js";
+import type { BriefReport } from "../schemas/briefReport.js";
 import { readBriefRequestFile } from "../schemas/persisted.js";
 import {
   queryBrief,
@@ -24,7 +25,7 @@ export type PullBriefResult =
   | { readonly kind: "refused"; readonly message: string }
   | {
       readonly kind: "answered";
-      readonly answer: BriefAnswer;
+      readonly report: BriefReport;
       readonly files: readonly string[] | null;
       readonly recordWarning?: string;
     }
@@ -195,6 +196,6 @@ export function pullBrief(input: {
     const warning = recordWarning === undefined ? {} : { recordWarning };
 
     if (outcome.kind === "failed") return { kind: "failed", reason: outcome.reason, ...warning };
-    return { kind: "answered", answer: outcome.decoded, files: request.files, ...warning };
+    return { kind: "answered", report: outcome.decoded, files: request.files, ...warning };
   });
 }

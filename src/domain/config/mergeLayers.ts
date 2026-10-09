@@ -147,9 +147,9 @@ export function mergeConfigLayers(input: {
   const publishTitle =
     localUser?.publish?.title ?? globalUser?.publish?.title ?? project.publish?.title;
 
-  // brief: scalar override (command is required when brief is present)
-  const briefCommand =
-    localUser?.brief?.command ?? globalUser?.brief?.command ?? project.brief?.command;
+  // brief: the highest layer that declares it wins whole, so command and push
+  // always come from the same layer (both are required when brief is present)
+  const brief = localUser?.brief ?? globalUser?.brief ?? project.brief;
 
   // planAuditor: scalar override (command is required when planAuditor is present)
   const planAuditorCommand =
@@ -287,7 +287,7 @@ export function mergeConfigLayers(input: {
           },
         }
       : {}),
-    ...(briefCommand !== undefined ? { brief: { command: briefCommand } } : {}),
+    ...(brief !== undefined ? { brief: { command: brief.command, push: brief.push } } : {}),
     ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
     ...(compliance !== undefined || codeReview !== undefined
       ? {

@@ -1,5 +1,5 @@
 import type { GateFinding } from "../../schemas/gateReport.js";
-import type { ReportLocation, ReportRelatedLocation } from "../../schemas/report.js";
+import { renderReportLocation as renderLocation } from "../reportLocation.js";
 
 export interface BuildFixPromptInput {
   readonly command: string;
@@ -25,13 +25,6 @@ const REQUIRED_ACTION_TAIL = [
   "Make sure to run the failed command after your changes to verify the gate now passes.",
   "The gate run will be re-attempted automatically after your changes.",
 ];
-
-/** `file`, `file:N` when the lines start and end on one line, or `file:N-M`. */
-function renderLocation(location: ReportLocation | ReportRelatedLocation): string {
-  if (location.lines === null) return location.file;
-  const [start, end] = location.lines;
-  return start === end ? `${location.file}:${start}` : `${location.file}:${start}-${end}`;
-}
 
 /**
  * One finding: its location, marked `still failing` when the previous attempt

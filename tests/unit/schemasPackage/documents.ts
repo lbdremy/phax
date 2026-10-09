@@ -19,10 +19,8 @@ import {
 } from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
 import {
-  BriefAnswerFileSchema,
   BriefRecordFileSchema,
   BriefRequestFileSchema,
-  type BriefAnswer,
   type BriefRecord,
   type PhaseBriefRequest,
 } from "../../../src/schemas/brief.js";
@@ -351,31 +349,6 @@ const briefRequest: PhaseBriefRequest = {
   files: ["src/example.ts", "src/missing.ts"],
 };
 
-const briefAnswer: BriefAnswer = {
-  guarantees: [
-    {
-      id: "example-no-io",
-      statement: "nothing under src/ imports a node: module",
-      places: [
-        {
-          location: { file: "src/example.ts", line: 3 },
-          state: "forbidden",
-          due: "this-phase",
-          what: "imports node:fs",
-          repair: "remove the import",
-        },
-        { location: { file: "src/missing.ts" }, state: "met" },
-      ],
-    },
-  ],
-};
-
-const briefRecord: BriefRecord = {
-  moment: "pulled",
-  request: withSchemaUrl("brief-request", briefRequest),
-  outcome: { kind: "answered", answer: withSchemaUrl("brief-answer", briefAnswer) },
-};
-
 const gateReport: GateReport = {
   outcome: "checked",
   findings: [
@@ -410,6 +383,12 @@ const briefReport: BriefReport = {
       due: "this-phase",
     },
   ],
+};
+
+const briefRecord: BriefRecord = {
+  moment: "pulled",
+  request: withSchemaUrl("brief-request", briefRequest),
+  outcome: { kind: "answered", answer: withSchemaUrl("brief-report", briefReport) },
 };
 
 const specDocument: SpecDocumentPreSchema = {
@@ -597,7 +576,6 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "gate-request": encoded(GateRequestFileSchema, withSchemaUrl("gate-request", gateRequest)),
   "brief-request": encoded(BriefRequestFileSchema, withSchemaUrl("brief-request", briefRequest)),
-  "brief-answer": encoded(BriefAnswerFileSchema, withSchemaUrl("brief-answer", briefAnswer)),
   "brief-record": encoded(BriefRecordFileSchema, withSchemaUrl("brief-record", briefRecord)),
   "gate-report": encoded(GateReportFileSchema, withSchemaUrl("gate-report", gateReport)),
   "brief-report": encoded(BriefReportFileSchema, withSchemaUrl("brief-report", briefReport)),

@@ -88,30 +88,76 @@ function writeConfig(file: "phax.json" | "phax.local.json", config: object): voi
   writeFileSync(join(mainRoot, file), JSON.stringify(config));
 }
 
-const projectConfig = (briefConfig?: { command: string }) => ({
+const projectConfig = (briefConfig?: { command: string; push: string }) => ({
   version: 1,
   name: "made-up",
   gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
   ...(briefConfig !== undefined ? { brief: briefConfig } : {}),
 });
 
-function answer(guarantees: unknown[], release: string = CURRENT_STAMPS["brief-answer"]): string {
-  return JSON.stringify({ $schema: schemaUrl("brief-answer", release), guarantees });
+function report(
+  rules: unknown[],
+  findings: unknown[],
+  release: string = CURRENT_STAMPS["brief-report"],
+): string {
+  return JSON.stringify({ $schema: schemaUrl("brief-report", release), rules, findings });
 }
 
-const FORBIDDEN_GUARANTEE = {
-  id: "core-no-adapters",
-  statement: "src/core imports no adapter from src/infra",
-  places: [
-    {
-      location: { file: "src/core/billing/invoice.ts", line: 3 },
-      state: "forbidden",
-      due: "this-phase",
-      what: "imports src/infra/stripe.ts",
-      repair: "depend on PaymentPort",
-    },
-  ],
+// The spec §6 brief report, made up.
+const GUIDE = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
+
+const RULES = [
+  {
+    rule: "a module under src/ exports its function",
+    files: ["src/greet.ts", "src/farewell.ts"],
+    guide: null,
+  },
+  {
+    rule: "a module under src/ imports no node: module",
+    files: ["src/greet.ts", "src/farewell.ts"],
+    guide: GUIDE,
+  },
+];
+
+const GREET_FINDING = {
+  id: "no-node-import src/greet.ts node:fs",
+  rule: "a module under src/ imports no node: module",
+  location: { file: "src/greet.ts", lines: [1, 1] },
+  message: "imports node:fs",
+  related: [],
+  guide: GUIDE,
+  due: "this-phase",
 };
+
+const FINDINGS = [
+  GREET_FINDING,
+  {
+    id: "exports-function src/farewell.ts",
+    rule: "a module under src/ exports its function",
+    location: { file: "src/farewell.ts", lines: null },
+    message: "no exported function",
+    related: [],
+    guide: null,
+    due: "later",
+  },
+];
+
+const WHOLE_REPORT = [
+  "Rules",
+  "  a module under src/ exports its function",
+  "    files:  src/greet.ts, src/farewell.ts",
+  "  a module under src/ imports no node: module",
+  "    files:  src/greet.ts, src/farewell.ts",
+  "    guide:  keep I/O in the module's caller (read guides/no-node-import.md)",
+  "Findings",
+  "  src/greet.ts:1   due this phase",
+  "    rule:   a module under src/ imports no node: module",
+  "    found:  imports node:fs",
+  "    guide:  keep I/O in the module's caller (read guides/no-node-import.md)",
+  "  src/farewell.ts   due later",
+  "    rule:   a module under src/ exports its function",
+  "    found:  no exported function",
+].join("\n");
 
 /**
  * Configures a provider that appends `{ stdin, cwd }` to calls.jsonl, prints
@@ -131,7 +177,7 @@ function provider(stdout: string, code = 0, stderr = ""): void {
       `process.exitCode = ${code};`,
     ].join("\n"),
   );
-  writeConfig("phax.json", projectConfig({ command: `node ${script}` }));
+  writeConfig("phax.json", projectConfig({ command: `node ${script}`, push: "findings" }));
 }
 
 function calls(): { stdin: unknown; cwd: string }[] {
@@ -187,7 +233,7 @@ function readRecord(name: string) {
 
 describe("phax brief — inside a phase worktree", () => {
   it("sends the file's facts with the resolved, deduplicated paths, from the worktree root", async () => {
-    provider(answer([FORBIDDEN_GUARANTEE]));
+    provider(report(RULES, FINDINGS));
     const cwd = join(worktree, "src", "core");
     mkdirSync(cwd, { recursive: true });
 
@@ -205,29 +251,22 @@ describe("phax brief — inside a phase worktree", () => {
     expect(record.request).toEqual(expected);
     expect(record.outcome).toEqual({
       kind: "answered",
-      answer: JSON.parse(answer([FORBIDDEN_GUARANTEE])),
+      answer: JSON.parse(report(RULES, FINDINGS)),
     });
   });
 
   it("with no path, asks for the phase's brief and prints it whole", async () => {
-    provider(answer([FORBIDDEN_GUARANTEE]));
+    provider(report(RULES, FINDINGS));
 
     const result = await brief(worktree);
 
     expect(result.code).toBe(0);
     expect(calls().map((call) => call.stdin)).toEqual([phaseRequest]);
-    expect(result.stdout).toBe(
-      [
-        "core-no-adapters — src/core imports no adapter from src/infra",
-        "  forbidden  src/core/billing/invoice.ts:3   due this phase",
-        "    what:    imports src/infra/stripe.ts",
-        "    repair:  depend on PaymentPort",
-      ].join("\n"),
-    );
+    expect(result.stdout).toBe(WHOLE_REPORT);
   });
 
   it("records each pull in call order, a failed one included", async () => {
-    provider(answer([FORBIDDEN_GUARANTEE]));
+    provider(report(RULES, FINDINGS));
     expect((await brief(worktree, "src/a.ts")).code).toBe(0);
     expect((await brief(worktree, "src/b.ts")).code).toBe(0);
     provider("", 1, "made-up provider crash");
@@ -244,20 +283,20 @@ describe("phax brief — inside a phase worktree", () => {
   });
 
   it("answers and records nothing once the briefs are closed", async () => {
-    provider(answer([FORBIDDEN_GUARANTEE]));
+    provider(report(RULES, FINDINGS));
     mkdirSync(briefsDir(), { recursive: true });
     writeFileSync(join(briefsDir(), "closed"), "");
 
     const result = await brief(worktree, "src/a.ts");
 
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("core-no-adapters");
+    expect(result.stdout).toBe(WHOLE_REPORT);
     expect(calls()).toHaveLength(1);
     expect(pulledRecords()).toEqual([]);
   });
 
   it("refuses a request file that is not a brief request, without running the provider", async () => {
-    provider(answer([]));
+    provider(report([], []));
     writeFileSync(join(worktree, ".phax-context", "brief-request.json"), '{ "phase": 2 }');
 
     const result = await brief(worktree, "src/a.ts");
@@ -270,7 +309,7 @@ describe("phax brief — inside a phase worktree", () => {
   });
 
   it("refuses a request file that is not the phase's own request", async () => {
-    provider(answer([]));
+    provider(report([], []));
     writeFileSync(
       join(worktree, ".phax-context", "brief-request.json"),
       serializeBriefRequest({ ...phaseRequest, files: ["src/a.ts"] }),
@@ -284,14 +323,14 @@ describe("phax brief — inside a phase worktree", () => {
   });
 
   it("uses a brief declared only in the main checkout's phax.local.json", async () => {
-    provider(answer([]));
+    provider(report([], []));
     const command = (
       JSON.parse(readFileSync(join(mainRoot, "phax.json"), "utf8")) as {
         brief: { command: string };
       }
     ).brief.command;
     writeConfig("phax.json", projectConfig());
-    writeConfig("phax.local.json", { brief: { command } });
+    writeConfig("phax.local.json", { brief: { command, push: "findings-and-rules" } });
     expect(existsSync(join(worktree, "phax.local.json"))).toBe(false);
 
     const result = await brief(worktree, "src/x.ts");
@@ -304,7 +343,7 @@ describe("phax brief — inside a phase worktree", () => {
 
 describe("phax brief — outside a phase", () => {
   it("sends the paths alone and writes nothing", async () => {
-    provider(answer([]));
+    provider(report([], []));
 
     const result = await brief(mainRoot, "src/greet.ts");
 
@@ -316,7 +355,7 @@ describe("phax brief — outside a phase", () => {
   });
 
   it("refuses no path, a path outside the tree, and a cwd outside any git tree", async () => {
-    provider(answer([]));
+    provider(report([], []));
     const outsideGit = join(base, "elsewhere");
     mkdirSync(outsideGit);
 
@@ -342,24 +381,52 @@ describe("phax brief — outside a phase", () => {
 
 describe("phax brief — answers and config", () => {
   it("prints the no-brief line for an empty answer", async () => {
-    provider(answer([]));
+    provider(report([], []));
     const result = await brief(worktree, "src/x.ts");
     expect(result).toMatchObject({ code: 0, stdout: "No brief for src/x.ts." });
   });
 
   it("prints the phase's no-brief line for an empty phase brief", async () => {
-    provider(answer([]));
+    provider(report([], []));
     const result = await brief(worktree);
     expect(result).toMatchObject({ code: 0, stdout: "No brief for this phase's planned files." });
   });
 
-  it("refuses an answer from a newer release, naming brief-answer and the release", async () => {
-    provider(answer([], "99.0.0"));
+  it("prints the whole report and exits 0", async () => {
+    provider(report(RULES, FINDINGS));
+    const result = await brief(worktree, "src/greet.ts", "src/farewell.ts");
+    expect(result).toMatchObject({ code: 0, stdout: WHOLE_REPORT });
+  });
+
+  it("prints a finding due this phase as is outside a phase: phax judges nothing", async () => {
+    const nowhere = { ...GREET_FINDING, location: { file: "src/nowhere.ts", lines: null } };
+    provider(report([], [nowhere]));
+    const result = await brief(mainRoot, "src/nowhere.ts");
+    expect(result.code).toBe(0);
+    expect(result.stdout.split("\n").slice(0, 2)).toEqual([
+      "Findings",
+      "  src/nowhere.ts   due this phase",
+    ]);
+  });
+
+  it("treats a declining provider as a failed brief: its stderr, exit 1", async () => {
+    provider("", 2, "the checks need hw-rules 2, and 1 is installed\n");
+    const result = await brief(worktree, "src/greet.ts");
+    expect(result).toMatchObject({
+      code: 1,
+      stderr: "✗ brief provider exited with code 2: the checks need hw-rules 2, and 1 is installed",
+    });
+    expect(readRecord("brief-01.json").outcome.kind).toBe("failed");
+  });
+
+  it("refuses a report from a newer release, naming brief-report and the release", async () => {
+    provider(report([], [], "99.0.0"));
     const result = await brief(worktree, "src/x.ts");
     expect(result.code).toBe(1);
-    expect(result.stderr).toMatch(/^✗ brief answer refused at \$schema: /);
-    expect(result.stderr).toContain("brief-answer");
-    expect(result.stderr).toContain("99.0.0");
+    expect(result.stderr).toMatch(/^✗ brief-report 99\.0\.0 is newer than this phax/);
+    expect(result.stderr).toContain(
+      `this phax reads ${schemaUrl("brief-report", CURRENT_STAMPS["brief-report"])}`,
+    );
     expect(readRecord("brief-01.json").outcome.kind).toBe("failed");
   });
 
@@ -368,7 +435,8 @@ describe("phax brief — answers and config", () => {
     const result = await brief(worktree, "src/x.ts");
     expect(result).toMatchObject({
       code: 1,
-      stderr: '✗ No brief provider is configured: add "brief": { "command": "…" } to phax.json',
+      stderr:
+        '✗ No brief provider is configured: add "brief": { "command": "…", "push": "findings" } to phax.json',
     });
   });
 

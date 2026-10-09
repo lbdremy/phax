@@ -1,24 +1,21 @@
-// The three brief formats are born with $schema: no pre-schema shape. A
-// request and a record refuse unknown keys, as phax's decoders do; an answer
-// ignores them. Every document comes from documents.ts and is made up.
+// The brief request and the brief record are born with $schema: no pre-schema
+// shape. Both refuse unknown keys, as phax's decoders do, except inside a
+// record's answer, which is kept as printed. Every document comes from
+// documents.ts or below and is made up.
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
-  parseBriefAnswer,
   parseBriefRecord,
+  parseBriefReport,
   parseBriefRequest,
   parseDocument,
-  toLatestBriefAnswer,
   toLatestBriefRecord,
   toLatestBriefRequest,
 } from "../../../packages/schemas/src/index.js";
 import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
-import {
-  decodeBriefAnswerFile,
-  decodeBriefRecordFile,
-  decodeBriefRequestFile,
-} from "../../../src/schemas/brief.js";
+import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, withKey, withoutKey } from "./documents.js";
 
@@ -33,7 +30,7 @@ type Parse = (
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 
 interface BriefFormat {
-  readonly id: "brief-request" | "brief-answer" | "brief-record";
+  readonly id: "brief-request" | "brief-record";
   readonly label: string;
   readonly parse: Parse;
   readonly phax: Decode;
@@ -49,14 +46,6 @@ const FORMATS: ReadonlyArray<BriefFormat> = [
     phax: decodeBriefRequestFile,
     toLatest: toLatestBriefRequest,
     keys: ["$schema", "phase", "base", "terminal", "phases", "files"],
-  },
-  {
-    id: "brief-answer",
-    label: "brief answer",
-    parse: parseBriefAnswer,
-    phax: decodeBriefAnswerFile,
-    toLatest: toLatestBriefAnswer,
-    keys: ["$schema", "guarantees"],
   },
   {
     id: "brief-record",
@@ -105,48 +94,63 @@ describe.each(FORMATS)("$id, born with $schema", ({ id, label, parse, phax, toLa
   });
 });
 
-describe("unknown keys", () => {
-  it("are refused in a request and a record, as phax's strict decoders do", () => {
-    const strict: ReadonlyArray<readonly [Parse, Decode, "brief-request" | "brief-record"]> = [
-      [parseBriefRequest, decodeBriefRequestFile, "brief-request"],
-      [parseBriefRecord, decodeBriefRecordFile, "brief-record"],
-    ];
-    for (const [parse, phax, id] of strict) {
-      const extra = withKey(validDocuments[id], "owner", "example");
-      expect(parse(extra).ok, id).toBe(false);
-      expect(Either.isLeft(phax(extra)), id).toBe(true);
-    }
-  });
-
-  it("are ignored in an answer, and dropped from its value", () => {
-    const result = parseBriefAnswer(withKey(validDocuments["brief-answer"], "generator", "x"));
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(Object.hasOwn(result.value, "generator")).toBe(false);
-  });
+it("refuses unknown keys in a request and a record, as phax's strict decoders do", () => {
+  const strict: ReadonlyArray<readonly [Parse, Decode, "brief-request" | "brief-record"]> = [
+    [parseBriefRequest, decodeBriefRequestFile, "brief-request"],
+    [parseBriefRecord, decodeBriefRecordFile, "brief-record"],
+  ];
+  for (const [parse, phax, id] of strict) {
+    const extra = withKey(validDocuments[id], "owner", "example");
+    expect(parse(extra).ok, id).toBe(false);
+    expect(Either.isLeft(phax(extra)), id).toBe(true);
+  }
 });
 
 describe("a brief record's answer", () => {
-  it("is kept as printed, and parseBriefAnswer reads it by its own $schema", () => {
+  it("is kept as printed, and parseBriefReport reads it by its own $schema", () => {
     const record = parseBriefRecord(validDocuments["brief-record"]);
     if (!record.ok) throw new Error("record rejected");
     const { outcome } = record.value;
     if (outcome.kind !== "answered") throw new Error("expected an answered outcome");
-    expect(outcome.answer).toEqual(validDocuments["brief-answer"]);
-    expect(parseBriefAnswer(outcome.answer)).toEqual({
+    expect(outcome.answer).toEqual(validDocuments["brief-report"]);
+    expect(parseBriefReport(outcome.answer)).toEqual({
       ok: true,
-      shape: CURRENT_SHAPES["brief-answer"],
-      value: validDocuments["brief-answer"],
+      shape: CURRENT_SHAPES["brief-report"],
+      value: validDocuments["brief-report"],
     });
   });
 
   it("keeps an extra key the provider printed, which parseBriefRecord does not validate", () => {
-    const answer = withKey(validDocuments["brief-answer"], "note", "as printed");
+    const answer = withKey(validDocuments["brief-report"], "note", "as printed");
     const document = withKey(validDocuments["brief-record"], "outcome", {
       kind: "answered",
       answer,
     });
     const record = parseBriefRecord(document);
     expect(record.ok && record.value.outcome).toEqual({ kind: "answered", answer });
+  });
+});
+
+// brief-record's answer description changed after 0.20.0, its keys did not:
+// each stamp reads as the shape its release wrote.
+function recordStampedAt(release: string) {
+  return withKey(validDocuments["brief-record"], "$schema", schemaUrl("brief-record", release));
+}
+
+describe("brief-record's released shapes", () => {
+  it("reads a 0.20.0 record as shape 0.20.0, its answer as printed", () => {
+    const document = recordStampedAt("0.20.0");
+    const parsed = parseBriefRecord(document);
+    expect(parsed).toEqual({ ok: true, shape: "0.20.0", value: document });
+    if (!parsed.ok || parsed.shape !== "0.20.0") return;
+    expect(toLatestBriefRecord(parsed.value)).toEqual(withoutKey(document, "$schema"));
+  });
+
+  it("reads a record at the current stamp as the current shape", () => {
+    const document = recordStampedAt(CURRENT_STAMPS["brief-record"]);
+    expect(CURRENT_STAMPS["brief-record"]).toBe("0.21.0");
+    expect(CURRENT_SHAPES["brief-record"]).toBe("next");
+    expect(parseBriefRecord(document)).toEqual({ ok: true, shape: "next", value: document });
   });
 });
 

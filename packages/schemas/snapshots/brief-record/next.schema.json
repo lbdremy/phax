@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax brief record",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "moment",
+    "request",
+    "outcome"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The brief-record format and the phax release that wrote this file: https://docs.phax.run/schemas/brief-record/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "moment": {
+      "type": "string",
+      "enum": [
+        "pushed",
+        "pulled"
+      ],
+      "description": "pushed for the phase's brief at phase start (brief-00 only), pulled otherwise."
+    },
+    "request": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "$schema",
+            "phase",
+            "base",
+            "terminal",
+            "phases",
+            "files"
+          ],
+          "properties": {
+            "$schema": {
+              "type": "string",
+              "description": "The brief-request format and the phax release that wrote this file: https://docs.phax.run/schemas/brief-request/<X.Y.Z>.json",
+              "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+            },
+            "phase": {
+              "type": "string",
+              "description": "The gated phase.",
+              "pattern": "^phase-\\d{2}$"
+            },
+            "base": {
+              "type": "string",
+              "description": "The full object name of the commit the gated phase's branch was created from.",
+              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+            },
+            "terminal": {
+              "type": "boolean",
+              "description": "True exactly when the gated phase is the run's terminal phase."
+            },
+            "phases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "files"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "The phase's id.",
+                    "pattern": "^phase-\\d{2}$"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The phase's planned files to create and to edit, deduplicated in plan order; optional files are excluded."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "description": "Every phase of the run, in execution order, with its planned files."
+            },
+            "files": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Null for the phase's brief: the phase's planned files. Otherwise working-tree-root-relative paths, deduplicated, in the order given, never checked for existence."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "$schema",
+            "files"
+          ],
+          "properties": {
+            "$schema": {
+              "type": "string",
+              "description": "The brief-request format and the phax release that wrote this file: https://docs.phax.run/schemas/brief-request/<X.Y.Z>.json",
+              "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+            },
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "description": "Working-tree-root-relative paths, deduplicated, in the order given, never checked for existence."
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "The brief request as phax sent it on the provider's stdin."
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "answer"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "answered"
+              ]
+            },
+            "answer": {
+              "type": "object",
+              "required": [],
+              "properties": {},
+              "additionalProperties": {
+                "$id": "/schemas/unknown",
+                "title": "unknown"
+              },
+              "description": "The brief report as the provider printed it, its own $schema included and every key in its printed order, never re-stamped or re-shaped. It decodes by its own $schema, with parseBriefReport."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "failed"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why the brief call gave no answer, in one line.",
+              "title": "nonEmptyString",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

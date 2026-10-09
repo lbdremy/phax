@@ -51,18 +51,31 @@ const PLAN_MD = "# Brief records plan\n\nMade-up phase.\n";
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 const BRIEF_COMMAND = "node ./brief.mjs";
 const BROKEN_COMMAND = "node ./broken.mjs";
-const BRIEF: BriefConfig = { command: BRIEF_COMMAND };
+const BRIEF: BriefConfig = { command: BRIEF_COMMAND, push: "findings" };
 const GATE_COMMAND = "node ./audit.mjs";
 
+// The spec §6 brief report, made up, printed with its keys in another order
+// than the format lists them, at every level.
 const ANSWER = {
-  $schema: currentSchemaUrl("brief-answer"),
-  guarantees: [
+  findings: [
     {
-      id: "greet-pure",
-      statement: "nothing under src/ imports a node: module",
-      places: [{ location: { file: "src/greet.ts" }, state: "met" }],
+      due: "this-phase",
+      guide: { read: "guides/no-node-import.md", summary: "keep I/O in the module's caller" },
+      related: [],
+      message: "imports node:fs",
+      location: { lines: [1, 1], file: "src/greet.ts" },
+      rule: "a module under src/ imports no node: module",
+      id: "no-node-import src/greet.ts node:fs",
     },
   ],
+  rules: [
+    {
+      guide: null,
+      files: ["src/greet.ts", "src/farewell.ts"],
+      rule: "a module under src/ exports its function",
+    },
+  ],
+  $schema: currentSchemaUrl("brief-report"),
 };
 
 const rawPlan = {
@@ -240,7 +253,7 @@ function writePulledRecord(name: string): void {
     serializeBriefRecord("pulled", stampBriefRequest(outsideBriefRequest(["src/greet.ts"])), {
       kind: "answered",
       answer: ANSWER,
-      decoded: { guarantees: [] },
+      decoded: { rules: [], findings: [] },
     }),
   );
 }
@@ -285,6 +298,31 @@ describe("the brief grant", () => {
     const { posture, agentCommands } = await runSecure(undefined);
     expect(posture.agentCommands.map((r) => r.command)).not.toContain("phax brief");
     expect(agentCommands).not.toContain("phax brief");
+  });
+});
+
+describe("brief reports are recorded as printed", () => {
+  it("keeps the pushed and the pulled report with their keys in their printed order", async () => {
+    // The gate never passes, so the phase pauses with the pull still in the worktree.
+    const { fakeBackend, layers } = makeFakes({ gateExitCode: 1 });
+    fakeBackend.impl.addRunResponse(session("sess-01"));
+    fakeBackend.impl.addResumeResponse(session("sess-fix-01"));
+    let inSession: Promise<unknown> = Promise.resolve();
+    fakeBackend.impl.setOnRunAgent(() => {
+      inSession = pull(layers);
+    });
+    const { phaseFolder, execute } = await startRun(makeConfig({ brief: BRIEF }), layers);
+    expect(Either.isLeft(await execute(layers))).toBe(true);
+    expect((await inSession) as { kind: string }).toMatchObject({ kind: "answered" });
+
+    const printed = JSON.stringify(ANSWER, null, 2).split("\n").join("\n    ");
+    for (const path of [join(phaseFolder, "brief-00.json"), join(briefsDir(), "brief-01.json")]) {
+      const text = await readFile(path, "utf8");
+      const outcome = (JSON.parse(text) as { outcome: { kind: string; answer: unknown } }).outcome;
+      expect(outcome).toEqual({ kind: "answered", answer: ANSWER });
+      expect(JSON.stringify(outcome.answer)).toBe(JSON.stringify(ANSWER));
+      expect(text).toContain(`"answer": ${printed}`);
+    }
   });
 });
 

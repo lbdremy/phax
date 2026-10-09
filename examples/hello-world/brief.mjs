@@ -1,7 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-
-const NODE_IMPORT_RE = /(?:from\s+|import\s*\(\s*|import\s+|require\(\s*)["']node:([^"']+)["']/;
+import { EXPORTS_FUNCTION, NO_NODE_IMPORT, findingsFor } from "./rules.mjs";
 
 // The brief request phax writes on stdin: {$schema, phase, base, terminal,
 // phases, files} inside a phase, {$schema, files} outside one. Read the
@@ -29,36 +26,25 @@ function dueOf(request, file) {
   return plannedLater && !plannedNow ? "later" : "this-phase";
 }
 
-// One `hw-no-io` place per .ts file under src/: forbidden at its first
-// node: import, met otherwise (a file that does not exist yet included).
-function placeOf(request, file, cwd) {
-  const path = join(cwd, file);
-  const lines = existsSync(path) ? readFileSync(path, "utf8").split("\n") : [];
-  const index = lines.findIndex((line) => NODE_IMPORT_RE.test(line));
-  if (index === -1) return { location: { file }, state: "met" };
-  const module = NODE_IMPORT_RE.exec(lines[index])[1];
-  return {
-    location: { file, line: index + 1 },
-    state: "forbidden",
-    due: dueOf(request, file),
-    what: `imports node:${module}`,
-    repair: "remove the import; greet is pure",
-  };
-}
-
 const request = await readRequest();
-const cwd = process.cwd();
-const places = briefedFiles(request)
-  .filter((file) => file.startsWith("src/") && file.endsWith(".ts"))
-  .map((file) => placeOf(request, file, cwd));
-const guarantees =
-  places.length === 0
+const files = briefedFiles(request).filter(
+  (file) => file.startsWith("src/") && file.endsWith(".ts"),
+);
+// Both rules cover every briefed file, a file not written yet included; the
+// findings are those of the files that exist.
+const rules =
+  files.length === 0
     ? []
-    : [{ id: "hw-no-io", statement: "nothing under src/ imports a node: module", places }];
+    : [EXPORTS_FUNCTION, NO_NODE_IMPORT].map(({ rule, guide }) => ({ rule, files, guide }));
+const findings = findingsFor(process.cwd(), files).map((finding) => ({
+  ...finding,
+  due: dueOf(request, finding.location.file),
+}));
 
 process.stdout.write(
   JSON.stringify({
-    $schema: "https://docs.phax.run/schemas/brief-answer/0.20.0.json",
-    guarantees,
+    $schema: "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+    rules,
+    findings,
   }) + "\n",
 );

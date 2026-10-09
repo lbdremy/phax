@@ -1,30 +1,32 @@
-// The three documents of a brief: the request phax writes on a brief
-// provider's stdin, the answer the provider prints, and the record of one
-// brief call. Each current shape, named by `CURRENT_SHAPES` (`next` until a
-// release renames it), is phax's own file schema and decoder. The package
-// declares none of its own.
+// Two documents of a brief: the request phax writes on a brief provider's
+// stdin, and the record of one brief call. The brief report the provider
+// prints is in reports.ts. Each current shape, named by `CURRENT_SHAPES`
+// (`next` until a release renames it), is phax's own file schema and decoder;
+// a released shape that is no longer current is phax's frozen module under
+// src/schemas/history/. The package declares none of its own.
 import {
-  BriefAnswerFileSchema,
   BriefRecordFileSchema,
   BriefRequestFileSchema,
-  decodeBriefAnswerFile,
   decodeBriefRecordFile,
   decodeBriefRequestFile,
-  type BriefAnswer,
-  type BriefAnswerFile,
   type BriefRecord,
   type BriefRecordFile,
   type BriefRequest,
   type BriefRequestFile,
 } from "../../../../src/schemas/brief.js";
+import {
+  BriefRecordV0_20_0Schema,
+  decodeBriefRecordV0_20_0,
+  type BriefRecordV0_20_0,
+} from "../../../../src/schemas/history/brief-record/0.20.0.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat, type CurrentShapeName } from "../shapes.js";
 
-// All three are born with `$schema`: no pre-schema shape, and a document
-// without `$schema` is unreadable. A request and a record refuse unknown keys;
-// an answer ignores them. Each latest value is phax's in-memory value, with no
-// top-level `$schema`.
+// Both are born with `$schema`: no pre-schema shape, and a document without
+// `$schema` is unreadable. Both refuse unknown keys, except inside a record's
+// answer, which is kept as printed. Each latest value is phax's in-memory
+// value, with no top-level `$schema`.
 
 // ── brief request
 
@@ -63,45 +65,9 @@ export function toLatestBriefRequest(value: BriefRequestFile): LatestBriefReques
   return recorded;
 }
 
-// ── brief answer
-
-export type BriefAnswerShapes = {
-  [K in CurrentShapeName<"brief-answer">]: BriefAnswerFile;
-};
-
-/** The id of every brief answer shape the package reads. */
-export type BriefAnswerShape = keyof BriefAnswerShapes;
-
-export const briefAnswerFormat = defineFormat<BriefAnswerShapes>({
-  id: "brief-answer",
-  label: "brief answer",
-  preSchema: null,
-  releases: [],
-  current: {
-    name: CURRENT_SHAPES["brief-answer"],
-    shape: { schema: BriefAnswerFileSchema, decode: decodeBriefAnswerFile },
-  },
-});
-
-/**
- * Reads a brief answer: what a brief provider prints on stdout, or the
- * `outcome.answer` of an answered brief record. Never throws.
- */
-export const parseBriefAnswer: (input: unknown) => ParsedShape<BriefAnswerShapes> =
-  briefAnswerFormat.parse;
-
-/** The latest brief answer: phax's in-memory value, with no `$schema`. */
-export type LatestBriefAnswer = BriefAnswer;
-
-/** Upgrades a parsed brief answer in memory: drops `$schema`, keeps every other fact. */
-export function toLatestBriefAnswer(value: BriefAnswerFile): LatestBriefAnswer {
-  const { $schema: _schema, ...recorded } = value;
-  return recorded;
-}
-
 // ── brief record
 
-export type BriefRecordShapes = {
+export type BriefRecordShapes = { "0.20.0": BriefRecordV0_20_0 } & {
   [K in CurrentShapeName<"brief-record">]: BriefRecordFile;
 };
 
@@ -112,7 +78,7 @@ export const briefRecordFormat = defineFormat<BriefRecordShapes>({
   id: "brief-record",
   label: "brief record",
   preSchema: null,
-  releases: [],
+  releases: [["0.20.0", { schema: BriefRecordV0_20_0Schema, decode: decodeBriefRecordV0_20_0 }]],
   current: {
     name: CURRENT_SHAPES["brief-record"],
     shape: { schema: BriefRecordFileSchema, decode: decodeBriefRecordFile },
@@ -121,7 +87,8 @@ export const briefRecordFormat = defineFormat<BriefRecordShapes>({
 
 /**
  * Reads a phase record's `brief-NN.json`. Never throws. Its `outcome.answer`
- * is kept as printed: read it with `parseBriefAnswer`.
+ * is kept as printed: a current record's answer is a brief report, read with
+ * `parseBriefReport`.
  */
 export const parseBriefRecord: (input: unknown) => ParsedShape<BriefRecordShapes> =
   briefRecordFormat.parse;
@@ -131,9 +98,18 @@ export type LatestBriefRecord = BriefRecord;
 
 /**
  * Upgrades a parsed brief record in memory: drops its own `$schema`, keeps
- * every other fact. Its request and answer stay as recorded.
+ * every other fact. Its request and answer stay as recorded. The current
+ * shape becomes the latest value; the 0.20.0 shape keeps its recorded value,
+ * under its own type, and is never mapped onto the latest.
  */
-export function toLatestBriefRecord(value: BriefRecordFile): LatestBriefRecord {
+export function toLatestBriefRecord(value: BriefRecordFile): LatestBriefRecord;
+export function toLatestBriefRecord(value: BriefRecordV0_20_0): Omit<BriefRecordV0_20_0, "$schema">;
+export function toLatestBriefRecord(
+  value: BriefRecordV0_20_0 | BriefRecordFile,
+): LatestBriefRecord | Omit<BriefRecordV0_20_0, "$schema">;
+export function toLatestBriefRecord(
+  value: BriefRecordV0_20_0 | BriefRecordFile,
+): LatestBriefRecord | Omit<BriefRecordV0_20_0, "$schema"> {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }

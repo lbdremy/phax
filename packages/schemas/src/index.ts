@@ -1,8 +1,6 @@
 import {
-  briefAnswerFormat,
   briefRecordFormat,
   briefRequestFormat,
-  type BriefAnswerShapes,
   type BriefRecordShapes,
   type BriefRequestShapes,
 } from "./formats/brief.js";
@@ -206,28 +204,22 @@ export {
   type PhaseFileReconciliationShape,
 } from "./formats/recordTimeline.js";
 
-// The documents of a brief: the request on a brief provider's stdin, the
-// answer it prints and the record of one brief call. Each schema and type is
-// phax's own file schema and type, under the name the spec gives it.
+// The documents of a brief phax writes: the request on a brief provider's
+// stdin and the record of one brief call. Each schema and type is phax's own
+// file schema and type, under the name the spec gives it.
 export {
-  BriefAnswerFileSchema as BriefAnswerSchema,
   BriefRecordFileSchema as BriefRecordSchema,
   BriefRequestFileSchema as BriefRequestSchema,
-  type BriefAnswerFile as BriefAnswer,
   type BriefRecordFile as BriefRecord,
   type BriefRequestFile as BriefRequest,
 } from "../../../src/schemas/brief.js";
 export {
-  parseBriefAnswer,
   parseBriefRecord,
   parseBriefRequest,
-  toLatestBriefAnswer,
   toLatestBriefRecord,
   toLatestBriefRequest,
-  type BriefAnswerShape,
   type BriefRecordShape,
   type BriefRequestShape,
-  type LatestBriefAnswer,
   type LatestBriefRecord,
   type LatestBriefRequest,
 } from "./formats/brief.js";
@@ -317,6 +309,10 @@ export {
   type GateAttributionV0_20_0,
 } from "../../../src/schemas/history/gate-attribution/0.20.0.js";
 export {
+  BriefRecordV0_20_0Schema,
+  type BriefRecordV0_20_0,
+} from "../../../src/schemas/history/brief-record/0.20.0.js";
+export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
@@ -354,7 +350,6 @@ type DocumentShapes = EveryFormat<{
   "spec-approval-record": SpecApprovalRecordShapes;
   "gate-request": GateRequestShapes;
   "brief-request": BriefRequestShapes;
-  "brief-answer": BriefAnswerShapes;
   "brief-record": BriefRecordShapes;
   "gate-report": GateReportShapes;
   "brief-report": BriefReportShapes;
@@ -390,7 +385,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "spec-approval-record": specApprovalRecordFormat,
     "gate-request": gateRequestFormat,
     "brief-request": briefRequestFormat,
-    "brief-answer": briefAnswerFormat,
     "brief-record": briefRecordFormat,
     "gate-report": gateReportFormat,
     "brief-report": briefReportFormat,

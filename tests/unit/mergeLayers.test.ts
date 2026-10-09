@@ -271,24 +271,36 @@ describe("mergeConfigLayers", () => {
     });
   });
 
-  describe("brief: scalar override across three layers", () => {
-    const project = makeProject({ brief: { command: "project-brief" } });
-    const globalUser = makeOverlay({ brief: { command: "global-brief" } });
-    const localUser = makeOverlay({ brief: { command: "local-brief" } });
+  describe("brief: the highest layer that declares it wins whole", () => {
+    const project = makeProject({ brief: { command: "project-brief", push: "findings" } });
+    const globalUser = makeOverlay({
+      brief: { command: "global-brief", push: "findings-and-rules" },
+    });
+    const localUser = makeOverlay({ brief: { command: "local-brief", push: "findings" } });
 
     it("resolves from the local layer, then global once local is cleared, then project", () => {
       expect(mergeConfigLayers({ project, globalUser, localUser }).brief).toEqual({
         command: "local-brief",
+        push: "findings",
       });
       expect(mergeConfigLayers({ project, globalUser }).brief).toEqual({
         command: "global-brief",
+        push: "findings-and-rules",
       });
-      expect(mergeConfigLayers({ project }).brief).toEqual({ command: "project-brief" });
+      expect(mergeConfigLayers({ project }).brief).toEqual({
+        command: "project-brief",
+        push: "findings",
+      });
+    });
+
+    it("takes push from the same layer as command, never from a lower one", () => {
+      const result = mergeConfigLayers({ project: makeProject(), globalUser, localUser });
+      expect(result.brief).toEqual({ command: "local-brief", push: "findings" });
     });
 
     it("a user layer can declare brief when the project config has none", () => {
       const result = mergeConfigLayers({ project: makeProject(), localUser });
-      expect(result.brief).toEqual({ command: "local-brief" });
+      expect(result.brief).toEqual({ command: "local-brief", push: "findings" });
     });
 
     it("omits brief entirely when no layer configures it", () => {

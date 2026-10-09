@@ -10,10 +10,10 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 /**
  * Every persisted format: the thirteen of spec §4 phax still writes, then the two approval
  * record formats of spec approval-record-files, then the gate request of spec
- * gate-request, then the brief request, answer and record of spec
- * brief-provider, then the gate report and brief report of spec guarantee-reports,
- * appended so existing order stays stable. `code-review` joins with the
- * headless-review plan, which ships that document.
+ * gate-request, then the brief request and record of spec brief-provider,
+ * then the gate report and brief report of spec guarantee-reports, appended so
+ * existing order stays stable. `code-review` joins with the headless-review
+ * plan, which ships that document.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -33,7 +33,6 @@ export const FORMAT_IDS = [
   "spec-approval-record",
   "gate-request",
   "brief-request",
-  "brief-answer",
   "brief-record",
   "gate-report",
   "brief-report",
@@ -57,7 +56,6 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "spec-approval-record",
   "gate-request",
   "brief-request",
-  "brief-answer",
   "brief-record",
   "gate-report",
   "brief-report",

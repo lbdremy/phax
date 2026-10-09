@@ -42,24 +42,27 @@ const request = stampBriefRequest(
   ),
 );
 
-function answerDocument(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+const FINDING = {
+  id: "core-no-adapters src/billing/invoice.ts",
+  rule: "src/core imports no adapter from src/infra",
+  location: { file: "src/billing/invoice.ts", lines: [3, 3] },
+  message: "imports src/infra/stripe.ts",
+  related: [],
+  guide: { summary: "depend on PaymentPort", read: "docs/ports.md" },
+  due: "this-phase",
+};
+
+function reportDocument(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    $schema: currentSchemaUrl("brief-answer"),
-    guarantees: [
+    $schema: currentSchemaUrl("brief-report"),
+    rules: [
       {
-        id: "core-no-adapters",
-        statement: "src/core imports no adapter from src/infra",
-        places: [
-          {
-            location: { file: "src/billing/invoice.ts", line: 3 },
-            state: "forbidden",
-            due: "this-phase",
-            what: "imports src/infra/stripe.ts",
-            repair: "depend on PaymentPort",
-          },
-        ],
+        rule: "src/core imports no adapter from src/infra",
+        files: ["src/billing/invoice.ts"],
+        guide: null,
       },
     ],
+    findings: [FINDING],
     ...overrides,
   };
 }
@@ -103,8 +106,8 @@ for await (const chunk of process.stdin) input += chunk;
 writeFileSync("stdin.json", input);
 writeFileSync("cwd.txt", process.cwd());
 process.stdout.write(JSON.stringify({ $schema: ${JSON.stringify(
-        currentSchemaUrl("brief-answer"),
-      )}, guarantees: [] }));
+        currentSchemaUrl("brief-report"),
+      )}, rules: [], findings: [] }));
 `,
     );
 
@@ -115,15 +118,27 @@ process.stdout.write(JSON.stringify({ $schema: ${JSON.stringify(
     expect(readFileSync(join(dir, "cwd.txt"), "utf8")).toBe(dir);
   });
 
-  it("keeps the answer as printed and decodes it without $schema or extra keys", async () => {
-    const printed = answerDocument({ note: "made up" });
+  it("keeps the report as printed and decodes it without $schema", async () => {
+    const { $schema, rules, findings } = reportDocument();
+    const printed = { findings, rules, $schema };
     const outcome = await run(printingProvider(JSON.stringify(printed)));
 
     expect(outcome.kind).toBe("answered");
     if (outcome.kind === "answered") {
+      expect(Object.keys(outcome.answer as object)).toEqual(["findings", "rules", "$schema"]);
       expect(outcome.answer).toEqual(printed);
-      expect(outcome.decoded).toStrictEqual({ guarantees: printed["guarantees"] });
+      expect(outcome.decoded).toStrictEqual({ rules, findings });
     }
+  });
+
+  it("decodes an empty report: nothing to report", async () => {
+    const outcome = await run(
+      printingProvider(JSON.stringify(reportDocument({ rules: [], findings: [] }))),
+    );
+    expect(outcome.kind === "answered" && outcome.decoded).toStrictEqual({
+      rules: [],
+      findings: [],
+    });
   });
 
   it("names the exit code and the stderr text on a non-zero exit", async () => {
@@ -167,47 +182,61 @@ setInterval(() => {}, 1000);
       .toBe("gone");
   });
 
-  it.each([
-    ["no $schema", { guarantees: [] }],
-    ["a newer release", { $schema: schemaUrl("brief-answer", "99.0.0"), guarantees: [] }],
-    ["another format", { $schema: currentSchemaUrl("brief-request"), guarantees: [] }],
-    ["not a url", { $schema: "not a url", guarantees: [] }],
-  ])("refuses an answer with %s at $schema", async (_label, document) => {
-    const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));
-    expect(reason).toContain("$schema");
+  it("gives the provider's stderr when it declines to run", async () => {
+    const reason = reasonOf(
+      await run(printingProvider("", 2, "the checks need hw-rules 2, and 1 is installed\n")),
+    );
+    expect(reason).toBe(
+      "brief provider exited with code 2: the checks need hw-rules 2, and 1 is installed",
+    );
   });
 
-  it("names brief-answer and the release of a newer answer", async () => {
-    const document = { $schema: schemaUrl("brief-answer", "99.0.0"), guarantees: [] };
+  it.each([
+    ["no $schema", { rules: [], findings: [] }],
+    ["a newer release", { $schema: schemaUrl("brief-report", "99.0.0"), rules: [], findings: [] }],
+    ["another format", { $schema: currentSchemaUrl("brief-request"), rules: [], findings: [] }],
+    ["not a url", { $schema: "not a url", rules: [], findings: [] }],
+  ])("refuses a report with %s, naming the brief-report URL it reads", async (_label, document) => {
     const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));
-    expect(reason).toContain("brief-answer");
-    expect(reason).toContain("99.0.0");
+    expect(reason).toContain(currentSchemaUrl("brief-report"));
   });
 
-  const place = (overrides: Record<string, unknown>): Record<string, unknown> =>
-    answerDocument({
-      guarantees: [{ id: "g01", statement: "made up", places: [overrides] }],
-    });
+  it("names brief-report and the release of a newer report", async () => {
+    const document = { $schema: schemaUrl("brief-report", "99.0.0"), rules: [], findings: [] };
+    const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));
+    expect(reason).toContain("brief-report 99.0.0 is newer than this phax");
+  });
 
   it.each([
-    ["a stale state", place({ location: { file: "src/a.ts" }, state: "stale" })],
+    ["an extra top-level key", reportDocument({ review: [] }), "review"],
+    ["an outcome key", reportDocument({ outcome: "checked" }), "outcome"],
+    ["a finding id used twice", reportDocument({ findings: [FINDING, FINDING] }), FINDING.id],
     [
-      "a missing place without repair",
-      place({ location: { file: "src/a.ts" }, state: "missing", due: null, what: "W1" }),
+      "a lines pair out of order",
+      reportDocument({ findings: [{ ...FINDING, location: { file: "src/a.ts", lines: [3, 1] } }] }),
+      "src/a.ts",
     ],
     [
-      "empty places",
-      answerDocument({ guarantees: [{ id: "g01", statement: "made up", places: [] }] }),
+      "a due outside its values",
+      reportDocument({ findings: [{ ...FINDING, due: "soon" }] }),
+      "findings[0].due",
     ],
-  ])("refuses an answer with %s", async (_label, document) => {
+    [
+      "a rule with no files",
+      reportDocument({ rules: [{ rule: "r", files: [], guide: null }] }),
+      "rules[0].files",
+    ],
+  ])("refuses a report with %s, naming it", async (_label, document, named) => {
     const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));
-    expect(reason.startsWith("brief answer refused")).toBe(true);
+    expect(reason).toContain(named);
+    expect(reason).toContain(currentSchemaUrl("brief-report"));
   });
 });
 
 describe("serializeBriefRecord", () => {
-  it("keeps the answer as printed through a record round-trip", async () => {
-    const printed = answerDocument({ note: "made up" });
+  it("keeps the report as printed through a record round-trip", async () => {
+    const { $schema, rules, findings } = reportDocument();
+    const printed = { rules, findings, $schema };
     const outcome = await run(printingProvider(JSON.stringify(printed)));
 
     const read = readBriefRecordFile(
@@ -220,6 +249,9 @@ describe("serializeBriefRecord", () => {
       expect(read.right.moment).toBe("pushed");
       expect(read.right.request).toEqual(request);
       expect(read.right.outcome).toEqual({ kind: "answered", answer: printed });
+      if (read.right.outcome.kind === "answered") {
+        expect(Object.keys(read.right.outcome.answer)).toEqual(["rules", "findings", "$schema"]);
+      }
     }
   });
 

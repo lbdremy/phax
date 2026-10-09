@@ -3,11 +3,11 @@ import type { Shell } from "../ports/shell.js";
 import {
   encodeBriefRecordFile,
   encodeBriefRequestFile,
-  type BriefAnswer,
   type BriefRequest,
   type BriefRequestFile,
 } from "../schemas/brief.js";
-import { describeBriefAnswerError, readBriefAnswer, withSchemaUrl } from "../schemas/persisted.js";
+import type { BriefReport } from "../schemas/briefReport.js";
+import { describeReportError, readBriefReport, withSchemaUrl } from "../schemas/persisted.js";
 import { runProviderQuery, type ProviderQueryFailure } from "./providerQuery.js";
 
 /**
@@ -19,11 +19,24 @@ export const BRIEF_TIMEOUT_MS = 60_000;
 
 /**
  * One brief call's outcome. `answer` is the provider's stdout parsed as JSON
- * and otherwise untouched, kept for the record; `decoded` is what phax reads.
+ * and otherwise untouched, kept for the record; `decoded` is the brief report
+ * phax reads from it.
  */
 export type BriefOutcome =
-  | { readonly kind: "answered"; readonly answer: unknown; readonly decoded: BriefAnswer }
+  | { readonly kind: "answered"; readonly answer: unknown; readonly decoded: BriefReport }
   | { readonly kind: "failed"; readonly reason: string };
+
+/**
+ * Reads what a brief provider printed, parsed, as a brief report: the report without
+ * `$schema`, or the one-line reason it was refused, naming the brief-report
+ * URL this phax reads.
+ */
+export function readPrintedBriefReport(answer: unknown): Either.Either<BriefReport, string> {
+  return Either.match(readBriefReport(answer), {
+    onLeft: (error) => Either.left(describeReportError(error)),
+    onRight: ({ $schema: _schema, ...report }) => Either.right(report),
+  });
+}
 
 export function stampBriefRequest(request: BriefRequest): BriefRequestFile {
   return withSchemaUrl("brief-request", request);
@@ -36,7 +49,8 @@ function failureReason(failure: ProviderQueryFailure): string {
 
 /**
  * Asks the brief provider once: no shell, run from `cwd`, the stamped request
- * on stdin. The answer is read by its own `$schema`. Every failure becomes a
+ * on stdin. The answer is read as a brief report, by its own `$schema`. A
+ * non-zero exit, no readable report, and every other failure become a
  * `failed` outcome with a one-line reason; this never fails.
  */
 export function queryBrief(input: {
@@ -59,10 +73,8 @@ export function queryBrief(input: {
     if (Either.isLeft(ran)) {
       return { kind: "failed", reason: failureReason(ran.left) } as const;
     }
-    const decoded = readBriefAnswer(ran.right);
-    if (Either.isLeft(decoded)) {
-      return { kind: "failed", reason: describeBriefAnswerError(decoded.left) } as const;
-    }
+    const decoded = readPrintedBriefReport(ran.right);
+    if (Either.isLeft(decoded)) return { kind: "failed", reason: decoded.left } as const;
     return { kind: "answered", answer: ran.right, decoded: decoded.right } as const;
   });
 }

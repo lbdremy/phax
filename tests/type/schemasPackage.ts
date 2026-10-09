@@ -2,10 +2,9 @@ import type {
   AnyDocument,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
-  BriefAnswer,
-  BriefAnswerShape,
   BriefRecord,
   BriefRecordShape,
+  BriefRecordV0_20_0,
   BriefReport,
   BriefReportShape,
   BriefRequest,
@@ -20,7 +19,6 @@ import type {
   GateRequest,
   GateRequestShape,
   LatestAuthoringRecordManifest,
-  LatestBriefAnswer,
   LatestBriefRecord,
   LatestBriefReport,
   LatestBriefRequest,
@@ -93,7 +91,6 @@ import type {
 } from "../../packages/schemas/src/index.js";
 import {
   parseAuthoringRecordManifest,
-  parseBriefAnswer,
   parseBriefRecord,
   parseBriefReport,
   parseBriefRequest,
@@ -116,7 +113,6 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
-  toLatestBriefAnswer,
   toLatestBriefRecord,
   toLatestBriefReport,
   toLatestBriefRequest,
@@ -159,8 +155,6 @@ import type {
   GateAttributionFile as PhaxGateAttributionFile,
 } from "../../src/schemas/gateAttribution.js";
 import type {
-  BriefAnswer as PhaxBriefAnswer,
-  BriefAnswerFile as PhaxBriefAnswerFile,
   BriefRecord as PhaxBriefRecord,
   BriefRecordFile as PhaxBriefRecordFile,
   BriefRequest as PhaxBriefRequest,
@@ -215,6 +209,7 @@ import type {
   RunRecordManifestFile,
 } from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import type { BriefRecordV0_20_0 as FrozenBriefRecordV0_20_0 } from "../../src/schemas/history/brief-record/0.20.0.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
 import type { GateAttributionV0_20_0 as FrozenGateAttributionV0_20_0 } from "../../src/schemas/history/gate-attribution/0.20.0.js";
@@ -394,7 +389,6 @@ const formats: Equals<
   | "spec-approval-record"
   | "gate-request"
   | "brief-request"
-  | "brief-answer"
   | "brief-record"
   | "gate-report"
   | "brief-report"
@@ -471,7 +465,6 @@ const shapeIds: Equals<
   | SpecApprovalRecordShape
   | GateRequestShape
   | BriefRequestShape
-  | BriefAnswerShape
   | BriefRecordShape
   | GateReportShape
   | BriefReportShape,
@@ -696,40 +689,43 @@ if (document.ok && document.format === "gate-request") {
   void requestShape;
 }
 
-// The three brief formats are born with $schema: phax's own types, both ways,
-// one current shape each, and in-memory values without a top-level $schema
+// The two brief formats phax writes are born with $schema: phax's own types,
+// both ways, and in-memory values without a top-level $schema. The request has
+// one current shape; the record also reads its frozen 0.20.0 shape
 const briefTypes: [
   Equals<BriefRequest, PhaxBriefRequestFile>,
-  Equals<BriefAnswer, PhaxBriefAnswerFile>,
   Equals<BriefRecord, PhaxBriefRecordFile>,
   Equals<BriefRequestShape, Current<"brief-request">>,
-  Equals<BriefAnswerShape, Current<"brief-answer">>,
-  Equals<BriefRecordShape, Current<"brief-record">>,
+  Equals<BriefRecordShape, "0.20.0" | Current<"brief-record">>,
   Equals<Value<typeof parseBriefRequest>, PhaxBriefRequestFile>,
-  Equals<Value<typeof parseBriefAnswer>, PhaxBriefAnswerFile>,
-  Equals<Value<typeof parseBriefRecord>, PhaxBriefRecordFile>,
+  Equals<Value<typeof parseBriefRecord>, FrozenBriefRecordV0_20_0 | PhaxBriefRecordFile>,
   Equals<LatestBriefRequest, PhaxBriefRequest>,
-  Equals<LatestBriefAnswer, PhaxBriefAnswer>,
   Equals<LatestBriefRecord, PhaxBriefRecord>,
   Equals<Parameters<typeof toLatestBriefRequest>, [value: PhaxBriefRequestFile]>,
-  Equals<Parameters<typeof toLatestBriefAnswer>, [value: PhaxBriefAnswerFile]>,
-  Equals<Parameters<typeof toLatestBriefRecord>, [value: PhaxBriefRecordFile]>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+  Equals<
+    Parameters<typeof toLatestBriefRecord>,
+    [value: FrozenBriefRecordV0_20_0 | PhaxBriefRecordFile]
+  >,
+  Equals<BriefRecordV0_20_0, FrozenBriefRecordV0_20_0>,
+] = [true, true, true, true, true, true, true, true, true, true, true];
 void briefTypes;
 declare const latestBriefRequest: LatestBriefRequest;
 // @ts-expect-error: the in-memory brief request carries no $schema
 void latestBriefRequest.$schema;
-declare const latestBriefAnswer: LatestBriefAnswer;
-// @ts-expect-error: the in-memory brief answer carries no $schema
-void latestBriefAnswer.$schema;
 declare const latestBriefRecord: LatestBriefRecord;
 // @ts-expect-error: the in-memory brief record carries no top-level $schema
 void latestBriefRecord.$schema;
+// The current brief record upgrades to the latest value.
+declare const phaxBriefRecord: PhaxBriefRecordFile;
+const upgradedBriefRecord: LatestBriefRecord = toLatestBriefRecord(phaxBriefRecord);
+void upgradedBriefRecord;
 if (document.ok && document.format === "brief-record") {
-  const exact: Equals<typeof document.value, PhaxBriefRecordFile> = true;
-  const recordShape: Equals<typeof document.shape, Current<"brief-record">> = true;
-  void exact;
+  const recordShape: Equals<typeof document.shape, "0.20.0" | Current<"brief-record">> = true;
   void recordShape;
+  if (document.shape === CURRENT_SHAPES["brief-record"]) {
+    const exact: Equals<typeof document.value, PhaxBriefRecordFile> = true;
+    void exact;
+  }
 }
 
 // The two reports are born with $schema: phax's own types, both ways, one
