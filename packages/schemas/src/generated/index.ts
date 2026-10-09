@@ -29,4 +29,6 @@ export const CURRENT_SHAPES = {
   "brief-request": "0.20.0",
   "brief-answer": "0.20.0",
   "brief-record": "0.20.0",
+  "gate-report": "next",
+  "brief-report": "next",
 } as const;

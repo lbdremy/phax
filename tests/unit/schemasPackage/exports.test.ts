@@ -68,6 +68,7 @@ describe("schemas package entry", () => {
       "AuthoringRecordManifestSchema",
       "BriefAnswerSchema",
       "BriefRecordSchema",
+      "BriefReportSchema",
       "BriefRequestSchema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
@@ -77,6 +78,7 @@ describe("schemas package entry", () => {
       "GateDiagnosticsPreSchemaSchema",
       "GateDiagnosticsSchema",
       "GateDiagnosticsV0_17_0Schema",
+      "GateReportSchema",
       "GateRequestSchema",
       "PhaseFileReconciliationPreSchemaSchema",
       "PhaseFileReconciliationSchema",
@@ -108,11 +110,13 @@ describe("schemas package entry", () => {
       "parseAuthoringRecordManifest",
       "parseBriefAnswer",
       "parseBriefRecord",
+      "parseBriefReport",
       "parseBriefRequest",
       "parseComplianceReview",
       "parseDocument",
       "parseGateAttribution",
       "parseGateDiagnostics",
+      "parseGateReport",
       "parseGateRequest",
       "parsePhaseFileReconciliation",
       "parsePhaseRecordManifest",
@@ -130,10 +134,12 @@ describe("schemas package entry", () => {
       "toLatestAuthoringRecordManifest",
       "toLatestBriefAnswer",
       "toLatestBriefRecord",
+      "toLatestBriefReport",
       "toLatestBriefRequest",
       "toLatestComplianceReview",
       "toLatestGateAttribution",
       "toLatestGateDiagnostics",
+      "toLatestGateReport",
       "toLatestGateRequest",
       "toLatestPhaseFileReconciliation",
       "toLatestPhaseRecordManifest",
@@ -228,6 +234,13 @@ describe("schemas package entry", () => {
     expect(entry.BriefRequestSchema).toBe(BriefRequestFileSchema);
     expect(entry.BriefAnswerSchema).toBe(BriefAnswerFileSchema);
     expect(entry.BriefRecordSchema).toBe(BriefRecordFileSchema);
+  });
+
+  it("re-exports phax's report file schemas under the spec's names, never a copy", async () => {
+    const { GateReportFileSchema } = await import("../../../src/schemas/gateReport.js");
+    const { BriefReportFileSchema } = await import("../../../src/schemas/briefReport.js");
+    expect(entry.GateReportSchema).toBe(GateReportFileSchema);
+    expect(entry.BriefReportSchema).toBe(BriefReportFileSchema);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(

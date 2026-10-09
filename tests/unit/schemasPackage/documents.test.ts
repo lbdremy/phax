@@ -13,9 +13,11 @@ import {
   decodeBriefRecordFile,
   decodeBriefRequestFile,
 } from "../../../src/schemas/brief.js";
+import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
@@ -84,6 +86,8 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "brief-request": decodeBriefRequestFile,
   "brief-answer": decodeBriefAnswerFile,
   "brief-record": decodeBriefRecordFile,
+  "gate-report": decodeGateReportFile,
+  "brief-report": decodeBriefReportFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

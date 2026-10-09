@@ -7,12 +7,15 @@ import {
   LAST_RELEASE_WITHOUT_BRIEF_ANSWER,
   currentSchemaUrl,
   describeBriefAnswerError,
+  describeReportError,
   readBriefAnswer,
   readBriefRecordFile,
+  readBriefReport,
   readBriefRequestFile,
   readComplianceReviewFile,
   readGateAttributionFile,
   readGateDiagnosticsAnswer,
+  readGateReport,
   readPersisted,
   readPhaseFileReconciliationFile,
   readPhaxPlanFile,
@@ -34,6 +37,7 @@ import {
   type MissingFact,
   type PersistedReadError,
   type PersistedSpec,
+  type ReportError,
 } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import {
@@ -880,6 +884,166 @@ describe("readBriefAnswer", () => {
     expect(
       answerShapes,
       "a second brief-answer answer shape: teach readBriefAnswer to decode each answer release with its own shape",
+    ).toHaveLength(1);
+  });
+});
+
+// Both reports are born at 0.21.0: `BORN` plays the release that opened them,
+// `MOVED` a later one whose current stamp moved on.
+const BORN = { current: "0.21.0", running: "0.21.0" } as const;
+const MOVED = { current: "0.22.0", running: "0.22.0" } as const;
+
+const reportFinding = {
+  id: "no-node-import src/greet.ts node:fs",
+  rule: "a module under src/ imports no node: module",
+  location: { file: "src/greet.ts", lines: [1, 1] },
+  message: "imports node:fs",
+  related: [{ file: "src/cli.ts", lines: [3, 5], why: "the caller, where the read belongs" }],
+  guide: { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" },
+} as const;
+
+const gateReportAt = (release: string) => ({
+  $schema: schemaUrl("gate-report", release),
+  outcome: "checked",
+  findings: [reportFinding],
+  review: [],
+});
+
+const briefReportAt = (release: string) => ({
+  $schema: schemaUrl("brief-report", release),
+  rules: [],
+  findings: [{ ...reportFinding, due: null }],
+});
+
+function reportRefusal(result: Either.Either<unknown, ReportError>): ReportError {
+  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
+  return result.left;
+}
+
+const GATE_REPORT_URL = "https://docs.phax.run/schemas/gate-report/0.21.0.json";
+const BRIEF_REPORT_URL = "https://docs.phax.run/schemas/brief-report/0.21.0.json";
+
+interface ReportReaderCase {
+  readonly format: "gate-report" | "brief-report";
+  readonly read: (input: unknown, bounds?: AnswerBounds) => Either.Either<unknown, ReportError>;
+  readonly at: (release: string) => Readonly<Record<string, unknown>>;
+  readonly url: string;
+  /** Another format's document: its id, a release and its body without `$schema`. */
+  readonly others: ReadonlyArray<readonly [FormatId, string, Readonly<Record<string, unknown>>]>;
+}
+
+const REPORT_READERS: ReadonlyArray<ReportReaderCase> = [
+  {
+    format: "gate-report",
+    read: readGateReport,
+    at: gateReportAt,
+    url: GATE_REPORT_URL,
+    others: [
+      ["gate-diagnostics", "0.20.0", { diagnostics: [] }],
+      ["brief-report", "0.21.0", { rules: [], findings: [] }],
+    ],
+  },
+  {
+    format: "brief-report",
+    read: readBriefReport,
+    at: briefReportAt,
+    url: BRIEF_REPORT_URL,
+    others: [
+      ["brief-answer", "0.20.0", { guarantees: [] }],
+      ["gate-report", "0.21.0", { outcome: "checked", findings: [], review: [] }],
+    ],
+  },
+];
+
+describe.each(REPORT_READERS)("$format reader", ({ format, read, at, url, others }) => {
+  it("reads a document at its current stamp whole, $schema included", () => {
+    expect(read(at("0.21.0"), BORN)).toEqual(Either.right(at("0.21.0")));
+  });
+
+  it("reads with the current stamp and the running version by default", () => {
+    expect(currentSchemaUrl(format)).toBe(url);
+    expect(read(at(CURRENT_STAMPS[format]))).toEqual(Either.right(at(CURRENT_STAMPS[format])));
+  });
+
+  it.each(others)(
+    "refuses a %s/%s document by name, giving the URL it reads",
+    (other, release, body) => {
+      const error = reportRefusal(read({ $schema: schemaUrl(other, release), ...body }, BORN));
+      expect(error).toEqual({
+        kind: "malformed",
+        reads: url,
+        reason: `${other} is not read by this phax — it reads ${url}`,
+      });
+      expect(describeReportError(error)).toBe(
+        `${other} is not read by this phax — it reads ${url}`,
+      );
+    },
+  );
+
+  it("refuses a format id unknown to this build by name", () => {
+    const error = reportRefusal(
+      read({ $schema: "https://docs.phax.run/schemas/lint-report/0.21.0.json" }, BORN),
+    );
+    expect(describeReportError(error)).toBe(
+      `lint-report is not read by this phax — it reads ${url}`,
+    );
+  });
+
+  it("refuses a stamp above the running version by name", () => {
+    const message = `${format} 0.22.0 is newer than this phax (0.21.0) — upgrade phax to read it`;
+    const error = reportRefusal(read(at("0.22.0"), BORN));
+    expect(error).toEqual({ kind: "newer", reads: url, message });
+    expect(describeReportError(error)).toBe(`${message}; this phax reads ${url}`);
+  });
+
+  it("refuses a stamp below the current stamp as an older shape, naming the URL it reads", () => {
+    const moved = schemaUrl(format, "0.22.0");
+    const message = `${format} 0.21.0 is an older shape — this phax reads ${moved}`;
+    const error = reportRefusal(read(at("0.21.0"), MOVED));
+    expect(error).toEqual({ kind: "older", reads: moved, message });
+    expect(describeReportError(error)).toBe(message);
+  });
+
+  it("refuses a document without $schema, naming the URL it reads", () => {
+    const { $schema: _schema, ...unstamped } = at("0.21.0");
+    const error = reportRefusal(read(unstamped, BORN));
+    expect(error.kind).toBe("malformed");
+    expect(describeReportError(error)).toBe(
+      `a ${format} document carries $schema; this phax reads ${url}`,
+    );
+  });
+
+  it("refuses a $schema that is not a phax schema URL, naming the value", () => {
+    const error = reportRefusal(read({ ...at("0.21.0"), $schema: "not a url" }, BORN));
+    expect(describeReportError(error)).toBe(
+      `$schema "not a url" is not a phax schema URL; this phax reads ${url}`,
+    );
+  });
+
+  it("refuses a non-object as malformed and never throws", () => {
+    for (const value of [null, undefined, 3, "text", ["a"]]) {
+      expect(reportRefusal(read(value, BORN)).kind).toBe("malformed");
+    }
+  });
+
+  it("refuses a decode failure with the key path, naming the URL it reads", () => {
+    const error = reportRefusal(read({ ...at("0.21.0"), debt: [] }, BORN));
+    expect(error.kind).toBe("malformed");
+    expect(describeReportError(error)).toMatch(
+      new RegExp(`^debt: is unexpected, .*; this phax reads ${url.replaceAll(".", "\\.")}$`),
+    );
+  });
+
+  // The reader decodes every stamp with the current decoder, which is right
+  // only while one shape exists: the `next` snapshot or one release-named.
+  it("is written for a single report shape", () => {
+    const dir = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      `../../packages/schemas/snapshots/${format}`,
+    );
+    expect(
+      readdirSync(dir),
+      `a second ${format} shape: teach its reader to decode each release with its own shape`,
     ).toHaveLength(1);
   });
 });

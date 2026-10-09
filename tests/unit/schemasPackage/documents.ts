@@ -26,9 +26,11 @@ import {
   type BriefRecord,
   type PhaseBriefRequest,
 } from "../../../src/schemas/brief.js";
+import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
+import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
@@ -391,6 +393,42 @@ const briefRecord: BriefRecord = {
   outcome: { kind: "answered", answer: withSchemaUrl("brief-answer", briefAnswer) },
 };
 
+const gateReport: GateReport = {
+  outcome: "checked",
+  findings: [
+    {
+      id: "example-no-io src/example.ts node:fs",
+      rule: "a module under src/ imports no node: module",
+      location: { file: "src/example.ts", lines: [3, 3] },
+      message: "imports node:fs",
+      related: [{ file: "src/other.ts", lines: [1, 4], why: "the caller, where the read belongs" }],
+      guide: { summary: "keep I/O in the caller", read: "guides/example.md" },
+    },
+  ],
+  review: [{ owner: "example-team", note: "whether the greeting reads well" }],
+};
+
+const briefReport: BriefReport = {
+  rules: [
+    {
+      rule: "a module under src/ imports no node: module",
+      files: ["src/example.ts", "src/missing.ts"],
+      guide: { summary: "keep I/O in the caller", read: "guides/example.md" },
+    },
+  ],
+  findings: [
+    {
+      id: "example-no-io src/example.ts node:fs",
+      rule: "a module under src/ imports no node: module",
+      location: { file: "src/example.ts", lines: null },
+      message: "imports node:fs",
+      related: [],
+      guide: null,
+      due: "this-phase",
+    },
+  ],
+};
+
 const specDocument: SpecDocumentPreSchema = {
   version: 1,
   kind: "spec",
@@ -583,6 +621,8 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "brief-request": encoded(BriefRequestFileSchema, withSchemaUrl("brief-request", briefRequest)),
   "brief-answer": encoded(BriefAnswerFileSchema, withSchemaUrl("brief-answer", briefAnswer)),
   "brief-record": encoded(BriefRecordFileSchema, withSchemaUrl("brief-record", briefRecord)),
+  "gate-report": encoded(GateReportFileSchema, withSchemaUrl("gate-report", gateReport)),
+  "brief-report": encoded(BriefReportFileSchema, withSchemaUrl("brief-report", briefReport)),
 };
 
 /**

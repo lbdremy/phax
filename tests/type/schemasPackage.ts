@@ -6,6 +6,8 @@ import type {
   BriefAnswerShape,
   BriefRecord,
   BriefRecordShape,
+  BriefReport,
+  BriefReportShape,
   BriefRequest,
   BriefRequestShape,
   ComplianceReview,
@@ -15,15 +17,19 @@ import type {
   GateAttributionShape,
   GateDiagnostics,
   GateDiagnosticsShape,
+  GateReport,
+  GateReportShape,
   GateRequest,
   GateRequestShape,
   LatestAuthoringRecordManifest,
   LatestBriefAnswer,
   LatestBriefRecord,
+  LatestBriefReport,
   LatestBriefRequest,
   LatestComplianceReview,
   LatestGateAttribution,
   LatestGateDiagnostics,
+  LatestGateReport,
   LatestGateRequest,
   LatestPhaseFileReconciliation,
   LatestPhaseRecordManifest,
@@ -61,6 +67,9 @@ import type {
   RecordManifest,
   RecordManifestFormat,
   Registry,
+  ReportFinding,
+  ReportGuide,
+  ReportLocation,
   RegistryShape,
   RunStatus,
   RunStatusShape,
@@ -90,11 +99,13 @@ import {
   parseAuthoringRecordManifest,
   parseBriefAnswer,
   parseBriefRecord,
+  parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
   parseDocument,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateReport,
   parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
@@ -112,10 +123,12 @@ import {
   toLatestAuthoringRecordManifest,
   toLatestBriefAnswer,
   toLatestBriefRecord,
+  toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateReport,
   toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -167,6 +180,20 @@ import type {
   GateRequest as PhaxGateRequest,
   GateRequestFile as PhaxGateRequestFile,
 } from "../../src/schemas/gateRequest.js";
+import type {
+  BriefFinding as PhaxBriefFinding,
+  BriefReport as PhaxBriefReport,
+  BriefReportFile as PhaxBriefReportFile,
+} from "../../src/schemas/briefReport.js";
+import type {
+  GateFinding as PhaxGateFinding,
+  GateReport as PhaxGateReport,
+  GateReportFile as PhaxGateReportFile,
+} from "../../src/schemas/gateReport.js";
+import type {
+  ReportGuide as PhaxReportGuide,
+  ReportLocation as PhaxReportLocation,
+} from "../../src/schemas/report.js";
 import type {
   PhaseFileReconciliation as PhaxPhaseFileReconciliation,
   PhaseFileReconciliationFile as PhaxPhaseFileReconciliationFile,
@@ -381,6 +408,8 @@ const formats: Equals<
   | "brief-request"
   | "brief-answer"
   | "brief-record"
+  | "gate-report"
+  | "brief-report"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -456,7 +485,9 @@ const shapeIds: Equals<
   | GateRequestShape
   | BriefRequestShape
   | BriefAnswerShape
-  | BriefRecordShape,
+  | BriefRecordShape
+  | GateReportShape
+  | BriefReportShape,
   "pre-schema" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -719,6 +750,43 @@ if (document.ok && document.format === "brief-record") {
   const recordShape: Equals<typeof document.shape, Current<"brief-record">> = true;
   void exact;
   void recordShape;
+}
+
+// The two reports are born with $schema: phax's own types, both ways, one
+// current shape each, and in-memory values without $schema. The location,
+// guide and finding they share are phax's own types too
+const reportTypes: [
+  Equals<GateReport, PhaxGateReportFile>,
+  Equals<BriefReport, PhaxBriefReportFile>,
+  Equals<GateReportShape, Current<"gate-report">>,
+  Equals<BriefReportShape, Current<"brief-report">>,
+  Equals<Value<typeof parseGateReport>, PhaxGateReportFile>,
+  Equals<Value<typeof parseBriefReport>, PhaxBriefReportFile>,
+  Equals<LatestGateReport, PhaxGateReport>,
+  Equals<LatestBriefReport, PhaxBriefReport>,
+  Equals<Parameters<typeof toLatestGateReport>, [value: PhaxGateReportFile]>,
+  Equals<Parameters<typeof toLatestBriefReport>, [value: PhaxBriefReportFile]>,
+  Equals<ReportLocation, PhaxReportLocation>,
+  Equals<ReportGuide, PhaxReportGuide>,
+  Equals<ReportFinding, PhaxGateFinding>,
+  Equals<Exclude<keyof PhaxBriefFinding, "due">, keyof ReportFinding>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void reportTypes;
+declare const briefFinding: PhaxBriefFinding;
+// A brief finding is a report finding plus `due`
+const briefFindingIsReportFinding: ReportFinding = briefFinding;
+void briefFindingIsReportFinding;
+declare const latestGateReport: LatestGateReport;
+// @ts-expect-error: the in-memory gate report carries no $schema
+void latestGateReport.$schema;
+declare const latestBriefReport: LatestBriefReport;
+// @ts-expect-error: the in-memory brief report carries no $schema
+void latestBriefReport.$schema;
+if (document.ok && document.format === "gate-report") {
+  const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
+  const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;
+  void exact;
+  void reportShape;
 }
 
 declare const latestRegistry: LatestRegistry;

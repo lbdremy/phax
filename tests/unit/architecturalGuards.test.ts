@@ -515,9 +515,11 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/approvalRecord.ts",
   "src/schemas/authoringRecord.ts",
   "src/schemas/brief.ts",
+  "src/schemas/briefReport.ts",
   "src/schemas/complianceReview.ts",
   "src/schemas/gateAttribution.ts",
   "src/schemas/gateDiagnostics.ts",
+  "src/schemas/gateReport.ts",
   "src/schemas/gateRequest.ts",
   "src/schemas/history/authoring-record-manifest/pre-schema.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",
@@ -542,6 +544,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/providerId.ts",
   "src/schemas/reconciliation.ts",
   "src/schemas/registry.ts",
+  "src/schemas/report.ts",
   "src/schemas/runRecord.ts",
   "src/schemas/schemaUrl.ts",
   "src/schemas/specApprovalRecord.ts",
@@ -777,6 +780,8 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "brief-request": ["decodeBriefRequestFile"],
   "brief-answer": ["decodeBriefAnswerFile"],
   "brief-record": ["decodeBriefRecordFile"],
+  "gate-report": ["decodeGateReportFile"],
+  "brief-report": ["decodeBriefReportFile"],
 };
 
 /** Whether `content` names `name` as a whole word. */

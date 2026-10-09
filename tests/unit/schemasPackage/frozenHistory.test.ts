@@ -151,16 +151,33 @@ describe("schemas-check on the committed tree", () => {
   });
 });
 
+/**
+ * What the check reports for a release module that stamps the package version
+ * as `stamped` while package.json says `packageVersion`: one drifted stamp per
+ * format whose current shape is `next` (its stamp is the package version), or,
+ * when no format is at `next`, one line naming the version.
+ */
+function staleReleaseModuleFindings(stamped: string, packageVersion: string): string[] {
+  const atNext = FORMAT_IDS.filter((id) => state.currentShapes[id] === "next");
+  if (atNext.length === 0) {
+    return [
+      `✗ src/schemas/release.ts does not match package.json version ${packageVersion} — run ${WRITE_COMMAND}`,
+    ];
+  }
+  return atNext.map(
+    (id) =>
+      `✗ src/schemas/release.ts stamps ${id} with ${stamped}, but its current stamp is ` +
+      `${packageVersion} — run ${WRITE_COMMAND}`,
+  );
+}
+
 describe("schemas-check findings", () => {
   it("fails a stale generated index and release module after a version bump, naming the --write command", () => {
     const bumped = `${PACKAGE_VERSION}9`;
-    const findings = checkSchemas({ ...state, packageVersion: bumped });
-    expect(findings).toHaveLength(2);
-    expect(findings[0]).toMatch(/^✗ packages\/schemas\/src\/generated\/index\.ts /);
-    expect(findings[0]).toContain(WRITE_COMMAND);
-    expect(findings[1]).toBe(
-      `✗ src/schemas/release.ts does not match package.json version ${bumped} — run ${WRITE_COMMAND}`,
-    );
+    const [index, ...release] = checkSchemas({ ...state, packageVersion: bumped });
+    expect(index).toMatch(/^✗ packages\/schemas\/src\/generated\/index\.ts /);
+    expect(index).toContain(WRITE_COMMAND);
+    expect(release).toEqual(staleReleaseModuleFindings(PACKAGE_VERSION, bumped));
   });
 
   it("fails a stale src/schemas/release.ts, naming the --write command", () => {
@@ -168,9 +185,9 @@ describe("schemas-check findings", () => {
       packageVersion: "0.1.0",
       currentShapes: state.currentShapes,
     });
-    expect(checkSchemas({ ...state, releaseModule: stale })).toEqual([
-      `✗ src/schemas/release.ts does not match package.json version ${state.packageVersion} — run ${WRITE_COMMAND}`,
-    ]);
+    expect(checkSchemas({ ...state, releaseModule: stale })).toEqual(
+      staleReleaseModuleFindings("0.1.0", state.packageVersion),
+    );
   });
 
   it("fails a drifted stamp in src/schemas/release.ts, naming the format and both stamps", () => {
