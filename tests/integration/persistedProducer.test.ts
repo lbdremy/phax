@@ -595,7 +595,8 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
 /**
  * The formats no writer produces: the old approval ledgers, read only to
- * migrate them to record files and never written again, and the brief answer.
+ * migrate them to record files and never written again, the brief answer and
+ * the two reports.
  */
 const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "plan-approvals",
@@ -603,6 +604,12 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a brief answer as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-answer",
+  // Temporary: nothing saves a gate report yet. The gate saves each readable
+  // one as checks-attempt-NN.report-SS.json once report steps land.
+  "gate-report",
+  // phax never writes a brief report as a file: it is the brief provider's
+  // stdout, held as printed inside a brief record.
+  "brief-report",
 ];
 
 describe("every persisted file phax writes", () => {

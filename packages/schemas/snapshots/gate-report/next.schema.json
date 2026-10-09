@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax gate report",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "ReportLocation": {
+      "type": "object",
+      "required": [
+        "file",
+        "lines"
+      ],
+      "properties": {
+        "file": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "A path relative to the working tree. phax never checks that it exists."
+        },
+        "lines": {
+          "anyOf": [
+            {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "$ref": "#/$defs/Int"
+                },
+                {
+                  "$ref": "#/$defs/Int"
+                }
+              ],
+              "additionalItems": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "[start, end]: 1-based line numbers, both included, start at least 1 and end at least start. Null for the whole file."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A file and the lines in it. Checked by phax's parser: lines starts at 1 or above and ends at or after its start."
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    },
+    "ReportRelatedLocation": {
+      "type": "object",
+      "required": [
+        "file",
+        "lines",
+        "why"
+      ],
+      "properties": {
+        "file": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "A path relative to the working tree. phax never checks that it exists."
+        },
+        "lines": {
+          "anyOf": [
+            {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "$ref": "#/$defs/Int"
+                },
+                {
+                  "$ref": "#/$defs/Int"
+                }
+              ],
+              "additionalItems": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "[start, end]: 1-based line numbers, both included, start at least 1 and end at least start. Null for the whole file."
+        },
+        "why": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "Why the finding involves this location, in one line."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Another location the finding involves, and why. Checked by phax's parser: lines starts at 1 or above and ends at or after its start."
+    },
+    "ReportGuide": {
+      "type": "object",
+      "required": [
+        "summary",
+        "read"
+      ],
+      "properties": {
+        "summary": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "One line on how to fix the finding or comply with the rule."
+        },
+        "read": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "A file, relative to the working tree, that the agent reads and follows. phax never opens it; what kind of file it is belongs to the provider."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "outcome",
+        "findings",
+        "review"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The gate-report format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-report/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-report\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "checked"
+          ],
+          "description": "The step ran its checks: findings and review notes follow."
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "rule",
+              "location",
+              "message",
+              "related",
+              "guide"
+            ],
+            "properties": {
+              "id": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                ],
+                "description": "The provider's own id for the finding, stable across runs of the same check and unique within the report. phax compares it by equality only."
+              },
+              "rule": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                ],
+                "description": "The rule the finding breaks, in plain words."
+              },
+              "location": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ReportLocation"
+                  }
+                ],
+                "description": "Where the finding is."
+              },
+              "message": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                ],
+                "description": "What was found, in one line."
+              },
+              "related": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ReportRelatedLocation"
+                },
+                "description": "The other locations the finding involves, in the provider's order. May be empty."
+              },
+              "guide": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ReportGuide"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "How to fix the finding: a summary and a file to read, or null when the provider gives none."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "What fails, in the provider's order, which is its rank: each the rule it breaks, where, what was found and how to fix it. Any finding fails the step, whatever its exit code; an empty list passes it on exit 0. Checked by phax's parser: no two findings share an id."
+        },
+        "review": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "owner",
+              "note"
+            ],
+            "properties": {
+              "owner": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                ],
+                "description": "Who should look at the note: a person or a team, in the provider's words."
+              },
+              "note": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                ],
+                "description": "What a person should look at, in one line."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Notes for a person, in the provider's order. A note never fails the step and reaches only the reviewer, never the agent. May be empty."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "outcome",
+        "reason",
+        "remedy"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The gate-report format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-report/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-report\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "refused"
+          ],
+          "description": "The step declined to run its checks: the phase stops for the operator, with no fix attempt."
+        },
+        "reason": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "Why the step declined to run, in one line."
+        },
+        "remedy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          ],
+          "description": "What the operator does so that the step runs, in one line."
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

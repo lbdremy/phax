@@ -5,10 +5,12 @@ import {
   parseAuthoringRecordManifest,
   parseBriefAnswer,
   parseBriefRecord,
+  parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateReport,
   parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
@@ -38,9 +40,11 @@ import {
   decodeBriefRecordFile,
   decodeBriefRequestFile,
 } from "../../../src/schemas/brief.js";
+import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
@@ -246,6 +250,22 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeBriefRecordFile,
     wrongType: ["moment", "later"],
     required: "outcome",
+    excess: "error",
+  },
+  "gate-report": {
+    id: "gate-report",
+    parse: parseGateReport,
+    phax: decodeGateReportFile,
+    wrongType: ["findings", {}],
+    required: "review",
+    excess: "error",
+  },
+  "brief-report": {
+    id: "brief-report",
+    parse: parseBriefReport,
+    phax: decodeBriefReportFile,
+    wrongType: ["rules", {}],
+    required: "findings",
     excess: "error",
   },
 };
@@ -486,6 +506,45 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "brief-record",
     "a failed outcome with an empty reason",
     withKey(validDocuments["brief-record"], "outcome", { kind: "failed", reason: "" }),
+    "rejected",
+  ],
+  [
+    "gate-report",
+    "a finding whose guide carries an extra key",
+    withFirst(validDocuments["gate-report"], "findings", {
+      guide: { summary: "keep I/O in the caller", read: "guides/example.md", kind: "doc" },
+    }),
+    "rejected",
+  ],
+  [
+    "gate-report",
+    "a finding whose lines are out of order",
+    withFirst(validDocuments["gate-report"], "findings", {
+      location: { file: "src/example.ts", lines: [3, 1] },
+    }),
+    "rejected",
+  ],
+  [
+    "gate-report",
+    "a refused report: reason and remedy",
+    {
+      $schema: validDocuments["gate-report"]["$schema"],
+      outcome: "refused",
+      reason: "the checks need a newer tool",
+      remedy: "install the newer tool",
+    },
+    "accepted",
+  ],
+  [
+    "brief-report",
+    "a finding whose due is outside its literals",
+    withFirst(validDocuments["brief-report"], "findings", { due: "soon" }),
+    "rejected",
+  ],
+  [
+    "brief-report",
+    "a rule with no file",
+    withFirst(validDocuments["brief-report"], "rules", { files: [] }),
     "rejected",
   ],
 ];

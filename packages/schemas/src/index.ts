@@ -21,6 +21,12 @@ import {
   type SpecDocumentShapes,
 } from "./formats/repository.js";
 import {
+  briefReportFormat,
+  gateReportFormat,
+  type BriefReportShapes,
+  type GateReportShapes,
+} from "./formats/reports.js";
+import {
   authoringRecordManifestFormat,
   phaseRecordManifestFormat,
   type AuthoringRecordManifestShapes,
@@ -236,6 +242,30 @@ export {
   type LatestBriefRequest,
 } from "./formats/brief.js";
 
+// The reports a provider prints: a report step's gate report and a brief
+// provider's brief report. Each schema and type is phax's own file schema and
+// type, under the name the spec gives it. Both share one location, guide and
+// finding definition, exported as types only.
+export {
+  GateReportFileSchema as GateReportSchema,
+  type GateReportFile as GateReport,
+} from "../../../src/schemas/gateReport.js";
+export {
+  BriefReportFileSchema as BriefReportSchema,
+  type BriefReportFile as BriefReport,
+} from "../../../src/schemas/briefReport.js";
+export type { ReportFinding, ReportGuide, ReportLocation } from "../../../src/schemas/report.js";
+export {
+  parseBriefReport,
+  parseGateReport,
+  toLatestBriefReport,
+  toLatestGateReport,
+  type BriefReportShape,
+  type GateReportShape,
+  type LatestBriefReport,
+  type LatestGateReport,
+} from "./formats/reports.js";
+
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
@@ -341,6 +371,8 @@ type DocumentShapes = EveryFormat<{
   "brief-request": BriefRequestShapes;
   "brief-answer": BriefAnswerShapes;
   "brief-record": BriefRecordShapes;
+  "gate-report": GateReportShapes;
+  "brief-report": BriefReportShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -376,4 +408,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "brief-request": briefRequestFormat,
     "brief-answer": briefAnswerFormat,
     "brief-record": briefRecordFormat,
+    "gate-report": gateReportFormat,
+    "brief-report": briefReportFormat,
   });

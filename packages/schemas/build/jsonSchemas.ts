@@ -24,6 +24,7 @@ import {
   specApprovalsFormat,
   specDocumentFormat,
 } from "../src/formats/repository.js";
+import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import {
   complianceReviewFormat,
   phaseStatusFormat,
@@ -91,6 +92,8 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "brief-request": briefRequestFormat,
   "brief-answer": briefAnswerFormat,
   "brief-record": briefRecordFormat,
+  "gate-report": gateReportFormat,
+  "brief-report": briefReportFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -118,6 +121,8 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "brief-request": "error",
   "brief-answer": "ignore",
   "brief-record": "error",
+  "gate-report": "error",
+  "brief-report": "error",
   "record-manifest": "error",
 };
 

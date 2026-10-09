@@ -11,8 +11,9 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * Every persisted format: the fourteen of spec §4 phax still writes, then the two approval
  * record formats of spec approval-record-files, then the gate request of spec
  * gate-request, then the brief request, answer and record of spec
- * brief-provider, appended so existing order stays stable. `code-review` joins with the headless-review plan, which
- * ships that document.
+ * brief-provider, then the gate report and brief report of spec guarantee-reports,
+ * appended so existing order stays stable. `code-review` joins with the
+ * headless-review plan, which ships that document.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -35,6 +36,8 @@ export const FORMAT_IDS = [
   "brief-request",
   "brief-answer",
   "brief-record",
+  "gate-report",
+  "brief-report",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -46,7 +49,9 @@ export function isFormatId(value: string): value is FormatId {
 /**
  * The formats born with `$schema`: phax wrote every one of their documents
  * with it, so they have no pre-schema shape and no frozen pre-schema module,
- * and a document of theirs without `$schema` is unreadable.
+ * and a document of theirs without `$schema` is unreadable. The gate report
+ * and the brief report, which phax reads but never writes, are born at
+ * 0.21.0 with `$schema` too.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -55,6 +60,8 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "brief-request",
   "brief-answer",
   "brief-record",
+  "gate-report",
+  "brief-report",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

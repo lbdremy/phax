@@ -24,7 +24,10 @@
 // `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`)
 // and the `brief-answer` document a brief provider prints (`readBriefAnswer`).
 // Each reads only stamps from its format's current stamp up to the running
-// version, refuses an older shape by name, and names the URL it reads.
+// version, refuses an older shape by name, and names the URL it reads. The
+// `gate-report` and `brief-report` documents that replace them are read the
+// same way (`readGateReport`, `readBriefReport`), and refuse any other
+// format by name.
 import { Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
@@ -45,10 +48,12 @@ import {
   type BriefRecord,
   type BriefRequest,
 } from "./brief.js";
+import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateDiagnosticsFile, type GateDiagnosticsDocument } from "./gateDiagnostics.js";
+import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
@@ -69,6 +74,7 @@ import {
   type PhaseFileReconciliation,
 } from "./reconciliation.js";
 import { decodeRegistryFile, type Registry } from "./registry.js";
+import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import {
   compareReleases,
@@ -591,6 +597,103 @@ export function describeBriefAnswerError(error: BriefAnswerError): string {
   return error.kind === "shape"
     ? `brief answer refused: ${reason}`
     : `brief answer refused at $schema: ${reason}`;
+}
+
+/** The two report formats, each read only under its own `$schema`. */
+export type ReportFormatId = "gate-report" | "brief-report";
+
+/**
+ * Why a gate report or brief report was not read. `reads` is the `$schema`
+ * URL the reader reads: the format at its current stamp.
+ */
+export type ReportError =
+  | { readonly kind: "malformed"; readonly reads: string; readonly reason: string }
+  | { readonly kind: "newer"; readonly reads: string; readonly message: string }
+  | { readonly kind: "older"; readonly reads: string; readonly message: string };
+
+/**
+ * Reads the parsed document a report step or a brief provider printed, as
+ * `format`. Never throws. In order:
+ * 1. a non-object, or a document without its own `$schema` key, is
+ *    malformed: there is no unversioned reading;
+ * 2. a `$schema` that names any other format id, known or not, is malformed,
+ *    naming that format and the URL this reader reads;
+ * 3. a stamp above `bounds.running` is refused as `newer`, by name;
+ * 4. a stamp below `bounds.current` is refused as `older`, naming the URL;
+ * 5. a document the decoder rejects is malformed, with `describeReportIssue`'s
+ *    line: the key path, the duplicate id or the file of a disordered pair.
+ * The decoded document is returned whole, `$schema` included.
+ */
+function readReport<T>(
+  format: ReportFormatId,
+  decode: Decode<T>,
+  input: unknown,
+  bounds: AnswerBounds,
+): Either.Either<T, ReportError> {
+  const reads = schemaUrl(format, bounds.current);
+  const malformedReport = (reason: string) =>
+    Either.left<ReportError>({ kind: "malformed", reads, reason });
+  if (!isDocumentObject(input)) return malformedReport(`a ${format} document is a JSON object`);
+  if (!Object.hasOwn(input, "$schema")) {
+    return malformedReport(`a ${format} document carries $schema`);
+  }
+  const named = parseSchemaUrl(input["$schema"]);
+  if (named === undefined) {
+    return malformedReport(`$schema ${JSON.stringify(input["$schema"])} is not a phax schema URL`);
+  }
+  if (named.formatId !== format) {
+    return malformedReport(`${named.formatId} is not read by this phax — it reads ${reads}`);
+  }
+  const { release } = named;
+  if (compareReleases(release, bounds.running) > 0) {
+    return Either.left({
+      kind: "newer",
+      reads,
+      message: `${format} ${release} is newer than this phax (${bounds.running}) — upgrade phax to read it`,
+    });
+  }
+  if (compareReleases(release, bounds.current) < 0) {
+    return Either.left({
+      kind: "older",
+      reads,
+      message: `${format} ${release} is an older shape — this phax reads ${reads}`,
+    });
+  }
+  const decoded = decode(input);
+  if (Either.isLeft(decoded)) return malformedReport(describeReportIssue(decoded.left));
+  return Either.right(decoded.right);
+}
+
+/**
+ * Reads the parsed document a report step printed as a `gate-report`. See
+ * `readReport` for the checks, in order.
+ */
+export function readGateReport(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["gate-report"], running: PHAX_RELEASE },
+): Either.Either<GateReportFile, ReportError> {
+  return readReport("gate-report", decodeGateReportFile, input, bounds);
+}
+
+/**
+ * Reads the parsed document a brief provider printed as a `brief-report`. See
+ * `readReport` for the checks, in order.
+ */
+export function readBriefReport(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["brief-report"], running: PHAX_RELEASE },
+): Either.Either<BriefReportFile, ReportError> {
+  return readReport("brief-report", decodeBriefReportFile, input, bounds);
+}
+
+/**
+ * The one-line reason a report was not read. It always ends by naming the
+ * URL the reader reads: a refused other format and an older shape already
+ * do, and every other reason gets it appended.
+ */
+export function describeReportError(error: ReportError): string {
+  const text = error.kind === "malformed" ? error.reason : error.message;
+  return text.endsWith(error.reads) ? text : `${text}; this phax reads ${error.reads}`;
 }
 
 /** Reads a phase worktree's `.phax-context/brief-request.json`. Born with `$schema`. */

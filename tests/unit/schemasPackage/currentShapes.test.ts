@@ -21,10 +21,12 @@ import {
   parseAuthoringRecordManifest,
   parseBriefAnswer,
   parseBriefRecord,
+  parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateReport,
   parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
@@ -41,10 +43,12 @@ import {
   toLatestAuthoringRecordManifest,
   toLatestBriefAnswer,
   toLatestBriefRecord,
+  toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateReport,
   toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -208,12 +212,16 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "brief-request": latest(parseBriefRequest, toLatestBriefRequest),
   "brief-answer": latest(parseBriefAnswer, toLatestBriefAnswer),
   "brief-record": latest(parseBriefRecord, toLatestBriefRecord),
+  "gate-report": latest(parseGateReport, toLatestGateReport),
+  "brief-report": latest(parseBriefReport, toLatestBriefReport),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
 // phax never reads gate diagnostics documents or gate requests back, and reads
-// a brief answer only as a provider's answer, through readBriefAnswer.
+// a brief answer only as a provider's answer, through readBriefAnswer. It
+// reads a gate report or a brief report only as a provider's answer too,
+// through readGateReport and readBriefReport, which name no file.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -235,6 +243,8 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "brief-request": readBriefRequestFile,
   "brief-answer": undefined,
   "brief-record": readBriefRecordFile,
+  "gate-report": undefined,
+  "brief-report": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);
