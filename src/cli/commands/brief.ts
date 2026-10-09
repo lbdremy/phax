@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig, locateWorkingTree } from "../../app/loadConfig.js";
 import { pullBrief } from "../../app/pullBrief.js";
-import { renderNoBrief, renderWholeBrief } from "../../domain/brief/render.js";
+import { isEmptyBrief, renderNoBrief, renderWholeBrief } from "../../domain/brief/render.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { reportConfigError } from "./reportConfigError.js";
@@ -29,7 +29,9 @@ export async function runBrief(
   }
   const { brief } = configResult.right;
   if (brief === undefined) {
-    out.error('✗ No brief provider is configured: add "brief": { "command": "…" } to phax.json');
+    out.error(
+      '✗ No brief provider is configured: add "brief": { "command": "…", "push": "findings" } to phax.json',
+    );
     return 1;
   }
 
@@ -50,9 +52,7 @@ export async function runBrief(
     return 1;
   }
   out.log(
-    result.answer.guarantees.length === 0
-      ? renderNoBrief(result.files)
-      : renderWholeBrief(result.answer),
+    isEmptyBrief(result.report) ? renderNoBrief(result.files) : renderWholeBrief(result.report),
   );
   return 0;
 }

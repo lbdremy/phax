@@ -1,258 +1,288 @@
 import { describe, expect, it } from "vitest";
 import {
   BRIEF_PUSH_CAP,
+  isEmptyBrief,
   renderBriefSection,
   renderNoBrief,
   renderWholeBrief,
 } from "../../src/domain/brief/render.js";
-import type { BriefAnswer, BriefGuarantee } from "../../src/schemas/brief.js";
+import type { BriefFinding, BriefReport, BriefRule } from "../../src/schemas/briefReport.js";
 
-// Made-up guarantees, paths and wording throughout.
+// The spec §6 brief report, made up, and made-up rules and findings below.
+const GUIDE = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
+
+const EXPORTS_RULE: BriefRule = {
+  rule: "a module under src/ exports its function",
+  files: ["src/greet.ts", "src/farewell.ts"],
+  guide: null,
+};
+
+const NO_IMPORT_RULE: BriefRule = {
+  rule: "a module under src/ imports no node: module",
+  files: ["src/greet.ts", "src/farewell.ts"],
+  guide: GUIDE,
+};
+
+const GREET_FINDING: BriefFinding = {
+  id: "no-node-import src/greet.ts node:fs",
+  rule: "a module under src/ imports no node: module",
+  location: { file: "src/greet.ts", lines: [1, 1] },
+  message: "imports node:fs",
+  related: [],
+  guide: GUIDE,
+  due: "this-phase",
+};
+
+const FAREWELL_FINDING: BriefFinding = {
+  id: "exports-function src/farewell.ts",
+  rule: "a module under src/ exports its function",
+  location: { file: "src/farewell.ts", lines: null },
+  message: "no exported function",
+  related: [],
+  guide: null,
+  due: "later",
+};
+
+const REPORT: BriefReport = {
+  rules: [EXPORTS_RULE, NO_IMPORT_RULE],
+  findings: [GREET_FINDING, FAREWELL_FINDING],
+};
+
+const EMPTY: BriefReport = { rules: [], findings: [] };
+
 const INSTRUCTIONS = [
-  "Before touching any file, planned or not, existing or not yet created, run `phax brief <path> [<path>…]` to see the guarantees over it, their state there, what is wrong and how to repair it.",
+  "Before touching any file, planned or not, existing or not yet created, run `phax brief <path> [<path>…]` to see the rules over it, what fails there and how to fix it.",
   "`phax brief` with no path prints this phase's brief whole, as the code stands now.",
   "To learn where the phase stands, run the gate commands listed under Execution rules. The brief never fails the phase.",
-].join("\n");
+];
 
-function metGuarantee(id: string): BriefGuarantee {
-  return {
-    id,
-    statement: `statement of ${id}`,
-    places: [{ location: { file: `src/${id}.ts` }, state: "met" }],
-  };
-}
+const GREET_LINE =
+  "- src/greet.ts:1 — a module under src/ imports no node: module — imports node:fs · guide: keep I/O in the module's caller (read guides/no-node-import.md)";
 
 function lines(section: string): string[] {
   return section.split("\n");
 }
 
-describe("renderBriefSection — answered", () => {
-  it("opens with the heading and intro", () => {
-    const section = renderBriefSection({ kind: "answered", answer: { guarantees: [] } });
-    expect(lines(section).slice(0, 3)).toEqual([
+/** The section's item lines: everything between the intro and the instructions. */
+function body(section: string): string[] {
+  const all = lines(section);
+  return all.slice(4, all.length - INSTRUCTIONS.length - 1);
+}
+
+function finding(n: number, due: BriefFinding["due"]): BriefFinding {
+  return {
+    id: `finding-${n}`,
+    rule: `rule ${n}`,
+    location: { file: `src/f${n}.ts`, lines: [n, n] },
+    message: `message ${n}`,
+    related: [],
+    guide: null,
+    due,
+  };
+}
+
+function rule(n: number): BriefRule {
+  return { rule: `rule ${n}`, files: [`src/r${n}.ts`], guide: null };
+}
+
+describe("renderBriefSection — findings", () => {
+  const section = renderBriefSection({ kind: "answered", report: REPORT }, "findings");
+
+  it("opens with the heading and the findings intro, and ends with the three instructions", () => {
+    expect(lines(section).slice(0, 4)).toEqual([
       "## Brief for this phase",
       "",
-      "What the project's standard expects of the files this phase plans, and how each expectation stands, in the provider's order. It informs; the gate decides.",
+      "What fails in this phase's planned files and is due in this phase, in the provider's order. It informs; the gate decides.",
+      "",
+    ]);
+    expect(lines(section).slice(-4)).toEqual(["", ...INSTRUCTIONS]);
+  });
+
+  it("lists only what is due this phase: one line with location, rule, message and guide", () => {
+    expect(body(section)).toEqual([GREET_LINE]);
+    expect(section).not.toContain("src/farewell.ts");
+    expect(section).not.toContain("- rule:");
+  });
+
+  it("never shows a finding id", () => {
+    expect(section).not.toContain("no-node-import src/greet.ts node:fs");
+  });
+
+  it("never pushes a finding with a null due", () => {
+    const report: BriefReport = { rules: [], findings: [{ ...GREET_FINDING, due: null }] };
+    expect(body(renderBriefSection({ kind: "answered", report }, "findings"))).toEqual([
+      "Nothing in this phase's planned files is due in this phase.",
     ]);
   });
 
-  it("caps 53 guarantees at 50, in order, then names the 3 not shown and phax brief", () => {
-    const ids = Array.from({ length: 53 }, (_, n) => `g${String(n + 1).padStart(2, "0")}`);
-    const answer: BriefAnswer = {
-      guarantees: ids.map((id, n) =>
-        n === 0
-          ? {
-              id,
-              statement: "nothing under src/ reads the clock",
-              places: [
-                {
-                  location: { file: "src/a.ts", line: 3 },
-                  state: "forbidden",
-                  due: "this-phase",
-                  what: "W1",
-                  repair: "R1",
-                },
-              ],
-            }
-          : metGuarantee(id),
-      ),
-    };
-    const section = renderBriefSection({ kind: "answered", answer });
-    const guaranteeLines = lines(section).filter((line) => line.startsWith("- "));
-    expect(BRIEF_PUSH_CAP).toBe(50);
-    expect(guaranteeLines).toHaveLength(51);
-    expect(guaranteeLines.slice(0, 50).map((line) => line.split(" ")[1])).toEqual(ids.slice(0, 50));
-    const g01 = guaranteeLines[0] ?? "";
-    expect(g01).toBe(
-      "- g01 — nothing under src/ reads the clock · forbidden src/a.ts:3 (this phase)",
-    );
-    expect(g01).not.toContain("W1");
-    expect(g01).not.toContain("R1");
-    expect(section).not.toContain("g51");
-    const notShown = guaranteeLines[50] ?? "";
-    expect(notShown).toBe("- …and 3 more not shown. `phax brief` prints the phase's brief whole.");
-  });
-
-  it("shows exactly 50 guarantees with no not-shown line", () => {
-    const answer: BriefAnswer = {
-      guarantees: Array.from({ length: 50 }, (_, n) => metGuarantee(`g${n + 1}`)),
-    };
-    const section = renderBriefSection({ kind: "answered", answer });
-    expect(section).not.toContain("not shown");
-  });
-
-  it("renders later, null due, accepted and missing places, skipping met ones", () => {
-    const answer: BriefAnswer = {
-      guarantees: [
-        {
-          id: "cli-registered",
-          statement: "every command is registered",
-          places: [
-            { location: { file: "src/cli/a.ts" }, state: "met" },
-            {
-              location: { file: "src/cli/index.ts" },
-              state: "missing",
-              due: "later",
-              what: "absent",
-              repair: "register it",
-            },
-            {
-              location: { file: "src/cli/b.ts", line: 7 },
-              state: "forbidden",
-              due: null,
-              what: "bad",
-              repair: "fix it",
-            },
-            {
-              location: { file: "src/legacy.ts", line: 40 },
-              state: "accepted",
-              what: "known debt",
-            },
-          ],
-        },
+  it("renders a ranged location as file:N-M and a finding without guide with no guide suffix", () => {
+    const report: BriefReport = {
+      rules: [],
+      findings: [
+        { ...FAREWELL_FINDING, location: { file: "src/cli.ts", lines: [3, 5] }, due: "this-phase" },
       ],
     };
-    const section = renderBriefSection({ kind: "answered", answer });
-    expect(section).toContain(
-      "- cli-registered — every command is registered · missing src/cli/index.ts (later) · forbidden src/cli/b.ts:7 · accepted src/legacy.ts:40",
+    expect(body(renderBriefSection({ kind: "answered", report }, "findings"))).toEqual([
+      "- src/cli.ts:3-5 — a module under src/ exports its function — no exported function",
+    ]);
+  });
+});
+
+describe("renderBriefSection — findings-and-rules", () => {
+  const section = renderBriefSection({ kind: "answered", report: REPORT }, "findings-and-rules");
+
+  it("names the rules in its intro", () => {
+    expect(lines(section)[2]).toBe(
+      "What fails in this phase's planned files and is due in this phase, then the rules over those files, in the provider's order. It informs; the gate decides.",
     );
-    expect(section).not.toContain("src/cli/a.ts");
-    expect(section).not.toContain("known debt");
   });
 
-  it("marks a guarantee whose every place is met", () => {
-    const section = renderBriefSection({
-      kind: "answered",
-      answer: { guarantees: [metGuarantee("pure-core")] },
-    });
-    expect(section).toContain("- pure-core — statement of pure-core · met");
+  it("lists the due findings, then one line per rule in the report's order", () => {
+    expect(body(section)).toEqual([
+      GREET_LINE,
+      "- rule: a module under src/ exports its function — src/greet.ts, src/farewell.ts",
+      "- rule: a module under src/ imports no node: module — src/greet.ts, src/farewell.ts · guide: keep I/O in the module's caller (read guides/no-node-import.md)",
+    ]);
+    expect(section).not.toContain("no exported function");
   });
+});
 
-  it("keeps the provider's order, duplicates included", () => {
-    const section = renderBriefSection({
-      kind: "answered",
-      answer: { guarantees: [metGuarantee("zeta"), metGuarantee("alpha"), metGuarantee("zeta")] },
-    });
-    const ids = lines(section)
-      .filter((line) => line.startsWith("- "))
-      .map((line) => line.split(" ")[1]);
-    expect(ids).toEqual(["zeta", "alpha", "zeta"]);
-  });
-
-  it("says the provider has nothing to report on an empty answer", () => {
-    const section = renderBriefSection({ kind: "answered", answer: { guarantees: [] } });
-    expect(section).toContain(
-      "The brief provider has nothing to report on this phase's planned files.",
+describe("the pushed brief stops at 50 lines", () => {
+  it("45 due findings, 5 later and 10 rules give 45 findings, 5 rules and 5 more", () => {
+    const report: BriefReport = {
+      rules: Array.from({ length: 10 }, (_, n) => rule(n + 1)),
+      findings: [
+        ...Array.from({ length: 45 }, (_, n) => finding(n + 1, "this-phase")),
+        ...Array.from({ length: 5 }, (_, n) => finding(n + 46, "later")),
+      ],
+    };
+    const items = body(renderBriefSection({ kind: "answered", report }, "findings-and-rules"));
+    expect(BRIEF_PUSH_CAP).toBe(50);
+    expect(items).toHaveLength(51);
+    expect(items.slice(0, 45).map((line) => line.split(" ")[1])).toEqual(
+      Array.from({ length: 45 }, (_, n) => `src/f${n + 1}.ts:${n + 1}`),
     );
+    expect(items.slice(45, 50)).toEqual(
+      Array.from({ length: 5 }, (_, n) => `- rule: rule ${n + 1} — src/r${n + 1}.ts`),
+    );
+    expect(items[50]).toBe("- …and 5 more not shown. `phax brief` prints the phase's brief whole.");
+    expect(items.join("\n")).not.toContain("src/f46.ts");
+  });
+
+  it("shows exactly 50 items with no overflow line", () => {
+    const report: BriefReport = {
+      rules: [],
+      findings: Array.from({ length: 50 }, (_, n) => finding(n + 1, "this-phase")),
+    };
+    const items = body(renderBriefSection({ kind: "answered", report }, "findings"));
+    expect(items).toHaveLength(50);
+    expect(items.join("\n")).not.toContain("more not shown");
+  });
+});
+
+describe("nothing to push", () => {
+  it("findings: a report whose only finding is due later is one line", () => {
+    const report: BriefReport = { rules: [NO_IMPORT_RULE], findings: [FAREWELL_FINDING] };
+    const section = renderBriefSection({ kind: "answered", report }, "findings");
+    expect(body(section)).toEqual(["Nothing in this phase's planned files is due in this phase."]);
+    expect(lines(section).slice(-3)).toEqual(INSTRUCTIONS);
+  });
+
+  it("findings-and-rules: a report with no rule and no finding is one line", () => {
+    const section = renderBriefSection({ kind: "answered", report: EMPTY }, "findings-and-rules");
+    expect(body(section)).toEqual(["The brief lists nothing for this phase's planned files."]);
+    expect(lines(section).slice(-3)).toEqual(INSTRUCTIONS);
   });
 });
 
 describe("renderBriefSection — failed", () => {
-  it("says the brief is unavailable and why", () => {
-    const section = renderBriefSection({
-      kind: "failed",
-      reason: "brief provider exited with code 1",
-    });
-    expect(section).toContain(
-      "The brief is unavailable at phase start (brief provider exited with code 1). `phax brief` may still answer.",
-    );
-  });
-});
-
-describe("renderBriefSection — every variant", () => {
-  it("ends with the three instructions after a blank line", () => {
-    const variants = [
-      renderBriefSection({ kind: "answered", answer: { guarantees: [metGuarantee("g01")] } }),
-      renderBriefSection({ kind: "answered", answer: { guarantees: [] } }),
-      renderBriefSection({ kind: "failed", reason: "brief provider timed out" }),
-    ];
-    for (const section of variants) {
-      expect(section.endsWith(`\n\n${INSTRUCTIONS}`)).toBe(true);
-    }
-  });
+  it.each(["findings", "findings-and-rules"] as const)(
+    "gives the unavailable line and the instructions with push %s",
+    (push) => {
+      const section = renderBriefSection(
+        { kind: "failed", reason: "brief provider timed out" },
+        push,
+      );
+      expect(body(section)).toEqual([
+        "The brief is unavailable at phase start (brief provider timed out). `phax brief` may still answer.",
+      ]);
+      expect(lines(section).slice(-3)).toEqual(INSTRUCTIONS);
+    },
+  );
 });
 
 describe("renderWholeBrief", () => {
-  it("prints every place with its state, location, due, what and repair", () => {
-    const answer: BriefAnswer = {
-      guarantees: [
-        {
-          id: "core-no-adapters",
-          statement: "src/core imports no adapter from src/infra",
-          places: [
-            {
-              location: { file: "src/core/billing/invoice.ts", line: 3 },
-              state: "forbidden",
-              due: "this-phase",
-              what: "imports src/infra/stripe.ts",
-              repair: "depend on PaymentPort from src/core/billing/port.ts",
-            },
-            { location: { file: "src/core/billing/port.ts" }, state: "met" },
-          ],
-        },
-        {
-          id: "money-as-cents",
-          statement: "amounts are integer cents",
-          places: [
-            {
-              location: { file: "src/core/billing/tax.ts" },
-              state: "missing",
-              due: "later",
-              what: "tax amounts are computed as floats in the plan",
-              repair: "compute tax in integer cents",
-            },
-            {
-              location: { file: "src/core/billing/legacy.ts", line: 40 },
-              state: "accepted",
-              what: "floats kept for the old export",
-            },
-            {
-              location: { file: "src/core/billing/rates.ts" },
-              state: "forbidden",
-              due: null,
-              what: "rates are floats",
-              repair: "store rates in basis points",
-            },
-          ],
-        },
-      ],
-    };
-    expect(renderWholeBrief(answer)).toBe(
+  it("prints the rules with their files and guides, then the findings with due, rule, message and guide", () => {
+    expect(renderWholeBrief(REPORT)).toBe(
       [
-        "core-no-adapters — src/core imports no adapter from src/infra",
-        "  forbidden  src/core/billing/invoice.ts:3   due this phase",
-        "    what:    imports src/infra/stripe.ts",
-        "    repair:  depend on PaymentPort from src/core/billing/port.ts",
-        "  met        src/core/billing/port.ts",
-        "money-as-cents — amounts are integer cents",
-        "  missing    src/core/billing/tax.ts   due later",
-        "    what:    tax amounts are computed as floats in the plan",
-        "    repair:  compute tax in integer cents",
-        "  accepted   src/core/billing/legacy.ts:40",
-        "    what:    floats kept for the old export",
-        "  forbidden  src/core/billing/rates.ts",
-        "    what:    rates are floats",
-        "    repair:  store rates in basis points",
+        "Rules",
+        "  a module under src/ exports its function",
+        "    files:  src/greet.ts, src/farewell.ts",
+        "  a module under src/ imports no node: module",
+        "    files:  src/greet.ts, src/farewell.ts",
+        "    guide:  keep I/O in the module's caller (read guides/no-node-import.md)",
+        "Findings",
+        "  src/greet.ts:1   due this phase",
+        "    rule:   a module under src/ imports no node: module",
+        "    found:  imports node:fs",
+        "    guide:  keep I/O in the module's caller (read guides/no-node-import.md)",
+        "  src/farewell.ts   due later",
+        "    rule:   a module under src/ exports its function",
+        "    found:  no exported function",
       ].join("\n"),
     );
   });
 
-  it("prints all 53 guarantees in the provider's order, with no cap", () => {
-    const ids = Array.from({ length: 53 }, (_, n) => `g${String(n + 1).padStart(2, "0")}`);
-    const whole = renderWholeBrief({ guarantees: ids.map(metGuarantee) });
-    const headers = lines(whole).filter((line) => !line.startsWith(" "));
-    expect(headers).toEqual(ids.map((id) => `${id} — statement of ${id}`));
-    expect(whole).not.toContain("not shown");
+  it("prints each related location under its finding, and nothing for a null due", () => {
+    const report: BriefReport = {
+      rules: [],
+      findings: [
+        {
+          ...GREET_FINDING,
+          due: null,
+          related: [
+            { file: "src/cli.ts", lines: [3, 5], why: "the caller, where the read belongs" },
+          ],
+        },
+      ],
+    };
+    expect(renderWholeBrief(report)).toBe(
+      [
+        "Findings",
+        "  src/greet.ts:1",
+        "    rule:   a module under src/ imports no node: module",
+        "    found:  imports node:fs",
+        "    also involves src/cli.ts:3-5 — the caller, where the read belongs",
+        "    guide:  keep I/O in the module's caller (read guides/no-node-import.md)",
+      ].join("\n"),
+    );
+  });
+
+  it("never prints a finding id", () => {
+    expect(renderWholeBrief(REPORT)).not.toContain("no-node-import src/greet.ts");
+    expect(renderWholeBrief(REPORT)).not.toContain("exports-function src/farewell.ts");
+  });
+
+  it("prints rules alone when there is no finding", () => {
+    expect(renderWholeBrief({ rules: [EXPORTS_RULE], findings: [] })).toBe(
+      [
+        "Rules",
+        "  a module under src/ exports its function",
+        "    files:  src/greet.ts, src/farewell.ts",
+      ].join("\n"),
+    );
   });
 });
 
-describe("renderNoBrief", () => {
-  it("names the paths asked about", () => {
-    expect(renderNoBrief(["src/x.ts"])).toBe("No brief for src/x.ts.");
-    expect(renderNoBrief(["src/x.ts", "src/y.ts"])).toBe("No brief for src/x.ts, src/y.ts.");
+describe("isEmptyBrief and renderNoBrief", () => {
+  it("is empty only with no rule and no finding", () => {
+    expect(isEmptyBrief(EMPTY)).toBe(true);
+    expect(isEmptyBrief({ rules: [EXPORTS_RULE], findings: [] })).toBe(false);
+    expect(isEmptyBrief({ rules: [], findings: [FAREWELL_FINDING] })).toBe(false);
   });
 
-  it("names the phase's planned files for the phase's brief", () => {
+  it("names the paths, or the phase's planned files for the phase's brief", () => {
+    expect(renderNoBrief(["src/a.ts", "src/b.ts"])).toBe("No brief for src/a.ts, src/b.ts.");
     expect(renderNoBrief(null)).toBe("No brief for this phase's planned files.");
   });
 });

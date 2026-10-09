@@ -5,7 +5,7 @@
 import { JSONSchema, SchemaAST, type Schema } from "effect";
 import { RecordManifestSchema } from "../../../src/schemas/authoringRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { briefAnswerFormat, briefRecordFormat, briefRequestFormat } from "../src/formats/brief.js";
+import { briefRecordFormat, briefRequestFormat } from "../src/formats/brief.js";
 import {
   authoringRecordManifestFormat,
   phaseRecordManifestFormat,
@@ -88,16 +88,14 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "spec-approval-record": specApprovalRecordFormat,
   "gate-request": gateRequestFormat,
   "brief-request": briefRequestFormat,
-  "brief-answer": briefAnswerFormat,
   "brief-record": briefRecordFormat,
   "gate-report": gateReportFormat,
   "brief-report": briefReportFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
-// timeline files keep effect's default and ignore unknown keys, as does the
-// brief answer a provider prints; every other decoder passes
-// `onExcessProperty: "error"`.
+// timeline files keep effect's default and ignore unknown keys; every other
+// decoder passes `onExcessProperty: "error"`.
 const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   registry: "ignore",
   "run-status": "ignore",
@@ -116,7 +114,6 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "spec-approval-record": "error",
   "gate-request": "error",
   "brief-request": "error",
-  "brief-answer": "ignore",
   "brief-record": "error",
   "gate-report": "error",
   "brief-report": "error",

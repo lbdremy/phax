@@ -13,19 +13,31 @@ export function formatParseError(err: ParseResult.ParseError): string {
 // A config layer's decode failure, one issue per line as formatParseError
 // prints it, except that a gate step whose `output` is not an allowed value
 // reads `gate step "<command>": output must be "log" or "gate-report"` — the
-// command found in `raw` at the issue's step path.
+// command found in `raw` at the issue's step path — and a missing or other
+// `brief.push` reads `brief.push must be "findings" or "findings-and-rules"`,
+// once, without the `brief: Expected undefined` alternative of the optional
+// `brief` key beside it.
 export function formatConfigParseError(raw: unknown, err: ParseResult.ParseError): string {
   const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
-  return issues
+  const pushRefused = issues.some(({ path }) => isBriefPush(path));
+  const lines = issues
+    .filter(({ path }) => !(pushRefused && path.length === 1 && path[0] === "brief"))
     .map((issue) => {
       const command = gateStepOutputCommand(raw, issue.path);
       if (command !== undefined) {
         return `  gate step ${JSON.stringify(command)}: output must be "log" or "gate-report"`;
       }
+      if (isBriefPush(issue.path)) {
+        return '  brief.push must be "findings" or "findings-and-rules"';
+      }
       const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "(root)";
       return `  ${path}: ${issue.message}`;
-    })
-    .join("\n");
+    });
+  return [...new Set(lines)].join("\n");
+}
+
+function isBriefPush(path: ReadonlyArray<PropertyKey>): boolean {
+  return path.length === 2 && path[0] === "brief" && path[1] === "push";
 }
 
 // The step's command when `path` is `…gateProfiles.<profile>.<index>.output`.

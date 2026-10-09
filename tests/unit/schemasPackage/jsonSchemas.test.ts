@@ -11,7 +11,6 @@ import {
   type JsonSchemaFormat,
 } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
-  briefAnswerFormat,
   briefRecordFormat,
   briefRequestFormat,
 } from "../../../packages/schemas/src/formats/brief.js";
@@ -94,7 +93,6 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "spec-approval-record": specApprovalRecordFormat.current.shape.decode,
   "gate-request": gateRequestFormat.current.shape.decode,
   "brief-request": briefRequestFormat.current.shape.decode,
-  "brief-answer": briefAnswerFormat.current.shape.decode,
   "brief-record": briefRecordFormat.current.shape.decode,
   "gate-report": gateReportFormat.current.shape.decode,
   "brief-report": briefReportFormat.current.shape.decode,
@@ -154,7 +152,6 @@ describe("the JSON Schema table", () => {
       planApprovalRecordFormat,
       specApprovalRecordFormat,
       briefRequestFormat,
-      briefAnswerFormat,
       briefRecordFormat,
       gateReportFormat,
       briefReportFormat,
@@ -175,16 +172,15 @@ describe("the JSON Schema table", () => {
       "phase-status",
       "gate-attribution",
       "phase-file-reconciliation",
-      "brief-answer",
     ]);
   });
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 22 files and no failure", () => {
+  it("renders 21 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(22);
+    expect(rendered.files.size).toBe(21);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

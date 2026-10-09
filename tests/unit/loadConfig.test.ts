@@ -161,6 +161,36 @@ describe("loadConfig gate step output", () => {
   });
 });
 
+const PUSH_REFUSAL = 'brief.push must be "findings" or "findings-and-rules"';
+
+describe("loadConfig brief.push", () => {
+  it.each([
+    ["no push", { command: "node ./brief.mjs" }],
+    ["push rules", { command: "node ./brief.mjs", push: "rules" }],
+  ])(
+    "refuses a phax.json brief with %s, naming the file, brief.push and both values",
+    (_n, brief) => {
+      writePhaxJson({ ...baseConfig, brief });
+      const result = loadConfig(repoDir);
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ConfigValidationError);
+        expect(result.left.message).toContain(join(repoDir, "phax.json"));
+        expect(result.left.message).toContain(PUSH_REFUSAL);
+      }
+    },
+  );
+
+  it("loads a brief that pushes findings", () => {
+    writePhaxJson({ ...baseConfig, brief: { command: "node ./brief.mjs", push: "findings" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.brief).toEqual({
+      command: "node ./brief.mjs",
+      push: "findings",
+    });
+  });
+});
+
 describe("loadConfig extractPlan resolution", () => {
   it("defaults to DEFAULT_EXTRACT_MODEL and low effort when no extractPlan config", () => {
     writePhaxJson(baseConfig);

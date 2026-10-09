@@ -4,11 +4,8 @@ import { fileURLToPath } from "node:url";
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  LAST_RELEASE_WITHOUT_BRIEF_ANSWER,
   currentSchemaUrl,
-  describeBriefAnswerError,
   describeReportError,
-  readBriefAnswer,
   readBriefRecordFile,
   readBriefReport,
   readBriefRequestFile,
@@ -31,7 +28,6 @@ import {
   readSpecRecordFile,
   withSchemaUrl,
   type AnswerBounds,
-  type BriefAnswerError,
   type MissingFact,
   type PersistedReadError,
   type PersistedSpec,
@@ -609,173 +605,6 @@ describe("documents from another release", () => {
   });
 });
 
-// A development build opened at 0.21.0, while a format's current stamp is
-// 0.20.0 (unchanged this cycle) or 0.21.0 (changed this cycle).
-const UNCHANGED = { current: "0.20.0", running: "0.21.0" } as const;
-const CHANGED = { current: "0.21.0", running: "0.21.0" } as const;
-
-function briefRefusal(input: unknown, bounds?: AnswerBounds): BriefAnswerError {
-  const result = readBriefAnswer(input, bounds);
-  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
-  return result.left;
-}
-
-describe("readBriefAnswer", () => {
-  const guarantee = {
-    id: "core-no-adapters",
-    statement: "src/core imports no adapter from src/infra",
-    places: [
-      {
-        location: { file: "src/core/billing/invoice.ts", line: 3 },
-        state: "forbidden",
-        due: "this-phase",
-        what: "imports src/infra/stripe.ts",
-        repair: "depend on PaymentPort from src/core/billing/port.ts",
-      },
-      { location: { file: "src/core/billing/port.ts" }, state: "met" },
-    ],
-  } as const;
-
-  const at = (release: string) => ({
-    $schema: schemaUrl("brief-answer", release),
-    guarantees: [guarantee],
-  });
-
-  it("is pinned to the release current when the format was added", () => {
-    expect(LAST_RELEASE_WITHOUT_BRIEF_ANSWER).toBe("0.19.0");
-  });
-
-  it("decodes an answer at the current stamp and drops $schema and extra keys", () => {
-    const result = readBriefAnswer({
-      $schema: currentSchemaUrl("brief-answer"),
-      guarantees: [guarantee],
-      generator: "example-brief",
-    });
-    expect(result).toEqual(Either.right({ guarantees: [guarantee] }));
-  });
-
-  it("decodes an empty answer", () => {
-    const answer = { $schema: currentSchemaUrl("brief-answer"), guarantees: [] };
-    expect(readBriefAnswer(answer)).toEqual(Either.right({ guarantees: [] }));
-  });
-
-  it("reads every stamp from the current stamp up to the running version", () => {
-    for (const bounds of [UNCHANGED, CHANGED]) {
-      expect(readBriefAnswer(at("0.21.0"), bounds)).toEqual(
-        Either.right({ guarantees: [guarantee] }),
-      );
-    }
-    expect(readBriefAnswer(at("0.20.0"), UNCHANGED)).toEqual(
-      Either.right({ guarantees: [guarantee] }),
-    );
-  });
-
-  it("refuses a stamp above the running version by name", () => {
-    expect(briefRefusal(at("0.22.0"), UNCHANGED)).toEqual({
-      kind: "newer",
-      reason: "brief-answer 0.22.0 is newer than this phax (0.21.0) — upgrade phax to read it",
-    });
-  });
-
-  it("refuses a stamp below the current stamp as an older shape, naming the URL it reads", () => {
-    expect(briefRefusal(at("0.20.0"), CHANGED)).toEqual({
-      kind: "older",
-      reason:
-        "brief-answer 0.20.0 is an older shape — this phax reads https://docs.phax.run/schemas/brief-answer/0.21.0.json",
-    });
-  });
-
-  it("keeps 'has no known shape' at or below 0.19.0, whatever the bounds", () => {
-    for (const bounds of [UNCHANGED, CHANGED]) {
-      expect(briefRefusal(at("0.19.0"), bounds)).toEqual({
-        kind: "schema",
-        reason: "brief-answer 0.19.0 has no known shape",
-      });
-    }
-  });
-
-  it("refuses an answer without $schema", () => {
-    expect(briefRefusal({ guarantees: [] })).toEqual({
-      kind: "schema",
-      reason: "a brief-answer document must carry $schema",
-    });
-  });
-
-  it.each([
-    ["a gate-attribution URL", currentSchemaUrl("gate-attribution")],
-    ["not a url", "not a url"],
-    ["a number", 4],
-  ])("refuses %s at $schema, naming the value", (_name, value) => {
-    const error = briefRefusal({ $schema: value, guarantees: [] });
-    expect(error.kind).toBe("schema");
-    expect(error.reason).toContain(JSON.stringify(value));
-  });
-
-  it("refuses a release at or below the last release without the format", () => {
-    expect(briefRefusal({ $schema: schemaUrl("brief-answer", "0.18.0"), guarantees: [] })).toEqual({
-      kind: "schema",
-      reason: "brief-answer 0.18.0 has no known shape",
-    });
-  });
-
-  it("refuses a variant violation as a shape error", () => {
-    const error = briefRefusal({
-      $schema: currentSchemaUrl("brief-answer"),
-      guarantees: [{ ...guarantee, places: [{ location: { file: "a.ts" }, state: "stale" }] }],
-    });
-    expect(error.kind).toBe("shape");
-    expect(error.reason).toMatch(/^schema mismatch: /);
-  });
-
-  it("refuses a non-object as a shape error and never throws", () => {
-    for (const value of [null, undefined, 3, "text", ["a"]]) {
-      expect(briefRefusal(value).kind).toBe("shape");
-    }
-  });
-
-  it("describes each error in one line that names the URL this phax reads", () => {
-    const reads = `this phax reads ${currentSchemaUrl("brief-answer")}`;
-    expect(describeBriefAnswerError({ kind: "schema", reason: "x" })).toBe(
-      `brief answer refused at $schema: x; ${reads}`,
-    );
-    expect(describeBriefAnswerError({ kind: "newer", reason: "y" })).toBe(
-      `brief answer refused at $schema: y; ${reads}`,
-    );
-    expect(describeBriefAnswerError({ kind: "shape", reason: "z" })).toBe(
-      `brief answer refused: z; ${reads}`,
-    );
-    const older = briefRefusal(at("0.20.0"), CHANGED);
-    expect(describeBriefAnswerError(older)).toBe(
-      `brief answer refused at $schema: ${older.reason}`,
-    );
-    expect(describeBriefAnswerError(briefRefusal({ guarantees: [] }))).toBe(
-      `brief answer refused at $schema: a brief-answer document must carry $schema; ${reads}`,
-    );
-  });
-
-  // The reader decodes every answer release with the current decoder, which is
-  // right only while one answer shape exists. An answer shape is the `next`
-  // snapshot or a release-named one newer than LAST_RELEASE_WITHOUT_BRIEF_ANSWER.
-  it("is written for a single answer shape", () => {
-    const dir = resolve(
-      dirname(fileURLToPath(import.meta.url)),
-      "../../packages/schemas/snapshots/brief-answer",
-    );
-    const answerShapes = readdirSync(dir)
-      .map((file) => file.replace(/\.schema\.json$/, ""))
-      .filter(
-        (name) =>
-          name === "next" ||
-          (/^\d+\.\d+\.\d+$/.test(name) &&
-            compareReleases(name, LAST_RELEASE_WITHOUT_BRIEF_ANSWER) > 0),
-      );
-    expect(
-      answerShapes,
-      "a second brief-answer answer shape: teach readBriefAnswer to decode each answer release with its own shape",
-    ).toHaveLength(1);
-  });
-});
-
 // Both reports are born at 0.21.0: `BORN` plays the release that opened them,
 // `MOVED` a later one whose current stamp moved on.
 const BORN = { current: "0.21.0", running: "0.21.0" } as const;
@@ -816,8 +645,11 @@ interface ReportReaderCase {
   readonly read: (input: unknown, bounds?: AnswerBounds) => Either.Either<unknown, ReportError>;
   readonly at: (release: string) => Readonly<Record<string, unknown>>;
   readonly url: string;
-  /** Another format's document: its id, a release and its body without `$schema`. */
-  readonly others: ReadonlyArray<readonly [FormatId, string, Readonly<Record<string, unknown>>]>;
+  /**
+   * Another format's document, known to this build or retired: its id, a
+   * release and its body without `$schema`.
+   */
+  readonly others: ReadonlyArray<readonly [string, string, Readonly<Record<string, unknown>>]>;
 }
 
 const REPORT_READERS: ReadonlyArray<ReportReaderCase> = [
@@ -856,7 +688,8 @@ describe.each(REPORT_READERS)("$format reader", ({ format, read, at, url, others
   it.each(others)(
     "refuses a %s/%s document by name, giving the URL it reads",
     (other, release, body) => {
-      const error = reportRefusal(read({ $schema: schemaUrl(other, release), ...body }, BORN));
+      const $schema = `https://docs.phax.run/schemas/${other}/${release}.json`;
+      const error = reportRefusal(read({ $schema, ...body }, BORN));
       expect(error).toEqual({
         kind: "malformed",
         reads: url,

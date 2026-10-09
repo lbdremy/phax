@@ -1,101 +1,10 @@
-// The three documents a brief provider exchanges with phax: the request on
-// its stdin, the answer it prints, and the record of one brief call. A brief
-// informs and never blocks; decoding the answer by its own `$schema` is the
-// only check phax makes on it.
+// Two of the documents of a brief: the request phax writes on a brief
+// provider's stdin, and the record of one brief call. The brief report the
+// provider prints is in briefReport.ts. A brief informs and never blocks;
+// decoding the report by its own `$schema` is the only check phax makes on it.
 import { Schema } from "effect";
 import { gateRequestFields } from "./gateRequest.js";
 import { schemaUrlField } from "./schemaUrl.js";
-
-// ── brief answer
-
-// The same shape as a diagnostics finding's location.
-const BriefLocationSchema = Schema.Struct({
-  file: Schema.NonEmptyString,
-  line: Schema.optionalWith(Schema.Int.pipe(Schema.positive()), { exact: true }),
-});
-
-const BriefDueSchema = Schema.NullOr(Schema.Literal("this-phase", "later")).annotations({
-  description:
-    "The provider's word on when the place must be resolved: this-phase, later, or null when the request carried no phase facts. phax never computes or checks it.",
-});
-
-const what = Schema.NonEmptyString.annotations({
-  description: "What stands at the place, in the provider's words.",
-});
-
-const repair = Schema.NonEmptyString.annotations({
-  description: "How to bring the place in line with the guarantee.",
-});
-
-const MetPlaceSchema = Schema.Struct({
-  location: BriefLocationSchema,
-  state: Schema.Literal("met"),
-}).annotations({ description: "The guarantee holds at the place." });
-
-const MissingPlaceSchema = Schema.Struct({
-  location: BriefLocationSchema,
-  state: Schema.Literal("missing"),
-  due: BriefDueSchema,
-  what,
-  repair,
-}).annotations({ description: "Something the guarantee requires is absent at the place." });
-
-const ForbiddenPlaceSchema = Schema.Struct({
-  location: BriefLocationSchema,
-  state: Schema.Literal("forbidden"),
-  due: BriefDueSchema,
-  what,
-  repair,
-}).annotations({ description: "Something the guarantee forbids is present at the place." });
-
-const AcceptedPlaceSchema = Schema.Struct({
-  location: BriefLocationSchema,
-  state: Schema.Literal("accepted"),
-  what,
-}).annotations({ description: "A known violation recorded as accepted debt, to leave alone." });
-
-const BriefPlaceSchema = Schema.Union(
-  MetPlaceSchema,
-  MissingPlaceSchema,
-  ForbiddenPlaceSchema,
-  AcceptedPlaceSchema,
-);
-
-/** One place a guarantee ranges over, with the guarantee's state there. */
-export type BriefPlace = Schema.Schema.Type<typeof BriefPlaceSchema>;
-
-const BriefGuaranteeSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  statement: Schema.NonEmptyString,
-  places: Schema.NonEmptyArray(BriefPlaceSchema),
-});
-
-/** One expectation of the project's standard, with the places it ranges over. */
-export type BriefGuarantee = Schema.Schema.Type<typeof BriefGuaranteeSchema>;
-
-const BriefAnswerSchema = Schema.Struct({
-  guarantees: Schema.Array(BriefGuaranteeSchema).annotations({
-    description:
-      "The guarantees that range over the requested paths, in the provider's order, which is its rank. An empty array means nothing to report.",
-  }),
-});
-
-/** A brief answer, without `$schema`: what phax reads from it. */
-export type BriefAnswer = Schema.Schema.Type<typeof BriefAnswerSchema>;
-
-/**
- * A `brief-answer` document: what a brief provider prints on stdout, read
- * through the bridge's `readBriefAnswer`. phax never writes one as a file; a
- * brief record holds it as printed. Unknown keys are ignored at every level.
- */
-export const BriefAnswerFileSchema = Schema.Struct({
-  $schema: schemaUrlField("brief-answer"),
-  ...BriefAnswerSchema.fields,
-});
-
-export type BriefAnswerFile = Schema.Schema.Type<typeof BriefAnswerFileSchema>;
-
-export const decodeBriefAnswerFile = Schema.decodeUnknownEither(BriefAnswerFileSchema);
 
 // ── brief request
 
@@ -161,7 +70,7 @@ const AnsweredOutcomeSchema = Schema.Struct({
   kind: Schema.Literal("answered"),
   answer: Schema.Record({ key: Schema.String, value: Schema.Unknown }).annotations({
     description:
-      "The brief answer as the provider printed it, its own $schema and any extra key included, never re-stamped or re-shaped. It decodes by its own $schema, with parseBriefAnswer.",
+      "The brief report as the provider printed it, its own $schema included and every key in its printed order, never re-stamped or re-shaped. It decodes by its own $schema, with parseBriefReport.",
   }),
 });
 
@@ -176,7 +85,7 @@ const FailedOutcomeSchema = Schema.Struct({
  * A `brief-record` document: one brief call, saved as `brief-NN.json` in the
  * phase folder. `brief-00.json` is the pushed brief; pulled briefs are
  * numbered from 01 in call order. Any key beyond these is refused, except
- * inside the answer, which is kept as printed.
+ * inside the answer, the brief report kept as printed.
  */
 export const BriefRecordFileSchema = Schema.Struct({
   $schema: schemaUrlField("brief-record"),

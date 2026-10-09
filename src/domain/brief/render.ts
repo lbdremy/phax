@@ -1,50 +1,61 @@
-import type { BriefAnswer, BriefGuarantee, BriefPlace } from "../../schemas/brief.js";
+import type { BriefPush } from "../../schemas/phaxConfig.js";
+import type { BriefFinding, BriefReport, BriefRule } from "../../schemas/briefReport.js";
+import type { ReportGuide } from "../../schemas/report.js";
+import { renderReportLocation } from "../reportLocation.js";
 
-/** The most guarantees the pushed brief shows; `phax brief` prints the rest. */
+/** The most item lines the pushed brief shows; `phax brief` prints the rest. */
 export const BRIEF_PUSH_CAP = 50;
 
 const HEADING = "## Brief for this phase";
 
-const INTRO =
-  "What the project's standard expects of the files this phase plans, and how each expectation stands, in the provider's order. It informs; the gate decides.";
+const INTRO: { readonly [P in BriefPush]: string } = {
+  findings:
+    "What fails in this phase's planned files and is due in this phase, in the provider's order. It informs; the gate decides.",
+  "findings-and-rules":
+    "What fails in this phase's planned files and is due in this phase, then the rules over those files, in the provider's order. It informs; the gate decides.",
+};
 
-// The three instructions every variant of the section ends with (spec §5.32).
+const NOTHING_LISTED: { readonly [P in BriefPush]: string } = {
+  findings: "Nothing in this phase's planned files is due in this phase.",
+  "findings-and-rules": "The brief lists nothing for this phase's planned files.",
+};
+
+// The three instructions every variant of the section ends with.
 const INSTRUCTIONS = [
-  "Before touching any file, planned or not, existing or not yet created, run `phax brief <path> [<path>…]` to see the guarantees over it, their state there, what is wrong and how to repair it.",
+  "Before touching any file, planned or not, existing or not yet created, run `phax brief <path> [<path>…]` to see the rules over it, what fails there and how to fix it.",
   "`phax brief` with no path prints this phase's brief whole, as the code stands now.",
   "To learn where the phase stands, run the gate commands listed under Execution rules. The brief never fails the phase.",
 ];
 
-function locationText(place: BriefPlace): string {
-  const { file, line } = place.location;
-  return line === undefined ? file : `${file}:${line}`;
+/** ` · guide: <summary> (read <read>)`, or nothing when there is no guide. */
+function guideSuffix(guide: ReportGuide | null): string {
+  return guide === null ? "" : ` · guide: ${guide.summary} (read ${guide.read})`;
 }
 
-function dueText(place: BriefPlace): string {
-  if (place.state === "met" || place.state === "accepted" || place.due === null) return "";
-  return place.due === "this-phase" ? " (this phase)" : " (later)";
+/** One finding in compact form: location, rule, message, then its guide. Never its id. */
+function findingLine(finding: BriefFinding): string {
+  return `- ${renderReportLocation(finding.location)} — ${finding.rule} — ${finding.message}${guideSuffix(finding.guide)}`;
+}
+
+/** One rule in compact form: the rule, its files, then its guide. */
+function ruleLine(rule: BriefRule): string {
+  return `- rule: ${rule.rule} — ${rule.files.join(", ")}${guideSuffix(rule.guide)}`;
 }
 
 /**
- * One guarantee in compact form: id, statement, then each non-met place's
- * state, location and due, in the provider's order. Never `what` or `repair`.
+ * The pushed items, at most `BRIEF_PUSH_CAP` lines then one overflow line:
+ * the findings due this phase in the provider's order, then, with
+ * `findings-and-rules` only, the rules in the provider's order. A finding due
+ * later, or with no due, is never pushed. One line when nothing is listed.
  */
-function compactLine(guarantee: BriefGuarantee): string {
-  const open = guarantee.places.filter((place) => place.state !== "met");
-  const tail =
-    open.length === 0
-      ? " · met"
-      : open.map((place) => ` · ${place.state} ${locationText(place)}${dueText(place)}`).join("");
-  return `- ${guarantee.id} — ${guarantee.statement}${tail}`;
-}
-
-function answeredBody(answer: BriefAnswer): readonly string[] {
-  const { guarantees } = answer;
-  if (guarantees.length === 0) {
-    return ["The brief provider has nothing to report on this phase's planned files."];
-  }
-  const shown = guarantees.slice(0, BRIEF_PUSH_CAP).map(compactLine);
-  const hidden = guarantees.length - shown.length;
+function answeredBody(report: BriefReport, push: BriefPush): readonly string[] {
+  const items = [
+    ...report.findings.filter((finding) => finding.due === "this-phase").map(findingLine),
+    ...(push === "findings-and-rules" ? report.rules.map(ruleLine) : []),
+  ];
+  if (items.length === 0) return [NOTHING_LISTED[push]];
+  const shown = items.slice(0, BRIEF_PUSH_CAP);
+  const hidden = items.length - shown.length;
   return hidden > 0
     ? [...shown, `- …and ${hidden} more not shown. \`phax brief\` prints the phase's brief whole.`]
     : shown;
@@ -52,56 +63,69 @@ function answeredBody(answer: BriefAnswer): readonly string[] {
 
 /**
  * The `## Brief for this phase` section of a phase's first prompt: the pushed
- * brief in compact form, or the line saying it is unavailable and why, then
- * the three instructions. No trailing newline.
+ * brief in compact form, as `push` chooses, or the line saying it is
+ * unavailable and why, then the three instructions. No trailing newline.
  */
 export function renderBriefSection(
   input:
-    | { readonly kind: "answered"; readonly answer: BriefAnswer }
+    | { readonly kind: "answered"; readonly report: BriefReport }
     | { readonly kind: "failed"; readonly reason: string },
+  push: BriefPush,
 ): string {
   const body =
     input.kind === "answered"
-      ? answeredBody(input.answer)
+      ? answeredBody(input.report, push)
       : [
           `The brief is unavailable at phase start (${input.reason}). \`phax brief\` may still answer.`,
         ];
-  return [HEADING, "", INTRO, "", ...body, "", ...INSTRUCTIONS].join("\n");
+  return [HEADING, "", INTRO[push], "", ...body, "", ...INSTRUCTIONS].join("\n");
 }
 
-// The widest state, `forbidden`, sets the column the locations start at.
-const STATE_WIDTH = "forbidden".length;
+function wholeGuideLines(guide: ReportGuide | null): readonly string[] {
+  return guide === null ? [] : [`    guide:  ${guide.summary} (read ${guide.read})`];
+}
 
-function wholePlaceLines(place: BriefPlace): readonly string[] {
-  const due =
-    place.state === "met" || place.state === "accepted" || place.due === null
-      ? ""
-      : place.due === "this-phase"
-        ? "   due this phase"
-        : "   due later";
-  const lines = [`  ${place.state.padEnd(STATE_WIDTH)}  ${locationText(place)}${due}`];
-  if (place.state !== "met") lines.push(`    what:    ${place.what}`);
-  if (place.state === "missing" || place.state === "forbidden") {
-    lines.push(`    repair:  ${place.repair}`);
-  }
-  return lines;
+function wholeRuleLines(rule: BriefRule): readonly string[] {
+  return [`  ${rule.rule}`, `    files:  ${rule.files.join(", ")}`, ...wholeGuideLines(rule.guide)];
+}
+
+const DUE_TEXT = { "this-phase": "   due this phase", later: "   due later" } as const;
+
+function wholeFindingLines(finding: BriefFinding): readonly string[] {
+  const due = finding.due === null ? "" : DUE_TEXT[finding.due];
+  return [
+    `  ${renderReportLocation(finding.location)}${due}`,
+    `    rule:   ${finding.rule}`,
+    `    found:  ${finding.message}`,
+    ...finding.related.map(
+      (related) => `    also involves ${renderReportLocation(related)} — ${related.why}`,
+    ),
+    ...wholeGuideLines(finding.guide),
+  ];
 }
 
 /**
- * A brief in whole form, as `phax brief` prints it: every guarantee and every
- * place in the provider's order, with state, location, due, what and repair
- * wherever the state has them. No trailing newline.
+ * A brief report in whole form, as `phax brief` prints it: under `Rules`,
+ * each rule with its files and guide; under `Findings`, each finding with its
+ * location, due, rule, message, related locations and guide; both in the
+ * provider's order. A list with nothing in it prints no heading. No trailing
+ * newline.
  */
-export function renderWholeBrief(answer: BriefAnswer): string {
-  return answer.guarantees
-    .flatMap((guarantee) => [
-      `${guarantee.id} — ${guarantee.statement}`,
-      ...guarantee.places.flatMap(wholePlaceLines),
-    ])
-    .join("\n");
+export function renderWholeBrief(report: BriefReport): string {
+  return [
+    ...(report.rules.length === 0 ? [] : ["Rules", ...report.rules.flatMap(wholeRuleLines)]),
+    ...(report.findings.length === 0
+      ? []
+      : ["Findings", ...report.findings.flatMap(wholeFindingLines)]),
+  ].join("\n");
 }
 
-/** What `phax brief` prints for an empty answer; `null` is the phase's brief. */
+/** Whether a brief report lists nothing: `phax brief` then prints `renderNoBrief`. */
+export function isEmptyBrief(report: BriefReport): boolean {
+  return report.rules.length === 0 && report.findings.length === 0;
+}
+
+/** What `phax brief` prints for an empty report; `null` is the phase's brief. */
 export function renderNoBrief(files: readonly string[] | null): string {
   return files === null
     ? "No brief for this phase's planned files."

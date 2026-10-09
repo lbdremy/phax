@@ -489,15 +489,20 @@ node ./audit.mjs < checks-attempt-01.request.json
 ### Brief provider
 
 ```json
-{ "brief": { "command": "node ./brief.mjs" } }
+{ "brief": { "command": "node ./brief.mjs", "push": "findings" } }
 ```
 
-A brief tells the agent what the project's standard expects of some paths, and how each expectation stands there. Declare `brief` in `phax.json`, `phax.local.json` or `~/.phax/config.json`; a nearer layer overrides a farther one. phax ties it to no gate step: a brief informs and never blocks, and the gate still decides. phax judges nothing in the answer; it only reads it by its `$schema`.
+A brief tells the agent which rules cover some paths, what fails there and how to fix it. Declare `brief` in `phax.json`, `phax.local.json` or `~/.phax/config.json`; the nearest layer that declares it wins whole, `command` and `push` together. Both keys are required: a `brief` without `push`, or with any other value, fails config loading with exit 2. phax ties the brief to no gate step: a brief informs and never blocks, and the gate still decides. phax judges nothing in the report; it only reads it by its `$schema`.
 
 phax asks for a brief at two moments:
 
-- **Pushed**, once when a phase starts fresh, before the agent's first turn. The answer goes into the first prompt under `## Brief for this phase`, compact: one line per guarantee, its non-`met` places with state, location and due, 50 guarantees at most. phax asks once per phase: a re-entry after a rate limit shows the recorded brief again, and a resumed phase gets no new section.
-- **Pulled**, with `phax brief [path…]`, by the agent or by you, at any time. It prints the whole form: every guarantee and place, with `what` and `repair`. It exits 0 on any answer, `[]` included, and 1 otherwise.
+- **Pushed**, once when a phase starts fresh, before the agent's first turn. It goes into the first prompt under `## Brief for this phase`, one line per item, as `push` chooses:
+  - `"findings"` lists the findings due in this phase, in your order, each with its location, rule, message and guide.
+  - `"findings-and-rules"` lists those findings, then each rule over the phase's planned files, with its files and guide.
+
+  A finding due `later`, or with a `null` due, is never pushed. At most 50 items are listed, findings first, then one line says how many more `phax brief` prints. With nothing to list, the section says so in one line. phax asks once per phase: a re-entry after a rate limit shows the recorded brief again, and a resumed phase gets no new section.
+
+- **Pulled**, with `phax brief [path…]`, by the agent or by you, at any time. It prints the whole report: each rule with its files and guide, then each finding with its location, due, rule, message, related locations and guide. It exits 0 on any readable report, an empty one included, and 1 otherwise.
 
 The request on stdin has two variants. Inside a phase, it carries the phase facts and `files`:
 
@@ -525,36 +530,54 @@ Outside a phase (`phax brief src/greet.ts` in your own checkout), it carries `fi
 - **`phase`**, **`base`**, **`terminal`** and **`phases`** hold the same values as the phase's [gate request](#gate-request).
 - **`files`** is `null` for the phase's brief (the pushed one, and `phax brief` with no path): brief the files of the `phases` entry whose `id` is `phase`. Otherwise it lists working-tree-root-relative paths, deduplicated, in the order given. phax never checks they exist; a path may name a file the phase has yet to create.
 
-The provider runs from the working tree's root, the phase worktree inside a phase. It answers:
+The provider runs from the working tree's root, the phase worktree inside a phase. It answers with a brief report:
 
 ```json
 {
-  "$schema": "https://docs.phax.run/schemas/brief-answer/0.20.0.json",
-  "guarantees": [
+  "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+  "rules": [
     {
-      "id": "hw-no-io",
-      "statement": "nothing under src/ imports a node: module",
-      "places": [
-        {
-          "location": { "file": "src/greet.ts", "line": 1 },
-          "state": "forbidden",
-          "due": "this-phase",
-          "what": "imports node:fs",
-          "repair": "remove the import; greet is pure"
-        },
-        { "location": { "file": "src/cli.ts" }, "state": "met" }
-      ]
+      "rule": "a module under src/ exports its function",
+      "files": ["src/greet.ts", "src/farewell.ts"],
+      "guide": null
+    },
+    {
+      "rule": "a module under src/ imports no node: module",
+      "files": ["src/greet.ts", "src/farewell.ts"],
+      "guide": { "summary": "keep I/O in the module's caller", "read": "guides/no-node-import.md" }
+    }
+  ],
+  "findings": [
+    {
+      "id": "no-node-import src/greet.ts node:fs",
+      "rule": "a module under src/ imports no node: module",
+      "location": { "file": "src/greet.ts", "lines": [1, 1] },
+      "message": "imports node:fs",
+      "related": [],
+      "guide": { "summary": "keep I/O in the module's caller", "read": "guides/no-node-import.md" },
+      "due": "this-phase"
+    },
+    {
+      "id": "exports-function src/farewell.ts",
+      "rule": "a module under src/ exports its function",
+      "location": { "file": "src/farewell.ts", "lines": null },
+      "message": "no exported function",
+      "related": [],
+      "guide": null,
+      "due": "later"
     }
   ]
 }
 ```
 
-- A guarantee has an `id`, a `statement` and at least one place. Each place has a `location` (`file`, optional `line`) and a `state`: `met` carries nothing else; `missing` and `forbidden` carry `due`, `what` and `repair`; `accepted` carries `what`.
-- **`due`** is `"this-phase"` or `"later"`, from what the later `phases` entries still plan, and `null` when the request carried no phase facts.
-- The order is your rank, most important first; phax never re-sorts. Extra keys are ignored. `{ "$schema": …, "guarantees": [] }` means nothing to report.
-- `$schema` names the `brief-answer` shape the answer is written in: the release that last changed the format. A later phax keeps reading it for as long as the format does not change. An answer without `$schema`, naming another format, stamped newer than the running phax or in an older shape is refused by name, and the refusal names the shape phax reads.
+- **`rules`** says what a file at the requested paths must or must not do, even a file not written yet: each `rule` with the requested `files` it covers (at least one) and its `guide`, or `null`.
+- **`findings`** says what fails at those paths. A finding has the keys of a [gate report](#gate-report-steps)'s finding (`id`, `rule`, `location`, `message`, `related` and `guide`), plus `due`.
+- **`due`** is `"this-phase"` or `"later"`, from what the later `phases` entries still plan, and `null` when the request carried no phase facts. It is your word: phax never computes or checks it.
+- **`guide`** is a `summary` and a file to `read`, relative to the working tree, that the agent reads and follows. phax never opens it.
+- The order of each list is your rank, most important first; phax never re-sorts. Every key shown is required, and a key not shown is refused at any level: there is no outcome and no review note. `{ "$schema": …, "rules": [], "findings": [] }` means nothing to report, and `phax brief` then prints `No brief for …`.
+- `$schema` names the `brief-report` shape the report is written in: the release that last changed the format. A report without `$schema`, naming another format, stamped newer than the running phax or in an older shape is refused by name, as is a finding `id` used twice or a `lines` pair out of order, and the refusal names the URL phax reads.
 
-A brief that fails (a non-zero exit, output that is not JSON, a refused answer, or more than 60 seconds; the limit is fixed) never fails the phase. A pushed brief becomes a run-output warning and a line in the prompt saying the brief is unavailable and why; a pulled one prints the reason and exits 1.
+A provider that declines to run exits non-zero, with its reason on stderr. A brief that fails (a non-zero exit, output that is not JSON, a refused report, or more than 60 seconds; the limit is fixed) never fails the phase. A pushed brief becomes a run-output warning and a line in the prompt saying the brief is unavailable and why, with the provider's stderr; a pulled one prints the reason and exits 1.
 
 Inside a phase, phax writes the phase's request to `.phax-context/brief-request.json` when the phase starts or resumes; `phax brief` reads its phase from there, from any directory of the worktree. Replay the phase's brief in the worktree:
 
@@ -562,7 +585,7 @@ Inside a phase, phax writes the phase's request to `.phax-context/brief-request.
 node ./brief.mjs < .phax-context/brief-request.json
 ```
 
-Every brief of a phase is recorded in its phase folder: `brief-00.json` for the pushed one, `brief-01.json` onwards for each pull, in call order. Each holds the request as sent and the outcome, the answer as printed. The phase record carries them; `phax records explain <commit> --briefs` prints them. A pull after the phase's record is written is answered and not recorded. Replay a recorded brief:
+Every brief of a phase is recorded in its phase folder: `brief-00.json` for the pushed one, `brief-01.json` onwards for each pull, in call order. Each holds the request as sent and the outcome: the report as printed, every key in its printed order. The phase record carries them; `phax records explain <commit> --briefs` prints them. A pull after the phase's record is written is answered and not recorded. Replay a recorded brief:
 
 ```bash
 jq -c .request brief-01.json | node ./brief.mjs
@@ -601,7 +624,6 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | File reconciliation                          | `phase-file-reconciliation` | `<record>/file-reconciliation.json`                                        | `parsePhaseFileReconciliation` | `json/phase-file-reconciliation.schema.json` |
 | Gate request                                 | `gate-request`              | `<record>/checks-attempt-NN.request.json`                                  | `parseGateRequest`             | `json/gate-request.schema.json`              |
 | Brief request                                | `brief-request`             | `<worktree>/.phax-context/brief-request.json`, `request` in a brief record | `parseBriefRequest`            | `json/brief-request.schema.json`             |
-| Brief answer                                 | `brief-answer`              | the brief provider's stdout, `outcome.answer` in a brief record            | `parseBriefAnswer`             | `json/brief-answer.schema.json`              |
 | Brief record                                 | `brief-record`              | `<record>/brief-NN.json`                                                   | `parseBriefRecord`             | `json/brief-record.schema.json`              |
 | Gate report                                  | `gate-report`               | a report step's stdout, `<record>/checks-attempt-NN.report-SS.json`        | `parseGateReport`              | `json/gate-report.schema.json`               |
 | Brief report                                 | `brief-report`              | the brief provider's stdout, `outcome.answer` in a brief record            | `parseBriefReport`             | `json/brief-report.schema.json`              |

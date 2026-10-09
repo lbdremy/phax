@@ -229,15 +229,16 @@ const FAILING_REPORT = JSON.stringify({
 });
 
 // A brief provider's stdout, stamped at the format's current stamp.
-const BRIEF_ANSWER = JSON.stringify({
-  $schema: currentSchemaUrl("brief-answer"),
-  guarantees: [
+const BRIEF_REPORT = JSON.stringify({
+  $schema: currentSchemaUrl("brief-report"),
+  rules: [
     {
-      id: "example-pure",
-      statement: "src/example.ts imports no node: module",
-      places: [{ location: { file: "src/example.ts" }, state: "met" }],
+      rule: "a module under src/ imports no node: module",
+      files: ["src/example.ts"],
+      guide: null,
     },
   ],
+  findings: [],
 });
 
 const COMPLIANCE_VERDICT = JSON.stringify({
@@ -497,7 +498,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
   // A pushed brief: the phase request file in the worktree, and brief-00.json
   // in the phase folder, from a provider answering at the format's current stamp.
-  shell.impl.setResponse("node ./brief.mjs", { exitCode: 0, stdout: BRIEF_ANSWER, stderr: "" });
+  shell.impl.setResponse("node ./brief.mjs", { exitCode: 0, stdout: BRIEF_REPORT, stderr: "" });
   const briefRequest = stampBriefRequest(
     phaseBriefRequest(
       makeGateRequest({ phaseId: "phase-01", base: BASELINE, terminal: true, phases: plan.phases }),
@@ -509,6 +510,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   await run(
     pushBrief({
       command: "node ./brief.mjs",
+      push: "findings-and-rules",
       request: briefRequest,
       worktreePath: WORKTREE,
       phaseFolderPath: PHASE_FOLDER,
@@ -611,15 +613,11 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
 /**
  * The formats no writer produces: the old approval ledgers, read only to
- * migrate them to record files and never written again, the brief answer and
- * the brief report.
+ * migrate them to record files and never written again, and the brief report.
  */
 const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "plan-approvals",
   "spec-approvals",
-  // phax never writes a brief answer as a file: it is the brief provider's
-  // stdout, held as printed inside a brief record.
-  "brief-answer",
   // phax never writes a brief report as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-report",

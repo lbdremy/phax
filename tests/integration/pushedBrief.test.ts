@@ -23,7 +23,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import type { BriefGuarantee } from "../../src/schemas/brief.js";
+import type { BriefFinding, BriefRule } from "../../src/schemas/briefReport.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
@@ -52,7 +52,7 @@ const PLAN_MD = "# Pushed brief plan\n\nMade-up phases.\n";
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 const RUN_BRANCH = "ai/my-run";
 const BRIEF_COMMAND = "node ./brief.mjs";
-const BRIEF: BriefConfig = { command: BRIEF_COMMAND };
+const BRIEF: BriefConfig = { command: BRIEF_COMMAND, push: "findings" };
 
 const AUDIT: GateStep = {
   command: "node ./audit.mjs",
@@ -62,37 +62,55 @@ const AUDIT: GateStep = {
   input: "gate-request",
 };
 
-const GUARANTEES: BriefGuarantee[] = [
+// The spec §6 brief report, made up.
+const GUIDE = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
+
+const RULES: BriefRule[] = [
   {
-    id: "greet-pure",
-    statement: "nothing under src/ imports a node: module",
-    places: [
-      {
-        location: { file: "src/greet.ts", line: 2 },
-        state: "forbidden",
-        due: "this-phase",
-        what: "imports node:fs",
-        repair: "remove the import",
-      },
-    ],
+    rule: "a module under src/ exports its function",
+    files: ["src/greet.ts", "src/farewell.ts"],
+    guide: null,
   },
   {
-    id: "index-exports",
-    statement: "src/index.ts re-exports every module",
-    places: [{ location: { file: "src/index.ts" }, state: "met" }],
+    rule: "a module under src/ imports no node: module",
+    files: ["src/greet.ts", "src/farewell.ts"],
+    guide: GUIDE,
+  },
+];
+
+const GREET_FINDING: BriefFinding = {
+  id: "no-node-import src/greet.ts node:fs",
+  rule: "a module under src/ imports no node: module",
+  location: { file: "src/greet.ts", lines: [1, 1] },
+  message: "imports node:fs",
+  related: [],
+  guide: GUIDE,
+  due: "this-phase",
+};
+
+const FINDINGS: BriefFinding[] = [
+  GREET_FINDING,
+  {
+    id: "exports-function src/farewell.ts",
+    rule: "a module under src/ exports its function",
+    location: { file: "src/farewell.ts", lines: null },
+    message: "no exported function",
+    related: [],
+    guide: null,
+    due: "later",
   },
 ];
 
 const ANSWER = {
-  $schema: currentSchemaUrl("brief-answer"),
-  guarantees: GUARANTEES,
-  note: "an extra key the provider printed",
+  $schema: currentSchemaUrl("brief-report"),
+  rules: RULES,
+  findings: FINDINGS,
 };
 
-const ANSWERED_SECTION = renderBriefSection({
-  kind: "answered",
-  answer: { guarantees: GUARANTEES },
-});
+const ANSWERED_SECTION = renderBriefSection(
+  { kind: "answered", report: { rules: RULES, findings: FINDINGS } },
+  "findings",
+);
 
 function phase(n: string, files: { create: string[]; edit: string[]; optional: string[] }) {
   return {
@@ -292,6 +310,13 @@ function briefCalls(fakeShell: Fakes["fakeShell"], command = BRIEF_COMMAND) {
   return fakeShell.impl.calls.filter((call) => call.command.join(" ") === command);
 }
 
+/** The item lines of a prompt's `## Brief for this phase` section, and of no other section. */
+function itemLines(prompt: string): string[] {
+  const start = prompt.indexOf("## Brief for this phase");
+  const section = prompt.slice(start, prompt.indexOf("\n## ", start));
+  return section.split("\n").filter((line) => line.startsWith("- "));
+}
+
 async function readJson(path: string): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
 }
@@ -358,13 +383,45 @@ describe("executePlan pushes the phase's brief", () => {
     fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false);
     addSessions(fakeBackend, ["sess-01"]);
 
-    const { execute } = await startRun(singlePhaseRawPlan, { command: "node ./b.mjs" }, layers);
+    const { execute } = await startRun(
+      singlePhaseRawPlan,
+      { command: "node ./b.mjs", push: "findings" },
+      layers,
+    );
     expect(Either.isRight(await execute(layers))).toBe(true);
 
     expect(briefCalls(fakeShell, "node ./b.mjs").map((call) => call.command)).toEqual([
       ["node", "./b.mjs"],
     ]);
     expect(briefCalls(fakeShell)).toHaveLength(0);
+  });
+
+  async function firstPrompt(brief: BriefConfig): Promise<string> {
+    await seedHandoffs(["phase-01"]);
+    const { fakeGit, fakeBackend, layers } = makeFakes({});
+    fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false);
+    addSessions(fakeBackend, ["sess-01"]);
+    const { runPath, execute } = await startRun(singlePhaseRawPlan, brief, layers);
+    expect(Either.isRight(await execute(layers))).toBe(true);
+    return readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
+  }
+
+  it('with "push": "findings", lists only the finding due this phase', async () => {
+    const prompt = await firstPrompt({ command: BRIEF_COMMAND, push: "findings" });
+    expect(itemLines(prompt)).toEqual([
+      "- src/greet.ts:1 — a module under src/ imports no node: module — imports node:fs · guide: keep I/O in the module's caller (read guides/no-node-import.md)",
+    ]);
+    expect(prompt).not.toContain("src/farewell.ts");
+  });
+
+  it('with "push": "findings-and-rules", lists that finding, then one line per rule', async () => {
+    const prompt = await firstPrompt({ command: BRIEF_COMMAND, push: "findings-and-rules" });
+    expect(itemLines(prompt)).toEqual([
+      "- src/greet.ts:1 — a module under src/ imports no node: module — imports node:fs · guide: keep I/O in the module's caller (read guides/no-node-import.md)",
+      "- rule: a module under src/ exports its function — src/greet.ts, src/farewell.ts",
+      "- rule: a module under src/ imports no node: module — src/greet.ts, src/farewell.ts · guide: keep I/O in the module's caller (read guides/no-node-import.md)",
+    ]);
+    expect(prompt).not.toContain("no exported function");
   });
 
   it("changes nothing without a brief key", async () => {
@@ -406,12 +463,54 @@ describe("a failing pushed brief never blocks the phase", () => {
       reason: "brief provider timed out after 60000ms: node ./brief.mjs",
     },
     {
-      name: "a newer answer release",
+      name: "a newer report release",
       brief: {
         kind: "answer",
-        stdout: JSON.stringify({ ...ANSWER, $schema: schemaUrl("brief-answer", "99.0.0") }),
+        stdout: JSON.stringify({ ...ANSWER, $schema: schemaUrl("brief-report", "99.0.0") }),
       },
-      reason: `brief answer refused at $schema: brief-answer 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it; this phax reads ${currentSchemaUrl("brief-answer")}`,
+      reason: `brief-report 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it; this phax reads ${currentSchemaUrl("brief-report")}`,
+    },
+    {
+      name: "a brief-answer document",
+      brief: {
+        kind: "answer",
+        stdout: JSON.stringify({
+          $schema: "https://docs.phax.run/schemas/brief-answer/0.20.0.json",
+          guarantees: [],
+        }),
+      },
+      reason: `brief-answer is not read by this phax — it reads ${currentSchemaUrl("brief-report")}`,
+    },
+    {
+      name: "a gate-report document",
+      brief: {
+        kind: "answer",
+        stdout: JSON.stringify({
+          $schema: currentSchemaUrl("gate-report"),
+          outcome: "checked",
+          findings: [],
+          review: [],
+        }),
+      },
+      reason: `gate-report is not read by this phax — it reads ${currentSchemaUrl("brief-report")}`,
+    },
+    {
+      name: "two findings sharing an id",
+      brief: {
+        kind: "answer",
+        stdout: JSON.stringify({ ...ANSWER, findings: [GREET_FINDING, GREET_FINDING] }),
+      },
+      reason: `findings: finding id "no-node-import src/greet.ts node:fs" is used twice; this phax reads ${currentSchemaUrl("brief-report")}`,
+    },
+    {
+      name: "an extra top-level review key",
+      brief: { kind: "answer", stdout: JSON.stringify({ ...ANSWER, review: [] }) },
+      reason: "review: is unexpected",
+    },
+    {
+      name: "an outcome key",
+      brief: { kind: "answer", stdout: JSON.stringify({ ...ANSWER, outcome: "checked" }) },
+      reason: "outcome: is unexpected",
     },
   ];
 
@@ -524,7 +623,7 @@ describe("re-entering a phase asks no new brief", () => {
 
     // A different answer now: the re-entry must not ask for it.
     const second = makeFakes({
-      brief: { kind: "answer", stdout: JSON.stringify({ ...ANSWER, guarantees: [] }) },
+      brief: { kind: "answer", stdout: JSON.stringify({ ...ANSWER, rules: [], findings: [] }) },
     });
     second.fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-02"), false);
     addSessions(second.fakeBackend, ["sess-02"]);

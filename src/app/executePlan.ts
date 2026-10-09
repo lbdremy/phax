@@ -767,6 +767,7 @@ export function executePlan(
           yield* writeBriefRequestOrWarn(worktreePath as string, phase.id, briefRequest);
           briefSection = yield* pushBrief({
             command: config.brief.command,
+            push: config.brief.push,
             request: briefRequest,
             worktreePath: worktreePath as string,
             phaseFolderPath,

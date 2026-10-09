@@ -24,15 +24,14 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the three brief formats and the two reports, without code-review", () => {
-    expect(FORMAT_IDS).toHaveLength(21);
-    expect(new Set(FORMAT_IDS).size).toBe(21);
-    expect(FORMAT_IDS.slice(-8)).toEqual([
+  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record and the two reports, without code-review", () => {
+    expect(FORMAT_IDS).toHaveLength(20);
+    expect(new Set(FORMAT_IDS).size).toBe(20);
+    expect(FORMAT_IDS.slice(-7)).toEqual([
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
       "brief-request",
-      "brief-answer",
       "brief-record",
       "gate-report",
       "brief-report",
@@ -47,7 +46,6 @@ describe("schemaUrl", () => {
       "spec-approval-record",
       "gate-request",
       "brief-request",
-      "brief-answer",
       "brief-record",
       "gate-report",
       "brief-report",

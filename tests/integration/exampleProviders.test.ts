@@ -12,11 +12,11 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
-import { parseBriefAnswer, parseGateReport } from "../../packages/schemas/src/index.js";
+import { parseBriefReport, parseGateReport } from "../../packages/schemas/src/index.js";
 import {
   currentSchemaUrl,
   describeReportError,
-  readBriefAnswer,
+  readBriefReport,
   readGateReport,
 } from "../../src/schemas/persisted.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
@@ -225,59 +225,83 @@ describe("examples/hello-world brief provider", () => {
     return dir;
   }
 
-  // Read as phax reads a brief, by the answer's own $schema, and as a
+  // Read as phax reads a brief, by the report's own $schema, and as a
   // consumer reads it through the schemas package.
   function briefOf(stdinPayload: string, cwd: string) {
     const { stdout, status } = runScript(briefScript, stdinPayload, cwd);
     expect(status).toBe(0);
     const printed: unknown = JSON.parse(stdout);
-    expect(parseBriefAnswer(printed).ok).toBe(true);
-    const result = readBriefAnswer(printed);
-    if (Either.isLeft(result)) throw new Error(result.left.reason);
+    expect(parseBriefReport(printed).ok).toBe(true);
+    const result = readBriefReport(printed);
+    if (Either.isLeft(result)) throw new Error(describeReportError(result.left));
+    expect(result.right.$schema).toBe(currentSchemaUrl("brief-report"));
     return result.right;
   }
 
-  it("briefs the gated phase's planned files when files is null", () => {
-    const answer = briefOf(phaseBriefRequest(null), copyWithIo());
-    expect(answer.guarantees.map((g) => g.id)).toEqual(["hw-no-io"]);
-    expect(answer.guarantees[0]?.places.map((p) => p.location.file)).toEqual(["src/io.ts"]);
+  const guide = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
+
+  function rulesOver(files: readonly string[]) {
+    return [
+      { rule: "a module under src/ exports its function", files, guide: null },
+      { rule: "a module under src/ imports no node: module", files, guide },
+    ];
+  }
+
+  it("answers both rules over the named files and the greet finding, due null outside a phase", () => {
+    const dir = mkdtempSync(join(tmpdir(), "phax-hw-brief-"));
+    cpSync(exampleDir, dir, { recursive: true });
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(
+      join(dir, "src/greet.ts"),
+      'import { readFileSync } from "node:fs";\nexport function greet(name: string): string {\n  return `Hello, ${name}!`;\n}\n',
+    );
+
+    const report = briefOf(JSON.stringify({ files: ["src/greet.ts", "src/farewell.ts"] }), dir);
+
+    expect(report.rules).toEqual(rulesOver(["src/greet.ts", "src/farewell.ts"]));
+    expect(report.findings).toEqual([
+      {
+        id: "no-node-import src/greet.ts node:fs",
+        rule: "a module under src/ imports no node: module",
+        location: { file: "src/greet.ts", lines: [1, 1] },
+        message: "imports node:fs",
+        related: [],
+        guide,
+        due: null,
+      },
+    ]);
+    expect(existsSync(join(exampleDir, guide.read))).toBe(true);
   });
 
-  it("reports a forbidden place, due this phase, where a named file imports node:", () => {
-    const answer = briefOf(phaseBriefRequest(["src/io.ts", "src/new.ts"]), copyWithIo());
-    expect(answer.guarantees).toEqual([
-      {
-        id: "hw-no-io",
-        statement: "nothing under src/ imports a node: module",
-        places: [
-          {
-            location: { file: "src/io.ts", line: 2 },
-            state: "forbidden",
-            due: "this-phase",
-            what: "imports node:fs",
-            repair: "remove the import; greet is pure",
-          },
-          { location: { file: "src/new.ts" }, state: "met" },
-        ],
-      },
+  it("briefs the gated phase's planned files under src/ when files is null, due this phase", () => {
+    const report = briefOf(phaseBriefRequest(null), copyWithIo());
+    expect(report.rules).toEqual(rulesOver(["src/io.ts"]));
+    expect(report.findings.map((f) => [f.id, f.location.lines, f.due])).toEqual([
+      ["no-node-import src/io.ts node:fs", [2, 2], "this-phase"],
+      ["exports-function src/io.ts", null, "this-phase"],
     ]);
   });
 
-  it("dates a place only a later phase plans as due later", () => {
+  it("dates a finding only a later phase plans as due later", () => {
     const dir = copyWithIo();
-    writeFileSync(join(dir, "src/later.ts"), 'import "node:path";\n');
-    const answer = briefOf(phaseBriefRequest(["src/later.ts"]), dir);
-    expect(answer.guarantees[0]?.places[0]).toMatchObject({ state: "forbidden", due: "later" });
+    writeFileSync(join(dir, "src/later.ts"), 'import "node:path";\nexport function later() {}\n');
+    const report = briefOf(phaseBriefRequest(["src/later.ts"]), dir);
+    expect(report.findings).toMatchObject([
+      { id: "no-node-import src/later.ts node:path", due: "later" },
+    ]);
   });
 
-  it("gives due null outside a phase", () => {
-    const answer = briefOf(outsideBriefRequest(["src/io.ts"]), copyWithIo());
-    expect(answer.guarantees[0]?.places[0]).toMatchObject({ state: "forbidden", due: null });
+  it("prints ids stable across runs", () => {
+    const dir = copyWithIo();
+    const payload = phaseBriefRequest(["src/io.ts"]);
+    expect(runScript(briefScript, payload, dir).stdout).toBe(
+      runScript(briefScript, payload, dir).stdout,
+    );
   });
 
   it("has nothing to report on a path not under src/", () => {
-    const answer = briefOf(outsideBriefRequest(["README.md"]), copyWithIo());
-    expect(answer.guarantees).toEqual([]);
+    const report = briefOf(outsideBriefRequest(["README.md"]), copyWithIo());
+    expect(report).toEqual({ $schema: currentSchemaUrl("brief-report"), rules: [], findings: [] });
   });
 });
 
@@ -286,7 +310,7 @@ describe("examples/hello-world phax.json", () => {
     const scripts = readdirSync(exampleDir)
       .filter((f) => f.endsWith(".mjs"))
       .toSorted();
-    // rules.mjs is no hook: audit.mjs (and, later, brief.mjs) import it.
+    // rules.mjs is no hook: audit.mjs and brief.mjs import it.
     expect(scripts).toEqual(["audit-plan.mjs", "audit.mjs", "brief.mjs", "rules.mjs"]);
   });
 
@@ -296,7 +320,7 @@ describe("examples/hello-world phax.json", () => {
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       const config = result.right;
-      expect(config.brief?.command).toBe("node ./brief.mjs");
+      expect(config.brief).toEqual({ command: "node ./brief.mjs", push: "findings-and-rules" });
       expect(config.planAuditor?.command).toBe("node ./audit-plan.mjs");
       const steps = config.gateProfiles?.["standard"] ?? [];
       const reportStep = steps.find((s) => s.output === "gate-report");

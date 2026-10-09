@@ -15,11 +15,21 @@ export const PublishConfigSchema = Schema.Struct({
 
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
+const BriefPushSchema = Schema.Literal("findings", "findings-and-rules");
+export type BriefPush = Schema.Schema.Type<typeof BriefPushSchema>;
+
 export const BriefConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
-      "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief answer, carrying its own $schema, on stdout. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.",
+      'The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief report {"$schema": "https://docs.phax.run/schemas/brief-report/<release>.json", "rules", "findings"} on stdout: the rules over the requested paths, and the findings there with their due. A provider that declines to run exits non-zero. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.',
   }),
+  push: Schema.propertySignature(BriefPushSchema).annotations({
+    description:
+      'What the phase\'s first prompt lists from the phase\'s brief, at most 50 lines. "findings": the findings due in this phase. "findings-and-rules": those findings, then the rules over the phase\'s planned files, with their files and guides. Required, with no default, in every layer that declares brief.',
+  }),
+}).annotations({
+  description:
+    "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
 });
 
 export type BriefConfig = Schema.Schema.Type<typeof BriefConfigSchema>;

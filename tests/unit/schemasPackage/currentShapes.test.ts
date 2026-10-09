@@ -19,7 +19,6 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import {
   UNKNOWN,
   parseAuthoringRecordManifest,
-  parseBriefAnswer,
   parseBriefRecord,
   parseBriefReport,
   parseBriefRequest,
@@ -40,7 +39,6 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
-  toLatestBriefAnswer,
   toLatestBriefRecord,
   toLatestBriefReport,
   toLatestBriefRequest,
@@ -155,12 +153,16 @@ describe("every format's current shape", () => {
   });
 
   it.each(SCHEMA_BORN_FORMAT_IDS)(
-    "%s: is born with $schema: no pre-schema slot, snapshot or frozen module",
+    "%s: is born with $schema: no pre-schema slot, snapshot or frozen module, and a frozen module only per released shape",
     (id) => {
       expect(FORMAT_DEFINITIONS[id].preSchema).toBeNull();
       expect(existsSync(join(snapshotsDir, id, `${CURRENT_SHAPES[id]}.schema.json`))).toBe(true);
       expect(existsSync(join(snapshotsDir, id, "pre-schema.schema.json"))).toBe(false);
-      expect(Object.keys(lock).filter((path) => path.includes(`/history/${id}/`))).toEqual([]);
+      expect(Object.keys(lock).filter((path) => path.includes(`/history/${id}/`))).toEqual(
+        FORMAT_DEFINITIONS[id].releases.map(
+          ([release]) => `src/schemas/history/${id}/${release}.ts`,
+        ),
+      );
     },
   );
 
@@ -207,7 +209,6 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "spec-approval-record": latest(parseSpecApprovalRecord, toLatestSpecApprovalRecord),
   "gate-request": latest(parseGateRequest, toLatestGateRequest),
   "brief-request": latest(parseBriefRequest, toLatestBriefRequest),
-  "brief-answer": latest(parseBriefAnswer, toLatestBriefAnswer),
   "brief-record": latest(parseBriefRecord, toLatestBriefRecord),
   "gate-report": latest(parseGateReport, toLatestGateReport),
   "brief-report": latest(parseBriefReport, toLatestBriefReport),
@@ -215,10 +216,9 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
-// phax never reads gate requests back, and reads
-// a brief answer only as a provider's answer, through readBriefAnswer. It
-// reads a gate report or a brief report only as a provider's answer too,
-// through readGateReport and readBriefReport, which name no file.
+// phax never reads gate requests back. It reads a gate report or a brief
+// report only as a provider's answer, through readGateReport and
+// readBriefReport, which name no file.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -237,7 +237,6 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "spec-approval-record": readSpecRecordFile,
   "gate-request": undefined,
   "brief-request": readBriefRequestFile,
-  "brief-answer": undefined,
   "brief-record": readBriefRecordFile,
   "gate-report": undefined,
   "brief-report": undefined,

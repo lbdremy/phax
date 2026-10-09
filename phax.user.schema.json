@@ -181,16 +181,22 @@
     },
     "brief": {
       "type": "object",
-      "required": ["command"],
+      "required": ["command", "push"],
       "properties": {
         "command": {
           "type": "string",
-          "description": "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief answer, carrying its own $schema, on stdout. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.",
+          "description": "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief report {\"$schema\": \"https://docs.phax.run/schemas/brief-report/<release>.json\", \"rules\", \"findings\"} on stdout: the rules over the requested paths, and the findings there with their due. A provider that declines to run exits non-zero. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.",
           "title": "nonEmptyString",
           "minLength": 1
+        },
+        "push": {
+          "type": "string",
+          "enum": ["findings", "findings-and-rules"],
+          "description": "What the phase's first prompt lists from the phase's brief, at most 50 lines. \"findings\": the findings due in this phase. \"findings-and-rules\": those findings, then the rules over the phase's planned files, with their files and guides. Required, with no default, in every layer that declares brief."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`."
     },
     "planAuditor": {
       "type": "object",

@@ -102,7 +102,7 @@ describe("upgradeConfigSchema", () => {
     }
   });
 
-  it("describes the brief key with a required command in both schemas, leaving phax.json alone", () => {
+  it("describes the brief key with a required command and push in both schemas, leaving phax.json alone", () => {
     const phaxJson = JSON.stringify({
       version: 1,
       name: "example",
@@ -121,14 +121,15 @@ describe("upgradeConfigSchema", () => {
           string,
           {
             required?: string[];
-            properties?: Record<string, { description?: string }>;
+            properties?: Record<string, { description?: string; enum?: string[] }>;
           }
         >;
       };
       const brief = schema.properties["brief"];
       expect(brief, file).toBeDefined();
-      expect(brief?.required, file).toEqual(["command"]);
-      expect(brief?.properties?.["command"]?.description, file).toContain("brief answer");
+      expect(brief?.required, file).toEqual(["command", "push"]);
+      expect(brief?.properties?.["command"]?.description, file).toContain("brief report");
+      expect(brief?.properties?.["push"]?.enum, file).toEqual(["findings", "findings-and-rules"]);
     }
   });
 

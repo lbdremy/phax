@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
-  parseBriefAnswer,
   parseBriefRecord,
   parseBriefReport,
   parseBriefRequest,
@@ -34,11 +33,7 @@ import {
   decodeRecordManifestFile,
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
-import {
-  decodeBriefAnswerFile,
-  decodeBriefRecordFile,
-  decodeBriefRequestFile,
-} from "../../../src/schemas/brief.js";
+import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
@@ -225,14 +220,6 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     wrongType: ["files", []],
     required: "terminal",
     excess: "error",
-  },
-  "brief-answer": {
-    id: "brief-answer",
-    parse: parseBriefAnswer,
-    phax: decodeBriefAnswerFile,
-    wrongType: ["guarantees", {}],
-    required: "guarantees",
-    excess: "ignore",
   },
   "brief-record": {
     id: "brief-record",
@@ -462,20 +449,6 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "brief-request",
     "the outside variant with null files",
     { $schema: validDocuments["brief-request"]["$schema"], files: null },
-    "rejected",
-  ],
-  [
-    "brief-answer",
-    "a place whose state is outside its literals",
-    withFirst(validDocuments["brief-answer"], "guarantees", {
-      places: [{ location: { file: "src/example.ts" }, state: "stale" }],
-    }),
-    "rejected",
-  ],
-  [
-    "brief-answer",
-    "a guarantee without places",
-    withFirst(validDocuments["brief-answer"], "guarantees", { places: [] }),
     "rejected",
   ],
   [

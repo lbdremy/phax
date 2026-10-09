@@ -264,4 +264,18 @@ describe("loadConfig invalid user file error handling", () => {
       );
     }
   });
+
+  it("refuses a brief without push in phax.local.json, naming the file, brief.push and both values", () => {
+    writeProjectConfig({ ...baseConfig, brief: { command: "node ./brief.mjs", push: "findings" } });
+    writeLocalUserConfig({ brief: { command: "node ./local-brief.mjs" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.left.message).toContain(join(repoDir, "phax.local.json"));
+      expect(result.left.message).toContain(
+        'brief.push must be "findings" or "findings-and-rules"',
+      );
+    }
+  });
 });
