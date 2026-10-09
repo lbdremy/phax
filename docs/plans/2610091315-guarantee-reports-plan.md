@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610091304-guarantee-reports.md
 completes-spec: true
+approved:
+  date: 2026-10-09
+  baseline: d92a8c3
 ---
 # Guarantee reports
 
