@@ -196,9 +196,9 @@ spec of its own. In this order:
       steme's guarantee model was restructured (steme-surface §10, §14.1; decisions 27–30): packs,
       a standard, a unit manifest, repairs rendered as blueprints and skills, accepted debt keyed
       by the ledger. phax's formats flatten or drop most of it.
-      1. `open-next-release` (`docs/specs/2610081603-open-next-release.md`, Approved, §9 decided
-         2026-10-08), with stamps that name the format's shape: consumers upgrade only when a
-         format changes.
+      1. ~~`open-next-release`~~ (Shipped: the `open-next-release` spec, §9 decided
+         2026-10-08.) Stamps name the format's shape: consumers upgrade only when a format
+         changes.
       2. `guarantee-reports` (`docs/specs/2610090907-guarantee-reports.md`, Approved, §9 decided
          2026-10-09): `gate-report` and `brief-report` replace `gate-diagnostics` and
          `brief-answer` with no shim. The agent gets only what it can act on: only open legs
@@ -226,7 +226,7 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
-- [ ] **`open-next-release`: open the next version as soon as a release is tagged.** Raised
+- [x] **`open-next-release`: open the next version as soon as a release is tagged.** (Shipped: the open-next-release spec.) Raised
       2026-10-08 after the 0.20.0 release gate failed (as 0.19.0's had): mid-cycle, the
       manifests name the last release, so a `$schema` stamp means two shapes until the cut, and
       tests, the schemas package's fallback and the answer readers depend on which side of the
