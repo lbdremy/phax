@@ -196,13 +196,14 @@ spec of its own. In this order:
       steme's guarantee model was restructured (steme-surface §10, §14.1; decisions 27–30): packs,
       a standard, a unit manifest, repairs rendered as blueprints and skills, accepted debt keyed
       by the ledger. phax's formats flatten or drop most of it.
-      1. `open-next-release`, with stamps that name the format's shape (brief
-         `docs/briefs/open-next-release.md`): consumers upgrade only when a format changes.
-      2. `guarantee-reports` (brief `docs/briefs/guarantee-reports.md`): one green-field spec
-         for what a gate step and a brief provider answer, designed from steme's model as if
-         today's `gate-diagnostics` and `brief-answer` did not exist (the author, 2026-10-08):
-         guarantee, legs and their states, ranges, repairs by kind, accepted debt, judgement for
-         the human review; the fix prompt, the pushed brief, review and records use them.
+      1. `open-next-release` (`docs/specs/2610081603-open-next-release.md`, Approved, §9 decided
+         2026-10-08), with stamps that name the format's shape: consumers upgrade only when a
+         format changes.
+      2. `guarantee-reports` (`docs/specs/2610090907-guarantee-reports.md`, Approved, §9 decided
+         2026-10-09): `gate-report` and `brief-report` replace `gate-diagnostics` and
+         `brief-answer` with no shim. The agent gets only what it can act on: only open legs
+         travel, no accepted debt, repairs are a blueprint or skill path, the gate report lists
+         only what fails now, a refusal stops the phase, judgement goes to the review.
       3. A `decision` class that stops the phase for the owner, joining the parked
          `phase-decision-requests` spec.
 
