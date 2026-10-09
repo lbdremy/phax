@@ -15,8 +15,7 @@ import { adaptWorktreeCreate } from "../../../src/app/eventAdapter.js";
 import { runGatesWithFixLoop } from "../../../src/app/fixLoop.js";
 import { reportAgentFailure } from "../../../src/app/telemetry/reportBuilders.js";
 import type { ClaudeSessionId } from "../../../src/domain/branded.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -47,7 +46,7 @@ const runStatusJson = JSON.stringify({
 });
 
 const phaseStatusJson = JSON.stringify({
-  $schema: schemaUrl("phase-status", PHAX_RELEASE),
+  $schema: currentSchemaUrl("phase-status"),
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",

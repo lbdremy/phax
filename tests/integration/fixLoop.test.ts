@@ -11,11 +11,10 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
-// The $schema a diagnostics step prints: gate-diagnostics at the running release.
-const diagnosticsSchema = schemaUrl("gate-diagnostics", PHAX_RELEASE);
+// The $schema a diagnostics step prints: gate-diagnostics at its current stamp.
+const diagnosticsSchema = currentSchemaUrl("gate-diagnostics");
 const noDiagnostics = JSON.stringify({ $schema: diagnosticsSchema, diagnostics: [] });
 
 const runPath = "/fake/runs/my-run";
@@ -24,7 +23,7 @@ const phaseFolderPath = `${runPath}/phase-01`;
 const sessionId = "sess-abc123" as ClaudeSessionId;
 
 const phaseStatusJson = JSON.stringify({
-  $schema: schemaUrl("phase-status", PHAX_RELEASE),
+  $schema: currentSchemaUrl("phase-status"),
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",

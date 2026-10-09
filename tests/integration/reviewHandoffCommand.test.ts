@@ -4,9 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runReviewHandoff } from "../../src/cli/commands/reviewHandoff.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 interface TestOutput {
   logs: string[];
@@ -45,7 +44,7 @@ function makeRunStatusJson(state: string): string {
 
 function makePhaseStatusJson(phaseId: string): string {
   return JSON.stringify({
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId,
     phaseIndex: 0,
     state: "committed",

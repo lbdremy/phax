@@ -9,6 +9,7 @@ import {
   type PlanRecord,
 } from "../../../src/schemas/approvalRecord.js";
 import {
+  currentSchemaUrl,
   readPlanRecordFile,
   readSpecRecordFile,
   withSchemaUrl,
@@ -82,11 +83,11 @@ describe("PlanRecordFileSchema", () => {
     ["a non-40-hex baseline", { ...planFile, baseline: "abc1234" }],
     [
       "a $schema naming plan-approvals",
-      { ...planFile, $schema: schemaUrl("plan-approvals", PHAX_RELEASE) },
+      { ...planFile, $schema: currentSchemaUrl("plan-approvals") },
     ],
     [
       "a $schema naming spec-approval-record",
-      { ...planFile, $schema: schemaUrl("spec-approval-record", PHAX_RELEASE) },
+      { ...planFile, $schema: currentSchemaUrl("spec-approval-record") },
     ],
     ["a missing $schema", without(planFile, "$schema")],
   ])("rejects %s", (_label, input) => {
@@ -115,7 +116,7 @@ describe("SpecRecordFileSchema", () => {
     ["a non-40-hex baseline", { ...specFile, baseline: "not-hex" }],
     [
       "a $schema naming spec-approvals",
-      { ...specFile, $schema: schemaUrl("spec-approvals", PHAX_RELEASE) },
+      { ...specFile, $schema: currentSchemaUrl("spec-approvals") },
     ],
     ["a missing $schema", without(specFile, "$schema")],
   ])("rejects %s", (_label, input) => {

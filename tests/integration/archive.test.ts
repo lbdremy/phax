@@ -16,8 +16,7 @@ import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.j
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import type { ShortName } from "../../src/domain/branded.js";
 import type { PhaxState } from "../../src/domain/state.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const stateRoot = "/fake-state";
 const repoRoot = "/fake-repo";
@@ -537,7 +536,7 @@ describe("archive — unfinished runs", () => {
       writeFileSync(
         join(tempRunPath, "phase-01", "status.json"),
         JSON.stringify({
-          $schema: schemaUrl("phase-status", PHAX_RELEASE),
+          $schema: currentSchemaUrl("phase-status"),
           phaseId: "phase-01",
           phaseIndex: 0,
           state: "review_open",

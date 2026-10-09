@@ -50,7 +50,8 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
-import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
@@ -213,7 +214,7 @@ approved:
 // A gate step's stdout, stamped at the running release: one invariant and one
 // completion, both failing.
 const MIXED_DIAGNOSTICS = JSON.stringify({
-  $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+  $schema: currentSchemaUrl("gate-diagnostics"),
   diagnostics: [
     {
       rule: "no-io-in-domain",
@@ -234,7 +235,7 @@ const MIXED_DIAGNOSTICS = JSON.stringify({
 
 // A brief provider's stdout, stamped at the running release.
 const BRIEF_ANSWER = JSON.stringify({
-  $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+  $schema: currentSchemaUrl("brief-answer"),
   guarantees: [
     {
       id: "example-pure",

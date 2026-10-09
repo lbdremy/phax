@@ -6,8 +6,7 @@ import { Either } from "effect";
 import { findCurrentPhase } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -53,7 +52,7 @@ async function buildFakeRunFolder(
     await writeFile(
       join(phaseDir, "status.json"),
       JSON.stringify({
-        $schema: schemaUrl("phase-status", PHAX_RELEASE),
+        $schema: currentSchemaUrl("phase-status"),
         phaseId: phase.id,
         phaseIndex: phase.index,
         state: phase.state,

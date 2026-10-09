@@ -18,7 +18,7 @@ import { runBrief } from "../../src/cli/commands/brief.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import type { OutputPort } from "../../src/ports/output.js";
 import { readBriefRecordFile } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // A made-up repository with a linked phase worktree, made-up phax.json files
@@ -95,7 +95,7 @@ const projectConfig = (briefConfig?: { command: string }) => ({
   ...(briefConfig !== undefined ? { brief: briefConfig } : {}),
 });
 
-function answer(guarantees: unknown[], release = PHAX_RELEASE): string {
+function answer(guarantees: unknown[], release: string = CURRENT_STAMPS["brief-answer"]): string {
   return JSON.stringify({ $schema: schemaUrl("brief-answer", release), guarantees });
 }
 

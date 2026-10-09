@@ -7,10 +7,8 @@ import {
   isAuthoringRecordManifest,
   type AuthoringRecordManifest,
 } from "../../src/schemas/authoringRecord.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import { UNAVAILABLE_TOKEN_USAGE } from "../../src/schemas/runRecord.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const inMemoryAuthoringManifest: AuthoringRecordManifest = {
   kind: "authoring",
@@ -30,7 +28,7 @@ const inMemoryAuthoringManifest: AuthoringRecordManifest = {
 const authoringManifest = withSchemaUrl("authoring-record-manifest", inMemoryAuthoringManifest);
 
 const phaseManifest = {
-  $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
+  $schema: currentSchemaUrl("phase-record-manifest"),
   runId: "headless-authoring-1786807559589",
   phaseId: "phase-07",
   shape: "skeleton",
@@ -92,7 +90,7 @@ describe("AuthoringRecordManifestSchema", () => {
       Either.isLeft(
         decodeAuthoringRecordManifestFile({
           ...authoringManifest,
-          $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
+          $schema: currentSchemaUrl("phase-record-manifest"),
         }),
       ),
     ).toBe(true);

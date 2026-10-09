@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
 const BASE = "0123456789abcdef0123456789abcdef01234567";
 
 function request(): Record<string, unknown> {
   return {
-    $schema: schemaUrl("gate-request", PHAX_RELEASE),
+    $schema: currentSchemaUrl("gate-request"),
     phase: "phase-02",
     base: BASE,
     terminal: false,
@@ -63,8 +62,6 @@ describe("the gate-request document", () => {
   });
 
   it("rejects a $schema naming another format", () => {
-    expect(decodes({ ...request(), $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE) })).toBe(
-      false,
-    );
+    expect(decodes({ ...request(), $schema: currentSchemaUrl("gate-diagnostics") })).toBe(false);
   });
 });

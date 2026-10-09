@@ -7,8 +7,7 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { runKey } from "../../src/domain/runRef.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const NAMESPACE = "test-project";
 const SHORT_NAME = Either.getOrThrow(decodeShortName("my-run"));
@@ -138,7 +137,7 @@ describe("resolveRun + inspectResume after reset-phase", () => {
     await writeFile(
       join(phase01Dir, "status.json"),
       JSON.stringify({
-        $schema: schemaUrl("phase-status", PHAX_RELEASE),
+        $schema: currentSchemaUrl("phase-status"),
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "running",

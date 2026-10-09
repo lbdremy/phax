@@ -9,9 +9,8 @@ import {
   resolveCodeReviewConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { resolveSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 const now = new Date().toISOString();
@@ -31,7 +30,7 @@ function makeRunStatus(namespace: string, shortName: string, state = "running"):
 
 function makePhaseStatus(shortName: string, state = "running"): object {
   return {
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state,

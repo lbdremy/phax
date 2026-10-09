@@ -34,7 +34,6 @@ import {
   type GateStep,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const HANDOFF_CONTENT = [
@@ -84,7 +83,7 @@ const GUARANTEES: BriefGuarantee[] = [
 ];
 
 const ANSWER = {
-  $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+  $schema: currentSchemaUrl("brief-answer"),
   guarantees: GUARANTEES,
   note: "an extra key the provider printed",
 };

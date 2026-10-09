@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { encodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
-import { readGateDiagnosticsAnswer, withSchemaUrl } from "../../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import {
+  currentSchemaUrl,
+  readGateDiagnosticsAnswer,
+  withSchemaUrl,
+} from "../../../src/schemas/persisted.js";
 
 // A document a gate step prints, stamped at the running release.
 function printed(diagnostics: ReadonlyArray<object>) {
-  return { $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE), diagnostics };
+  return { $schema: currentSchemaUrl("gate-diagnostics"), diagnostics };
 }
 
 describe("the printed gate-diagnostics document", () => {

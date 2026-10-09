@@ -14,8 +14,7 @@ import { encodeCodeReviewSession } from "../../src/schemas/codeReviewSession.js"
 import { CODE_REVIEW_PROMPT_FILENAME } from "../../src/domain/review/codeReviewPrompt.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { decodeShortName } from "../../src/domain/branded.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -249,7 +248,7 @@ describe("prepareCodeReviewSession", () => {
     >;
     fs.impl.setFile(
       `${runPath}/compliance-review.json`,
-      JSON.stringify({ $schema: schemaUrl("compliance-review", PHAX_RELEASE), ...review }),
+      JSON.stringify({ $schema: currentSchemaUrl("compliance-review"), ...review }),
     );
 
     const result = await Effect.runPromise(
@@ -520,7 +519,7 @@ describe("review info from a phax-plan.json written before $schema", () => {
     // A phase status written before $schema never noted its branch's base and
     // is refused, so the phase status here is a current one.
     write("phase-02/status.json", {
-      $schema: schemaUrl("phase-status", PHAX_RELEASE),
+      $schema: currentSchemaUrl("phase-status"),
       phaseId: "phase-02",
       phaseIndex: 1,
       state: "review_open",

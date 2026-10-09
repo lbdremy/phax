@@ -6,8 +6,7 @@ import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -19,7 +18,7 @@ const now = new Date().toISOString();
 
 function makeRunStatus(state: string, extra: Record<string, unknown> = {}): object {
   return {
-    $schema: schemaUrl("run-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("run-status"),
     namespace: "test-project",
     shortName: "test-run",
     runId: "test-run-123",
@@ -33,7 +32,7 @@ function makeRunStatus(state: string, extra: Record<string, unknown> = {}): obje
 
 function makePhaseStatus(state: string): object {
   return {
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state,
@@ -263,7 +262,7 @@ describe("inspectResume", () => {
 
     const makeSkippedStatus = (id: string, index: number) =>
       JSON.stringify({
-        $schema: schemaUrl("phase-status", PHAX_RELEASE),
+        $schema: currentSchemaUrl("phase-status"),
         phaseId: id,
         phaseIndex: index,
         state: "skipped",

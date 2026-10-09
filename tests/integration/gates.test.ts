@@ -26,7 +26,7 @@ import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../src/schemas/gateDiagnostics.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -66,7 +66,10 @@ function diagnosticsStep(command: string): GateStep {
 const diagnosticsPath = "/fake/runs/my-run/phase-01/checks-attempt-01.diagnostics.json";
 
 /** The document a diagnostics step prints: `$schema` naming gate-diagnostics at `release`. */
-function printed(diagnostics: ReadonlyArray<object>, release: string = PHAX_RELEASE): string {
+function printed(
+  diagnostics: ReadonlyArray<object>,
+  release: string = CURRENT_STAMPS["gate-diagnostics"],
+): string {
   return JSON.stringify({ $schema: schemaUrl("gate-diagnostics", release), diagnostics });
 }
 
@@ -474,7 +477,7 @@ describe("runGates", () => {
       fakeShell.impl.setResponse("pnpm audit", {
         exitCode: 0,
         stdout: JSON.stringify({
-          $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+          $schema: currentSchemaUrl("gate-diagnostics"),
           wrong: "shape",
         }),
         stderr: "",
@@ -582,7 +585,7 @@ describe("runGates", () => {
       ["no $schema", JSON.stringify({ diagnostics: [] })],
       [
         "a gate-attribution $schema",
-        JSON.stringify({ $schema: schemaUrl("gate-attribution", PHAX_RELEASE), diagnostics: [] }),
+        JSON.stringify({ $schema: currentSchemaUrl("gate-attribution"), diagnostics: [] }),
       ],
       ["a gate-diagnostics 0.18.0 $schema", printed([], "0.18.0")],
     ])("fails a document with %s as malformed", async (_name, stdout) => {
@@ -607,7 +610,7 @@ describe("runGates", () => {
 
     it("keeps the print verbatim in the log and re-stamps the saved file", async () => {
       const print = JSON.stringify({
-        $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [cycle],
         generator: "audit.mjs",
       });
@@ -636,7 +639,7 @@ describe("runGates", () => {
       expect(results).toEqual(["fail"]);
       expect(decodeGateDiagnosticsFile(JSON.parse(saved!))).toEqual(
         Either.right({
-          $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+          $schema: currentSchemaUrl("gate-diagnostics"),
           diagnostics: [completion],
         }),
       );

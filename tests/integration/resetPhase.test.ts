@@ -10,8 +10,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const SHORT_NAME = "my-run";
 const NAMESPACE = "test-project";
@@ -55,7 +54,7 @@ async function seedRun(
     const phaseFolderPath = join(runPath, phase.id);
     await mkdir(phaseFolderPath, { recursive: true });
     const status: Record<string, unknown> = {
-      $schema: schemaUrl("phase-status", PHAX_RELEASE),
+      $schema: currentSchemaUrl("phase-status"),
       phaseId: phase.id,
       phaseIndex: phase.index,
       state: phase.state,

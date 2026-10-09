@@ -23,8 +23,7 @@ import {
 } from "../../src/app/eventAdapter.js";
 import type { CommitPhaseOptions } from "../../src/app/commit.js";
 import type { CleanupPhaseOptions } from "../../src/app/cleanup.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -61,7 +60,7 @@ const base: PhaxEventBase = {
 };
 
 const phaseStatusSeed = JSON.stringify({
-  $schema: schemaUrl("phase-status", PHAX_RELEASE),
+  $schema: currentSchemaUrl("phase-status"),
   phaseId: "phase-01",
   phaseIndex: 0,
   model: "claude-sonnet-4-6",
@@ -431,7 +430,7 @@ describe("adaptCleanup", () => {
 
   // Cleanup transitions phase committed → cleaning_up → cleaned_up via dispatch.
   const committedPhaseSeed = JSON.stringify({
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     model: "claude-sonnet-4-6",
