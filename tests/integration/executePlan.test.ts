@@ -30,9 +30,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -75,7 +73,7 @@ async function seedGatesExhaustedRun(opts: {
   const phaseFolder = join(opts.runPath, "phase-01");
   await mkdir(phaseFolder, { recursive: true });
   const phaseStatus: Record<string, unknown> = {
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "gates_exhausted",
@@ -2671,7 +2669,7 @@ describe("executePlan — a green diagnostics gate", () => {
     fakeShell.impl.setResponse("node ./audit.mjs", {
       exitCode: 0,
       stdout: JSON.stringify({
-        $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [],
       }),
       stderr: "",

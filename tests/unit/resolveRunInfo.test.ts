@@ -5,14 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const now = new Date().toISOString();
 
 function makeRunStatus(namespace: string, shortName: string, state = "running"): object {
   return {
-    $schema: schemaUrl("run-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("run-status"),
     namespace,
     shortName,
     runId: `${shortName}-id`,
@@ -25,7 +24,7 @@ function makeRunStatus(namespace: string, shortName: string, state = "running"):
 
 function makePhaseStatus(shortName: string): object {
   return {
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "running",

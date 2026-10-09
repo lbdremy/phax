@@ -5,15 +5,14 @@ import {
   decodeBriefRecordFile,
   decodeBriefRequestFile,
 } from "../../../src/schemas/brief.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
 // Every document here is made up.
 const BASE = "0123456789abcdef0123456789abcdef01234567";
 
 function phaseRequest(): Record<string, unknown> {
   return {
-    $schema: schemaUrl("brief-request", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-request"),
     phase: "phase-02",
     base: BASE,
     terminal: false,
@@ -27,14 +26,14 @@ function phaseRequest(): Record<string, unknown> {
 
 function outsideRequest(): Record<string, unknown> {
   return {
-    $schema: schemaUrl("brief-request", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-request"),
     files: ["src/billing/invoice.ts"],
   };
 }
 
 function answer(): Record<string, unknown> {
   return {
-    $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-answer"),
     guarantees: [
       {
         id: "core-no-adapters",
@@ -127,7 +126,7 @@ describe("the brief-request document", () => {
   });
 
   it("rejects a $schema naming another format", () => {
-    const foreign = { ...phaseRequest(), $schema: schemaUrl("gate-request", PHAX_RELEASE) };
+    const foreign = { ...phaseRequest(), $schema: currentSchemaUrl("gate-request") };
     expect(decodes(decodeBriefRequestFile, foreign)).toBe(false);
   });
 });
@@ -194,21 +193,21 @@ describe("the brief-answer document", () => {
   });
 
   it("rejects a $schema naming another format", () => {
-    const foreign = { ...answer(), $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE) };
+    const foreign = { ...answer(), $schema: currentSchemaUrl("gate-diagnostics") };
     expect(decodes(decodeBriefAnswerFile, foreign)).toBe(false);
   });
 });
 
 describe("the brief-record document", () => {
   const pushed = {
-    $schema: schemaUrl("brief-record", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-record"),
     moment: "pushed",
     request: phaseRequest(),
     outcome: { kind: "answered", answer: { ...answer(), note: "kept as printed" } },
   };
 
   const pulled = {
-    $schema: schemaUrl("brief-record", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-record"),
     moment: "pulled",
     request: { ...phaseRequest(), files: ["src/billing/tax.ts"] },
     outcome: { kind: "failed", reason: "brief provider exited with code 1" },

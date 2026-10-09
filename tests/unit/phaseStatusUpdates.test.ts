@@ -4,15 +4,14 @@ import { readPhaseBase, recordPhaseWorktreeAndBranch } from "../../src/app/phase
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { FsError } from "../../src/ports/fs.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const phaseFolderPath = "/fake/runs/my-run/phase-01";
 const now = new Date().toISOString();
 
 function makePhaseStatusJson(extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    $schema: schemaUrl("phase-status", PHAX_RELEASE),
+    $schema: currentSchemaUrl("phase-status"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "setting_up_worktree",

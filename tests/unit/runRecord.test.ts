@@ -6,15 +6,14 @@ import {
   TokenUsageSchema,
   UNAVAILABLE_TOKEN_USAGE,
 } from "../../src/schemas/runRecord.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const decodeTokenUsage = Schema.decodeUnknownEither(TokenUsageSchema, {
   onExcessProperty: "error",
 });
 
 const baseManifest = {
-  $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
+  $schema: currentSchemaUrl("phase-record-manifest"),
   runId: "entire-checkpoint-spike-1786807559589",
   phaseId: "phase-01",
   shape: "skeleton" as const,
@@ -165,7 +164,7 @@ describe("RunRecordManifestSchema", () => {
       Either.isLeft(
         decodeRunRecordManifestFile({
           ...baseManifest,
-          $schema: schemaUrl("authoring-record-manifest", PHAX_RELEASE),
+          $schema: currentSchemaUrl("authoring-record-manifest"),
         }),
       ),
     ).toBe(true);

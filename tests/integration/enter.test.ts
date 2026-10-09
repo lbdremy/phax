@@ -10,8 +10,7 @@ import {
   resolvePublishConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -58,7 +57,7 @@ async function buildFakeRunFolder(
     await writeFile(
       join(phaseDir, "status.json"),
       JSON.stringify({
-        $schema: schemaUrl("phase-status", PHAX_RELEASE),
+        $schema: currentSchemaUrl("phase-status"),
         phaseId: phase.id,
         phaseIndex: phase.index,
         state: phase.state,

@@ -25,7 +25,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -34,8 +34,6 @@ import {
   type BriefConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 
 const HANDOFF_CONTENT = [
@@ -57,7 +55,7 @@ const BRIEF: BriefConfig = { command: BRIEF_COMMAND };
 const GATE_COMMAND = "node ./audit.mjs";
 
 const ANSWER = {
-  $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+  $schema: currentSchemaUrl("brief-answer"),
   guarantees: [
     {
       id: "greet-pure",

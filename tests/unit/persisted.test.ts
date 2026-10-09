@@ -455,7 +455,7 @@ describe("format readers", () => {
       const both = left(
         readRecordManifestFile(
           file,
-          withKey(preSchemaDocuments[id], "$schema", schemaUrl(id, PHAX_RELEASE)),
+          withKey(preSchemaDocuments[id], "$schema", currentSchemaUrl(id)),
         ),
       );
       expect(both.message).not.toContain("without $schema");
@@ -523,7 +523,7 @@ describe("format readers", () => {
     expect(rejected.message).toMatch(new RegExp(`^${file}: ${label} without \\$schema`));
 
     // A $schema document is never rescued by the pre-schema decoder.
-    const wrongUrl = withKey(validDocuments[id], "$schema", schemaUrl("registry", PHAX_RELEASE));
+    const wrongUrl = withKey(validDocuments[id], "$schema", currentSchemaUrl("registry"));
     const refused = left(read(file, wrongUrl));
     expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
     expect(refused.message).not.toContain("without $schema");
@@ -834,7 +834,7 @@ describe("brief request and record files", () => {
   });
 
   it("readBriefRequestFile reads the outside request, dropping $schema", () => {
-    const document = { $schema: schemaUrl("brief-request", PHAX_RELEASE), files: ["src/a.ts"] };
+    const document = { $schema: currentSchemaUrl("brief-request"), files: ["src/a.ts"] };
     expect(right(readBriefRequestFile(requestFile, document))).toEqual({ files: ["src/a.ts"] });
   });
 

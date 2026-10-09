@@ -11,8 +11,7 @@ import {
 } from "../../src/app/briefProvider.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
-import { readBriefRecordFile } from "../../src/schemas/persisted.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { currentSchemaUrl, readBriefRecordFile } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // Every provider here is a made-up node script in a temp dir, run through the
@@ -45,7 +44,7 @@ const request = stampBriefRequest(
 
 function answerDocument(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+    $schema: currentSchemaUrl("brief-answer"),
     guarantees: [
       {
         id: "core-no-adapters",
@@ -104,7 +103,7 @@ for await (const chunk of process.stdin) input += chunk;
 writeFileSync("stdin.json", input);
 writeFileSync("cwd.txt", process.cwd());
 process.stdout.write(JSON.stringify({ $schema: ${JSON.stringify(
-        schemaUrl("brief-answer", PHAX_RELEASE),
+        currentSchemaUrl("brief-answer"),
       )}, guarantees: [] }));
 `,
     );
@@ -171,7 +170,7 @@ setInterval(() => {}, 1000);
   it.each([
     ["no $schema", { guarantees: [] }],
     ["a newer release", { $schema: schemaUrl("brief-answer", "99.0.0"), guarantees: [] }],
-    ["another format", { $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE), guarantees: [] }],
+    ["another format", { $schema: currentSchemaUrl("gate-diagnostics"), guarantees: [] }],
     ["not a url", { $schema: "not a url", guarantees: [] }],
   ])("refuses an answer with %s at $schema", async (_label, document) => {
     const reason = reasonOf(await run(printingProvider(JSON.stringify(document))));

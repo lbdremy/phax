@@ -16,7 +16,7 @@ import {
 } from "../../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
 import { FileSystem, type FileSystemOps } from "../../../src/ports/fs.js";
-import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { CURRENT_STAMPS, PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import type { SpecApprovalRecord } from "../../../src/schemas/specApprovalRecord.js";
@@ -654,7 +654,10 @@ const specRecord: SpecApprovalRecord = {
   baseline: "b".repeat(40),
 };
 
-function planRecordText(artifact: string, release = PHAX_RELEASE): string {
+function planRecordText(
+  artifact: string,
+  release: string = CURRENT_STAMPS["plan-approval-record"],
+): string {
   return JSON.stringify(
     { $schema: schemaUrl("plan-approval-record", release), artifact, ...planRecord },
     null,
@@ -662,7 +665,10 @@ function planRecordText(artifact: string, release = PHAX_RELEASE): string {
   );
 }
 
-function specRecordText(artifact: string, release = PHAX_RELEASE): string {
+function specRecordText(
+  artifact: string,
+  release: string = CURRENT_STAMPS["spec-approval-record"],
+): string {
   return JSON.stringify(
     { $schema: schemaUrl("spec-approval-record", release), artifact, ...specRecord },
     null,

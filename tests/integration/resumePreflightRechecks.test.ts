@@ -24,9 +24,8 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   createPreflightRepo,
   FIXTURE_EFFORT,
@@ -116,7 +115,7 @@ async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
   await writeFile(
     join(phase01, "status.json"),
     JSON.stringify({
-      $schema: schemaUrl("phase-status", PHAX_RELEASE),
+      $schema: currentSchemaUrl("phase-status"),
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "committed",

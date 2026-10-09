@@ -32,8 +32,6 @@ import type { FileSystem } from "../../src/ports/fs.js";
 import type { Git } from "../../src/ports/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
-import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
@@ -43,7 +41,11 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaseStatusFile, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import {
+  currentSchemaUrl,
+  readPhaseStatusFile,
+  readPhaxPlanFile,
+} from "../../src/schemas/persisted.js";
 
 // Made-up full commit shas for the fake git's branch tips.
 const RUN_TIP = "1111111111111111111111111111111111111111";
@@ -546,7 +548,7 @@ describe("executePlan — per-phase branch regression", () => {
     await writeFile(
       join(phase01FolderPath, "status.json"),
       JSON.stringify({
-        $schema: schemaUrl("phase-status", PHAX_RELEASE),
+        $schema: currentSchemaUrl("phase-status"),
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "committed",
