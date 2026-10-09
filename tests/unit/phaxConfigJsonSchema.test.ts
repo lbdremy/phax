@@ -50,7 +50,7 @@ describe("getPhaxConfigJsonSchema", () => {
     const stepSchema = findGateStepSchema(schema);
     expect(stepSchema).toBeDefined();
     const properties = stepSchema?.["properties"] as Record<string, unknown>;
-    expect(properties["output"]).toMatchObject({ enum: ["log", "diagnostics"] });
+    expect(properties["output"]).toMatchObject({ enum: ["log", "diagnostics", "gate-report"] });
     const required = (stepSchema?.["required"] as string[] | undefined) ?? [];
     expect(required).not.toContain("output");
   });

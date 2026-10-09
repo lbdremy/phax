@@ -19,7 +19,7 @@
         "command": "node ./audit.mjs",
         "surface": "structural",
         "firing": "every-phase",
-        "output": "diagnostics",
+        "output": "gate-report",
         "input": "gate-request"
       }
     ]

@@ -313,6 +313,86 @@ describe("runGatesWithFixLoop", () => {
     expect(prompt).not.toMatch(/pending|optional/i);
   });
 
+  describe("a report step", () => {
+    const reportUrl = currentSchemaUrl("gate-report");
+    const reportStep = [
+      {
+        command: "node ./audit.mjs",
+        surface: "structural",
+        firing: "every-phase",
+        output: "gate-report",
+      },
+    ] as const;
+    const passingReport = JSON.stringify({
+      $schema: reportUrl,
+      outcome: "checked",
+      findings: [],
+      review: [],
+    });
+
+    it("spends one fix attempt on the raw-log prompt for a broken step", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: "not json", stderr: "audit crashed" },
+        { exitCode: 0, stdout: passingReport, stderr: "" },
+      );
+
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, steps: reportStep }).pipe(Effect.provide(layer)),
+      );
+
+      expect(outcome.attemptLogPath).toContain("checks-attempt-02");
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+      const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+      expect(prompt).toContain("## Gate output");
+      expect(prompt).toContain("**Failed command:** `node ./audit.mjs`");
+      expect(prompt).toContain(`provider error: stdout is not JSON`);
+      expect(prompt).not.toContain("## Findings");
+    });
+
+    it("lists a failing report's findings in the fix prompt, and nothing else from it", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      const failingReport = JSON.stringify({
+        $schema: reportUrl,
+        outcome: "checked",
+        findings: [
+          {
+            id: "no-node-import src/greet.ts node:fs",
+            rule: "a module under src/ imports no node: module",
+            location: { file: "src/greet.ts", lines: [1, 1] },
+            message: "imports node:fs",
+            related: [],
+            guide: { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" },
+          },
+        ],
+        review: [{ owner: "hw-maintainers", note: "whether the greeting reads well" }],
+      });
+      fakeShell.impl.enqueue(
+        { exitCode: 0, stdout: failingReport, stderr: "" },
+        { exitCode: 0, stdout: passingReport, stderr: "" },
+      );
+
+      await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, steps: reportStep }).pipe(Effect.provide(layer)),
+      );
+
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+      const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+      expect(prompt).toContain("**Failed step:** `node ./audit.mjs` (1 finding)");
+      expect(prompt).toContain("- src/greet.ts:1");
+      expect(prompt).toContain("found: imports node:fs");
+      expect(prompt).toContain("Read guides/no-node-import.md and follow it.");
+      expect(prompt).not.toContain("no-node-import src/greet.ts node:fs");
+      expect(prompt).not.toContain("hw-maintainers");
+      expect(prompt).not.toContain("whether the greeting reads well");
+      expect(prompt).not.toContain("## Gate output");
+    });
+  });
+
   it("uses the session id from the fix result in the next gate attempt", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
 

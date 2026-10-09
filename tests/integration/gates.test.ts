@@ -1106,3 +1106,362 @@ describe("runGates with a declaring step (Node shell)", () => {
     expect(replay.stdout.trimEnd()).toBe(gateTime);
   });
 });
+
+function reportStep(command: string): GateStep {
+  return { command, surface: "structural", firing: "every-phase", output: "gate-report" };
+}
+
+/** The gate's failure; fails the test when the gate passed. */
+function failure(result: Either.Either<unknown, unknown>): GateFailedError {
+  if (Either.isRight(result)) throw new Error("expected the gate to fail");
+  expect(result.left).toBeInstanceOf(GateFailedError);
+  return result.left as GateFailedError;
+}
+
+/** The paths of every gate report the fake filesystem holds. */
+function savedReports(fakeFs: ReturnType<typeof makeFakeFileSystem>): string[] {
+  return [...fakeFs.impl.files.keys()].filter((path) => /\.report-\d+\.json$/.test(path));
+}
+
+// A step that declares "output": "gate-report", on fakes. Every report is made
+// up, after the spec's examples.
+describe("runGates with a report step", () => {
+  const reportUrl = currentSchemaUrl("gate-report");
+  const reportPath = "/fake/runs/my-run/phase-01/checks-attempt-01.report-01.json";
+
+  const greetFinding = {
+    id: "no-node-import src/greet.ts node:fs",
+    rule: "a module under src/ imports no node: module",
+    location: { file: "src/greet.ts", lines: [1, 1] },
+    message: "imports node:fs",
+    related: [{ file: "src/cli.ts", lines: [3, 5], why: "the caller, where the read belongs" }],
+    guide: { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" },
+  };
+  const farewellFinding = {
+    id: "exports-function src/farewell.ts",
+    rule: "a module under src/ exports its function",
+    location: { file: "src/farewell.ts", lines: null },
+    message: "no exported function",
+    related: [],
+    guide: null,
+  };
+  const reviewNote = {
+    owner: "hw-maintainers",
+    note: "whether 'Hello, <name>!' is the greeting the product wants",
+  };
+
+  function checked(findings: ReadonlyArray<object>, review: ReadonlyArray<object> = []): string {
+    return JSON.stringify({ $schema: reportUrl, outcome: "checked", findings, review });
+  }
+
+  const refused = {
+    $schema: reportUrl,
+    outcome: "refused",
+    reason: "the checks need hw-rules 2, and 1 is installed",
+    remedy: "pnpm add -D hw-rules@2",
+  };
+
+  async function runWith(
+    gateSteps: readonly GateStep[],
+    responses: Readonly<Record<string, { exitCode: number; stdout: string }>>,
+    fakeFs = makeFakeFileSystem(),
+    attemptLogPath = logPath,
+  ) {
+    const fakeShell = makeFakeShell();
+    for (const [command, response] of Object.entries(responses)) {
+      fakeShell.impl.setResponse(command, { ...response, stderr: "" });
+    }
+    const result = await Effect.runPromise(
+      Effect.either(
+        runGates({
+          steps: gateSteps,
+          cwd,
+          attemptLogPath,
+          gateRequest,
+          attributionPath,
+          phaseId,
+        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+      ),
+    );
+    const attribution = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
+    return { result, fakeFs, fakeShell, attribution };
+  }
+
+  describe("a finding fails the step, whatever the exit code", () => {
+    for (const exitCode of [0, 1]) {
+      it(`fails on exit ${exitCode}, carrying the findings in the report's order`, async () => {
+        const { result, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+          "node ./audit.mjs": { exitCode, stdout: checked([greetFinding, farewellFinding]) },
+        });
+
+        const err = failure(result);
+        expect(err.exitCode).toBe(exitCode);
+        expect(err.reportFindings).toEqual({ step: 1, findings: [greetFinding, farewellFinding] });
+        expect(err.diagnostics).toEqual([]);
+        expect(attribution.steps).toEqual([
+          { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+        ]);
+      });
+    }
+  });
+
+  it("passes an empty list on exit 0 and saves it byte for byte beside checks-attempt-01.log", async () => {
+    const stdout = checked([], [reviewNote]);
+    const { result, fakeFs, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+      "node ./audit.mjs": { exitCode: 0, stdout },
+    });
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
+    expect(attribution.steps).toEqual([
+      { command: "node ./audit.mjs", surface: "structural", result: "pass" },
+    ]);
+  });
+
+  it("treats an empty list with a non-zero exit as a broken step, and saves the report", async () => {
+    const stdout = checked([]);
+    const { result, fakeFs, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+      "node ./audit.mjs": { exitCode: 2, stdout },
+    });
+
+    const err = failure(result);
+    expect(err.reportFindings).toBeNull();
+    expect(err.exitCode).toBe(2);
+    expect(err.logPath).toBe(logPath);
+    expect(err.message).toBe('Gate step "node ./audit.mjs" exited 2 with no finding');
+    expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
+    expect(attribution.steps).toEqual([
+      { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+    ]);
+  });
+
+  for (const [label, stdout] of [
+    ["empty stdout", ""],
+    ["stdout that is not JSON", "not json"],
+  ] as const) {
+    it(`treats ${label} as a broken step naming the gate-report URL, saving nothing`, async () => {
+      const { result, fakeFs, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+        "node ./audit.mjs": { exitCode: 0, stdout },
+      });
+
+      const err = failure(result);
+      expect(err.reportFindings).toBeNull();
+      expect(err.message.startsWith('Gate step "node ./audit.mjs": ')).toBe(true);
+      expect(err.message.endsWith(reportUrl)).toBe(true);
+      expect(savedReports(fakeFs)).toEqual([]);
+      expect(fakeFs.impl.getFile(logPath)).toContain("provider error: ");
+      expect(attribution.steps).toEqual([
+        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+      ]);
+    });
+  }
+
+  it("refuses another format by name, naming the gate-report URL", async () => {
+    const others = [
+      ["gate-diagnostics", { $schema: schemaUrl("gate-diagnostics", "0.20.0"), diagnostics: [] }],
+      [
+        "brief-report",
+        {
+          $schema: schemaUrl("brief-report", CURRENT_STAMPS["brief-report"]),
+          rules: [],
+          findings: [],
+        },
+      ],
+    ] as const;
+    for (const [format, document] of others) {
+      const { result, fakeFs } = await runWith([reportStep("node ./audit.mjs")], {
+        "node ./audit.mjs": { exitCode: 0, stdout: JSON.stringify(document) },
+      });
+
+      const err = failure(result);
+      expect(err.message).toBe(
+        `Gate step "node ./audit.mjs": ${format} is not read by this phax — it reads ${reportUrl}`,
+      );
+      expect(err.reportFindings).toBeNull();
+      expect(savedReports(fakeFs)).toEqual([]);
+    }
+  });
+
+  describe("a malformed report is a broken step", () => {
+    const cases: ReadonlyArray<readonly [string, object, string]> = [
+      [
+        "a finding id used twice",
+        {
+          outcome: "checked",
+          findings: [greetFinding, { ...farewellFinding, id: greetFinding.id }],
+          review: [],
+        },
+        `finding id "${greetFinding.id}" is used twice`,
+      ],
+      [
+        "lines out of order",
+        {
+          outcome: "checked",
+          findings: [{ ...greetFinding, location: { file: "src/greet.ts", lines: [3, 1] } }],
+          review: [],
+        },
+        "lines [3, 1] of src/greet.ts are out of order",
+      ],
+      [
+        "related lines out of order",
+        {
+          outcome: "checked",
+          findings: [
+            {
+              ...greetFinding,
+              related: [{ file: "src/cli.ts", lines: [5, 3], why: "the caller" }],
+            },
+          ],
+          review: [],
+        },
+        "lines [5, 3] of src/cli.ts are out of order",
+      ],
+      [
+        "a top-level key the format does not name",
+        { outcome: "checked", findings: [], review: [], debt: [] },
+        "debt",
+      ],
+      [
+        "a nested key the format does not name",
+        {
+          outcome: "checked",
+          findings: [{ ...greetFinding, guide: { ...greetFinding.guide, kind: "how-to" } }],
+          review: [],
+        },
+        "findings[0].guide.kind",
+      ],
+      [
+        "a brief finding's due",
+        { outcome: "checked", findings: [{ ...greetFinding, due: "this-phase" }], review: [] },
+        "findings[0].due",
+      ],
+      ["a checked report without review", { outcome: "checked", findings: [] }, "review"],
+      [
+        "a refused report carrying findings",
+        { outcome: "refused", reason: "r", remedy: "m", findings: [] },
+        "findings",
+      ],
+      ["an unknown outcome", { outcome: "passed", findings: [], review: [] }, "outcome"],
+    ];
+
+    for (const [label, body, named] of cases) {
+      it(`refuses ${label}, naming ${named}`, async () => {
+        const { result, fakeFs, attribution } = await runWith([reportStep("node ./audit.mjs")], {
+          "node ./audit.mjs": {
+            exitCode: 0,
+            stdout: JSON.stringify({ $schema: reportUrl, ...body }),
+          },
+        });
+
+        const err = failure(result);
+        expect(err.reportFindings).toBeNull();
+        expect(err.message).toContain(named);
+        expect(err.message.endsWith(reportUrl)).toBe(true);
+        expect(savedReports(fakeFs)).toEqual([]);
+        expect(attribution.steps[0]?.result).toBe("fail");
+      });
+    }
+  });
+
+  it("runs no step after a step its findings failed", async () => {
+    const { result, fakeFs, fakeShell, attribution } = await runWith(
+      [reportStep("node ./audit.mjs"), ...steps("pnpm test")],
+      {
+        "node ./audit.mjs": { exitCode: 0, stdout: checked([farewellFinding]) },
+        "pnpm test": { exitCode: 0, stdout: "ok" },
+      },
+    );
+
+    failure(result);
+    expect(fakeShell.impl.calls).toHaveLength(1);
+    expect(fakeFs.impl.getFile(logPath)).not.toContain("$ pnpm test");
+    expect(attribution.steps).toHaveLength(1);
+  });
+
+  it("numbers a saved report by the step's position among the steps the attempt runs", async () => {
+    const { result, fakeFs } = await runWith(
+      [...steps("pnpm test"), reportStep("node ./audit.mjs")],
+      {
+        "pnpm test": { exitCode: 0, stdout: "ok" },
+        "node ./audit.mjs": { exitCode: 1, stdout: checked([farewellFinding]) },
+      },
+    );
+
+    expect(failure(result).reportFindings?.step).toBe(2);
+    expect(savedReports(fakeFs)).toEqual([
+      "/fake/runs/my-run/phase-01/checks-attempt-01.report-02.json",
+    ]);
+  });
+
+  it("saves every readable report as printed: attempt 1 checked, attempt 2 refused", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const first = `${JSON.stringify(
+      {
+        $schema: reportUrl,
+        outcome: "checked",
+        findings: [greetFinding, farewellFinding],
+        review: [reviewNote],
+      },
+      null,
+      2,
+    )}\n`;
+    const second = `${JSON.stringify(refused, null, 4)}\n`;
+    const secondLog = "/fake/runs/my-run/phase-01/checks-attempt-02.log";
+
+    await runWith(
+      [reportStep("node ./audit.mjs")],
+      { "node ./audit.mjs": { exitCode: 1, stdout: first } },
+      fakeFs,
+    );
+    const { result } = await runWith(
+      [reportStep("node ./audit.mjs")],
+      { "node ./audit.mjs": { exitCode: 0, stdout: second } },
+      fakeFs,
+      secondLog,
+    );
+
+    expect(fakeFs.impl.getFile(reportPath)).toBe(first);
+    expect(fakeFs.impl.getFile("/fake/runs/my-run/phase-01/checks-attempt-02.report-01.json")).toBe(
+      second,
+    );
+    expect([...fakeFs.impl.files.keys()].filter((p) => p.endsWith(".diagnostics.json"))).toEqual(
+      [],
+    );
+
+    // Until a refusal pauses the phase, it is a broken step with the raw log.
+    const err = failure(result);
+    expect(err.reportFindings).toBeNull();
+    expect(err.message).toBe(
+      'Gate step "node ./audit.mjs" refused to run: the checks need hw-rules 2, and 1 is installed (remedy: pnpm add -D hw-rules@2)',
+    );
+    expect(fakeFs.impl.getFile(secondLog)).toContain(
+      "provider error: refused: the checks need hw-rules 2, and 1 is installed — remedy: pnpm add -D hw-rules@2",
+    );
+  });
+
+  it("judges nothing in the content: a missing file and a missing guide still fail the step", async () => {
+    const nowhere = {
+      ...greetFinding,
+      id: "no-node-import src/nowhere.ts node:fs",
+      location: { file: "src/nowhere.ts", lines: [4, 4] },
+      related: [],
+      guide: { summary: "keep I/O in the module's caller", read: "guides/missing.md" },
+    };
+    const { result } = await runWith([reportStep("node ./audit.mjs")], {
+      "node ./audit.mjs": { exitCode: 0, stdout: checked([nowhere]) },
+    });
+
+    expect(failure(result).reportFindings).toEqual({ step: 1, findings: [nowhere] });
+  });
+
+  it("keeps a declaring report step's request and stdin line", async () => {
+    const { result, fakeFs, fakeShell } = await runWith(
+      [{ ...reportStep("node ./audit.mjs"), input: "gate-request" }],
+      { "node ./audit.mjs": { exitCode: 0, stdout: checked([]) } },
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(fakeShell.impl.calls[0]?.stdin).toBe(gateRequest);
+    expect(fakeFs.impl.getFile(logPath)).toContain("stdin: checks-attempt-01.request.json");
+  });
+});
