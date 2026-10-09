@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-09
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-09
+  baseline: a12a641
 ---
 # Gate and brief reports: two provider-neutral formats over shared definitions, carrying only what someone acts on
 
