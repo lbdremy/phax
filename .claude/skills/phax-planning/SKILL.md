@@ -247,11 +247,11 @@ Write the file lists to make this signal useful:
 
 The planned files to create and edit (not the optional list) also leave phax as
 facts. A gate step that declares `"input": "gate-request"` receives every phase's
-planned files on stdin, and so does a brief provider. A diagnostics step can then
+planned files on stdin, and so does a brief provider. A report step can then
 let a finding pass in this phase when a later phase plans to touch its file. A
 phase's brief covers that phase's planned files. So, when a later phase is meant to
 finish what an earlier one starts, list the shared file in the later phase's
-create or edit section, not under optional. Otherwise a diagnostics gate sees
+create or edit section, not under optional. Otherwise a report-step gate sees
 nothing still to come, and fails the earlier phase.
 
 ### Editing skill files
