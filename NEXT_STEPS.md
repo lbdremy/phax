@@ -299,6 +299,8 @@ cross-field checks registered by id so the build writes the same list into the s
       retry the session once on an unparsable or schema-invalid document (feeding the parse error
       back), or have the provider enforce the output schema (Claude Code's structured output).
       The failed session's output stays in `~/.phax/authoring/<stamp>-<slug>/output.jsonl`.
+      Again 2026-10-08: the first `guarantee-reports` session ended with valid JSON that the
+      spec schema refused (`acceptanceCriteria[0].refs: is missing`); the rerun succeeded.
 - [ ] **The real e2e's Codex and Vibe flows run on Claude.** Found 2026-10-06 running
       `PHAX_E2E_RUN=1 PHAX_E2E_BACKEND=claude pnpm test:e2e:real` before the 0.19.0 release:
       `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
