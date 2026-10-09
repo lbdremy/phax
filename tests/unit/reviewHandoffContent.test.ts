@@ -172,3 +172,34 @@ describe("buildReviewHandoffContent — source spec outcome", () => {
     expect(output).not.toContain("## Source spec");
   });
 });
+
+describe("buildReviewHandoffContent — review notes", () => {
+  const reviewNotesMd =
+    "## Review notes\n\nNotes the gate steps left for a person. None was sent to the agent.\n\n### docs-team\n\n- README mentions greet() (phase-01)";
+  const complianceMd = "## Verdict\n\nconformant — all phases delivered as planned.";
+
+  it("renders the section directly before ## Phase details, after the compliance review", () => {
+    const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
+      complianceReviewMd: complianceMd,
+      reviewNotesMd,
+    });
+    expect(output).toContain(`${complianceMd}\n\n${reviewNotesMd}\n\n## Phase details`);
+    expect(output).not.toContain("\n\n\n");
+  });
+
+  it("sits directly before ## Phase details without a compliance review", () => {
+    const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
+      reviewNotesMd,
+    });
+    expect(output).toContain(`_None._\n\n${reviewNotesMd}\n\n## Phase details`);
+    expect(output).not.toContain("\n\n\n");
+  });
+
+  it("renders no ## Review notes section without notes", () => {
+    const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
+      reviewNotesMd: undefined,
+    });
+    expect(output).not.toContain("## Review notes");
+    expect(output).toBe(buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents));
+  });
+});

@@ -12,6 +12,7 @@ import { writeFinalReport } from "./finalReport.js";
 import { generateGlobalReconciliation } from "./generateGlobalReconciliation.js";
 import {
   loadPhaseContents,
+  loadReviewNotes,
   loadSourceSpecOutcome,
   type PhaseContent,
 } from "./loadReviewHandoffInputs.js";
@@ -32,6 +33,9 @@ export interface ReviewHandoffExtras {
   readonly complianceReviewMd?: string | undefined;
   // The source-spec outcome written by run completion (source-spec-outcome.md).
   readonly sourceSpecOutcomeMd?: string | undefined;
+  // The `## Review notes` section gathered from the phases' last gate
+  // attempts, rendered directly before `## Phase details`.
+  readonly reviewNotesMd?: string | undefined;
 }
 
 function buildUnexplainedSection(
@@ -79,7 +83,7 @@ export function buildReviewHandoffContent(
   phases: readonly PhaseContent[],
   extras: ReviewHandoffExtras = {},
 ): string {
-  const { complianceReviewMd, sourceSpecOutcomeMd } = extras;
+  const { complianceReviewMd, sourceSpecOutcomeMd, reviewNotesMd } = extras;
   const passed = info.phaseStatuses.filter(
     (p) => isPhaseTerminal(p.state) && p.state !== "skipped",
   ).length;
@@ -135,7 +139,7 @@ ${buildAttentionSection(global)}
 ## Deviations not explained in any handoff
 
 ${buildUnexplainedSection(global, phases)}
-${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}
+${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}${reviewNotesMd !== undefined ? `\n${reviewNotesMd.trimEnd()}\n` : ""}
 ## Phase details
 
 ${phaseDetails}
@@ -176,8 +180,10 @@ export function generateReviewHandoff(
     }
 
     const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
+    const reviewNotesMd = yield* loadReviewNotes(info);
     const reviewHandoffContent = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
       sourceSpecOutcomeMd,
+      reviewNotesMd,
     });
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), reviewHandoffContent);
 
