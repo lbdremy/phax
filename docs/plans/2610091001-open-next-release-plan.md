@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610081603-open-next-release.md
 completes-spec: true
+approved:
+  date: 2026-10-09
+  baseline: cbbe4d4
 ---
 # Open next release
 

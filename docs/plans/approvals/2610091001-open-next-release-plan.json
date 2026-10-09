@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.20.0.json",
+  "artifact": "docs/plans/2610091001-open-next-release-plan.md",
+  "planFingerprint": "16d3627647942b1a800f8ed3eca2c9743953ad7ec56dd0957462fb74f8829cee",
+  "approvedAt": "2026-10-09T10:12:35.407Z",
+  "baseline": "cbbe4d4ea83e83f9a0e779d27fff79c984ea094b",
+  "sourceSpec": {
+    "path": "docs/specs/2610081603-open-next-release.md",
+    "fingerprint": "e8c012d5d7d9f281e72feacd130468892ae88f292bc699894b489fafde804b74"
+  }
+}
