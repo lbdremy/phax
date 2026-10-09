@@ -598,10 +598,21 @@ describe("runGates", () => {
       expect(results).toEqual(["fail"]);
     });
 
-    it("refuses a newer release by name and lists none of its findings", async () => {
+    it("refuses a newer release by name, states the expected document and lists none of its findings", async () => {
       const { error, log, saved, results } = await gate(printed([cycle], "99.0.0"), 1);
-      const refusal = `gate-diagnostics 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`;
-      expect(error?.message).toContain(refusal);
+      const refusal = `gate-diagnostics 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it — ${expectedDocument}`;
+      expect(error?.message).toBe(`Gate step "node ./audit.mjs": ${refusal}`);
+      expect(error?.diagnostics).toEqual([]);
+      expect(log).toContain(`provider error: ${refusal}`);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["fail"]);
+    });
+
+    it("refuses an older shape, naming the URL phax reads, and lists none of its findings", async () => {
+      // A made-up stamp between the last saved-file-only release and the current stamp.
+      const { error, log, saved, results } = await gate(printed([cycle], "0.19.5"), 1);
+      const refusal = `gate-diagnostics 0.19.5 is an older shape — this phax reads ${currentSchemaUrl("gate-diagnostics")}`;
+      expect(error?.message).toBe(`Gate step "node ./audit.mjs": ${refusal}`);
       expect(error?.diagnostics).toEqual([]);
       expect(log).toContain(`provider error: ${refusal}`);
       expect(saved).toBeUndefined();

@@ -201,12 +201,18 @@ export function runGates(
         const answer = readGateDiagnosticsAnswer(parsed);
         if (Either.isLeft(answer)) {
           if (answer.left.kind === "malformed") return yield* returnedNone(answer.left.reason);
-          logLines.push(`provider error: ${answer.left.message}`);
+          // Every refusal names the URL phax reads: an older-shape message
+          // already does; a newer one gains the expected document.
+          const refusal =
+            answer.left.kind === "newer"
+              ? `${answer.left.message}${DIAGNOSTICS_EXPECTED_SHAPE}`
+              : answer.left.message;
+          logLines.push(`provider error: ${refusal}`);
           stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
           return yield* failGate({
             rawCommand,
             exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}": ${answer.left.message}`,
+            message: `Gate step "${rawCommand}": ${refusal}`,
             diagnostics: [],
             stderr: result.stderr,
           });

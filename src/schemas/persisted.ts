@@ -23,6 +23,8 @@
 // It also reads the two answers phax decodes with a file decoder: the
 // `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`)
 // and the `brief-answer` document a brief provider prints (`readBriefAnswer`).
+// Each reads only stamps from its format's current stamp up to the running
+// version, refuses an older shape by name, and names the URL it reads.
 import { Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
@@ -424,18 +426,28 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
   });
 
 /**
+ * The stamps an answer reader accepts: from the format's current stamp
+ * (`current`) up to the running version (`running`), both included. Each
+ * reader defaults to its format's `CURRENT_STAMPS` entry and `PHAX_RELEASE`;
+ * tests inject both to play a development build.
+ */
+export interface AnswerBounds {
+  readonly current: string;
+  readonly running: string;
+}
+
+/**
  * The last release whose `gate-diagnostics` shape described only the file phax
- * saves. A document a gate step prints is an answer, and its `$schema` names
- * the answer's release: one newer than this, or the running release itself (a
- * development build reads its own release as the next shape, as the schemas
- * package does). A historical fact: it never moves at a release cut.
+ * saves. A stamp at or below it names that shape, never a gate step's answer.
+ * A historical fact: it never moves at a release cut.
  */
 const LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE = "0.19.0";
 
 /** Why a gate step's diagnostics document was not read. */
 export type GateDiagnosticsAnswerError =
   | { readonly kind: "malformed"; readonly reason: string }
-  | { readonly kind: "newer"; readonly message: string };
+  | { readonly kind: "newer"; readonly message: string }
+  | { readonly kind: "older"; readonly message: string };
 
 function malformed(reason: string): Either.Either<never, GateDiagnosticsAnswerError> {
   return Either.left({ kind: "malformed", reason });
@@ -448,16 +460,19 @@ function malformed(reason: string): Either.Either<never, GateDiagnosticsAnswerEr
  * 2. a document without its own `$schema` key is malformed: there is no
  *    unversioned reading;
  * 3. a `$schema` that is not a `gate-diagnostics` schema URL is malformed;
- * 4. a release newer than `PHAX_RELEASE` is refused as `newer`, by name;
- * 5. a release that is neither the running one nor newer than
- *    `LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE` is malformed;
- * 6. a document the file decoder rejects is malformed, with the first
+ * 4. a stamp above `bounds.running` is refused as `newer`, by name;
+ * 5. a stamp at or below `LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE` is
+ *    malformed: it names the saved file's shape;
+ * 6. a stamp below `bounds.current` is refused as `older`, naming the URL
+ *    this phax reads;
+ * 7. a document the file decoder rejects is malformed, with the first
  *    violation.
  * The decoded document keeps only `diagnostics`: `$schema` and any extra key
  * are dropped.
  */
 export function readGateDiagnosticsAnswer(
   input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["gate-diagnostics"], running: PHAX_RELEASE },
 ): Either.Either<GateDiagnosticsDocument, GateDiagnosticsAnswerError> {
   if (!isDocumentObject(input)) return malformed("the document is not a JSON object");
   if (!Object.hasOwn(input, "$schema")) return malformed("the document has no $schema");
@@ -466,19 +481,22 @@ export function readGateDiagnosticsAnswer(
     return malformed(`$schema ${JSON.stringify(input["$schema"])} does not name gate-diagnostics`);
   }
   const { release } = named;
-  if (compareReleases(release, PHAX_RELEASE) > 0) {
+  if (compareReleases(release, bounds.running) > 0) {
     return Either.left({
       kind: "newer",
-      message: `gate-diagnostics ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      message: `gate-diagnostics ${release} is newer than this phax (${bounds.running}) — upgrade phax to read it`,
     });
   }
-  if (
-    release !== PHAX_RELEASE &&
-    compareReleases(release, LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE) <= 0
-  ) {
+  if (compareReleases(release, LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE) <= 0) {
     return malformed(
       `gate-diagnostics ${release} names the saved file's shape, not a gate step's document`,
     );
+  }
+  if (compareReleases(release, bounds.current) < 0) {
+    return Either.left({
+      kind: "older",
+      message: `gate-diagnostics ${release} is an older shape — this phax reads ${schemaUrl("gate-diagnostics", bounds.current)}`,
+    });
   }
   const decoded = decodeGateDiagnosticsFile(input);
   if (Either.isLeft(decoded)) {
@@ -488,11 +506,9 @@ export function readGateDiagnosticsAnswer(
 }
 
 /**
- * The release current when the `brief-answer` format was added. An answer's
- * `$schema` names an answer release only when it is newer than this, or is
- * the running release itself (a development build reads its own release as
- * the next shape, as the schemas package does). A historical fact: it never
- * moves at a release cut.
+ * The release current when the `brief-answer` format was added. A stamp at or
+ * below it names no brief-answer shape. A historical fact: it never moves at a
+ * release cut.
  */
 export const LAST_RELEASE_WITHOUT_BRIEF_ANSWER = "0.19.0";
 
@@ -500,6 +516,7 @@ export const LAST_RELEASE_WITHOUT_BRIEF_ANSWER = "0.19.0";
 export type BriefAnswerError =
   | { readonly kind: "schema"; readonly reason: string }
   | { readonly kind: "newer"; readonly reason: string }
+  | { readonly kind: "older"; readonly reason: string }
   | { readonly kind: "shape"; readonly reason: string };
 
 /**
@@ -508,15 +525,20 @@ export type BriefAnswerError =
  * 2. a document without its own `$schema` key is a `schema` error: there is
  *    no unversioned reading;
  * 3. a `$schema` that is not a `brief-answer` schema URL is a `schema` error;
- * 4. a release newer than `PHAX_RELEASE` is refused as `newer`, by name;
- * 5. a release that is neither the running one nor newer than
- *    `LAST_RELEASE_WITHOUT_BRIEF_ANSWER` is a `schema` error;
- * 6. a document the decoder rejects is a `shape` error, with the first
+ * 4. a stamp above `bounds.running` is refused as `newer`, by name;
+ * 5. a stamp at or below `LAST_RELEASE_WITHOUT_BRIEF_ANSWER` is a `schema`
+ *    error: it names no known shape;
+ * 6. a stamp below `bounds.current` is refused as `older`, naming the URL this
+ *    phax reads;
+ * 7. a document the decoder rejects is a `shape` error, with the first
  *    violation.
  * The decoded answer keeps only `guarantees`: `$schema` and any extra key are
  * dropped.
  */
-export function readBriefAnswer(input: unknown): Either.Either<BriefAnswer, BriefAnswerError> {
+export function readBriefAnswer(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["brief-answer"], running: PHAX_RELEASE },
+): Either.Either<BriefAnswer, BriefAnswerError> {
   if (!isDocumentObject(input)) {
     return Either.left({ kind: "shape", reason: "a brief-answer document is a JSON object" });
   }
@@ -531,17 +553,20 @@ export function readBriefAnswer(input: unknown): Either.Either<BriefAnswer, Brie
     });
   }
   const { release } = named;
-  if (compareReleases(release, PHAX_RELEASE) > 0) {
+  if (compareReleases(release, bounds.running) > 0) {
     return Either.left({
       kind: "newer",
-      reason: `brief-answer written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      reason: `brief-answer ${release} is newer than this phax (${bounds.running}) — upgrade phax to read it`,
     });
   }
-  if (
-    release !== PHAX_RELEASE &&
-    compareReleases(release, LAST_RELEASE_WITHOUT_BRIEF_ANSWER) <= 0
-  ) {
+  if (compareReleases(release, LAST_RELEASE_WITHOUT_BRIEF_ANSWER) <= 0) {
     return Either.left({ kind: "schema", reason: `brief-answer ${release} has no known shape` });
+  }
+  if (compareReleases(release, bounds.current) < 0) {
+    return Either.left({
+      kind: "older",
+      reason: `brief-answer ${release} is an older shape — this phax reads ${schemaUrl("brief-answer", bounds.current)}`,
+    });
   }
   const decoded = decodeBriefAnswerFile(input);
   if (Either.isLeft(decoded)) {
@@ -553,11 +578,19 @@ export function readBriefAnswer(input: unknown): Either.Either<BriefAnswer, Brie
   return Either.right({ guarantees: decoded.right.guarantees });
 }
 
-/** The one-line reason a refused brief answer gives, in the run output, the prompt and `phax brief`. */
+/**
+ * The one-line reason a refused brief answer gives, in the run output, the
+ * prompt and `phax brief`. Every line names the brief-answer URL this phax
+ * reads: an `older` reason already carries it, and the other kinds append it.
+ */
 export function describeBriefAnswerError(error: BriefAnswerError): string {
+  const reason =
+    error.kind === "older"
+      ? error.reason
+      : `${error.reason}; this phax reads ${currentSchemaUrl("brief-answer")}`;
   return error.kind === "shape"
-    ? `brief answer refused: ${error.reason}`
-    : `brief answer refused at $schema: ${error.reason}`;
+    ? `brief answer refused: ${reason}`
+    : `brief answer refused at $schema: ${reason}`;
 }
 
 /** Reads a phase worktree's `.phax-context/brief-request.json`. Born with `$schema`. */

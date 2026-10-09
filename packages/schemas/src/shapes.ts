@@ -114,7 +114,7 @@ export function newerReleaseMessage(
   release: string,
   packageVersion: string,
 ): string {
-  return `${formatId} written by phax ${release} is newer than ${PACKAGE_NAME} ${packageVersion} — upgrade the package`;
+  return `${formatId} ${release} is newer than ${PACKAGE_NAME} ${packageVersion} — upgrade the package`;
 }
 
 /**
@@ -185,11 +185,11 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  *    another format and newer-than-the-package fail at `$schema`; a release
  *    below `firstSupportedRelease`, when one is known, fails at `$schema` with
  *    `developmentBuildMessage` and no decoder tries it, not even the
- *    pre-schema one; a `next` current shape decodes first when the release is
- *    the package's own; else the latest release-named shape at or below the
- *    release decodes it; else,
- *    when `next` was tried, it fails with `next`'s own violation; else it
- *    fails at `$schema` (`no <id> shape is known at release <X>`);
+ *    pre-schema one; when the current shape is `next` and the release is the
+ *    package's own, `next` alone decodes it and its violation is the failure,
+ *    with no released shape tried; else the latest release-named shape at or
+ *    below the release decodes it; else it fails at `$schema` (`no <id> shape
+ *    is known at release <X>`);
  * 3. a document without `$schema`, whatever its `version`, is read only by
  *    the pre-schema decoder: the frozen `preSchema` module when the slot is
  *    filled, else `current.shape`. It resolves to shape `pre-schema`, or fails
@@ -239,16 +239,14 @@ export function defineFormat<M>(
     if (firstSupportedRelease !== null && compareReleases(release, firstSupportedRelease) < 0) {
       return failure("$schema", developmentBuildMessage(href, firstSupportedRelease));
     }
-    let next: Decoded | undefined;
     if (current.name === "next" && release === packageVersion) {
-      next = decodeAs("next", current.shape, input);
-      if (next.ok) return next;
+      return decodeAs("next", current.shape, input);
     }
     const [latest] = releaseShapes
       .filter(([name]) => compareReleases(name, release) <= 0)
       .toSorted(([a], [b]) => compareReleases(b, a));
     if (latest !== undefined) return decodeAs(latest[0], latest[1], input);
-    return next ?? failure("$schema", `no ${id} shape is known at release ${release}`);
+    return failure("$schema", `no ${id} shape is known at release ${release}`);
   }
 
   function byPreSchema(input: object): Decoded {

@@ -28,6 +28,7 @@ import {
   readSpecDocumentFile,
   readSpecRecordFile,
   withSchemaUrl,
+  type AnswerBounds,
   type BriefAnswerError,
   type GateDiagnosticsAnswerError,
   type MissingFact,
@@ -606,8 +607,13 @@ describe("documents from another release", () => {
   });
 });
 
-function refusal(input: unknown): GateDiagnosticsAnswerError {
-  const result = readGateDiagnosticsAnswer(input);
+// A development build opened at 0.21.0, while a format's current stamp is
+// 0.20.0 (unchanged this cycle) or 0.21.0 (changed this cycle).
+const UNCHANGED = { current: "0.20.0", running: "0.21.0" } as const;
+const CHANGED = { current: "0.21.0", running: "0.21.0" } as const;
+
+function refusal(input: unknown, bounds?: AnswerBounds): GateDiagnosticsAnswerError {
+  const result = readGateDiagnosticsAnswer(input, bounds);
   if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
   return result.left;
 }
@@ -621,39 +627,64 @@ describe("readGateDiagnosticsAnswer", () => {
     repair: "move the shared type into its own module",
   } as const;
 
-  const [major, minor, patch] = PHAX_RELEASE.split(".").map(Number) as [number, number, number];
+  const at = (release: string) => ({
+    $schema: schemaUrl("gate-diagnostics", release),
+    diagnostics: [invariant],
+  });
 
-  it("decodes a document at the running release and drops $schema and extra keys", () => {
+  it("decodes a document at the current stamp and drops $schema and extra keys", () => {
     const result = readGateDiagnosticsAnswer({
-      $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+      $schema: currentSchemaUrl("gate-diagnostics"),
       diagnostics: [invariant],
       generator: "example-audit",
     });
     expect(result).toEqual(Either.right({ diagnostics: [invariant] }));
   });
 
-  it("refuses a newer release by name", () => {
-    const newer = `${major}.${minor}.${patch + 1}`;
-    expect(
-      refusal({ $schema: schemaUrl("gate-diagnostics", newer), diagnostics: [invariant] }),
-    ).toEqual({
+  it("reads every stamp from the current stamp up to the running version", () => {
+    for (const release of ["0.20.0", "0.20.1", "0.21.0"]) {
+      expect(readGateDiagnosticsAnswer(at(release), UNCHANGED)).toEqual(
+        Either.right({ diagnostics: [invariant] }),
+      );
+    }
+    expect(readGateDiagnosticsAnswer(at("0.21.0"), CHANGED)).toEqual(
+      Either.right({ diagnostics: [invariant] }),
+    );
+  });
+
+  it("refuses a stamp above the running version by name", () => {
+    expect(refusal(at("0.22.0"), UNCHANGED)).toEqual({
       kind: "newer",
-      message: `gate-diagnostics ${newer} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      message: "gate-diagnostics 0.22.0 is newer than this phax (0.21.0) — upgrade phax to read it",
     });
+  });
+
+  it("refuses a stamp below the current stamp as an older shape, naming the URL it reads", () => {
+    expect(refusal(at("0.20.0"), CHANGED)).toEqual({
+      kind: "older",
+      message:
+        "gate-diagnostics 0.20.0 is an older shape — this phax reads https://docs.phax.run/schemas/gate-diagnostics/0.21.0.json",
+    });
+  });
+
+  it("keeps the saved-file refusal at or below 0.19.0, whatever the bounds", () => {
+    for (const bounds of [UNCHANGED, CHANGED]) {
+      expect(refusal(at("0.18.0"), bounds)).toEqual({
+        kind: "malformed",
+        reason: "gate-diagnostics 0.18.0 names the saved file's shape, not a gate step's document",
+      });
+    }
   });
 
   it.each([
     ["no $schema", { diagnostics: [] }],
-    [
-      "a gate-attribution URL",
-      { $schema: schemaUrl("gate-attribution", PHAX_RELEASE), diagnostics: [] },
-    ],
+    ["a gate-attribution URL", { $schema: currentSchemaUrl("gate-attribution"), diagnostics: [] }],
     ["a malformed URL", { $schema: "https://example.com/gate-diagnostics.json", diagnostics: [] }],
     ["the 0.18.0 release", { $schema: schemaUrl("gate-diagnostics", "0.18.0"), diagnostics: [] }],
     [
       "a schema violation",
       {
-        $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+        $schema: currentSchemaUrl("gate-diagnostics"),
         diagnostics: [{ ...invariant, class: "warning" }],
       },
     ],
@@ -691,8 +722,8 @@ describe("readGateDiagnosticsAnswer", () => {
   });
 });
 
-function briefRefusal(input: unknown): BriefAnswerError {
-  const result = readBriefAnswer(input);
+function briefRefusal(input: unknown, bounds?: AnswerBounds): BriefAnswerError {
+  const result = readBriefAnswer(input, bounds);
   if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
   return result.left;
 }
@@ -713,15 +744,18 @@ describe("readBriefAnswer", () => {
     ],
   } as const;
 
-  const [major, minor, patch] = PHAX_RELEASE.split(".").map(Number) as [number, number, number];
+  const at = (release: string) => ({
+    $schema: schemaUrl("brief-answer", release),
+    guarantees: [guarantee],
+  });
 
   it("is pinned to the release current when the format was added", () => {
     expect(LAST_RELEASE_WITHOUT_BRIEF_ANSWER).toBe("0.19.0");
   });
 
-  it("decodes an answer at the running release and drops $schema and extra keys", () => {
+  it("decodes an answer at the current stamp and drops $schema and extra keys", () => {
     const result = readBriefAnswer({
-      $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+      $schema: currentSchemaUrl("brief-answer"),
       guarantees: [guarantee],
       generator: "example-brief",
     });
@@ -729,20 +763,43 @@ describe("readBriefAnswer", () => {
   });
 
   it("decodes an empty answer", () => {
-    const answer = { $schema: schemaUrl("brief-answer", PHAX_RELEASE), guarantees: [] };
+    const answer = { $schema: currentSchemaUrl("brief-answer"), guarantees: [] };
     expect(readBriefAnswer(answer)).toEqual(Either.right({ guarantees: [] }));
   });
 
-  it("refuses a newer release by name", () => {
-    const newer = `${major}.${minor}.${patch + 1}`;
-    const error = briefRefusal({
-      $schema: schemaUrl("brief-answer", newer),
-      guarantees: [guarantee],
-    });
-    expect(error).toEqual({
+  it("reads every stamp from the current stamp up to the running version", () => {
+    for (const bounds of [UNCHANGED, CHANGED]) {
+      expect(readBriefAnswer(at("0.21.0"), bounds)).toEqual(
+        Either.right({ guarantees: [guarantee] }),
+      );
+    }
+    expect(readBriefAnswer(at("0.20.0"), UNCHANGED)).toEqual(
+      Either.right({ guarantees: [guarantee] }),
+    );
+  });
+
+  it("refuses a stamp above the running version by name", () => {
+    expect(briefRefusal(at("0.22.0"), UNCHANGED)).toEqual({
       kind: "newer",
-      reason: `brief-answer written by phax ${newer} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      reason: "brief-answer 0.22.0 is newer than this phax (0.21.0) — upgrade phax to read it",
     });
+  });
+
+  it("refuses a stamp below the current stamp as an older shape, naming the URL it reads", () => {
+    expect(briefRefusal(at("0.20.0"), CHANGED)).toEqual({
+      kind: "older",
+      reason:
+        "brief-answer 0.20.0 is an older shape — this phax reads https://docs.phax.run/schemas/brief-answer/0.21.0.json",
+    });
+  });
+
+  it("keeps 'has no known shape' at or below 0.19.0, whatever the bounds", () => {
+    for (const bounds of [UNCHANGED, CHANGED]) {
+      expect(briefRefusal(at("0.19.0"), bounds)).toEqual({
+        kind: "schema",
+        reason: "brief-answer 0.19.0 has no known shape",
+      });
+    }
   });
 
   it("refuses an answer without $schema", () => {
@@ -753,7 +810,7 @@ describe("readBriefAnswer", () => {
   });
 
   it.each([
-    ["a gate-diagnostics URL", schemaUrl("gate-diagnostics", PHAX_RELEASE)],
+    ["a gate-diagnostics URL", currentSchemaUrl("gate-diagnostics")],
     ["not a url", "not a url"],
     ["a number", 4],
   ])("refuses %s at $schema, naming the value", (_name, value) => {
@@ -771,7 +828,7 @@ describe("readBriefAnswer", () => {
 
   it("refuses a variant violation as a shape error", () => {
     const error = briefRefusal({
-      $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+      $schema: currentSchemaUrl("brief-answer"),
       guarantees: [{ ...guarantee, places: [{ location: { file: "a.ts" }, state: "stale" }] }],
     });
     expect(error.kind).toBe("shape");
@@ -784,18 +841,23 @@ describe("readBriefAnswer", () => {
     }
   });
 
-  it("describes each error in one line", () => {
+  it("describes each error in one line that names the URL this phax reads", () => {
+    const reads = `this phax reads ${currentSchemaUrl("brief-answer")}`;
     expect(describeBriefAnswerError({ kind: "schema", reason: "x" })).toBe(
-      "brief answer refused at $schema: x",
+      `brief answer refused at $schema: x; ${reads}`,
     );
     expect(describeBriefAnswerError({ kind: "newer", reason: "y" })).toBe(
-      "brief answer refused at $schema: y",
+      `brief answer refused at $schema: y; ${reads}`,
     );
     expect(describeBriefAnswerError({ kind: "shape", reason: "z" })).toBe(
-      "brief answer refused: z",
+      `brief answer refused: z; ${reads}`,
+    );
+    const older = briefRefusal(at("0.20.0"), CHANGED);
+    expect(describeBriefAnswerError(older)).toBe(
+      `brief answer refused at $schema: ${older.reason}`,
     );
     expect(describeBriefAnswerError(briefRefusal({ guarantees: [] }))).toBe(
-      "brief answer refused at $schema: a brief-answer document must carry $schema",
+      `brief answer refused at $schema: a brief-answer document must carry $schema; ${reads}`,
     );
   });
 
@@ -819,6 +881,22 @@ describe("readBriefAnswer", () => {
       answerShapes,
       "a second brief-answer answer shape: teach readBriefAnswer to decode each answer release with its own shape",
     ).toHaveLength(1);
+  });
+});
+
+// A file another release wrote in the same shape stays readable: the stamp
+// names the shape, not the build, so neither a cut nor an opening refuses it.
+describe("files stamped by an earlier release in the current shape", () => {
+  type Reader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  it.each<readonly [FormatId, Reader, string]>([
+    ["registry", readRegistryFile, "0.20.0"],
+    ["run-status", readRunStatusFile, "0.20.0"],
+    ["phase-status", readPhaseStatusFile, "0.20.0"],
+    ["phax-plan", readPhaxPlanFile, "0.20.0"],
+    ["run-status", readRunStatusFile, "0.19.0"],
+  ])("reads a %s stamped %s", (id, read, release) => {
+    const document = withKey(validDocuments[id], "$schema", schemaUrl(id, release));
+    expect(Either.isRight(read(`${id}.json`, document))).toBe(true);
   });
 });
 
