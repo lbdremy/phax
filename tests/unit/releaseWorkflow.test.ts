@@ -447,11 +447,11 @@ describe("release script invariants", () => {
     const skip = releaseScript.indexOf(
       `LAST_RELEASE="$(node -p 'require("./packages/schemas/releases.json").releases.at(-1)')"`,
     );
-    const cut = releaseScript.indexOf("scripts/release-cut.ts");
+    const cutCall = releaseScript.indexOf("scripts/release-cut.ts");
     expect(skip).toBeGreaterThan(releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then'));
-    expect(skip).toBeLessThan(cut);
+    expect(skip).toBeLessThan(cutCall);
     expect(releaseScript).toContain('if [[ "$LAST_RELEASE" == "$VERSION" ]]; then');
-    expect(releaseScript.slice(skip, cut)).toContain("exit 0");
+    expect(releaseScript.slice(skip, cutCall)).toContain("exit 0");
   });
 
   it("stops a rehearsal before committing", () => {
