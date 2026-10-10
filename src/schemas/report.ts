@@ -15,7 +15,15 @@ export function described<S extends Schema.Schema.All>(schema: S, description: s
   return Schema.propertySignature(schema).annotations({ description });
 }
 
-const LinesSchema = Schema.NullOr(Schema.Tuple(Schema.Int, Schema.Int));
+// A line number is at least 1. The JSON Schema says so; phax's decode leaves
+// it to the location's filter, so that a refusal names the location's file.
+const LineNumberSchema = Schema.Int.annotations({
+  identifier: "LineNumber",
+  description: "A 1-based line number.",
+  jsonSchema: { type: "integer", minimum: 1 },
+});
+
+const LinesSchema = Schema.NullOr(Schema.Tuple(LineNumberSchema, LineNumberSchema));
 
 type Lines = Schema.Schema.Type<typeof LinesSchema>;
 
