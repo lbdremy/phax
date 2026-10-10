@@ -88,6 +88,17 @@ if [[ "$OPEN" == true ]]; then
   exit 0
 fi
 
+# On the release commit itself the opened version is already cut: the ledger
+# ends at it and its snapshots carry its name, so there is nothing to rehearse
+# until the opening that follows.
+if [[ "$REHEARSE" == true ]]; then
+  LAST_RELEASE="$(node -p 'require("./packages/schemas/releases.json").releases.at(-1)')"
+  if [[ "$LAST_RELEASE" == "$VERSION" ]]; then
+    echo "skipped: ${VERSION} is already cut on this commit (a release commit); nothing to rehearse"
+    exit 0
+  fi
+fi
+
 if git tag | grep -q "^v${VERSION}$"; then
   echo "error: tag v${VERSION} already exists"
   exit 1
