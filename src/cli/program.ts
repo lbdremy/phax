@@ -325,7 +325,7 @@ export function buildProgram(): Command {
   program
     .command("brief")
     .description(
-      "Ask the configured brief provider which guarantees range over the given paths and how each stands there; with no path, inside a phase, the phase's brief",
+      "Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief",
     )
     .argument("[path...]", "Paths to brief, existing or not, relative to the current directory")
     .action(async (paths: string[]) => {

@@ -712,7 +712,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 | 1    | Generic failure (refusal, bad arguments, no project config) |
 | 2    | Plan or config validation                                   |
 | 3    | Unsafe git state                                            |
-| 4    | Gate failure (after the fix loop is exhausted)              |
+| 4    | Gate failure (fix attempts exhausted, or a step refused)    |
 | 5    | Agent invocation error (Claude, Vibe, or Codex)             |
 | 6    | Archive blocked by a dirty worktree                         |
 | 7    | Lock conflict                                               |

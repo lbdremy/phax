@@ -143,7 +143,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   { code: 1, meaning: "Generic failure (refusal, bad arguments, no project config)" },
   { code: 2, meaning: "Plan or config validation" },
   { code: 3, meaning: "Unsafe git state" },
-  { code: 4, meaning: "Gate failure (after the fix loop is exhausted)" },
+  { code: 4, meaning: "Gate failure (fix attempts exhausted, or a step refused)" },
   { code: 5, meaning: "Agent invocation error (Claude, Vibe, or Codex)" },
   { code: 6, meaning: "Archive blocked by a dirty worktree" },
   { code: 7, meaning: "Lock conflict" },
