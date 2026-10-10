@@ -201,21 +201,22 @@ spec of its own. In this order:
          changes.
       2. ~~`guarantee-reports`~~ (Shipped: the `guarantee-reports` spec,
          `docs/specs/2610091304-guarantee-reports.md`.) `gate-report` and `brief-report` replace
-         the old gate and brief answer formats with no shim. The agent gets only what it can act
-         on: only open legs travel, no accepted debt, a guide is a file to read, the gate report
-         lists only what fails now, a refusal stops the phase, review notes go to the review.
+         the old gate and brief answer formats with no shim, in a provider-neutral vocabulary
+         (findings, rules, guides, review notes). The agent gets only what it can act on: no
+         met item and no accepted debt travel, a guide is a file to read, the gate report lists
+         only what fails now, a refusal stops the phase, review notes go to the review.
       3. A `decision` class that stops the phase for the owner, joining the parked
          `phase-decision-requests` spec.
 
       steme's side, not phax's: its target stamps the retired gate format at 0.19.0, which phax
-      0.20 refuses; it must now print `gate-report` and `brief-report`; its brief answers carry steme's own `$schema` and an object `repair`; its copy of
-      the brief-request schema pins 0.19.0.
+      0.20 refuses; it must now print `gate-report` and `brief-report` (0.21.0), mapping its
+      guarantees, legs and repairs into findings, rules and guides, and its operators add
+      `brief.push`; its copy of the brief-request schema pins 0.19.0.
 
 The coordination note's other asks (changes 1–3, 6, 7): a stable identity on a finding, accepted
 debt in the document, a structured repair and an end line are `guarantee-reports`' to design; the
 `decision` class is step 3. Still unspecced: the brief at plan authoring (the same verb, an earlier
-moment). phax drops every key its answer readers do not name, so steme gains nothing by writing
-them before `guarantee-reports` lands.
+moment). Both report formats refuse a key they do not name, so steme writes nothing beyond them.
 
 Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per
 format (only if a consumer needs to hand the schemas to a non-Effect validator; the cockpit
