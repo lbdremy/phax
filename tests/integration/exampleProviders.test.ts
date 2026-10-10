@@ -88,6 +88,24 @@ describe("examples/hello-world audit provider", () => {
     });
   });
 
+  it("counts an export list and a typed arrow const as exporting a function", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "phax-hw-"));
+    mkdirSync(join(tmpDir, "src"), { recursive: true });
+    writeFileSync(join(tmpDir, "src/a.ts"), "function greet() {}\nexport { greet };\n");
+    writeFileSync(
+      join(tmpDir, "src/b.ts"),
+      "export const greet: (name: string) => string = (name) => name;\n",
+    );
+    writeFileSync(join(tmpDir, "src/c.ts"), "export const VERSION: number = 1;\n");
+    const { findingsFor } = (await import(join(exampleDir, "rules.mjs"))) as {
+      findingsFor: (cwd: string, files: string[]) => ReadonlyArray<{ id: string }>;
+    };
+
+    expect(findingsFor(tmpDir, ["src/a.ts", "src/b.ts", "src/c.ts"]).map((f) => f.id)).toEqual([
+      "exports-function src/c.ts",
+    ]);
+  });
+
   it("reports both rules over the files it audits, with the shipped guide", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-hw-"));
     cpSync(exampleDir, tmpDir, { recursive: true });

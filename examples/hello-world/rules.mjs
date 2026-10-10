@@ -4,8 +4,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const NODE_IMPORT_RE = /(?:from\s+|import\s*\(\s*|import\s+|require\(\s*)["']node:([^"']+)["']/;
+// A heuristic, line by line: `export function`, `export const f = (…) =>` with
+// or without a type annotation, or an export list such as `export { greet }`.
 const EXPORTED_FUNCTION_RE =
-  /^\s*export\s+(?:default\s+)?(?:async\s+)?function\b|^\s*export\s+const\s+\w+\s*=\s*(?:async\s*)?(?:\(|\w+\s*=>|function\b)/;
+  /^\s*export\s+(?:default\s+)?(?:async\s+)?function\b|^\s*export\s+const\s+\w+\s*(?::.+?)?=\s*(?:async\s*)?(?:\(|\w+\s*=>|function\b)|^\s*export\s*\{\s*\w/;
 
 export const NO_NODE_IMPORT = {
   rule: "a module under src/ imports no node: module",
