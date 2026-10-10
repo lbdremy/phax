@@ -192,7 +192,7 @@ spec of its own. In this order:
         that refusal without warning;
       - the brief provider, with `phax brief [path…]` and `records explain --briefs`;
       - the gate step keys `output` and `input` (the gate request on stdin).
-- [ ] **What steme now knows reaches phax, in this order (decided 2026-10-08 by the author).**
+- [x] **What steme now knows reaches phax, in this order (decided 2026-10-08 by the author).** (Done: shipped in 0.21.0.)
       steme's guarantee model was restructured (steme-surface §10, §14.1; decisions 27–30): packs,
       a standard, a unit manifest, repairs rendered as blueprints and skills, accepted debt keyed
       by the ledger. phax's formats flatten or drop most of it.
@@ -205,8 +205,9 @@ spec of its own. In this order:
          (findings, rules, guides, review notes). The agent gets only what it can act on: no
          met item and no accepted debt travel, a guide is a file to read, the gate report lists
          only what fails now, a refusal stops the phase, review notes go to the review.
-      3. A `decision` class that stops the phase for the owner, joining the parked
-         `phase-decision-requests` spec.
+      3. ~~A `decision` class that stops the phase for the owner~~ (Dropped 2026-10-10 by the
+         author: not wanted. Review notes stay the only way a provider reaches a person, and
+         `phase-decision-requests` stays parked on its own.)
 
       steme's side, not phax's: its target stamps the retired gate format at 0.19.0, which phax
       0.20 refuses; it must now print `gate-report` and `brief-report` (0.21.0), mapping its
@@ -215,8 +216,8 @@ spec of its own. In this order:
 
 The coordination note's other asks (changes 1–3, 6, 7): a stable identity on a finding, accepted
 debt in the document, a structured repair and an end line are `guarantee-reports`' to design; the
-`decision` class is step 3. Still unspecced: the brief at plan authoring (the same verb, an earlier
-moment). Both report formats refuse a key they do not name, so steme writes nothing beyond them.
+`decision` class was dropped (2026-10-10). Still unspecced: the brief at plan authoring (the same
+verb, an earlier moment). Both report formats refuse a key they do not name, so steme writes nothing beyond them.
 
 Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per
 format (only if a consumer needs to hand the schemas to a non-Effect validator; the cockpit
