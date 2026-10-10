@@ -92,6 +92,22 @@ describe("brief in phax.json", () => {
       PUSH_REFUSAL,
     ]);
   });
+
+  it("names brief.push when command is missing too", () => {
+    expect(refusalOf(decodePhaxConfig, { ...minimalValidPhaxConfig, brief: {} })).toEqual([
+      "  brief.command: is missing",
+      PUSH_REFUSAL,
+    ]);
+  });
+
+  it("keeps the block's description out of a type refusal", () => {
+    const lines = refusalOf(decodePhaxConfig, {
+      ...minimalValidPhaxConfig,
+      brief: "node ./brief.mjs",
+    });
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line).not.toContain("The brief provider:");
+  });
 });
 
 describe("brief in the user overlay", () => {

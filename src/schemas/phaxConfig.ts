@@ -27,9 +27,6 @@ export const BriefConfigSchema = Schema.Struct({
     description:
       'What the phase\'s first prompt lists from the phase\'s brief, at most 50 lines. "findings": the findings due in this phase. "findings-and-rules": those findings, then the rules over the phase\'s planned files, with their files and guides. Required, with no default, in every layer that declares brief.',
   }),
-}).annotations({
-  description:
-    "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
 });
 
 export type BriefConfig = Schema.Schema.Type<typeof BriefConfigSchema>;
@@ -227,7 +224,10 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  brief: Schema.optional(BriefConfigSchema),
+  brief: Schema.optional(BriefConfigSchema).annotations({
+    description:
+      "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
+  }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(
     Schema.Struct({
@@ -286,6 +286,7 @@ export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
 
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
   onExcessProperty: "error",
+  errors: "all",
 });
 
 export function getPhaxConfigJsonSchema(): object {
@@ -313,7 +314,10 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  brief: Schema.optional(BriefConfigSchema),
+  brief: Schema.optional(BriefConfigSchema).annotations({
+    description:
+      "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
+  }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(
     Schema.Struct({
@@ -330,6 +334,7 @@ export type PhaxUserOverlay = Schema.Schema.Type<typeof PhaxUserOverlaySchema>;
 
 export const decodePhaxUserOverlay = Schema.decodeUnknownEither(PhaxUserOverlaySchema, {
   onExcessProperty: "error",
+  errors: "all",
 });
 
 export function getPhaxUserOverlayJsonSchema(): object {
