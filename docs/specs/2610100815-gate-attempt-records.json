@@ -402,7 +402,7 @@
   "openQuestions": [
     {
       "id": "q-tie",
-      "question": "How is a saved report tied to the command of the step that printed it? The report has to stay byte for byte as printed, so the command cannot go inside it.",
+      "question": "How is a saved report tied to the command of the step that printed it? The report has to stay byte for byte as printed, so the command cannot go inside it. (Decided by the author on 2026-10-10; not reopened.)",
       "options": [
         {
           "id": "step-record-file",
@@ -421,11 +421,11 @@
         }
       ],
       "recommendation": "step-record-file",
-      "rationale": "The duplicated file is the cheapest loss. It needs no new format, since gate-attribution already has a schema and a reader, and the record is decoded rather than scraped from text a step could have printed. The log stays a transcript, and the report names stay as the README describes them."
+      "rationale": "Decided by the author on 2026-10-10, as recommended. The duplicated file is the cheapest loss. It needs no new format, since gate-attribution already has a schema and a reader, and the record is decoded rather than scraped from text a step could have printed. The log stays a transcript, and the report names stay as the README describes them."
     },
     {
       "id": "q-duplicates",
-      "question": "May one gate profile run the same command twice, and if so, how are the two steps told apart?",
+      "question": "May one gate profile run the same command twice, and if so, how are the two steps told apart? (Decided by the author on 2026-10-10; not reopened.)",
       "options": [
         {
           "id": "refuse",
@@ -444,7 +444,7 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "A gate step reads the worktree and does not write it, so running a command twice gives the same verdict twice. A profile that does this is almost always a mistake, and refusing it is the explicit choice. The refusal happens when the config loads, before any phase runs, so it never stops a phase midway."
+      "rationale": "Decided by the author on 2026-10-10, as recommended. A gate step reads the worktree and does not write it, so running a command twice gives the same verdict twice. A profile that does this is almost always a mistake, and refusing it is the explicit choice. The refusal happens when the config loads, before any phase runs, so it never stops a phase midway."
     }
   ],
   "planningNote": {

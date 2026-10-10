@@ -291,21 +291,21 @@ Given `gateProfiles.default` lists `pnpm test` as its first step and `pnpm  test
 
 ## 9. Open questions for implementation planning
 
-### Q1 — How is a saved report tied to the command of the step that printed it? The report has to stay byte for byte as printed, so the command cannot go inside it.
+### Q1 — How is a saved report tied to the command of the step that printed it? The report has to stay byte for byte as printed, so the command cannot go inside it. (Decided by the author on 2026-10-10; not reopened.)
 
 - A per-attempt step record beside the log (`checks-attempt-NN.attribution.json`), in the existing gate-attribution format; report-SS belongs to entry SS of the same attempt's record — abandons: a lean phase folder: one more file per attempt, which for the last attempt repeats what `gate-attribution.json` holds
 - Read the previous attempt's log, taking the `$ <command>` line just before each `report: <file>` line — abandons: decoding a typed record: the log is a transcript that also holds every step's own output, so output that prints a `$ …` line followed by a `report: …` line is misread, and no schema checks it
 - Carry the command in the report's file name — abandons: the readable, stable `report-SS` names used by the review handoff, `records explain` and the README; a command fits in a file name only as a digest nobody can read
 
-Recommendation: A per-attempt step record beside the log (`checks-attempt-NN.attribution.json`), in the existing gate-attribution format; report-SS belongs to entry SS of the same attempt's record — The duplicated file is the cheapest loss. It needs no new format, since gate-attribution already has a schema and a reader, and the record is decoded rather than scraped from text a step could have printed. The log stays a transcript, and the report names stay as the README describes them.
+Recommendation: A per-attempt step record beside the log (`checks-attempt-NN.attribution.json`), in the existing gate-attribution format; report-SS belongs to entry SS of the same attempt's record — Decided by the author on 2026-10-10, as recommended. The duplicated file is the cheapest loss. It needs no new format, since gate-attribution already has a schema and a reader, and the record is decoded rather than scraped from text a step could have printed. The log stays a transcript, and the report names stay as the README describes them.
 
-### Q2 — May one gate profile run the same command twice, and if so, how are the two steps told apart?
+### Q2 — May one gate profile run the same command twice, and if so, how are the two steps told apart? (Decided by the author on 2026-10-10; not reopened.)
 
 - Config validation refuses a profile listing the same command twice, with exit 2 — abandons: a profile that runs one command twice on purpose, which must now spell one of the two differently (for example `pnpm run test`)
 - Allow it, and tell the twins apart by occurrence (the first `pnpm test`, the second) — abandons: the guarantee itself: adding or removing one twin between attempts shifts the occurrence, which is the same false mark this spec removes, only rarer
 - Allow it, and mark nothing for a command that appears twice in either attempt — abandons: the `still failing` mark for those steps, silently, and the profile's ambiguity goes unflagged
 
-Recommendation: Config validation refuses a profile listing the same command twice, with exit 2 — A gate step reads the worktree and does not write it, so running a command twice gives the same verdict twice. A profile that does this is almost always a mistake, and refusing it is the explicit choice. The refusal happens when the config loads, before any phase runs, so it never stops a phase midway.
+Recommendation: Config validation refuses a profile listing the same command twice, with exit 2 — Decided by the author on 2026-10-10, as recommended. A gate step reads the worktree and does not write it, so running a command twice gives the same verdict twice. A profile that does this is almost always a mistake, and refusing it is the explicit choice. The refusal happens when the config loads, before any phase runs, so it never stops a phase midway.
 
 ## 10. Implementation-planning note
 
