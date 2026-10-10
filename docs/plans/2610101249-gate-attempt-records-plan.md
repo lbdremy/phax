@@ -1,0 +1,335 @@
+---
+status: Draft
+source-spec: docs/specs/2610100815-gate-attempt-records.md
+completes-spec: true
+---
+# Gate attempt records
+
+Make each gate attempt's record hold what that attempt saw and nothing else. The plan fixes three defects found in the review of PR #129. (1) A step's stdout and stderr are decoded once, after the step ends, so a multi-byte character split across two chunks is no longer corrupted, and a report step whose stdout is not valid UTF-8 is a broken step (§5.10–§5.11). (2) Gate attempts are numbered once per phase, on every entry into the gate, one above the highest number on any per-attempt file, and no existing file is overwritten. Each attempt writes a step record, `checks-attempt-NN.attribution.json` in the existing gate-attribution format, and `still failing` compares a step only with the step that has the same command in the previous recorded attempt, across entries (§5.1–§5.8). (3) Config validation refuses a gate profile that lists one command twice, with exit 2 (§5.9), and the README and NEXT_STEPS are updated. The phases go inside-out, and each one is green on its own with its tests. Run folders written before this change are read as they stand: nothing is migrated, and their attempts have no step record, so they give no `still failing` mark.
+
+## Required commands
+
+- (none)
+
+The plan adds no command. Every phase is verified by the existing `standard` gate profile in `phax.json`.
+
+## Technical arbitrations
+
+- Step record file name: `checks-attempt-NN.attribution.json`, the spec's indicative name. Loss accepted: the name does not say "step record". The alternative, `checks-attempt-NN.steps.json`, would lose the visible tie to the gate-attribution format the file holds, and the one-suffix mapping from file to format that the persisted-producer test relies on.
+- Where bytes become text: inside `NodeShellLayer`. It collects the raw chunks, decodes them once when the child closes, and reports a required `stdoutEncoding: "utf8" | "invalid-utf8"` on `ShellRunResult`. Loss accepted: raw bytes never cross the port, so no caller can get the exact bytes of a non-UTF-8 stdout, only the flag and a lossy decode. The alternative, bytes on the port result, would lose a small port: every Shell caller (git, gh, provider probes, records) would decode for itself, for a need only the gate has.
+- Wording of the duplicate-command refusal: a `ConfigValidationError` whose message is `gateProfiles.default lists the command "pnpm test" twice (steps 1 and 3)` and whose path is `gateProfiles.default` (or `workspaces[<id>].gateProfiles.<profile>`). The existing `Config error:` reporter renders it. Loss accepted: the spec surface's indicative `✗ config:` form. In exchange, every config refusal keeps one rendering.
+- Wording of the non-UTF-8 line: the report step goes down the existing malformed-report path with the reason `stdout is not valid UTF-8`, so the log reads `provider error: stdout is not valid UTF-8; this phax reads <gate-report stamp>`. Loss accepted: a bare one-line message. In exchange, every broken report step keeps one shape.
+- Where numbering is computed: `runGatesWithFixLoop` computes it at the start of every attempt, from a FileSystem-port listing of the phase folder. The `startAttempt` option and executePlan's `resumeAttempt` / `maxAttemptIndexInPhaseFolder` are removed. Loss accepted: callers can no longer choose the start number, so tests seed the phase folder instead of passing `startAttempt`. In exchange, no entry path can restart at 1.
+- Where the duplicate check runs: in `loadConfig`, after the layers merge, through a pure domain finder. Loss accepted: a reader that only calls `decodePhaxConfig` (the init wizard's pre-fill) does not see the refusal. The merged config, overlays included, is what runs, and every command loads it through `loadConfig`.
+
+---
+
+## phase-01 — Decode a step's output once {#phase-01-decode-once}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+A step's stdout and stderr reach phax exactly as printed. The shell adapter decodes each stream once, from every byte the step printed, after the step ends. A report step whose stdout is not valid UTF-8 is a broken step, so a report is never saved corrupted (spec §5.10–§5.11).
+
+### Detailed instructions
+
+- In `src/ports/shell.ts`, add a required field to `ShellRunResult`: `readonly stdoutEncoding: "utf8" | "invalid-utf8"`, with a doc comment saying whether stdout's bytes were valid UTF-8. Use an explicit per-variant literal union, not a boolean. `stdout` and `stderr` stay strings.
+- In `src/infra/shell.ts` (`spawnCommand`), stop calling `chunk.toString("utf8")` on every `data` event. Push each `Buffer` chunk into a `stdoutChunks` / `stderrChunks` array. On `close`, run `Buffer.concat(...)` once per stream, decode with `buf.toString("utf8")` (it keeps a leading BOM; do not use a default `TextDecoder`, which strips it), and compute `stdoutEncoding` with `isUtf8` from `node:buffer` (or a `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })` inside try/catch). Keep the timeout, the SIGKILL grace and the stdin EPIPE handling exactly as they are.
+- In `src/infra/fakes/shell.ts`, keep `FakeShellResponse` unchanged (`exitCode`, `stdout`, `stderr`) so the many existing fakes stay valid. `run` returns the response with `stdoutEncoding: "utf8"` added: a fake holds whole strings, which are valid UTF-8 by construction. The non-UTF-8 case is covered through the real adapter.
+- In `src/app/gates.ts` (`runGates`), inside the `step.output === "gate-report"` branch and before the empty-stdout check, add: if `result.stdoutEncoding === "invalid-utf8"`, then `return yield* unread(unreadableReport("stdout is not valid UTF-8"))`. The step is then a broken step: it fails with the raw log, the log gets `provider error: stdout is not valid UTF-8; this phax reads <gate-report stamp>` through `describeReportError`, the step result is recorded as `fail`, and no report file is written. A log step (`output` absent or `"log"`) ignores `stdoutEncoding`. Its lossy decode goes into the attempt log unchanged.
+- Leave every other Shell caller untouched. They keep reading `stdout` / `stderr` as strings, and the new field is only read by the gate.
+- If `tests/unit/cli/agent.test.ts` builds a Shell layer whose `run` succeeds, add `stdoutEncoding: "utf8"` to that result. The current mock only fails, so no change may be needed.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/ports/shell.ts`
+- `src/infra/shell.ts`
+- `src/infra/fakes/shell.ts`
+- `src/app/gates.ts`
+- `tests/integration/nodeShell.test.ts`
+- `tests/integration/gates.test.ts`
+
+### Optional files that may be edited
+
+- `tests/unit/cli/agent.test.ts`
+
+### Boundary contracts
+
+Shell port (producer: `NodeShellLayer` and the fake; consumer: `runGates`, plus every other Shell caller, which ignores the new field). `ShellRunResult` = `{ exitCode, stdout, stderr, stdoutEncoding }`. `stdout` and `stderr` are each decoded once, from the complete byte stream, after the child closes. `stdoutEncoding` says whether stdout's bytes were valid UTF-8. The gate is the only consumer that acts on `"invalid-utf8"`.
+
+### Test strategy
+
+Write the adapter and gate tests before changing the adapter, and confirm they fail on the current chunk-by-chunk decode. (1) `tests/integration/nodeShell.test.ts`, new `describe("NodeShellLayer decoding")`. A child (`process.execPath -e …`) writes `Buffer.from([0xc3])`, then after a `setTimeout` of ~50 ms writes `Buffer.from([0xa9])`, on stdout. Assert that `stdout === "é"`, that it holds no `\uFFFD`, and that `stdoutEncoding === "utf8"`. Do the same for `✓` (`e2 9c 93`) split across two writes on both stdout and stderr. A child that writes `Buffer.from([0xff, 0xfe, 0x41])` gives `stdoutEncoding === "invalid-utf8"`. (2) `tests/integration/gates.test.ts`, in the existing real-shell block (`NodeFileSystemLayer` + `NodeShellLayer`, temp dir): (a) a report step whose child prints a made-up checked report, with the current gate-report stamp and one finding whose message holds `é`, sends the two bytes of `é` in separate writes. The saved `checks-attempt-01.report-01.json` bytes equal the bytes printed (compare `Buffer`s), and the step is judged from that report (fails with that finding). (b) A log step prints `✓` split across two writes on stdout and on stderr. The attempt log holds `✓` twice and no `\uFFFD`. (c) A report step whose stdout holds non-UTF-8 bytes fails as a broken step (`GateFailedError` with `reportFindings: null`), the log contains `stdout is not valid UTF-8`, and no `*.report-*.json` file exists. Fixtures are made up. Stamps come from `currentSchemaUrl("gate-report")` / `CURRENT_STAMPS`, never a hard-coded next release.
+
+### Implementation order
+
+1. Port: add `stdoutEncoding` to `ShellRunResult`.
+2. Write the failing adapter tests in `tests/integration/nodeShell.test.ts` and the real-shell gate tests in `tests/integration/gates.test.ts`.
+3. Adapter: collect the chunks, decode once on close, compute `stdoutEncoding`.
+4. Fake shell: return `stdoutEncoding: "utf8"`.
+5. Gate: treat an `invalid-utf8` report stdout as a broken step.
+6. Run the `standard` gate profile.
+
+### Excluded scope
+
+- Attempt numbering, the step record and `still failing` (phase-02).
+- Refusing duplicate commands in a gate profile, and every README / NEXT_STEPS edit (phase-03).
+- Changing any other Shell caller to read bytes, or making the port carry bytes.
+- Checking stderr for UTF-8 validity: only a report step's stdout is judged.
+
+### Verification
+
+The project's configured `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exact shape of `ShellRunResult` after the change, with the `stdoutEncoding` literal union, in `src/ports/shell.ts`.
+- Confirmation that `FakeShellResponse` is unchanged and that the fake always reports `"utf8"`.
+- The exact log line a non-UTF-8 report step produces, as it appears in the test.
+- Whether the split-write tests needed a delay between writes to keep the chunks separate on this platform, and the value used.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`fix(shell): decode a step's output once, after the step ends`
+
+### Commit body
+
+The Node shell adapter decoded stdout and stderr chunk by chunk, so a
+multi-byte character split across two chunks became replacement
+characters. A gate report was then not saved byte for byte as printed,
+and its decoding could fail on text the provider wrote correctly.
+
+The adapter now collects the raw chunks and decodes each stream once,
+when the child closes. ShellRunResult carries a required stdoutEncoding
+("utf8" | "invalid-utf8"). A report step whose stdout is not valid UTF-8
+is a broken step: it fails with the raw log, the log reads "provider
+error: stdout is not valid UTF-8", and no report is saved.
+
+The tests drive the real adapter with a child that writes one character
+in two writes, on stdout and on stderr, and with a child that prints
+bytes that are not UTF-8.
+
+Refs: docs/specs/2610100815-gate-attempt-records.md §5.10, §5.11
+
+---
+
+## phase-02 — Attempt numbering and the step record {#phase-02-attempt-numbering}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+A phase's gate attempts are numbered once, across every entry into its gate. Each attempt records the commands it ran, and `still failing` compares a step only with the step that has the same command in the previous recorded attempt. Then the review handoff, the fix prompt and `records explain --gates` read each attempt's own files and nothing else (spec §5.1–§5.8).
+
+### Detailed instructions
+
+- Create `src/domain/gate/attemptFiles.ts` (pure, no I/O), documented like `reportPath.ts`. It holds: `attemptNumberOf(name: string): number | undefined` for a per-attempt file name: `^checks-attempt-(\d{2,})\.(?:log|request\.json|attribution\.json|report-\d{2,}\.json)$` and `^fix-attempt-(\d{2,})\.jsonl$`, with `gate-attribution.json` and every other name giving undefined. `nextAttemptNumber(names: readonly string[]): number` returns one above the highest `attemptNumberOf`, or 1. `recordedAttempts(names)` lists the numbers of `checks-attempt-NN.log` (two or more digits), ascending. `previousRecordedAttempt(names, attempt): number | undefined` is the highest recorded number below `attempt`. `lastRecordedAttempt(names): number | undefined` is the highest recorded number. `stepRecordPathFor(attemptLogPath: string): string` maps `checks-attempt-NN.log` to `checks-attempt-NN.attribution.json`, mirroring `requestPathFor`. It may also hold `attemptLogName(n)` / `fixTranscriptName(n)`, which pad to two digits and so leave three-digit numbers as they are.
+- Create `src/domain/gate/commandWords.ts` (pure). `commandWords(raw: string): readonly string[]` is `raw.trim().split(/\s+/).filter(Boolean)`, the split phax uses to run a step. `sameCommand(a: string, b: string): boolean` compares the word arrays element by element. Make `parseCommandTokens` in `src/app/gates.ts` build on `commandWords`, so "same command" and "how phax runs it" have a single definition. Its empty-command error stays.
+- In `src/app/gates.ts` (`runGates`), write the attempt's step record beside its log whenever `phaseId` is given. The content is the same gate-attribution document already built for `attributionPath` (`encodeGateAttributionFile(withSchemaUrl("gate-attribution", { phase, steps }))`, two-space indented), written to `stepRecordPathFor(attemptLogPath)`. Write it at every place the attempt ends: pass, fail, refused, and the broken-step paths through `failGate`. Order it next to the per-phase `gate-attribution.json` write. The per-phase `gate-attribution.json` keeps its role and content unchanged (spec §7). Do not add a new persisted format.
+- In `src/app/fixLoop.ts`, remove the `startAttempt` option. At the start of every attempt (inside `loop`, before `runGates`), list the phase folder through the `FileSystem` port: `fs.exists` first, then `fs.list`, where a missing folder means no names. Number the attempt with `nextAttemptNumber(names)`. Thread that number through `logPath`, the `GatePassed` / `GateFailed` / `GateStepRefused` / `FixAttemptsExhausted` / `FixStarted` events, the fix prompt and `fix-attempt-NN.jsonl`, so all five per-attempt files of one attempt share it (§5.3). `fixesUsed` still starts at 0 on every entry: each entry keeps the full fix budget (§7).
+- Rewrite `previousFindingIds` in `src/app/fixLoop.ts` to take `(attempt, failingCommand)`, with `failingCommand = error.command`, not the position. List the folder and take `previousRecordedAttempt(names, attempt)`. If there is none, return the empty set. Read `stepRecordPathFor(logPath(prev))`. If it is missing, return the empty set: a folder written before this change has no step record (§8). Decode it with `readGateAttributionFile(path, parsed)` from `src/schemas/persisted.ts`. Find the first step `i` whose `command` is `sameCommand` with `failingCommand`. If there is none, return the empty set. Read `reportPathFor(logPath(prev), i + 1)` and return its finding ids only when the report reads as `outcome: "checked"`. Any read or decode failure gives the empty set, as today (`Effect.orElseSucceed`). Remove the `attempt <= 1` / `attempt - 1` arithmetic. A cut-short attempt (no log) is never the previous one.
+- In `src/app/executePlan.ts`, delete `maxAttemptIndexInPhaseFolder`, the `readdirSync` import (keep `existsSync` if still used), the `resumeAttempt` variable and its assignment, and the `startAttempt: resumeAttempt + 1` argument. The resume-from-gate path still passes `worktreePath`. Update the comment above `runGatesWithFixLoop` to say numbering continues on every entry. Leave the commit's `Gate-Log: checks-attempt-01.log` trailer alone (spec §7 non-goal; phase-03 files it as a follow-up).
+- In `src/app/loadReviewHandoffInputs.ts` (`loadLastAttemptReviewNotes`), replace the inline regex with `lastRecordedAttempt(names)`. Behaviour is unchanged: notes come only from the last recorded attempt's checked reports, in step order. `src/app/recordsExplain.ts` already orders by any digit count, skips reports with no log and prints no step record. Touch it only to reuse the shared helpers if that is a clear simplification. It must keep printing log, request and reports, and never the `.attribution.json` file (§7).
+- Update `tests/integration/persistedProducer.test.ts` so that `formatAt` maps `checks-attempt-NN.attribution.json` (`/\.attribution\.json$/` on a `checks-attempt-` name) to `gate-attribution`. The new producer then checks against the gate-attribution schema like the per-phase file.
+- If `runGates` callers that pass no `phaseId` (`src/app/eventAdapter.ts`, test-only) are unaffected, leave them. If you make `phaseId` required instead, update those callers and the affected `gates.test.ts` calls.
+- No skill edits. If a skill under `.claude/skills/` describes attempt numbering or `still failing` by position, report the file and passage in the handoff instead of editing it.
+
+### Planned files to create
+
+- `src/domain/gate/attemptFiles.ts`
+- `src/domain/gate/commandWords.ts`
+- `tests/unit/attemptFiles.test.ts`
+- `tests/unit/commandWords.test.ts`
+
+### Planned files to edit
+
+- `src/app/fixLoop.ts`
+- `src/app/gates.ts`
+- `src/app/executePlan.ts`
+- `src/app/loadReviewHandoffInputs.ts`
+- `tests/integration/fixLoop.test.ts`
+- `tests/integration/gates.test.ts`
+- `tests/integration/rateLimit.test.ts`
+- `tests/integration/loadReviewHandoffInputs.test.ts`
+- `tests/integration/recordsExplain.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+
+### Optional files that may be edited
+
+- `src/app/recordsExplain.ts`
+- `src/app/eventAdapter.ts`
+- `src/domain/gate/reportPath.ts`
+- `src/infra/fakes/backend.ts`
+- `tests/integration/executePlan.test.ts`
+- `tests/integration/__snapshots__/executePlan.test.ts.snap`
+- `tests/integration/resume.test.ts`
+- `tests/integration/telemetry/adapterFailures.test.ts`
+- `tests/integration/eventAdapter.test.ts`
+
+### Boundary contracts
+
+Domain → app: `src/domain/gate/attemptFiles.ts` provides `nextAttemptNumber`, `previousRecordedAttempt`, `lastRecordedAttempt`, `stepRecordPathFor` and `attemptNumberOf` over plain file-name lists. `src/domain/gate/commandWords.ts` provides `commandWords` / `sameCommand`. Phase-03 reuses `commandWords` for the duplicate check. App → FileSystem port: the phase-folder scan uses `fs.exists` + `fs.list`, never `node:fs`. Persisted file contract: `checks-attempt-NN.attribution.json` is a gate-attribution document (current stamp, `{phase, steps:[{command, surface, result}]}` in run order). `checks-attempt-NN.report-SS.json` belongs to `steps[SS-1]` of the same attempt's step record.
+
+### Test strategy
+
+Test-first for the domain helpers and for each defect's reproduction. (1) `tests/unit/attemptFiles.test.ts`: `nextAttemptNumber` over an empty list → 1. Over `checks-attempt-01.log`, `fix-attempt-02.jsonl` → 3. Over `checks-attempt-04.request.json` + `checks-attempt-04.report-01.json` with no 04 log, and a recorded 03 → 5. Over `checks-attempt-100.log` → 101. Over `gate-attribution.json` and `brief-03.json` alone → 1. `previousRecordedAttempt` skips a cut-short 04 (attempt 5 → 3) and gives undefined below the first log. `stepRecordPathFor` maps the name. (2) `tests/unit/commandWords.test.ts`: `pnpm  test` and ` pnpm test ` are the same command as `pnpm test`, and `pnpm run test` is not. (3) `tests/integration/gates.test.ts`: the step record lists `node scripts/lint.mjs` then `node scripts/audit.mjs` with their results, decoded with `readGateAttributionFile`, for an attempt that ends on the second step by passing, by failing, by refusing and by stopping on a broken step. (4) `tests/integration/fixLoop.test.ts`: rewrite the `startAttempt: 3` cases to seed the fake FS phase folder instead. Add: seeded 01 and 02 (with `fix-attempt-01/02.jsonl`) → the gate runs as 03, and every seeded file is byte for byte unchanged. A cut-short 04 next to a recorded 03 → runs as 05, previous is 03, and the 04 files are unchanged. A seeded `checks-attempt-100.log` → 101. After attempt 03 fails on a report step at position 2 with a request declared and a fix attempt follows, the 03-numbered files are exactly log, request, report-02, attribution and `fix-attempt-03.jsonl`. `still failing` across a re-entry: seeded attempt 02 with a step record and a checked report from `node scripts/audit.mjs` listing `no-node-import:src/a.ts` → attempt 03's same id is marked ` · still failing`. An inserted step (`node scripts/c.mjs` now at position 2, previous report-02 from `node scripts/b.mjs` listing `x-1`) → no mark. A moved step (`node scripts/b.mjs` now at position 1) → marked. A previous refused report from `node scripts/b.mjs` → no mark. A folder written before this change (01–03, no step record) → runs as 04, no mark, nothing changed. (5) `tests/integration/rateLimit.test.ts`: an executePlan-level reproduction. A phase's gate attempts 01 and 02 fail, fix attempt 02 hits a rate limit, and `phax resume` re-enters. The gate writes `checks-attempt-03.log`, and the 01/02 files are byte for byte as before (extend the fake backend's rate-limit hook to the fix session if needed). (6) `tests/integration/loadReviewHandoffInputs.test.ts`: attempts 01, 02 (a report holding the made-up review note `check the retry budget`) and 03 (passed, no note) → no `## Review notes` section. (7) `tests/integration/recordsExplain.test.ts`: `gateArtifactsInOrder` over 01–03 with their step records prints each attempt once, in order, with only its own log, request and reports, and never an `.attribution.json`. All fixtures are made up. Stamps come from `currentSchemaUrl` / `CURRENT_STAMPS`.
+
+### Implementation order
+
+1. Domain: `attemptFiles.ts` and `commandWords.ts` with their unit tests (test-first).
+2. `runGates`: write the step record at every end of an attempt. Base `parseCommandTokens` on `commandWords`. Add the gates tests.
+3. `runGatesWithFixLoop`: compute numbering from the folder at every attempt start, drop `startAttempt`, and rewrite `previousFindingIds` by command. Rewrite and extend the fixLoop tests.
+4. `executePlan`: remove `maxAttemptIndexInPhaseFolder`, `readdirSync` and `resumeAttempt`. Add the rate-limited re-entry test.
+5. Readers: `loadReviewHandoffInputs` on `lastRecordedAttempt`. Add the review-notes and records-explain tests. Map the step record in `persistedProducer.test.ts`.
+6. Run the `standard` gate profile.
+
+### Excluded scope
+
+- Refusing a profile that lists one command twice (phase-03). Until then, `previousFindingIds` takes the first same-command step.
+- README and NEXT_STEPS edits (phase-03).
+- The commit's `Gate-Log` trailer, which still names `checks-attempt-01.log` (spec §7, filed as a follow-up in phase-03).
+- Changing what `gate-attribution.json` holds or who reads it, or making readers use the step record instead (spec §7, §10 left open).
+- Printing the step record in `records explain --gates`.
+- Any migration, detection or renumbering of run folders written before this change. `reset-phase` still archives the folder and the fresh one starts at 01.
+- The fix-attempt budget on a re-entry (each entry keeps the full budget).
+
+### Verification
+
+The project's configured `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exported names and signatures in `src/domain/gate/attemptFiles.ts` and `src/domain/gate/commandWords.ts`. Phase-03 imports `commandWords` / `sameCommand` from the latter.
+- The final step record file name (`checks-attempt-NN.attribution.json`) and where in `runGates` it is written.
+- Confirmation that `startAttempt`, `resumeAttempt`, `maxAttemptIndexInPhaseFolder` and the `readdirSync` import are gone, and that no new `node:fs` import entered `app/`, `domain/` or `cli/`.
+- How the rate-limited re-entry test triggers a rate limit during a fix attempt (any fake-backend change).
+- Any skill under `.claude/skills/` that describes attempt numbering or position-keyed `still failing`, named but not edited.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`fix(gates): number attempts once per phase and key still failing by command`
+
+### Commit body
+
+A re-entry into a phase's gate after a rate limit, a usage limit or an
+interruption ran the gate from attempt 1 again. It overwrote the first
+entry's files and left its higher-numbered ones behind for the review
+handoff, `still failing` and `records explain --gates` to misread. The
+one path that continued counted only two-digit .log names. `still
+failing` also read the previous attempt's report by the failing step's
+position, which an edited gateProfiles shifts.
+
+Every gate attempt now takes one above the highest number on any
+per-attempt file in the phase folder (log, request, reports, step record,
+fix transcript), however many digits it has, on every entry, through the
+FileSystem port. No existing file is overwritten. Each attempt writes its
+step record, checks-attempt-NN.attribution.json, in the existing
+gate-attribution format. `still failing` reads the previous recorded
+attempt (the highest-numbered log below this one, across entries), finds
+the step with the same command in its step record, and compares only
+with that step's checked report. With no such report, nothing is marked.
+The review handoff's last attempt uses the same helpers.
+
+Refs: docs/specs/2610100815-gate-attempt-records.md §5.1–§5.8
+
+---
+
+## phase-03 — Duplicate gate commands and the docs {#phase-03-duplicate-commands-docs}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+A gate profile that lists one command twice is refused when the config loads, with exit 2, so `still failing` always compares one step with exactly one step (§5.9). The operator docs describe the new numbering, the step record and the command-keyed `still failing` mark, and NEXT_STEPS reflects what shipped (§10, §11).
+
+### Detailed instructions
+
+- In `src/domain/gate/commandWords.ts` (created in phase-02), add a pure `findDuplicateCommand(steps: readonly { readonly command: string }[]): { readonly command: string; readonly first: number; readonly second: number } | undefined`. It returns the first pair of 1-based step positions whose commands are `sameCommand`, with `command` being the first occurrence's words joined by single spaces (`pnpm test`).
+- In `src/app/loadConfig.ts`, add `validateUniqueGateCommands(config)` next to `validateUniqueWorkspaceIds`, and call it after `mergeConfigLayers`, so profiles from overlays are checked too. Check every top-level `gateProfiles.<profile>` and every `workspaces[<id>].gateProfiles.<profile>`. On the first duplicate, return a `ConfigValidationError` with message `gateProfiles.<profile> lists the command "<command>" twice (steps <first> and <second>)` (workspace: `workspaces[<id>].gateProfiles.<profile> lists …`) and `path` set to that profile path. Do not change `PhaxConfigSchema` or its JSON Schema.
+- Confirm that a `ConfigValidationError` from `loadConfig` already exits 2 on every command that loads the config (`runLayers` maps it to 2; `reportConfigError` callers). If `phax validate` does not exit 2 on it, add a test that shows it, then fix only the exit-code mapping.
+- README "Gate report steps" (around the paragraph saying the fix prompt marks a finding whose id "the same step listed in the previous attempt"): "the same step" becomes "the step with the same command". State that the previous attempt is the highest-numbered attempt before this one, even across a `phax resume`, and that a gate profile may not list the same command twice (refused at config load, exit 2). In the paragraph on saved reports, add that each attempt also writes `checks-attempt-NN.attribution.json`, the attempt's step record in the gate-attribution format, which ties `report-SS` to the step that printed it. In the persisted-formats table's Gate attribution row, add `<record>/checks-attempt-NN.attribution.json` to the location.
+- README troubleshooting entry "A gate keeps failing": say that attempts are numbered once per phase, that a resumed phase continues at the next number and never overwrites an earlier attempt's files, so the last attempt is the highest-numbered `checks-attempt-NN.log`. Follow the spec §11 example. Keep the rest of the entry.
+- NEXT_STEPS.md, "Small follow-ups": replace the three entries this spec covers ("Gate attempt numbering restarts after a rate-limited resume", "Read a step's stdout as bytes, decode once", "`still failing` keys the previous report by the step's position") with one `[x]` entry in the file's existing shipped style, `(Shipped: the gate-attempt-records spec.)`, naming the three defects in one sentence. Add one new `[ ]` entry, found 2026-10-10 while writing gate-attempt-records: the phase commit's `Gate-Log` trailer names `checks-attempt-01.log` whichever attempt passed (`src/app/executePlan.ts`). It should name the passing attempt's log.
+- No skill edits. If a skill describes attempt numbering or `still failing` by position, name it in the handoff.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/domain/gate/commandWords.ts`
+- `src/app/loadConfig.ts`
+- `tests/unit/commandWords.test.ts`
+- `tests/unit/loadConfig.test.ts`
+- `README.md`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `tests/integration/loadConfigLayers.test.ts`
+- `tests/unit/cli/validate.test.ts`
+
+### Boundary contracts
+
+Domain → app: `findDuplicateCommand` (pure, `src/domain/gate/commandWords.ts`) is consumed by `loadConfig` (app). Config load → CLI: a duplicate surfaces as the existing `ConfigValidationError`, which the CLI renders through `reportConfigError` and maps to exit 2. No new error type.
+
+### Test strategy
+
+Test-first. (1) `tests/unit/commandWords.test.ts`: `findDuplicateCommand` over `pnpm test`, `node scripts/audit.mjs`, `pnpm  test` → `{ command: "pnpm test", first: 1, second: 3 }`. Over distinct commands → undefined. `pnpm run test` vs `pnpm test` → undefined. (2) `tests/unit/loadConfig.test.ts`: a made-up `phax.json` whose `gateProfiles.default` lists `pnpm test` first and `pnpm  test` third → `Either.left(ConfigValidationError)` whose message names `gateProfiles.default` and `"pnpm test"`. A workspace profile with a duplicate is named `workspaces[<id>].gateProfiles.<profile>`. A config without duplicates still loads. Optionally, in `tests/integration/loadConfigLayers.test.ts`, a duplicate introduced only by a `phax.local.json` overlay is refused too. Optionally, in `tests/unit/cli/validate.test.ts`, the CLI exits 2. Docs are checked by the format and lint steps of the gate.
+
+### Implementation order
+
+1. Write the failing `findDuplicateCommand` and `loadConfig` tests.
+2. Implement `findDuplicateCommand`, then `validateUniqueGateCommands` in `loadConfig`.
+3. Confirm the exit-2 mapping.
+4. README: "Gate report steps", the persisted-formats row, "A gate keeps failing".
+5. NEXT_STEPS: retire the three entries and add the Gate-Log follow-up.
+6. Run the `standard` gate profile.
+
+### Excluded scope
+
+- Telling twin steps apart by occurrence, or tolerating duplicates (spec §9 Q2 decided).
+- Changing the config JSON Schema or `PhaxConfigSchema`.
+- Fixing the `Gate-Log` trailer: only filed in NEXT_STEPS.
+- Any change to numbering, the step record or `still failing` (phase-02).
+- Editing skills under `.claude/skills/`.
+
+### Verification
+
+The project's configured `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exact duplicate-refusal message, and the `path` for a top-level and a workspace profile.
+- Where `validateUniqueGateCommands` runs in `loadConfig` (after the merge) and confirmation that every config-loading command exits 2 on it.
+- The README sections changed, and the new NEXT_STEPS entries as written.
+- Any skill that still describes the old behaviour, named but not edited.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(config): refuse a gate profile that lists one command twice`
+
+### Commit body
+
+`still failing` now compares a step with the step that has the same
+command in the previous attempt, so two steps with one command in a
+profile would make that comparison ambiguous. Config validation now
+refuses such a profile, top-level or a workspace's, when the config
+loads (exit 2). The message names the profile and the command. Two
+commands are the same when they split into the same words, the way phax
+runs them ("pnpm  test" is "pnpm test"). The refusal happens before any
+phase runs, so it never stops a phase midway.
+
+The README's "Gate report steps" section and the "A gate keeps failing"
+entry now describe one numbering per phase across `phax resume`, the
+step record, and `still failing` keyed by command. NEXT_STEPS retires the
+three Small follow-ups this spec covers and files the Gate-Log trailer,
+which still names checks-attempt-01.log, as a new follow-up.
+
+Refs: docs/specs/2610100815-gate-attempt-records.md §5.9, §11
