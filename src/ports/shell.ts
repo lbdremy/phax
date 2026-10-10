@@ -24,8 +24,15 @@ export interface ShellRunOptions {
 
 export interface ShellRunResult {
   readonly exitCode: number;
+  /** Decoded once, from every byte the child printed, after it closed. */
   readonly stdout: string;
+  /** Decoded once, from every byte the child printed, after it closed. */
   readonly stderr: string;
+  /**
+   * Whether stdout's bytes were valid UTF-8. On `"invalid-utf8"`, `stdout` is a
+   * lossy decode (invalid sequences become U+FFFD) and no longer the bytes as printed.
+   */
+  readonly stdoutEncoding: "utf8" | "invalid-utf8";
 }
 
 export interface ShellOps {

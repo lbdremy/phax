@@ -44,11 +44,12 @@ export class FakeShellImpl implements ShellOps {
     if (failure !== undefined) {
       return Effect.fail(new ShellError({ message: failure, argv: options.command }));
     }
-    if (this.queue.length > 0) {
-      return Effect.succeed(this.queue.shift()!);
-    }
-    const response = this.responses.get(key) ?? this.defaultResponse;
-    return Effect.succeed(response);
+    // A fake holds whole strings, which are valid UTF-8 by construction.
+    const response =
+      this.queue.length > 0
+        ? this.queue.shift()!
+        : (this.responses.get(key) ?? this.defaultResponse);
+    return Effect.succeed({ ...response, stdoutEncoding: "utf8" });
   }
 }
 

@@ -77,3 +77,50 @@ describe("NodeShellLayer timeout", () => {
     expect(Date.now() - started).toBeLessThan(3_000);
   });
 });
+
+/** A child script writing each byte group on `stream`, 50 ms apart, so each lands in its own chunk. */
+function splitWrites(stream: "stdout" | "stderr", ...groups: readonly number[][]): string {
+  return [
+    `const groups = ${JSON.stringify(groups)};`,
+    "let i = 0;",
+    `const next = () => { if (i < groups.length) { process.${stream}.write(Buffer.from(groups[i++])); setTimeout(next, 50); } };`,
+    "next();",
+  ].join("\n");
+}
+
+describe("NodeShellLayer decoding", () => {
+  it("decodes a two-byte character split across two writes on stdout", async () => {
+    const result = await run([process.execPath, "-e", splitWrites("stdout", [0xc3], [0xa9])]);
+
+    expect(result.stdout).toBe("é");
+    expect(result.stdout).not.toContain("�");
+    expect(result.stdoutEncoding).toBe("utf8");
+  });
+
+  it("decodes a three-byte character split across two writes on stdout and on stderr", async () => {
+    const out = await run([process.execPath, "-e", splitWrites("stdout", [0xe2, 0x9c], [0x93])]);
+    const err = await run([process.execPath, "-e", splitWrites("stderr", [0xe2], [0x9c, 0x93])]);
+
+    expect(out.stdout).toBe("✓");
+    expect(out.stdoutEncoding).toBe("utf8");
+    expect(err.stderr).toBe("✓");
+    expect(err.stderr).not.toContain("�");
+  });
+
+  it("keeps a leading byte order mark", async () => {
+    const result = await run([
+      process.execPath,
+      "-e",
+      splitWrites("stdout", [0xef, 0xbb, 0xbf, 0x41]),
+    ]);
+
+    expect(result.stdout).toBe("﻿A");
+    expect(result.stdoutEncoding).toBe("utf8");
+  });
+
+  it("flags stdout bytes that are not UTF-8", async () => {
+    const result = await run([process.execPath, "-e", splitWrites("stdout", [0xff, 0xfe, 0x41])]);
+
+    expect(result.stdoutEncoding).toBe("invalid-utf8");
+  });
+});

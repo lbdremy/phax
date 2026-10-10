@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -827,6 +828,108 @@ describe("runGates with a declaring step (Node shell)", () => {
     expect(replay.status).toBe(0);
     expect(gateTime).toMatch(/^phase=phase-01 base=[0-9a-f]{40} terminal=false bytes=\d+$/);
     expect(replay.stdout.trimEnd()).toBe(gateTime);
+  });
+});
+
+/** A made-up script printing each byte part on its stream, 50 ms apart, so each lands in its own chunk. */
+function splitWriter(parts: readonly { stream: "stdout" | "stderr"; bytes: Buffer }[]): string {
+  const encoded = parts.map((part) => [part.stream, part.bytes.toString("base64")]);
+  return [
+    `const parts = ${JSON.stringify(encoded)};`,
+    "let i = 0;",
+    "const next = () => {",
+    "  if (i === parts.length) return;",
+    "  const [stream, b64] = parts[i++];",
+    '  process[stream].write(Buffer.from(b64, "base64"));',
+    "  setTimeout(next, 50);",
+    "};",
+    "next();",
+  ].join("\n");
+}
+
+/** The names of the gate reports saved in the workspace's phase folder. */
+function savedReportNames(ws: Workspace): string[] {
+  return readdirSync(join(ws.dir, "phase-01")).filter((name) => /\.report-\d+\.json$/.test(name));
+}
+
+// Bytes reach phax as printed: each stream is decoded once, after the step ends.
+describe("runGates over a step's split writes (Node shell)", () => {
+  const tempDirs: string[] = [];
+  afterAll(() => {
+    for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function workspace(script: string): Workspace {
+    const dir = mkdtempSync(join(tmpdir(), "phax-gate-decode-"));
+    tempDirs.push(dir);
+    writeFileSync(join(dir, "print.mjs"), script);
+    const phaseFolder = join(dir, "phase-01");
+    mkdirSync(phaseFolder);
+    return {
+      dir,
+      logPath: join(phaseFolder, "checks-attempt-01.log"),
+      requestPath: join(phaseFolder, "checks-attempt-01.request.json"),
+      attributionPath: join(phaseFolder, "gate-attribution.json"),
+    };
+  }
+
+  it("saves a report whose character is split across two writes byte for byte", async () => {
+    const finding = {
+      id: "cafe-name src/café.ts",
+      rule: "a module name is ASCII",
+      location: { file: "src/café.ts", lines: null },
+      message: "src/café.ts has a non-ASCII name",
+      related: [],
+      guide: null,
+    };
+    const printed = Buffer.from(`${report([finding])}\n`, "utf8");
+    const split = printed.indexOf(0xc3) + 1;
+    const ws = workspace(
+      splitWriter([
+        { stream: "stdout", bytes: printed.subarray(0, split) },
+        { stream: "stdout", bytes: printed.subarray(split) },
+      ]),
+    );
+
+    const result = await runReal(ws, [reportStep("node ./print.mjs")]);
+
+    expect(failure(result).reportFindings).toEqual({ step: 1, findings: [finding] });
+    const saved = readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.report-01.json"));
+    expect(saved.equals(printed)).toBe(true);
+  });
+
+  it("logs a log step's character split across two writes on stdout and on stderr", async () => {
+    const check = Buffer.from("✓", "utf8");
+    const ws = workspace(
+      splitWriter([
+        { stream: "stdout", bytes: check.subarray(0, 1) },
+        { stream: "stdout", bytes: check.subarray(1) },
+        { stream: "stderr", bytes: check.subarray(0, 2) },
+        { stream: "stderr", bytes: check.subarray(2) },
+      ]),
+    );
+
+    const result = await runReal(ws, [plainStep("node ./print.mjs")]);
+
+    expect(Either.isRight(result)).toBe(true);
+    const log = readFileSync(ws.logPath, "utf8");
+    expect(log.split("✓")).toHaveLength(3);
+    expect(log).not.toContain("�");
+  });
+
+  it("fails a report step whose stdout is not UTF-8 as a broken step, saving no report", async () => {
+    const ws = workspace(
+      splitWriter([{ stream: "stdout", bytes: Buffer.from([0x7b, 0xff, 0xfe, 0x7d]) }]),
+    );
+
+    const result = await runReal(ws, [reportStep("node ./print.mjs")]);
+
+    expect(failure(result).reportFindings).toBeNull();
+    expect(readLogLines(ws)).toContain(
+      `provider error: stdout is not valid UTF-8; this phax reads ${currentSchemaUrl("gate-report")}`,
+    );
+    expect(savedReportNames(ws)).toEqual([]);
+    expect(readAttribution(ws).steps.map((s) => s.result)).toEqual(["fail"]);
   });
 });
 

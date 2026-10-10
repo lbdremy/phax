@@ -183,6 +183,10 @@ export function runGates(
           });
         }
 
+        // A lossy decode is not the report as printed, so it is never read or saved.
+        if (result.stdoutEncoding === "invalid-utf8") {
+          return yield* unread(unreadableReport("stdout is not valid UTF-8"));
+        }
         if (result.stdout.trim() === "") {
           return yield* unread(unreadableReport("the step printed nothing on stdout"));
         }
