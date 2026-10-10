@@ -105,7 +105,19 @@ export function isUnknown(value: unknown): value is Unknown {
   );
 }
 
+/** Formats phax no longer writes or reads, each with the format that replaced it, if any. */
+const RETIRED_FORMATS: Readonly<Record<string, string | null>> = {
+  "gate-pending": null,
+  "gate-diagnostics": "gate-report",
+  "brief-answer": "brief-report",
+};
+
 export function unknownFormatMessage(url: string, packageVersion: string): string {
+  const formatId = parseSchemaUrl(url)?.formatId;
+  if (formatId !== undefined && Object.hasOwn(RETIRED_FORMATS, formatId)) {
+    const successor = RETIRED_FORMATS[formatId];
+    return `${url} names ${formatId}, a retired format that ${PACKAGE_NAME} no longer reads${successor ? ` (replaced by ${successor})` : ""}`;
+  }
   return `${url} names a format unknown to ${PACKAGE_NAME} ${packageVersion} — upgrade the package`;
 }
 

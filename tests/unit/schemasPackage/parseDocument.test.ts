@@ -51,6 +51,21 @@ describe("parseDocument", () => {
     );
   });
 
+  it.each([
+    ["gate-diagnostics", "0.20.0", " (replaced by gate-report)"],
+    ["brief-answer", "0.20.0", " (replaced by brief-report)"],
+    ["gate-pending", "0.19.0", ""],
+  ])(
+    "refuses a retired %s document by name, without advising an upgrade",
+    (id, release, successor) => {
+      const url = `https://docs.phax.run/schemas/${id}/${release}.json`;
+      const result = parseDocument({ $schema: url });
+      expect(result.ok ? "" : result.error.message).toBe(
+        `${url} names ${id}, a retired format that @lbdremy/phax-schemas no longer reads${successor}`,
+      );
+    },
+  );
+
   it("fails a manifest written by a newer release with the spec's message", () => {
     const result = parseDocument({
       ...v2Manifest,
