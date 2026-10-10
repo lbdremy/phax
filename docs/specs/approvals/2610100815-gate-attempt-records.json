@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2610100815-gate-attempt-records.md",
+  "specFingerprint": "52b9e4c209517ea7459afcf6c4374ba4517b12087f74681b1da7880cff005d08",
+  "approvedAt": "2026-10-10T12:49:20.601Z",
+  "baseline": "197f37aff2d8bfec848855495bf9d2c6556e7467"
+}

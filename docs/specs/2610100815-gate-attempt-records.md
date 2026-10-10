@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-10
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-10
+  baseline: 197f37a
 ---
 # Gate attempt records
 
