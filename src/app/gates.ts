@@ -17,6 +17,8 @@ import { reportPathFor } from "../domain/gate/reportPath.js";
 import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
 import { requestPathFor } from "../domain/gate/gateRequest.js";
+import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
+import { commandWords } from "../domain/gate/commandWords.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
 
 export interface GateOutcome {
@@ -57,7 +59,7 @@ export function resolveGateProfile(
 }
 
 function parseCommandTokens(raw: string): readonly [string, ...string[]] {
-  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  const parts = commandWords(raw);
   const first = parts[0];
   if (parts.length === 0 || first === undefined) {
     throw new Error(`Empty gate command: "${raw}"`);
@@ -75,6 +77,8 @@ export interface RunGatesOptions {
    *  including the first failure or refusal) are recorded here as a
    *  GateAttribution. */
   readonly attributionPath?: string;
+  /** When provided, the attempt's step record (the same GateAttribution) is
+   *  also saved beside its log as `stepRecordPathFor(attemptLogPath)`. */
   readonly phaseId?: string;
   /** The phase's serialized gate request (`serializeGateRequest`). Written on
    *  the stdin of every step that declares `input: "gate-request"`, and saved
@@ -99,20 +103,21 @@ export function runGates(
     const stepResults: GateStepResult[] = [];
     let requestWritten = false;
 
+    /** Writes the attempt's step record beside its log and, when asked, the
+     *  phase's `gate-attribution.json`: one document, the steps that ran. */
     function writeAttribution(): Effect.Effect<void, FsError> {
-      if (attributionPath === undefined || phaseId === undefined) {
-        return Effect.void;
-      }
-      return fs.writeAtomic(
-        attributionPath,
-        JSON.stringify(
+      return Effect.gen(function* () {
+        if (phaseId === undefined) return;
+        const document = JSON.stringify(
           encodeGateAttributionFile(
             withSchemaUrl("gate-attribution", { phase: phaseId, steps: stepResults }),
           ),
           null,
           2,
-        ),
-      );
+        );
+        yield* fs.writeAtomic(stepRecordPathFor(attemptLogPath), document);
+        if (attributionPath !== undefined) yield* fs.writeAtomic(attributionPath, document);
+      });
     }
 
     /** Persist the transcript + attribution and fail the gate. Called once a

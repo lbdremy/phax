@@ -108,6 +108,72 @@ function exportsFunction(file: string) {
   };
 }
 
+/** A made-up step record, as an attempt writes it beside its log. */
+function stepRecord(
+  steps: ReadonlyArray<{
+    readonly command: string;
+    readonly surface: string;
+    readonly result: string;
+  }>,
+) {
+  return JSON.stringify(
+    { $schema: currentSchemaUrl("gate-attribution"), phase: "phase-01", steps },
+    null,
+    2,
+  );
+}
+
+/** A made-up checked report from a step, with one finding per id (no line). */
+function checkedReport(ids: readonly string[]) {
+  return JSON.stringify({
+    $schema: currentSchemaUrl("gate-report"),
+    outcome: "checked",
+    findings: ids.map((id) => ({
+      id,
+      rule: "a made-up rule",
+      location: { file: "src/a.ts", lines: null },
+      message: `found ${id}`,
+      related: [],
+      guide: null,
+    })),
+    review: [],
+  });
+}
+
+/** The fix prompt's lines for a `checkedReport` finding marked `still failing`. */
+function stillFailingLine(id: string) {
+  return `- src/a.ts · still failing\n  rule: a made-up rule\n  found: found ${id}\n`;
+}
+
+/** Every file in the phase folder, by name. */
+function phaseFiles(fakeFs: ReturnType<typeof makeFakeFileSystem>): ReadonlyMap<string, string> {
+  const prefix = `${phaseFolderPath}/`;
+  return new Map(
+    [...fakeFs.impl.files]
+      .filter(([path]) => path.startsWith(prefix))
+      .map(([path, content]) => [path.slice(prefix.length), content]),
+  );
+}
+
+/** Seeds the given phase-folder files and returns them, to check they stay unchanged. */
+function seedPhaseFiles(
+  fakeFs: ReturnType<typeof makeFakeFileSystem>,
+  files: Readonly<Record<string, string>>,
+): ReadonlyMap<string, string> {
+  for (const [name, content] of Object.entries(files)) {
+    fakeFs.impl.setFile(`${phaseFolderPath}/${name}`, content);
+  }
+  return new Map(Object.entries(files));
+}
+
+function expectUnchanged(
+  fakeFs: ReturnType<typeof makeFakeFileSystem>,
+  seeded: ReadonlyMap<string, string>,
+) {
+  const files = phaseFiles(fakeFs);
+  for (const [name, content] of seeded) expect(files.get(name)).toBe(content);
+}
+
 function makeResumeResult(newSessionId = "sess-fixed") {
   return {
     sessionId: newSessionId as ClaudeSessionId,
@@ -135,6 +201,42 @@ function makeLayers() {
     fakeTelemetry.layer,
   );
   return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTelemetry };
+}
+
+function scriptStep(command: string, output: "log" | "gate-report") {
+  return { command, surface: "structural", firing: "every-phase", output } as const;
+}
+
+/** Seeds a previous attempt 02 in which `node scripts/a.mjs` passed and
+ *  `node scripts/b.mjs` printed `report`, after an attempt 01. */
+function seedPrevious(
+  fakeFs: ReturnType<typeof makeFakeFileSystem>,
+  report: string,
+  result: "fail" | "refused",
+) {
+  return seedPhaseFiles(fakeFs, {
+    "checks-attempt-01.log": "$ node scripts/a.mjs\nexit 1\n",
+    "checks-attempt-01.attribution.json": stepRecord([
+      { command: "node scripts/a.mjs", surface: "structural", result: "fail" },
+    ]),
+    "checks-attempt-02.log": "$ node scripts/a.mjs\nok\nexit 0\n",
+    "checks-attempt-02.attribution.json": stepRecord([
+      { command: "node scripts/a.mjs", surface: "structural", result: "pass" },
+      { command: "node scripts/b.mjs", surface: "structural", result },
+    ]),
+    "checks-attempt-02.report-02.json": report,
+  });
+}
+
+/** Runs the gate as attempt 03 over `steps` and returns the first fix prompt. */
+async function firstFixPrompt(
+  { layer, fakeFs, fakeBackend }: ReturnType<typeof makeLayers>,
+  steps: ReadonlyArray<ReturnType<typeof scriptStep>>,
+) {
+  fakeBackend.impl.addResumeResponse(makeResumeResult());
+  await Effect.runPromise(runGatesWithFixLoop({ ...baseOpts, steps }).pipe(Effect.provide(layer)));
+  expect(phaseFiles(fakeFs).has("checks-attempt-03.log")).toBe(true);
+  return fakeBackend.impl.resumeCalls[0]!.prompt;
 }
 
 describe("runGatesWithFixLoop", () => {
@@ -436,6 +538,10 @@ describe("runGatesWithFixLoop", () => {
         const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
         seedStatusFiles(fakeFs);
         fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.log`, "$ node ./audit.mjs");
+        fakeFs.impl.setFile(
+          `${phaseFolderPath}/checks-attempt-02.attribution.json`,
+          stepRecord([{ command: "node ./audit.mjs", surface: "structural", result: "fail" }]),
+        );
         fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.report-01.json`, attempt1);
         fakeBackend.impl.addResumeResponse(makeResumeResult());
         fakeShell.impl.enqueue(
@@ -444,9 +550,7 @@ describe("runGatesWithFixLoop", () => {
         );
 
         await Effect.runPromise(
-          runGatesWithFixLoop({ ...baseOpts, steps: reportStep, startAttempt: 3 }).pipe(
-            Effect.provide(layer),
-          ),
+          runGatesWithFixLoop({ ...baseOpts, steps: reportStep }).pipe(Effect.provide(layer)),
         );
 
         expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
@@ -462,6 +566,11 @@ describe("runGatesWithFixLoop", () => {
         ]) {
           const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
           seedStatusFiles(fakeFs);
+          fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.log`, "$ node ./audit.mjs");
+          fakeFs.impl.setFile(
+            `${phaseFolderPath}/checks-attempt-02.attribution.json`,
+            stepRecord([{ command: "node ./audit.mjs", surface: "structural", result: "fail" }]),
+          );
           fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-02.report-01.json`, saved);
           fakeBackend.impl.addResumeResponse(makeResumeResult());
           fakeShell.impl.enqueue(
@@ -470,9 +579,7 @@ describe("runGatesWithFixLoop", () => {
           );
 
           await Effect.runPromise(
-            runGatesWithFixLoop({ ...baseOpts, steps: reportStep, startAttempt: 3 }).pipe(
-              Effect.provide(layer),
-            ),
+            runGatesWithFixLoop({ ...baseOpts, steps: reportStep }).pipe(Effect.provide(layer)),
           );
 
           expect(fakeBackend.impl.resumeCalls[0]!.prompt).not.toContain("still failing");
@@ -499,46 +606,283 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe(sessionId);
   });
 
-  it("startAttempt > 1: gate passes on first re-run without invoking fix agent or clobbering prior artifacts", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
-    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
-    seedStatusFiles(fakeFs);
+  describe("attempt numbering", () => {
+    // A made-up first entry's files: attempts 01 and 02 failed, each followed
+    // by a fix attempt.
+    const earlierEntry = {
+      "checks-attempt-01.log": "$ pnpm test\nfail 1\nexit 1\n",
+      "checks-attempt-01.attribution.json": stepRecord([
+        { command: "pnpm test", surface: "local", result: "fail" },
+      ]),
+      "fix-attempt-01.jsonl": '{"type":"result"}\n',
+      "checks-attempt-02.log": "$ pnpm test\nfail 2\nexit 1\n",
+      "checks-attempt-02.attribution.json": stepRecord([
+        { command: "pnpm test", surface: "local", result: "fail" },
+      ]),
+      "fix-attempt-02.jsonl": '{"type":"result"}\n',
+    };
 
-    const outcome = await Effect.runPromise(
-      runGatesWithFixLoop({ ...baseOpts, startAttempt: 3 }).pipe(Effect.provide(layer)),
-    );
+    it("continues above an earlier entry's attempts and leaves their files unchanged", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+      seedStatusFiles(fakeFs);
+      const seeded = seedPhaseFiles(fakeFs, earlierEntry);
 
-    expect(outcome.attemptLogPath).toContain("checks-attempt-03");
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
-    // Prior attempt artifacts not written
-    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeUndefined();
-    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeUndefined();
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)),
+      );
+
+      expect(outcome.attemptLogPath).toBe(`${phaseFolderPath}/checks-attempt-03.log`);
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+      expectUnchanged(fakeFs, seeded);
+    });
+
+    it("grants a fresh fix budget on a re-entry and numbers each attempt above the last", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      const seeded = seedPhaseFiles(fakeFs, earlierEntry);
+      fakeBackend.impl.addResumeResponse(makeResumeResult("sess-resume-fix"));
+      fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "still fails" });
+
+      const result = await Effect.runPromise(
+        Effect.either(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer))),
+      );
+
+      // maxFixAttempts=1: gate 03 fails → one fix → gate 04 fails → exhausted.
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+        expect((result.left as GateAttemptsExhaustedError).attempt).toBe(4);
+      }
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+      expect(fakeBackend.impl.resumeCalls[0]!.options.outputJsonlPath).toBe(
+        `${phaseFolderPath}/fix-attempt-03.jsonl`,
+      );
+      expect(fakeBackend.impl.resumeCalls[0]!.prompt).toContain("(attempt 3)");
+      expect(phaseFiles(fakeFs).has("checks-attempt-03.log")).toBe(true);
+      expect(phaseFiles(fakeFs).has("checks-attempt-04.log")).toBe(true);
+      expectUnchanged(fakeFs, seeded);
+    });
+
+    it("skips past a cut-short attempt, which is never the previous one", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      const steps = [
+        {
+          command: "node scripts/audit.mjs",
+          surface: "structural",
+          firing: "every-phase",
+          output: "gate-report",
+        },
+      ] as const;
+      const seeded = seedPhaseFiles(fakeFs, {
+        "checks-attempt-03.log":
+          "$ node scripts/audit.mjs\nreport: checks-attempt-03.report-01.json",
+        "checks-attempt-03.attribution.json": stepRecord([
+          { command: "node scripts/audit.mjs", surface: "structural", result: "fail" },
+        ]),
+        "checks-attempt-03.report-01.json": checkedReport(["no-node-import:src/a.ts"]),
+        // Attempt 04 was cut short: its report was saved, its log never was.
+        "checks-attempt-04.request.json": gateRequest,
+        "checks-attempt-04.report-01.json": checkedReport(["x-4"]),
+      });
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: checkedReport(["no-node-import:src/a.ts", "x-4"]), stderr: "" },
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+      );
+
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, steps }).pipe(Effect.provide(layer)),
+      );
+
+      expect(outcome.attemptLogPath).toBe(`${phaseFolderPath}/checks-attempt-06.log`);
+      expect(phaseFiles(fakeFs).has("checks-attempt-05.log")).toBe(true);
+      const prompt = fakeBackend.impl.resumeCalls[0]!.prompt;
+      expect(prompt).toContain("(attempt 5)");
+      // The previous recorded attempt is 03: its finding is marked, 04's is not.
+      expect(prompt).toContain(stillFailingLine("no-node-import:src/a.ts"));
+      expect(prompt.split("still failing")).toHaveLength(2);
+      expectUnchanged(fakeFs, seeded);
+    });
+
+    it("reads numbers of any digit count", async () => {
+      const { layer, fakeFs, fakeShell } = makeLayers();
+      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+      seedStatusFiles(fakeFs);
+      const seeded = seedPhaseFiles(fakeFs, { "checks-attempt-100.log": "$ pnpm test\nexit 1\n" });
+
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)),
+      );
+
+      expect(outcome.attemptLogPath).toBe(`${phaseFolderPath}/checks-attempt-101.log`);
+      expectUnchanged(fakeFs, seeded);
+    });
+
+    it("gives one attempt's files one number: log, request, report, step record and fix transcript", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      seedPhaseFiles(fakeFs, earlierEntry);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 0, stdout: "ok", stderr: "" },
+        { exitCode: 1, stdout: checkedReport(["x-1"]), stderr: "" },
+        { exitCode: 0, stdout: "ok", stderr: "" },
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+      );
+
+      await Effect.runPromise(
+        runGatesWithFixLoop({
+          ...baseOpts,
+          steps: [
+            ...baseOpts.steps,
+            {
+              command: "node scripts/audit.mjs",
+              surface: "structural",
+              firing: "every-phase",
+              output: "gate-report",
+              input: "gate-request",
+            },
+          ],
+        }).pipe(Effect.provide(layer)),
+      );
+
+      const attempt03 = [...phaseFiles(fakeFs).keys()].filter((name) =>
+        name.startsWith("checks-attempt-03."),
+      );
+      expect(attempt03.toSorted()).toEqual([
+        "checks-attempt-03.attribution.json",
+        "checks-attempt-03.log",
+        "checks-attempt-03.report-02.json",
+        "checks-attempt-03.request.json",
+      ]);
+      expect(fakeBackend.impl.resumeCalls[0]!.options.outputJsonlPath).toBe(
+        `${phaseFolderPath}/fix-attempt-03.jsonl`,
+      );
+    });
   });
 
-  it("startAttempt > 1: grants a fresh maxFixAttempts budget and fails with GateAttemptsExhaustedError", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+  describe("still failing, keyed by command", () => {
+    const a = scriptStep("node scripts/a.mjs", "log");
+    const b = scriptStep("node scripts/b.mjs", "gate-report");
+    const c = scriptStep("node scripts/c.mjs", "gate-report");
+    const ok = { exitCode: 0, stdout: "ok", stderr: "" };
 
-    seedStatusFiles(fakeFs);
-    fakeBackend.impl.addResumeResponse(makeResumeResult("sess-resume-fix"));
-    fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "still fails" });
+    it("marks a finding the same command listed in the previous attempt, across a re-entry", async () => {
+      const layers = makeLayers();
+      const { fakeFs, fakeShell } = layers;
+      seedStatusFiles(fakeFs);
+      const seeded = seedPrevious(fakeFs, checkedReport(["no-node-import:src/a.ts"]), "fail");
+      fakeShell.impl.enqueue(
+        ok,
+        { exitCode: 1, stdout: checkedReport(["no-node-import:src/a.ts", "x-2"]), stderr: "" },
+        ok,
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+      );
 
-    const result = await Effect.runPromise(
-      Effect.either(
-        runGatesWithFixLoop({ ...baseOpts, startAttempt: 3 }).pipe(Effect.provide(layer)),
-      ),
-    );
+      const prompt = await firstFixPrompt(layers, [a, b]);
 
-    // maxFixAttempts=1: one gate at attempt 3 fails → one fix → gate at attempt 4 fails → exhausted
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-      const err = result.left as GateAttemptsExhaustedError;
-      expect(err.attempt).toBe(4); // 3 + 1 fix attempt
-    }
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
-    // Artifacts numbered from startAttempt, not from 1
-    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeUndefined();
-    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-03.log`)).toBeDefined();
+      expect(prompt).toContain(stillFailingLine("no-node-import:src/a.ts"));
+      expect(prompt.split("still failing")).toHaveLength(2);
+      expectUnchanged(fakeFs, seeded);
+    });
+
+    it("marks nothing for an inserted step at the previous step's position", async () => {
+      const layers = makeLayers();
+      const { fakeFs, fakeShell } = layers;
+      seedStatusFiles(fakeFs);
+      seedPrevious(fakeFs, checkedReport(["x-1"]), "fail");
+      fakeShell.impl.enqueue(
+        ok,
+        { exitCode: 1, stdout: checkedReport(["x-1"]), stderr: "" },
+        ok,
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+      );
+
+      const prompt = await firstFixPrompt(layers, [a, c, b]);
+
+      expect(prompt).toContain("**Failed step:** `node scripts/c.mjs` (1 finding)");
+      expect(prompt).not.toContain("still failing");
+    });
+
+    it("marks a finding of a step that moved to another position", async () => {
+      const layers = makeLayers();
+      const { fakeFs, fakeShell } = layers;
+      seedStatusFiles(fakeFs);
+      seedPrevious(fakeFs, checkedReport(["x-1"]), "fail");
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: checkedReport(["x-1"]), stderr: "" },
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+        ok,
+      );
+
+      const prompt = await firstFixPrompt(layers, [b, a]);
+
+      expect(prompt).toContain("**Failed step:** `node scripts/b.mjs` (1 finding)");
+      expect(prompt).toContain(stillFailingLine("x-1"));
+    });
+
+    it("marks nothing when the same command's previous report was refused", async () => {
+      const layers = makeLayers();
+      const { fakeFs, fakeShell } = layers;
+      seedStatusFiles(fakeFs);
+      seedPrevious(
+        fakeFs,
+        JSON.stringify({
+          $schema: currentSchemaUrl("gate-report"),
+          outcome: "refused",
+          reason: "no base",
+          remedy: "fetch the base",
+        }),
+        "refused",
+      );
+      fakeShell.impl.enqueue(ok, { exitCode: 1, stdout: checkedReport(["x-1"]), stderr: "" }, ok, {
+        exitCode: 0,
+        stdout: checkedReport([]),
+        stderr: "",
+      });
+
+      const prompt = await firstFixPrompt(layers, [a, b]);
+
+      expect(prompt).not.toContain("still failing");
+    });
+
+    it("marks nothing over a folder written before step records, and changes none of it", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      const seeded = seedPhaseFiles(fakeFs, {
+        "checks-attempt-01.log": "$ node scripts/b.mjs\nexit 1\n",
+        "checks-attempt-01.report-01.json": checkedReport(["x-1"]),
+        "fix-attempt-01.jsonl": '{"type":"result"}\n',
+        "checks-attempt-02.log": "$ node scripts/b.mjs\nexit 1\n",
+        "checks-attempt-02.report-01.json": checkedReport(["x-1"]),
+        "fix-attempt-02.jsonl": '{"type":"result"}\n',
+        "checks-attempt-03.log": "$ node scripts/b.mjs\nexit 1\n",
+        "checks-attempt-03.report-01.json": checkedReport(["x-1"]),
+      });
+      // The per-phase gate-attribution.json is no step record: never read for
+      // the mark, and rewritten by every attempt as before.
+      fakeFs.impl.setFile(
+        `${phaseFolderPath}/gate-attribution.json`,
+        stepRecord([{ command: "node scripts/b.mjs", surface: "structural", result: "fail" }]),
+      );
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: checkedReport(["x-1"]), stderr: "" },
+        { exitCode: 0, stdout: checkedReport([]), stderr: "" },
+      );
+
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, steps: [b] }).pipe(Effect.provide(layer)),
+      );
+
+      expect(phaseFiles(fakeFs).has("checks-attempt-04.log")).toBe(true);
+      expect(outcome.attemptLogPath).toBe(`${phaseFolderPath}/checks-attempt-05.log`);
+      expect(fakeBackend.impl.resumeCalls[0]!.prompt).not.toContain("still failing");
+      expectUnchanged(fakeFs, seeded);
+    });
   });
 
   it("hands a declaring step the same request bytes on every attempt", async () => {
@@ -599,7 +943,7 @@ describe("runGatesWithFixLoop", () => {
     expect(record.steps).toEqual([{ command: "pnpm test", surface: "local", result: "pass" }]);
   });
 
-  it("regression: startAttempt=1 produces checks-attempt-01 on success and attempt-02 after one fix", async () => {
+  it("numbers a first entry's attempts from 01: checks-attempt-01, then attempt-02 after one fix", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
 
     seedStatusFiles(fakeFs);
@@ -610,7 +954,7 @@ describe("runGatesWithFixLoop", () => {
     );
 
     const outcome = await Effect.runPromise(
-      runGatesWithFixLoop({ ...baseOpts, startAttempt: 1 }).pipe(Effect.provide(layer)),
+      runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)),
     );
 
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");

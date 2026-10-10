@@ -25,7 +25,7 @@ import { NodeShellLayer } from "../../src/infra/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, readGateAttributionFile } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
@@ -318,6 +318,95 @@ describe("runGates", () => {
     });
   });
 
+  describe("the step record", () => {
+    const stepRecordPath = "/fake/runs/my-run/phase-01/checks-attempt-01.attribution.json";
+    const lint: GateStep = stepWithSurface("node scripts/lint.mjs", "local");
+    const audit: GateStep = {
+      command: "node scripts/audit.mjs",
+      surface: "structural",
+      firing: "every-phase",
+      output: "gate-report",
+    };
+    const auditLog: GateStep = { ...audit, output: "log" };
+
+    async function attemptEndingOn(
+      second: GateStep,
+      response: { exitCode: number; stdout: string; stderr: string },
+    ) {
+      const fakeFs = makeFakeFileSystem();
+      const fakeShell = makeFakeShell();
+      fakeShell.impl.setResponse("node scripts/lint.mjs", { exitCode: 0, stdout: "", stderr: "" });
+      fakeShell.impl.setResponse("node scripts/audit.mjs", response);
+      await Effect.runPromise(
+        Effect.ignore(
+          runGates({
+            steps: [lint, second],
+            cwd,
+            attemptLogPath: logPath,
+            gateRequest,
+            attributionPath,
+            phaseId,
+          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+        ),
+      );
+      const raw = fakeFs.impl.getFile(stepRecordPath);
+      expect(raw).toBeDefined();
+      // The same gate-attribution document as the per-phase file.
+      expect(raw).toBe(fakeFs.impl.getFile(attributionPath));
+      const decoded = readGateAttributionFile(stepRecordPath, JSON.parse(raw!) as unknown);
+      if (Either.isLeft(decoded)) throw new Error("the step record does not decode");
+      expect(decoded.right.phase).toBe(phaseId);
+      return decoded.right.steps.map((step) => [step.command, step.result]);
+    }
+
+    it("lists the steps of an attempt that passes", async () => {
+      expect(await attemptEndingOn(auditLog, { exitCode: 0, stdout: "", stderr: "" })).toEqual([
+        ["node scripts/lint.mjs", "pass"],
+        ["node scripts/audit.mjs", "pass"],
+      ]);
+    });
+
+    it("lists the steps of an attempt that fails", async () => {
+      expect(await attemptEndingOn(auditLog, { exitCode: 1, stdout: "", stderr: "x" })).toEqual([
+        ["node scripts/lint.mjs", "pass"],
+        ["node scripts/audit.mjs", "fail"],
+      ]);
+    });
+
+    it("lists the steps of an attempt a step refused", async () => {
+      const refused = JSON.stringify({
+        $schema: currentSchemaUrl("gate-report"),
+        outcome: "refused",
+        reason: "no base",
+        remedy: "fetch the base",
+      });
+      expect(await attemptEndingOn(audit, { exitCode: 0, stdout: refused, stderr: "" })).toEqual([
+        ["node scripts/lint.mjs", "pass"],
+        ["node scripts/audit.mjs", "refused"],
+      ]);
+    });
+
+    it("lists the steps of an attempt stopped by a broken step", async () => {
+      expect(
+        await attemptEndingOn(audit, { exitCode: 1, stdout: "not json", stderr: "crashed" }),
+      ).toEqual([
+        ["node scripts/lint.mjs", "pass"],
+        ["node scripts/audit.mjs", "fail"],
+      ]);
+    });
+
+    it("is not written without a phase id", async () => {
+      const fakeFs = makeFakeFileSystem();
+      const fakeShell = makeFakeShell();
+      await Effect.runPromise(
+        runGates({ steps: [lint], cwd, attemptLogPath: logPath, gateRequest }).pipe(
+          Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
+        ),
+      );
+      expect(fakeFs.impl.getFile(stepRecordPath)).toBeUndefined();
+    });
+  });
+
   describe("the versioned report", () => {
     const reportUrl = currentSchemaUrl("gate-report");
     const cycle = {
@@ -534,8 +623,11 @@ describe("runGates", () => {
       expect(
         [...fakeFs.impl.files.keys()].filter((path) => path.endsWith(".json")).toSorted(),
       ).toEqual([
+        "/fake/runs/my-run/phase-01/checks-attempt-01.attribution.json",
         "/fake/runs/my-run/phase-01/checks-attempt-01.report-01.json",
+        "/fake/runs/my-run/phase-01/checks-attempt-02.attribution.json",
         "/fake/runs/my-run/phase-01/checks-attempt-02.report-01.json",
+        "/fake/runs/my-run/phase-01/checks-attempt-03.attribution.json",
         "/fake/runs/my-run/phase-01/checks-attempt-03.report-01.json",
         attributionPath,
       ]);

@@ -273,6 +273,8 @@ function formatAt(
   if (name === "phax-plan.json") return "phax-plan";
   if (name === "compliance-review.json") return "compliance-review";
   if (name === "gate-attribution.json") return "gate-attribution";
+  // A gate attempt's step record holds the gate-attribution format.
+  if (/^checks-attempt-\d{2,}\.attribution\.json$/.test(name)) return "gate-attribution";
   if (name === "file-reconciliation.json") return "phase-file-reconciliation";
   if (name === "brief-request.json") return "brief-request";
   if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";

@@ -40,6 +40,10 @@ export class FakeBackendImpl implements BackendOps {
   /** When set, the next `resumeAgentSession` call fails with a limit error. */
   private resumeRateLimitKnob: RateLimitKnob | undefined;
 
+  /** When set, the `resumeAgentSession` call at this 0-based index fails with a limit error. */
+  private rateLimitAtResumeIndex: number | undefined;
+  private resumeAtIndexKnob: RateLimitKnob | undefined;
+
   /** When set, the `complete` call at this 0-based index fails with a limit error. */
   private rateLimitAtCompleteIndex: number | undefined;
   private completeRateLimitKnob: RateLimitKnob | undefined;
@@ -87,6 +91,12 @@ export class FakeBackendImpl implements BackendOps {
   /** Simulate a rate/usage-limit failure on the next `resumeAgentSession` call. */
   failNextResumeWithRateLimit(knob: RateLimitKnob): void {
     this.resumeRateLimitKnob = knob;
+  }
+
+  /** Simulate a rate/usage-limit failure on the `resumeAgentSession` call at a chosen index. */
+  failResumeWithRateLimit(resumeIndex: number, knob: RateLimitKnob): void {
+    this.rateLimitAtResumeIndex = resumeIndex;
+    this.resumeAtIndexKnob = knob;
   }
 
   /** Simulate a rate/usage-limit failure on the `complete` call at a chosen index. */
@@ -150,7 +160,11 @@ export class FakeBackendImpl implements BackendOps {
     prompt: string,
     options: AgentRunOptions,
   ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
+    const callIndex = this.resumeCalls.length;
     this.resumeCalls.push({ sessionId, prompt, options });
+    if (this.rateLimitAtResumeIndex === callIndex) {
+      return Effect.fail(this.limitError(this.resumeAtIndexKnob));
+    }
     if (this.resumeRateLimitKnob !== undefined) {
       const knob = this.resumeRateLimitKnob;
       this.resumeRateLimitKnob = undefined;

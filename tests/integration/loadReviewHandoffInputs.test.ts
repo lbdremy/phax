@@ -5,10 +5,11 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import {
   loadPhaseContents,
   loadReviewHandoffInputs,
+  loadReviewNotes,
 } from "../../src/app/loadReviewHandoffInputs.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const RUN_PATH = "/runs/test-run";
 
@@ -219,6 +220,60 @@ describe("loadReviewHandoffInputs", () => {
     const { global, phaseContents } = result.right;
     expect(global.files).toHaveLength(0);
     expect(phaseContents).toHaveLength(0);
+  });
+});
+
+/** A made-up checked gate report with no finding and the given review notes. */
+function checkedReport(review: ReadonlyArray<{ owner: string; note: string }>): string {
+  return JSON.stringify({
+    $schema: currentSchemaUrl("gate-report"),
+    outcome: "checked",
+    findings: [],
+    review,
+  });
+}
+
+describe("loadReviewNotes", () => {
+  const phaseFolder = `${RUN_PATH}/phase-01`;
+
+  // Made-up attempts 01–03 of one phase: 02's report holds a review note, the
+  // last attempt, 03, passed with none.
+  function seedAttempts(lastReview: ReadonlyArray<{ owner: string; note: string }>) {
+    const fs = makeFakeFileSystem();
+    for (const attempt of ["01", "02", "03"]) {
+      fs.impl.setFile(`${phaseFolder}/checks-attempt-${attempt}.log`, "$ node scripts/audit.mjs");
+      fs.impl.setFile(
+        `${phaseFolder}/checks-attempt-${attempt}.attribution.json`,
+        JSON.stringify({
+          $schema: currentSchemaUrl("gate-attribution"),
+          phase: "phase-01",
+          steps: [{ command: "node scripts/audit.mjs", surface: "structural", result: "pass" }],
+        }),
+      );
+    }
+    fs.impl.setFile(`${phaseFolder}/checks-attempt-01.report-01.json`, checkedReport([]));
+    fs.impl.setFile(
+      `${phaseFolder}/checks-attempt-02.report-01.json`,
+      checkedReport([{ owner: "maintainers", note: "check the retry budget" }]),
+    );
+    fs.impl.setFile(`${phaseFolder}/checks-attempt-03.report-01.json`, checkedReport(lastReview));
+    return fs;
+  }
+
+  const info = makeInfo({ phaseStatuses: makeInfo().phaseStatuses.slice(0, 1) });
+
+  it("reads only the last recorded attempt, so an earlier attempt's note is left out", async () => {
+    const fs = seedAttempts([]);
+    const result = await runWith(loadReviewNotes(info).pipe(Effect.provide(fs.layer)));
+    expect(result).toEqual(Either.right(undefined));
+  });
+
+  it("gives the last recorded attempt's notes", async () => {
+    const fs = seedAttempts([{ owner: "maintainers", note: "whether the log reads well" }]);
+    const result = await runWith(loadReviewNotes(info).pipe(Effect.provide(fs.layer)));
+    if (Either.isLeft(result)) throw new Error("loadReviewNotes never fails");
+    expect(result.right).toContain("whether the log reads well");
+    expect(result.right).not.toContain("check the retry budget");
   });
 });
 
