@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2610100823-pr-description.md",
+  "specFingerprint": "e415bf4d2e6e01df64f1bbc58484278ac9eb922d465860a82bb79bf086cfd481",
+  "approvedAt": "2026-10-10T14:50:53.530Z",
+  "baseline": "34c31f1ff46385b366c94996c3faf8f64f2ec4b3"
+}
