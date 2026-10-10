@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -238,6 +239,44 @@ describe("publicSchemas with retired schemas", () => {
         readFileSync(join(root, id, file)),
       );
     }
+  });
+});
+
+// The bytes docs.phax.run served for each retired copy when its format was
+// retired, as sha256. A served URL never changes, so neither does its copy;
+// the deploy guard would otherwise be the only thing to notice.
+const RETIRED_COPY_HASHES: Readonly<Record<string, string>> = {
+  "brief-answer/0.20.0.json": "13509441123cdc7e50d459e0a00434c8311d905f23470ba1fa9e9b09028e6db3",
+  "gate-diagnostics/0.17.0.json":
+    "2799f7e0b573b54a3a284b06c3f29bd909255ba5826ce72e726ae32319a60f6c",
+  "gate-diagnostics/0.18.0.json":
+    "2799f7e0b573b54a3a284b06c3f29bd909255ba5826ce72e726ae32319a60f6c",
+  "gate-diagnostics/0.19.0.json":
+    "2799f7e0b573b54a3a284b06c3f29bd909255ba5826ce72e726ae32319a60f6c",
+  "gate-diagnostics/0.20.0.json":
+    "324c36db23e7f90afae1be4be20f38176682745c5e689290df275a7bce164552",
+  "gate-pending/0.17.0.json": "4d93436b32a8fe5a280eb975dcade3b529645d68fe0cc68b248f33e7934a9a75",
+  "gate-pending/0.18.0.json": "4d93436b32a8fe5a280eb975dcade3b529645d68fe0cc68b248f33e7934a9a75",
+  "gate-pending/0.19.0.json": "4d93436b32a8fe5a280eb975dcade3b529645d68fe0cc68b248f33e7934a9a75",
+};
+
+describe("site/retired-schemas", () => {
+  it("holds exactly the retired copies, each at the bytes it was served with", () => {
+    const root = join(repoRoot, "site/retired-schemas");
+    const hashes = Object.fromEntries(
+      readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .flatMap((entry) =>
+          readdirSync(join(root, entry.name)).map((file) => `${entry.name}/${file}`),
+        )
+        .map((path) => [
+          path,
+          createHash("sha256")
+            .update(readFileSync(join(root, path)))
+            .digest("hex"),
+        ]),
+    );
+    expect(hashes).toEqual(RETIRED_COPY_HASHES);
   });
 });
 
