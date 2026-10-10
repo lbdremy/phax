@@ -89,7 +89,7 @@ The version must be the opened version, the one `package.json` names, in `MAJOR.
 
 If the opening fails, the release is already out. `release.sh` prints `✗ v1.2.0 is released but 1.3.0 is not opened — finish with: scripts/release.sh --open 1.3.0`, then `git push`, and how to discard a partial opening first (`git reset --hard HEAD`). If only the push of the opening fails, it says the opening is committed and `git push` finishes it.
 
-`scripts/release.sh --rehearse <opened version>` does steps 1 and 2, typechecks the cut and runs only the tests that read what a cut changes (`tests/unit/schemasPackage/` and `tests/unit/site/`), then stops, leaving the cut in the working tree. CI rehearses the opened version that `package.json` names this way as its last step on every push and pull request, in seconds. A test that holds only until the next cut, such as one that reads the package's own version as an older release, then fails on the pull request that adds it, not at release time.
+`scripts/release.sh --rehearse <opened version>` does steps 1 and 2, typechecks the cut and runs only the tests that read what a cut changes (`tests/unit/schemasPackage/` and `tests/unit/site/`), then stops, leaving the cut in the working tree. On a release commit, whose version the ledger already ends at, it cuts nothing and says there is nothing to rehearse. CI rehearses the opened version that `package.json` names this way as its last step on every push and pull request, in seconds. A test that holds only until the next cut, such as one that reads the package's own version as an older release, then fails on the pull request that adds it, not at release time.
 
 To see what a cut changes without touching the tree, dry-run it on a copy, naming the opened version:
 

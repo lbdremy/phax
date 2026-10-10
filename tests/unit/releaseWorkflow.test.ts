@@ -443,6 +443,17 @@ describe("release script invariants", () => {
     expect(tests).toBeLessThan(releaseCommit);
   });
 
+  it("skips a rehearsal on a release commit, whose version the ledger already ends at", () => {
+    const skip = releaseScript.indexOf(
+      `LAST_RELEASE="$(node -p 'require("./packages/schemas/releases.json").releases.at(-1)')"`,
+    );
+    const cut = releaseScript.indexOf("scripts/release-cut.ts");
+    expect(skip).toBeGreaterThan(releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then'));
+    expect(skip).toBeLessThan(cut);
+    expect(releaseScript).toContain('if [[ "$LAST_RELEASE" == "$VERSION" ]]; then');
+    expect(releaseScript.slice(skip, cut)).toContain("exit 0");
+  });
+
   it("stops a rehearsal before committing", () => {
     const stop = releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then\n  echo "done:');
     expect(stop).toBeGreaterThan(-1);
