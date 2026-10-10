@@ -30,10 +30,10 @@
               "minItems": 2,
               "items": [
                 {
-                  "$ref": "#/$defs/Int"
+                  "$ref": "#/$defs/LineNumber"
                 },
                 {
-                  "$ref": "#/$defs/Int"
+                  "$ref": "#/$defs/LineNumber"
                 }
               ],
               "additionalItems": false
@@ -48,10 +48,11 @@
       "additionalProperties": false,
       "description": "A file and the lines in it. Checked by phax's parser: lines starts at 1 or above and ends at or after its start."
     },
-    "Int": {
+    "LineNumber": {
       "type": "integer",
-      "description": "an integer",
-      "title": "int"
+      "description": "A 1-based line number.",
+      "title": "int",
+      "minimum": 1
     },
     "ReportRelatedLocation": {
       "type": "object",
@@ -76,10 +77,10 @@
               "minItems": 2,
               "items": [
                 {
-                  "$ref": "#/$defs/Int"
+                  "$ref": "#/$defs/LineNumber"
                 },
                 {
-                  "$ref": "#/$defs/Int"
+                  "$ref": "#/$defs/LineNumber"
                 }
               ],
               "additionalItems": false

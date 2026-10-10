@@ -142,7 +142,7 @@ describe("the two JSON Schemas share their definitions", () => {
   const gate = built("gate-report");
   const brief = built("brief-report");
 
-  it.each(["ReportLocation", "ReportRelatedLocation", "ReportGuide"])(
+  it.each(["ReportLocation", "ReportRelatedLocation", "ReportGuide", "LineNumber"])(
     "define %s identically",
     (name) => {
       expect(definitions(gate)[name]).toBeDefined();
@@ -156,6 +156,12 @@ describe("the two JSON Schemas share their definitions", () => {
     const { due: _due, ...briefProperties } = briefFinding["properties"] as JsonObject;
     expect(briefProperties).toEqual(gateFinding["properties"]);
     expect(briefFinding["required"]).toEqual([...(gateFinding["required"] as string[]), "due"]);
+  });
+
+  it("say a line number is at least 1, as phax's parser does", () => {
+    for (const schema of [gate, brief]) {
+      expect(definitions(schema)["LineNumber"]).toMatchObject({ type: "integer", minimum: 1 });
+    }
   });
 
   it("refuse unknown keys in every object", () => {
