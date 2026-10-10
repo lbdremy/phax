@@ -32,7 +32,15 @@ import { runGates, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
 import { reportPathFor } from "../domain/gate/reportPath.js";
-import { readGateReport } from "../schemas/persisted.js";
+import {
+  attemptLogName,
+  fixTranscriptName,
+  nextAttemptNumber,
+  previousRecordedAttempt,
+  stepRecordPathFor,
+} from "../domain/gate/attemptFiles.js";
+import { sameCommand } from "../domain/gate/commandWords.js";
+import { readGateAttributionFile, readGateReport } from "../schemas/persisted.js";
 
 export interface RunGatesWithFixLoopOptions {
   readonly steps: readonly GateStep[];
@@ -47,9 +55,6 @@ export interface RunGatesWithFixLoopOptions {
   readonly phaseId: string;
   /** Run folder; the dispatcher reads run-status.json from here. */
   readonly runPath: string;
-  /** Attempt index to start from (default 1). Resume passes the next index so
-   *  prior attempt artifacts are never clobbered. */
-  readonly startAttempt?: number;
   /** Canonical worktree path emitted in FixAttemptsExhausted (defaults to cwd). */
   readonly worktreePath?: string;
   /** The phase's serialized gate request, passed unchanged to every attempt. */
@@ -86,7 +91,6 @@ export function runGatesWithFixLoop(
     runPath,
     gateRequest,
   } = opts;
-  const startAttempt = opts.startAttempt ?? 1;
   const resolvedWorktreePath = opts.worktreePath ?? cwd;
 
   const dispatchCtx = {
@@ -106,24 +110,46 @@ export function runGatesWithFixLoop(
   }
 
   function logPath(attempt: number): string {
-    return join(phaseFolderPath, `checks-attempt-${String(attempt).padStart(2, "0")}.log`);
+    return join(phaseFolderPath, attemptLogName(attempt));
+  }
+
+  /** The names in the phase folder, or none when it does not exist yet. */
+  function phaseFolderNames(): Effect.Effect<readonly string[], FsError, FileSystem> {
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      if (!(yield* fs.exists(phaseFolderPath))) return [];
+      return yield* fs.list(phaseFolderPath);
+    });
   }
 
   /**
-   * The finding ids of the same step's checked report in the previous gate
-   * attempt, read from its saved file so the mark holds across a resume. A
-   * first attempt, or a report that is missing, unreadable or refused, gives
-   * the empty set.
+   * The finding ids of the checked report that the step with the same command
+   * printed in the previous recorded attempt (the highest-numbered log below
+   * this one, across entries), found through that attempt's step record. No
+   * previous attempt, no step record (a folder written before step records),
+   * no step with that command, or a report that is missing, unreadable or
+   * refused gives the empty set.
    */
   function previousFindingIds(
     attempt: number,
-    step: number,
+    failingCommand: string,
   ): Effect.Effect<ReadonlySet<string>, never, FileSystem> {
     const none: ReadonlySet<string> = new Set<string>();
-    if (attempt <= 1) return Effect.succeed(none);
     return Effect.gen(function* () {
       const fs = yield* FileSystem;
-      const path = reportPathFor(logPath(attempt - 1), step);
+      const previous = previousRecordedAttempt(yield* phaseFolderNames(), attempt);
+      if (previous === undefined) return none;
+      const recordPath = stepRecordPathFor(logPath(previous));
+      if (!(yield* fs.exists(recordPath))) return none;
+      const recordRaw = yield* fs.readText(recordPath);
+      const recordParsed = yield* Effect.try(() => JSON.parse(recordRaw) as unknown);
+      const record = readGateAttributionFile(recordPath, recordParsed);
+      if (Either.isLeft(record)) return none;
+      const index = record.right.steps.findIndex((step) =>
+        sameCommand(step.command, failingCommand),
+      );
+      if (index === -1) return none;
+      const path = reportPathFor(logPath(previous), index + 1);
       if (!(yield* fs.exists(path))) return none;
       const raw = yield* fs.readText(path);
       const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
@@ -134,7 +160,6 @@ export function runGatesWithFixLoop(
   }
 
   function loop(
-    attempt: number,
     currentSessionId: ClaudeSessionId,
     fixesUsed: number,
   ): Effect.Effect<
@@ -156,6 +181,9 @@ export function runGatesWithFixLoop(
     return Effect.gen(function* () {
       const telemetry = yield* SystemTelemetry;
       const runId = run as unknown as RunId;
+      // Numbered from the folder at every attempt, so numbering continues
+      // across every entry into the gate and no existing file is overwritten.
+      const attempt = nextAttemptNumber(yield* phaseFolderNames());
 
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
@@ -322,7 +350,7 @@ export function runGatesWithFixLoop(
       const stillFailing =
         error.reportFindings === null
           ? new Set<string>()
-          : yield* previousFindingIds(attempt, error.reportFindings.step);
+          : yield* previousFindingIds(attempt, error.command);
       const fixPrompt = buildFixPrompt({
         command: error.command,
         exitCode: error.exitCode,
@@ -343,10 +371,7 @@ export function runGatesWithFixLoop(
         backend
           .resumeAgentSession(currentSessionId, fixPrompt, {
             ...agentOptions,
-            outputJsonlPath: join(
-              phaseFolderPath,
-              `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
-            ),
+            outputJsonlPath: join(phaseFolderPath, fixTranscriptName(attempt)),
           })
           .pipe(
             Effect.tapError((e) =>
@@ -379,9 +404,10 @@ export function runGatesWithFixLoop(
         }),
       );
 
-      return yield* loop(attempt + 1, fixResult.sessionId, fixesUsed + 1);
+      return yield* loop(fixResult.sessionId, fixesUsed + 1);
     });
   }
 
-  return loop(startAttempt, sessionId, 0);
+  // Each entry into the gate keeps the full fix budget.
+  return loop(sessionId, 0);
 }

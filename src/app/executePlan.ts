@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
   BranchName,
@@ -142,28 +142,6 @@ function isCleanupPausedError(e: unknown): e is CleanupPausedError {
 
 function isArtifactCompletionPausedError(e: unknown): e is ArtifactCompletionPausedError {
   return e instanceof ArtifactCompletionPausedError;
-}
-
-// Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
-// On resume from gate exhaustion we use this to continue numbering attempt
-// artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
-// never clobbered.
-function maxAttemptIndexInPhaseFolder(phaseFolderPath: string): number {
-  let entries: string[];
-  try {
-    entries = readdirSync(phaseFolderPath);
-  } catch {
-    return 0;
-  }
-  let max = 0;
-  for (const entry of entries) {
-    const match = /^checks-attempt-(\d{2})\.log$/.exec(entry);
-    if (match) {
-      const n = Number(match[1]);
-      if (Number.isFinite(n) && n > max) max = n;
-    }
-  }
-  return max;
 }
 
 // The phase request file `phax brief` reads its phase from (spec §5.13). A
@@ -493,7 +471,6 @@ export function executePlan(
     let resumeFromCompletion = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
-    let resumeAttempt = 0;
     if (resumePhase !== undefined) {
       const infoResult = resolveRun(namespace, shortName, config.stateRoot);
       if (Either.isRight(infoResult)) {
@@ -504,10 +481,6 @@ export function executePlan(
           resumeFromGate = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
-          resumeAttempt =
-            resumePhaseFolderPath !== undefined
-              ? maxAttemptIndexInPhaseFolder(resumePhaseFolderPath)
-              : 0;
         } else if (phaseStatus?.state === "handoff_failed") {
           resumeFromHandoff = true;
           resumeSessionId = phaseStatus.claudeSessionId;
@@ -1012,9 +985,11 @@ export function executePlan(
         !isResumeFromCompletion
       ) {
         // running → passed transition is dispatched inside fixLoop on the
-        // gate-success branch via dispatch(GatePassed). On resume-from-gate the
-        // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
-        // attempt artifacts are preserved.
+        // gate-success branch via dispatch(GatePassed). On every entry, a
+        // resume included, the loop numbers each attempt one above the highest
+        // per-attempt file in the phase folder, so numbering continues and no
+        // earlier attempt's files are overwritten; each entry gets a fresh fix
+        // budget.
         const phaseSteps = selectGateSteps(gateSteps, isFinal);
         // One request per phase entry, from the base noted when phax created
         // the branch — never re-derived from git — so every attempt, and a
@@ -1033,9 +1008,7 @@ export function executePlan(
           phaseId: phase.id,
           runPath,
           gateRequest,
-          ...(isResumeFromGate
-            ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
-            : {}),
+          ...(isResumeFromGate ? { worktreePath: worktreePath as string } : {}),
         });
       }
 

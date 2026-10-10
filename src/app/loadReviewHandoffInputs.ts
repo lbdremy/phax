@@ -6,6 +6,7 @@ import {
   renderGlobalReconciliationMarkdown,
   type GlobalFileReconciliation,
 } from "../domain/reconciliation/global.js";
+import { lastRecordedAttempt } from "../domain/gate/attemptFiles.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
 import { gatherReviewNotes, renderReviewNotes } from "../domain/review/reviewNotes.js";
 import { runKey } from "../domain/runRef.js";
@@ -65,12 +66,8 @@ function loadLastAttemptReviewNotes(
     const fs = yield* FileSystem;
     if (!(yield* fs.exists(phaseFolderPath))) return none;
     const names = yield* fs.list(phaseFolderPath);
-    let lastAttempt = 0;
-    for (const name of names) {
-      const match = /^checks-attempt-(\d{2,})\.log$/.exec(name);
-      if (match !== null) lastAttempt = Math.max(lastAttempt, Number(match[1]));
-    }
-    if (lastAttempt === 0) return none;
+    const lastAttempt = lastRecordedAttempt(names);
+    if (lastAttempt === undefined) return none;
     const reports = names
       .flatMap((name) => {
         const parsed = parseReportName(name);
