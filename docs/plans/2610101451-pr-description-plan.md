@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610100823-pr-description.md
 completes-spec: true
+approved:
+  date: 2026-10-10
+  baseline: a065f2e
 ---
 # Short pull request description
 

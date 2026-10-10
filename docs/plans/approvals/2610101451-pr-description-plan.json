@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
+  "artifact": "docs/plans/2610101451-pr-description-plan.md",
+  "planFingerprint": "5ac8359b33ec1bc702c8e0b7655df2f200853817378bb0164f3def34ddb96463",
+  "approvedAt": "2026-10-10T14:55:45.369Z",
+  "baseline": "a065f2e68349e7a9d5c96dede5d1d2a0c02820a5",
+  "sourceSpec": {
+    "path": "docs/specs/2610100823-pr-description.md",
+    "fingerprint": "e415bf4d2e6e01df64f1bbc58484278ac9eb922d465860a82bb79bf086cfd481"
+  }
+}
