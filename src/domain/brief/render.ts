@@ -2,6 +2,7 @@ import type { BriefPush } from "../../schemas/phaxConfig.js";
 import type { BriefFinding, BriefReport, BriefRule } from "../../schemas/briefReport.js";
 import type { ReportGuide } from "../../schemas/report.js";
 import { renderReportLocation } from "../reportLocation.js";
+import { onOneLine } from "../reportText.js";
 
 /** The most item lines the pushed brief shows; `phax brief` prints the rest. */
 export const BRIEF_PUSH_CAP = 50;
@@ -74,9 +75,9 @@ export function renderBriefSection(
 ): string {
   const body =
     input.kind === "answered"
-      ? answeredBody(input.report, push)
+      ? answeredBody(onOneLine(input.report), push)
       : [
-          `The brief is unavailable at phase start (${input.reason}). \`phax brief\` may still answer.`,
+          `The brief is unavailable at phase start (${onOneLine(input.reason)}). \`phax brief\` may still answer.`,
         ];
   return [HEADING, "", INTRO[push], "", ...body, "", ...INSTRUCTIONS].join("\n");
 }
@@ -111,7 +112,8 @@ function wholeFindingLines(finding: BriefFinding): readonly string[] {
  * provider's order. A list with nothing in it prints no heading. No trailing
  * newline.
  */
-export function renderWholeBrief(report: BriefReport): string {
+export function renderWholeBrief(printed: BriefReport): string {
+  const report = onOneLine(printed);
   return [
     ...(report.rules.length === 0 ? [] : ["Rules", ...report.rules.flatMap(wholeRuleLines)]),
     ...(report.findings.length === 0

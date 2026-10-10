@@ -1,4 +1,5 @@
 import type { ReviewNote } from "../../schemas/gateReport.js";
+import { onOneLine } from "../reportText.js";
 
 /** The review notes one phase's last gate attempt left, in report order. */
 export interface PhaseReviewNotes {
@@ -29,7 +30,7 @@ export function gatherReviewNotes(
 ): ReadonlyArray<ReviewNoteGroup> {
   const owners = new Map<string, Map<string, string[]>>();
   for (const { phaseId, notes } of phases) {
-    for (const { owner, note } of notes) {
+    for (const { owner, note } of onOneLine(notes)) {
       let byNote = owners.get(owner);
       if (byNote === undefined) {
         byNote = new Map();

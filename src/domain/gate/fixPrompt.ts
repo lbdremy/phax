@@ -1,5 +1,6 @@
 import type { GateFinding } from "../../schemas/gateReport.js";
 import { renderReportLocation as renderLocation } from "../reportLocation.js";
+import { onOneLine } from "../reportText.js";
 
 export interface BuildFixPromptInput {
   readonly command: string;
@@ -32,7 +33,8 @@ const REQUIRED_ACTION_TAIL = [
  * its why, and its guide. Never its id: the id is the provider's, compared by
  * phax and never shown.
  */
-function renderFinding(finding: GateFinding, stillFailing: ReadonlySet<string>): string {
+function renderFinding(printed: GateFinding, stillFailing: ReadonlySet<string>): string {
+  const finding = onOneLine(printed);
   const mark = stillFailing.has(finding.id) ? " · still failing" : "";
   return [
     `- ${renderLocation(finding.location)}${mark}`,

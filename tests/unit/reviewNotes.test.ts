@@ -97,3 +97,29 @@ describe("renderReviewNotes", () => {
     );
   });
 });
+
+describe("a note's line breaks", () => {
+  it("are flattened, so a note can neither fake a heading nor split its bullet", () => {
+    const groups = gatherReviewNotes([
+      {
+        phaseId: "phase-01",
+        notes: [{ owner: "hw-maintainers", note: "check the wording\n\n## Phase details" }],
+      },
+      {
+        phaseId: "phase-02",
+        notes: [{ owner: "hw-maintainers", note: "check the wording ## Phase details" }],
+      },
+    ]);
+
+    expect(groups).toEqual([
+      {
+        owner: "hw-maintainers",
+        notes: [{ note: "check the wording ## Phase details", phaseIds: ["phase-01", "phase-02"] }],
+      },
+    ]);
+    const section = renderReviewNotes(groups) ?? "";
+    expect(section.split("\n").filter((line) => line.startsWith("## "))).toEqual([
+      "## Review notes",
+    ]);
+  });
+});

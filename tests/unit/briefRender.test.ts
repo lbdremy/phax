@@ -286,3 +286,23 @@ describe("isEmptyBrief and renderNoBrief", () => {
     expect(renderNoBrief(null)).toBe("No brief for this phase's planned files.");
   });
 });
+
+describe("line breaks in a brief report", () => {
+  it("never add a line to the pushed brief, so the cap counts items", () => {
+    const report: BriefReport = {
+      rules: [],
+      findings: [{ ...GREET_FINDING, message: "imports node:fs\n- a fake item\n- another" }],
+    };
+    const items = body(renderBriefSection({ kind: "answered", report }, "findings"));
+    expect(items).toHaveLength(1);
+    expect(items[0]).toContain("imports node:fs - a fake item - another");
+  });
+
+  it("are flattened in phax brief's whole form", () => {
+    const report: BriefReport = {
+      rules: [{ ...NO_IMPORT_RULE, rule: "a module under src/\nimports no node: module" }],
+      findings: [],
+    };
+    expect(renderWholeBrief(report)).toContain("  a module under src/ imports no node: module");
+  });
+});
