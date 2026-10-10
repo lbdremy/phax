@@ -206,8 +206,9 @@ spec of its own. In this order:
          met item and no accepted debt travel, a guide is a file to read, the gate report lists
          only what fails now, a refusal stops the phase, review notes go to the review.
       3. ~~A `decision` class that stops the phase for the owner~~ (Dropped 2026-10-10 by the
-         author: not wanted. Review notes stay the only way a provider reaches a person, and
-         `phase-decision-requests` stays parked on its own.)
+         author: a phax run stays autonomous for now, so nothing stops a phase to wait for a
+         person. Review notes stay the only way a provider reaches one, after the run, and
+         `phase-decision-requests` stays parked for the same reason.)
 
       steme's side, not phax's: its target stamps the retired gate format at 0.19.0, which phax
       0.20 refuses; it must now print `gate-report` and `brief-report` (0.21.0), mapping its
