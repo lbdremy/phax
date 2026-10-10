@@ -161,6 +161,7 @@ export function runGates(
         result = yield* shell.run({ command, cwd });
       }
 
+      const stdoutLine = logLines.length;
       if (result.stdout) logLines.push(result.stdout.trimEnd());
       if (result.stderr) logLines.push(result.stderr.trimEnd());
       logLines.push(`exit ${result.exitCode}`);
@@ -201,7 +202,12 @@ export function runGates(
         // A readable report is saved first, whatever the verdict, as the step
         // printed it: never re-serialized, trimmed or re-stamped.
         const position = index + 1;
-        yield* fs.writeAtomic(reportPathFor(attemptLogPath, position), result.stdout);
+        const reportPath = reportPathFor(attemptLogPath, position);
+        yield* fs.writeAtomic(reportPath, result.stdout);
+        // The log names the saved report in place of its text, so that a raw-log
+        // fix prompt (a later step failing) never carries the report's review
+        // notes to the agent.
+        logLines[stdoutLine] = `report: ${basename(reportPath)}`;
 
         const report = read.right;
         if (report.outcome === "refused") {
