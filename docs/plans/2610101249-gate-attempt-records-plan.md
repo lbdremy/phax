@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610100815-gate-attempt-records.md
 completes-spec: true
+approved:
+  date: 2026-10-10
+  baseline: 0aa0777
 ---
 # Gate attempt records
 
