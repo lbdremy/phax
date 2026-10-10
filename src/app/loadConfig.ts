@@ -6,6 +6,7 @@ import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
+import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
 import { PHAX_CONTEXT_DIR } from "./worktree.js";
 import {
@@ -102,6 +103,35 @@ function validateUniqueWorkspaceIds(
       });
     }
     seen.add(id);
+  }
+  return undefined;
+}
+
+// `still failing` matches a step by its command in the previous attempt, so
+// a profile may list each command once (top-level and workspace profiles).
+function validateUniqueGateCommands(
+  config: ReturnType<typeof decodePhaxConfig> extends Either.Either<infer A, infer _> ? A : never,
+): ConfigValidationError | undefined {
+  const profileSets: { readonly prefix: string; readonly profiles: typeof config.gateProfiles }[] =
+    [
+      { prefix: "gateProfiles", profiles: config.gateProfiles },
+      ...(config.workspaces ?? []).flatMap((ws) =>
+        ws.gateProfiles
+          ? [{ prefix: `workspaces[${ws.id}].gateProfiles`, profiles: ws.gateProfiles }]
+          : [],
+      ),
+    ];
+  for (const { prefix, profiles } of profileSets) {
+    for (const [profile, steps] of Object.entries(profiles)) {
+      const duplicate = findDuplicateCommand(steps);
+      if (duplicate) {
+        const path = `${prefix}.${profile}`;
+        return new ConfigValidationError({
+          message: `${path} lists the command "${duplicate.command}" twice (steps ${duplicate.first} and ${duplicate.second})`,
+          path,
+        });
+      }
+    }
   }
   return undefined;
 }
@@ -290,6 +320,9 @@ export function loadConfig(
 
   const dupError = validateUniqueWorkspaceIds(config);
   if (dupError) return Either.left(dupError);
+
+  const gateCommandError = validateUniqueGateCommands(config);
+  if (gateCommandError) return Either.left(gateCommandError);
 
   const pathError = validateWorkspacePaths(config, gitRoot);
   if (pathError) return Either.left(pathError);
