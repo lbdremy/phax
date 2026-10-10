@@ -427,6 +427,32 @@ describe("records explain and list (real git)", () => {
     ]);
   });
 
+  it("prints each attempt once, with only its own files, and never a step record", () => {
+    // Made-up attempts 01–03 of one phase, across two entries, each with its step record.
+    const artifacts = new Map<string, Uint8Array>([
+      ["checks-attempt-03.attribution.json", bytes("{}")],
+      ["checks-attempt-03.log", bytes("three")],
+      ["checks-attempt-03.report-02.json", bytes("{}")],
+      ["checks-attempt-02.attribution.json", bytes("{}")],
+      ["checks-attempt-02.log", bytes("two")],
+      ["checks-attempt-02.request.json", bytes("{}")],
+      ["checks-attempt-02.report-01.json", bytes("{}")],
+      ["checks-attempt-01.attribution.json", bytes("{}")],
+      ["checks-attempt-01.log", bytes("one")],
+      ["fix-attempt-01.jsonl", bytes("{}")],
+      ["fix-attempt-02.jsonl", bytes("{}")],
+      ["gate-attribution.json", bytes("{}")],
+    ]);
+    expect(gateArtifactsInOrder(artifacts).map(([name]) => name)).toEqual([
+      "checks-attempt-01.log",
+      "checks-attempt-02.log",
+      "checks-attempt-02.request.json",
+      "checks-attempt-02.report-01.json",
+      "checks-attempt-03.log",
+      "checks-attempt-03.report-02.json",
+    ]);
+  });
+
   describe("records commands on a record carrying a file this release never writes", () => {
     let tempHome: string;
     let originalHome: string | undefined;

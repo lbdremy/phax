@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610100815-gate-attempt-records.md
 completes-spec: true
 approved:

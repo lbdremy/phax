@@ -1,5 +1,5 @@
 import { Effect, Either, Layer } from "effect";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -434,5 +434,153 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     // The preserved worktree was reused, not recreated.
     expect(existsSync(phase02WorktreePath)).toBe(true);
+  });
+
+  it("continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing", async () => {
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
+    );
+    const gateCommand = "node scripts/check.mjs";
+    const config: ResolvedConfig = {
+      ...makeConfig(stateRoot),
+      maxFixAttempts: 2,
+      raw: {
+        ...makeConfig(stateRoot).raw,
+        gateProfiles: {
+          full: [{ command: gateCommand, surface: "local", firing: "every-phase", output: "log" }],
+        },
+      },
+    };
+
+    // First entry: gate attempts 01 and 02 fail, and fix attempt 02 hits a rate limit.
+    const firstGit = makeFakeGit();
+    firstGit.impl.setRepoIsClean(true);
+    const firstShell = makeFakeShell();
+    firstShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    firstShell.impl.setResponse(gateCommand, { exitCode: 1, stdout: "", stderr: "check failed" });
+    const firstBackend = makeFakeBackend();
+    firstBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    firstBackend.impl.addResumeResponse({
+      sessionId: "sess-01-fix" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    firstBackend.impl.failResumeWithRateLimit(1, {
+      kind: "rate_limit",
+      resetAt: "2026-10-10T12:00:00Z",
+    });
+    const firstLayers = Layer.mergeAll(
+      firstGit.layer,
+      firstShell.layer,
+      firstBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(firstLayers)),
+    );
+    const executeOptions = {
+      shortName,
+      namespace: "test-project",
+      plan,
+      planMd: "# My Plan",
+      config,
+      gateProfileId: "full",
+      allowDirty: true,
+      runPath,
+      runId,
+      startIndex: 0,
+    };
+
+    const first = await Effect.runPromise(
+      Effect.either(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
+    );
+    expect(Either.isLeft(first) && first.left instanceof RateLimitError).toBe(true);
+    expect(firstBackend.impl.resumeCalls.map((call) => call.options.outputJsonlPath)).toEqual([
+      join(runPath, "phase-01", "fix-attempt-01.jsonl"),
+      join(runPath, "phase-01", "fix-attempt-02.jsonl"),
+    ]);
+
+    const phaseFolder = join(runPath, "phase-01");
+    const firstEntryNames = (await readdir(phaseFolder)).filter((name) =>
+      name.startsWith("checks-attempt-"),
+    );
+    expect(firstEntryNames.toSorted()).toEqual([
+      "checks-attempt-01.attribution.json",
+      "checks-attempt-01.log",
+      "checks-attempt-02.attribution.json",
+      "checks-attempt-02.log",
+    ]);
+    const firstEntry = new Map<string, Buffer>();
+    for (const name of firstEntryNames) {
+      firstEntry.set(name, await readFile(join(phaseFolder, name)));
+    }
+
+    // `phax resume` re-enters the rate-limited phase; the gate now passes.
+    const decision = inspectResume("test-project", shortName, stateRoot);
+    if (Either.isLeft(decision)) throw new Error("expected resumable run");
+    expect(decision.right.nextPhaseId).toBe("phase-01");
+
+    const phaseStatus = JSON.parse(await readFile(join(phaseFolder, "status.json"), "utf8")) as {
+      worktreePath: string;
+    };
+    await mkdir(join(phaseStatus.worktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phaseStatus.worktreePath, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
+
+    const resumeGit = makeFakeGit();
+    resumeGit.impl.enqueueWorktreeIsClean(phaseStatus.worktreePath, false);
+    const resumeShell = makeFakeShell();
+    resumeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    resumeShell.impl.setResponse(gateCommand, { exitCode: 0, stdout: "ok", stderr: "" });
+    resumeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef\n",
+      stderr: "",
+    });
+    resumeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    const resumeBackend = makeFakeBackend();
+    resumeBackend.impl.addRunResponse({
+      sessionId: "sess-01-resumed" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    resumeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const resumed = await Effect.runPromise(
+      Effect.either(
+        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              resumeGit.layer,
+              resumeShell.layer,
+              resumeBackend.layer,
+              NodeFileSystemLayer,
+              NoopSystemTelemetryLayer,
+              makeFakeGitHub().layer,
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(Either.isRight(resumed)).toBe(true);
+
+    // The re-entry's gate ran as attempt 03; the first entry's files are as they were.
+    expect(existsSync(join(phaseFolder, "checks-attempt-03.log"))).toBe(true);
+    for (const [name, content] of firstEntry) {
+      expect(await readFile(join(phaseFolder, name))).toEqual(content);
+    }
   });
 });
