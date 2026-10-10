@@ -319,6 +319,35 @@ describe("runValidate", () => {
       );
     });
 
+    it("refuses a profile that lists one command twice (exit 2)", async () => {
+      writeConfig({
+        version: 1,
+        name: "example",
+        gateProfiles: {
+          standard: [logStep, { ...logStep, command: "node ./audit.mjs" }, logStep],
+        },
+      });
+
+      const { loadConfig } = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
+        "../../../src/app/loadConfig.js",
+      );
+      const refused = loadConfig(repoDir);
+      expect(Either.isLeft(refused)).toBe(true);
+      if (Either.isLeft(refused)) {
+        expect(exitCodeForError(refused.left)).toBe(2);
+      }
+
+      const { out, errors } = makeOutput();
+      const code = runValidate({}, out);
+
+      expect(code).toBe(1);
+      const combined = errors.join("\n");
+      expect(combined).toContain(
+        'gateProfiles.standard lists the command "pnpm test" twice (steps 1 and 3)',
+      );
+      expect(combined).toContain("at: gateProfiles.standard");
+    });
+
     it("accepts a workspace profile with a declaring log step", () => {
       mkdirSync(join(repoDir, "packages", "app"), { recursive: true });
       writeConfig({

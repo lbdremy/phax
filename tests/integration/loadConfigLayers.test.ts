@@ -265,6 +265,28 @@ describe("loadConfig invalid user file error handling", () => {
     }
   });
 
+  it("refuses a gate profile that lists one command twice only once phax.local.json is merged", () => {
+    writeProjectConfig(baseConfig);
+    const step = { surface: "local", firing: "every-phase" };
+    writeLocalUserConfig({
+      gateProfiles: {
+        fast: [
+          { ...step, command: "pnpm lint" },
+          { ...step, command: "pnpm test" },
+          { ...step, command: "pnpm lint" },
+        ],
+      },
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("gateProfiles.fast");
+      expect(result.left.message).toBe(
+        'gateProfiles.fast lists the command "pnpm lint" twice (steps 1 and 3)',
+      );
+    }
+  });
+
   it("refuses a brief without push in phax.local.json, naming the file, brief.push and both values", () => {
     writeProjectConfig({ ...baseConfig, brief: { command: "node ./brief.mjs", push: "findings" } });
     writeLocalUserConfig({ brief: { command: "node ./local-brief.mjs" } });

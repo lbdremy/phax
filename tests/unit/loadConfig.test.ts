@@ -161,6 +161,63 @@ describe("loadConfig gate step output", () => {
   });
 });
 
+function logStep(command: string) {
+  return { command, surface: "local", firing: "every-phase" };
+}
+
+describe("loadConfig duplicate gate commands", () => {
+  it("refuses a profile that lists one command twice, naming the profile and the command", () => {
+    writePhaxJson({
+      ...baseConfig,
+      gateProfiles: {
+        default: [logStep("pnpm test"), logStep("node scripts/audit.mjs"), logStep("pnpm  test")],
+      },
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ConfigValidationError);
+      expect(result.left.message).toBe(
+        'gateProfiles.default lists the command "pnpm test" twice (steps 1 and 3)',
+      );
+      expect(result.left.path).toBe("gateProfiles.default");
+    }
+  });
+
+  it("names a workspace profile by its workspace id", () => {
+    writePhaxJson({
+      ...baseConfig,
+      workspaces: [
+        {
+          id: "ui",
+          name: "UI",
+          path: ".",
+          gateProfiles: { fast: [logStep("pnpm lint"), logStep(" pnpm lint ")] },
+        },
+      ],
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe(
+        'workspaces[ui].gateProfiles.fast lists the command "pnpm lint" twice (steps 1 and 2)',
+      );
+      expect(result.left.path).toBe("workspaces[ui].gateProfiles.fast");
+    }
+  });
+
+  it("loads profiles whose commands are distinct", () => {
+    writePhaxJson({
+      ...baseConfig,
+      gateProfiles: {
+        default: [logStep("pnpm test"), logStep("pnpm run test")],
+        fast: [logStep("pnpm test")],
+      },
+    });
+    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
+  });
+});
+
 const PUSH_REFUSAL = 'brief.push must be "findings" or "findings-and-rules"';
 
 describe("loadConfig brief.push", () => {
