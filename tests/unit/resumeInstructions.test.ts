@@ -117,7 +117,7 @@ describe("buildResumeInstructions — gate_refused variant", () => {
 
   it("ends with phax resume <short name>", () => {
     const md = buildResumeInstructions(refusedBase);
-    expect(md.trimEnd().endsWith("phax resume hello-world.greet\n```")).toBe(true);
+    expect(md.trimEnd().endsWith("phax resume hello-world.greet --yes\n```")).toBe(true);
     expect(md).not.toContain("reset-phase");
   });
 });

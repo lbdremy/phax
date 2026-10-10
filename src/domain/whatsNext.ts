@@ -143,7 +143,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
         headline: [
           `${scenario.phaseId} gate: \`${scenario.command}\` refused to run: ${scenario.reason}`,
           `  remedy: ${scenario.remedy}`,
-          `  No fix attempt was made. Fix the cause, then: phax resume ${scenario.shortName}`,
+          `  No fix attempt was made. Fix the cause, then: phax resume ${scenario.shortName} --yes`,
         ].join("\n"),
         steps: [
           {
@@ -153,7 +153,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           },
           {
             title: "Resume — the gate is re-run first, with the full fix budget",
-            command: `phax resume ${scenario.shortName}`,
+            command: `phax resume ${scenario.shortName} --yes`,
           },
         ],
       };

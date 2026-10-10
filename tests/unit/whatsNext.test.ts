@@ -188,7 +188,7 @@ describe("buildWhatsNext", () => {
         [
           "phase-01 gate: `node ./audit.mjs` refused to run: the checks need hw-rules 2, and 1 is installed",
           "  remedy: pnpm add -D hw-rules@2",
-          "  No fix attempt was made. Fix the cause, then: phax resume hello-world.greet",
+          "  No fix attempt was made. Fix the cause, then: phax resume hello-world.greet --yes",
         ].join("\n"),
       );
     });
@@ -197,7 +197,7 @@ describe("buildWhatsNext", () => {
       const wn = buildWhatsNext(refusal, NOW);
       expect(wn.steps[0]?.detail).toEqual(["pnpm add -D hw-rules@2"]);
       expect(wn.steps[0]?.command).toBe("phax enter-phase hello-world.greet phase-01");
-      expect(wn.steps.at(-1)?.command).toBe("phax resume hello-world.greet");
+      expect(wn.steps.at(-1)?.command).toBe("phax resume hello-world.greet --yes");
       expect(renderWhatsNext(wn)).toContain("refused to run");
     });
   });
