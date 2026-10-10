@@ -290,12 +290,12 @@ Given the run from "The body is short and holds no full-record material", when t
 
 ## 9. Open questions for implementation planning
 
-### Q1 — Should the PR body carry the compliance review's one-paragraph summary next to the run verdict?
+### Q1 — Should the PR body carry the compliance review's one-paragraph summary next to the run verdict? (Decided by the author on 2026-10-10; not reopened.)
 
 - Verdict and attention points only — abandons: the reviewer's one-paragraph reason for the verdict without opening the review handoff
 - Also the compliance summary paragraph — abandons: the governing rule: a paragraph the reviewer reads but does not act on, which in practice restates the attention points and the phase verdicts
 
-Recommendation: Verdict and attention points only — The attention points are the compliance reviewer's distillation of what a person must look at. The summary explains the verdict without adding anything to act on, and it stays one link away in the review handoff. Losing it costs a click; keeping it brings back the restating the brief complains about.
+Recommendation: Verdict and attention points only — Decided by the author on 2026-10-10, as recommended. The attention points are the compliance reviewer's distillation of what a person must look at. The summary explains the verdict without adding anything to act on, and it stays one link away in the review handoff. Losing it costs a click; keeping it brings back the restating the brief complains about.
 
 ## 10. Implementation-planning note
 
