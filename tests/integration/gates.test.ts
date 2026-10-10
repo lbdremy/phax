@@ -388,11 +388,13 @@ describe("runGates", () => {
       expect(results).toEqual(["fail"]);
     });
 
-    it("keeps the print verbatim in the log", async () => {
+    it("names the saved report in the log, in place of its text", async () => {
       const print = stamped([cycle], CURRENT_STAMPS["gate-report"]);
-      const { error, log } = await gate(print, 1);
+      const { error, log, saved } = await gate(print, 1);
       expect(error?.reportFindings).toEqual({ step: 1, findings: [cycle] });
-      expect(log.split("\n")).toContain(print);
+      expect(log.split("\n")).toContain("report: checks-attempt-01.report-01.json");
+      expect(log).not.toContain(print);
+      expect(saved).toHaveLength(1);
     });
   });
 
@@ -943,6 +945,27 @@ describe("runGates with a report step", () => {
     expect(attribution.steps).toEqual([
       { command: "node ./audit.mjs", surface: "structural", result: "pass" },
     ]);
+  });
+
+  it("keeps a passing report's review notes out of the log a later failing step's fix prompt pastes", async () => {
+    const stdout = checked([], [reviewNote]);
+    const { result, fakeFs } = await runWith(
+      [reportStep("node ./audit.mjs"), stepWithSurface("pnpm test", "local")],
+      {
+        "node ./audit.mjs": { exitCode: 0, stdout },
+        "pnpm test": { exitCode: 1, stdout: "1 test failed" },
+      },
+    );
+
+    const err = failure(result);
+    expect(err.command).toBe("pnpm test");
+    expect(err.reportFindings).toBeNull();
+    const log = fakeFs.impl.getFile(logPath)!;
+    expect(log).toContain("report: checks-attempt-01.report-01.json");
+    expect(log).toContain("1 test failed");
+    expect(log).not.toContain(reviewNote.note);
+    expect(log).not.toContain(reviewNote.owner);
+    expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
   });
 
   it("treats an empty list with a non-zero exit as a broken step, and saves the report", async () => {
