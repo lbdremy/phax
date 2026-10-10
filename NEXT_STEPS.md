@@ -226,6 +226,26 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
+- [ ] **Gate attempt numbering restarts after a rate-limited resume.** Found 2026-10-10 reviewing
+      the guarantee-reports run (PR #129), read in the code, older than that run: resuming a
+      rate-limited phase starts attempts at 1 again, while a `gates_exhausted` resume continues
+      the numbering. Older `checks-attempt-NN.*` files stay, so the review handoff, which takes
+      the highest-numbered attempt as the last, can gather review notes from an attempt that
+      no longer counts, and `still failing` can compare against a stale report. Fix at the
+      root: continue the numbering on every resume (or clear the phase's attempt files when it
+      starts over).
+
+- [ ] **Read a step's stdout as bytes, decode once.** Found 2026-10-10 (PR #129 review), older
+      than guarantee-reports: `infra/shell.ts` decodes stdout chunk by chunk, so a multi-byte
+      character split across two chunks is corrupted, and a gate report is then not saved byte
+      for byte (§5.40 of guarantee-reports). Collect the chunks and decode at the end.
+
+- [ ] **`still failing` keys the previous report by the step's position.** Found 2026-10-10
+      (PR #129 review): the previous attempt's report is found as `report-SS`, SS being the
+      step's position among the steps run. Editing `gateProfiles` before a resume (which a
+      refusal invites) can compare findings against another step's report. Key it by the
+      step's command, or record the command in the saved report's name or beside it.
+
 - [x] **`open-next-release`: open the next version as soon as a release is tagged.** (Shipped: the open-next-release spec.) Raised
       2026-10-08 after the 0.20.0 release gate failed (as 0.19.0's had): mid-cycle, the
       manifests name the last release, so a `$schema` stamp means two shapes until the cut, and

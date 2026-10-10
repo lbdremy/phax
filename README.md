@@ -465,7 +465,7 @@ When a step fails again on the next attempt, the fix prompt marks each finding w
 
 Nothing in a report grants a command. When a guide asks the agent to run a tool, grant it yourself through `security.agentCommands`.
 
-phax saves every readable report exactly as printed, beside the attempt's log, as `checks-attempt-NN.report-SS.json`, where `SS` is the step's position among the steps the attempt runs. `phax records explain --gates` prints each report after its attempt's log and request.
+phax saves every readable report exactly as printed, beside the attempt's log, as `checks-attempt-NN.report-SS.json`, where `SS` is the step's position among the steps the attempt runs. The log itself names that file (`report: checks-attempt-NN.report-SS.json`) rather than holding the report's text, so a later step's failure, whose fix prompt carries the log, never shows the agent a review note. `phax records explain --gates` prints each report after its attempt's log and request.
 
 ### Gate request
 
