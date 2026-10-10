@@ -1,6 +1,7 @@
 import { Effect, Layer } from "effect";
+import { Buffer, isUtf8 } from "node:buffer";
 import { spawn } from "node:child_process";
-import { Shell, ShellError } from "../ports/shell.js";
+import { Shell, ShellError, type ShellRunResult } from "../ports/shell.js";
 
 // Grace between asking a timed-out child to stop and forcing it, so a process
 // that ignores SIGTERM never outlives the CLI.
@@ -11,7 +12,7 @@ function spawnCommand(
   cwd: string,
   stdin?: string,
   timeoutMs?: number,
-): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+): Promise<ShellRunResult> {
   return new Promise((resolve, reject) => {
     const [executable, ...args] = command;
     const proc =
@@ -19,14 +20,16 @@ function spawnCommand(
         ? spawn(executable, args, { cwd, stdio: ["pipe", "pipe", "pipe"] })
         : spawn(executable, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
 
-    let stdoutBuf = "";
-    let stderrBuf = "";
+    // Raw chunks, decoded once on `close`: a multi-byte character split across
+    // two chunks would otherwise become two replacement characters.
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
 
     proc.stdout.on("data", (chunk: Buffer) => {
-      stdoutBuf += chunk.toString("utf8");
+      stdoutChunks.push(chunk);
     });
     proc.stderr.on("data", (chunk: Buffer) => {
-      stderrBuf += chunk.toString("utf8");
+      stderrChunks.push(chunk);
     });
 
     // Rejecting on the timer rather than waiting for `close` means a child that
@@ -43,7 +46,14 @@ function spawnCommand(
 
     proc.on("close", (code) => {
       clearTimeout(killTimer);
-      resolve({ exitCode: code ?? 1, stdout: stdoutBuf, stderr: stderrBuf });
+      const stdoutBytes = Buffer.concat(stdoutChunks);
+      // `toString("utf8")` keeps a leading BOM, unlike a default `TextDecoder`.
+      resolve({
+        exitCode: code ?? 1,
+        stdout: stdoutBytes.toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        stdoutEncoding: isUtf8(stdoutBytes) ? "utf8" : "invalid-utf8",
+      });
     });
 
     proc.on("error", (err) => {
