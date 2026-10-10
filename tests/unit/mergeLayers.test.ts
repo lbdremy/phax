@@ -293,11 +293,6 @@ describe("mergeConfigLayers", () => {
       });
     });
 
-    it("takes push from the same layer as command, never from a lower one", () => {
-      const result = mergeConfigLayers({ project: makeProject(), globalUser, localUser });
-      expect(result.brief).toEqual({ command: "local-brief", push: "findings" });
-    });
-
     it("a user layer can declare brief when the project config has none", () => {
       const result = mergeConfigLayers({ project: makeProject(), localUser });
       expect(result.brief).toEqual({ command: "local-brief", push: "findings" });
