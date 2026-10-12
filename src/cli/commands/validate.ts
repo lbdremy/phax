@@ -17,7 +17,7 @@ export function runValidate(opts: ValidateOptions, out: OutputPort): number {
     if (configResult.left.path) {
       out.error(`  at: ${configResult.left.path}`);
     }
-    return 1;
+    return 2;
   }
   out.log(`✓ config is valid (project: ${configResult.right.namespace})`);
 
@@ -41,7 +41,7 @@ export function runValidate(opts: ValidateOptions, out: OutputPort): number {
       if (planResult.left.path) {
         out.error(`  at: ${opts.plan}`);
       }
-      return 1;
+      return 2;
     }
     const plan = planResult.right;
     out.log(`✓ ${opts.plan} is valid (run: ${plan.run.shortName}, ${plan.phases.length} phase(s))`);

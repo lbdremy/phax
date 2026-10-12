@@ -137,7 +137,7 @@ describe("runValidate", () => {
     const { out, errors } = makeOutput();
     const code = runValidate({}, out);
 
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Config validation failed"))).toBe(true);
     expect(errors.some((e) => e.includes("/repo/phax.json"))).toBe(true);
     expect(loadPlan).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe("runValidate", () => {
     const { out, errors } = makeOutput();
     const code = runValidate({ plan: "phax-plan.json" }, out);
 
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Plan validation failed"))).toBe(true);
     expect(errors.some((e) => e.includes("phax-plan.json"))).toBe(true);
   });
@@ -249,7 +249,7 @@ describe("runValidate", () => {
       const { out, errors } = makeOutput();
       const code = runValidate({ plan: "phax-plan.json" }, out);
 
-      expect(code).toBe(1);
+      expect(code).toBe(2);
       expect(loadPlan).toHaveBeenCalledWith(resolvedPath);
       const combined = errors.join("\n");
       expect(combined).toContain("phax-plan.json");
@@ -312,7 +312,7 @@ describe("runValidate", () => {
       const { out, errors } = makeOutput();
       const code = runValidate({}, out);
 
-      expect(code).toBe(1);
+      expect(code).toBe(2);
       const combined = errors.join("\n");
       expect(combined).toContain(
         'gateProfiles.standard.1.input: Expected "gate-request", actual "stdin"',
@@ -340,7 +340,7 @@ describe("runValidate", () => {
       const { out, errors } = makeOutput();
       const code = runValidate({}, out);
 
-      expect(code).toBe(1);
+      expect(code).toBe(2);
       const combined = errors.join("\n");
       expect(combined).toContain(
         'gateProfiles.standard lists the command "pnpm test" twice (steps 1 and 3)',
