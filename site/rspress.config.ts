@@ -3,8 +3,8 @@
 // and takes the nav and sidebar from site/generated/site.json, so nothing is
 // computed here. Local search only; no last-updated, edit links, analytics or
 // remote resource. The identity: dark first, the theme CSS generated from
-// site/theme/tokens.ts, and the logo (the dark-accent file is the favicon)
-// beside the lowercase wordmark.
+// site/theme/tokens.ts, the logo (the dark-accent file is the favicon)
+// beside the lowercase wordmark, and site/theme/index.tsx's home.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type UserConfig } from "@rspress/core";
@@ -26,6 +26,7 @@ export default defineConfig({
   logoText: "phax",
   icon: "/logo.svg",
   globalStyles: resolve(import.meta.dirname, "generated", THEME_CSS),
+  themeDir: resolve(import.meta.dirname, "theme"),
   lang: "en",
   search: { codeBlocks: true },
   llms: false,
