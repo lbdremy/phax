@@ -107,11 +107,12 @@ function themeVariables(theme: Theme): ReadonlyArray<readonly [string, string]> 
     ["--rp-c-brand-darker", theme.brand],
     ["--rp-c-brand-tint", `${theme.brand}29`],
     // The home's hero title and primary button fill with the gold, and its
-    // background glows gold where Rspress's default is a purple gradient.
+    // background glows gold from the top right, across most of the hero,
+    // where Rspress's default is a purple gradient.
     ["--rp-home-hero-title-bg", theme.brand],
     [
       "--rp-home-background-bg",
-      `radial-gradient(42% 56% at 100% 0%, ${theme.brand}26 0%, transparent 100%)`,
+      `radial-gradient(80% 85% at 100% 0%, ${theme.brand}2e 0%, ${theme.brand}12 45%, transparent 100%)`,
     ],
     ["--phax-c-warning", theme.warning],
     // The warning callout and the caution/danger callouts (Rspress styles
