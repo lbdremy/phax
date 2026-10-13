@@ -3,8 +3,8 @@ status: Approved
 source-spec: docs/specs/2610100823-pr-description.md
 completes-spec: true
 approved:
-  date: 2026-10-10
-  baseline: a065f2e
+  date: 2026-10-13
+  baseline: 7192ecb
 ---
 # Short pull request description
 
