@@ -72,6 +72,70 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
   },
 };
 
+/**
+ * The code blocks' syntax colours, which Rspress's Shiki emits as `--shiki-*`
+ * variables. Mostly neutrals and the gold: keywords in the accent, strings in
+ * a sage and constants in a steel blue that sit beside it, and every colour
+ * readable on the code block's background (the theme's `bg`), which the
+ * contrast test holds at 4.5:1.
+ */
+export type SyntaxToken =
+  | "foreground"
+  | "keyword"
+  | "function"
+  | "string"
+  | "constant"
+  | "parameter"
+  | "comment"
+  | "punctuation"
+  | "deleted"
+  | "inserted";
+
+export const SYNTAX: Readonly<Record<ThemeName, Readonly<Record<SyntaxToken, string>>>> = {
+  dark: {
+    foreground: "#EDEDEF",
+    keyword: "#E2B33C",
+    function: "#F0D99A",
+    string: "#A9C79A",
+    constant: "#9FBBD3",
+    parameter: "#D8C7A1",
+    comment: "#8B8B95",
+    punctuation: "#A1A1AA",
+    deleted: "#E5604A",
+    inserted: "#8FC27F",
+  },
+  light: {
+    foreground: "#18181B",
+    keyword: "#8F6400",
+    function: "#18181B",
+    string: "#3F6B34",
+    constant: "#2F5C80",
+    parameter: "#3F3F46",
+    comment: "#6B6B73",
+    punctuation: "#57575E",
+    deleted: "#B83A22",
+    inserted: "#2F6F2A",
+  },
+};
+
+/** The `--shiki-*` variables of a theme's syntax colours. */
+function syntaxVariables(syntax: Readonly<Record<SyntaxToken, string>>) {
+  return [
+    ["--shiki-foreground", syntax.foreground],
+    ["--shiki-token-keyword", syntax.keyword],
+    ["--shiki-token-function", syntax.function],
+    ["--shiki-token-string", syntax.string],
+    ["--shiki-token-string-expression", syntax.string],
+    ["--shiki-token-constant", syntax.constant],
+    ["--shiki-token-parameter", syntax.parameter],
+    ["--shiki-token-comment", syntax.comment],
+    ["--shiki-token-punctuation", syntax.punctuation],
+    ["--shiki-token-link", syntax.keyword],
+    ["--shiki-token-deleted", syntax.deleted],
+    ["--shiki-token-inserted", syntax.inserted],
+  ] as const;
+}
+
 /** The gold accent of each theme: the logo's stroke colour in that theme. */
 export const GOLD_DARK = THEMES.dark.brand;
 export const GOLD_LIGHT = THEMES.light.brand;
@@ -121,6 +185,8 @@ function themeVariables(theme: Theme): ReadonlyArray<readonly [string, string]> 
     ["--rp-c-text-0", theme.text1],
     ["--rp-c-text-1", theme.text1],
     ["--rp-c-text-2", theme.text2],
+    // Inline code reads as running text, where Rspress gives it a blue.
+    ["--rp-c-text-code", theme.text1],
     ["--rp-c-link", theme.link],
     ["--rp-c-brand", theme.brand],
     ["--rp-c-brand-light", theme.brand],
@@ -160,9 +226,12 @@ export function themeCss(): string {
     "",
     block(":root", Object.entries(FONT_FAMILIES)),
     "",
-    block(THEME_SELECTORS.light, themeVariables(THEMES.light)),
+    block(THEME_SELECTORS.light, [
+      ...themeVariables(THEMES.light),
+      ...syntaxVariables(SYNTAX.light),
+    ]),
     "",
-    block(THEME_SELECTORS.dark, themeVariables(THEMES.dark)),
+    block(THEME_SELECTORS.dark, [...themeVariables(THEMES.dark), ...syntaxVariables(SYNTAX.dark)]),
     "",
     block(":focus-visible", [["outline", "2px solid var(--rp-c-brand)"]]),
     "",
