@@ -1,4 +1,4 @@
-// The install command under the hero's actions (the home's `install`
+// The install command above the hero's actions (the home's `install`
 // frontmatter, which the build checks against README.md), with a copy button.
 import { useFrontmatter } from "@rspress/core/runtime";
 import { useState } from "react";

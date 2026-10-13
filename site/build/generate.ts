@@ -122,7 +122,7 @@ function frontmatter(title: string | undefined, home?: Home): string {
 
 /**
  * The Rspress home's frontmatter: the hero, the feature cards, the install
- * command under the hero's actions, and the run the hero plays where Rspress
+ * command above the hero's actions, and the run the hero plays where Rspress
  * would show an image (site/theme/LiveRun.tsx).
  */
 function homeFrontmatter(home: Home): ReadonlyArray<string> {

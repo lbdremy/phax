@@ -134,8 +134,8 @@
 /*
  * Rspress gives the hero 5rem above and below; less here, so that the golden
  * path under it stays in the first screen with the install command added. The
- * install command sits close under the actions it belongs with, and the path
- * keeps a wider gap from both (.phax-path's top padding).
+ * install command and the actions it leads to keep the hero's own spacing, and
+ * the path a wider gap from both (.phax-path's top padding).
  */
 @media (min-width: 1001px) {
   .rp-home-hero:has(.phax-run) {
@@ -143,7 +143,7 @@
   }
 }
 
-/* The install command under the hero's actions (InstallCommand.tsx). */
+/* The install command above the hero's actions (InstallCommand.tsx). */
 .phax-install {
   display: inline-flex;
   align-items: center;
