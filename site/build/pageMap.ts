@@ -26,6 +26,8 @@ export interface Home {
   readonly text: string;
   readonly tagline: string;
   readonly actions: ReadonlyArray<HomeAction>;
+  /** The install command shown under the actions; README.md must contain it. */
+  readonly install: string;
   readonly features: ReadonlyArray<HomeFeature>;
 }
 

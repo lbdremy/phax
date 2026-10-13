@@ -194,6 +194,7 @@ describe("generateSite", () => {
             text: "Plans, gated.",
             tagline: "Runs plans.",
             actions: [{ text: "Run", link: "/guide/run", theme: "brand" }],
+            install: "Install it",
             features: [
               { key: "gates", title: "Gated", details: "Green first.", link: "/guide/run" },
             ],
@@ -226,8 +227,27 @@ describe("generateSite", () => {
         link: "/guide/run",
       },
     ]);
+    expect(value("install")).toBe("Install it");
     expect(value("liveRun")).toEqual(liveRun());
     expect(page).toContain("## Quickstart \\{#quickstart\\}");
+  });
+
+  it("refuses a home whose install command README.md does not contain", () => {
+    const home = {
+      name: "tool",
+      text: "Plans, gated.",
+      tagline: "Runs plans.",
+      actions: [],
+      install: "npm install -g other-tool",
+      features: [],
+    };
+    const map = definePageMap({
+      ...MAP,
+      readme: [{ ...(MAP.readme[0] as ReadmePage), home }, MAP.readme[1]!, MAP.readme[2]!],
+    });
+    expect(generateSite({ files: FILES, pageMap: map, version: "0.17.0" }).findings).toEqual([
+      '✗ page map: the home\'s install command "npm install -g other-tool" is not in README.md',
+    ]);
   });
 
   it("refuses a page title whose heading id a section already uses", () => {

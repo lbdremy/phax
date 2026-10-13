@@ -121,8 +121,9 @@ function frontmatter(title: string | undefined, home?: Home): string {
 }
 
 /**
- * The Rspress home's frontmatter: the hero, the feature cards, and the run the
- * hero plays where Rspress would show an image (site/theme/LiveRun.tsx).
+ * The Rspress home's frontmatter: the hero, the feature cards, the install
+ * command under the hero's actions, and the run the hero plays where Rspress
+ * would show an image (site/theme/LiveRun.tsx).
  */
 function homeFrontmatter(home: Home): ReadonlyArray<string> {
   const hero = {
@@ -141,6 +142,7 @@ function homeFrontmatter(home: Home): ReadonlyArray<string> {
     "pageType: home",
     `hero: ${JSON.stringify(hero)}`,
     `features: ${JSON.stringify(features)}`,
+    `install: ${JSON.stringify(home.install)}`,
     `liveRun: ${JSON.stringify(liveRun())}`,
   ];
 }
@@ -307,6 +309,13 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   }
 
   const findings: Array<string> = [];
+  for (const page of readmePages) {
+    if (page.home !== undefined && !readme.includes(page.home.install)) {
+      findings.push(
+        `✗ page map: the home's install command "${page.home.install}" is not in README.md`,
+      );
+    }
+  }
   const schemas = input.schemas === undefined ? undefined : publicSchemas(input.schemas, version);
   if (schemas !== undefined) findings.push(...schemas.findings);
   const publicFiles = new Map(schemas?.files ?? []);
