@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
+  "artifact": "docs/plans/2610131352-small-fixes-0-23-plan.md",
+  "planFingerprint": "15debfeef22b86adcda69ccdaf493ec1cd7193403ccb2c4a92ef0ebd46328053",
+  "approvedAt": "2026-10-13T14:03:47.170Z",
+  "baseline": "7b9caa463e5f110777ceef108016eb44565d41df",
+  "sourceSpec": {
+    "path": "docs/specs/2610131345-small-fixes-0-23.md",
+    "fingerprint": "a6690723f6c8e70fd7fbd73653aa244958e5ef97f619fef2d3d04640e8969699"
+  }
+}

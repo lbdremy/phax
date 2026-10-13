@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610131345-small-fixes-0-23.md
 completes-spec: true
+approved:
+  date: 2026-10-13
+  baseline: 7b9caa4
 ---
 # Small fixes for 0.23
 
