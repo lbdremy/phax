@@ -1,0 +1,356 @@
+---
+status: Draft
+source-spec: null
+---
+# Catalog: Haiku 5.5
+
+> No source spec: this is a catalog refresh, not a feature. Planned 2026-10-13 against `main` @ `f2a29236`. Phase-01 writes `.claude/skills/phax-planning/SKILL.md` through `pnpm gen:model-catalog`, so run the plan with `phax run --allow-skill-edits`.
+
+Add Claude Haiku 5.5 to the routing catalog and make it phax's default plan-extraction model.
+
+- **Claude Haiku 5.5** (`claude-haiku-5-5`) joins the `claude-code` provider at the head of `claude-haiku`, so the `haiku` alias resolves to it. It is the first Haiku with an effort ladder: `low medium high xhigh max ultracode`.
+- **Plan extraction defaults to Haiku 5.5 at `low`.** Its per-token price is a tenth of Haiku 4.5's.
+- **No Codex or Vibe anchor moves.** GPT-6 Luna stays on Sonnet 5, Haiku 5.5 gets no Codex spoke, and Mistral Vibe's `off` alias keeps anchoring Haiku 4.5 at `none`.
+- **The other defaults are re-checked and stay as they are.** Compliance review stays on Sonnet 5.5 `medium`, and code review and plan adjustment stay on Opus 5.5 `high`. The phax-planning skill does not recommend Haiku 5.5 for phases.
+
+`claude-haiku-4-5-20251001` stays `active`. The plan adds no family, no effort level, no schema change and no logic change.
+
+**Context.** The routing layer is documented in `.claude/skills/model-routing/SKILL.md` and `docs/model-routing.md`. `docs/model-catalog.md` is the standing decision record: sources (§1), entries (§2), anchors (§3), cost basis and defaults (§4), refresh checklist (§5) and refresh log (§6). Each phase records its own changes there. The template for this plan is the previous refresh, `docs/plans/archive/2610051453-catalog-sonnet-5-5-plan.md`.
+
+**Provider facts (read 2026-10-13; cite them as given, do not re-derive them).**
+
+- **Claude Code 2.1.296 model table** (`/Users/remyloubradou/.local/share/claude/versions/2.1.296`):
+  - `claude-haiku-5-5` is the only id, with no dated variant. Family `haiku`, `fallback_3p: "claude-haiku-4-5"`, `default_effort: "medium"`, 1M context (`native_1m`), 128k max output.
+  - Its capabilities include `effort`, `xhigh_effort`, `max_effort`, `adaptive_thinking` and `rejects_disabled_thinking`. Its ladder is therefore `low medium high xhigh max ultracode`, with ultracode wherever xhigh is (§2's rule). It has no `none` effort, and no `effort_cost_index` was found.
+  - `claude-haiku-4-5-20251001` is still in the table.
+- **Anthropic** (anthropic.com/claude-haiku-5-5). These are vendor figures:
+  - Released 2026-10-07 at $0.10 / $0.50 per million input / output tokens for prompts up to 100k tokens, and $0.50 / $2.50 above 100k. Cache reads cost $0.01 / $0.05.
+  - It is "our first Haiku-class model to come with an adjustable effort setting" (low, medium, high, xhigh, max).
+  - Against Haiku 4.5, it costs "around 75% less to run" on average and uses "slightly more tokens per task", because of an updated tokenizer.
+  - "Sonnet 5.5 and Opus 5.5 remain better choices for complex agentic coding tasks." Haiku 5.5 is "best suited to more narrowly scoped tasks."
+  - Terminal-Bench 4.0: Haiku 5.5 39.2%, Sonnet 5.5 70.6%.
+- **Artificial Analysis Intelligence Index**, fetched 2026-10-13. The scale is unchanged since 2026-10-05: Sonnet 5.5 still reads 56 at max, with 420M tokens.
+
+  | Model | Low | Medium | High | Xhigh | Max |
+  | --- | --- | --- | --- | --- | --- |
+  | Haiku 5.5 | 29 (32M tokens, $0.02/task) | 34 | 38 (97M, $0.08/task) | 41 (180M, $0.12/task) | 43 (440M, $0.21/task) |
+  | Sonnet 5.5 | 36 | 41 (31M, $0.48/task) | 47 | 52 | 56 (420M) |
+
+  No index score exists for Haiku 4.5 on this scale. The Codex anchors use the reads already in §3: GPT-6 Luna 21/29/32/34/37 and Sonnet 5 24/28/32/34/38.
+
+**Architecture seams (audited 2026-10-13 against `main` @ `f2a29236`).**
+
+- **The catalog and its edges** live only in `src/domain/routing/defaults.ts`. These already cover `claude-haiku-5-5`, so do not touch them:
+  - `ModelFamily` and the effort schemas;
+  - `CLAUDE_FAMILIES`;
+  - the `resolveFamily` heuristic, which sends any id containing `haiku` to `claude-haiku`;
+  - `requestedModelNormalization` (`haiku` → `claude-haiku`).
+- **Alias resolution.** `pickActiveEntry` (`src/domain/routing/resolve.ts`) returns a family's first active entry, so prepending the entry is enough. `nearestSupportedEffort` clamps an effort the entry lacks to the nearest one by ordinal, with ties going to the lower one, so `none` becomes `low`. After the change:
+  - `haiku` / `none` resolves to `claude-haiku-5-5` / `low`, `equivalent`. It resolved to `claude-haiku-4-5-20251001` / `none`, `equivalent`, before.
+  - The undated `claude-haiku-4-5` (Claude Code's `fallback_3p` for Haiku 5.5) is not a catalog id. The heuristic sends it to the family's first entry, so it moves from Haiku 4.5 to Haiku 5.5 too.
+  - `claude-haiku-4-5-20251001` keeps its exact resolution at `none`.
+- **Hub ↔ spoke.** No equivalence edge targets `claude-haiku-5-5`, so `hubToSpoke` (`src/domain/routing/catalog.ts`) finds no spoke for it, and a Haiku 5.5 request stays on `claude-code` under every provider priority. The `phax-mistral-medium-3.5-off` edge keeps targeting `claude-haiku-4-5-20251001` / `none`.
+- **Extraction.**
+  - `DEFAULT_EXTRACT_MODEL` is at `src/schemas/phaxConfig.ts:247`. `src/app/loadConfig.ts:358-359` falls back to it at effort `low`.
+  - `extractPlanLlm` (`src/app/extractPlan.ts`) passes the model and effort straight to Claude Code (`--model … --effort …`), with no routing. Haiku 4.5's catalog ladder has no `low`; Haiku 5.5's does.
+  - `loadOrExtractPlan` tries the deterministic parser first and calls the model only when that parse fails.
+  - The LLM cache key (`planCacheKey`) includes the model id, so cached LLM extractions made under the old default miss once.
+- **Tests pinned to the haiku family's first entry or to the extraction default:**
+  - `tests/unit/routing/effortLevels.test.ts:11` and its active-status list at :145;
+  - `tests/unit/routing/catalog.test.ts:49`;
+  - the alias describe in `tests/unit/routing/resolve.test.ts:213`;
+  - `tests/unit/routing/sameFamilyPreservation.test.ts`;
+  - `tests/unit/skills.test.ts:38-47`;
+  - `tests/unit/loadConfig.test.ts:454-459`, the only test that pins the extraction default by value.
+- **Fixtures that use Haiku 4.5 as a sample id stay as they are.** None of them derives from the default:
+  - every hand-built resolved config with `extractPlanModel: "claude-haiku-4-5-20251001"` in `tests/unit/`, `tests/integration/` and `tests/e2e/`;
+  - the `MODEL` constants in `tests/integration/plansOverlapCommand.test.ts`, `plansOverlapLanded.test.ts` and `adjustPlanCommand.test.ts`;
+  - `tests/unit/planCacheKey.test.ts`, `tests/unit/schemas.test.ts`, `tests/unit/routing/preflight.test.ts` and `tests/unit/routing/providerSetup.test.ts`;
+  - the e2e fixture (`tests/e2e/fixtures/minimal-repo/plan.md` and `phax.json`).
+- **Docs that state the extraction default:** `docs/plan-extraction-model.md:10` and `:29`. Neither `README.md` nor any CLI help string names Haiku or the extraction default (checked 2026-10-13), so `phax.usage.kdl` and `docs/cli/reference.md` do not change.
+- **Leave alone:** `docs/blog/`, archived plans and specs, and `NEXT_STEPS.md`. The e2e fixture's follow-up there covers its Haiku 4.5 phases.
+- **Plan runtime.** Phases run through `claude-code` only. The gates never call a real provider, so unit tests are the only thing that exercises the new id. A real-provider check of the new extraction default is the author's step after the merge (see phase-02's handoff).
+
+## Required commands
+
+- `pnpm gen:model-catalog`
+
+`pnpm gen:model-catalog` rewrites the marker-delimited catalog table in `.claude/skills/phax-planning/SKILL.md` from `DEFAULT_PROVIDER_CONFIG`, in config order. The `standard` gate runs it with `--check`, so phase-01 must regenerate the table. It is already granted in `security.agentCommands` in `phax.json`.
+
+No phase changes a CLI help string, so `pnpm gen:usage-spec` and `pnpm docs:cli` are not required. No help string names the extraction default (checked 2026-10-13). Both commands are granted anyway, in case an agent finds a help string that names it.
+
+## Technical arbitrations
+
+- Resolved with the author on 2026-10-13.
+- **`claude-haiku-5-5` heads the `claude-haiku` family, and `claude-haiku-4-5-20251001` stays `active`.** Haiku 5.5's efforts are exactly `low medium high xhigh max ultracode`. Haiku 4.5 stays active because Anthropic still serves it, and Mistral Vibe's `off` alias anchors to it at `none`, an effort Haiku 5.5 does not offer. That Vibe anchor does not move. Accepted loss: the `haiku` alias and any id the heuristic sends to `claude-haiku` (including the undated `claude-haiku-4-5`) now resolve to Haiku 5.5. A `haiku` request at `none` now runs at `low`: Haiku 5.5 has no `none`, and `nearestSupportedEffort` clamps to the nearest ordinal. That is the resolution rules' own answer, kept as it is and recorded in §2. Getting Haiku 4.5 at `none` now means naming `claude-haiku-4-5-20251001`. Rejected: deprecating Haiku 4.5, which would leave Vibe's `off` anchor pointing at a deprecated entry.
+- **No Codex or Vibe anchor moves.** GPT-6 Luna (21/29/32/34/37) stays on Sonnet 5 (24/28/32/34/38), because Haiku 5.5 (29/34/38/41/43) is not closer. Haiku 5.5 gets no Codex spoke. §3 records that it was considered and why it was not used. Accepted loss: Haiku 5.5 is Claude-only, so a Haiku 5.5 phase never reaches Codex or Vibe, whatever the priority or `allowDowngrade` says.
+- **Plan extraction defaults to `claude-haiku-5-5` at `low`** (`DEFAULT_EXTRACT_MODEL`). Its per-token price is a tenth of Haiku 4.5's ($0.10/$0.50 vs $1/$5) for a newer model, and `low` is now a real rung of the default model's ladder. Accepted losses: slightly more tokens per task (the new tokenizer, a vendor figure), and one cache miss for LLM extractions cached under the old default, since the cache key includes the model id. That second loss only touches plans that fail the deterministic parse. The only test that pins the default by value moves in the same phase; fixtures that use Haiku 4.5 as a sample id stay.
+- **Compliance review stays on `claude-sonnet-5-5` at `medium`.** Haiku 5.5 reaches the same index (41) only at `xhigh`. That is about 4× cheaper per task ($0.12 vs $0.48), but it generates about 6× more tokens (180M vs 31M), which is the energy proxy, and Anthropic ranks Haiku below Sonnet for agentic work. Accepted loss: the roughly 4× per-task saving. §4's justification column records this re-check.
+- **Code review and plan adjustment stay on `claude-opus-5-5` at `high`** (54). Haiku 5.5 tops out at 43. Accepted loss: none at the same capability.
+- **The phax-planning skill does not recommend Haiku 5.5 for phases.** Phases are agentic coding, where Terminal-Bench 4.0 puts Haiku 5.5 at 39.2% against Sonnet 5.5's 70.6%. The default phase model stays `claude-opus-5-5`, and mechanical phases stay on `claude-sonnet-5-5`. The generated catalog table in the skill is refreshed only by `pnpm gen:model-catalog`, never by hand. Accepted loss: no cheaper recommendation for trivially scoped phases.
+- **The real-provider check stays out of the gates.** Phase-02's handoff names one real `phax run` extraction as the author's check, after the merge, of the new default on Claude Code 2.1.296. No phase runs it. `pnpm test:e2e:real` does not reach the new default, because the e2e fixture's `phax.json` pins `agent.extractPlan.model` to Haiku 4.5. The fixture's explicit `claude-haiku-4-5-20251001` at `none` is left alone; its own follow-up in NEXT_STEPS covers it. Accepted loss: a merged default that no automated check has exercised against the live model.
+- Decided without a question: this plan's own phases name only `claude-sonnet-5-5`. The run-start preflight checks phases against the installed binary's catalog (0.22.0), which does not know `claude-haiku-5-5`.
+
+---
+
+## phase-01 — Claude catalog: Haiku 5.5 at the head of the haiku family {#phase-01-claude-haiku-5-5}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Register `claude-haiku-5-5` as the first entry of `claude-haiku`. The `haiku` alias then resolves to Haiku 5.5, while `claude-haiku-4-5-20251001` stays active, keeps its exact resolution at `none`, and keeps anchoring Mistral Vibe's `off` alias.
+
+### Detailed instructions
+
+- **Catalog** (`src/domain/routing/defaults.ts`, `claude-code` → `claude-haiku`): prepend `{ id: "claude-haiku-5-5", efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"], status: "active" }`. The order becomes `claude-haiku-5-5`, then `claude-haiku-4-5-20251001`.
+      - `claude-haiku-4-5-20251001` stays `active`, with efforts `["none"]` unchanged.
+      - Add a one-line comment above the `claude-haiku` family: Haiku 4.5 stays active because Mistral Vibe's `off` alias anchors to it at `none`, which Haiku 5.5 does not offer.
+      - Do not touch the equivalence table (including the `phax-mistral-medium-3.5-off` edge), `requestedModelNormalization`, `ModelFamily`, the effort schemas, the heuristics or `src/domain/routing/resolve.ts`.
+- **Regenerate** the planner table with `pnpm gen:model-catalog`. Never edit the generated region of `.claude/skills/phax-planning/SKILL.md` by hand, and do not change any other part of that file in this phase.
+- **Decision record, §2 claude-code table** (`docs/model-catalog.md`): add a `claude-haiku-5-5` row above `claude-haiku-4-5-20251001`.
+      - Family: `claude-haiku`.
+      - Efforts: `low medium high xhigh max ultracode`.
+      - Read from: Claude Code 2.1.296 table, `effort` + `xhigh_effort` + `max_effort` + `adaptive_thinking` + `rejects_disabled_thinking` (no `none`), `default_effort: medium`, `fallback_3p: claude-haiku-4-5`, 1M context (`native_1m`), 128k max output, no `effort_cost_index`; released 2026-10-07; no dated variant.
+      - Since: 2026-10-13 refresh.
+- **Decision record, Haiku 4.5 row** (§2): "still the newest Haiku (`latest_per_family.haiku`)" is no longer true, so replace it. Keep "No effort ladder in Claude Code" and add: kept `active` on purpose, because Claude Code 2.1.296 still serves it and Mistral Vibe's `off` alias anchors to it at `none`, an effort Haiku 5.5 does not offer. Since: `initial catalog; kept active 2026-10-13`.
+- **Decision record, the alias paragraph** (§2, the newest-first paragraph under the claude-code table):
+      - Add `haiku` to the alias list.
+      - State that `haiku` now resolves to `claude-haiku-5-5`.
+      - Add what the resolution rules give, as the phase's tests confirm: a `haiku` request at `none` resolves to `claude-haiku-5-5` at `low`, `equivalent`. Haiku 5.5 has no `none`, and `nearestSupportedEffort` clamps to the nearest effort. The undated `claude-haiku-4-5` is not a catalog id, so the heuristic resolves it to Haiku 5.5 as well. To get Haiku 4.5 at `none`, name `claude-haiku-4-5-20251001`.
+      - If the tests show a different resolution, record what they show instead and say so in the handoff.
+- **Decision record, §1:** leave as is. No source changed kind.
+- **Doc** (`docs/model-routing.md`): add `haiku` to the family-alias list in the newest-first sentence under "Versioned catalog" (line 53). Do not add the haiku family to the JSON excerpt, and do not touch the equivalence excerpt.
+- **Tests** (write them first and confirm they fail on the current catalog):
+      - `tests/unit/routing/effortLevels.test.ts`:
+        - `effortsFor("claude-haiku-5-5")` equals `["low", "medium", "high", "xhigh", "max", "ultracode"]`.
+        - The id joins the "every catalog entry is marked status active" list.
+        - Keep the Haiku 4.5 "supports only none" test.
+      - `tests/unit/routing/catalog.test.ts`:
+        - `familyOfId("claude-haiku-5-5")` → `claude-haiku`.
+        - For each effort of its ladder, `equivalentFor("claude-haiku-5-5", effort, "openai-gpt", …)` and `equivalentFor("claude-haiku-5-5", effort, "mistral-medium", …)` are `undefined`.
+        - `equivalentFor("phax-mistral-medium-3.5-off", "off", "claude-haiku", …)` is still `claude-haiku-4-5-20251001` / `none` / `equivalent`. Keep an existing equivalent test if there is one.
+      - `tests/unit/routing/resolve.test.ts`, in the "alias resolution picks the newest-first entry" describe (:213), all with claude-only priority:
+        - `haiku` / `medium` → `claude-code`, `claude-haiku`, `claude-haiku-5-5`, `medium`, `equivalent`.
+        - `haiku` / `none` → `claude-haiku-5-5`, thinking `low`, `equivalent`. This is the resolution rules' answer; assert it as it is.
+        - `claude-haiku-5-5` / `low` → same id and effort, `exact`.
+        - `claude-haiku-4-5-20251001` / `none` → still `claude-haiku-4-5-20251001`, `none`, `exact`.
+        - `claude-haiku-4-5` / `none` (undated; heuristic) → `claude-haiku-5-5`, `low`, `equivalent`.
+      - `tests/unit/routing/sameFamilyPreservation.test.ts`:
+        - `claude-haiku-5-5` at each of its six efforts, with `mistralPriority` + `allEnabled` and again with `codexPriority` + `allEnabled`, stays on `claude-code`, family `claude-haiku`, same effort, `exact`. `ultracode` is never routed cross-provider.
+        - `claude-haiku-4-5-20251001` / `none` with `mistralPriority` + `allEnabled` still routes to `mistral-vibe` `phax-mistral-medium-3.5-off`. Keep an existing equivalent test if there is one.
+      - `tests/unit/skills.test.ts`: assert that the generated table contains `claude-haiku-5-5`. Keep the Haiku 4.5 assertion.
+      - Fix any other test that silently depended on `claude-haiku-4-5-20251001` being the family's first entry, and name each one in the handoff. Leave tests that use Haiku 4.5 as an arbitrary valid id alone.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/domain/routing/defaults.ts`
+- `.claude/skills/phax-planning/SKILL.md`
+- `docs/model-catalog.md`
+- `docs/model-routing.md`
+- `tests/unit/routing/effortLevels.test.ts`
+- `tests/unit/routing/catalog.test.ts`
+- `tests/unit/routing/resolve.test.ts`
+- `tests/unit/routing/sameFamilyPreservation.test.ts`
+- `tests/unit/skills.test.ts`
+
+### Optional files that may be edited
+
+- `tests/unit/routing/preflight.test.ts`
+- `tests/unit/routing/securityFallback.test.ts`
+- `tests/unit/routing/providerSetup.test.ts`
+- `.claude/skills/model-routing/SKILL.md`
+
+### Boundary contracts
+
+Producer: `DEFAULT_PROVIDER_CONFIG` lists `claude-haiku-5-5` first in `claude-haiku`, with the six-effort ladder, and keeps `claude-haiku-4-5-20251001` active with `["none"]`.
+
+Consumers:
+
+- phase-02's `DEFAULT_EXTRACT_MODEL` names `claude-haiku-5-5`, and its catalog-presence and `low`-on-the-ladder assertions need this entry;
+- `pickActiveEntry` treats the first active entry as the target of the `haiku` alias and of heuristic `haiku` matches;
+- the `phax-mistral-medium-3.5-off` edge still needs `claude-haiku-4-5-20251001` / `none` in the catalog.
+
+### Test strategy
+
+Write the domain unit tests before the edit:
+
+- the new id's ladder and active status;
+- its family lookup and the absence of any Codex or Vibe spoke;
+- exact resolution of both Haiku 5.5 and Haiku 4.5;
+- the `haiku` alias moving to Haiku 5.5, including the `none` → `low` clamp and the undated-id heuristic;
+- Haiku 5.5 staying on `claude-code` under every priority;
+- the Vibe `off` anchor still reaching Haiku 4.5.
+
+The `none` clamp and the Vibe anchor are the behaviours a careless catalog edit would change silently. No adapter or integration change.
+
+### Implementation order
+
+1. Failing tests.
+2. Prepend the catalog entry and its comment.
+3. `pnpm gen:model-catalog`.
+4. `docs/model-catalog.md` §2, then `docs/model-routing.md`.
+
+### Excluded scope
+
+- The extraction default, its tests and `docs/plan-extraction-model.md` (phase-02).
+- §3, §4 and §6 of `docs/model-catalog.md`, and its "State described" line (phase-02).
+- Any equivalence edge: no Codex or Vibe anchor moves.
+- Deprecating `claude-haiku-4-5-20251001` or changing any other family.
+- The planning-skill prose outside the generated table.
+- Rewriting fixtures that use Haiku 4.5 as an arbitrary valid id, including the e2e fixture.
+
+### Verification
+
+The project's configured `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The committed `claude-haiku` array, in order.
+- The observed resolution of `haiku` / `none`, `haiku` / `medium` and `claude-haiku-4-5` / `none`, and the §2 text that records it.
+- Every test changed because Haiku 5.5 is now the family's first entry, with the reason.
+- Confirmation that `pnpm gen:model-catalog --check` passed.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(routing): add Claude Haiku 5.5 at the head of the haiku family`
+
+### Commit body
+
+Register claude-haiku-5-5 (Claude Code 2.1.296 table: effort,
+xhigh_effort and max_effort, rejects_disabled_thinking) with the
+low|medium|high|xhigh|max|ultracode ladder, first in claude-haiku.
+pickActiveEntry resolves aliases and heuristic matches to a family's
+first active entry, so the haiku alias now resolves to Haiku 5.5. A
+haiku request at none clamps to low, since Haiku 5.5 has no none.
+
+claude-haiku-4-5-20251001 stays active: Anthropic still serves it, and
+Mistral Vibe's off alias anchors to it at none. No equivalence edge
+targets Haiku 5.5, so it stays Claude-only. Regenerate the planner
+table and record the entry in docs/model-catalog.md.
+
+---
+
+## phase-02 — Plan-extraction default to Haiku 5.5 and the decision record {#phase-02-extract-default-haiku-5-5}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Make `claude-haiku-5-5` / `low` phax's built-in plan-extraction model. Then close the refresh in `docs/model-catalog.md`: the §3 note on anchors considered, the §4 cost basis and re-checked defaults, and the §6 log row.
+
+### Detailed instructions
+
+- **Default** (`src/schemas/phaxConfig.ts:247`): set `DEFAULT_EXTRACT_MODEL = "claude-haiku-5-5"`, with a one-line comment above it in the style of its neighbours: `// a tenth of Haiku 4.5's per-token price ($0.10/$0.50 vs $1/$5); 29 at low on AA (2026-10-13 read)`. The effort stays `low` (`src/app/loadConfig.ts:359`, unchanged). Leave `DEFAULT_CODE_REVIEW_MODEL`, `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `DEFAULT_AUTHORING_MODEL` and `adjustPlan`'s `DEFAULT_MODEL` unchanged.
+- **Tests** (`tests/unit/loadConfig.test.ts`, the "catalog-pinned ids" test at :454-459):
+      - Expect `DEFAULT_EXTRACT_MODEL` to be `"claude-haiku-5-5"`, and keep the `entryFor` catalog-presence assertion.
+      - Add `expect(effortsFor(DEFAULT_EXTRACT_MODEL, DEFAULT_PROVIDER_CONFIG)).toContain("low")`, importing `effortsFor` from `src/domain/routing/catalog.js`. It guards that the built-in extraction effort is on the default model's ladder; it fails on Haiku 4.5, whose ladder is `none` only.
+      - The tests at :252-258 and :287 reference the constant symbolically, so they stay as they are.
+- **Fixtures:** `grep` for `claude-haiku-4-5` across `tests/` and `src/` confirms the audit in the preamble. Only `tests/unit/loadConfig.test.ts` pins the extraction default by value. Every other hit uses Haiku 4.5 as a sample id: hand-built resolved configs, `MODEL` constants, `planCacheKey`, schema and preflight tests, and the e2e fixture. Leave them as they are. If the gate turns up another test that pins the default by value, move it and name it in the handoff.
+- **Doc** (`docs/plan-extraction-model.md`):
+      - Line 10: the built-in default becomes `claude-haiku-5-5` at `low` effort.
+      - Line 29: the capable small model becomes `claude-haiku-5-5`.
+      - Leave the `claude-sonnet-5` override example as it is.
+- **CLI help:** no help string names the extraction default (checked 2026-10-13), and `README.md` does not state it. If one turns up, update it, run `pnpm gen:usage-spec` and `pnpm docs:cli`, and say so in the handoff.
+- **Planning skill:** no change. The phax-planning skill does not recommend Haiku 5.5 for phases, and its generated table was refreshed in phase-01.
+- **Decision record, "State described"** (`docs/model-catalog.md`): point it at this plan's archived path, `docs/plans/archive/<this plan's stamp>-catalog-haiku-5-5-plan.md`. Use the same stamp as this plan's file under `docs/plans/`.
+- **Decision record, §3:**
+      - Append to the re-scaling note: the 2026-10-13 read is on the 2026-09-23 scale too (Sonnet 5.5 unchanged: 56 at `max`, 420M tokens).
+      - After the "Consequence of the `downgrade` edges" paragraph, add a paragraph headed **Considered and not used: Claude Haiku 5.5 (2026-10-13).** GPT-6 Luna (21/29/32/34/37) stays anchored to Sonnet 5 (24/28/32/34/38), because Haiku 5.5 (29/34/38/41/43, 2026-10-13 read, same scale) is not closer. Haiku 5.5 gets no Codex spoke. Mistral Vibe's `off` alias keeps anchoring `claude-haiku-4-5-20251001` at `none`, an effort Haiku 5.5 does not offer. Haiku 5.5 is therefore Claude-only: a Haiku 5.5 phase never reaches Codex or Vibe.
+- **Decision record, §4 prose:** add a paragraph after the Sonnet 5.5 paragraph.
+      - Haiku 5.5's figures are from the 2026-10-13 read, on the same scale as 2026-09-23.
+      - Low/medium/high/xhigh/max: 29/34/38/41/43. Token and cost figures: 32M tokens and $0.02/task at `low`; 97M and $0.08 at `high`; 180M and $0.12 at `xhigh`; 440M and $0.21 at `max`.
+      - For comparison, Sonnet 5.5 at `medium` scores 41, with 31M tokens and $0.48/task. AA has no score for Haiku 4.5 on this scale. Claude Code 2.1.296 publishes no `effort_cost_index` for Haiku 5.5.
+      - Anthropic's page (<https://www.anthropic.com/claude-haiku-5-5>, read 2026-10-13): released 2026-10-07. It costs $0.10 / $0.50 per million input / output tokens for prompts up to 100k tokens and $0.50 / $2.50 above, with cache reads at $0.01 / $0.05. It is the first Haiku with an adjustable effort setting.
+      - Against Haiku 4.5, it costs around 75% less to run on average, with slightly more tokens per task from an updated tokenizer.
+      - Anthropic says Sonnet 5.5 and Opus 5.5 remain better choices for complex agentic coding (Terminal-Bench 4.0: Haiku 5.5 39.2%, Sonnet 5.5 70.6%).
+      - End with: these are vendor figures.
+- **Decision record, §4 cost table:** add a `claude-haiku-5-5` row above `claude-haiku-4-5-20251001`:
+      - price `0.10 / 0.50 (≤100k prompt; 0.50 / 2.50 above; cache read 0.01 / 0.05)`;
+      - AA Intelligence (max) `43 (2026-10-13 scale)`;
+      - AA $/task `0.21 (2026-10-13)`;
+      - output tokens `440M (2026-10-13)`;
+      - effort_cost_index `not published`.
+
+      Leave the other rows as they are.
+- **Decision record, §4 defaults table:**
+      - **Plan extraction:** default `claude-haiku-5-5`, effort `low`, previous `claude-haiku-4-5-20251001`. Justification: a tenth of Haiku 4.5's per-token price (0.10/0.50 vs 1/5 for prompts up to 100k; still half above 100k) for a newer model. It is the cheapest scored entry: 29 at `low` on the 2026-10-13 index, with 32M tokens and $0.02/task. Accepted loss: slightly more tokens per task from the new tokenizer (a vendor figure). Haiku 4.5 has no score on this scale.
+      - **Compliance review:** append "Re-checked 2026-10-13, unchanged: Haiku 5.5 reaches the same 41 only at `xhigh`. That is about 4× cheaper per task ($0.12 vs $0.48), but it generates about 6× the tokens (180M vs 31M), the energy proxy, and Anthropic ranks Haiku below Sonnet for agentic work."
+      - **Code review and plan adjustment:** append "Re-checked 2026-10-13, unchanged: Haiku 5.5 tops out at 43 (`max`), below Opus 5.5 `high` (54)."
+- **Decision record, §6:** append `| 2026-10-13 | Claude Haiku 5.5 (`haiku` alias → Haiku 5.5, `none` clamps to `low`; Haiku 4.5 kept active, still anchors Vibe `off`); no Codex or Vibe anchor moved (Haiku 5.5 considered for GPT-6 Luna, not closer); plan-extraction default → Haiku 5.5 `low`; compliance, code review and plan adjustment re-checked, unchanged | `phax/catalog-haiku-5-5` |`.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/schemas/phaxConfig.ts`
+- `tests/unit/loadConfig.test.ts`
+- `docs/plan-extraction-model.md`
+- `docs/model-catalog.md`
+
+### Optional files that may be edited
+
+- `README.md`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `src/cli/program.ts`
+
+### Boundary contracts
+
+Producer: `DEFAULT_EXTRACT_MODEL` names `claude-haiku-5-5`, which must exist in the catalog from phase-01. `loadConfig` keeps the effort `low`, a rung of that entry's ladder.
+
+Consumers: `phax run`, `phax plans status` / `plans overlap`, `phax adjust-plan` and headless plan authoring (cache seeding), whenever `agent.extractPlan` in `phax.json` does not override the default. `extractPlanLlm` hands the pair straight to Claude Code as `--model claude-haiku-5-5 --effort low`.
+
+### Test strategy
+
+Update the constant-pinning test in `tests/unit/loadConfig.test.ts` first, and add the `low`-on-the-ladder assertion. Both must fail on the current constant; then change the constant. There is no new behaviour, and the catalog-presence assertion already guarantees that the id resolves. The decision-record edits are prose that the gates do not check, so the handoff confirms them.
+
+### Implementation order
+
+1. Pinning test and the ladder assertion.
+2. The constant and its comment.
+3. `docs/plan-extraction-model.md`.
+4. `docs/model-catalog.md`: State described, §3, §4 prose, cost table, defaults table, §6 row.
+
+### Excluded scope
+
+- The catalog entry and the routing tests (phase-01).
+- Code review, compliance review, plan adjustment and authoring defaults.
+- Any equivalence edge, the planning-skill prose and the generated catalog table.
+- Fixtures and examples that use Haiku 4.5 as a sample id, including the e2e fixture's `plan.md` and `phax.json`.
+- Running `pnpm test:e2e:real`, `phax run` or any live provider call.
+- `docs/blog/`, `NEXT_STEPS.md`, and archived plans and specs.
+
+### Verification
+
+The project's configured `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The final values of the four built-in defaults in §4, with their efforts: code review, plan adjustment, compliance review and plan extraction.
+- Every test or fixture moved because it pinned the extraction default. Only `tests/unit/loadConfig.test.ts` is expected.
+- Whether any CLI help string or generated file changed. None is expected.
+- **The author's check after the merge, not run by any phase:** the gates never call a real provider. On Claude Code 2.1.296, in the main checkout, with no `agent.extractPlan` override, run one real extraction: `phax run --plan <plan.md> --dry-run --refresh` on an `Approved` loose plan.md that the deterministic parser rejects. The "Deterministic extraction failed … fell back to LLM" warning confirms the model was called. A plan that parses deterministically never reaches the extraction model. `pnpm test:e2e:real` does not exercise the new default, because the e2e fixture's `phax.json` pins `agent.extractPlan.model` to `claude-haiku-4-5-20251001`. That fixture is left alone, and its follow-up in NEXT_STEPS covers it.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(defaults): default plan extraction to Haiku 5.5 at low`
+
+### Commit body
+
+Haiku 5.5 costs a tenth of Haiku 4.5 per token ($0.10/$0.50 vs $1/$5
+for prompts up to 100k tokens) and offers a real low effort. Point
+DEFAULT_EXTRACT_MODEL at claude-haiku-5-5, keeping effort low. The
+accepted loss is slightly more tokens per task from its new tokenizer.
+
+Compliance review stays on Sonnet 5.5 medium: Haiku 5.5 matches it only
+at xhigh, with about 6x the tokens. Code review and plan adjustment stay
+on Opus 5.5 high. No Codex or Vibe anchor moves. Record the Haiku 5.5
+cost basis, the re-checked defaults and the refresh-log row in
+docs/model-catalog.md.
