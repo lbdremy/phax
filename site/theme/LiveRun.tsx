@@ -1,16 +1,11 @@
-// The hero's run card: the golden path replayed from the home's `liveRun`
-// frontmatter (site/build/liveRun.ts), a stepper from spec to pull request,
-// the phases, and the semantic log scrolling under them. The page is rendered
-// at the end of the run, so it reads without JavaScript; in the browser the
-// card replays from the start, unless the reader prefers reduced motion, and
-// pauses while it is off screen.
-import { useFrontmatter } from "@rspress/core/runtime";
-import { useEffect, useRef, useState } from "react";
+// The hero's run card: the home's live run as it plays (site/theme/playback.tsx),
+// a stepper from spec to pull request, the phases, and the semantic log
+// scrolling under them. It tells the playback when it is off screen.
+import { useEffect, useRef } from "react";
 import type { LiveRunLine, LiveRunStage } from "../build/liveRun.js";
+import { usePlayback } from "./playback.js";
 
-// The two browser APIs the card uses. The test typecheck has no DOM library,
-// so the card declares them here instead of adding it to the whole program.
-declare const window: { matchMedia(query: string): { readonly matches: boolean } };
+// The test typecheck has no DOM library; the one browser API the card uses.
 declare const IntersectionObserver:
   | (new (callback: (entries: ReadonlyArray<{ readonly isIntersecting: boolean }>) => void) => {
       observe(target: unknown): void;
@@ -34,12 +29,6 @@ const PROGRESS: Readonly<Record<string, number>> = {
   review_open: 100,
 };
 const FAILING = new Set(["gates_failed", "fixing"]);
-
-function delay(line: LiveRunLine): number {
-  if (line.kind === "state.transition") return 750;
-  if (line.kind === "artifact") return 900;
-  return 450;
-}
 
 interface CardView {
   readonly stage: LiveRunStage | undefined;
@@ -114,34 +103,25 @@ function LogLine({ line }: { readonly line: LiveRunLine }) {
 }
 
 export function LiveRun() {
-  const { frontmatter } = useFrontmatter();
-  const lines = (frontmatter["liveRun"] ?? []) as ReadonlyArray<LiveRunLine>;
+  const playback = usePlayback();
+  const lines = playback?.lines ?? [];
+  const shown = playback?.shown ?? lines.length;
+  const setVisible = playback?.setVisible;
   const phaseIds = [
     ...new Set(lines.flatMap((line) => (line.phase === undefined ? [] : [line.phase]))),
   ];
-  const [shown, setShown] = useState(lines.length);
-  const [visible, setVisible] = useState(true);
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setShown(0);
     const element = card.current;
-    if (element === null || typeof IntersectionObserver === "undefined") return;
+    if (element === null || setVisible === undefined) return;
+    if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(([entry]) =>
       setVisible(entry?.isIntersecting ?? true),
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!visible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const last = lines[shown - 1];
-    const wait = shown >= lines.length ? 3500 : last === undefined ? 600 : delay(last);
-    const timer = setTimeout(() => setShown(shown >= lines.length ? 0 : shown + 1), wait);
-    return () => clearTimeout(timer);
-  }, [shown, visible, lines]);
+  }, [setVisible]);
 
   const played = lines.slice(0, shown);
   const state = view(played, phaseIds);
