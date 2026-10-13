@@ -1,10 +1,15 @@
 import { Effect, Either } from "effect";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
+import { runKey } from "../domain/runRef.js";
+import { isPhaseTerminal } from "../domain/state.js";
+import { COMPLIANCE_REVIEW_JSON_FILENAME } from "../domain/review/compliancePrompt.js";
 import type { ResolvedPublishConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import { readComplianceReviewFile, readRunStatusFile } from "../schemas/persisted.js";
 import { selectPrTitle } from "../domain/publish/title.js";
-import { buildPrBody } from "../domain/publish/body.js";
+import { buildShortPrBody, type ShortPrBodyInput } from "../domain/publish/prBody.js";
 import type { PublicationRecord, PrStatus, PushStatus } from "../domain/publish/types.js";
 import { encodePublication } from "../schemas/publication.js";
 import type { RunId } from "../domain/branded.js";
@@ -22,8 +27,8 @@ import {
   makeArtifactGeneratedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { writeFinalReport } from "./finalReport.js";
+import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
 import { loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
-import { buildReviewHandoffContent } from "./reviewHandoff.js";
 
 export type PublicationResultKind = "published" | "failed";
 
@@ -42,12 +47,47 @@ export interface PublishRunOpts {
   readonly records?: ResolvedRecordsConfig | undefined;
   /** The local records clone's path; required only when `records.destination.kind === "repo"`. */
   readonly recordsClonePath?: string | undefined;
+  /** The home directory the PR body writes as `~`; defaults to `homedir()`, so tests can pin the rewrite. */
+  readonly homeDir?: string;
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
-const COMPLIANCE_REVIEW_FILENAME = "compliance-review.md";
+const RUN_STATUS_FILENAME = "run-status.json";
 const PUBLICATION_FILENAME = "publication.json";
 const PR_BODY_FILENAME = "pr-body.md";
+
+// The plan path run-status.json records, or a loose plan when it records none.
+function loadPlanRef(
+  runPath: string,
+): Effect.Effect<ShortPrBodyInput["plan"], { readonly message: string }, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, RUN_STATUS_FILENAME);
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const status = yield* readRunStatusFile(path, parsed);
+    return status.planRepoRelPath !== undefined
+      ? { kind: "path", path: status.planRepoRelPath }
+      : { kind: "loose" };
+  });
+}
+
+// The run's compliance review; an absent or undecodable file reads as not
+// reviewed, so a review artifact never fails a publish.
+function loadCompliance(
+  runPath: string,
+): Effect.Effect<ShortPrBodyInput["compliance"], never, FileSystem> {
+  const notReviewed: ShortPrBodyInput["compliance"] = { kind: "not-reviewed" };
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
+    if (!(yield* fs.exists(path))) return notReviewed;
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const review = yield* readComplianceReviewFile(path, parsed);
+    return { kind: "reviewed", review } as const;
+  }).pipe(Effect.orElseSucceed(() => notReviewed));
+}
 
 function logVerbose(verbose: boolean, line: string): Effect.Effect<void, never, never> {
   if (!verbose) return Effect.void;
@@ -391,8 +431,17 @@ export function publishRun(
         { baseBranch },
       );
     }
-    const { global, globalMd, phaseContents, sourceSpecOutcomeMd, reviewNotesMd } =
-      loadResult.right;
+    const { global, phaseContents, sourceSpecOutcomeMd, reviewNoteGroups } = loadResult.right;
+
+    const planResult = yield* Effect.either(loadPlanRef(info.runPath));
+    if (Either.isLeft(planResult)) {
+      return yield* fail(
+        `Could not load run status: ${planResult.left.message}`,
+        pushStatus,
+        "failed",
+        { baseBranch },
+      );
+    }
 
     const title = selectPrTitle({
       ...(publish.title !== undefined ? { configuredTitle: publish.title } : {}),
@@ -401,21 +450,40 @@ export function publishRun(
       shortName: info.shortName,
     });
 
-    const complianceReviewPath = join(info.runPath, COMPLIANCE_REVIEW_FILENAME);
-    const complianceReadResult = yield* Effect.either(fs.readText(complianceReviewPath));
-    const complianceReviewMd = Either.isRight(complianceReadResult)
-      ? complianceReadResult.right
-      : undefined;
+    const orderedPhases = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex);
+    const phases = orderedPhases.map((p) => ({
+      phaseId: p.phaseId,
+      title: info.planPhases.find((pp) => pp.id === p.phaseId)?.title ?? p.phaseId,
+      status:
+        p.state === "skipped"
+          ? ("skipped" as const)
+          : isPhaseTerminal(p.state)
+            ? ("passed" as const)
+            : ("unfinished" as const),
+    }));
+    const verifiedSurfaces = yield* aggregateVerifiedSurfaces(
+      info.runPath,
+      orderedPhases.map((p) => p.phaseId),
+    );
+    const compliance = yield* loadCompliance(info.runPath);
 
-    const reviewHandoffMd = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
-      complianceReviewMd,
-      sourceSpecOutcomeMd,
-      reviewNotesMd,
-    });
-
-    const built = buildPrBody({
-      reviewHandoffMd,
-      branch: branchString,
+    const built = buildShortPrBody({
+      qualifiedName: runKey(info.namespace, info.shortName),
+      shortName: info.shortName,
+      plan: planResult.right,
+      sourceSpecOutcome: sourceSpecOutcomeMd,
+      gateProfileId: info.gateProfileId,
+      phases,
+      verifiedSurfaces,
+      compliance,
+      global,
+      phaseHandoffs: phaseContents.map((p) => ({
+        phaseId: p.phaseId,
+        handoffMd: p.phaseHandoffMd,
+      })),
+      reviewNoteGroups,
+      runFolder: { path: info.runPath, homeDir: opts.homeDir ?? homedir() },
+      records: opts.records?.enabled === true ? "configured" : "not-configured",
     });
 
     const bodyFile = join(info.runPath, PR_BODY_FILENAME);

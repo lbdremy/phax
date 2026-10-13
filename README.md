@@ -333,7 +333,7 @@ phax review-compliance <run>    # an agent checks the work against the plan, pha
 phax publish-pr <run>           # push the final branch and open a pull request, or reuse the open one
 ```
 
-The compliance review changes nothing; its verdict goes into the pull request's description. Its model is `review.compliance`, `claude-sonnet-5-5` at `medium` by default. `publish-pr` needs a GitHub remote and an authenticated `gh`; the remote, base branch and title are set under `publish`.
+The compliance review changes nothing. `phax publish-pr <run>` writes a short description: a run summary with the compliance verdict, one line per phase, what needs your review (unexplained deviations, compliance attention points), the review notes, and where to read the full review handoff, `~/.phax/runs/<namespace>.<name>/review-handoff.md`, on the machine that ran it. The compliance review's model is `review.compliance`, `claude-sonnet-5-5` at `medium` by default. `publish-pr` needs a GitHub remote and an authenticated `gh`; the remote, base branch and title are set under `publish`.
 
 ### After the merge
 
@@ -459,7 +459,7 @@ A step that cannot run its checks says so with a refused report, which carries e
 
 A refusal goes to you, not to the agent, whatever the exit code. No later step runs, no fix attempt is made, and the run exits 4, naming the step, the reason and the remedy. The phase pauses as it does when its fix attempts run out (`gates_exhausted`), and `phax resume` runs the gate again before any agent turn, with the full `agent.maxFixAttempts` budget. `gate-attribution.json` records the step as `refused`.
 
-Review notes are for the person who reviews the run. They never fail a step and never reach the agent. phax gathers the notes of each phase's last gate attempt into a `## Review notes` section of the review handoff and the PR body, one group per `owner`, with a note several phases left listed once, naming those phases.
+Review notes are for the person who reviews the run. They never fail a step and never reach the agent. phax gathers the notes of each phase's last gate attempt into a `## Review notes` section of the review handoff and the PR body, one group per `owner`, with a note several phases left listed once, naming those phases. When the PR body must be shortened to fit GitHub's limit, it cuts review notes last.
 
 When a step fails again on the next attempt, the fix prompt marks each finding whose `id` the step with the same command listed in the previous attempt as `still failing`, wherever it now sits. The previous attempt is the highest-numbered attempt before this one, even across a `phax resume`. Two commands are the same when they split into the same words (`pnpm  test` is `pnpm test`), so a gate profile may not list the same command twice: config loading refuses it with exit 2, naming the profile and the command. Nothing else from earlier attempts reaches the agent.
 

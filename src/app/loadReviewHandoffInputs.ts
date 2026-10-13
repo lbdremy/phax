@@ -8,7 +8,11 @@ import {
 } from "../domain/reconciliation/global.js";
 import { lastRecordedAttempt } from "../domain/gate/attemptFiles.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
-import { gatherReviewNotes, renderReviewNotes } from "../domain/review/reviewNotes.js";
+import {
+  gatherReviewNotes,
+  renderReviewNotes,
+  type ReviewNoteGroup,
+} from "../domain/review/reviewNotes.js";
 import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -37,6 +41,8 @@ export interface ReviewHandoffInputs {
   readonly sourceSpecOutcomeMd: string | undefined;
   // The `## Review notes` section, when a phase's last gate attempt left a note.
   readonly reviewNotesMd: string | undefined;
+  // The gathered notes behind `reviewNotesMd`; empty when no phase left one.
+  readonly reviewNoteGroups: ReadonlyArray<ReviewNoteGroup>;
 }
 
 // Reads the source-spec outcome run completion left in the run folder, or
@@ -96,11 +102,11 @@ function readCheckedReviewNotes(
   }).pipe(Effect.orElseSucceed(() => none));
 }
 
-// The review handoff's `## Review notes` section, gathered from each phase's
-// last gate attempt, or undefined when no phase left a note.
-export function loadReviewNotes(
+// The review notes gathered from each phase's last gate attempt, grouped by
+// owner; empty when no phase left a note.
+export function loadReviewNoteGroups(
   info: RunReviewInfo,
-): Effect.Effect<string | undefined, never, FileSystem> {
+): Effect.Effect<ReadonlyArray<ReviewNoteGroup>, never, FileSystem> {
   return Effect.gen(function* () {
     const phaseIds = info.phaseStatuses
       .toSorted((a, b) => a.phaseIndex - b.phaseIndex)
@@ -110,8 +116,16 @@ export function loadReviewNotes(
       const notes = yield* loadLastAttemptReviewNotes(join(info.runPath, phaseId));
       phases.push({ phaseId, notes });
     }
-    return renderReviewNotes(gatherReviewNotes(phases));
+    return gatherReviewNotes(phases);
   });
+}
+
+// The review handoff's `## Review notes` section, gathered from each phase's
+// last gate attempt, or undefined when no phase left a note.
+export function loadReviewNotes(
+  info: RunReviewInfo,
+): Effect.Effect<string | undefined, never, FileSystem> {
+  return Effect.map(loadReviewNoteGroups(info), renderReviewNotes);
 }
 
 export function loadPhaseContents(
@@ -221,8 +235,16 @@ export function loadReviewHandoffInputs(
     );
     const { phaseContents } = yield* loadPhaseContents(info);
     const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
-    const reviewNotesMd = yield* loadReviewNotes(info);
+    const reviewNoteGroups = yield* loadReviewNoteGroups(info);
+    const reviewNotesMd = renderReviewNotes(reviewNoteGroups);
 
-    return { global, globalMd, phaseContents, sourceSpecOutcomeMd, reviewNotesMd };
+    return {
+      global,
+      globalMd,
+      phaseContents,
+      sourceSpecOutcomeMd,
+      reviewNotesMd,
+      reviewNoteGroups,
+    };
   });
 }
