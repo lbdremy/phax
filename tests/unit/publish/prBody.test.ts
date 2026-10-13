@@ -235,6 +235,24 @@ describe("buildShortPrBody — shape", () => {
     );
   });
 
+  it("keeps each attention point on its own line", () => {
+    const needs = section(
+      build({
+        compliance: {
+          kind: "reviewed",
+          review: {
+            ...review,
+            attentionPoints: ["Check the fallback\n\n## when NO_COLOR is set."],
+          },
+        },
+      }),
+      "## Needs your review",
+    );
+    expect(needs).toContain(
+      "### Compliance attention points\n\n- Check the fallback ## when NO_COLOR is set.",
+    );
+  });
+
   it("writes None. when the review has no attention point", () => {
     const needs = section(
       build({ compliance: { kind: "reviewed", review: { ...review, attentionPoints: [] } } }),
