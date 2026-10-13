@@ -228,7 +228,7 @@ describe("checkServedSchemas", () => {
 
   it("fails a logo that is missing or differs from site/public", () => {
     const logos = new Map([
-      ["/logo-light.svg", bytes('<svg stroke="#8A6508"/>\n')],
+      ["/logo-light.svg", bytes('<svg stroke="#A87A0A"/>\n')],
       ["/logo.svg", bytes('<svg stroke="#E2B33C"/>\n')],
     ]);
     const output = new Map([...expected, ["/logo.svg", bytes('<svg stroke="#FFD700"/>\n')]]);

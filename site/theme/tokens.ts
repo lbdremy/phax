@@ -4,7 +4,10 @@
 // else. Dark is the default theme (site/theme/appearance.ts). Bright gold on
 // neutral graphite, the golden path: gold is an accent only (rules, focus
 // rings, the logo, highlights); light links are bronze; warnings are
-// vermilion, never gold.
+// vermilion, never gold. A gold accent must stand out from the background, so
+// the light theme's is a deeper ochre gold; large gold surfaces (the primary
+// button, the phases, the glow) take the fill instead, the bright gold in both
+// themes, with dark text on it.
 
 export type ThemeName = "dark" | "light";
 
@@ -15,9 +18,20 @@ export type TokenRole =
   | "secondary"
   | "link"
   | "gold accent"
+  | "gold fill"
+  | "text on fill"
   | "warning";
 
-export type TokenName = "bg" | "bgSoft" | "text1" | "text2" | "link" | "brand" | "warning";
+export type TokenName =
+  | "bg"
+  | "bgSoft"
+  | "text1"
+  | "text2"
+  | "link"
+  | "brand"
+  | "fill"
+  | "fillText"
+  | "warning";
 
 export type Theme = Readonly<Record<TokenName, string>>;
 
@@ -28,6 +42,8 @@ export const TOKEN_ROLES: Readonly<Record<TokenName, TokenRole>> = {
   text2: "secondary",
   link: "link",
   brand: "gold accent",
+  fill: "gold fill",
+  fillText: "text on fill",
   warning: "warning",
 };
 
@@ -39,6 +55,8 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     text2: "#A1A1AA",
     link: "#E9C46A",
     brand: "#E2B33C",
+    fill: "#E2B33C",
+    fillText: "#0F0F11",
     warning: "#E5604A",
   },
   light: {
@@ -47,7 +65,9 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     text1: "#18181B",
     text2: "#57575E",
     link: "#5A4206",
-    brand: "#8A6508",
+    brand: "#A87A0A",
+    fill: "#E2B33C",
+    fillText: "#18181B",
     warning: "#B83A22",
   },
 };
@@ -55,7 +75,9 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
 /** The gold accent of each theme: the logo's stroke colour in that theme. */
 export const GOLD_DARK = THEMES.dark.brand;
 export const GOLD_LIGHT = THEMES.light.brand;
-export const GOLD_TOKENS: ReadonlyArray<string> = [GOLD_DARK, GOLD_LIGHT];
+export const GOLD_TOKENS: ReadonlyArray<string> = [
+  ...new Set([GOLD_DARK, GOLD_LIGHT, THEMES.dark.fill, THEMES.light.fill]),
+];
 
 /** The light theme's link colour. */
 export const BRONZE = THEMES.light.link;
@@ -105,14 +127,16 @@ function themeVariables(theme: Theme): ReadonlyArray<readonly [string, string]> 
     ["--rp-c-brand-lighter", theme.brand],
     ["--rp-c-brand-dark", theme.brand],
     ["--rp-c-brand-darker", theme.brand],
-    ["--rp-c-brand-tint", `${theme.brand}29`],
+    ["--rp-c-brand-tint", `${theme.fill}29`],
+    ["--phax-c-fill", theme.fill],
+    ["--phax-c-fill-text", theme.fillText],
     // The home's hero title and primary button fill with the gold, and its
     // background glows gold from the top right, across most of the hero,
     // where Rspress's default is a purple gradient.
     ["--rp-home-hero-title-bg", theme.brand],
     [
       "--rp-home-background-bg",
-      `radial-gradient(80% 85% at 100% 0%, ${theme.brand}2e 0%, ${theme.brand}12 45%, transparent 100%)`,
+      `radial-gradient(80% 85% at 100% 0%, ${theme.fill}2e 0%, ${theme.fill}12 45%, transparent 100%)`,
     ],
     ["--phax-c-warning", theme.warning],
     // The warning callout and the caution/danger callouts (Rspress styles
