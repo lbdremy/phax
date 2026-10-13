@@ -1,6 +1,7 @@
 /**
- * The `$schema` URL that names a persisted document's format and the phax
- * release that wrote it: `<base>/<format-id>/<X.Y.Z>.json`. Pure, and
+ * The `$schema` URL that names a persisted document's format and its shape,
+ * by the phax release that last changed that shape (not necessarily the
+ * release that wrote the document): `<base>/<format-id>/<X.Y.Z>.json`. Pure, and
  * imports only `effect`, so the schemas package can carry it.
  */
 import { Schema } from "effect";
@@ -97,7 +98,7 @@ export function schemaUrlField(formatId: FormatId) {
   return Schema.String.pipe(
     Schema.pattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
     Schema.annotations({
-      description: `The ${formatId} format and the phax release that wrote this file: ${SCHEMA_URL_BASE}/${formatId}/<X.Y.Z>.json`,
+      description: `The ${formatId} format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${formatId}/<X.Y.Z>.json`,
     }),
   );
 }

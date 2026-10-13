@@ -94,6 +94,18 @@ describe("schemaUrlField", () => {
       expect(new RegExp(rendered.pattern ?? "^$").test(schemaUrl(id, "0.17.0"))).toBe(true);
     },
   );
+
+  it.each(FORMAT_IDS.map((id) => [id]))(
+    "says the %s stamp names the release that last changed the format's shape",
+    (id) => {
+      const rendered = JSONSchema.make(schemaUrlField(id)) as { description?: string };
+      expect(rendered.description).toBe(
+        `The ${id} format's shape, named by the phax release that last changed it ` +
+          `(not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${id}/<X.Y.Z>.json`,
+      );
+      expect(rendered.description).not.toContain("the phax release that wrote this file");
+    },
+  );
 });
 
 describe("parseSchemaUrl", () => {
