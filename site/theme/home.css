@@ -6,7 +6,7 @@
   min-width: 0;
   max-width: 72rem;
   margin: 0 auto;
-  padding: 12px 40px 24px;
+  padding: 56px 40px 24px;
 }
 
 .phax-path__scroll {
@@ -133,11 +133,13 @@
 
 /*
  * Rspress gives the hero 5rem above and below; less here, so that the golden
- * path under it stays in the first screen with the install command added.
+ * path under it stays in the first screen with the install command added. The
+ * install command sits close under the actions it belongs with, and the path
+ * keeps a wider gap from both (.phax-path's top padding).
  */
 @media (min-width: 1001px) {
   .rp-home-hero:has(.phax-run) {
-    margin-block: 1.5rem 0;
+    margin-block: 0.5rem 0;
   }
 }
 
@@ -147,7 +149,7 @@
   align-items: center;
   gap: 12px;
   max-width: 100%;
-  margin-top: 28px;
+  margin-top: 0;
   padding: 8px 8px 8px 14px;
   border: 1px solid var(--rp-c-divider-light);
   border-radius: 8px;
