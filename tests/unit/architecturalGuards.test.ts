@@ -520,6 +520,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/gateAttribution.ts",
   "src/schemas/gateReport.ts",
   "src/schemas/gateRequest.ts",
+  "src/schemas/history/authoring-record-manifest/0.17.0.ts",
   "src/schemas/history/authoring-record-manifest/pre-schema.ts",
   "src/schemas/history/brief-record/0.20.0.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",

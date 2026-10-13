@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import * as entry from "../../../packages/schemas/src/index.js";
+import * as authoringRecordManifestV0_17_0 from "../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
 import * as briefRecordV0_20_0 from "../../../src/schemas/history/brief-record/0.20.0.js";
 import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document/0.17.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
@@ -65,6 +66,7 @@ describe("schemas package entry", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
       "AuthoringRecordManifestPreSchemaSchema",
       "AuthoringRecordManifestSchema",
+      "AuthoringRecordManifestV0_17_0Schema",
       "BriefRecordSchema",
       "BriefRecordV0_20_0Schema",
       "BriefReportSchema",
@@ -261,6 +263,14 @@ describe("schemas package entry", () => {
     expect(entry.BriefRecordV0_20_0Schema).toBe(briefRecordV0_20_0.BriefRecordV0_20_0Schema);
     expect(briefRecordV0_20_0.decodeBriefRecordV0_20_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodeBriefRecordV0_20_0");
+  });
+
+  it("re-exports the authoring-record-manifest 0.17.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.AuthoringRecordManifestV0_17_0Schema).toBe(
+      authoringRecordManifestV0_17_0.AuthoringRecordManifestV0_17_0Schema,
+    );
+    expect(authoringRecordManifestV0_17_0.decodeAuthoringRecordManifestV0_17_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeAuthoringRecordManifestV0_17_0");
   });
 
   it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {

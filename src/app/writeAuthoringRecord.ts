@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import type { ArtifactKind } from "../domain/artifact/status.js";
+import { RETRY_PROMPT_FILENAME, RETRY_TRANSCRIPT_FILENAME } from "../domain/authoring/retry.js";
 import { selectRecordArtifacts } from "../domain/records/assemble.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
@@ -8,25 +9,38 @@ import {
   encodeAuthoringRecordManifest,
   type AuthoringRecordManifest,
   type AuthoringRecordOutcome,
+  type AuthoringRecordRetry,
 } from "../schemas/authoringRecord.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
   commitRecordTree,
-  computeRecordUsage,
+  computeSessionUsage,
   RECORD_TRANSCRIPT_FILE,
   resolveRecordDestination,
   type RecordWriteResult,
 } from "./recordPlumbing.js";
 
-/** The session-folder files an authoring record may carry; anything else there is not recorded. */
+/**
+ * The session-folder files an authoring record may carry; anything else there
+ * is not recorded. The retry's prompt and transcript exist only when the
+ * session was retried.
+ */
 const AUTHORING_RECORD_FILES: readonly string[] = [
   "brief.md",
   "prompt.md",
   "document.json",
   RECORD_TRANSCRIPT_FILE,
+  RETRY_PROMPT_FILENAME,
+  RETRY_TRANSCRIPT_FILENAME,
 ];
+
+/** The transcripts, kept or dropped together under `records.transcript`. */
+const AUTHORING_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([
+  RECORD_TRANSCRIPT_FILE,
+  RETRY_TRANSCRIPT_FILENAME,
+]);
 
 export interface WriteAuthoringRecordInput {
   /** The source repository; receives the commit for an `in-repo` destination. */
@@ -44,11 +58,15 @@ export interface WriteAuthoringRecordInput {
   readonly model: string;
   readonly effort: string;
   readonly outcome: AuthoringRecordOutcome;
+  /** Whether the session was resumed to retry a refused document. */
+  readonly retry: AuthoringRecordRetry;
   readonly records: ResolvedRecordsConfig;
   /** The artifact commit; absent when the session did not commit. */
   readonly sourceSha?: string | undefined;
   /** The agent session id, used to locate a vibe session's `meta.json` for usage. */
   readonly sessionId?: string | undefined;
+  /** The session id the retry reported; absent when there was no retry or it failed. */
+  readonly retrySessionId?: string | undefined;
   readonly vibeHome?: string | undefined;
 }
 
@@ -61,8 +79,9 @@ export function authoringRecordKey(authoringId: string): string {
 /**
  * Write one headless authoring session's record as one commit on
  * `phax/records/v1`, keyed `authoring/<authoringId>`: the brief, the prompt,
- * the accepted document when there is one, and the transcript per
- * `records.transcript`, plus an authoring manifest. Same destination policy,
+ * the retry prompt when the session was retried, the accepted document when
+ * there is one, and the transcripts per `records.transcript`, plus an
+ * authoring manifest whose usage counts every turn. Same destination policy,
  * usage extraction and tree-only plumbing as a phase record; records off is a
  * total no-op.
  */
@@ -78,11 +97,17 @@ export function writeAuthoringRecord(
     const { shape, artifactPaths } = selectRecordArtifacts(
       listed.filter((name) => AUTHORING_RECORD_FILES.includes(name)),
       input.records.transcript,
+      AUTHORING_TRANSCRIPT_FILES,
     );
-    const usage = yield* computeRecordUsage({
+    const usage = yield* computeSessionUsage({
       provider: input.provider,
       folder: input.sessionFolder,
-      sessionId: input.sessionId,
+      turns: [
+        { transcript: RECORD_TRANSCRIPT_FILE, sessionId: input.sessionId },
+        ...(input.retry === "retried"
+          ? [{ transcript: RETRY_TRANSCRIPT_FILENAME, sessionId: input.retrySessionId }]
+          : []),
+      ],
       vibeHome: input.vibeHome,
     });
 
@@ -97,6 +122,7 @@ export function writeAuthoringRecord(
       model: input.model,
       effort: input.effort,
       outcome: input.outcome,
+      retry: input.retry,
       usage,
     };
 

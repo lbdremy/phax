@@ -19,6 +19,7 @@ import type { ProviderId } from "../schemas/providerId.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
   UNAVAILABLE_TOKEN_USAGE,
+  type ProviderTokenUsage,
   type RecordShape,
   type TokenUsage,
 } from "../schemas/runRecord.js";
@@ -187,25 +188,114 @@ export function computeRecordUsage(input: {
   /** Overridable vibe home (`~/.vibe` by default) so tests can point at a fixture. */
   readonly vibeHome: string | undefined;
 }): Effect.Effect<TokenUsage, never, FileSystem> {
+  return computeSessionUsage({
+    provider: input.provider,
+    folder: input.folder,
+    turns: [{ transcript: RECORD_TRANSCRIPT_FILE, sessionId: input.sessionId }],
+    vibeHome: input.vibeHome,
+  });
+}
+
+/** One turn of a session: the transcript file it wrote and the session id it reported. */
+interface SessionTurn {
+  /** Folder-relative name of the turn's transcript (`output.jsonl`, `retry-output.jsonl`). */
+  readonly transcript: string;
+  readonly sessionId: string | undefined;
+}
+
+/**
+ * A session's token usage over every turn it ran (the first run and, for a
+ * retried authoring session, its resume). Claude and codex report each
+ * invocation's usage in that turn's transcript, so the turns are summed field
+ * by field. Vibe keeps a session's usage in its `meta.json`, which a resume
+ * may keep under the same session id: each distinct session id is counted
+ * once. When any turn's usage cannot be read the whole is unavailable, never
+ * a partial count shown as a total.
+ */
+export function computeSessionUsage(input: {
+  readonly provider: ProviderId;
+  readonly folder: string;
+  readonly turns: readonly SessionTurn[];
+  /** Overridable vibe home (`~/.vibe` by default) so tests can point at a fixture. */
+  readonly vibeHome: string | undefined;
+}): Effect.Effect<TokenUsage, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    if (input.provider === "claude-code" || input.provider === "codex-cli") {
-      const outputPath = join(input.folder, RECORD_TRANSCRIPT_FILE);
-      const exists = yield* fs.exists(outputPath).pipe(Effect.orElseSucceed(() => false));
-      if (!exists) return UNAVAILABLE_TOKEN_USAGE;
-      const text = yield* fs.readText(outputPath).pipe(Effect.orElseSucceed(() => ""));
-      const lines = text.split("\n");
-      const usage =
-        input.provider === "claude-code" ? extractClaudeUsage(lines) : extractCodexUsage(lines);
-      return usage === undefined ? UNAVAILABLE_TOKEN_USAGE : { available: true as const, usage };
+    const { provider } = input;
+    const counted: ProviderTokenUsage[] = [];
+    if (provider === "claude-code" || provider === "codex-cli") {
+      for (const turn of input.turns) {
+        const usage = yield* readTranscriptUsage(fs, provider, join(input.folder, turn.transcript));
+        if (usage === undefined) return UNAVAILABLE_TOKEN_USAGE;
+        counted.push(usage);
+      }
+    } else {
+      const vibeHome = input.vibeHome ?? join(homedir(), ".vibe");
+      const sessionIds = new Set(input.turns.map((turn) => turn.sessionId));
+      for (const sessionId of sessionIds) {
+        const metaText = yield* readVibeSessionMeta(fs, vibeHome, sessionId);
+        const usage = metaText === undefined ? undefined : extractVibeUsage(metaText);
+        if (usage === undefined) return UNAVAILABLE_TOKEN_USAGE;
+        counted.push(usage);
+      }
     }
-
-    const vibeHome = input.vibeHome ?? join(homedir(), ".vibe");
-    const metaText = yield* readVibeSessionMeta(fs, vibeHome, input.sessionId);
-    if (metaText === undefined) return UNAVAILABLE_TOKEN_USAGE;
-    const usage = extractVibeUsage(metaText);
+    let usage: ProviderTokenUsage | undefined = counted[0];
+    for (const next of counted.slice(1)) {
+      usage = usage === undefined ? undefined : addUsage(usage, next);
+    }
     return usage === undefined ? UNAVAILABLE_TOKEN_USAGE : { available: true as const, usage };
   });
+}
+
+/** One transcript's usage as its provider reports it, or undefined when it cannot be read. */
+function readTranscriptUsage(
+  fs: FileSystemOps,
+  provider: "claude-code" | "codex-cli",
+  outputPath: string,
+): Effect.Effect<ProviderTokenUsage | undefined, never> {
+  return Effect.gen(function* () {
+    const exists = yield* fs.exists(outputPath).pipe(Effect.orElseSucceed(() => false));
+    if (!exists) return undefined;
+    const text = yield* fs.readText(outputPath).pipe(Effect.orElseSucceed(() => ""));
+    const lines = text.split("\n");
+    return provider === "claude-code" ? extractClaudeUsage(lines) : extractCodexUsage(lines);
+  });
+}
+
+/** Two turns' usage summed field by field; undefined when they come from different providers. */
+function addUsage(a: ProviderTokenUsage, b: ProviderTokenUsage): ProviderTokenUsage | undefined {
+  if (a.provider === "claude-code" && b.provider === "claude-code") {
+    return {
+      provider: "claude-code",
+      inputTokens: a.inputTokens + b.inputTokens,
+      cacheCreationInputTokens: a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+      cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
+      outputTokens: a.outputTokens + b.outputTokens,
+      totalCostUsd: a.totalCostUsd + b.totalCostUsd,
+    };
+  }
+  if (a.provider === "codex-cli" && b.provider === "codex-cli") {
+    return {
+      provider: "codex-cli",
+      inputTokens: a.inputTokens + b.inputTokens,
+      cachedInputTokens: a.cachedInputTokens + b.cachedInputTokens,
+      outputTokens: a.outputTokens + b.outputTokens,
+      reasoningOutputTokens: a.reasoningOutputTokens + b.reasoningOutputTokens,
+    };
+  }
+  if (a.provider === "mistral-vibe" && b.provider === "mistral-vibe") {
+    return {
+      provider: "mistral-vibe",
+      inputTokens: a.inputTokens + b.inputTokens,
+      outputTokens: a.outputTokens + b.outputTokens,
+      sessionCostUsd: a.sessionCostUsd + b.sessionCostUsd,
+      toolCallsAgreed: a.toolCallsAgreed + b.toolCallsAgreed,
+      toolCallsRejected: a.toolCallsRejected + b.toolCallsRejected,
+      toolCallsFailed: a.toolCallsFailed + b.toolCallsFailed,
+      toolCallsSucceeded: a.toolCallsSucceeded + b.toolCallsSucceeded,
+    };
+  }
+  return undefined;
 }
 
 /**

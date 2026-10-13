@@ -1,14 +1,20 @@
 // The manifests (`record.json`) on phax/records/v1: a phase record's and an
 // authoring session's, and the reader that tells them apart. Each pre-schema
-// shape is phax's frozen module under src/schemas/history/; each current
-// shape, named by `CURRENT_SHAPES` (`next` until a release renames it), is
-// phax's own file schema and decoder. The package declares none of its own.
+// and released shape that is no longer current is phax's frozen module under
+// src/schemas/history/; each current shape, named by `CURRENT_SHAPES` (`next`
+// until a release renames it), is phax's own file schema and decoder. The
+// package declares none of its own.
 import {
   AuthoringRecordManifestFileSchema,
   decodeAuthoringRecordManifestFile,
   type AuthoringRecordManifest,
   type AuthoringRecordManifestFile,
 } from "../../../../src/schemas/authoringRecord.js";
+import {
+  AuthoringRecordManifestV0_17_0Schema,
+  decodeAuthoringRecordManifestV0_17_0,
+  type AuthoringRecordManifestV0_17_0,
+} from "../../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   decodeAuthoringRecordManifestPreSchema,
@@ -39,9 +45,10 @@ import {
 } from "../shapes.js";
 
 // A manifest without `$schema` is read by its frozen pre-schema module as
-// shape `pre-schema`; a `$schema` manifest is read by phax's decoder as the
-// current shape, named by `CURRENT_SHAPES`: `next` until a release renames
-// it, then that release.
+// shape `pre-schema`; a `$schema` manifest stamped at a release the format
+// lists is read by that release's frozen module; any other `$schema` manifest
+// is read by phax's decoder as the current shape, named by `CURRENT_SHAPES`:
+// `next` until a release renames it, then that release.
 
 // ── phase record manifest
 
@@ -91,7 +98,10 @@ export function toLatestPhaseRecordManifest(
 
 // ── authoring record manifest
 
-export type AuthoringRecordManifestShapes = { "pre-schema": AuthoringRecordManifestPreSchema } & {
+export type AuthoringRecordManifestShapes = {
+  "pre-schema": AuthoringRecordManifestPreSchema;
+  "0.17.0": AuthoringRecordManifestV0_17_0;
+} & {
   [K in CurrentShapeName<"authoring-record-manifest">]: AuthoringRecordManifestFile;
 };
 
@@ -105,7 +115,15 @@ export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifes
     schema: AuthoringRecordManifestPreSchemaSchema,
     decode: decodeAuthoringRecordManifestPreSchema,
   },
-  releases: [],
+  releases: [
+    [
+      "0.17.0",
+      {
+        schema: AuthoringRecordManifestV0_17_0Schema,
+        decode: decodeAuthoringRecordManifestV0_17_0,
+      },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["authoring-record-manifest"],
     shape: {
@@ -127,16 +145,27 @@ export const parseAuthoringRecordManifest: (
  */
 export type LatestAuthoringRecordManifest = AuthoringRecordManifest;
 
-/** Upgrades a parsed authoring manifest in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed authoring manifest in memory. Keeps every recorded fact;
+ * never invents one: a shape older than `retry` gets `retry: "none"`, because
+ * no phax that wrote it ever resumed a headless session.
+ */
 export function toLatestAuthoringRecordManifest(
-  value: AuthoringRecordManifestPreSchema | AuthoringRecordManifestFile,
+  value:
+    | AuthoringRecordManifestPreSchema
+    | AuthoringRecordManifestV0_17_0
+    | AuthoringRecordManifestFile,
 ): LatestAuthoringRecordManifest {
-  if ("$schema" in value) {
+  if ("retry" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, retry: "none" };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, retry: "none" };
 }
 
 // ── any record manifest

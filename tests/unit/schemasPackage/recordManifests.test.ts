@@ -76,12 +76,12 @@ describe("the authoring record manifest", () => {
   });
 
   it.each(AUTHORING)(
-    "upgrades a manifest %s by dropping version, never adding sourceSha",
+    "upgrades a manifest %s by dropping version and adding retry none, never adding sourceSha",
     (_label, document) => {
       const result = parseAuthoringRecordManifest(document);
       if (!result.ok) throw new Error("document rejected");
       const latest = toLatestAuthoringRecordManifest(result.value);
-      expect(latest).toEqual(withoutKey(document, "version"));
+      expect(latest).toEqual({ ...withoutKey(document, "version"), retry: "none" });
       expect(Object.hasOwn(latest, "version")).toBe(false);
       expect(Object.hasOwn(latest, "sourceSha")).toBe(Object.hasOwn(document, "sourceSha"));
     },

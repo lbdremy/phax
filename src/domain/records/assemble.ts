@@ -32,20 +32,27 @@ export interface AssembledRecord {
   readonly artifactPaths: readonly string[];
 }
 
+/** A phase session's one transcript. */
+const PHASE_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([TRANSCRIPT_FILE]);
+
 /**
  * Decide which of a session folder's files a record carries, and its shape.
  *
- * Skeleton = every artifact except `output.jsonl`. Full = skeleton plus
- * `output.jsonl`, and only when both the config enables the transcript and
- * the provider actually produced one. Shared by phase and authoring records.
+ * Skeleton = every artifact except the transcripts (`transcriptFiles`: a
+ * phase's `output.jsonl`; an authoring session's `output.jsonl` and, when
+ * retried, `retry-output.jsonl`). Full = skeleton plus every transcript
+ * present, and only when both the config enables the transcript and the
+ * provider actually produced one. The transcripts are kept or dropped
+ * together. Shared by phase and authoring records.
  */
 export function selectRecordArtifacts(
   files: readonly string[],
   transcriptEnabled: boolean,
+  transcriptFiles: ReadonlySet<string>,
 ): { readonly shape: RecordShape; readonly artifactPaths: readonly string[] } {
-  const includeTranscript = transcriptEnabled && files.includes(TRANSCRIPT_FILE);
+  const includeTranscript = transcriptEnabled && files.some((file) => transcriptFiles.has(file));
   const artifactPaths = files
-    .filter((file) => file !== TRANSCRIPT_FILE || includeTranscript)
+    .filter((file) => !transcriptFiles.has(file) || includeTranscript)
     .toSorted((a, b) => a.localeCompare(b));
   return { shape: includeTranscript ? "full" : "skeleton", artifactPaths };
 }
@@ -56,7 +63,11 @@ export function selectRecordArtifacts(
  * commits what this returns.
  */
 export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
-  const { shape, artifactPaths } = selectRecordArtifacts(input.files, input.transcriptEnabled);
+  const { shape, artifactPaths } = selectRecordArtifacts(
+    input.files,
+    input.transcriptEnabled,
+    PHASE_TRANSCRIPT_FILES,
+  );
 
   const manifest: RunRecordManifest = {
     runId: input.runId,

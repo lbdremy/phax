@@ -2,6 +2,7 @@ import type {
   AnyDocument,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
+  AuthoringRecordManifestV0_17_0,
   BriefRecord,
   BriefRecordShape,
   BriefRecordV0_20_0,
@@ -209,6 +210,7 @@ import type {
   RunRecordManifestFile,
 } from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import type { AuthoringRecordManifestV0_17_0 as FrozenAuthoringRecordManifestV0_17_0 } from "../../src/schemas/history/authoring-record-manifest/0.17.0.js";
 import type { BriefRecordV0_20_0 as FrozenBriefRecordV0_20_0 } from "../../src/schemas/history/brief-record/0.20.0.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
@@ -482,7 +484,10 @@ const eachShapeId: [
   Equals<SpecDocumentShape, "pre-schema" | Current<"spec-document">>,
   Equals<PlanDocumentShape, "pre-schema" | "0.17.0" | Current<"plan-document">>,
   Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
-  Equals<AuthoringRecordManifestShape, "pre-schema" | Current<"authoring-record-manifest">>,
+  Equals<
+    AuthoringRecordManifestShape,
+    "pre-schema" | "0.17.0" | Current<"authoring-record-manifest">
+  >,
   Equals<GateAttributionShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"gate-attribution">>,
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
   Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
@@ -540,7 +545,9 @@ const parseValues: [
   Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifestFile>,
   Equals<
     Value<typeof parseAuthoringRecordManifest>,
-    FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
+    | FrozenAuthoringRecordManifest
+    | FrozenAuthoringRecordManifestV0_17_0
+    | PhaxAuthoringRecordManifestFile
   >,
   Equals<
     Value<typeof parseGateAttribution>,
@@ -894,7 +901,12 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestAuthoringRecordManifest>,
-    [value: FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile]
+    [
+      value:
+        | FrozenAuthoringRecordManifest
+        | FrozenAuthoringRecordManifestV0_17_0
+        | PhaxAuthoringRecordManifestFile,
+    ]
   >,
   Equals<
     Parameters<typeof toLatestGateAttribution>,
@@ -977,6 +989,17 @@ void recordManifestToPhax;
 const upgradedAuthoring = toLatestAuthoringRecordManifest(packageAuthoring);
 const sourceShaStaysOptional: Equals<typeof upgradedAuthoring.sourceSha, string | undefined> = true;
 void sourceShaStaysOptional;
+// …and always carries a retry, whatever shape it was read from
+declare const authoringV0_17_0: AuthoringRecordManifestV0_17_0;
+const upgradedV0_17_0 = toLatestAuthoringRecordManifest(authoringV0_17_0);
+const retryAlwaysPresent: Equals<typeof upgradedV0_17_0.retry, "none" | "retried"> = true;
+void retryAlwaysPresent;
+// A released shape that is no longer current is its frozen module's type.
+const authoringV0_17_0IsFrozen: Equals<
+  AuthoringRecordManifestV0_17_0,
+  FrozenAuthoringRecordManifestV0_17_0
+> = true;
+void authoringV0_17_0IsFrozen;
 
 // parseRecordManifest names the format and the shape, and narrows to the exact type
 const recordManifestFormats: Equals<
@@ -989,6 +1012,7 @@ const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifest
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
+  | AuthoringRecordManifestV0_17_0
   | AuthoringRecordManifest
 > = anyManifest;
 void anyManifestAsParsed;
@@ -996,14 +1020,19 @@ if (anyManifest.ok) {
   const format: RecordManifestFormat = anyManifest.format;
   const shape: Equals<
     typeof anyManifest.shape,
-    "pre-schema" | Current<"phase-record-manifest"> | Current<"authoring-record-manifest">
+    | "pre-schema"
+    | "0.17.0"
+    | Current<"phase-record-manifest">
+    | Current<"authoring-record-manifest">
   > = true;
   void format;
   void shape;
   if (anyManifest.format === "authoring-record-manifest") {
     const exact: Equals<
       typeof anyManifest.value,
-      FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
+      | FrozenAuthoringRecordManifest
+      | FrozenAuthoringRecordManifestV0_17_0
+      | PhaxAuthoringRecordManifestFile
     > = true;
     void exact;
   } else {

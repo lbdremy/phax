@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assembleRecord, type AssembleRecordInput } from "../../src/domain/records/assemble.js";
+import {
+  assembleRecord,
+  selectRecordArtifacts,
+  type AssembleRecordInput,
+} from "../../src/domain/records/assemble.js";
 import { UNAVAILABLE_TOKEN_USAGE } from "../../src/schemas/runRecord.js";
 
 const baseInput: AssembleRecordInput = {
@@ -94,5 +98,41 @@ describe("assembleRecord", () => {
     expect(() =>
       assembleRecord({ ...baseInput, files: frozen, transcriptEnabled: false }),
     ).not.toThrow();
+  });
+});
+
+describe("selectRecordArtifacts", () => {
+  const TRANSCRIPTS: ReadonlySet<string> = new Set(["output.jsonl", "retry-output.jsonl"]);
+  const RETRIED = ["prompt.md", "retry-output.jsonl", "output.jsonl", "retry-prompt.md"];
+
+  it("keeps every transcript in the set together, and only then is the record full", () => {
+    expect(selectRecordArtifacts(RETRIED, true, TRANSCRIPTS)).toEqual({
+      shape: "full",
+      artifactPaths: ["output.jsonl", "prompt.md", "retry-output.jsonl", "retry-prompt.md"],
+    });
+  });
+
+  it("drops every transcript in the set together when transcripts are off", () => {
+    expect(selectRecordArtifacts(RETRIED, false, TRANSCRIPTS)).toEqual({
+      shape: "skeleton",
+      artifactPaths: ["prompt.md", "retry-prompt.md"],
+    });
+  });
+
+  it("is full when any one transcript of the set is present", () => {
+    expect(selectRecordArtifacts(["prompt.md", "retry-output.jsonl"], true, TRANSCRIPTS)).toEqual({
+      shape: "full",
+      artifactPaths: ["prompt.md", "retry-output.jsonl"],
+    });
+  });
+
+  it("a phase record treats only output.jsonl as its transcript", () => {
+    const { artifactPaths, manifest } = assembleRecord({
+      ...baseInput,
+      files: ["output.jsonl", "retry-output.jsonl"],
+      transcriptEnabled: false,
+    });
+    expect(artifactPaths).toEqual(["retry-output.jsonl"]);
+    expect(manifest.shape).toBe("skeleton");
   });
 });

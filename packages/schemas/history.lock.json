@@ -1,4 +1,5 @@
 {
+  "src/schemas/history/authoring-record-manifest/0.17.0.ts": "19ed5a860ae52d72edbc03b84e25d89b87b36f29e486f26f91058ea4587cb25c",
   "src/schemas/history/authoring-record-manifest/pre-schema.ts": "88b78714e008259144c422ea9f93413cc126fbaa63eb552803ed7d20f7593003",
   "src/schemas/history/brief-record/0.20.0.ts": "8dc0e8f1153018a9d153deb336a1ca8989e60a4afb21ebd9cf5ee49ab75b154a",
   "src/schemas/history/compliance-review/pre-schema.ts": "5448180a590a421b5e3516ce28c97bdaf1eb0706963365e56ae668b3d5334d78",
