@@ -1,7 +1,0 @@
-{
-  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
-  "artifact": "docs/specs/2610131345-small-fixes-0-23.md",
-  "specFingerprint": "a6690723f6c8e70fd7fbd73653aa244958e5ef97f619fef2d3d04640e8969699",
-  "approvedAt": "2026-10-13T13:51:45.920Z",
-  "baseline": "12951d2316efed564b586bef6d0df07bb75f4f31"
-}
