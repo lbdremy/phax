@@ -12,6 +12,7 @@ import type {
 } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId, decodeWorktreePath } from "../domain/branded.js";
 import { selectGateSteps } from "../domain/gate/selectSteps.js";
+import { lastRecordedAttemptLogName } from "../domain/gate/attemptFiles.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -978,6 +979,11 @@ export function executePlan(
       currentModel = agentOptions.model;
       currentEffort = agentOptions.effort;
 
+      // The log of the gate attempt that let the commit through: the passing
+      // attempt when the gate runs during this entry, else (a commit-only
+      // resume) the highest recorded attempt, or null when none is recorded.
+      let gateLogPath: string | null = null;
+
       if (
         !isResumeFromHandoff &&
         !isResumeFromCommit &&
@@ -997,7 +1003,7 @@ export function executePlan(
         const gateRequest = serializeGateRequest(
           phaseFacts ?? (yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal)),
         );
-        yield* runGatesWithFixLoop({
+        const gateOutcome = yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,
           phaseFolderPath,
@@ -1010,6 +1016,11 @@ export function executePlan(
           gateRequest,
           ...(isResumeFromGate ? { worktreePath: worktreePath as string } : {}),
         });
+        gateLogPath = gateOutcome.attemptLogPath;
+      } else if (isResumeFromCommit) {
+        const fs = yield* FileSystem;
+        const logName = lastRecordedAttemptLogName(yield* fs.list(phaseFolderPath));
+        gateLogPath = logName === undefined ? null : join(phaseFolderPath, logName);
       }
 
       if (!isResumeFromHandoff && !isResumeFromCleanup && !isResumeFromCompletion) {
@@ -1025,7 +1036,7 @@ export function executePlan(
           runId: runId as string,
           shortName: shortName as string,
           sessionId,
-          gateLogPath: join(phaseFolderPath, "checks-attempt-01.log"),
+          gateLogPath,
           repoRoot: config.repoRoot,
           runPath,
         }).pipe(

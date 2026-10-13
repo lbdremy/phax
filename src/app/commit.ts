@@ -22,7 +22,9 @@ export interface CommitPhaseOptions {
   readonly runId: string;
   readonly shortName: string;
   readonly sessionId: ClaudeSessionId;
-  readonly gateLogPath: string;
+  /** The log of the gate attempt that let the commit through, or null when no
+   *  attempt is recorded; null is written as `Gate-Log: none`. */
+  readonly gateLogPath: string | null;
   readonly repoRoot: string;
   /** Run folder; the dispatcher reads run-status.json from here. */
   readonly runPath: string;
@@ -47,7 +49,7 @@ function buildCommitBody(opts: CommitPhaseOptions): string {
     `Effort: ${opts.phase.effort}`,
     `Worktree: ${opts.worktreePath}`,
     `Session-Id: ${opts.sessionId}`,
-    `Gate-Log: ${opts.gateLogPath}`,
+    `Gate-Log: ${opts.gateLogPath ?? "none"}`,
   ];
   return lines.join("\n");
 }
