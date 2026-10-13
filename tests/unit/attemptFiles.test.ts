@@ -4,6 +4,7 @@ import {
   attemptNumberOf,
   fixTranscriptName,
   lastRecordedAttempt,
+  lastRecordedAttemptLogName,
   nextAttemptNumber,
   previousRecordedAttempt,
   recordedAttempts,
@@ -87,6 +88,45 @@ describe("recorded attempts", () => {
   it("takes the last recorded attempt", () => {
     expect(lastRecordedAttempt(names)).toBe(10);
     expect(lastRecordedAttempt(["checks-attempt-04.request.json"])).toBeUndefined();
+  });
+});
+
+describe("lastRecordedAttemptLogName", () => {
+  it("names the log of the highest recorded attempt among the other per-attempt files", () => {
+    const folder = [
+      "status.json",
+      "gate-attribution.json",
+      ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => {
+        const nn = String(n).padStart(2, "0");
+        return [
+          `checks-attempt-${nn}.log`,
+          `checks-attempt-${nn}.request.json`,
+          `checks-attempt-${nn}.attribution.json`,
+          `checks-attempt-${nn}.report-01.json`,
+          `fix-attempt-${nn}.jsonl`,
+        ];
+      }),
+    ];
+    expect(lastRecordedAttemptLogName(folder)).toBe("checks-attempt-07.log");
+  });
+
+  it("ignores request, report, attribution and fix-transcript names above the highest log", () => {
+    expect(
+      lastRecordedAttemptLogName([
+        "checks-attempt-02.log",
+        "checks-attempt-03.request.json",
+        "checks-attempt-03.attribution.json",
+        "checks-attempt-03.report-01.json",
+        "fix-attempt-04.jsonl",
+      ]),
+    ).toBe("checks-attempt-02.log");
+  });
+
+  it("is undefined for a folder with no log", () => {
+    expect(lastRecordedAttemptLogName([])).toBeUndefined();
+    expect(
+      lastRecordedAttemptLogName(["status.json", "checks-attempt-01.request.json"]),
+    ).toBeUndefined();
   });
 });
 

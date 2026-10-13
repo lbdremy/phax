@@ -60,6 +60,12 @@ export function attemptLogName(attempt: number): string {
   return `checks-attempt-${String(attempt).padStart(2, "0")}.log`;
 }
 
+/** The log name of the highest recorded attempt, or undefined when no attempt is recorded. */
+export function lastRecordedAttemptLogName(names: readonly string[]): string | undefined {
+  const attempt = lastRecordedAttempt(names);
+  return attempt === undefined ? undefined : attemptLogName(attempt);
+}
+
 /** An attempt's fix transcript name, its number padded to two digits (`fix-attempt-03.jsonl`). */
 export function fixTranscriptName(attempt: number): string {
   return `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`;
