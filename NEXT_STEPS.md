@@ -121,6 +121,13 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
       every artifact gets the approval lock, §9 is hand-authored, and `--by` names who decided.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
       approver form, skill and escalation block (`docs/ideas/headless-code-review.md`).
+      **Reopen before planning:** pr-description (2026-10-13) replaced the PR body it builds on.
+      §1's `src/domain/publish/body.ts` is gone. §5.55–§5.59 and the §6 `pr-body.md` surface put
+      the review-passes and decisions tables before the full handoff, and promise a
+      byte-identical body for a run with neither. The body is now the short document of
+      `src/domain/publish/prBody.ts`, so the tables need a new place, presumably under
+      `## Needs your review`, and their own place in its cut order. Whether a decisions table
+      survives the dropped decision class is part of the same rework.
 - [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases
       behind a pluggable `oracles` provider. Nothing needs it before steme item 1.1.
 
