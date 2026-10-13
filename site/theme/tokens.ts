@@ -1,9 +1,10 @@
 // The phax identity tokens, the single source of the site's palette: the
 // generator renders site/generated/theme.css from themeCss(), and the contrast
 // test reads THEMES, so a value cannot pass the test while shipping something
-// else. Dark is the default theme (site/theme/appearance.ts). Gold is an
-// accent only (rules, focus rings, the logo, highlights); light links are
-// bronze; warnings are terracotta, never gold.
+// else. Dark is the default theme (site/theme/appearance.ts). Bright gold on
+// neutral graphite, the golden path: gold is an accent only (rules, focus
+// rings, the logo, highlights); light links are bronze; warnings are
+// vermilion, never gold.
 
 export type ThemeName = "dark" | "light";
 
@@ -32,26 +33,26 @@ export const TOKEN_ROLES: Readonly<Record<TokenName, TokenRole>> = {
 
 export const THEMES: Readonly<Record<ThemeName, Theme>> = {
   dark: {
-    bg: "#15130E",
-    bgSoft: "#1E1B14",
-    text1: "#EDE6D6",
-    text2: "#A89F8A",
-    link: "#C2A160",
-    brand: "#B39257",
-    warning: "#D96A4F",
+    bg: "#0F0F11",
+    bgSoft: "#18181B",
+    text1: "#EDEDEF",
+    text2: "#A1A1AA",
+    link: "#E9C46A",
+    brand: "#E2B33C",
+    warning: "#E5604A",
   },
   light: {
-    bg: "#F7F3EA",
-    bgSoft: "#EFE9DC",
-    text1: "#1E1A12",
-    text2: "#5C5546",
-    link: "#5E4720",
-    brand: "#9A7A3E",
-    warning: "#A33B22",
+    bg: "#F5F5F4",
+    bgSoft: "#EAEAE8",
+    text1: "#18181B",
+    text2: "#57575E",
+    link: "#5A4206",
+    brand: "#8A6508",
+    warning: "#B83A22",
   },
 };
 
-/** The old-gold accent of each theme: the logo's stroke colour in that theme. */
+/** The gold accent of each theme: the logo's stroke colour in that theme. */
 export const GOLD_DARK = THEMES.dark.brand;
 export const GOLD_LIGHT = THEMES.light.brand;
 export const GOLD_TOKENS: ReadonlyArray<string> = [GOLD_DARK, GOLD_LIGHT];

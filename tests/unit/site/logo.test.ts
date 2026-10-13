@@ -80,7 +80,7 @@ describe.each(LOGOS)("site/public/%s", (file, gold) => {
   it("strokes every path at one width, with butt caps, from the root only", () => {
     expect(root.get("stroke-width")).toBe("3");
     expect(root.get("stroke-linecap")).toBe("butt");
-    expect(paths).toHaveLength(2);
+    expect(paths).toHaveLength(3);
     for (const path of paths) expect([...attributes(path).keys()]).toEqual(["d"]);
   });
 
@@ -91,19 +91,41 @@ describe.each(LOGOS)("site/public/%s", (file, gold) => {
     expect(svg).not.toMatch(/gradient|<style|style=|opacity|<(?!\/?(?:svg|path)\b)[a-z]/i);
   });
 
-  it("splits the bowl on its right with a gap of at least 1/8 of the glyph height", () => {
-    const [upper, lower] = paths.map((path) => vertices(attributes(path).get("d") ?? ""));
-    const upperEnd = upper?.at(-1);
-    const lowerStart = lower?.[0];
-    if (upperEnd === undefined || lowerStart === undefined) throw new Error("two paths expected");
-    // Both ends are butt caps across a vertical tangent: the clear gap is their distance.
-    const gap = Math.hypot(lowerStart.x - upperEnd.x, lowerStart.y - upperEnd.y);
-    const ys = [...(upper ?? []), ...(lower ?? [])].map((point) => point.y);
+  it("cuts the P twice into an F and a bowl, each cut at least 1/8 of the glyph height", () => {
+    const [stem, middle, bowl] = paths.map((path) => vertices(attributes(path).get("d") ?? ""));
+    if (stem === undefined || middle === undefined || bowl === undefined) {
+      throw new Error("three paths expected");
+    }
+    const [foot, top, topEnd] = stem;
+    const [middleStart, middleEnd] = middle;
+    const bowlStart = bowl[0];
+    const bowlEnd = bowl.at(-1);
+    if (
+      foot === undefined ||
+      top === undefined ||
+      topEnd === undefined ||
+      middleStart === undefined ||
+      middleEnd === undefined ||
+      bowlStart === undefined ||
+      bowlEnd === undefined
+    ) {
+      throw new Error("stem, middle arm and bowl expected");
+    }
+    // The F: a stem with a top arm, and a shorter middle arm leaving the stem.
+    expect(top.x).toBe(foot.x);
+    expect(topEnd.y).toBe(top.y);
+    expect(middleStart.x).toBe(foot.x);
+    expect(middleEnd.y).toBe(middleStart.y);
+    expect(middleEnd.x).toBeLessThan(topEnd.x);
+    // The P's bowl leaves the top arm's line and comes back on the middle arm's.
+    expect(bowlStart.y).toBe(topEnd.y);
+    expect(bowlEnd.y).toBe(middleEnd.y);
+    expect(Math.max(...bowl.map((point) => point.x))).toBeGreaterThan(topEnd.x);
+    // Every cut is between butt caps across a horizontal tangent: its clear gap is the x distance.
+    const ys = [...stem, ...middle, ...bowl].map((point) => point.y);
     const height = Math.max(...ys) - Math.min(...ys) + Number(root.get("stroke-width"));
-    const xs = [...(upper ?? []), ...(lower ?? [])].map((point) => point.x);
-    expect(upperEnd.x).toBe(Math.max(...xs));
-    expect(lowerStart.x).toBe(Math.max(...xs));
-    expect(gap / height).toBeGreaterThanOrEqual(1 / 8);
+    expect((bowlStart.x - topEnd.x) / height).toBeGreaterThanOrEqual(1 / 8);
+    expect((bowlEnd.x - middleEnd.x) / height).toBeGreaterThanOrEqual(1 / 8);
   });
 });
 
