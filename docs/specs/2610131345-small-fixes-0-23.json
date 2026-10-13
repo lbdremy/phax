@@ -485,7 +485,7 @@
   "openQuestions": [
     {
       "id": "q-annotations",
-      "question": "Is a change made only to annotation keywords a new shape, given that rewording `$schema`'s description touches every format?",
+      "question": "Is a change made only to annotation keywords a new shape, given that rewording `$schema`'s description touches every format? (Decided by the author on 2026-10-13; not reopened.)",
       "options": [
         {
           "id": "blind",
@@ -509,11 +509,11 @@
         }
       ],
       "recommendation": "blind",
-      "rationale": "Only `blind` keeps both published URLs and every provider's stamps unchanged. What it gives up is temporary text on pages whose stamps phax's own docs already explain correctly. Each format's next real shape change carries the new wording, and the Effect 4 migration gives every format one. `move-all` breaks third-party report writers for no change in what is accepted. `rewrite-released` breaks a promise made in the README. `defer` ships nothing. Under every option, frozen copies under `site/retired-schemas/` and `src/schemas/history/` keep their old wording."
+      "rationale": "Decided by the author on 2026-10-13, as recommended. Only `blind` keeps both published URLs and every provider's stamps unchanged. What it gives up is temporary text on pages whose stamps phax's own docs already explain correctly. Each format's next real shape change carries the new wording, and the Effect 4 migration gives every format one. `move-all` breaks third-party report writers for no change in what is accepted. `rewrite-released` breaks a promise made in the README. `defer` ships nothing. Under every option, frozen copies under `site/retired-schemas/` and `src/schemas/history/` keep their old wording."
     },
     {
       "id": "q-retry-prompt",
-      "question": "What does the retry prompt carry besides the refusal?",
+      "question": "What does the retry prompt carry besides the refusal? (Decided by the author on 2026-10-13; not reopened.)",
       "options": [
         {
           "id": "refusal-only",
@@ -527,11 +527,11 @@
         }
       ],
       "recommendation": "refusal-only",
-      "rationale": "Both failures seen so far were local slips in a session that still held its context, and both reruns succeeded. The refusal names the exact violation. If a provider has lost the schema, the retry is refused too and the authoring fails as it does today, naming both refusals, so nothing is worse than now."
+      "rationale": "Decided by the author on 2026-10-13, as recommended. Both failures seen so far were local slips in a session that still held its context, and both reruns succeeded. The refusal names the exact violation. If a provider has lost the schema, the retry is refused too and the authoring fails as it does today, naming both refusals, so nothing is worse than now."
     },
     {
       "id": "q-gate-log-none",
-      "question": "What does the trailer say when a phase is committed with no recorded attempt in its folder?",
+      "question": "What does the trailer say when a phase is committed with no recorded attempt in its folder? (Decided by the author on 2026-10-13; not reopened.)",
       "options": [
         {
           "id": "none",
@@ -550,7 +550,7 @@
         }
       ],
       "recommendation": "none",
-      "rationale": "Every passing attempt writes its log, so this case only arises when a folder was tampered with. An explicit literal is honest about it, keeps the trailer set fixed, and keeps the run going."
+      "rationale": "Decided by the author on 2026-10-13, as recommended. Every passing attempt writes its log, so this case only arises when a folder was tampered with. An explicit literal is honest about it, keeps the trailer set fixed, and keeps the run going."
     }
   ],
   "planningNote": {
