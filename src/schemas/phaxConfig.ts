@@ -244,7 +244,8 @@ export const PhaxConfigSchema = Schema.Struct({
 export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
 export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>;
 
-export const DEFAULT_EXTRACT_MODEL = "claude-haiku-4-5-20251001";
+// a tenth of Haiku 4.5's per-token price ($0.10/$0.50 vs $1/$5); 29 at low on AA (2026-10-13 read)
+export const DEFAULT_EXTRACT_MODEL = "claude-haiku-5-5";
 
 export interface ResolvedCodeReviewConfig {
   readonly model: string;

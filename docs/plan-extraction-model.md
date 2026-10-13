@@ -7,7 +7,7 @@ fallback used when the deterministic parser cannot extract a plan on its own. Th
 no CLI flag for it; the model and effort resolve through a two-level precedence chain:
 
 1. **`phax.json`** — `agent.extractPlan.model` / `agent.extractPlan.effort`
-2. **Built-in default** — `claude-haiku-4-5-20251001` at `low` effort (lowest priority)
+2. **Built-in default** — `claude-haiku-5-5` at `low` effort (lowest priority)
 
 Example `phax.json` override:
 
@@ -26,7 +26,7 @@ Example `phax.json` override:
 ## Why the conservative default was chosen
 
 The extraction task is structured and mechanical: read a Markdown document, emit JSON
-conforming to a well-defined schema. A capable small model (`claude-haiku-4-5-20251001`)
+conforming to a well-defined schema. A capable small model (`claude-haiku-5-5`)
 handles this reliably at a fraction of the cost of Sonnet or Opus, and the low effort
 level is appropriate because extraction does not require deep reasoning.
 
