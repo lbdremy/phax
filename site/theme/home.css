@@ -69,6 +69,27 @@
   stroke-dasharray: 4 3;
 }
 
+/* While the hero's run plays: the step it is at in full, the others dimmed. */
+.phax-path__step {
+  transition: opacity 0.3s;
+}
+
+.phax-path--playing .phax-path__step {
+  opacity: 0.35;
+}
+
+.phax-path--playing .phax-path__step--here {
+  opacity: 1;
+}
+
+.phax-path__cut--failing .phax-path__rail {
+  stroke: var(--phax-c-warning);
+}
+
+.phax-path__cut--failing .phax-path__gate {
+  fill: var(--phax-c-warning);
+}
+
 /* The feature cards' keys: a mono label above the title instead of an icon tile. */
 .rp-home-feature__title-wrapper:has(.phax-feature-key) {
   flex-direction: column;

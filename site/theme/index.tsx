@@ -1,6 +1,6 @@
 // The site's Rspress theme (rspress.config.ts `themeDir`): the stock theme,
 // with a home whose hero plays a run where Rspress shows an image, the golden
-// path drawn under the hero, and the page's own Markdown (the README's intro
+// path drawn under the hero and following that run, and the page's own Markdown (the README's intro
 // and quickstart) under the features, which Rspress's home leaves out.
 import {
   DocContent,
@@ -10,6 +10,7 @@ import {
 } from "@rspress/core/theme-original";
 import { GoldenPath } from "./GoldenPath.js";
 import { LiveRun } from "./LiveRun.js";
+import { LiveRunPlayback } from "./playback.js";
 import "./home.css";
 
 export function HomeHero(props: HomeHeroProps) {
@@ -18,14 +19,16 @@ export function HomeHero(props: HomeHeroProps) {
 
 export function HomeLayout() {
   return (
-    <BasicHomeLayout
-      afterHero={<GoldenPath />}
-      afterFeatures={
-        <div className="phax-home-doc rp-doc rspress-doc">
-          <DocContent components={undefined} />
-        </div>
-      }
-    />
+    <LiveRunPlayback>
+      <BasicHomeLayout
+        afterHero={<GoldenPath />}
+        afterFeatures={
+          <div className="phax-home-doc rp-doc rspress-doc">
+            <DocContent components={undefined} />
+          </div>
+        }
+      />
+    </LiveRunPlayback>
   );
 }
 
