@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
 import type { GlobalFileReconciliation } from "../domain/reconciliation/global.js";
-import { findUnexplainedDeviations } from "../domain/reconciliation/explained.js";
+import { findUnexplainedGlobalDeviations } from "../domain/reconciliation/explained.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { runKey } from "../domain/runRef.js";
 import { isPhaseTerminal } from "../domain/state.js";
@@ -42,25 +42,12 @@ function buildUnexplainedSection(
   global: GlobalFileReconciliation,
   phases: readonly PhaseContent[],
 ): string {
-  const phaseHandoffs = new Map(phases.map((p) => [p.phaseId, p.phaseHandoffMd]));
-  const unexplained: string[] = [];
-
-  for (const entry of global.unplanned) {
-    const combined = entry.touchedInPhases.map((pid) => phaseHandoffs.get(pid) ?? "").join("\n");
-    if (findUnexplainedDeviations([entry.path], combined).length > 0) {
-      unexplained.push(entry.path);
-    }
-  }
-
-  for (const entry of global.missing) {
-    const combined = entry.plannedInPhases.map((pid) => phaseHandoffs.get(pid) ?? "").join("\n");
-    if (findUnexplainedDeviations([entry.path], combined).length > 0) {
-      unexplained.push(entry.path);
-    }
-  }
-
+  const unexplained = findUnexplainedGlobalDeviations(
+    global,
+    phases.map((p) => ({ phaseId: p.phaseId, handoffMd: p.phaseHandoffMd })),
+  );
   if (unexplained.length === 0) return "_None._";
-  return unexplained.map((p) => `- \`${p}\``).join("\n");
+  return unexplained.map((d) => `- \`${d.path}\``).join("\n");
 }
 
 function buildAttentionSection(global: GlobalFileReconciliation): string {

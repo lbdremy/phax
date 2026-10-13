@@ -53,6 +53,15 @@ export function gatherReviewNotes(
  */
 export function renderReviewNotes(groups: ReadonlyArray<ReviewNoteGroup>): string | undefined {
   if (groups.length === 0) return undefined;
+  return renderReviewNotesSection(groups);
+}
+
+/**
+ * The `## Review notes` heading and intro, then one `### <owner>` list per
+ * group; with no group, the heading and intro alone. The PR body uses it when
+ * it shortened the notes away.
+ */
+export function renderReviewNotesSection(groups: ReadonlyArray<ReviewNoteGroup>): string {
   const sections = groups.map(
     ({ owner, notes }) =>
       `### ${owner}\n\n${notes.map(({ note, phaseIds }) => `- ${note} (${phaseIds.join(", ")})`).join("\n")}`,
