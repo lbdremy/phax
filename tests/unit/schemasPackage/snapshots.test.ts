@@ -207,6 +207,119 @@ describe("the snapshot gate (ac-snapshot-gate)", () => {
   });
 });
 
+describe("annotations in the snapshot gate", () => {
+  /** A toy shape with annotations on the struct, a nested property and a union member. */
+  function annotated(notes: { top?: string; nested?: string; member?: string; title?: string }) {
+    const nested = Schema.Struct({
+      label: Schema.String.annotations(
+        notes.nested === undefined ? {} : { description: notes.nested },
+      ),
+    });
+    const member = Schema.Number.annotations(
+      notes.member === undefined ? {} : { description: notes.member, examples: [1, 2] },
+    );
+    return render(
+      Schema.Struct({
+        name: Schema.String,
+        nested,
+        either: Schema.Union(Schema.String, member),
+      }).annotations({
+        ...(notes.top === undefined ? {} : { description: notes.top }),
+        ...(notes.title === undefined ? {} : { title: notes.title }),
+      }),
+    );
+  }
+
+  const base = annotated({ top: "one", nested: "a label", member: "a count" });
+  const reworded = annotated({
+    top: "two",
+    nested: "another label",
+    member: "another count",
+    title: "Toy",
+  });
+
+  it("renders the annotations it varies, so the cases below compare real differences", () => {
+    expect(reworded).not.toBe(base);
+    expect(base).toContain("a label");
+    expect(base).toContain("a count");
+    expect(reworded).toContain('"title"');
+  });
+
+  it("gives no finding and an empty --write plan for an annotation-only difference", () => {
+    const state = input(format(reworded, "0.17.0"), { "0.17.0.schema.json": base });
+    expect(checkSnapshots(state)).toEqual([]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
+  });
+
+  it("ignores changed examples", () => {
+    const withExamples = JSON.parse(base) as Record<string, unknown>;
+    const changed = JSON.stringify({ ...withExamples, examples: [{ name: "x" }] });
+    const state = input(format(changed, "0.17.0"), { "0.17.0.schema.json": base });
+    expect(checkSnapshots(state)).toEqual([]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
+  });
+
+  it("still reports a type change, and --write plans next", () => {
+    const retyped = render(
+      Schema.Struct({
+        name: Schema.Number,
+        nested: Schema.Struct({ label: Schema.String }),
+        either: Schema.Union(Schema.String, Schema.Number),
+      }),
+    );
+    const state = input(format(retyped, "0.17.0"), { "0.17.0.schema.json": base });
+    const latestPath = `${SNAPSHOTS_DIR}/${ID}/0.17.0.schema.json`;
+    expect(checkSnapshots(state)).toEqual([
+      `✗ ${ID}: the generated schema differs from the latest released snapshot ${latestPath} ` +
+        `and from ${NEXT_PATH} — record ${NEXT_PATH} (run ${WRITE_COMMAND})`,
+    ]);
+    expect(planSnapshotWrites(state).writes).toEqual(new Map([[NEXT_PATH, retyped]]));
+  });
+
+  it("still reports an added property literally named description", () => {
+    const named = render(Schema.Struct({ name: Schema.String, description: Schema.String }));
+    const state = input(format(named, "0.17.0"), { "0.17.0.schema.json": original });
+    expect(checkSnapshots(state)).toHaveLength(1);
+    expect(planSnapshotWrites(state).writes).toEqual(new Map([[NEXT_PATH, named]]));
+  });
+
+  it.each([
+    ["enum", (note: string) => ({ enum: [{ description: note }] })],
+    ["const", (note: string) => ({ const: { title: note } })],
+    ["default", (note: string) => ({ default: { examples: [note] } })],
+  ])("never strips inside %s", (_keyword, keyword) => {
+    const schema = (note: string) => JSON.stringify({ type: "object", ...keyword(note) });
+    const state = input(format(schema("b"), "0.17.0"), { "0.17.0.schema.json": schema("a") });
+    expect(checkSnapshots(state)).toHaveLength(1);
+  });
+
+  it("holds a next strictly equal to the generated schema: a description-only difference is stale", () => {
+    const state = input(format(annotated({ top: "two" }), "next", ["0.17.0"]), {
+      "0.17.0.schema.json": original,
+      "next.schema.json": annotated({ top: "one" }),
+    });
+    expect(checkSnapshots(state)).toEqual([
+      `✗ ${NEXT_PATH} differs from the generated schema — run ${WRITE_COMMAND}`,
+    ]);
+    expect(planSnapshotWrites(state).writes).toEqual(
+      new Map([[NEXT_PATH, annotated({ top: "two" })]]),
+    );
+    expect(checkSnapshots(apply(state))).toEqual([]);
+  });
+
+  it("reports and removes a next that differs from the latest released snapshot only in annotations", () => {
+    const state = input(format(reworded, "next", ["0.17.0"]), {
+      "0.17.0.schema.json": base,
+      "next.schema.json": reworded,
+    });
+    expect(checkSnapshots(state)).toEqual([
+      `✗ ${NEXT_PATH} equals the latest released snapshot ${SNAPSHOTS_DIR}/${ID}/0.17.0.schema.json — ` +
+        `delete it (run ${WRITE_COMMAND})`,
+    ]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [NEXT_PATH] });
+  });
+});
+
 /** A snapshot directory holding one file per name; a hidden name is kept as is. */
 function snapshotFiles(names: ReadonlyArray<string>): ReadonlyMap<string, string> {
   return new Map(names.map((name) => [name.startsWith(".") ? name : `${name}.schema.json`, "{}"]));
