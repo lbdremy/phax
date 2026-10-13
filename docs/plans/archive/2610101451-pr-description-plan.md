@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610100823-pr-description.md
 completes-spec: true
 approved:
