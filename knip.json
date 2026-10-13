@@ -24,7 +24,7 @@
     "esbuild",
     "@fontsource/ibm-plex-sans",
     "@fontsource/ibm-plex-mono",
-    "@types/react"
+    "react"
   ],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage"]
