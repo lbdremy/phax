@@ -131,6 +131,50 @@
   }
 }
 
+/* The install command under the hero's actions (InstallCommand.tsx). */
+.phax-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 20px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 8px;
+  background: var(--rp-c-bg-soft);
+  font-family: var(--rp-font-family-mono);
+  font-size: 14px;
+}
+
+.phax-install code {
+  overflow-x: auto;
+  white-space: nowrap;
+  color: var(--rp-c-text-1);
+  background: none;
+  font: inherit;
+}
+
+.phax-install__prompt {
+  color: var(--rp-c-brand);
+}
+
+.phax-install__copy {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 6px;
+  background: var(--rp-c-bg);
+  color: var(--rp-c-text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.phax-install__copy:hover {
+  border-color: var(--rp-c-brand);
+  color: var(--rp-c-text-1);
+}
+
 /* The hero's run card (LiveRun.tsx), where Rspress shows an image. */
 .rp-home-hero__image:has(.phax-run) {
   flex: 0 1 34rem;

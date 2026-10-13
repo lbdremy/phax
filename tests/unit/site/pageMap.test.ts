@@ -125,6 +125,7 @@ describe("checkPageMap", () => {
       text: "Plans, gated.",
       tagline: "Runs plans.",
       actions: [{ text: "Run", link: "/guide/run", theme: "brand" as const }],
+      install: "npm install -g tool",
       features: [
         { key: "post", title: "1.0", details: "Shipped.", link: "/blog/announcing-tool-1-0" },
         { key: "gone", title: "Gone", details: "Missing.", link: "/guide/missing" },

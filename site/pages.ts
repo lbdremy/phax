@@ -20,6 +20,7 @@ export default definePageMap({
           { text: "Get started", link: "/guide/install", theme: "brand" },
           { text: "How phax works", link: "/guide/concepts", theme: "alt" },
         ],
+        install: "npm install -g @lbdremy/phax",
         features: [
           {
             key: "gates",

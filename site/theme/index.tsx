@@ -1,5 +1,6 @@
 // The site's Rspress theme (rspress.config.ts `themeDir`): the stock theme,
-// with a home whose hero plays a run where Rspress shows an image, the golden
+// with a home whose hero plays a run where Rspress shows an image and gives
+// the install command under its actions, the golden
 // path drawn under the hero and following that run, and the page's own Markdown (the README's intro
 // and quickstart) under the features, which Rspress's home leaves out.
 import {
@@ -9,12 +10,13 @@ import {
   type HomeHeroProps,
 } from "@rspress/core/theme-original";
 import { GoldenPath } from "./GoldenPath.js";
+import { InstallCommand } from "./InstallCommand.js";
 import { LiveRun } from "./LiveRun.js";
 import { LiveRunPlayback } from "./playback.js";
 import "./home.css";
 
 export function HomeHero(props: HomeHeroProps) {
-  return <BasicHomeHero {...props} image={<LiveRun />} />;
+  return <BasicHomeHero {...props} afterHeroActions={<InstallCommand />} image={<LiveRun />} />;
 }
 
 export function HomeLayout() {
