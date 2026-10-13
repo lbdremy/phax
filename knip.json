@@ -12,16 +12,19 @@
     "packages/schemas/build/*.ts",
     "site/rspress.config.ts",
     "site/pages.ts",
-    "site/build/*.ts"
+    "site/build/*.ts",
+    "site/theme/index.tsx",
+    "site/theme/css.d.ts"
   ],
-  "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts", "site/**/*.ts"],
+  "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts", "site/**/*.{ts,tsx}"],
   "ignore": ["site/generated/**", "site/doc_build/**"],
   "ignoreDependencies": [
     "@effect/platform",
     "@effect/platform-node",
     "esbuild",
     "@fontsource/ibm-plex-sans",
-    "@fontsource/ibm-plex-mono"
+    "@fontsource/ibm-plex-mono",
+    "@types/react"
   ],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage"]

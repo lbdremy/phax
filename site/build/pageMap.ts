@@ -16,6 +16,31 @@ export interface ReadmePage {
   readonly holdUntil?: string;
   /** A section the generator appends after `sections`: `served-schemas` lists every served schema URL. */
   readonly generated?: "served-schemas";
+  /** `/` only: renders the page as Rspress's home, this hero and these features above the sections. */
+  readonly home?: Home;
+}
+
+/** The home page's hero and feature cards; every link names a route of the map. */
+export interface Home {
+  readonly name: string;
+  readonly text: string;
+  readonly tagline: string;
+  readonly actions: ReadonlyArray<HomeAction>;
+  readonly features: ReadonlyArray<HomeFeature>;
+}
+
+export interface HomeAction {
+  readonly text: string;
+  readonly link: string;
+  readonly theme: "brand" | "alt";
+}
+
+export interface HomeFeature {
+  /** A short lowercase label shown above the title, in the mono face. */
+  readonly key: string;
+  readonly title: string;
+  readonly details: string;
+  readonly link: string;
 }
 
 export interface ReadmeOmission {
@@ -132,6 +157,22 @@ export function checkPageMap(map: PageMap, sources: SourceInventory): ReadonlyAr
     const first = page.route.split("/")[1] ?? "";
     if (VERSION_SEGMENT.test(first)) {
       findings.push(`✗ page map: route ${page.route} starts with a version segment`);
+    }
+    if ("home" in page && page.home !== undefined) {
+      if (page.route !== "/") {
+        findings.push(`✗ page map: ${page.route} has a home, which only / may have`);
+      }
+      const always = new Set(
+        pages.filter((other) => other.holdUntil === undefined).map((other) => other.route),
+      );
+      const links = [...page.home.actions, ...page.home.features].map((item) => item.link);
+      for (const link of links) {
+        if (!always.has(link)) {
+          findings.push(
+            `✗ page map: the home links to ${link}, which is not a route every build renders`,
+          );
+        }
+      }
     }
     if (page.holdUntil !== undefined && !isRelease(page.holdUntil)) {
       findings.push(

@@ -118,6 +118,34 @@ describe("checkPageMap", () => {
       '✗ page map: /0.17/run holds until "1.0", which is not X.Y.Z',
     ]);
   });
+
+  it("lets only / have a home, and only link to routes every build renders", () => {
+    const home = {
+      name: "tool",
+      text: "Plans, gated.",
+      tagline: "Runs plans.",
+      actions: [{ text: "Run", link: "/guide/run", theme: "brand" as const }],
+      features: [
+        { key: "post", title: "1.0", details: "Shipped.", link: "/blog/announcing-tool-1-0" },
+        { key: "gone", title: "Gone", details: "Missing.", link: "/guide/missing" },
+      ],
+    };
+    const map: PageMap = {
+      ...MAP,
+      readme: [
+        { route: "/", title: "Tool", sections: [INTRO, "Quickstart"], home },
+        { route: "/guide/run", title: "Running", sections: ["Run", "Locks"], home },
+        { omit: ["Generated reference"], why: "generated" },
+      ],
+    };
+    expect(checkPageMap(map, SOURCES)).toEqual([
+      "✗ page map: the home links to /blog/announcing-tool-1-0, which is not a route every build renders",
+      "✗ page map: the home links to /guide/missing, which is not a route every build renders",
+      "✗ page map: /guide/run has a home, which only / may have",
+      "✗ page map: the home links to /blog/announcing-tool-1-0, which is not a route every build renders",
+      "✗ page map: the home links to /guide/missing, which is not a route every build renders",
+    ]);
+  });
 });
 
 describe("siteNavigation", () => {

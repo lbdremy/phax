@@ -4,7 +4,7 @@ import type { Paragraph } from "mdast";
 import { describe, expect, it } from "vitest";
 import { generateSite, summaryLine, type SiteJson } from "../../../site/build/generate.js";
 import { parseMarkdown, plainText } from "../../../site/build/markdown.js";
-import { INTRO, definePageMap } from "../../../site/build/pageMap.js";
+import { INTRO, definePageMap, type ReadmePage } from "../../../site/build/pageMap.js";
 import { readSources } from "../../../site/build/sources.js";
 
 const README = [
@@ -180,6 +180,53 @@ describe("generateSite", () => {
     expect(generateSite({ files, pageMap: MAP, version: "0.17.0" }).findings).toEqual([
       "✗ README.md:15: raw HTML <details> is not supported; write Markdown",
     ]);
+  });
+
+  it("renders the home's hero and features into / as Rspress's home", () => {
+    const map = definePageMap({
+      ...MAP,
+      readme: [
+        {
+          ...(MAP.readme[0] as ReadmePage),
+          home: {
+            name: "tool",
+            text: "Plans, gated.",
+            tagline: "Runs plans.",
+            actions: [{ text: "Run", link: "/guide/run", theme: "brand" }],
+            features: [
+              { key: "gates", title: "Gated", details: "Green first.", link: "/guide/run" },
+            ],
+          },
+        },
+        MAP.readme[1]!,
+        MAP.readme[2]!,
+      ],
+    });
+    const result = generateSite({ files: FILES, pageMap: map, version: "0.17.0" });
+    expect(result.findings).toEqual([]);
+    const page = result.files.get("docs/index.md") ?? "";
+    const frontmatter = page.slice(0, page.indexOf("\n---\n", 4) + 5).split("\n");
+    expect(frontmatter.slice(0, 3)).toEqual(["---", 'title: "tool"', "pageType: home"]);
+    const value = (key: string): unknown =>
+      JSON.parse(
+        frontmatter.find((line) => line.startsWith(`${key}: `))?.slice(key.length + 2) ?? "null",
+      );
+    expect(value("hero")).toEqual({
+      name: "tool",
+      text: "Plans, gated.",
+      tagline: "Runs plans.",
+      image: { src: { dark: "/logo.svg", light: "/logo-light.svg" }, alt: "tool" },
+      actions: [{ text: "Run", link: "/guide/run", theme: "brand" }],
+    });
+    expect(value("features")).toEqual([
+      {
+        icon: '<span class="phax-feature-key">gates</span>',
+        title: "Gated",
+        details: "Green first.",
+        link: "/guide/run",
+      },
+    ]);
+    expect(page).toContain("## Quickstart \\{#quickstart\\}");
   });
 
   it("refuses a page title whose heading id a section already uses", () => {

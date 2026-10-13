@@ -16,6 +16,7 @@ import {
   isRendered,
   siteNavigation,
   type FilePage,
+  type Home,
   type NavLink,
   type PageMap,
   type ReadmePage,
@@ -110,8 +111,34 @@ export function pagePath(route: string): string {
   return route === "/" ? "docs/index.md" : `docs${route}.md`;
 }
 
-function frontmatter(title: string | undefined): string {
-  return title === undefined ? "" : `---\ntitle: ${JSON.stringify(title)}\n---\n\n`;
+function frontmatter(title: string | undefined, home?: Home): string {
+  if (title === undefined) return "";
+  const lines = [`title: ${JSON.stringify(title)}`];
+  // JSON is YAML: the hero and features go in as single-line flow values.
+  if (home !== undefined) lines.push(...homeFrontmatter(home));
+  return `---\n${lines.join("\n")}\n---\n\n`;
+}
+
+/** The Rspress home's frontmatter: the hero beside the logo in its theme colour, the feature cards. */
+function homeFrontmatter(home: Home): ReadonlyArray<string> {
+  const hero = {
+    name: home.name,
+    text: home.text,
+    tagline: home.tagline,
+    image: { src: { dark: "/logo.svg", light: "/logo-light.svg" }, alt: home.name },
+    actions: home.actions,
+  };
+  const features = home.features.map((feature) => ({
+    icon: `<span class="phax-feature-key">${feature.key}</span>`,
+    title: feature.title,
+    details: feature.details,
+    link: feature.link,
+  }));
+  return [
+    "pageType: home",
+    `hero: ${JSON.stringify(hero)}`,
+    `features: ${JSON.stringify(features)}`,
+  ];
 }
 
 interface RenderedPage {
@@ -154,7 +181,7 @@ function readmePage(
     .join("\n\n");
   return {
     route: page.route,
-    content: `${frontmatter(page.title)}${body}\n`,
+    content: `${frontmatter(page.title, page.home)}${body}\n`,
     headingIds: ordered.map((heading) => heading.id),
   };
 }
