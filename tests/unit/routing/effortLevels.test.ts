@@ -8,6 +8,18 @@ import type { ThinkingLevel } from "../../../src/domain/routing/types.js";
 // DEFAULT_PROVIDER_CONFIG surfaces here.
 
 describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
+  it("claude-haiku-5-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-haiku-5-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
   it("claude-haiku-4-5-20251001 supports only none", () => {
     const expected: readonly ThinkingLevel[] = ["none"];
     expect(effortsFor("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
@@ -144,6 +156,7 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
 
   it("every catalog entry is marked status active", () => {
     const ids = [
+      "claude-haiku-5-5",
       "claude-haiku-4-5-20251001",
       "claude-sonnet-4-6",
       "claude-opus-4-8",

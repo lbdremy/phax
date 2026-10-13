@@ -131,8 +131,15 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
       // the first active entry of its family, so the first entry is the
       // family's current model.
       families: {
+        // Haiku 4.5 stays active: Mistral Vibe's `off` alias anchors to it at
+        // `none`, which Haiku 5.5 does not offer.
         "claude-haiku": {
           models: [
+            {
+              id: "claude-haiku-5-5",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
             {
               id: "claude-haiku-4-5-20251001",
               efforts: ["none"],
