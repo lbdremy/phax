@@ -1,0 +1,587 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.17.0.json",
+  "kind": "spec",
+  "title": "Small fixes for 0.23: Gate-Log names the passing attempt, headless authoring retries once, served schemas stop misreading stamps",
+  "ground": [
+    {
+      "path": "src/app/executePlan.ts",
+      "note": "The phase commit call passes `join(phaseFolderPath, \"checks-attempt-01.log\")` as `gateLogPath` whichever attempt passed, and discards the `GateOutcome` the fix loop returns; a phase resumed from `passed` (resume-from-commit) commits without running its gate."
+    },
+    {
+      "path": "src/app/commit.ts",
+      "note": "`buildCommitBody` writes the fixed trailer block, ending `Gate-Log: <gateLogPath>`."
+    },
+    {
+      "path": "src/app/fixLoop.ts",
+      "note": "Numbers each attempt with `nextAttemptNumber` over the phase folder and, on a pass, returns `GateOutcome { attemptLogPath }`, the passing attempt's log."
+    },
+    {
+      "path": "src/app/gates.ts",
+      "note": "Every attempt that passes writes its log, even with no steps, so a passed phase always has a recorded attempt."
+    },
+    {
+      "path": "src/domain/gate/attemptFiles.ts",
+      "note": "Attempts are numbered once across every entry into a phase's gate; `lastRecordedAttempt` names the highest attempt with a log."
+    },
+    {
+      "path": "src/app/authorArtifact.ts",
+      "note": "`parseAuthoredDocument` refuses a final message that is not JSON (the reason quotes its first 200 characters, not the parser error) or that the document decoder refuses (first violation); the session then fails with nothing written."
+    },
+    {
+      "path": "src/domain/authoring/jsonText.ts",
+      "note": "Strips one code fence or picks the last balanced top-level object before parsing."
+    },
+    {
+      "path": "src/domain/authoring/prompt.ts",
+      "note": "Builds the one authoring prompt (skill, JSON Schema, brief); there is no follow-up prompt today."
+    },
+    {
+      "path": "src/ports/backend.ts",
+      "note": "`resumeAgentSession(sessionId, prompt, options)` resumes a session, as the fix loop and handoff generation already do."
+    },
+    {
+      "path": "src/infra/providers/claudeCode.ts",
+      "note": "Each call opens its transcript with flag `w`, so a resume onto the same `output.jsonl` would overwrite the first answer's transcript."
+    },
+    {
+      "path": "src/app/writeAuthoringRecord.ts",
+      "note": "The record carries only `brief.md`, `prompt.md`, `document.json` and `output.jsonl`; usage is read from `output.jsonl`."
+    },
+    {
+      "path": "src/schemas/authoringRecord.ts",
+      "note": "The manifest has no retry field and its doc comment says a headless session is never resumed."
+    },
+    {
+      "path": "src/schemas/schemaUrl.ts",
+      "note": "`schemaUrlField` describes `$schema` as \"the phax release that wrote this file\"."
+    },
+    {
+      "path": "packages/schemas/build/snapshots.ts",
+      "note": "The snapshot check compares the generated schema with the latest released snapshot as parsed JSON (`isDeepStrictEqual`), annotations included, and never rewrites a released snapshot."
+    },
+    {
+      "path": "tests/unit/schemasPackage/snapshots.test.ts",
+      "note": "Pins the snapshot gate's findings and `--write` plan."
+    },
+    {
+      "path": "site/build/schemas.ts",
+      "note": "docs.phax.run serves each release-named snapshot byte for byte at /schemas/<format id>/<release>.json, and each frozen copy under site/retired-schemas/."
+    },
+    {
+      "path": "docs/release.md",
+      "note": "A stamp names a format's shape: the release that last changed the format, or the opened version while it has a `next` snapshot."
+    },
+    {
+      "path": "README.md",
+      "note": "`$schema` names the release that last changed the format; each URL stays up for good; pre-1.0 readers refuse a report stamped in an older shape."
+    },
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "Small follow-ups: the Gate-Log entry, the served-schemas wording entry, and the headless-authoring malformed-JSON entry (2026-10-06, 2026-10-08)."
+    }
+  ],
+  "context": "Three small, separate defects from NEXT_STEPS \"Small follow-ups\". The author decided on 2026-10-13 to ship them under one spec and one short plan. None depends on another, and the `standard` gate checks each one.\n\nGate-Log trailer. Every phase commit ends with a trailer block that includes `Gate-Log: <path>`. Since gate-attempt-records, a phase's gate attempts are numbered once across every entry into its gate. The attempt that passes can be 03, or 07 after a resume. The fix loop already returns the passing attempt's log path. The run ignores it and always writes `checks-attempt-01.log`. A run that resumes a phase left `passed` (for example after a pre-commit hook rejected the commit) commits without running the gate again. Nothing in phax reads the trailer. It exists for a person reading `git log`.\n\nHeadless authoring. `phax artifact new spec|plan --headless` runs one session and decodes its final message as the spec or plan document. If the message is not JSON, or the decoder refuses it, phax writes nothing and fails. When the message is not JSON, today's refusal quotes its first 200 characters and does not name the parser error. The session folder holds `brief.md`, `prompt.md`, `output.jsonl` and, once a document is accepted, `document.json`. The authoring record carries those files, and its manifest says nothing about a retry.\n\nServed schemas. Each persisted format's JSON Schema describes `$schema` as \"The <format> format and the phax release that wrote this file\". That text is in every released snapshot under `packages/schemas/snapshots/`, in the package's `json/`, and on docs.phax.run, which serves each release-named snapshot byte for byte. Since open-next-release, a stamp names the release that last changed the format's shape, as the README and `docs/release.md` say. The snapshot check compares the generated schema with the latest released snapshot, annotations included. Any change to the wording therefore counts as a new shape for every format.",
+  "problem": "Gate-Log trailer: on any phase whose gate failed at least once, or that was entered more than once, the trailer names the wrong log. A reader who follows it sees attempt 01, which may be a failing attempt, and not the one that let the commit through.\n\nHeadless authoring: one stray character, or one missing key in an otherwise good document, throws away a whole session (several minutes, ~23 KB of output). This happened on 2026-10-06 (a stray code expression at character 22 700) and on 2026-10-08 (valid JSON missing `acceptanceCriteria[0].refs`). Both reruns succeeded, so the session could have fixed its own answer if told what was wrong. When the message is not JSON, the refusal does not say where parsing failed, which leaves neither the operator nor a retry anything to act on.\n\nServed schemas: the served text contradicts the README and the release doc on what a stamp means. Rewording it today would put a `next` snapshot on every format and move every stamp at once. Before 1.0, readers refuse a report or answer stamped in an older shape. Every gate step and brief provider stamping `gate-report`/`brief-report` at its current shape would therefore be refused, all for a sentence no decoder reads. That is the forced upgrade open-next-release removed.",
+  "productGoal": {
+    "statement": "Each phase commit's `Gate-Log` names the log of the attempt that let it through. A headless authoring session whose document is refused gets one chance, in the same session, to fix it, and nothing about the first answer is lost. The served schemas say what a stamp means, and no stamp moves because the wording changed.",
+    "guidingRule": "A fix tells the truth about what happened, and it does not force anyone else to upgrade."
+  },
+  "terminology": [
+    {
+      "term": "attempt",
+      "definition": "One run of a phase's gate steps, numbered NN in `checks-attempt-NN.log`. Numbering continues across every entry into the phase's gate."
+    },
+    {
+      "term": "entry",
+      "definition": "One pass of a run into a phase's gate: the first execution, or a resume that runs the gate again."
+    },
+    {
+      "term": "passing attempt",
+      "definition": "The attempt whose gate passed, after which the phase was marked passed. No further attempt of that phase runs after it."
+    },
+    {
+      "term": "recorded attempt",
+      "definition": "An attempt whose `checks-attempt-NN.log` exists in the phase folder."
+    },
+    {
+      "term": "refused document",
+      "definition": "A headless authoring session's final message that phax does not accept as the requested document: either it is not JSON, or the spec or plan document decoder refuses it (schema or traceability check). Provider errors, rate limits, usage limits, security enforcement failures and commit failures are not refused documents."
+    },
+    {
+      "term": "refusal",
+      "definition": "The one-line reason a document was refused: the JSON parser's error and where it failed, or the decoder's first violation."
+    },
+    {
+      "term": "retry",
+      "definition": "The one resume of a headless authoring session, made after its first final message was refused, asking for the whole document again."
+    },
+    {
+      "term": "annotation keywords",
+      "definition": "Exactly the JSON Schema keywords `description`, `title` and `examples`, wherever they appear as keywords of a (sub)schema. A property that happens to be named `description`, `title` or `examples` is not an annotation keyword."
+    },
+    {
+      "term": "shape",
+      "definition": "What a format's schema accepts. The release that last changed a format's shape is what its `$schema` stamp names."
+    },
+    {
+      "term": "released snapshot",
+      "definition": "A release-named snapshot `packages/schemas/snapshots/<format>/<X.Y.Z>.schema.json`, served byte for byte at `https://docs.phax.run/schemas/<format>/<X.Y.Z>.json`."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "gl-pass",
+      "title": "Gate-Log names the passing attempt",
+      "pattern": "event",
+      "statement": "WHEN a phase's gate passes during the current entry THE system SHALL name, in that phase commit's `Gate-Log` trailer, the log of the attempt whose gate passed."
+    },
+    {
+      "id": "gl-resume",
+      "title": "Gate-Log on a commit-only resume",
+      "pattern": "event",
+      "statement": "WHEN a run resumes a phase left passed and commits it without running its gate THE system SHALL name, in the `Gate-Log` trailer, the log of the highest-numbered recorded attempt in the phase folder."
+    },
+    {
+      "id": "gl-none",
+      "title": "Gate-Log never names a missing log",
+      "pattern": "unwanted",
+      "statement": "IF the phase folder holds no recorded attempt when the phase is committed THEN the system SHALL write the trailer as `Gate-Log: none` and commit the phase without pausing the run."
+    },
+    {
+      "id": "rt-trigger",
+      "title": "One retry on a refused document",
+      "pattern": "event",
+      "statement": "WHEN a headless authoring session's final message is a refused document THE system SHALL resume that same session once, with a retry prompt that states the refusal and asks for the whole document again as the final message."
+    },
+    {
+      "id": "rt-parse-error",
+      "title": "A not-JSON refusal names the parser error",
+      "pattern": "event",
+      "statement": "WHEN a final message is refused because it is not JSON THE system SHALL state, in the refusal, the JSON parser's error and the position where parsing failed."
+    },
+    {
+      "id": "rt-notice",
+      "title": "The operator sees the retry",
+      "pattern": "event",
+      "statement": "WHEN the system resumes a session to retry THE system SHALL print a warning naming the first refusal before the retry runs."
+    },
+    {
+      "id": "rt-accept",
+      "title": "An accepted retry lands like a first answer",
+      "pattern": "event",
+      "statement": "WHEN the retry's final message decodes THE system SHALL render, write and commit the artifact and its sidecar exactly as it does for a first answer that decodes."
+    },
+    {
+      "id": "rt-once",
+      "title": "At most one retry",
+      "pattern": "unwanted",
+      "statement": "IF the retry's final message is a refused document as well THEN the system SHALL fail the authoring without another retry, writing nothing to the repository and naming both refusals in its error."
+    },
+    {
+      "id": "rt-not-retried",
+      "title": "Only refused documents are retried",
+      "pattern": "unwanted",
+      "statement": "IF a headless authoring session, or its retry, ends in a provider error, a rate limit, a usage limit, a security enforcement failure or a commit failure THEN the system SHALL fail with that error, as it does today, without retrying."
+    },
+    {
+      "id": "rt-folder",
+      "title": "The first answer is kept",
+      "pattern": "event",
+      "statement": "WHEN the system retries a session THE system SHALL leave the first answer's transcript in the session folder unchanged, and write the retry prompt and the retry's transcript there as separate files."
+    },
+    {
+      "id": "rt-record-field",
+      "title": "The record says whether a retry ran",
+      "pattern": "ubiquitous",
+      "statement": "The system shall write in every authoring record manifest a required `retry` field whose value is `none` when the session was not resumed and `retried` when it was."
+    },
+    {
+      "id": "rt-record-files",
+      "title": "The record carries the retry",
+      "pattern": "event",
+      "statement": "WHEN a retried session's authoring record is written THE system SHALL include the retry prompt and the retry's transcript beside the first answer's transcript, under the same `records.transcript` policy."
+    },
+    {
+      "id": "rt-usage",
+      "title": "Usage counts both turns",
+      "pattern": "event",
+      "statement": "WHEN a retried session's authoring record is written THE system SHALL count the tokens of both the first answer and the retry in the record's usage."
+    },
+    {
+      "id": "sd-wording",
+      "title": "`$schema` says what a stamp names",
+      "pattern": "ubiquitous",
+      "statement": "The system shall describe every format's `$schema` field, in the JSON Schemas it generates, as naming the release that last changed the format's shape, and never as the release that wrote the file."
+    },
+    {
+      "id": "sd-annotations",
+      "title": "Annotation-only change is not a new shape",
+      "pattern": "event",
+      "statement": "WHEN the snapshot check compares a format's generated schema with its latest released snapshot, or a `next` snapshot with that released snapshot, THE system SHALL ignore the annotation keywords."
+    },
+    {
+      "id": "sd-shape",
+      "title": "A real shape change is still caught",
+      "pattern": "unwanted",
+      "statement": "IF a generated schema differs from its latest released snapshot in anything other than annotation keywords THEN the snapshot check SHALL report it, and `--write` SHALL record a `next` snapshot, as it does today."
+    },
+    {
+      "id": "sd-next-exact",
+      "title": "An unreleased `next` tracks the wording",
+      "pattern": "state",
+      "statement": "WHILE a format has a `next` snapshot THE snapshot check SHALL hold that snapshot equal to the generated schema with annotation keywords included."
+    },
+    {
+      "id": "sd-frozen",
+      "title": "Frozen and published bytes stay put",
+      "pattern": "ubiquitous",
+      "statement": "The system shall leave every released snapshot, every frozen copy under `site/retired-schemas/` and every frozen module under `src/schemas/history/` byte for byte unchanged by this rewording."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "file: phase commit message, Gate-Log trailer",
+      "binding": "normative",
+      "before": "Session-Id: 6f1c2a90-3b7e-4d21-9c55-0a8e7f3d1b42\nGate-Log: /home/dev/.phax/runs/2610131200-widget-export/phases/p2-export/checks-attempt-01.log\n\n(attempt 03 passed; attempts 01–02 failed)",
+      "after": "Session-Id: 6f1c2a90-3b7e-4d21-9c55-0a8e7f3d1b42\nGate-Log: /home/dev/.phax/runs/2610131200-widget-export/phases/p2-export/checks-attempt-03.log\n\nNo recorded attempt in the phase folder:\nGate-Log: none\n\n(Trailer key, the `checks-attempt-NN.log` file name and the literal `none` are normative; the folder layout shown is made up.)"
+    },
+    {
+      "surface": "cli: phax artifact new spec|plan --headless, retry warning",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax artifact new spec widget-export --headless --brief brief.md\n! spec document refused — acceptanceCriteria[0].refs: is missing\n  resuming the session once to ask for the whole document again\n✓ docs/specs/2610131412-widget-export.md (draft, committed 3e9a1c4)"
+    },
+    {
+      "surface": "cli: phax artifact new spec|plan --headless, failure after the retry",
+      "binding": "indicative",
+      "before": "✗ spec document rejected — the session's final message is not JSON: {\"version\":1,\"kind\":\"spec\",\"title\":\"Widget export\",…\n$? ≠ 0",
+      "after": "✗ spec document rejected twice — first answer: the session's final message is not JSON (Unexpected token '.' at position 22700): {\"version\":1,\"kind\":\"spec\",…; retry: acceptanceCriteria[0].refs: is missing\n$? ≠ 0 (same exit code as today)\n\n(Naming both refusals, and the parser error with its position, is normative; the wording is indicative.)"
+    },
+    {
+      "surface": "file: retry prompt sent on resume",
+      "binding": "indicative",
+      "before": null,
+      "after": "Your final message was refused, and phax wrote nothing.\n\nRefusal: spec document rejected — acceptanceCriteria[0].refs: is missing\n\nReturn the whole spec document again as your final message: one JSON object valid against the schema you were given, with no code fence and no commentary. This is your only retry."
+    },
+    {
+      "surface": "file: headless authoring session folder <stateRoot>/authoring/<authoringId>/",
+      "binding": "indicative",
+      "before": "2610131412-widget-export/\n  brief.md\n  prompt.md\n  output.jsonl\n  document.json        (only when the document was accepted)",
+      "after": "2610131412-widget-export/\n  brief.md\n  prompt.md\n  output.jsonl         first answer's transcript, as written\n  retry-prompt.md      only when retried: the retry prompt, naming the refusal\n  retry-output.jsonl   only when retried: the retry's transcript\n  document.json        only when an answer was accepted\n\n(Keeping the first transcript intact and the retry's files separate is normative; the file names are indicative.)"
+    },
+    {
+      "surface": "file: authoring record manifest record.json on phax/records/v1",
+      "binding": "normative",
+      "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json\",\n  \"kind\": \"authoring\",\n  \"authoringId\": \"2610131412-widget-export\",\n  \"artifact\": \"docs/specs/2610131412-widget-export.md\",\n  \"artifactKind\": \"spec\",\n  \"shape\": \"full\",\n  \"sourceSha\": \"3e9a1c4\",\n  \"provider\": \"claude-code\",\n  \"model\": \"claude-sonnet-5\",\n  \"effort\": \"high\",\n  \"outcome\": \"committed\",\n  \"usage\": { … }\n}",
+      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/authoring-record-manifest/<release that adds retry>.json\",\n  …same fields…,\n  \"outcome\": \"committed\",\n  \"retry\": \"retried\",\n  \"usage\": { … }   (both turns counted)\n}\n\n`retry` is required and takes exactly `none` or `retried`."
+    },
+    {
+      "surface": "api: served and packaged JSON Schema, `$schema` property description",
+      "binding": "indicative",
+      "before": "\"$schema\": {\n  \"type\": \"string\",\n  \"pattern\": \"^https://docs\\\\.phax\\\\.run/schemas/run-status/…\\\\.json$\",\n  \"description\": \"The run-status format and the phax release that wrote this file: https://docs.phax.run/schemas/run-status/<X.Y.Z>.json\"\n}",
+      "after": "\"$schema\": {\n  \"type\": \"string\",\n  \"pattern\": \"(unchanged)\",\n  \"description\": \"The run-status format and its shape, named by the phax release that last changed that shape (not the release that wrote this file): https://docs.phax.run/schemas/run-status/<X.Y.Z>.json\"\n}\n\n(What the text claims is normative per §5 sd-wording; the exact wording is indicative. It appears in the package's json/ and in each format's next `next` snapshot. Under §9 q-annotations, existing served URLs keep their bytes.)"
+    },
+    {
+      "surface": "cli: pnpm exec tsx scripts/schemas-check.ts",
+      "binding": "normative",
+      "before": "After the rewording, one finding per format, e.g.:\n✗ run-status: the generated schema differs from the latest released snapshot packages/schemas/snapshots/run-status/0.17.0.schema.json and from packages/schemas/snapshots/run-status/next.schema.json — record packages/schemas/snapshots/run-status/next.schema.json (run pnpm exec tsx scripts/schemas-check.ts --write)",
+      "after": "After the rewording: no finding for an annotation-only difference, and `--write` records no `next` for it. A change outside annotation keywords is reported with today's finding text, unchanged."
+    }
+  ],
+  "nonGoals": [
+    "Retrying any session other than headless spec/plan authoring: phase sessions, plan extraction, review, brief and compliance sessions keep their current behavior.",
+    "Having the provider enforce the output schema (for example, Claude Code structured output).",
+    "More than one retry, or a configurable retry count.",
+    "Retrying on a provider error, rate limit, usage limit, security enforcement failure or commit failure.",
+    "Having anything in phax read the `Gate-Log` trailer, or rewriting the trailers of commits already made.",
+    "Changing any released snapshot, any copy under `site/retired-schemas/`, or any module under `src/schemas/history/`; their old wording stays.",
+    "Ignoring annotations anywhere other than the snapshot comparison. Decoders, served bytes and the package's generated files are unaffected.",
+    "Treating keywords other than `description`, `title` and `examples` as annotations (for example `default`, `deprecated`, `$comment`).",
+    "Any other NEXT_STEPS follow-up."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-gl-third",
+      "name": "Trailer names the third attempt",
+      "given": "a phase whose gate fails on attempts 01 and 02 and passes on attempt 03 within one entry",
+      "when": "the run commits the phase",
+      "then": "the commit's trailer reads `Gate-Log: <phase folder>/checks-attempt-03.log`, and no trailer names `checks-attempt-01.log`",
+      "refs": [
+        "gl-pass"
+      ]
+    },
+    {
+      "id": "ac-gl-resumed-gate",
+      "name": "Numbering across entries",
+      "given": "a phase folder already holding `checks-attempt-01.log` through `checks-attempt-06.log` from an earlier entry, and a resume that runs the gate, which passes on its first attempt",
+      "when": "the run commits the phase",
+      "then": "the trailer names `checks-attempt-07.log`",
+      "refs": [
+        "gl-pass"
+      ]
+    },
+    {
+      "id": "ac-gl-commit-resume",
+      "name": "Commit-only resume",
+      "given": "a phase left passed after a pre-commit hook rejected its commit, with `checks-attempt-01.log` and `checks-attempt-02.log` recorded (02 passed)",
+      "when": "the run resumes and commits the phase without running its gate",
+      "then": "the trailer names `checks-attempt-02.log` and no new attempt file appears in the phase folder",
+      "refs": [
+        "gl-resume"
+      ]
+    },
+    {
+      "id": "ac-gl-none",
+      "name": "No recorded attempt",
+      "given": "a phase left passed whose folder holds no `checks-attempt-NN.log`",
+      "when": "the run resumes and commits the phase",
+      "then": "the commit carries `Gate-Log: none`, the commit is created, and the run does not pause",
+      "refs": [
+        "gl-none"
+      ]
+    },
+    {
+      "id": "ac-rt-schema-fixed",
+      "name": "A schema refusal is fixed by the retry",
+      "given": "a fake backend whose first final message is valid JSON missing `acceptanceCriteria[0].refs` and whose resumed answer is a valid spec document",
+      "when": "`phax artifact new spec widget-export --headless --brief brief.md` runs",
+      "then": "the backend is resumed exactly once on the first session's id with a prompt containing `acceptanceCriteria[0].refs: is missing`, a warning naming that refusal is printed before the resume, and the spec and its sidecar are committed as for a first-answer success",
+      "refs": [
+        "rt-trigger",
+        "rt-notice",
+        "rt-accept"
+      ]
+    },
+    {
+      "id": "ac-rt-not-json",
+      "name": "A not-JSON refusal names the parser error",
+      "given": "a fake backend whose first final message is a document with a stray `.replace(\"a\",\"b\")` expression inside it, and whose retry answer is valid",
+      "when": "the headless authoring runs",
+      "then": "the retry prompt and the printed warning both contain the JSON parser's error with the position where parsing failed, and the artifact is committed",
+      "refs": [
+        "rt-parse-error",
+        "rt-trigger",
+        "rt-accept"
+      ]
+    },
+    {
+      "id": "ac-rt-twice",
+      "name": "Two refusals fail, naming both",
+      "given": "a fake backend whose first and resumed final messages are both refused, for different reasons",
+      "when": "the headless authoring runs",
+      "then": "the command fails with today's exit code, its error names the first refusal and the retry's refusal, the backend was resumed exactly once, no artifact, sidecar or commit lands in the repository, and the authoring record's outcome is `failed` with `retry: \"retried\"`",
+      "refs": [
+        "rt-once",
+        "rt-record-field"
+      ]
+    },
+    {
+      "id": "ac-rt-limits",
+      "name": "Limits and provider errors are not retried",
+      "given": "a fake backend whose first run fails with a rate limit, or a usage limit, or an agent invocation error, or whose run succeeds but whose artifact commit fails",
+      "when": "the headless authoring runs",
+      "then": "it fails with that same error, the backend is never resumed, and the record carries `retry: \"none\"`",
+      "refs": [
+        "rt-not-retried",
+        "rt-record-field"
+      ]
+    },
+    {
+      "id": "ac-rt-retry-limited",
+      "name": "A limit during the retry is not retried again",
+      "given": "a fake backend whose first final message is refused and whose resume fails with a rate limit",
+      "when": "the headless authoring runs",
+      "then": "it fails with the rate limit error, no second resume is made, and the record carries `retry: \"retried\"`",
+      "refs": [
+        "rt-not-retried",
+        "rt-once"
+      ]
+    },
+    {
+      "id": "ac-rt-folder",
+      "name": "The first answer's transcript survives",
+      "given": "a retried session",
+      "when": "the session ends, committed or failed",
+      "then": "the session folder's first transcript holds exactly the first run's lines, and the retry prompt and the retry's transcript are separate files beside it",
+      "refs": [
+        "rt-folder"
+      ]
+    },
+    {
+      "id": "ac-rt-record",
+      "name": "The record carries the retry",
+      "given": "a retried, committed session with `records.transcript` set to keep transcripts, and a first-answer session",
+      "when": "each session's authoring record is written",
+      "then": "the retried record's tree holds the retry prompt and the retry's transcript, its manifest carries `retry: \"retried\"` and usage that sums both turns' tokens, and the other record's manifest carries `retry: \"none\"`",
+      "refs": [
+        "rt-record-field",
+        "rt-record-files",
+        "rt-usage"
+      ]
+    },
+    {
+      "id": "ac-rt-manifest-required",
+      "name": "`retry` is required",
+      "given": "an authoring record manifest stamped at the current authoring-record-manifest shape with no `retry` key, or with `retry: \"maybe\"`",
+      "when": "phax decodes it",
+      "then": "it is refused, naming `retry`",
+      "refs": [
+        "rt-record-field"
+      ]
+    },
+    {
+      "id": "ac-sd-wording",
+      "name": "Generated schemas say what a stamp names",
+      "given": "the JSON Schemas the package generates for every format in `FORMAT_IDS`",
+      "when": "their `$schema` property descriptions are read",
+      "then": "each states that the stamp names the release that last changed the format's shape, and none contains \"the phax release that wrote this file\"",
+      "refs": [
+        "sd-wording"
+      ]
+    },
+    {
+      "id": "ac-sd-no-next",
+      "name": "The rewording records no `next`",
+      "given": "the committed tree after the rewording, with released snapshots holding the old wording",
+      "when": "`pnpm exec tsx scripts/schemas-check.ts` runs and `--write` is planned",
+      "then": "the check reports no finding, `--write` plans no write and no removal for a format that differs only in annotation keywords, and every format's current stamp is unchanged apart from authoring-record-manifest, whose shape changes under rt-record-field",
+      "refs": [
+        "sd-annotations",
+        "sd-frozen"
+      ]
+    },
+    {
+      "id": "ac-sd-shape-caught",
+      "name": "A real change is still caught",
+      "given": "a toy format whose released snapshot differs from the generated schema in a `type`, or in a property literally named `description` being added",
+      "when": "the snapshot check runs",
+      "then": "it reports today's finding and `--write` plans a `next` snapshot",
+      "refs": [
+        "sd-shape"
+      ]
+    },
+    {
+      "id": "ac-sd-next",
+      "name": "A `next` follows the wording",
+      "given": "a toy format with a `next` snapshot that differs from the generated schema only in a `description`",
+      "when": "the snapshot check runs",
+      "then": "it reports the stale `next` and `--write` rewrites it to the generated schema; and a `next` that differs from the latest released snapshot only in annotation keywords is reported as equal to it and planned for removal",
+      "refs": [
+        "sd-next-exact",
+        "sd-annotations"
+      ]
+    },
+    {
+      "id": "ac-sd-frozen",
+      "name": "Published bytes do not move",
+      "given": "the tree before and after the change",
+      "when": "every file under `packages/schemas/snapshots/` with a release name, `site/retired-schemas/` and `src/schemas/history/` is compared",
+      "then": "each is byte for byte identical",
+      "refs": [
+        "sd-frozen"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-annotations",
+      "question": "Is a change made only to annotation keywords a new shape, given that rewording `$schema`'s description touches every format?",
+      "options": [
+        {
+          "id": "blind",
+          "label": "The snapshot comparison ignores `description`, `title` and `examples`. The new wording ships in the package's json/ and in each format's next `next` snapshot, and existing stamps do not move.",
+          "abandons": "Byte agreement between what docs.phax.run serves at an existing stamp and what phax generates for it: each existing URL keeps the contradictory text until that format's shape next changes."
+        },
+        {
+          "id": "move-all",
+          "label": "Treat the rewording as a new shape. Every format records a `next` and every stamp moves to the opened version.",
+          "abandons": "Every gate step and brief provider that stamps `gate-report`/`brief-report` at its current shape: pre-1.0 readers refuse older shapes by name, so they are all broken at once by a sentence no decoder reads. This is the forced upgrade open-next-release removed."
+        },
+        {
+          "id": "rewrite-released",
+          "label": "Rewrite the released snapshots in place so the served URLs carry the new text.",
+          "abandons": "URL immutability. A published URL starts serving different bytes, which breaks the README's \"each URL … stays up for good\" and the snapshot gate's rule that it never writes a released snapshot."
+        },
+        {
+          "id": "defer",
+          "label": "Leave the wording as it is until a release that changes most formats anyway (the Effect 4 migration gives every format a `next`).",
+          "abandons": "The fix itself. The contradiction keeps shipping in the package and on the site until an unscheduled migration, and this spec delivers two of its three fixes."
+        }
+      ],
+      "recommendation": "blind",
+      "rationale": "Only `blind` keeps both published URLs and every provider's stamps unchanged. What it gives up is temporary text on pages whose stamps phax's own docs already explain correctly. Each format's next real shape change carries the new wording, and the Effect 4 migration gives every format one. `move-all` breaks third-party report writers for no change in what is accepted. `rewrite-released` breaks a promise made in the README. `defer` ships nothing. Under every option, frozen copies under `site/retired-schemas/` and `src/schemas/history/` keep their old wording."
+    },
+    {
+      "id": "q-retry-prompt",
+      "question": "What does the retry prompt carry besides the refusal?",
+      "options": [
+        {
+          "id": "refusal-only",
+          "label": "The refusal, a statement that nothing was written, and the instruction to return the whole document again as JSON only. The schema and the brief are not repeated, because the resumed session already holds them.",
+          "abandons": "Recovery when a provider compacted or truncated the resumed context and lost the schema."
+        },
+        {
+          "id": "with-schema",
+          "label": "The refusal and instruction, plus the full document JSON Schema again.",
+          "abandons": "A short retry. Every retry re-sends a schema of tens of kilobytes that the session already has, which inflates the cost of the very turn meant to be cheap."
+        }
+      ],
+      "recommendation": "refusal-only",
+      "rationale": "Both failures seen so far were local slips in a session that still held its context, and both reruns succeeded. The refusal names the exact violation. If a provider has lost the schema, the retry is refused too and the authoring fails as it does today, naming both refusals, so nothing is worse than now."
+    },
+    {
+      "id": "q-gate-log-none",
+      "question": "What does the trailer say when a phase is committed with no recorded attempt in its folder?",
+      "options": [
+        {
+          "id": "none",
+          "label": "Write `Gate-Log: none`.",
+          "abandons": "A `Gate-Log` value that is always a file path."
+        },
+        {
+          "id": "omit",
+          "label": "Leave the trailer out.",
+          "abandons": "A fixed trailer set on every phase commit. A reader cannot tell a missing trailer from a commit made by an older phax."
+        },
+        {
+          "id": "pause",
+          "label": "Pause the run instead of committing.",
+          "abandons": "Autonomy: a run stops and waits on a person over a trailer nothing reads."
+        }
+      ],
+      "recommendation": "none",
+      "rationale": "Every passing attempt writes its log, so this case only arises when a folder was tampered with. An explicit literal is honest about it, keeps the trailer set fixed, and keeps the run going."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "The three fixes are independent. Each can be its own phase, and each is checked by the `standard` gate.",
+      "Gate-Log: the passing attempt's log during the current entry; the highest recorded attempt on a commit-only resume; `none` if no attempt is recorded.",
+      "Retry: exactly one, in the same session, only for a refused document (not JSON, or refused by the spec/plan document decoder). Any other failure, on the first run or on the retry, fails as today.",
+      "The first answer's transcript is never overwritten. The retry prompt and the retry's transcript are separate files, and the record carries them.",
+      "The authoring record manifest gains a required `retry` field with exactly the values `none` and `retried`.",
+      "Annotation keywords are exactly `description`, `title` and `examples`.",
+      "Released snapshots, `site/retired-schemas/` and `src/schemas/history/` are not touched."
+    ],
+    "open": [
+      "The exact retry prompt wording, warning wording, and the two retry file names in the session folder (indicative in §6).",
+      "How usage from the two turns is summed for each provider (Claude Code and Codex transcripts, Vibe session meta).",
+      "The exact new description text, within the claim fixed by sd-wording."
+    ],
+    "constraints": [
+      "Respect the layers: building the retry prompt and stating refusals are pure domain logic; resuming goes through the Backend port's `resumeAgentSession`; the CLI only renders.",
+      "No back-compat shims: `retry` is required. The authoring-record-manifest change is a real shape change, so that format records its own `next` snapshot and its stamp moves; earlier records stay readable through the format's existing frozen-shape mechanism.",
+      "The authoring record schema's doc comment saying a headless session is never resumed must be corrected.",
+      "Annotation keywords are ignored only where they act as schema keywords, never as property names under `properties` or in `required`.",
+      "phax stays autonomous: neither the retry nor `Gate-Log: none` waits on a person.",
+      "Fixtures and examples are made up.",
+      "Tests must hold across a release cut: assert stamps through the current-stamp helpers, never through literal release numbers, and use toy formats for snapshot-gate behavior."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "README.md, the headless authoring section (`phax artifact new … --headless`) and the `$schema` paragraph",
+    "reader": "An operator running headless authoring who sees the retry warning or a failure that names two refusals, and a provider author reading what a `$schema` stamp names.",
+    "example": "! spec document refused — acceptanceCriteria[0].refs: is missing\n  resuming the session once to ask for the whole document again"
+  }
+}
