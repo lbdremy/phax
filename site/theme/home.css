@@ -109,3 +109,182 @@
     padding: 8px 16px 16px;
   }
 }
+
+/* The hero's run card (LiveRun.tsx), where Rspress shows an image. */
+.rp-home-hero__image:has(.phax-run) {
+  flex: 0 1 34rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.phax-run {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 12px;
+  background: var(--rp-c-bg-soft);
+  font-family: var(--rp-font-family-mono);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.phax-run__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rp-c-divider-light);
+  color: var(--rp-c-text-2);
+}
+
+.phax-run__state {
+  color: var(--rp-c-brand);
+}
+
+.phax-run__stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px 0;
+  list-style: none;
+}
+
+.phax-run__stage {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 6px;
+  color: var(--rp-c-text-2);
+  transition:
+    border-color 0.25s,
+    color 0.25s;
+}
+
+.phax-run__stage b {
+  overflow: hidden;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--rp-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phax-run__stage--on {
+  border-color: var(--rp-c-brand);
+  color: var(--rp-c-brand);
+}
+
+.phax-run__phases {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.phax-run__phase {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 8px;
+  transition:
+    border-color 0.25s,
+    background 0.25s;
+}
+
+.phax-run__phase b {
+  font-weight: 500;
+}
+
+.phax-run__phase small {
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--rp-c-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phax-run__bar {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--rp-c-divider-light);
+}
+
+.phax-run__bar i {
+  display: block;
+  height: 100%;
+  background: var(--rp-c-brand);
+  transition: width 0.35s;
+}
+
+.phax-run__phase--on {
+  border-color: var(--rp-c-brand);
+}
+
+.phax-run__phase--done {
+  background: var(--rp-c-brand-tint);
+}
+
+.phax-run__phase--failing {
+  border-color: var(--phax-c-warning);
+}
+
+.phax-run__phase--failing .phax-run__bar i {
+  background: var(--phax-c-warning);
+}
+
+.phax-run__log {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: calc(8 * 1.75em + 14px);
+  padding: 2px 14px 12px;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.75;
+}
+
+.phax-run__line {
+  overflow: hidden;
+  color: var(--rp-c-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phax-run__line:last-child,
+.phax-run__event {
+  color: var(--rp-c-text-1);
+}
+
+.phax-run__arrow {
+  color: var(--rp-c-brand);
+}
+
+.phax-run__line--failed .phax-run__event {
+  color: var(--phax-c-warning);
+}
+
+/*
+ * Rspress stacks the hero in reverse below 1000px, image first; the card
+ * goes last instead, after the text and the buttons.
+ */
+@media (max-width: 1000px) {
+  .rp-home-hero__image:has(.phax-run) {
+    flex: none;
+    order: -1;
+    width: 100%;
+    max-width: 34rem;
+    margin-top: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phax-run * {
+    transition: none;
+  }
+}

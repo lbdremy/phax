@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 import type { Paragraph } from "mdast";
 import { describe, expect, it } from "vitest";
 import { generateSite, summaryLine, type SiteJson } from "../../../site/build/generate.js";
+import { liveRun } from "../../../site/build/liveRun.js";
 import { parseMarkdown, plainText } from "../../../site/build/markdown.js";
 import { INTRO, definePageMap, type ReadmePage } from "../../../site/build/pageMap.js";
 import { readSources } from "../../../site/build/sources.js";
@@ -182,7 +183,7 @@ describe("generateSite", () => {
     ]);
   });
 
-  it("renders the home's hero and features into / as Rspress's home", () => {
+  it("renders the home's hero, features and live run into / as Rspress's home", () => {
     const map = definePageMap({
       ...MAP,
       readme: [
@@ -215,7 +216,6 @@ describe("generateSite", () => {
       name: "tool",
       text: "Plans, gated.",
       tagline: "Runs plans.",
-      image: { src: { dark: "/logo.svg", light: "/logo-light.svg" }, alt: "tool" },
       actions: [{ text: "Run", link: "/guide/run", theme: "brand" }],
     });
     expect(value("features")).toEqual([
@@ -226,6 +226,7 @@ describe("generateSite", () => {
         link: "/guide/run",
       },
     ]);
+    expect(value("liveRun")).toEqual(liveRun());
     expect(page).toContain("## Quickstart \\{#quickstart\\}");
   });
 

@@ -32,6 +32,7 @@ import {
   type RepositoryIndex,
   type SiteLink,
 } from "./links.js";
+import { liveRun } from "./liveRun.js";
 import { applyEdits, transformMarkdown, type MarkdownTransform } from "./markdown.js";
 import { README, splitReadme, type ReadmeSection } from "./sources.js";
 import { publicSchemas, servedUrl, type SchemaSources } from "./schemas.js";
@@ -119,13 +120,15 @@ function frontmatter(title: string | undefined, home?: Home): string {
   return `---\n${lines.join("\n")}\n---\n\n`;
 }
 
-/** The Rspress home's frontmatter: the hero beside the logo in its theme colour, the feature cards. */
+/**
+ * The Rspress home's frontmatter: the hero, the feature cards, and the run the
+ * hero plays where Rspress would show an image (site/theme/LiveRun.tsx).
+ */
 function homeFrontmatter(home: Home): ReadonlyArray<string> {
   const hero = {
     name: home.name,
     text: home.text,
     tagline: home.tagline,
-    image: { src: { dark: "/logo.svg", light: "/logo-light.svg" }, alt: home.name },
     actions: home.actions,
   };
   const features = home.features.map((feature) => ({
@@ -138,6 +141,7 @@ function homeFrontmatter(home: Home): ReadonlyArray<string> {
     "pageType: home",
     `hero: ${JSON.stringify(hero)}`,
     `features: ${JSON.stringify(features)}`,
+    `liveRun: ${JSON.stringify(liveRun())}`,
   ];
 }
 
