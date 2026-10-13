@@ -1,8 +1,0 @@
-{
-  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
-  "artifact": "docs/plans/2610131358-catalog-haiku-5-5-plan.md",
-  "planFingerprint": "a22d95692d8f62d6b302be9439a83b19596dfc1610ee1aaa626a3e0323a2f6ea",
-  "approvedAt": "2026-10-13T14:03:47.367Z",
-  "baseline": "106c451aa993ab3d382dac4b4ad919293a154d39",
-  "sourceSpec": null
-}
