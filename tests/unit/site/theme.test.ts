@@ -4,6 +4,7 @@ import { contrastRatio, hue, hueDistance } from "../../../site/theme/contrast.js
 import {
   BRONZE,
   GOLD_TOKENS,
+  SYNTAX,
   THEMES,
   THEME_SELECTORS,
   TOKEN_ROLES,
@@ -60,6 +61,16 @@ describe.each(THEME_NAMES)("the %s theme", (name) => {
         expect(ratio, `${name} ${token} on ${background}`).toBeGreaterThanOrEqual(minimum ?? 0);
       }
     }
+  });
+
+  it("colours code readably on the code block's background, through Shiki's variables", () => {
+    const variables = declarations(themeCss(), THEME_SELECTORS[name]);
+    for (const [token, colour] of Object.entries(SYNTAX[name])) {
+      const ratio = contrastRatio(colour, theme.bg);
+      expect(ratio, `${name} ${token} on bg`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(variables.get("--shiki-token-keyword")).toBe(SYNTAX[name].keyword);
+    expect(variables.get("--shiki-token-string")).toBe(SYNTAX[name].string);
   });
 
   it("keeps the text on a gold fill at the running-text ratio", () => {
