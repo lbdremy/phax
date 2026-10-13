@@ -313,6 +313,10 @@ export {
   type BriefRecordV0_20_0,
 } from "../../../src/schemas/history/brief-record/0.20.0.js";
 export {
+  AuthoringRecordManifestV0_17_0Schema,
+  type AuthoringRecordManifestV0_17_0,
+} from "../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";

@@ -1,6 +1,7 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import { Backend } from "../ports/backend.js";
+import type { ClaudeSessionId } from "../domain/branded.js";
+import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
@@ -10,6 +11,7 @@ import {
   ArtifactCreationError,
   AuthoringDocumentError,
   type AgentInvocationError,
+  type AgentSessionIdMissingError,
   type RateLimitError,
   type SecurityEnforcementError,
   type UsageLimitError,
@@ -17,13 +19,21 @@ import {
 import { sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { formatStamp } from "../domain/artifact/name.js";
-import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
 import { AUTHORING_PROMPT_FILENAME, buildAuthoringPrompt } from "../domain/authoring/prompt.js";
+import {
+  RETRY_PROMPT_FILENAME,
+  RETRY_TRANSCRIPT_FILENAME,
+  buildRetryPrompt,
+  parseFinalMessageJson,
+  refusedTwiceMessage,
+  retryWarning,
+} from "../domain/authoring/retry.js";
 import { renderPlanBody } from "../domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../domain/authoring/renderSpec.js";
 import { EXTRACTOR_VERSION, planCacheKey } from "../domain/planCache/key.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
+import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
 import { formatFirstViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
@@ -56,7 +66,11 @@ import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
 import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
 import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 
-/** Files of an authoring session folder, `<stateRoot>/authoring/<authoringId>/`. */
+/**
+ * Files of an authoring session folder, `<stateRoot>/authoring/<authoringId>/`.
+ * A retried session also holds `retry-prompt.md` and `retry-output.jsonl`
+ * (`src/domain/authoring/retry.ts`); `output.jsonl` stays the first answer's.
+ */
 export const AUTHORING_BRIEF_FILENAME = "brief.md";
 export const AUTHORING_DOCUMENT_FILENAME = "document.json";
 export const AUTHORING_TRANSCRIPT_FILENAME = "output.jsonl";
@@ -133,6 +147,7 @@ export type AuthorArtifactError =
   | AuthoringDocumentError
   | ArtifactCommitFailedError
   | AgentInvocationError
+  | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
   | SecurityEnforcementError
@@ -167,44 +182,78 @@ export function authoringCommitMessage(input: {
   return { subject, body };
 }
 
-function documentError(kind: ArtifactKind, slug: string, reason: string): AuthoringDocumentError {
-  return new AuthoringDocumentError({
-    kind,
-    slug,
-    message: `${kind} document rejected — ${reason}`,
-  });
-}
-
 // The session's final message → a decoded document of the requested kind, or
-// the reason it is unusable (not JSON, or the first schema violation).
+// the refusal: why it is unusable (not JSON, with the parser's error and
+// position, or the first schema violation).
 function parseAuthoredDocument(
   kind: ArtifactKind,
-  slug: string,
   finalText: string,
-): Either.Either<AuthoredDocument, AuthoringDocumentError> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonDocumentText(finalText));
-  } catch {
-    return Either.left(
-      documentError(
-        kind,
-        slug,
-        `the session's final message is not JSON: ${finalText.slice(0, 200)}`,
-      ),
-    );
-  }
+): Either.Either<AuthoredDocument, string> {
+  const parsed = parseFinalMessageJson(finalText);
+  if (Either.isLeft(parsed)) return Either.left(parsed.left);
 
   if (kind === "spec") {
-    const decoded = decodeSpecDocument(parsed);
+    const decoded = decodeSpecDocument(parsed.right);
     return Either.isLeft(decoded)
-      ? Either.left(documentError(kind, slug, formatFirstViolation(decoded.left)))
+      ? Either.left(formatFirstViolation(decoded.left))
       : Either.right({ kind, doc: decoded.right });
   }
-  const decoded = decodePlanDocument(parsed);
+  const decoded = decodePlanDocument(parsed.right);
   return Either.isLeft(decoded)
-    ? Either.left(documentError(kind, slug, formatFirstViolation(decoded.left)))
+    ? Either.left(formatFirstViolation(decoded.left))
     : Either.right({ kind, doc: decoded.right });
+}
+
+/** What the record needs to know of the session once the agent has returned. */
+interface ObservedSession {
+  /** The first run's session id, so the record can locate a vibe session's usage. */
+  sessionId?: string;
+  /** The session id the retry reported, when it returned. */
+  retrySessionId?: string;
+  /** Set to `retried` before the resume runs, so even a failed resume records it. */
+  retry: AuthoringRecordRetry;
+}
+
+// A refused first answer gets one resume of the same session, with the same
+// provider, model, effort, cwd and security, asking for the whole document
+// again. The retry prompt is written beside prompt.md and the retry's
+// transcript goes to its own file: output.jsonl stays the first answer's. A
+// refused retry fails naming both refusals; an error from the resume itself
+// is re-raised as it is, and nothing is retried again.
+function retryRefusedDocument(
+  input: AuthorArtifactInput,
+  session: { readonly folder: string; readonly observed: ObservedSession },
+  sessionId: ClaudeSessionId,
+  options: AgentRunOptions,
+  firstRefusal: string,
+): Effect.Effect<AuthoredDocument, AuthorArtifactError, FileSystem | Backend> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const backend = yield* Backend;
+
+    session.observed.retry = "retried";
+    const retryPrompt = buildRetryPrompt(input.kind, firstRefusal);
+    yield* fs.writeAtomic(join(session.folder, RETRY_PROMPT_FILENAME), retryPrompt);
+    input.output.warn(retryWarning(input.kind, firstRefusal));
+
+    const retried = yield* backend.resumeAgentSession(sessionId, retryPrompt, {
+      ...options,
+      outputJsonlPath: join(session.folder, RETRY_TRANSCRIPT_FILENAME),
+    });
+    session.observed.retrySessionId = retried.sessionId;
+
+    const parsed = parseAuthoredDocument(input.kind, retried.finalText);
+    if (Either.isLeft(parsed)) {
+      return yield* Effect.fail(
+        new AuthoringDocumentError({
+          kind: input.kind,
+          slug: input.slug,
+          message: refusedTwiceMessage(input.kind, firstRefusal, parsed.left),
+        }),
+      );
+    }
+    return parsed.right;
+  });
 }
 
 // The document as phax persists it (the sidecar and the session's
@@ -232,9 +281,10 @@ function renderArtifact(
     : planSkeleton(targetLineage(target)) + renderPlanBody(authored.doc);
 }
 
-// Steps 3–7: spawn the session, accept its document, render, seed, write, commit.
-// Nothing reaches the repository before the document decodes; the two files are
-// left in place (uncommitted) only when the commit itself fails.
+// Steps 3–7: spawn the session, accept its document (resuming it once when
+// its first answer is refused), render, seed, write, commit. Nothing reaches
+// the repository before a document decodes; the two files are left in place
+// (uncommitted) only when the commit itself fails.
 function runAuthoringSession(
   input: AuthorArtifactInput,
   target: ArtifactTarget,
@@ -243,8 +293,7 @@ function runAuthoringSession(
     readonly folder: string;
     readonly prompt: string;
     readonly binding: SessionBinding;
-    /** Set once the agent returns, so the record can locate a vibe session's usage. */
-    readonly observed: { sessionId?: string };
+    readonly observed: ObservedSession;
   },
 ): Effect.Effect<
   Omit<AuthorArtifactResult, "record" | "recordPush">,
@@ -256,7 +305,7 @@ function runAuthoringSession(
     const git = yield* Git;
     const backend = yield* Backend;
 
-    const agentResult = yield* backend.runAgent(session.prompt, {
+    const options: AgentRunOptions = {
       provider: session.binding.provider,
       model: session.binding.model,
       effort: session.binding.effort,
@@ -268,28 +317,37 @@ function runAuthoringSession(
       }),
       outputJsonlPath: join(session.folder, AUTHORING_TRANSCRIPT_FILENAME),
       phaseFolderPath: session.folder,
-    });
+    };
+    const agentResult = yield* backend.runAgent(session.prompt, options);
     session.observed.sessionId = agentResult.sessionId;
 
-    const parsed = parseAuthoredDocument(input.kind, input.slug, agentResult.finalText);
-    if (Either.isLeft(parsed)) return yield* Effect.fail(parsed.left);
+    const firstAnswer = parseAuthoredDocument(input.kind, agentResult.finalText);
+    const accepted = Either.isRight(firstAnswer)
+      ? firstAnswer.right
+      : yield* retryRefusedDocument(
+          input,
+          session,
+          agentResult.sessionId,
+          options,
+          firstAnswer.left,
+        );
 
     // `--spec` and `--last`/`--not-last` are authoritative for a plan's lineage:
     // the frontmatter carries them, so the sidecar must agree with the
     // frontmatter whatever the session said.
     const lineage = targetLineage(target);
     const authored: AuthoredDocument =
-      parsed.right.kind === "plan"
+      accepted.kind === "plan"
         ? {
             kind: "plan",
             doc: {
-              ...parsed.right.doc,
+              ...accepted.doc,
               ...(lineage === null
                 ? { sourceSpec: null, completesSpec: null }
                 : { sourceSpec: lineage.path, completesSpec: lineage.completesSpec }),
             },
           }
-        : parsed.right;
+        : accepted;
 
     const sidecarText = encodeDocument(authored);
     yield* fs.writeAtomic(join(session.folder, AUTHORING_DOCUMENT_FILENAME), sidecarText);
@@ -353,9 +411,12 @@ function runAuthoringSession(
  * session under the read-only review posture rooted at the repository, accept a
  * schema-valid document as its final message, render the artifact with the
  * interactive frontmatter, write the JSON sidecar beside it, seed the extraction
- * cache for a plan, and commit exactly the two paths. Every session that ran —
- * committed or failed — then writes one authoring record on `phax/records/v1`,
- * pushed when `records.autoPush` is on.
+ * cache for a plan, and commit exactly the two paths. A refused first answer
+ * (not JSON, or refused by the document decoder) resumes the same session once,
+ * after a warning naming the refusal, to ask for the whole document again;
+ * provider errors, limits and commit failures are never retried. Every session
+ * that ran — committed or failed — then writes one authoring record on
+ * `phax/records/v1`, pushed when `records.autoPush` is on.
  *
  * Every refusal (the interactive path's, plus an existing sidecar) precedes the
  * session and records nothing; a document failure writes nothing to the
@@ -396,21 +457,22 @@ export function authorArtifact(
       model: input.resolution.selected.concreteModel,
       effort: input.resolution.selected.thinking ?? input.effort,
     };
-    const observed: { sessionId?: string } = {};
+    const observed: ObservedSession = { retry: "none" };
     const outcome = yield* Effect.either(
       runAuthoringSession(input, target, { authoringId, folder, prompt, binding, observed }),
     );
 
     // The session has ended, committed (Right) or failed (Left): record both,
     // the committed one after the artifact commit it points back to, before a
-    // failure is re-raised. `folder` holds brief.md, prompt.md, output.jsonl
-    // and, when the document was accepted, document.json.
+    // failure is re-raised. `folder` holds brief.md, prompt.md, output.jsonl,
+    // retry-prompt.md and retry-output.jsonl when the session was retried, and,
+    // when a document was accepted, document.json.
     const record = yield* recordSession(input, {
       authoringId,
       folder,
       artifact: target.path,
       binding,
-      sessionId: observed.sessionId,
+      observed,
       sourceSha: Either.isRight(outcome) ? outcome.right.commit.hash : undefined,
     });
     // A written record is shared like publish shares phase records.
@@ -448,11 +510,12 @@ function recordSession(
     readonly folder: string;
     readonly artifact: string;
     readonly binding: SessionBinding;
-    readonly sessionId: string | undefined;
+    readonly observed: ObservedSession;
     /** The artifact commit, or undefined when the session did not commit. */
     readonly sourceSha: string | undefined;
   },
 ): Effect.Effect<AuthoringRecordStatus, never, FileSystem | Git | GitHub> {
+  const { sessionId, retrySessionId, retry } = session.observed;
   return writeAuthoringRecord({
     repoRoot: input.repoRoot,
     recordsClonePath: input.recordsClonePath,
@@ -464,9 +527,11 @@ function recordSession(
     model: session.binding.model,
     effort: session.binding.effort,
     outcome: session.sourceSha === undefined ? "failed" : "committed",
+    retry,
     records: input.records,
     ...(session.sourceSha !== undefined ? { sourceSha: session.sourceSha } : {}),
-    ...(session.sessionId !== undefined ? { sessionId: session.sessionId } : {}),
+    ...(sessionId !== undefined ? { sessionId } : {}),
+    ...(retrySessionId !== undefined ? { retrySessionId } : {}),
   }).pipe(
     Effect.catchAll((e) => Effect.succeed({ kind: "write-failed", message: e.message } as const)),
   );

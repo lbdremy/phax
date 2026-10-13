@@ -236,7 +236,8 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
-- [ ] **The phase commit's `Gate-Log` trailer always names attempt 01.** Found 2026-10-10 while
+- [x] **The phase commit's `Gate-Log` trailer always names attempt 01.** (Shipped: the
+      small-fixes-0-23 spec.) Found 2026-10-10 while
       writing gate-attempt-records: `src/app/executePlan.ts` passes
       `checks-attempt-01.log` as the trailer's log whichever attempt passed. It should name the
       passing attempt's log.
@@ -254,7 +255,8 @@ cross-field checks registered by id so the build writes the same list into the s
       cut they run. Brief: `docs/briefs/open-next-release.md`. PR #127 (CI rehearses a cut in
       seconds; `release.sh` tests the cut before committing) catches the symptom meanwhile.
 
-- [ ] **The served schemas still say a stamp names the release that wrote the file.** Found
+- [x] **The served schemas still say a stamp names the release that wrote the file.**
+      (Shipped: the small-fixes-0-23 spec.) Found
       2026-10-09 reviewing the open-next-release run (PR #128): `schemaUrlField`'s description
       (`src/schemas/schemaUrl.ts`) reads "the phax release that wrote this file", is copied
       into every snapshot and served on docs.phax.run, and contradicts the README and
@@ -324,7 +326,8 @@ cross-field checks registered by id so the build writes the same list into the s
       deletes it. Until both are migrated, approve, `plans status`, `artifact status` and
       `phax run` refuse there with exit 12. louloupapers is unaffected: its `phax.json` is already
       refused (see *Housekeeping*).
-- [ ] **Headless authoring loses a whole session to one malformed JSON character.** Found
+- [x] **Headless authoring loses a whole session to one malformed JSON character.**
+      (Shipped: the small-fixes-0-23 spec.) Found
       2026-10-06: the first `drop-gate-scopes` authoring session (~7 min) ended with a
       22.9 KB document holding a stray code expression (`".replace("check s","checks")`) at char
       22 700, and phax refused it as "not JSON" with nothing written; the rerun succeeded. Fix:

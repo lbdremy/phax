@@ -805,6 +805,7 @@ describe("records explain and list (real git)", () => {
             model: "claude-opus-5-5",
             effort: "high",
             outcome: "committed",
+            retry: "none",
             records: IN_REPO_CONFIG,
             ...overrides,
           }),

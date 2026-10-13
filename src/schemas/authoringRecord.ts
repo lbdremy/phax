@@ -11,11 +11,21 @@ import { schemaUrlField } from "./schemaUrl.js";
 /**
  * An authoring session ends in one of two ways: its artifact commit landed, or
  * it did not (the agent failed, its document was rejected, or the commit
- * failed). There is no pause — a headless session is never resumed.
+ * failed). There is no pause: a headless session is resumed at most once, to
+ * retry a refused document, and never waits on a person.
  */
 export const AuthoringRecordOutcomeSchema = Schema.Literal("committed", "failed");
 
 export type AuthoringRecordOutcome = Schema.Schema.Type<typeof AuthoringRecordOutcomeSchema>;
+
+/**
+ * Whether the session was resumed to retry a refused document: `none` when
+ * its first answer was the only one, `retried` once the resume was attempted
+ * (even when the resume itself failed).
+ */
+export const AuthoringRecordRetrySchema = Schema.Literal("none", "retried");
+
+export type AuthoringRecordRetry = Schema.Schema.Type<typeof AuthoringRecordRetrySchema>;
 
 /**
  * The manifest (`record.json`) of one headless authoring session, keyed
@@ -36,6 +46,8 @@ const authoringRecordManifestFields = {
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
   outcome: AuthoringRecordOutcomeSchema,
+  retry: AuthoringRecordRetrySchema,
+  /** Every turn of the session: the first answer and, when retried, the retry. */
   usage: TokenUsageSchema,
 };
 

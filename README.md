@@ -222,7 +222,16 @@ commit a1b2c3d — docs(specs): draft greet
 record authoring/2610041200-greet
 ```
 
-`--model` and `--effort` choose the model, before `authoring.spec|plan` in `phax.json` and the catalog's default. The last line names the session's [record](#records). It exits 5 when the session's output is not a valid document, 8 on a provider rate or usage limit, and 12 when the slug, the brief or `--spec` is wrong. `phax artifact schema spec|plan` prints the document's JSON Schema. Headless authoring is experimental: the two document formats may still change.
+`--model` and `--effort` choose the model, before `authoring.spec|plan` in `phax.json` and the catalog's default. The last line names the session's [record](#records). It exits 5 when the session's output is not a valid document, 8 on a provider rate or usage limit, and 12 when the slug, the brief or `--spec` is wrong.
+
+A refused document, one that is not JSON or that the document's schema refuses, gets one retry: phax resumes the same session once, says what was refused, and asks for the whole document again. A warning names the refusal before the retry runs:
+
+```
+spec document refused — acceptanceCriteria[0].refs: is missing
+  resuming the session once to ask for the whole document again
+```
+
+A not-JSON refusal names the parser's error and the position where parsing failed. If the retry's document is refused too, the authoring fails with exit 5, naming both refusals, and nothing is written. Rate and usage limits, provider errors and a failed commit are never retried. The record's `retry` field says whether a retry ran (`none` or `retried`), and the record keeps the retry's prompt and transcript beside the first answer's. `phax artifact schema spec|plan` prints the document's JSON Schema. Headless authoring is experimental: the two document formats may still change.
 
 If you edit the Markdown of a headless document, edit its sidecar too: `phax artifact status` tells you whether the body is still the sidecar's rendering, and approving a document whose body has diverged is refused.
 

@@ -434,7 +434,10 @@ describe("format readers", () => {
   ])(
     "readRecordManifestFile reads both %s shapes to the same in-memory value",
     (id, label, file) => {
-      const { version: _version, ...expected } = preSchemaDocuments[id];
+      const { version: _version, ...recorded } = preSchemaDocuments[id];
+      // A pre-schema authoring session was never retried: it upgrades with retry none.
+      const expected =
+        id === "authoring-record-manifest" ? { ...recorded, retry: "none" } : recorded;
       const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
       const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
       expect(fromPreSchema).toEqual(expected);
@@ -590,7 +593,13 @@ describe("documents from another release", () => {
 
   it.each(table)("%s at the %s release", (id, _name, read, label, release, newer) => {
     const file = `/home/example/.phax/example/${id}.json`;
-    const result = read(file, withKey(validDocuments[id], "$schema", schemaUrl(id, release)));
+    // An authoring manifest stamped below its current stamp is read as the
+    // frozen 0.17.0 shape, which has no retry.
+    const document =
+      id === "authoring-record-manifest" && compareReleases(release, CURRENT_STAMPS[id]) < 0
+        ? withoutKey(validDocuments[id], "retry")
+        : validDocuments[id];
+    const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);
       return;

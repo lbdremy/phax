@@ -207,6 +207,13 @@ const RECORDS_IN_REPO: ResolvedRecordsConfig = {
   autoPush: false,
 };
 
+// The session answers `finalText`, and gives the same answer again if a
+// refused document resumes it (tests/integration/authorArtifactRetry.test.ts
+// covers a retry that answers differently).
+/** The refusal of the final message "not json", which several failure tests return. */
+const NOT_JSON_REFUSAL =
+  "the session's final message is not JSON (Unexpected token 'o' at position 1): not json";
+
 function setup(finalText?: string) {
   const fs = makeFakeFileSystem();
   const git = makeFakeGit();
@@ -216,6 +223,11 @@ function setup(finalText?: string) {
     backend.impl.addRunResponse({
       sessionId: "sess-authoring" as ClaudeSessionId,
       outputPath: `${SESSION_FOLDER}/output.jsonl`,
+      finalText,
+    });
+    backend.impl.addResumeResponse({
+      sessionId: "sess-authoring" as ClaudeSessionId,
+      outputPath: `${SESSION_FOLDER}/retry-output.jsonl`,
       finalText,
     });
   }
@@ -450,8 +462,10 @@ describe("authorArtifact — failures land nothing", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) return;
     expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    const refusal =
+      "the session's final message is not JSON (Unexpected token 'H' at position 0): Here is your spec: it is great.";
     expect(result.left.message).toBe(
-      "spec document rejected — the session's final message is not JSON: Here is your spec: it is great.",
+      `spec document rejected twice — first answer: ${refusal}; retry: ${refusal}`,
     );
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
@@ -470,7 +484,7 @@ describe("authorArtifact — failures land nothing", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) return;
     expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("spec document rejected — ");
+    expect(result.left.message).toContain("spec document rejected twice — ");
     expect(result.left.message).toContain("acceptanceCriteria[0].refs[0]");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
@@ -489,7 +503,7 @@ describe("authorArtifact — failures land nothing", () => {
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isRight(result)) return;
       expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-      expect(result.left.message).toContain("plan document rejected — ");
+      expect(result.left.message).toContain("plan document rejected twice — ");
       expect(result.left.message).toContain("completesSpec");
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
@@ -696,6 +710,7 @@ describe("authorArtifact — authoring record", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     expect(warnings).toEqual([
+      `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
       "authoring record not written — the dedicated records clone is not configured (run `phax records sync`)",
     ]);
   });
@@ -859,6 +874,7 @@ describe("authorArtifact — authoring record push", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     expect(warnings).toEqual([
+      `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
       `authoring record not pushed to ${PUBLISH_REMOTE} (network unreachable) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     ]);
   });

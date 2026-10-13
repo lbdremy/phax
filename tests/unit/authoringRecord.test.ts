@@ -1,5 +1,10 @@
-import { Either } from "effect";
+import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import {
+  parseAuthoringRecordManifest,
+  toLatestAuthoringRecordManifest,
+} from "../../packages/schemas/src/formats/recordManifests.js";
+import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
 import {
   decodeAuthoringRecordManifestFile,
   decodeRecordManifestFile,
@@ -7,8 +12,16 @@ import {
   isAuthoringRecordManifest,
   type AuthoringRecordManifest,
 } from "../../src/schemas/authoringRecord.js";
-import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { AuthoringRecordManifestV0_17_0Schema } from "../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+import {
+  currentSchemaUrl,
+  readRecordManifestFile,
+  withSchemaUrl,
+} from "../../src/schemas/persisted.js";
 import { UNAVAILABLE_TOKEN_USAGE } from "../../src/schemas/runRecord.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+
+const encodeV0_17_0 = Schema.encodeSync(AuthoringRecordManifestV0_17_0Schema);
 
 const inMemoryAuthoringManifest: AuthoringRecordManifest = {
   kind: "authoring",
@@ -21,6 +34,7 @@ const inMemoryAuthoringManifest: AuthoringRecordManifest = {
   model: "claude-opus-5-5",
   effort: "high",
   outcome: "committed",
+  retry: "none",
   usage: UNAVAILABLE_TOKEN_USAGE,
 };
 
@@ -127,5 +141,83 @@ describe("RecordManifestSchema (either kind)", () => {
     const { $schema: _schema, ...withoutSchema } = phaseManifest;
     expect(Either.isLeft(decodeRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
     expect(Either.isLeft(decodeRecordManifestFile(inMemoryAuthoringManifest))).toBe(true);
+  });
+});
+
+describe("the authoring manifest's retry", () => {
+  const FILE = "authoring/2609230835-plan-prune/record.json";
+
+  function readError(input: unknown): string {
+    const read = readRecordManifestFile(FILE, input);
+    if (Either.isRight(read)) throw new Error("expected the manifest to be refused");
+    return read.left.message;
+  }
+
+  it("takes exactly none or retried", () => {
+    for (const retry of ["none", "retried"] as const) {
+      const read = readRecordManifestFile(FILE, { ...authoringManifest, retry });
+      expect(Either.isRight(read) && read.right).toEqual({ ...inMemoryAuthoringManifest, retry });
+    }
+  });
+
+  it("is required at the current stamp: a manifest without it, or with another value, is refused naming retry", () => {
+    const { retry: _retry, ...withoutRetry } = authoringManifest;
+    expect(readError(withoutRetry)).toContain("retry");
+    expect(readError({ ...authoringManifest, retry: "maybe" })).toContain("retry");
+    expect(
+      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, retry: "maybe" })),
+    ).toBe(true);
+  });
+
+  // The frozen 0.17.0 module names its own release, as frozen-module tests do.
+  const v0_17_0 = encodeV0_17_0({
+    $schema: schemaUrl("authoring-record-manifest", "0.17.0"),
+    kind: "authoring",
+    authoringId: "2609230835-plan-prune",
+    artifact: "docs/specs/2609230835-plan-prune.md",
+    artifactKind: "spec",
+    shape: "skeleton",
+    provider: "codex-cli",
+    model: "gpt-5.5",
+    effort: "high",
+    outcome: "failed",
+    usage: { available: false },
+  });
+
+  it("a manifest stamped 0.17.0 is read by phax and upgraded with retry none", () => {
+    const { $schema: _schema, ...recorded } = v0_17_0;
+    const read = readRecordManifestFile(FILE, v0_17_0);
+    expect(Either.isRight(read) && read.right).toEqual({ ...recorded, retry: "none" });
+    // A 0.17.0 manifest never carried a retry: one that does is not that shape.
+    expect(Either.isLeft(readRecordManifestFile(FILE, { ...v0_17_0, retry: "none" }))).toBe(true);
+  });
+
+  it("a manifest stamped 0.17.0 is read by the package as its 0.17.0 shape and upgraded with retry none", () => {
+    const parsed = parseAuthoringRecordManifest(v0_17_0);
+    expect(parsed.ok && parsed.shape).toBe("0.17.0");
+    if (!parsed.ok) return;
+    const { $schema: _schema, ...recorded } = v0_17_0;
+    expect(toLatestAuthoringRecordManifest(parsed.value)).toEqual({ ...recorded, retry: "none" });
+  });
+
+  it("a pre-schema manifest is upgraded with retry none, by phax and by the package", () => {
+    const { $schema: _schema, retry: _retry, ...recorded } = authoringManifest;
+    const preSchema = { version: 1, ...recorded };
+    const read = readRecordManifestFile(FILE, preSchema);
+    expect(Either.isRight(read) && read.right).toEqual({ ...recorded, retry: "none" });
+    const parsed = parseAuthoringRecordManifest(preSchema);
+    expect(parsed.ok && toLatestAuthoringRecordManifest(parsed.value)).toEqual({
+      ...recorded,
+      retry: "none",
+    });
+  });
+
+  it("a manifest at the current stamp is the package's current shape and keeps its retry", () => {
+    const parsed = parseAuthoringRecordManifest({ ...authoringManifest, retry: "retried" });
+    expect(parsed.ok && parsed.shape).toBe(CURRENT_SHAPES["authoring-record-manifest"]);
+    expect(parsed.ok && toLatestAuthoringRecordManifest(parsed.value)).toEqual({
+      ...inMemoryAuthoringManifest,
+      retry: "retried",
+    });
   });
 });

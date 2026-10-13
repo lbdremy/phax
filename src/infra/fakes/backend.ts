@@ -62,12 +62,27 @@ export class FakeBackendImpl implements BackendOps {
    */
   private onRunAgent: ((prompt: string, options: AgentRunOptions) => void) | undefined;
 
+  /**
+   * When set, called synchronously at the start of every `resumeAgentSession`
+   * call, before any limit or response — lets a test play the provider writing
+   * the resume's transcript, or observe the world at the moment of the resume.
+   */
+  private onResumeAgent:
+    | ((sessionId: string, prompt: string, options: AgentRunOptions) => void)
+    | undefined;
+
   setAutoHandoffContent(content: string): void {
     this.autoHandoffContent = content;
   }
 
   setOnRunAgent(callback: (prompt: string, options: AgentRunOptions) => void): void {
     this.onRunAgent = callback;
+  }
+
+  setOnResumeAgent(
+    callback: (sessionId: string, prompt: string, options: AgentRunOptions) => void,
+  ): void {
+    this.onResumeAgent = callback;
   }
 
   addRunResponse(result: AgentRunResult): void {
@@ -162,6 +177,7 @@ export class FakeBackendImpl implements BackendOps {
   ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
     const callIndex = this.resumeCalls.length;
     this.resumeCalls.push({ sessionId, prompt, options });
+    this.onResumeAgent?.(sessionId, prompt, options);
     if (this.rateLimitAtResumeIndex === callIndex) {
       return Effect.fail(this.limitError(this.resumeAtIndexKnob));
     }

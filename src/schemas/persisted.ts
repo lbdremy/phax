@@ -1,6 +1,6 @@
 // The bridge between a persisted file and phax's in-memory value: the only
-// src/ module that imports the frozen pre-schema decoders under
-// src/schemas/history/, and, with each declaring module, the only one that
+// src/ module that imports the frozen decoders under src/schemas/history/,
+// and, with each declaring module, the only one that
 // names a file decoder. It is pure: callers read the bytes and parse the JSON,
 // and pass the file path only so it appears in messages. It never imports
 // packages/.
@@ -15,8 +15,11 @@
 // `defineFormat` does: a document with `$schema` is read only by phax's
 // current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape. A format born with `$schema` has no
-// pre-schema decoder, so a document of it without `$schema` is refused. On the
+// then stepped to the current shape. One format also reads an older `$schema`
+// shape: an authoring record manifest stamped below its current stamp is read
+// by the frozen 0.17.0 decoder, then stepped to the current shape, so the
+// records already on phax/records/v1 stay listed. A format born with `$schema`
+// has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
 // format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
 //
@@ -48,6 +51,7 @@ import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceR
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
+import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
@@ -577,18 +581,46 @@ function fromRecordManifestFile({ $schema: _schema, ...manifest }: RecordManifes
   return manifest;
 }
 
-// A pre-schema manifest carries every fact phax needs; an absent `sourceSha`
-// stays absent.
-const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) =>
-  readPersisted(input, {
+// An authoring manifest written before `retry` (pre-schema, or stamped below
+// the format's current stamp and read by the frozen 0.17.0 decoder) is
+// upgraded with `retry: "none"`: no phax before it ever resumed a headless
+// session. An absent `sourceSha` stays absent.
+const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("authoring-record-manifest", input)) {
+    const older = decodeAuthoringRecordManifestV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(
+        readError(file, "authoring-record-manifest", formatFirstViolation(older.left)),
+      );
+    }
+    const { $schema: _schema, ...manifest } = older.right;
+    return Either.right({ ...manifest, retry: "none" });
+  }
+  return readPersisted(input, {
     format: "authoring-record-manifest",
     label: "authoring record manifest",
     file,
     decodeCurrent: decodeRecordManifestFile,
     decodePreSchema: decodeAuthoringRecordManifestPreSchema,
     fromCurrent: fromRecordManifestFile,
-    fromPreSchema: ({ version: _version, ...manifest }) => Either.right(manifest),
+    fromPreSchema: ({ version: _version, ...manifest }) =>
+      Either.right({ ...manifest, retry: "none" }),
   });
+};
+
+/** Whether `input`'s own `$schema` names `format` at a release below its current stamp. */
+function isStampedBelowCurrent(
+  format: FormatId,
+  input: Readonly<Record<string, unknown>>,
+): boolean {
+  if (!Object.hasOwn(input, "$schema")) return false;
+  const named = parseSchemaUrl(input["$schema"]);
+  return (
+    named !== undefined &&
+    named.formatId === format &&
+    compareReleases(named.release, CURRENT_STAMPS[format]) < 0
+  );
+}
 
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) =>

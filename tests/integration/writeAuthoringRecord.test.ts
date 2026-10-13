@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -45,6 +45,31 @@ const CLAUDE_TRANSCRIPT = `${JSON.stringify({
   total_cost_usd: 0.12,
 })}\n`;
 
+// The retry's own invocation: Claude reports each invocation's usage on its own.
+const CLAUDE_RETRY_TRANSCRIPT = `${JSON.stringify({
+  type: "result",
+  result: "{}",
+  usage: {
+    input_tokens: 800,
+    cache_creation_input_tokens: 50,
+    cache_read_input_tokens: 2000,
+    output_tokens: 600,
+  },
+  total_cost_usd: 0.05,
+})}\n`;
+
+function codexTranscript(input: number, cached: number, output: number, reasoning: number): string {
+  return `${JSON.stringify({
+    type: "turn.completed",
+    usage: {
+      input_tokens: input,
+      cached_input_tokens: cached,
+      output_tokens: output,
+      reasoning_output_tokens: reasoning,
+    },
+  })}\n`;
+}
+
 describe("writeAuthoringRecord (real git)", () => {
   let repoDir: string;
   let sessionFolder: string;
@@ -87,6 +112,7 @@ describe("writeAuthoringRecord (real git)", () => {
       model: "claude-opus-5-5",
       effort: "high",
       outcome: "committed",
+      retry: "none",
       records: inRepoConfig(true),
       ...overrides,
     };
@@ -144,6 +170,7 @@ describe("writeAuthoringRecord (real git)", () => {
       model: "claude-opus-5-5",
       effort: "high",
       outcome: "committed",
+      retry: "none",
       usage: {
         available: true,
         usage: {
@@ -225,6 +252,182 @@ describe("writeAuthoringRecord (real git)", () => {
 
     expect(result).toMatchObject({ kind: "refused", reason: "public-source-in-repo" });
     expect(git(["show-ref"], repoDir)).not.toContain(RECORDS_BRANCH_NAME);
+  });
+
+  it("a retried committed session carries both transcripts and the retry prompt, and sums both turns", async () => {
+    await seedSession({
+      "brief.md": "b\n",
+      "prompt.md": "p\n",
+      "document.json": '{"kind":"spec"}\n',
+      "output.jsonl": CLAUDE_TRANSCRIPT,
+      "retry-prompt.md": "Your final message was refused, and phax wrote nothing.\n",
+      "retry-output.jsonl": CLAUDE_RETRY_TRANSCRIPT,
+    });
+
+    const result = await run(baseInput({ retry: "retried" }));
+
+    expect(result).toMatchObject({ kind: "written", shape: "full", fileCount: 7 });
+    expect(lsRecords()).toEqual([
+      `${KEY}/brief.md`,
+      `${KEY}/document.json`,
+      `${KEY}/output.jsonl`,
+      `${KEY}/prompt.md`,
+      `${KEY}/record.json`,
+      `${KEY}/retry-output.jsonl`,
+      `${KEY}/retry-prompt.md`,
+    ]);
+    const manifest = readManifest() as Record<string, unknown>;
+    expect(manifest["retry"]).toBe("retried");
+    expect(manifest["usage"]).toEqual({
+      available: true,
+      usage: {
+        provider: "claude-code",
+        inputTokens: 1200 + 800,
+        cacheCreationInputTokens: 0 + 50,
+        cacheReadInputTokens: 300 + 2000,
+        outputTokens: 450 + 600,
+        totalCostUsd: 0.12 + 0.05,
+      },
+    });
+  });
+
+  it("with transcripts off, neither transcript is carried; the retry prompt still is", async () => {
+    await seedSession({
+      "brief.md": "b\n",
+      "prompt.md": "p\n",
+      "output.jsonl": CLAUDE_TRANSCRIPT,
+      "retry-prompt.md": "r\n",
+      "retry-output.jsonl": CLAUDE_RETRY_TRANSCRIPT,
+    });
+
+    await run(baseInput({ retry: "retried", records: inRepoConfig(false) }));
+
+    expect(lsRecords()).toEqual([
+      `${KEY}/brief.md`,
+      `${KEY}/prompt.md`,
+      `${KEY}/record.json`,
+      `${KEY}/retry-prompt.md`,
+    ]);
+    const manifest = readManifest() as Record<string, unknown>;
+    expect(manifest["shape"]).toBe("skeleton");
+    // Usage is read from the transcripts whether or not the record carries them.
+    expect(manifest["usage"]).toMatchObject({ available: true });
+  });
+
+  it("a retried session whose retry left no usage reports usage unavailable, not the first turn's", async () => {
+    await seedSession({
+      "brief.md": "b\n",
+      "prompt.md": "p\n",
+      "output.jsonl": CLAUDE_TRANSCRIPT,
+      "retry-prompt.md": "r\n",
+    });
+
+    await run(baseInput({ outcome: "failed", retry: "retried" }));
+
+    const manifest = readManifest() as Record<string, unknown>;
+    expect(manifest["retry"]).toBe("retried");
+    expect(manifest["usage"]).toEqual({ available: false });
+  });
+
+  it("codex: both turns' usage is summed field by field", async () => {
+    await seedSession({
+      "brief.md": "b\n",
+      "prompt.md": "p\n",
+      "output.jsonl": codexTranscript(1000, 100, 200, 50),
+      "retry-prompt.md": "r\n",
+      "retry-output.jsonl": codexTranscript(500, 400, 300, 20),
+    });
+
+    await run(baseInput({ provider: "codex-cli", retry: "retried" }));
+
+    expect((readManifest() as Record<string, unknown>)["usage"]).toEqual({
+      available: true,
+      usage: {
+        provider: "codex-cli",
+        inputTokens: 1500,
+        cachedInputTokens: 500,
+        outputTokens: 500,
+        reasoningOutputTokens: 70,
+      },
+    });
+  });
+
+  describe("vibe: each distinct session id counted once", () => {
+    let vibeHome: string;
+
+    beforeEach(() => {
+      vibeHome = mkdtempSync(join(tmpdir(), "phax-authoring-record-vibe-"));
+    });
+
+    afterEach(() => {
+      removeTempDir(vibeHome);
+    });
+
+    async function seedVibeSession(sessionId: string, promptTokens: number): Promise<void> {
+      const dir = join(vibeHome, "logs", "session", `session_${sessionId}`);
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, "meta.json"),
+        JSON.stringify({
+          session_id: sessionId,
+          stats: {
+            session_prompt_tokens: promptTokens,
+            session_completion_tokens: 10,
+            session_cost: 0.01,
+            tool_calls_agreed: 1,
+            tool_calls_rejected: 0,
+            tool_calls_failed: 0,
+            tool_calls_succeeded: 1,
+          },
+        }),
+      );
+    }
+
+    it("a resume that kept the session id is counted once", async () => {
+      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
+      await seedVibeSession("vibe-1", 3000);
+
+      await run(
+        baseInput({
+          provider: "mistral-vibe",
+          retry: "retried",
+          sessionId: "vibe-1",
+          retrySessionId: "vibe-1",
+          vibeHome,
+        }),
+      );
+
+      expect((readManifest() as Record<string, unknown>)["usage"]).toMatchObject({
+        available: true,
+        usage: { provider: "mistral-vibe", inputTokens: 3000, outputTokens: 10 },
+      });
+    });
+
+    it("a resume under a new session id adds that session's usage", async () => {
+      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
+      await seedVibeSession("vibe-1", 3000);
+      await seedVibeSession("vibe-2", 700);
+
+      await run(
+        baseInput({
+          provider: "mistral-vibe",
+          retry: "retried",
+          sessionId: "vibe-1",
+          retrySessionId: "vibe-2",
+          vibeHome,
+        }),
+      );
+
+      expect((readManifest() as Record<string, unknown>)["usage"]).toMatchObject({
+        available: true,
+        usage: {
+          provider: "mistral-vibe",
+          inputTokens: 3700,
+          outputTokens: 20,
+          toolCallsAgreed: 2,
+        },
+      });
+    });
   });
 
   it("leaves the source repo's working tree and index unchanged", async () => {

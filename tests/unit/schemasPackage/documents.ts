@@ -544,7 +544,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "authoring-record-manifest": encoded(
     AuthoringRecordManifestFileSchema,
-    withSchemaUrl("authoring-record-manifest", stepped(authoringRecordManifest)),
+    withSchemaUrl("authoring-record-manifest", {
+      ...stepped(authoringRecordManifest),
+      retry: "none",
+    }),
   ),
   "gate-attribution": encoded(
     GateAttributionFileSchema,
