@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610131345-small-fixes-0-23.md
 completes-spec: true
 approved:
