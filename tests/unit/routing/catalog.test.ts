@@ -47,6 +47,7 @@ describe("familyOfId", () => {
     expect(familyOfId("claude-sonnet-5-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-sonnet");
     expect(familyOfId("claude-opus-4-8", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
     expect(familyOfId("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toBe("claude-haiku");
+    expect(familyOfId("claude-haiku-5-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-haiku");
     expect(familyOfId("claude-fable-5-1", DEFAULT_PROVIDER_CONFIG)).toBe("claude-fable");
     expect(familyOfId("claude-opus-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
     expect(familyOfId("claude-opus-5-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
@@ -231,6 +232,29 @@ describe("equivalentFor (star lookup)", () => {
     );
     expect(sub?.id).toBe("claude-sonnet-4-6");
     expect(sub?.effort).toBe("medium");
+    expect(sub?.relation).toBe("equivalent");
+  });
+
+  it("claude-haiku-5-5 has no Codex or Vibe spoke at any effort", () => {
+    for (const effort of ["low", "medium", "high", "xhigh", "max", "ultracode"] as const) {
+      for (const family of ["openai-gpt", "mistral-medium"] as const) {
+        expect(
+          equivalentFor("claude-haiku-5-5", effort, family, routing, DEFAULT_PROVIDER_CONFIG),
+        ).toBeUndefined();
+      }
+    }
+  });
+
+  it("spoke → hub: the Vibe off alias still anchors claude-haiku-4-5-20251001 at none", () => {
+    const sub = equivalentFor(
+      "phax-mistral-medium-3.5-off",
+      "off",
+      "claude-haiku",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-haiku-4-5-20251001");
+    expect(sub?.effort).toBe("none");
     expect(sub?.relation).toBe("equivalent");
   });
 

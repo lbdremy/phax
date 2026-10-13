@@ -33,7 +33,8 @@ Efforts are per entry, never per family. Status `active` unless stated.
 
 | Id                          | Family          | Efforts                                          | Read from                                                                                              | Since                    |
 | --------------------------- | --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------ |
-| `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code; still the newest Haiku (`latest_per_family.haiku`)                    | initial catalog          |
+| `claude-haiku-5-5`          | `claude-haiku`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.296 table, `effort` + `xhigh_effort` + `max_effort` + `adaptive_thinking` + `rejects_disabled_thinking` (no `none`), `default_effort: medium`, `fallback_3p: claude-haiku-4-5`, 1M context (`native_1m`), 128k max output, no `effort_cost_index`; released 2026-10-07; no dated variant | 2026-10-13 refresh |
+| `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code. Kept `active` on purpose: Claude Code 2.1.296 still serves it and Mistral Vibe's `off` alias anchors to it at `none`, an effort Haiku 5.5 does not offer | initial catalog; kept active 2026-10-13 |
 | `claude-sonnet-5-5`         | `claude-sonnet` | `low medium high xhigh max ultracode`            | Claude Code 2.1.289 table, `xhigh_effort` + `max_effort`, `pricing: tier_2_10`, `default_effort: medium`, `fallback_3p: claude-sonnet-5`, 1M context, 128k max output; released 2026-09-28; no dated variant | 2026-10-05 refresh |
 | `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only. Kept `active` on purpose: Claude Code 2.1.289 still serves it, Anthropic lists it as Legacy (still available) with no deprecation date, AA now lists it deprecated, and it anchors GPT-6 Luna. | `0667c17`; ultracode 2026-09-07 refresh; kept active 2026-10-05 |
 | `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
@@ -44,10 +45,18 @@ Efforts are per entry, never per family. Status `active` unless stated.
 | `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added in the 2026-09-07 refresh                                                                | `0667c17`; ultracode 2026-09-07 refresh |
 
 Order inside a family is newest first: `pickActiveEntry` resolves an alias
-(`opus`, `sonnet`, `fable`, `gpt`, …) or any id it doesn't recognize to the
-first active entry, so the first entry is the family's current model. `opus`
-now resolves to `claude-opus-5-5`, `sonnet` to `claude-sonnet-5-5` and `fable`
-to `claude-fable-5-1`. Adding a version means prepending it, never appending.
+(`opus`, `sonnet`, `fable`, `haiku`, `gpt`, …) or any id it doesn't recognize
+to the first active entry, so the first entry is the family's current model.
+`opus` now resolves to `claude-opus-5-5`, `sonnet` to `claude-sonnet-5-5`,
+`fable` to `claude-fable-5-1` and `haiku` to `claude-haiku-5-5`. Adding a
+version means prepending it, never appending.
+
+Haiku 5.5 has no `none` effort, so a `haiku` request at `none` resolves to
+`claude-haiku-5-5` at `low` (`equivalent`): `nearestSupportedEffort` clamps to
+the nearest effort, ties going to the lower one. The undated `claude-haiku-4-5`
+(Claude Code's `fallback_3p` for Haiku 5.5) is not a catalog id, so the
+heuristic resolves it to Haiku 5.5 as well. To get Haiku 4.5 at `none`, name
+`claude-haiku-4-5-20251001`.
 
 ### codex-cli
 

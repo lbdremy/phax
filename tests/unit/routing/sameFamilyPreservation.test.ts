@@ -87,6 +87,36 @@ describe("same-family passthrough preserves Opus for opus requests", () => {
   });
 });
 
+describe("claude-haiku-5-5 stays Claude-only", () => {
+  const efforts = ["low", "medium", "high", "xhigh", "max", "ultracode"] as const;
+
+  for (const [name, routing] of [
+    ["mistral", mistralPriority],
+    ["codex", codexPriority],
+  ] as const) {
+    it(`every effort stays on claude-code with ${name} priority and all providers enabled`, () => {
+      for (const effort of efforts) {
+        const result = resolveModel({ model: "claude-haiku-5-5", effort }, routing, allEnabled);
+        expect(result.selected.provider).toBe("claude-code");
+        expect(result.selected.family).toBe("claude-haiku");
+        expect(result.selected.concreteModel).toBe("claude-haiku-5-5");
+        expect(result.selected.thinking).toBe(effort);
+        expect(result.relationship).toBe("exact");
+      }
+    });
+  }
+
+  it("claude-haiku-4-5-20251001/none still routes to the Vibe off alias", () => {
+    const result = resolveModel(
+      { model: "claude-haiku-4-5-20251001", effort: "none" },
+      mistralPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("mistral-vibe");
+    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-off");
+  });
+});
+
 describe("opus/ultracode has no default spoke equivalent", () => {
   it("resolves to claude-code/claude-opus/ultracode with mistral priority enabled", () => {
     const result = resolveModel(

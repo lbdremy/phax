@@ -262,6 +262,63 @@ describe("resolveModel — alias resolution picks the newest-first entry", () =>
     expect(result.relationship).toBe("exact");
   });
 
+  it("haiku/medium resolves to claude-haiku-5-5 via requestedModelNormalization", () => {
+    const result = resolveModel(
+      { model: "haiku", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-haiku");
+    expect(result.selected.concreteModel).toBe("claude-haiku-5-5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("haiku/none clamps to claude-haiku-5-5 at low (Haiku 5.5 has no none)", () => {
+    const result = resolveModel(
+      { model: "haiku", effort: "none" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.concreteModel).toBe("claude-haiku-5-5");
+    expect(result.selected.thinking).toBe("low");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("claude-haiku-5-5/low resolves exactly", () => {
+    const result = resolveModel(
+      { model: "claude-haiku-5-5", effort: "low" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.concreteModel).toBe("claude-haiku-5-5");
+    expect(result.selected.thinking).toBe("low");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-haiku-4-5-20251001/none keeps its own exact resolution after Haiku 5.5 is added", () => {
+    const result = resolveModel(
+      { model: "claude-haiku-4-5-20251001", effort: "none" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.concreteModel).toBe("claude-haiku-4-5-20251001");
+    expect(result.selected.thinking).toBe("none");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("the undated claude-haiku-4-5/none resolves by heuristic to claude-haiku-5-5 at low", () => {
+    const result = resolveModel(
+      { model: "claude-haiku-4-5", effort: "none" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.concreteModel).toBe("claude-haiku-5-5");
+    expect(result.selected.thinking).toBe("low");
+    expect(result.relationship).toBe("equivalent");
+  });
+
   it("fable/high resolves to claude-fable-5-1 via requestedModelNormalization", () => {
     const result = resolveModel(
       { model: "fable", effort: "high" },

@@ -377,6 +377,7 @@ Each entry below is a versioned model id from the provider catalog with its effo
 <!-- BEGIN generated: model-catalog -->
 | ID | Family | Status | Efforts |
 | --- | --- | --- | --- |
+| `claude-haiku-5-5` | `claude-haiku` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `claude-haiku-4-5-20251001` | `claude-haiku` | active | `none` |
 | `claude-sonnet-5-5` | `claude-sonnet` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `claude-sonnet-5` | `claude-sonnet` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
