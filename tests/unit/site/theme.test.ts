@@ -62,6 +62,11 @@ describe.each(THEME_NAMES)("the %s theme", (name) => {
     }
   });
 
+  it("keeps the text on a gold fill at the running-text ratio", () => {
+    const ratio = contrastRatio(theme.fillText, theme.fill);
+    expect(ratio, `${name} fillText on fill`).toBeGreaterThanOrEqual(MINIMUM["running text"] ?? 0);
+  });
+
   it("warns in a hue at least 20° from every gold token, never in gold", () => {
     expect(GOLD_TOKENS).not.toContain(theme.warning);
     for (const gold of GOLD_TOKENS) {

@@ -55,12 +55,12 @@
 }
 
 .phax-path__step--phase rect {
-  fill: var(--rp-c-brand);
+  fill: var(--phax-c-fill);
   stroke: none;
 }
 
 .phax-path__step--phase text {
-  fill: var(--rp-c-bg);
+  fill: var(--phax-c-fill-text);
 }
 
 .phax-path__step--check rect {
@@ -171,6 +171,12 @@
  */
 .rp-home-hero__action.rp-button--big {
   padding-inline: 28px;
+}
+
+/* The primary button is a gold surface: the fill, with dark text on it. */
+.rp-home-hero__action.rp-button--brand {
+  background: var(--phax-c-fill);
+  color: var(--phax-c-fill-text);
 }
 
 /* The install command above the hero's actions (InstallCommand.tsx). */
