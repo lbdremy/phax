@@ -1,6 +1,9 @@
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { publishRun } from "../../src/app/publishRun.js";
+import { generateReviewHandoff } from "../../src/app/reviewHandoff.js";
+import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -8,6 +11,8 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
+import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -60,20 +65,72 @@ function setupLayers() {
   return { fs, git, github, layers };
 }
 
+function runStatusJson(planRepoRelPath?: string): string {
+  return JSON.stringify(
+    withSchemaUrl("run-status", {
+      namespace: "test-project",
+      shortName,
+      runId: "test-run-999",
+      state: "review_open",
+      createdAt: now,
+      updatedAt: now,
+      phasesCount: 1,
+      ...(planRepoRelPath !== undefined ? { planRepoRelPath } : {}),
+    }),
+  );
+}
+
 function seedSuccessPreconditions(args: {
   fs: ReturnType<typeof makeFakeFileSystem>;
   git: ReturnType<typeof makeFakeGit>;
   handoffMd?: string;
+  planRepoRelPath?: string;
 }) {
   args.fs.impl.setFile(
     `${runPath}/review-handoff.md`,
     args.handoffMd ?? "# Review Handoff\n\nSentinel content.",
   );
+  args.fs.impl.setFile(`${runPath}/run-status.json`, runStatusJson(args.planRepoRelPath));
   args.git.impl.addExistingBranch(finalBranch);
   args.git.impl.addExistingRemote("origin");
 }
 
 const constNow = () => now;
+
+const complianceReviewJson = JSON.stringify({
+  $schema: currentSchemaUrl("compliance-review"),
+  verdict: "conformant-with-deviations",
+  summary: "Mostly as planned.",
+  perPhase: [
+    {
+      phaseId: "phase-01",
+      verdict: "conformant-with-deviations",
+      findings: [
+        {
+          dimension: "files",
+          severity: "deviation",
+          message: "The greeting module was added without a planned entry",
+        },
+      ],
+    },
+  ],
+  attentionPoints: ["Check the greeting fallback in phase-01"],
+  pointers: ["src/greet.ts line 12"],
+});
+
+function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
+  return {
+    phaseId,
+    phaseIndex,
+    state: "committed",
+    model: "claude-opus-5-5",
+    effort: "medium",
+    branchName: `feature/test-run--${phaseId}` as BranchName,
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 describe("publishRun", () => {
   it("attempts publication even when publish.auto is false (flag no longer gates manual publish)", async () => {
@@ -299,13 +356,10 @@ describe("publishRun", () => {
     expect(github.impl.calls.some((c) => c.method === "createPullRequest")).toBe(false);
   });
 
-  it("includes compliance section in PR body when compliance-review.md exists, before phase details", async () => {
-    const { fs, git, github, layers } = setupLayers();
+  it("carries the compliance verdict and attention points from compliance-review.json, never a finding", async () => {
+    const { fs, git, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
-    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
-
-    const complianceMd = "## Verdict\n\nconformant\n\nAll phases passed.";
-    fs.impl.setFile(`${runPath}/compliance-review.md`, complianceMd);
+    fs.impl.setFile(`${runPath}/compliance-review.json`, complianceReviewJson);
 
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
@@ -313,20 +367,19 @@ describe("publishRun", () => {
       ),
     );
 
-    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
-    expect(prBodyFile).toBeDefined();
-    expect(prBodyFile).toContain("## Plan compliance review");
-    expect(prBodyFile).toContain(complianceMd);
-    const complianceIdx = prBodyFile!.indexOf("## Plan compliance review");
-    const phaseDetailsIdx = prBodyFile!.indexOf("## Phase details");
-    expect(complianceIdx).toBeGreaterThanOrEqual(0);
-    expect(phaseDetailsIdx).toBeGreaterThan(complianceIdx);
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).toContain("**Compliance** conformant-with-deviations");
+    expect(body).toContain("### Compliance attention points");
+    expect(body).toContain("- Check the greeting fallback in phase-01");
+    expect(body).not.toContain("The greeting module was added without a planned entry");
+    expect(body).not.toContain("Mostly as planned.");
+    expect(body).not.toContain("## Plan compliance review");
+    expect(body).not.toContain("## Phase details");
   });
 
-  it("PR body is unchanged when compliance-review.md is absent", async () => {
-    const { fs, git, github, layers } = setupLayers();
+  it("says not reviewed when compliance-review.json is absent", async () => {
+    const { fs, git, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
-    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
 
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
@@ -334,15 +387,14 @@ describe("publishRun", () => {
       ),
     );
 
-    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
-    expect(prBodyFile).toBeDefined();
-    expect(prBodyFile).not.toContain("## Plan compliance review");
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).toContain("**Compliance** not reviewed");
+    expect(body).not.toContain("### Compliance attention points");
   });
 
-  it("states the source-spec outcome in the PR body when source-spec-outcome.md exists", async () => {
-    const { fs, git, github, layers } = setupLayers();
+  it("states the source-spec outcome in the summary when source-spec-outcome.md exists", async () => {
+    const { fs, git, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
-    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
 
     const outcome =
       "`docs/specs/2609101270-demo.md` — kept: this plan does not complete it (completes-spec: false)";
@@ -354,15 +406,14 @@ describe("publishRun", () => {
       ),
     );
 
-    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
-    expect(prBodyFile).toBeDefined();
-    expect(prBodyFile).toContain(`## Source spec\n\n${outcome}\n`);
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).toContain(`**Spec** ${outcome}`);
+    expect(body).not.toContain("## Source spec");
   });
 
-  it("PR body has no Source spec section when source-spec-outcome.md is absent", async () => {
-    const { fs, git, github, layers } = setupLayers();
+  it("has no spec line when source-spec-outcome.md is absent", async () => {
+    const { fs, git, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
-    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
 
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
@@ -370,8 +421,176 @@ describe("publishRun", () => {
       ),
     );
 
-    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
-    expect(prBodyFile).toBeDefined();
-    expect(prBodyFile).not.toContain("## Source spec");
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).not.toContain("**Spec**");
+  });
+
+  it("gives gh pr create the persisted pr-body.md, written before the call", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    let bodyAtCreate: string | undefined;
+    const create = github.impl.createPullRequest.bind(github.impl);
+    github.impl.createPullRequest = (input) => {
+      bodyAtCreate = fs.impl.getFile(input.bodyFile);
+      return create(input);
+    };
+
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const created = github.impl.calls.find(
+      (c): c is Extract<(typeof github.impl.calls)[number], { method: "createPullRequest" }> =>
+        c.method === "createPullRequest",
+    );
+    expect(created?.bodyFile).toBe(`${runPath}/pr-body.md`);
+    expect(bodyAtCreate).toBeDefined();
+    expect(bodyAtCreate).toBe(fs.impl.getFile(`${runPath}/pr-body.md`));
+    expect(bodyAtCreate).not.toMatch(/^# /m);
+  });
+
+  it("points to review-handoff.md under ~ when the home directory holds the run folder", async () => {
+    const { fs, git, layers } = setupLayers();
+    const homeDir = "/home/ada";
+    const homeRunPath = `${homeDir}/.phax/runs/test-project.test-run`;
+    fs.impl.setFile(`${homeRunPath}/review-handoff.md`, "# Review Handoff\n");
+    fs.impl.setFile(`${homeRunPath}/run-status.json`, runStatusJson());
+    git.impl.addExistingBranch(finalBranch);
+    git.impl.addExistingRemote("origin");
+
+    await Effect.runPromise(
+      publishRun(makeInfo({ runPath: homeRunPath }), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        homeDir,
+      }).pipe(Effect.provide(layers)),
+    );
+
+    const body = fs.impl.getFile(`${homeRunPath}/pr-body.md`)!;
+    expect(body).toContain("`~/.phax/runs/test-project.test-run/review-handoff.md`");
+    expect(body).toContain("phax review-handoff test-run");
+    expect(body).not.toContain(homeDir);
+    expect(body).not.toMatch(/branch/i);
+  });
+
+  it("names phax records explain only when records are enabled", async () => {
+    const records: ResolvedRecordsConfig = {
+      enabled: true,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    };
+    for (const [opts, expected] of [
+      [{ records }, true],
+      [{ records: { ...records, enabled: false } }, false],
+      [{}, false],
+    ] as const) {
+      const { fs, git, layers } = setupLayers();
+      seedSuccessPreconditions({ fs, git });
+
+      await Effect.runPromise(
+        publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow, ...opts }).pipe(
+          Effect.provide(layers),
+        ),
+      );
+
+      const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+      expect(body.includes("phax records explain")).toBe(expected);
+    }
+  });
+
+  it("names the plan path from run-status.json, or a loose plan without one", async () => {
+    for (const [planRepoRelPath, expected] of [
+      [
+        "docs/plans/2610101200-greet-cli-plan.md",
+        "**Plan** `docs/plans/2610101200-greet-cli-plan.md`",
+      ],
+      [undefined, "**Plan** loose plan"],
+    ] as const) {
+      const { fs, git, layers } = setupLayers();
+      seedSuccessPreconditions({
+        fs,
+        git,
+        ...(planRepoRelPath !== undefined ? { planRepoRelPath } : {}),
+      });
+
+      await Effect.runPromise(
+        publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+          Effect.provide(layers),
+        ),
+      );
+
+      expect(fs.impl.getFile(`${runPath}/pr-body.md`)).toContain(expected);
+    }
+  });
+
+  it("fails publication without creating a PR when run-status.json is unreadable", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    fs.impl.setFile(`${runPath}/run-status.json`, "{ not json");
+
+    const result = await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    expect(result.kind).toBe("failed");
+    expect(result.record?.prStatus).toBe("failed");
+    expect(github.impl.calls.some((c) => c.method === "createPullRequest")).toBe(false);
+  });
+
+  it("leaves review-handoff.md with its phase details and global file reconciliation", async () => {
+    const { fs, git, layers } = setupLayers();
+    const info = makeInfo({
+      phaseStatuses: [makePhaseStatus("phase-01", 0)],
+      planPhases: [{ id: "phase-01", title: "Greeting" }],
+    });
+    fs.impl.setFile(
+      `${runPath}/phase-01/file-reconciliation.json`,
+      JSON.stringify(
+        encodePhaseFileReconciliation({
+          phaseId: "phase-01",
+          createdAsPlanned: ["src/greet.ts"],
+          editedAsPlanned: [],
+          missingPlannedCreate: [],
+          missingPlannedEdit: [],
+          createdButPlannedEdit: [],
+          editedButPlannedCreate: [],
+          unplannedCreated: ["src/colors.ts"],
+          unplannedEdited: [],
+          optionalTouched: [],
+          deletions: [],
+          renames: [],
+          hasDeviations: true,
+        }),
+      ),
+    );
+    fs.impl.setFile(`${runPath}/phase-01/file-reconciliation.md`, "Greeting reconciliation.");
+    fs.impl.setFile(`${runPath}/phase-01/phase-handoff.md`, "Greeting handoff.");
+    fs.impl.setFile(`${runPath}/run-status.json`, runStatusJson());
+    git.impl.addExistingBranch(finalBranch);
+    git.impl.addExistingRemote("origin");
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    await Effect.runPromise(
+      publishRun(info, defaultConfig(), { repoRoot, now: constNow }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = fs.impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).toContain("## Phase details");
+    expect(handoff).toContain("#### File reconciliation\n\nGreeting reconciliation.");
+    expect(handoff).toContain("#### Phase handoff\n\nGreeting handoff.");
+    expect(handoff).toContain("## Global File Reconciliation");
+
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).toContain("- `phase-01` Greeting — not reviewed · 1 deviation, 1 unexplained");
+    expect(body).not.toContain("## Phase details");
+    expect(body).not.toContain("Global File Reconciliation");
+    expect(body).not.toContain("Greeting handoff.");
   });
 });
