@@ -143,6 +143,36 @@
   }
 }
 
+/*
+ * The hero's hierarchy: the promise leads, and the name, already beside the
+ * logo in the nav, sits above it in gold at a third of its size.
+ */
+.rp-home-hero:has(.phax-run) .rp-home-hero__title {
+  font-size: 1.75rem;
+}
+
+.rp-home-hero:has(.phax-run) .rp-home-hero__subtitle {
+  font-size: 3.5rem;
+}
+
+@media (max-width: 600px) {
+  .rp-home-hero:has(.phax-run) .rp-home-hero__title {
+    font-size: 1.5rem;
+  }
+
+  .rp-home-hero:has(.phax-run) .rp-home-hero__subtitle {
+    font-size: 2.25rem;
+  }
+}
+
+/*
+ * Rspress's big buttons have a 142px minimum width and no side padding, so a
+ * label longer than that touches the edges: both get the same padding.
+ */
+.rp-home-hero__action.rp-button--big {
+  padding-inline: 28px;
+}
+
 /* The install command above the hero's actions (InstallCommand.tsx). */
 .phax-install {
   display: inline-flex;
