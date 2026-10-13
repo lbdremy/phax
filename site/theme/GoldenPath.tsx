@@ -27,8 +27,8 @@ const STEPS: ReadonlyArray<Step> = [
 ];
 
 const WIDTH = 1120;
-const HEIGHT = 140;
-const BOX_Y = 44;
+const HEIGHT = 112;
+const BOX_Y = 22;
 const BOX_HEIGHT = 40;
 const RAIL_Y = BOX_Y + BOX_HEIGHT / 2;
 /** Half the clear gap a gate cuts into the rail. */
@@ -169,11 +169,11 @@ export function GoldenPath() {
           <line
             className="phax-path__records"
             x1={recordsFrom}
-            y1={BOX_Y + BOX_HEIGHT + 30}
+            y1={BOX_Y + BOX_HEIGHT + 24}
             x2={recordsTo}
-            y2={BOX_Y + BOX_HEIGHT + 30}
+            y2={BOX_Y + BOX_HEIGHT + 24}
           />
-          <text className="phax-path__edge" x={recordsFrom} y={BOX_Y + BOX_HEIGHT + 50}>
+          <text className="phax-path__edge" x={recordsFrom} y={BOX_Y + BOX_HEIGHT + 42}>
             one record per phase → phax/records/v1
           </text>
         </svg>
