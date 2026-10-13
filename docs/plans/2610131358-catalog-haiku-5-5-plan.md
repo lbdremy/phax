@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-13
+  baseline: 106c451
 ---
 # Catalog: Haiku 5.5
 
