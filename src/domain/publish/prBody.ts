@@ -5,6 +5,7 @@ import {
   type UnexplainedDeviation,
 } from "../reconciliation/explained.js";
 import type { GlobalFileReconciliation } from "../reconciliation/global.js";
+import { onOneLine } from "../reportText.js";
 import { renderReviewNotesSection, type ReviewNoteGroup } from "../review/reviewNotes.js";
 
 // GitHub PR bodies cap at ~65536 bytes. We use a safe margin below that limit.
@@ -194,7 +195,8 @@ function renderNeedsYourReview(
     parts.push(
       "### Compliance attention points",
       renderCutList(
-        input.compliance.review.attentionPoints.map((p) => `- ${p}`),
+        // One bullet each: a line break inside a point would end the list.
+        onOneLine(input.compliance.review.attentionPoints).map((p) => `- ${p}`),
         keep.attentionPoints,
         ["attention point", "attention points"],
       ),
