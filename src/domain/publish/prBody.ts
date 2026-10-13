@@ -1,0 +1,273 @@
+import type { ComplianceReview } from "../../schemas/complianceReview.js";
+import type { Surface } from "../../schemas/surface.js";
+import {
+  findUnexplainedGlobalDeviations,
+  type UnexplainedDeviation,
+} from "../reconciliation/explained.js";
+import type { GlobalFileReconciliation } from "../reconciliation/global.js";
+import { renderReviewNotesSection, type ReviewNoteGroup } from "../review/reviewNotes.js";
+
+// GitHub PR bodies cap at ~65536 bytes. We use a safe margin below that limit.
+export const PR_BODY_MAX_BYTES = 60000;
+
+const SHORTENED_NOTE =
+  "\n\n---\n\n*This description was shortened to fit GitHub's limit. " +
+  "The review handoff named under Full detail lists every entry.*";
+
+/** How a phase ended, as the PR body counts it. */
+type PrBodyPhaseStatus = "passed" | "skipped" | "unfinished";
+
+/** The decoded run facts the short PR body is built from. */
+export interface ShortPrBodyInput {
+  // The run's qualified name (`<namespace>.<name>`) and its short name.
+  readonly qualifiedName: string;
+  readonly shortName: string;
+  readonly plan: { readonly kind: "path"; readonly path: string } | { readonly kind: "loose" };
+  // The one-line fragment of source-spec-outcome.md, when the run states one.
+  readonly sourceSpecOutcome: string | undefined;
+  readonly gateProfileId: string | undefined;
+  // In plan order.
+  readonly phases: ReadonlyArray<{
+    readonly phaseId: string;
+    readonly title: string;
+    readonly status: PrBodyPhaseStatus;
+  }>;
+  readonly verifiedSurfaces: readonly Surface[];
+  readonly compliance:
+    | { readonly kind: "reviewed"; readonly review: ComplianceReview }
+    | { readonly kind: "not-reviewed" };
+  readonly global: GlobalFileReconciliation;
+  // Used only to decide whether a deviation is explained.
+  readonly phaseHandoffs: ReadonlyArray<{ readonly phaseId: string; readonly handoffMd: string }>;
+  readonly reviewNoteGroups: ReadonlyArray<ReviewNoteGroup>;
+  readonly runFolder: { readonly path: string; readonly homeDir: string };
+  readonly records: "configured" | "not-configured";
+  readonly maxBytes?: number;
+}
+
+export interface ShortPrBody {
+  readonly body: string;
+  readonly shortened: boolean;
+}
+
+// How many entries of each cuttable list the body keeps.
+interface Keep {
+  readonly deviations: number;
+  readonly attentionPoints: number;
+  readonly notes: number;
+}
+
+/**
+ * The pull request description of a run: a run summary, one line per phase,
+ * what needs a person's review, the review notes and where the full review
+ * handoff lives. Over `maxBytes`, it cuts unexplained deviations first, then
+ * attention points, then review notes, and says so at its end.
+ */
+export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
+  const maxBytes = input.maxBytes ?? PR_BODY_MAX_BYTES;
+  const unexplained = findUnexplainedGlobalDeviations(input.global, input.phaseHandoffs);
+  const attentionPoints =
+    input.compliance.kind === "reviewed" ? input.compliance.review.attentionPoints : [];
+  const noteCount = input.reviewNoteGroups.reduce((n, g) => n + g.notes.length, 0);
+
+  const head = [renderSummary(input), renderPhases(input, unexplained)];
+  const fullDetail = renderFullDetail(input);
+  const render = (keep: Keep, shortened: boolean): string => {
+    const sections = [
+      ...head,
+      renderNeedsYourReview(input, unexplained, keep),
+      ...(input.reviewNoteGroups.length > 0
+        ? [renderNotes(input.reviewNoteGroups, keep.notes, noteCount)]
+        : []),
+      fullDetail,
+    ];
+    return sections.join("\n\n") + (shortened ? SHORTENED_NOTE : "");
+  };
+  const fits = (keep: Keep): boolean => Buffer.byteLength(render(keep, true), "utf8") <= maxBytes;
+
+  const full = render(
+    {
+      deviations: unexplained.length,
+      attentionPoints: attentionPoints.length,
+      notes: noteCount,
+    },
+    false,
+  );
+  if (Buffer.byteLength(full, "utf8") <= maxBytes) {
+    return { body: full, shortened: false };
+  }
+
+  // Cut order: deviations, then attention points, then notes. Each stage
+  // runs only when emptying the lists before it was not enough.
+  let keep: Keep = {
+    deviations: 0,
+    attentionPoints: attentionPoints.length,
+    notes: noteCount,
+  };
+  if (fits(keep)) {
+    keep = {
+      ...keep,
+      deviations: largestFitting(unexplained.length, (n) => fits({ ...keep, deviations: n })),
+    };
+  } else {
+    keep = { ...keep, attentionPoints: 0 };
+    if (fits(keep)) {
+      keep = {
+        ...keep,
+        attentionPoints: largestFitting(attentionPoints.length, (n) =>
+          fits({ ...keep, attentionPoints: n }),
+        ),
+      };
+    } else {
+      // When even no note fits, the never-cut sections alone exceed the cap
+      // and the fully cut body is returned as it is.
+      const notes = largestFitting(noteCount, (n) => fits({ ...keep, notes: n }));
+      keep = { ...keep, notes: Math.max(0, notes) };
+    }
+  }
+  return { body: render(keep, true), shortened: true };
+}
+
+// The largest n in [0, total] for which `fits(n)` holds, or -1 when none
+// does. Body size grows with each kept entry, so `fits` is monotone.
+function largestFitting(total: number, fits: (n: number) => boolean): number {
+  let lo = -1;
+  let hi = total;
+  while (lo < hi) {
+    const mid = lo + Math.floor((hi - lo + 1) / 2);
+    if (fits(mid)) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+function renderSummary(input: ShortPrBodyInput): string {
+  const plan = input.plan.kind === "path" ? `\`${input.plan.path}\`` : "loose plan";
+  const gateProfile = input.gateProfileId !== undefined ? `\`${input.gateProfileId}\`` : "(none)";
+  const spec = input.sourceSpecOutcome?.trim();
+  const passed = input.phases.filter((p) => p.status === "passed").length;
+  const surfaces = input.verifiedSurfaces.length > 0 ? input.verifiedSurfaces.join(", ") : "none";
+  const compliance =
+    input.compliance.kind === "reviewed" ? input.compliance.review.verdict : "not reviewed";
+  const lines = [
+    `**Run** \`${input.qualifiedName}\` · **Plan** ${plan} · **Gate profile** ${gateProfile}`,
+    ...(spec !== undefined && spec !== "" ? [`**Spec** ${spec}`] : []),
+    `**Phases** ${passed}/${input.phases.length} passed · **Verified surfaces** ${surfaces}`,
+    `**Compliance** ${compliance}`,
+  ];
+  // A trailing backslash is a Markdown hard break: one summary fact per line.
+  return lines.join("\\\n");
+}
+
+function renderPhases(
+  input: ShortPrBodyInput,
+  unexplained: ReadonlyArray<UnexplainedDeviation>,
+): string {
+  const lines = input.phases.map(({ phaseId, title, status }) => {
+    const head = `- \`${phaseId}\` ${title} — `;
+    if (status === "skipped") return `${head}skipped`;
+    const verdict =
+      input.compliance.kind === "reviewed"
+        ? (input.compliance.review.perPhase.find((p) => p.phaseId === phaseId)?.verdict ??
+          "not reviewed")
+        : "not reviewed";
+    const deviations =
+      input.global.unplanned.filter((e) => e.touchedInPhases.includes(phaseId)).length +
+      input.global.missing.filter((e) => e.plannedInPhases.includes(phaseId)).length;
+    const unexplainedCount = unexplained.filter((d) => d.phaseIds.includes(phaseId)).length;
+    const count =
+      deviations === 0
+        ? "no deviation"
+        : `${deviations} ${deviations === 1 ? "deviation" : "deviations"}, ${unexplainedCount} unexplained`;
+    return `${head}${verdict} · ${count}`;
+  });
+  return ["## Phases", lines.join("\n")].join("\n\n");
+}
+
+function renderNeedsYourReview(
+  input: ShortPrBodyInput,
+  unexplained: ReadonlyArray<UnexplainedDeviation>,
+  keep: Keep,
+): string {
+  const parts = ["## Needs your review"];
+  if (input.compliance.kind === "reviewed") {
+    parts.push(
+      "### Compliance attention points",
+      renderCutList(
+        input.compliance.review.attentionPoints.map((p) => `- ${p}`),
+        keep.attentionPoints,
+        ["attention point", "attention points"],
+      ),
+    );
+  }
+  parts.push(
+    "### Unexplained deviations",
+    renderCutList(
+      unexplained.map(
+        (d) =>
+          `- \`${d.path}\` — ${d.kind === "unplanned" ? "unplanned, touched in" : "missing, planned in"} ${d.phaseIds.join(", ")}`,
+      ),
+      keep.deviations,
+      ["unexplained deviation", "unexplained deviations"],
+    ),
+  );
+  return parts.join("\n\n");
+}
+
+// The first `kept` items, then one line counting the cut ones; `None.` when
+// the list was empty to begin with.
+function renderCutList(
+  items: readonly string[],
+  kept: number,
+  noun: readonly [singular: string, plural: string],
+): string {
+  if (items.length === 0) return "None.";
+  const lines = items.slice(0, kept);
+  const cut = items.length - lines.length;
+  if (cut > 0) lines.push(countLine(cut, noun));
+  return lines.join("\n");
+}
+
+function countLine(cut: number, [singular, plural]: readonly [string, string]): string {
+  return `- …and ${cut} more ${cut === 1 ? singular : plural}`;
+}
+
+// The review handoff's own rendering of the notes; when shortened, the first
+// `kept` notes in render order (a group left without notes is dropped), then
+// one line counting the cut ones. The heading and intro always stay.
+function renderNotes(groups: ReadonlyArray<ReviewNoteGroup>, kept: number, total: number): string {
+  if (kept >= total) return renderReviewNotesSection(groups);
+  const keptGroups: ReviewNoteGroup[] = [];
+  let left = kept;
+  for (const group of groups) {
+    if (left === 0) break;
+    const notes = group.notes.slice(0, left);
+    left -= notes.length;
+    keptGroups.push({ owner: group.owner, notes });
+  }
+  const separator = keptGroups.length > 0 ? "\n" : "\n\n";
+  return `${renderReviewNotesSection(keptGroups)}${separator}${countLine(total - kept, ["review note", "review notes"])}`;
+}
+
+function renderFullDetail(input: ShortPrBodyInput): string {
+  const handoffPath = `${tildePath(input.runFolder.path, input.runFolder.homeDir)}/review-handoff.md`;
+  const lines = [
+    "## Full detail",
+    "The full review handoff (file reconciliation, phase handoffs, compliance review) is in " +
+      `the run folder on the machine that ran it: \`${handoffPath}\`. ` +
+      `\`phax review-handoff ${input.shortName}\` writes it again.`,
+  ];
+  if (input.records === "configured") {
+    lines.push(
+      "A phase commit's prompt, diff, gates and handoff: `phax records explain <commit>`.",
+    );
+  }
+  return lines.join("\n\n");
+}
+
+// `path` with the home directory written as `~`, when it lies inside it.
+function tildePath(path: string, homeDir: string): string {
+  if (path === homeDir) return "~";
+  if (path.startsWith(`${homeDir}/`)) return `~${path.slice(homeDir.length)}`;
+  return path;
+}
