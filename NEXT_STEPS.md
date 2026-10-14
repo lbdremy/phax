@@ -115,12 +115,18 @@ that morning's decisions, and arbitrated and approved 2026-09-28/29. Their §9 a
 each sidecar. They run one after another, not in parallel, because each builds on the formats
 the previous one changes. The first in the chain, `schemas-package`, is Completed.
 
-- [ ] **`artifact-decide`** — `docs/specs/2609250815-artifact-decide.md`. **Next.** No plan
-      yet: `phax artifact new plan artifact-decide --spec docs/specs/2609250815-artifact-decide.md`.
-      Decide runs on Drafts only, `artifact reopen` moves an artifact from Approved back to Draft,
-      every artifact gets the approval lock, §9 is hand-authored, and `--by` names who decided.
+- [ ] **`artifact-decide`** — `docs/specs/2610140742-artifact-decide.md`, re-authored and
+      approved 2026-10-14 against per-file approval records and versioned document formats (the
+      2026-09-29 version is abandoned). **Next.** No plan yet: `phax artifact new plan
+      artifact-decide --spec docs/specs/2610140742-artifact-decide.md --last`. Decide is
+      interactive only and runs on Drafts; `artifact reopen` moves an Approved artifact back to
+      Draft; every artifact gets the approval lock; `--by` names who approved; an approval record
+      without `approvedBy` lifts to `unattributed`; `phax artifact migrate-documents` lifts the
+      live headless sidecars once, and approve, reopen and decide refuse until it has run.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
-      approver form, skill and escalation block (`docs/ideas/headless-code-review.md`).
+      approver form and skill (`docs/ideas/headless-code-review.md`). decide's re-authoring
+      dropped the escalation block and changed the approver form to `--by`, so this spec's
+      reliance on both is part of its rework.
       **Reopen before planning:** pr-description (2026-10-13) replaced the PR body it builds on.
       §1's `src/domain/publish/body.ts` is gone. §5.55–§5.59 and the §6 `pr-body.md` surface put
       the review-passes and decisions tables before the full handoff, and promise a
