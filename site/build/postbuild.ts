@@ -3,13 +3,15 @@
 // emitted reached the HTML, every anchor a link was rewritten to is an id on
 // its target page, and no HTML, CSS or JS file loads anything from another
 // origin. Outbound `<a href>` links are fine. Every page's favicon is the
-// logo and its nav shows the lowercase wordmark. Every served JSON Schema, the
+// logo, its nav shows the lowercase wordmark, and it names the social card as
+// its og:image in a large-image preview. Every served JSON Schema, the
 // schema index, _headers and the logos are in the output byte for byte. Pure
 // over maps of built files; readBuiltSite and readBuiltPublic are the only I/O.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
 import type { SiteLink } from "./links.js";
+import { OG_IMAGE_URL } from "./og.js";
 
 /** The built files a check reads, relative to the output directory → text. */
 export type BuiltFiles = ReadonlyMap<string, string>;
@@ -156,6 +158,26 @@ export function iconHrefs(html: string): ReadonlyArray<string> {
   return hrefs;
 }
 
+/** The link-preview tags every page carries, as [attribute, name, content]. */
+export const SOCIAL_TAGS: ReadonlyArray<readonly ["property" | "name", string, string]> = [
+  ["property", "og:image", OG_IMAGE_URL],
+  ["name", "twitter:card", "summary_large_image"],
+];
+
+/** The content of the first `<meta>` whose `attribute` (property or name) is `name`. */
+export function metaContent(
+  html: string,
+  attribute: "property" | "name",
+  name: string,
+): string | undefined {
+  for (const match of html.matchAll(TAG)) {
+    if ((match[1] ?? "").toLowerCase() !== "meta") continue;
+    const attrs = attributes(match[2] ?? "");
+    if (attrs.get(attribute) === name) return attrs.get("content");
+  }
+  return undefined;
+}
+
 /** The text of the nav title link (Rspress's `rp-nav__title__link`), or undefined without one. */
 export function navTitle(html: string): string | undefined {
   const match =
@@ -199,6 +221,14 @@ export function checkBuiltSite(
       findings.push(
         `✗ ${outLabel}/${path}: favicon is ${icons.length === 0 ? "missing" : icons.join(", ")}, not ${FAVICON}`,
       );
+    }
+    for (const [attribute, name, content] of SOCIAL_TAGS) {
+      const actual = metaContent(html, attribute, name);
+      if (actual !== content) {
+        findings.push(
+          `✗ ${outLabel}/${path}: ${name} is ${actual === undefined ? "missing" : `"${actual}"`}, not "${content}"`,
+        );
+      }
     }
     const title = navTitle(html);
     if (title !== WORDMARK) {

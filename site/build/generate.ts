@@ -33,7 +33,13 @@ import {
   type SiteLink,
 } from "./links.js";
 import { liveRun } from "./liveRun.js";
-import { applyEdits, transformMarkdown, type MarkdownTransform } from "./markdown.js";
+import {
+  applyEdits,
+  parseMarkdown,
+  plainText,
+  transformMarkdown,
+  type MarkdownTransform,
+} from "./markdown.js";
 import { README, splitReadme, type ReadmeSection } from "./sources.js";
 import { publicSchemas, servedUrl, type SchemaSources } from "./schemas.js";
 import { themeCss } from "../theme/tokens.js";
@@ -63,6 +69,14 @@ export interface SiteJson {
   readonly routes: ReadonlyArray<string>;
   /** Per rendered route, the GitHub heading ids its page carries, in page order. */
   readonly headingIds: Readonly<Record<string, ReadonlyArray<string>>>;
+  /** The site's description: README.md's first paragraph, as plain text. */
+  readonly description: string;
+}
+
+/** README.md's first paragraph as plain text, the site's description in link previews. */
+export function readmeDescription(readme: string): string {
+  const paragraph = parseMarkdown(readme).children.find((node) => node.type === "paragraph");
+  return paragraph === undefined ? "" : plainText(paragraph).replace(/\s+/g, " ").trim();
 }
 
 export interface SiteSummary {
@@ -112,20 +126,21 @@ export function pagePath(route: string): string {
   return route === "/" ? "docs/index.md" : `docs${route}.md`;
 }
 
-function frontmatter(title: string | undefined, home?: Home): string {
+function frontmatter(title: string | undefined, home?: Home, description?: string): string {
   if (title === undefined) return "";
   const lines = [`title: ${JSON.stringify(title)}`];
   // JSON is YAML: the hero and features go in as single-line flow values.
-  if (home !== undefined) lines.push(...homeFrontmatter(home));
+  if (home !== undefined) lines.push(...homeFrontmatter(home, description ?? ""));
   return `---\n${lines.join("\n")}\n---\n\n`;
 }
 
 /**
- * The Rspress home's frontmatter: the hero, the feature cards, the install
- * command above the hero's actions, and the run the hero plays where Rspress
- * would show an image (site/theme/LiveRun.tsx).
+ * The Rspress home's frontmatter: its description in link previews (README's
+ * first paragraph; Rspress would take the whole intro), the hero, the feature
+ * cards, the install command above the hero's actions, and the run the hero
+ * plays where Rspress would show an image (site/theme/LiveRun.tsx).
  */
-function homeFrontmatter(home: Home): ReadonlyArray<string> {
+function homeFrontmatter(home: Home, description: string): ReadonlyArray<string> {
   const hero = {
     name: home.name,
     text: home.text,
@@ -140,6 +155,9 @@ function homeFrontmatter(home: Home): ReadonlyArray<string> {
   }));
   return [
     "pageType: home",
+    // The tab and preview title: "phax - The golden path, just facts".
+    `titleSuffix: ${JSON.stringify(home.text.replace(/\.$/, ""))}`,
+    `description: ${JSON.stringify(description)}`,
     `hero: ${JSON.stringify(hero)}`,
     `features: ${JSON.stringify(features)}`,
     `install: ${JSON.stringify(home.install)}`,
@@ -187,7 +205,7 @@ function readmePage(
     .join("\n\n");
   return {
     route: page.route,
-    content: `${frontmatter(page.title, page.home)}${body}\n`,
+    content: `${frontmatter(page.title, page.home, readmeDescription(readme))}${body}\n`,
     headingIds: ordered.map((heading) => heading.id),
   };
 }
@@ -417,6 +435,7 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     socialLinks: navigation.socialLinks,
     routes: rendered.map((page) => page.route),
     headingIds: Object.fromEntries(rendered.map((page) => [page.route, page.headingIds])),
+    description: readmeDescription(readme),
   };
   const output = new Map<string, string>(
     rendered.map((page) => [pagePath(page.route), page.content]),

@@ -36,6 +36,7 @@
     "site:build": "tsx site/build/site.ts build",
     "site:dev": "tsx site/build/site.ts dev",
     "site:preview": "tsx site/build/site.ts preview",
+    "site:og": "tsx site/build/og.ts",
     "audit:architecture": "vitest run tests/unit/architecturalGuards.test.ts",
     "audit:security": "bash scripts/security/run-audit.sh",
     "check:full": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:type && npm run lint && npm run format:check && npm run audit:architecture && npm run knip && npm run gen:model-catalog -- --check",
