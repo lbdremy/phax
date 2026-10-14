@@ -1,5 +1,7 @@
-// Prepare the npm wrapper for a release tag by version-matching npm/package.json.
+// Prepare the npm wrapper for a release tag: version-match npm/package.json
+// and write npm/README.md from the repository's README (scripts/npmReadme.ts).
 import { join } from "node:path";
+import { npmReadme } from "./npmReadme.ts";
 import { versionFromTag } from "./releaseVersion.ts";
 
 if (import.meta.main) {
@@ -24,4 +26,9 @@ if (import.meta.main) {
   }
 
   console.log(`npm/package.json version set to ${version}`);
+
+  const readmePath = join(new URL("../README.md", import.meta.url).pathname);
+  const npmReadmePath = join(new URL("../npm/README.md", import.meta.url).pathname);
+  await Deno.writeTextFile(npmReadmePath, npmReadme(await Deno.readTextFile(readmePath), tag));
+  console.log(`npm/README.md written from README.md, links pinned at ${tag}`);
 }

@@ -14,3 +14,6 @@ packages/schemas/json/
 # Docs site: generated Rspress sources and build output of pnpm site:build
 site/generated/
 site/doc_build/
+
+# Written by scripts/prepare-npm.ts at release time from README.md
+npm/README.md
