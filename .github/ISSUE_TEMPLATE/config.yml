@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://docs.phax.run
+    about: Install, concepts, configuration and guides.
+  - name: CLI reference
+    url: https://docs.phax.run/reference/cli
+    about: Every command and flag, generated from the CLI itself.
