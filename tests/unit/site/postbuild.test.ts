@@ -34,20 +34,39 @@ const NAV_TITLE =
 function page(
   body: string,
   head = "",
-  { icon = FAVICON_LINK, title = NAV_TITLE, preview = PREVIEW_TAGS } = {},
+  {
+    icon = FAVICON_LINK,
+    title = NAV_TITLE,
+    preview = PREVIEW_TAGS,
+    route = undefined as string | undefined,
+  } = {},
 ): string {
+  const canonicalLink =
+    route === undefined ? "" : `<link rel="canonical" href="https://docs.phax.run${route}">`;
   return (
-    `<!doctype html><html><head>${head}${preview}${icon}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
+    `<!doctype html><html><head>${head}${canonicalLink}${preview}${icon}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
     `<body><nav>${title}<a href="${RELEASE}" target="_blank" class="rp-link">v0.17.0</a>` +
     `<a href="https://github.com/example/tool">GitHub</a></nav>${body}</body></html>`
   );
 }
 
+type PageOptions = NonNullable<Parameters<typeof page>[2]>;
+
+/** The home page, with its canonical link. */
+function home(body: string, options: PageOptions = {}): string {
+  return page(body, "", { route: "/", ...options });
+}
+
+/** The /guide/run page, with its canonical link. */
+function run(body: string, options: PageOptions = {}): string {
+  return page(body, "", { route: "/guide/run", ...options });
+}
+
 function built(overrides: Record<string, string> = {}): Map<string, string> {
   return new Map(
     Object.entries({
-      "index.html": page('<h1 id="tool">tool</h1>'),
-      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>'),
+      "index.html": home('<h1 id="tool">tool</h1>'),
+      "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>'),
       "static/css/styles.css": "body{background:url(/static/image/bg.png)}",
       "static/js/index.js": 'const page=import("./async/route.js");',
       ...overrides,
@@ -75,11 +94,27 @@ describe("checkBuiltSite", () => {
     ]);
   });
 
+  it("names a page without its canonical link or with another URL", () => {
+    const findings = checkBuiltSite(
+      SITE,
+      built({
+        "index.html": page('<h1 id="tool">tool</h1>'),
+        "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", {
+          route: "/guide/run.html",
+        }),
+      }),
+    );
+    expect(findings).toEqual([
+      "✗ site/doc_build/index.html: canonical is missing, not https://docs.phax.run/",
+      "✗ site/doc_build/guide/run.html: canonical is https://docs.phax.run/guide/run.html, not https://docs.phax.run/guide/run",
+    ]);
+  });
+
   it("names a page without its link-preview card or with another one", () => {
     const findings = checkBuiltSite(
       SITE,
       built({
-        "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", {
+        "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', {
           preview: '<meta property="og:image" content="/og.png">',
         }),
       }),
@@ -92,7 +127,7 @@ describe("checkBuiltSite", () => {
 
   it("names a page without the release label", () => {
     const files = built({
-      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>').replace(
+      "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>').replace(
         `href="${RELEASE}"`,
         'href="/"',
       ),
@@ -104,7 +139,7 @@ describe("checkBuiltSite", () => {
 
   it("names a page whose release link shows another version", () => {
     const files = built({
-      "index.html": page('<h1 id="tool">tool</h1>').replace(">v0.17.0<", ">v0.16.0<"),
+      "index.html": home('<h1 id="tool">tool</h1>').replace(">v0.17.0<", ">v0.16.0<"),
     });
     expect(checkBuiltSite(SITE, files)).toEqual([
       `✗ site/doc_build/index.html: does not show v0.17.0 linking to ${RELEASE}`,
@@ -113,7 +148,7 @@ describe("checkBuiltSite", () => {
 
   it("names a heading id that did not reach the HTML", () => {
     const files = built({
-      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locking">Locks</h2>'),
+      "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locking">Locks</h2>'),
     });
     expect(checkBuiltSite(SITE, files)).toEqual([
       "✗ site/doc_build/guide/run.html: heading id #locks of route /guide/run is missing",
@@ -122,8 +157,8 @@ describe("checkBuiltSite", () => {
 
   it("names a page whose favicon is missing or is not the logo", () => {
     const files = built({
-      "index.html": page('<h1 id="tool">tool</h1>', "", { icon: "" }),
-      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", {
+      "index.html": home('<h1 id="tool">tool</h1>', { icon: "" }),
+      "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', {
         icon: '<link rel="icon" href="/favicon.ico">',
       }),
     });
@@ -135,10 +170,10 @@ describe("checkBuiltSite", () => {
 
   it("names a page whose nav does not show the lowercase wordmark", () => {
     const files = built({
-      "index.html": page('<h1 id="tool">tool</h1>', "", {
+      "index.html": home('<h1 id="tool">tool</h1>', {
         title: NAV_TITLE.replace(">phax<", ">Phax<"),
       }),
-      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", { title: "" }),
+      "guide/run.html": run('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', { title: "" }),
     });
     expect(checkBuiltSite(SITE, files)).toEqual([
       '✗ site/doc_build/index.html: nav shows "Phax", not the wordmark "phax"',

@@ -18,6 +18,11 @@ export interface ReadmePage {
   readonly generated?: "served-schemas";
   /** `/` only: renders the page as Rspress's home, this hero and these features above the sections. */
   readonly home?: Home;
+  /**
+   * What the page is about, for search results, link previews and llms.txt:
+   * every page but `/`, whose description is README.md's first paragraph.
+   */
+  readonly description?: string;
 }
 
 /** The home page's hero and feature cards; every link names a route of the map. */
@@ -45,6 +50,9 @@ export interface HomeFeature {
   readonly link: string;
 }
 
+/** A page description's length: long enough to say something, short enough not to be cut in results. */
+export const DESCRIPTION_LENGTH = { min: 50, max: 160 } as const;
+
 export interface ReadmeOmission {
   readonly omit: ReadonlyArray<string>;
   readonly why: string;
@@ -56,6 +64,8 @@ export interface FilePage {
   /** Repository-relative path of the rendered file. */
   readonly source: string;
   readonly holdUntil?: string;
+  /** What the page is about, for search results, link previews and llms.txt. */
+  readonly description: string;
 }
 
 export interface FileOmission {
@@ -159,6 +169,22 @@ export function checkPageMap(map: PageMap, sources: SourceInventory): ReadonlyAr
     const first = page.route.split("/")[1] ?? "";
     if (VERSION_SEGMENT.test(first)) {
       findings.push(`✗ page map: route ${page.route} starts with a version segment`);
+    }
+    if (page.route === "/") {
+      if (page.description !== undefined) {
+        findings.push(
+          "✗ page map: / takes README.md's first paragraph as its description, not its own",
+        );
+      }
+    } else if (page.description === undefined) {
+      findings.push(`✗ page map: ${page.route} has no description`);
+    } else if (
+      page.description.length < DESCRIPTION_LENGTH.min ||
+      page.description.length > DESCRIPTION_LENGTH.max
+    ) {
+      findings.push(
+        `✗ page map: ${page.route}'s description is ${page.description.length} characters, not ${DESCRIPTION_LENGTH.min} to ${DESCRIPTION_LENGTH.max}`,
+      );
     }
     if ("home" in page && page.home !== undefined) {
       if (page.route !== "/") {

@@ -41,20 +41,28 @@ const FILES = new Map([
   ["docs/blog/announcing.md", "# Announcing tool 1.0\n\nIt shipped.\n"],
 ]);
 
+const DESCRIBED = "A page of the made-up tool these tests build, said in one sentence.";
+
 const MAP = definePageMap({
   repository: "https://github.com/example/tool",
   readme: [
     { route: "/", title: "tool", sections: [INTRO, "Quickstart"] },
-    { route: "/guide/run", title: "Running a plan", sections: ["Run", "Locks"] },
+    {
+      route: "/guide/run",
+      title: "Running a plan",
+      sections: ["Run", "Locks"],
+      description: DESCRIBED,
+    },
     { omit: ["Generated reference"], why: "generated" },
   ],
   files: [
-    { route: "/security", title: "Security", source: "docs/security.md" },
+    { route: "/security", title: "Security", source: "docs/security.md", description: DESCRIBED },
     {
       route: "/blog/announcing-tool-1-0",
       title: "Announcing tool 1.0",
       source: "docs/blog/announcing.md",
       holdUntil: "1.0.0",
+      description: DESCRIBED,
     },
   ],
 });
@@ -83,6 +91,7 @@ describe("generateSite", () => {
       [
         "---",
         'title: "tool"',
+        'description: "Tool runs plans <name> by name."',
         "---",
         "",
         "# tool \\{#tool\\}",
@@ -103,6 +112,7 @@ describe("generateSite", () => {
       [
         "---",
         'title: "Running a plan"',
+        `description: ${JSON.stringify(DESCRIBED)}`,
         "---",
         "",
         "## Run \\{#run\\}",
@@ -116,7 +126,7 @@ describe("generateSite", () => {
       ].join("\n"),
     );
     expect(result.files.get("docs/security.md")).toBe(
-      '---\ntitle: "Security"\n---\n\n# Security \\{#security\\}\n\nSandboxes  every agent.\n',
+      `---\ntitle: "Security"\ndescription: ${JSON.stringify(DESCRIBED)}\n---\n\n# Security \\{#security\\}\n\nSandboxes  every agent.\n`,
     );
   });
 
@@ -208,7 +218,12 @@ describe("generateSite", () => {
     expect(result.findings).toEqual([]);
     const page = result.files.get("docs/index.md") ?? "";
     const frontmatter = page.slice(0, page.indexOf("\n---\n", 4) + 5).split("\n");
-    expect(frontmatter.slice(0, 3)).toEqual(["---", 'title: "tool"', "pageType: home"]);
+    expect(frontmatter.slice(0, 4)).toEqual([
+      "---",
+      'title: "tool"',
+      'description: "Tool runs plans <name> by name."',
+      "pageType: home",
+    ]);
     const value = (key: string): unknown =>
       JSON.parse(
         frontmatter.find((line) => line.startsWith(`${key}: `))?.slice(key.length + 2) ?? "null",
@@ -256,7 +271,7 @@ describe("generateSite", () => {
       ...MAP,
       readme: [
         MAP.readme[0]!,
-        { route: "/guide/run", title: "Run", sections: ["Run", "Locks"] },
+        { route: "/guide/run", title: "Run", sections: ["Run", "Locks"], description: DESCRIBED },
         MAP.readme[2]!,
       ],
     });
