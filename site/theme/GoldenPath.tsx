@@ -5,6 +5,7 @@
 // run plays (site/theme/playback.tsx), the path never moves: it keeps the step
 // the run is at in full and dims the others, and the gate a phase is failing
 // turns to the warning colour until its fix passes.
+import type { ReactElement } from "react";
 import type { LiveRunLine } from "../build/liveRun.js";
 import { usePlayback } from "./playback.js";
 
@@ -122,7 +123,7 @@ function Rail({
   );
 }
 
-export function GoldenPath() {
+export function GoldenPath(): ReactElement {
   const playback = usePlayback();
   const moment =
     playback?.playing === true ? momentOf(playback.lines.slice(0, playback.shown)) : undefined;

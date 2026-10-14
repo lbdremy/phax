@@ -9,17 +9,18 @@ import {
   HomeLayout as BasicHomeLayout,
   type HomeHeroProps,
 } from "@rspress/core/theme-original";
+import type { ReactElement } from "react";
 import { GoldenPath } from "./GoldenPath.js";
 import { InstallCommand } from "./InstallCommand.js";
 import { LiveRun } from "./LiveRun.js";
 import { LiveRunPlayback } from "./playback.js";
 import "./home.css";
 
-export function HomeHero(props: HomeHeroProps) {
+export function HomeHero(props: HomeHeroProps): ReactElement {
   return <BasicHomeHero {...props} beforeHeroActions={<InstallCommand />} image={<LiveRun />} />;
 }
 
-export function HomeLayout() {
+export function HomeLayout(): ReactElement {
   return (
     <LiveRunPlayback>
       <BasicHomeLayout

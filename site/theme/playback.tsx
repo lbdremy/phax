@@ -5,7 +5,14 @@
 // loops, unless the reader prefers reduced motion, and holds while the card is
 // off screen.
 import { useFrontmatter } from "@rspress/core/runtime";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import type { LiveRunLine } from "../build/liveRun.js";
 
 // The test typecheck has no DOM library; the one browser API used here.
@@ -37,7 +44,7 @@ function reducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function LiveRunPlayback({ children }: { readonly children: ReactNode }) {
+export function LiveRunPlayback({ children }: { readonly children: ReactNode }): ReactElement {
   const { frontmatter } = useFrontmatter();
   const lines = (frontmatter["liveRun"] ?? []) as ReadonlyArray<LiveRunLine>;
   const [shown, setShown] = useState(lines.length);
