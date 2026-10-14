@@ -865,7 +865,7 @@ phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 
 - **Usage**: `phax artifact status <path>`
 
-Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
+Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status (an Approved spec or plan lists Draft, reached with phax artifact reopen). For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
 
 ### Arguments
 
@@ -887,7 +887,7 @@ phax artifact status docs/specs/2609030749-spec-approval-ground.md
 
 - **Usage**: `phax artifact approve [--by <arbiter>] <path>`
 
-Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.
+Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place. An Approved artifact goes back to Draft only through `phax artifact reopen`, which voids the approval.
 
 Every approval names its approver, and the approval record file records it as approvedBy. `--by machine:<grant>` declares a machine — a loop or a script — by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator by the repository's git user.name. Without a terminal there is no default: approve refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator approval refuses with exit 12 when git user.name is unset or empty, naming `git config user.name`. A malformed --by or grant refuses with exit 12. Every refusal comes before anything is written. Approval records written before phax named the approver read as unattributed.
 
@@ -985,11 +985,15 @@ phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 
 ## `phax artifact reopen`
 
-- **Usage**: `phax artifact reopen <path>`
+- **Usage**: `phax artifact reopen [--by <arbiter>] <path>`
 
-Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.
+Reopens an artifact back to Draft, voiding its approval, for when it must be revised before re-approval. Legal from Approved (specs and plans) and from Stale (plans only); a Draft, Completed or Abandoned artifact is refused with exit 12 and nothing is written. Rewrites the frontmatter status key in place and clears the `approved` stamp.
 
-Side effects: writes the plan file, deletes the plan's approval record file docs/plans/approvals/<plan file name>.json if it has one, and commits both in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.
+Every reopen names its arbiter, as approve does. `--by machine:<grant>` declares a machine by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator by the repository's git user.name. Without a terminal there is no default: reopen refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator reopen refuses with exit 12 when git user.name is unset or empty. Every refusal comes before anything is written. The reopen commit ends with a `Reopened-By: machine (<grant>)` or `Reopened-By: operator (<name>)` trailer.
+
+Reopening a spec leaves every live plan that names it in source-spec unchanged — its file, frontmatter and approval record file — and names each one with its status. Reopen changes only status and approved, which the fingerprint ignores, so a bound plan still reads fresh.
+
+Side effects: writes the artifact file, deletes its approval record file (docs/specs/approvals/<spec file name>.json or docs/plans/approvals/<plan file name>.json) if it has one, and commits them with its JSON document sidecar when headless-authored in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 
@@ -997,10 +1001,20 @@ Side effects: writes the plan file, deletes the plan's approval record file docs
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
 
+### Flags
+
+#### `--by <arbiter>`
+
+operator or machine:<grant>; required without a terminal
+
 ### Examples
 
 ```
-phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md
+phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md --by operator
+```
+
+```
+phax artifact reopen docs/specs/2609030749-spec-approval-ground.md --by machine:roadmap-loop
 ```
 
 ## `phax artifact new`
