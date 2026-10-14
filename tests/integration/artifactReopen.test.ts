@@ -183,7 +183,8 @@ function expectRefusedUntouched(
 
 beforeEach(() => {
   configDir = mkdtempSync(join(tmpdir(), "phax-reopen-config-"));
-  writeFileSync(join(configDir, "gitconfig"), "");
+  // Never let git guess an identity from the account, as on a CI runner.
+  writeFileSync(join(configDir, "gitconfig"), "[user]\n\tuseConfigOnly = true\n");
   vi.stubEnv("GIT_CONFIG_GLOBAL", join(configDir, "gitconfig"));
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
   repoDir = mkdtempSync(join(tmpdir(), "phax-reopen-"));

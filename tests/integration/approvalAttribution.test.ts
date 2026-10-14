@@ -177,7 +177,9 @@ function expectRefusedUntouched(
 beforeEach(() => {
   originalCwd = process.cwd();
   configDir = mkdtempSync(join(tmpdir(), "phax-attribution-config-"));
-  writeFileSync(join(configDir, "gitconfig"), "");
+  // Never let git guess an identity from the account: a CI runner has no
+  // name to guess, so a test passing on a laptop would fail there.
+  writeFileSync(join(configDir, "gitconfig"), "[user]\n\tuseConfigOnly = true\n");
   vi.stubEnv("GIT_CONFIG_GLOBAL", join(configDir, "gitconfig"));
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
   repoDir = mkdtempSync(join(tmpdir(), "phax-attribution-"));
@@ -273,8 +275,15 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
 
   it("a machine approval needs no git user.name", async () => {
     git(["config", "--local", "--unset", "user.name"]);
+    // git still needs an identity to commit; a bot supplies it this way.
+    vi.stubEnv("GIT_AUTHOR_NAME", "Roadmap Loop");
+    vi.stubEnv("GIT_COMMITTER_NAME", "Roadmap Loop");
     const result = await approve(SPEC, "machine:roadmap-loop", false);
     expect(Either.isRight(result)).toBe(true);
+    expect(recordJson("spec", SPEC)["approvedBy"]).toEqual({
+      kind: "machine",
+      grant: "roadmap-loop",
+    });
   });
 });
 
@@ -283,7 +292,7 @@ describe("Records written before attribution read as unattributed", { timeout: 3
   // artifacts as they stand.
   function seedOlderRecords(): { readonly spec: string; readonly plan: string } {
     const baseline = headSha();
-    const stamp = `approved:\n  date: 2026-09-25\n  baseline: ${baseline.slice(0, 7)}\n`;
+    const stamp = `approved:\n  date: 2026-09-25\n  baseline: "${baseline.slice(0, 7)}"\n`;
     const approvedSpec = specMd(stamp);
     const approvedPlan = planMd(stamp);
     writeRepoFile(SPEC, approvedSpec);
