@@ -30,6 +30,7 @@ describe("spec transitions", () => {
     ["Draft", "Approved"],
     ["Draft", "Abandoned"],
     ["Approved", "Approved"],
+    ["Approved", "Draft"],
     ["Approved", "Abandoned"],
     ["Approved", "Completed"],
   ];
@@ -60,6 +61,15 @@ describe("spec transitions", () => {
     expect(legalTargetsFrom("spec", "Approved")).toContain("Approved");
   });
 
+  it.each(["Draft", "Completed", "Abandoned"] as const)(
+    "reopen from %s is refused, naming the artifact's status",
+    (from) => {
+      const result = requestTransition("spec", from, "Draft");
+      assertLeft(result);
+      if (Either.isLeft(result)) expect(result.left.message).toContain(`from ${from}`);
+    },
+  );
+
   it("has no Stale status", () => {
     expect(SPEC_STATUSES).not.toContain("Stale");
   });
@@ -80,6 +90,7 @@ describe("plan transitions", () => {
     ["Draft", "Approved"],
     ["Draft", "Abandoned"],
     ["Approved", "Approved"],
+    ["Approved", "Draft"],
     ["Approved", "Stale"],
     ["Approved", "Abandoned"],
     ["Approved", "Completed"],
@@ -110,6 +121,15 @@ describe("plan transitions", () => {
   it("re-approval (Approved → Approved) is legal", () => {
     assertRight(requestTransition("plan", "Approved", "Approved"), "Approved");
   });
+
+  it.each(["Draft", "Completed", "Abandoned"] as const)(
+    "reopen from %s is refused, naming the artifact's status",
+    (from) => {
+      const result = requestTransition("plan", from, "Draft");
+      assertLeft(result);
+      if (Either.isLeft(result)) expect(result.left.message).toContain(`from ${from}`);
+    },
+  );
 
   it("Abandoned and Completed are terminal", () => {
     expect(isTerminalStatus("Abandoned")).toBe(true);

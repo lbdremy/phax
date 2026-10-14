@@ -20,7 +20,7 @@ describe("transitionWriteSet", () => {
   it.each<[ArtifactKind, ArtifactStatus, readonly string[], readonly string[]]>([
     ["spec", "Approved", [SPEC, SPEC_RECORD], [SPEC, SPEC_RECORD]],
     ["spec", "Stale", [SPEC], [SPEC]],
-    ["spec", "Draft", [SPEC], [SPEC]],
+    ["spec", "Draft", [SPEC], [SPEC, SPEC_RECORD]],
     ["spec", "Abandoned", [SPEC, SPEC_ARCHIVE], [SPEC, SPEC_RECORD, SPEC_ARCHIVE]],
     ["spec", "Completed", [SPEC, SPEC_ARCHIVE], [SPEC, SPEC_RECORD, SPEC_ARCHIVE]],
     ["plan", "Approved", [PLAN, PLAN_RECORD], [PLAN, PLAN_RECORD]],
@@ -57,7 +57,7 @@ describe("transitionWriteSet", () => {
     const SIDECAR = { hasSidecar: true, hasRecordFile: true };
 
     it.each<[ArtifactStatus, readonly string[]]>([
-      ["Draft", [SPEC, specJson]],
+      ["Draft", [SPEC, specJson, SPEC_RECORD]],
       ["Approved", [SPEC, specJson, SPEC_RECORD]],
       ["Stale", [SPEC, specJson]],
       [
@@ -140,6 +140,30 @@ describe("transitionCommitMessage", () => {
     );
     expect(body).toContain("docs/plans/2609101240-thing-plan.md");
     expect(body).toContain("Completed");
+  });
+
+  it.each([
+    [{ kind: "machine", grant: "roadmap-loop" }, "Reopened-By: machine (roadmap-loop)"],
+    [{ kind: "operator", name: "Ada Lovelace" }, "Reopened-By: operator (Ada Lovelace)"],
+  ] as const)("a reopen's body ends with the trailer naming %j", (arbiter, trailer) => {
+    for (const [kind, path, subject] of [
+      ["spec", SPEC, "chore(specs): reopen foo"],
+      ["plan", PLAN, "chore(plans): reopen thing"],
+    ] as const) {
+      const message = transitionCommitMessage(kind, "Draft", path, arbiter);
+      expect(message.subject).toBe(subject);
+      expect(message.body).toBe(`Transitions ${path} to Draft (reopen).\n\n${trailer}`);
+    }
+  });
+
+  it.each([
+    ["Approved", "approve"],
+    ["Stale", "stale"],
+    ["Abandoned", "abandon"],
+    ["Completed", "complete"],
+  ] as const)("the %s message carries no trailer", (target, verb) => {
+    const { body } = transitionCommitMessage("plan", target, PLAN);
+    expect(body).toBe(`Transitions ${PLAN} to ${target} (${verb}).`);
   });
 
   it("names the bare slug — no stamp, no -plan suffix, no .md", () => {

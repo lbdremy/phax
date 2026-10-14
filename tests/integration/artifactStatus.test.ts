@@ -134,7 +134,7 @@ describe("inspectArtifact", () => {
       expect(result.right).toEqual({
         kind: "plan",
         status: "Approved",
-        legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
+        legalTargets: ["Approved", "Draft", "Stale", "Abandoned", "Completed"],
         approval: { kind: "unrecorded" },
         authoring: { kind: "interactive" },
         orphanRecords: [],
@@ -220,7 +220,7 @@ describe("inspectArtifact", () => {
       expect(Either.isRight(result)).toBe(true);
       if (Either.isRight(result)) {
         expect(result.right.approval).toEqual({ kind: "unrecorded" });
-        expect(result.right.legalTargets).toContain("Approved");
+        expect(result.right.legalTargets).toEqual(["Approved", "Draft", "Abandoned", "Completed"]);
       }
     });
 
@@ -325,6 +325,7 @@ describe("transitionArtifact", () => {
     if (Either.isRight(result)) {
       expect(result.right).toEqual({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/specs/2609101221-foo.md",
         approvedBaseline: expect.any(String),
         approvedBy: { kind: "machine", grant: "roadmap-loop" },
@@ -347,6 +348,7 @@ describe("transitionArtifact", () => {
     if (Either.isRight(result)) {
       expect(result.right).toEqual({
         status: "Completed",
+        previousStatus: "Approved",
         path: "docs/specs/archive/2609101221-foo.md",
       });
     }
@@ -368,6 +370,7 @@ describe("transitionArtifact", () => {
     if (Either.isRight(result)) {
       expect(result.right).toEqual({
         status: "Abandoned",
+        previousStatus: "Approved",
         path: "docs/plans/archive/2609101221-foo-plan.md",
       });
     }

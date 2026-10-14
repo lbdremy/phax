@@ -179,6 +179,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
@@ -200,6 +201,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Completed",
+        previousStatus: "Approved",
         path: "docs/specs/archive/2608091526-artifact-lifecycle-status.md",
       }),
     );
@@ -247,6 +249,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         approvedBaseline: "abcdef1234567890abcdef1234567890abcdef12",
       }),
@@ -338,6 +341,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
@@ -361,6 +365,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/specs/2609251400-plan-prune.md",
         approvedBaseline: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         approvedBy: { kind: "machine", grant: "roadmap-loop" },
@@ -385,6 +390,44 @@ describe("runArtifactTransition", () => {
       "Status: Approved",
       "Approver: machine (roadmap-loop)",
       "Baseline: a1b2c3d",
+    ]);
+  });
+
+  it("reopen prints the deleted record, the arbiter and each bound plan before the commit", async () => {
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
+      Effect.succeed({
+        status: "Draft",
+        previousStatus: "Approved",
+        path: "docs/specs/2609251400-plan-prune.md",
+        reopenedBy: { kind: "machine", grant: "roadmap-loop" },
+        deletedRecord: "docs/specs/approvals/2609251400-plan-prune.json",
+        boundPlans: [
+          { path: "docs/plans/2609261000-plan-prune-store-plan.md", status: "Approved" },
+        ],
+        commit: {
+          hash: "d4e5f6abcdef1234567890abcdef1234567890ab",
+          subject: "chore(specs): reopen plan-prune",
+        },
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runArtifactTransition("docs/specs/2609251400-plan-prune.md", "Draft", out, {
+      by: "machine:roadmap-loop",
+    });
+
+    expect(code).toBe(0);
+    expect(transitionArtifactBy).toHaveBeenCalledWith(
+      "docs/specs/2609251400-plan-prune.md",
+      "Draft",
+      expect.objectContaining({ by: "machine:roadmap-loop" }),
+    );
+    expect(lines).toEqual([
+      "Status: Draft (was Approved; docs/specs/approvals/2609251400-plan-prune.json deleted)",
+      "Reopened-By: machine (roadmap-loop)",
+      "Bound:  docs/plans/2609261000-plan-prune-store-plan.md (Approved) — left as is",
+      "Commit: d4e5f6a — chore(specs): reopen plan-prune",
     ]);
   });
 
@@ -415,6 +458,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         commit: {
           hash: "3f2a1c9abcdef1234567890abcdef1234567890",
@@ -452,6 +496,7 @@ describe("runArtifactTransition", () => {
     transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
+        previousStatus: "Draft",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );

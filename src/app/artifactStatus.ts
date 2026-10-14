@@ -61,7 +61,10 @@ import {
   removeSpecApprovalRecord,
   specApprovalRecordExists,
 } from "./approvalRecordStore.js";
-import type { OrphanApprovalRecord } from "../domain/artifact/approvalRecordFile.js";
+import {
+  approvalRecordPathFor,
+  type OrphanApprovalRecord,
+} from "../domain/artifact/approvalRecordFile.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 
 /** A spec's or plan's approval as status reports it. */
@@ -209,12 +212,26 @@ export function inspectArtifact(
   });
 }
 
+/** A live plan naming a reopened spec in `source-spec`: named, never touched. */
+export interface BoundPlan {
+  readonly path: string;
+  readonly status: string;
+}
+
 export interface ArtifactTransitionResult {
   readonly status: ArtifactStatus;
+  /** The status the artifact had before the transition. */
+  readonly previousStatus: ArtifactStatus;
   readonly path: string;
   readonly approvedBaseline?: string;
   /** Who approved: set on every transition to Approved. */
   readonly approvedBy?: ResolvedArbiter;
+  /** Who reopened: set on every transition to Draft. */
+  readonly reopenedBy?: ResolvedArbiter;
+  /** The artifact's own record file, when a reopen deleted it. */
+  readonly deletedRecord?: string;
+  /** A reopened spec's live bound plans, left as they are. */
+  readonly boundPlans?: readonly BoundPlan[];
   readonly commit?: { readonly hash: string; readonly subject: string };
 }
 
@@ -225,16 +242,16 @@ export interface TransitionArtifactOptions {
 }
 
 /** The targets whose gesture names who performs it: the caller resolves the arbiter first. */
-export type ArbitratedTarget = Extract<ArtifactStatus, "Approved">;
+export type ArbitratedTarget = Extract<ArtifactStatus, "Approved" | "Draft">;
 
 /** The options of a transition to an arbitrated target: they carry its resolved arbiter. */
 export interface ArbitratedTransitionOptions extends TransitionArtifactOptions {
   readonly arbiter: ResolvedArbiter;
 }
 
-// A transition to an arbitrated target takes its arbiter; any other takes
-// none, so run completion and plan staleness never name one, and phax never
-// invents one.
+// A transition to an arbitrated target (approve or reopen) takes its arbiter;
+// any other takes none, so run completion and plan staleness never name one,
+// and phax never invents one.
 type TransitionRequest =
   | [target: ArbitratedTarget, opts: ArbitratedTransitionOptions]
   | [target: Exclude<ArtifactStatus, ArbitratedTarget>, opts: TransitionArtifactOptions];
@@ -263,18 +280,14 @@ export function resolveDeclaredSpec(
 
 function findDependentPlans(
   specPath: string,
-): Effect.Effect<
-  readonly { readonly path: string; readonly status: string }[],
-  FsError | ArtifactValidationError,
-  FileSystem
-> {
+): Effect.Effect<readonly BoundPlan[], FsError | ArtifactValidationError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const plansDirExists = yield* fs.exists("docs/plans");
     if (!plansDirExists) return [];
     const entries = yield* fs.list("docs/plans");
     const specCandidates = new Set([specPath, archivePathFor(specPath)]);
-    const dependents: { path: string; status: string }[] = [];
+    const dependents: BoundPlan[] = [];
 
     for (const entry of entries) {
       if (!entry.endsWith(".md")) continue; // skips the archive/ subdirectory entry
@@ -319,6 +332,8 @@ export function transitionArtifact(
 ): Effect.Effect<ArtifactTransitionResult, TransitionArtifactError, FileSystem | Git> {
   // Non-null exactly on an approval: the approver its record names.
   const approver = target === "Approved" ? opts.arbiter : null;
+  // Non-null exactly on a reopen: the arbiter its commit trailer names.
+  const reopener = target === "Draft" ? opts.arbiter : null;
   return Effect.gen(function* () {
     // Before anything is read or written, so a refused transition (and the
     // run completion built on it) leaves the tree untouched.
@@ -371,6 +386,11 @@ export function transitionArtifact(
         return yield* Effect.fail(new ArtifactDirtyWriteSetError({ paths: dirty }));
       }
     }
+
+    // A reopened spec's bound plans are only named: read before anything is
+    // written, never rewritten.
+    const boundPlans =
+      kind === "spec" && reopener !== null ? yield* findDependentPlans(repoRelPath) : null;
 
     const statusRewrite = setFrontmatterKeys(md, [{ key: "status", value: target }]);
     if (Either.isLeft(statusRewrite)) {
@@ -480,11 +500,12 @@ export function transitionArtifact(
       approvedBaseline = baseline;
     }
 
-    // Reopen (Stale → Draft) is the mirror of completion's cleanup: the plan is
-    // about to be rewritten, so it must not keep an approval of its old text —
-    // clear both the `approved:` stamp and the plan's own record file. Both
-    // must land before finalizeTransition, which commits the write-set.
-    if (kind === "plan" && target === "Draft") {
+    // Reopen (Approved → Draft, or a plan's Stale → Draft) is the mirror of
+    // completion's cleanup: the artifact is about to be rewritten, so it must
+    // not keep an approval of its old text — clear both the `approved:` stamp
+    // and its own record file (read first, so an unreadable one is refused,
+    // not deleted). Both land before finalizeTransition commits the write-set.
+    if (reopener !== null) {
       const cleared = clearApproved(updatedMd);
       if (Either.isLeft(cleared)) {
         return yield* Effect.fail(
@@ -495,7 +516,8 @@ export function transitionArtifact(
         );
       }
       updatedMd = cleared.right;
-      yield* removePlanApprovalRecord(repoRelPath);
+      if (kind === "plan") yield* removePlanApprovalRecord(repoRelPath);
+      if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
     }
 
     if (kind === "spec" && isTerminalStatus(target)) {
@@ -536,16 +558,27 @@ export function transitionArtifact(
         yield* fs.writeAtomic(sidecarDestination, sidecar.text);
         yield* fs.remove(sidecar.path);
       }
-      const result: ArtifactTransitionResult = { status: target, path: destination };
+      const result: ArtifactTransitionResult = {
+        status: target,
+        previousStatus: status,
+        path: destination,
+      };
       return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }
 
     yield* fs.writeAtomic(repoRelPath, updatedMd);
+    const recordPath = approvalRecordPathFor(kind, repoRelPath);
     const result: ArtifactTransitionResult = {
       status: target,
+      previousStatus: status,
       path: repoRelPath,
       ...(approvedBaseline !== undefined ? { approvedBaseline } : {}),
       ...(approver !== null ? { approvedBy: approver } : {}),
+      ...(reopener !== null ? { reopenedBy: reopener } : {}),
+      ...(reopener !== null && hasRecordFile && recordPath !== null
+        ? { deletedRecord: recordPath }
+        : {}),
+      ...(boundPlans !== null ? { boundPlans } : {}),
     };
     return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
   });
@@ -558,7 +591,12 @@ export interface TransitionArtifactByOptions extends TransitionArtifactOptions {
 
 const REFUSED_GESTURE: Readonly<Record<ArbitratedTarget, string>> = {
   Approved: "Approval refused",
+  Draft: "Reopen refused",
 };
+
+function isArbitratedTarget(target: ArtifactStatus): target is ArbitratedTarget {
+  return Object.hasOwn(REFUSED_GESTURE, target);
+}
 
 /**
  * A transition as a person or a script asks for it: an arbitrated target's
@@ -576,7 +614,7 @@ export function transitionArtifactBy(
 > {
   return Effect.gen(function* () {
     const { by, ...transitionOpts } = opts;
-    if (target !== "Approved") {
+    if (!isArbitratedTarget(target)) {
       return yield* transitionArtifact(repoRelPath, target, transitionOpts);
     }
     const arbiter = yield* resolveArbiter(by, opts.repoRoot).pipe(
@@ -610,7 +648,7 @@ function finalizeTransition(
     const stillDirty = yield* git.dirtyPaths(opts.repoRoot, writeSet);
     if (stillDirty.length === 0) return result;
 
-    const { subject, body } = transitionCommitMessage(kind, target, repoRelPath);
+    const { subject, body } = transitionCommitMessage(kind, target, repoRelPath, result.reopenedBy);
     const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, writeSet, subject, body));
     if (Either.isLeft(committed)) {
       return yield* Effect.fail(

@@ -147,10 +147,30 @@ export async function runArtifactTransition(
     return exitCodeForError(result.left);
   }
 
-  const { status, path, approvedBaseline, approvedBy, commit: madeCommit } = result.right;
-  out.log(`Status: ${status}`);
+  const {
+    status,
+    previousStatus,
+    path,
+    approvedBaseline,
+    approvedBy,
+    reopenedBy,
+    deletedRecord,
+    boundPlans = [],
+    commit: madeCommit,
+  } = result.right;
+  out.log(
+    deletedRecord === undefined
+      ? `Status: ${status}`
+      : `Status: ${status} (was ${previousStatus}; ${deletedRecord} deleted)`,
+  );
   if (approvedBy !== undefined) {
     out.log(`Approver: ${describeArbiter(approvedBy)}`);
+  }
+  if (reopenedBy !== undefined) {
+    out.log(`Reopened-By: ${describeArbiter(reopenedBy)}`);
+  }
+  for (const plan of boundPlans) {
+    out.log(`Bound:  ${plan.path} (${plan.status}) — left as is`);
   }
   if (target === "Abandoned" || target === "Completed") {
     out.log(`Path:   ${path}`);
@@ -441,9 +461,9 @@ const TRANSITIONS: readonly TransitionSpec[] = [
   },
   {
     name: "reopen",
-    description: "Reopen a Stale plan back to Draft",
+    description: "Reopen an Approved spec or plan, or a Stale plan, back to Draft",
     target: "Draft",
-    takesBy: false,
+    takesBy: true,
   },
 ];
 
