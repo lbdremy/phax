@@ -1,14 +1,18 @@
 # phax
 
-phax runs a plan through AI coding agents as a sequence of **gated phases**, and hands you a change you can review.
+phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of **gated phases**, and hands you a change you can review.
 
-You write what to build (a **spec**) and how, phase by phase (a **plan**). phax runs each phase in its own Git worktree with the agent of your choice — Claude Code, OpenAI Codex or Mistral Vibe — and the phase must pass your project's gates (typecheck, tests, lint…) before the next one starts. Everything around the agent is plain code: sequencing, gates, retries, state. The agent is the only non-deterministic part.
+**Documentation:** [docs.phax.run](https://docs.phax.run) · **npm:** [`@lbdremy/phax`](https://www.npmjs.com/package/@lbdremy/phax)
+
+You write what to build (a **spec**) and how, phase by phase (a **plan**). phax runs each phase in its own Git worktree with the agent you pick, and the phase must pass your project's gates (typecheck, tests, lint…) before the next one starts. Everything around the agent is plain code: sequencing, gates, retries, state. The agent is the only non-deterministic part.
 
 Every phase declares the files it means to create and edit, so phax can tell you what actually happened: planned but not done, done but not planned, deleted, renamed. The agent has to justify each deviation in its handoff. You review a change that is already framed, phase by phase, instead of a pull request full of touched files.
 
 ```
 spec ──approve──▶ plan ──lint, approve──▶ run: phase-01 ─gate─▶ phase-02 ─gate─▶ … ─gate─▶ review ──▶ pull request
 ```
+
+**How phax compares.** Spec-driven tools such as GitHub Spec Kit and OpenSpec share the spec → plan → implement idea and work with dozens of agents, but by default what checks the code there is a person's review or a model's judgment. phax is the runtime instead: it starts the agent itself, runs each phase in an isolated worktree, moves on only when your real checks exit green, and reconciles the plan file by file against the diff. It trades breadth of agents for that enforcement. The comparisons go axis by axis: [GitHub Spec Kit vs. phax](docs/comparisons/spec-kit-vs-phax.md) and [OpenSpec vs. phax](docs/comparisons/openspec-vs-phax.md).
 
 ## Quickstart
 
