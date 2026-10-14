@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-14
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-14
+  baseline: a005dbb
 ---
 # Artifact decide — arbitrating a spec's or plan's open questions
 
