@@ -9,7 +9,7 @@ bin "phax"
 version "0.24.0"
 license "Apache-2.0"
 min_usage_version "1.0.0"
-about "Drive AI Coding agent through isolated, gated phases"
+about "Drive AI coding agents through isolated, gated phases"
 
 flag "--verbose" {
     global #true

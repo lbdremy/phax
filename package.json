@@ -1,7 +1,7 @@
 {
   "name": "phax",
   "version": "0.24.0",
-  "description": "Deterministic local CLI that drives AI Coding agent through isolated, gated phases",
+  "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
   "license": "Apache-2.0",
   "bin": {
     "phax": "./dist/cli/main.js"
