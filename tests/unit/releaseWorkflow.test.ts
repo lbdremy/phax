@@ -30,6 +30,17 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain("softprops/action-gh-release");
   });
 
+  it("generates the GitHub Release's notes, categorised by .github/release.yml", () => {
+    const release = releaseSteps.find((step) =>
+      step.uses?.startsWith("softprops/action-gh-release"),
+    );
+    expect(release?.with?.["generate_release_notes"]).toBe(true);
+    const config = parse(
+      readFileSync(join(import.meta.dirname, "../../.github/release.yml"), "utf-8"),
+    ) as { readonly changelog?: { readonly categories?: ReadonlyArray<unknown> } };
+    expect(config.changelog?.categories?.length).toBeGreaterThan(0);
+  });
+
   it("runs npm stage publish with provenance", () => {
     expect(workflow).toContain("npm stage publish --access public --provenance");
   });
