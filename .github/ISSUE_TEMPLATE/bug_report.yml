@@ -1,0 +1,56 @@
+name: Bug report
+description: phax did something wrong or unexpected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please check the docs at https://docs.phax.run and the existing issues first.
+        For a run that went wrong, `phax report <short-name>` opens an issue with the run's telemetry log attached, from your own machine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what phax did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran, in order, and a minimal phax.json or plan if they matter.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The relevant phax output; `phax session-info <short-name>` helps for a run. Remove anything private.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: phax version
+      description: The output of `phax --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - Claude Code
+        - OpenAI Codex
+        - Mistral Vibe
+        - Not agent-related
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS and architecture, and how you installed phax (npm or binary).
+      placeholder: macOS 15 arm64, npm
+    validations:
+      required: true
