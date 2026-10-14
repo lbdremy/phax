@@ -1,7 +1,26 @@
 {
   "name": "@lbdremy/phax",
   "version": "0.24.0",
-  "description": "Deterministic local CLI that drives AI Coding agents through isolated, gated phases",
+  "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
+  "keywords": [
+    "agentic-coding",
+    "ai-agents",
+    "claude-code",
+    "cli",
+    "code-review",
+    "codex",
+    "coding-agent",
+    "developer-tools",
+    "git-worktree",
+    "mistral-vibe",
+    "openai-codex",
+    "quality-gates",
+    "spec-driven-development"
+  ],
+  "homepage": "https://docs.phax.run",
+  "bugs": {
+    "url": "https://github.com/lbdremy/phax/issues"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -12,7 +31,8 @@
   },
   "files": [
     "bin",
-    "lib"
+    "lib",
+    "README.md"
   ],
   "engines": {
     "node": ">=20"

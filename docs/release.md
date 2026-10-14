@@ -116,7 +116,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 1. Runs the full gate (typecheck, tests, lint, build, docs site build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
 2. Cross-compiles four platform binaries with SHA-256 checksums.
 3. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
-4. Prepares the npm wrapper (`npm/package.json` is set to the tag's version).
+4. Prepares the npm wrapper: `npm/package.json` is set to the tag's version, and `npm/README.md` is written from `README.md` with its relative links pinned on GitHub at the tag (the file is ignored by Git and shipped in the package).
 5. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version, and that the last entry of the release ledger `packages/schemas/releases.json` equals it. Only the cut appends the ledger, so a tag on a commit that is not a release commit fails here — an opening commit included, whose manifests name the tag's version while its ledger ends earlier.
 6. Deploys docs.phax.run, after the version check and before any npm stage publish, in four steps:
    - **guard**: refuses the build if it would stop serving a schema URL listed in the live index at `https://docs.phax.run/schemas/index.json`;
