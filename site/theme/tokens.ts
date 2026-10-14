@@ -75,7 +75,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
 /**
  * The code blocks' syntax colours, which Rspress's Shiki emits as `--shiki-*`
  * variables. Mostly neutrals and the gold: keywords in the accent, strings in
- * a sage and constants in a steel blue that sit beside it, and every colour
+ * a mint and constants in a steel blue that sit beside it, and every colour
  * readable on the code block's background (the theme's `bg`), which the
  * contrast test holds at 4.5:1.
  */
@@ -96,25 +96,25 @@ export const SYNTAX: Readonly<Record<ThemeName, Readonly<Record<SyntaxToken, str
     foreground: "#EDEDEF",
     keyword: "#E2B33C",
     function: "#F0D99A",
-    string: "#A9C79A",
+    string: "#86E0B0",
     constant: "#9FBBD3",
     parameter: "#D8C7A1",
     comment: "#8B8B95",
     punctuation: "#A1A1AA",
     deleted: "#E5604A",
-    inserted: "#8FC27F",
+    inserted: "#86E0B0",
   },
   light: {
     foreground: "#18181B",
     keyword: "#8F6400",
     function: "#18181B",
-    string: "#3F6B34",
+    string: "#137A4D",
     constant: "#2F5C80",
     parameter: "#3F3F46",
     comment: "#6B6B73",
     punctuation: "#57575E",
     deleted: "#B83A22",
-    inserted: "#2F6F2A",
+    inserted: "#137A4D",
   },
 };
 
