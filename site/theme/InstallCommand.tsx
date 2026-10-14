@@ -1,12 +1,12 @@
 // The install command above the hero's actions (the home's `install`
 // frontmatter, which the build checks against README.md), with a copy button.
 import { useFrontmatter } from "@rspress/core/runtime";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 
 // The test typecheck has no DOM library; the one browser API used here.
 declare const navigator: { readonly clipboard?: { writeText(text: string): Promise<void> } };
 
-export function InstallCommand() {
+export function InstallCommand(): ReactElement | null {
   const { frontmatter } = useFrontmatter();
   const command = frontmatter["install"];
   const [copied, setCopied] = useState(false);

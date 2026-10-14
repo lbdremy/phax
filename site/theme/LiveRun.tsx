@@ -1,7 +1,7 @@
 // The hero's run card: the home's live run as it plays (site/theme/playback.tsx),
 // a stepper from spec to pull request, the phases, and the semantic log
 // scrolling under them. It tells the playback when it is off screen.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 import type { LiveRunLine, LiveRunStage } from "../build/liveRun.js";
 import { usePlayback } from "./playback.js";
 
@@ -102,7 +102,7 @@ function LogLine({ line }: { readonly line: LiveRunLine }) {
   );
 }
 
-export function LiveRun() {
+export function LiveRun(): ReactElement {
   const playback = usePlayback();
   const lines = playback?.lines ?? [];
   const shown = playback?.shown ?? lines.length;
