@@ -17,17 +17,27 @@ const SITE: SiteJson = {
   socialLinks: [],
   routes: ["/", "/guide/run"],
   headingIds: { "/": ["tool"], "/guide/run": ["run", "locks"] },
+  description: "Tool runs plans.",
 };
 
 const FAVICON_LINK = '<link rel="icon" href="/logo.svg" type="image/svg+xml">';
+
+const PREVIEW_TAGS =
+  '<meta name="description" content="Tool runs plans.">' +
+  '<meta property="og:image" content="https://docs.phax.run/og.png">' +
+  '<meta name="twitter:card" content="summary_large_image">';
 
 const NAV_TITLE =
   '<a href="/" class="rp-nav__title__link rp-link"><div class="rp-nav__title__logo">' +
   '<img src="/logo-light.svg" alt="logo"/><img src="/logo.svg" alt="logo"/></div><span>phax</span></a>';
 
-function page(body: string, head = "", { icon = FAVICON_LINK, title = NAV_TITLE } = {}): string {
+function page(
+  body: string,
+  head = "",
+  { icon = FAVICON_LINK, title = NAV_TITLE, preview = PREVIEW_TAGS } = {},
+): string {
   return (
-    `<!doctype html><html><head>${head}${icon}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
+    `<!doctype html><html><head>${head}${preview}${icon}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
     `<body><nav>${title}<a href="${RELEASE}" target="_blank" class="rp-link">v0.17.0</a>` +
     `<a href="https://github.com/example/tool">GitHub</a></nav>${body}</body></html>`
   );
@@ -62,6 +72,21 @@ describe("checkBuiltSite", () => {
     files.delete("guide/run.html");
     expect(checkBuiltSite(SITE, files)).toEqual([
       "✗ site/doc_build: route /guide/run has no page (guide/run.html or guide/run/index.html)",
+    ]);
+  });
+
+  it("names a page without its link-preview card or with another one", () => {
+    const findings = checkBuiltSite(
+      SITE,
+      built({
+        "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", {
+          preview: '<meta property="og:image" content="/og.png">',
+        }),
+      }),
+    );
+    expect(findings).toEqual([
+      '✗ site/doc_build/guide/run.html: og:image is "/og.png", not "https://docs.phax.run/og.png"',
+      '✗ site/doc_build/guide/run.html: twitter:card is missing, not "summary_large_image"',
     ]);
   });
 

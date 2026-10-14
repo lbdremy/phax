@@ -228,6 +228,7 @@ describe("generateSite", () => {
       },
     ]);
     expect(value("install")).toBe("Install it");
+    expect(value("description")).toBe("Tool runs plans <name> by name.");
     expect(value("liveRun")).toEqual(liveRun());
     expect(page).toContain("## Quickstart \\{#quickstart\\}");
   });

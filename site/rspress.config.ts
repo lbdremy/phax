@@ -4,11 +4,13 @@
 // computed here. Local search only; no last-updated, edit links, analytics or
 // remote resource. The identity: dark first, the theme CSS generated from
 // site/theme/tokens.ts, the logo (the dark-accent file is the favicon)
-// beside the lowercase wordmark, and site/theme/index.tsx's home.
+// beside the lowercase wordmark, site/theme/index.tsx's home, and the social
+// card (site/build/og.ts) in every page's link-preview tags.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type UserConfig } from "@rspress/core";
 import { THEME_CSS, type SiteJson } from "./build/generate.js";
+import { socialHead } from "./build/og.js";
 import { DARK_MODE } from "./theme/appearance.js";
 
 const SITE_JSON = resolve(import.meta.dirname, "generated/site.json");
@@ -22,6 +24,8 @@ export default defineConfig({
   root: resolve(import.meta.dirname, "generated/docs"),
   outDir: resolve(import.meta.dirname, "doc_build"),
   title: "phax",
+  description: site.description,
+  head: socialHead(),
   logo: { dark: "/logo.svg", light: "/logo-light.svg" },
   logoText: "phax",
   icon: "/logo.svg",
