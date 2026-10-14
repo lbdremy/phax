@@ -227,9 +227,11 @@ describe("cutRelease on an opened copy of the tree", () => {
     applySchemasWrite(copy);
     expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(true);
     // `--write` holds `next` strictly equal to the generated schema, so the
-    // planted bytes may have been rewritten (a released snapshot's wording can
-    // trail the generated one's).
+    // planted bytes are rewritten (a released snapshot's wording can trail the
+    // generated one's).
     const planted = readFileSync(join(copy, snapshotPath(id, "next")));
+    const generatedSchema = readSchemasState(copy).formats.find((format) => format.id === id)!;
+    expect(generatedSchema.generated).toEqual({ ok: true, content: planted.toString("utf8") });
     const before = hashTree(copy, ["."]);
 
     const { changed } = cutRelease(copy, O);
