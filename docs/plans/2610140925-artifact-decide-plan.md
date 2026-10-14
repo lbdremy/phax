@@ -1,0 +1,365 @@
+---
+status: Draft
+source-spec: docs/specs/2610140742-artifact-decide.md
+completes-spec: false
+---
+# Approver attribution and reopen
+
+Plan A of three for spec artifact-decide. It implements the approver and reopen part of the spec only: §5.35–§5.37, §5.40–§5.45 and §5.57. Plans B and C are authored after this one merges: B covers the question model, the renderer and `migrate-documents`, and C covers `decide`, the doctrine skills and the approval lock.
+
+Phase 1 gives every approval record an approver. Both approval record formats (`spec-approval-record` and `plan-approval-record`) gain a required `approvedBy`, an explicit union of `machine` (with its grant), `operator` (with its git `user.name`) and `unattributed`. The 0.19.0 shapes are frozen. phax and the schemas package lift a 0.19.0 record to `unattributed` on read and never rewrite it, and `migrate-approvals` writes each split ledger entry as `unattributed`. In the same phase, `phax artifact approve` gains `--by operator | --by machine:<grant>` with the terminal default and the no-terminal refusal, both resolved through two new port capabilities: the git identity and whether stdin is a terminal. `phax artifact status` names the approver on the `Approved:` line for specs and plans. The format change and approve's writer land together because approve must write a valid record at every commit.
+
+Phase 2 lets `phax artifact reopen` move an Approved spec or plan back to Draft. Reopen clears the `approved` stamp and deletes the record file, takes the same `--by`, adds a `Reopened-By:` trailer to the reopen commit (Approved → Draft and Stale → Draft alike), and leaves the live plans bound to a reopened spec as they are, naming them. Draft joins an Approved artifact's legal transitions.
+
+Phase 3 updates the skills, the README's hand-written sections and NEXT_STEPS.
+
+Out of scope here: anything about questions, `migrate-documents`, the document shape changes and the refusals while a sidecar is unmigrated (plan B); and `decide`, decision records and attribution, the doctrine skills, `skills install` and the approval lock (plan C). Every example and fixture is made up.
+
+## Required commands
+
+- (none)
+
+This plan adds no new tool. The phases use the repository's pnpm scripts and three commands `phax.json` already allows: `pnpm exec tsx scripts/schemas-check.ts` (with and without `--write`), `pnpm gen:usage-spec` and `pnpm docs:cli`. No `phax.json` security change is needed. Phase 3 edits skill files, so run the plan with `phax run --allow-skill-edits`.
+
+## Technical arbitrations
+
+- A grant is a kebab-case slug, `^[a-z0-9]+(-[a-z0-9]+)*$`. `--by machine:<grant>` with anything else exits 12, naming the pattern. Loss accepted: callers must fold free-form labels (spaces, dots, `name@1.2`) into a slug. Decided with the author on 2026-10-14.
+- An operator approval or reopen in a repository without a git `user.name` (unset or empty) refuses with exit 12 before writing anything, naming `git config user.name` as the remedy. Loss accepted: a repository with only `user.email` set needs one config line before approving. Decided with the author on 2026-10-14.
+- The approve commit is unchanged, because the record file carries the approver. Only reopen's commit gains a trailer naming the arbiter (§5.35), for Approved → Draft and Stale → Draft alike, spelled `Reopened-By: machine (<grant>)` / `Reopened-By: operator (<name>)` as in the spec's indicative example. Loss accepted: `git log` alone does not show who approved; the record file does. Decided with the author on 2026-10-14.
+- Terminal detection goes through a new `Terminal` port whose Node adapter reads `process.stdin.isTTY`, the stream `prune` and `init` already use. `prune` and `init` are not moved onto the port in this plan. Loss accepted: two ways to read the terminal coexist until a later cleanup.
+- `approvedBy` is added only to the record-file shapes (`SpecRecord`/`PlanRecord`). The old ledger entry shapes (`spec-approvals`, `plan-approvals`) stay byte for byte unchanged, as the spec's format table requires. Loss accepted: in memory, a ledger entry and a record file no longer share one struct, so `migrate-approvals` adds `approvedBy` itself when it splits a ledger.
+- The format change and approve's `--by` land in one phase, because `approvedBy` becomes required in the same commit that approve must write it. Loss accepted: phase 1 is the plan's largest diff (schemas, lifts, two port capabilities, approve and status).
+
+---
+
+## phase-01 — Approvals name their approver {#phase-01-approvals-name-their-approver}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+Every approval phax records now says who gave it: a machine and its grant, the operator by their git name, or, for a record written before this change, unattributed. `phax artifact approve` takes `--by`, defaults to the operator only at a terminal, and refuses to guess otherwise. `phax artifact status` shows the approver for specs and plans alike.
+
+### Detailed instructions
+
+- Before you edit, read spec `docs/specs/2610140742-artifact-decide.md` §5.40–§5.45, §5.57, §6 (`phax artifact approve`, the approval record files, the approval-record rows of the persisted-formats table and the approver part of `phax artifact status`) and the §8 criteria 'Approvals name their approver' and 'Records written before attribution read as unattributed'. Follow the precedent of commit `e2b55922` and phase 03 of `docs/plans/archive/2610131352-small-fixes-0-23-plan.md` for the shape change.
+- Schema, `src/schemas/approvedBy.ts`: export `ApprovedBySchema`, an explicit `Schema.Union` of `{ kind: "machine", grant }` (grant: a string matching `^[a-z0-9]+(-[a-z0-9]+)*$`), `{ kind: "operator", name }` (non-empty string) and `{ kind: "unattributed" }`, its type, and an exported `GRANT_PATTERN`. Every key is required and unknown keys are rejected wherever the union is decoded with `onExcessProperty: "error"`.
+- `src/schemas/specApprovalRecord.ts` and `src/schemas/approvalRecord.ts`: add `approvedBy: ApprovedBySchema` to the record-file fields only (`specRecordFields`, `planRecordFields`), placed after `baseline` in spec records and after `sourceSpec` in plan records, so the encoded key order is `$schema`, `artifact`, …, `approvedBy`. `SpecApprovalRecordSchema` and `ApprovalRecordSchema`, which the old ledgers' `records` reuse, must not change. The `spec-approvals` and `plan-approvals` formats keep their shape and stamp. Update the doc comments, which say that no approver is recorded.
+- Frozen shapes: write `src/schemas/history/spec-approval-record/0.19.0.ts` and `src/schemas/history/plan-approval-record/0.19.0.ts`. Each is the self-contained current shape before `approvedBy`, with its own inlined `$schema` field worded exactly as the format's `packages/schemas/snapshots/<format>/0.19.0.schema.json`, and must render to that snapshot. Export the schema, a decoder (`onExcessProperty: "error"`) and the type, named like the existing frozen modules (`…V0_19_0`). Follow the header and naming conventions of `src/schemas/history/authoring-record-manifest/0.17.0.ts`.
+- Schemas package, `packages/schemas/src/formats/repository.ts`: list each frozen shape in its format's `releases` (`[["0.19.0", …]]`). Widen `SpecApprovalRecordShapes`/`PlanApprovalRecordShapes` with a `"0.19.0"` key. `toLatestSpecApprovalRecord`/`toLatestPlanApprovalRecord` must lift a 0.19.0 value with `approvedBy: { kind: "unattributed" }` and pass a current value through. Update the file comment, which says the approval record files have no releases. Re-export the frozen shapes from `packages/schemas/src/index.ts` as other frozen release shapes are.
+- phax's reader, `src/schemas/persisted.ts`: `readSpecRecordFile` and `readPlanRecordFile` read a record stamped below `CURRENT_STAMPS[format]` (reuse `isStampedBelowCurrent`) with the frozen 0.19.0 decoder, strip `$schema` and add `approvedBy: { kind: "unattributed" }`. A current-stamped record is read as today, and a record without `$schema` is still refused, because these formats are born with `$schema`. Update the module header, which says only the authoring record manifest is lifted from an older `$schema` shape. No reader rewrites the file: every reader of approval records (`phax artifact status`, `phax plans status`, `phax run`'s approval gate and staleness, run completion, `migrate-approvals`) goes through these two readers via `src/app/approvalRecordStore.ts`, so they all apply the one lift. Plan staleness must be computed exactly as before.
+- Record the shape change: run `pnpm exec tsx scripts/schemas-check.ts --write` as soon as the schemas change, before writing tests that rely on the stamp. It must write `next.schema.json` for `spec-approval-record` and `plan-approval-record` only, and move only those two entries in `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts` and `packages/schemas/history.lock.json`. Never hand-edit those generated files, and never write a release number by hand: the new stamp is the opened version and is named at the next cut. Then run `pnpm exec tsx scripts/schemas-check.ts`; it must report no finding. No other format may gain a `next`.
+- Store, `src/app/approvalRecordStore.ts`: `putSpecApprovalRecord`/`putPlanApprovalRecord` take the approver and write it. Keep the read-before-write, so an unreadable existing file is refused and left untouched, while a lifted 0.19.0 file is rewritten at the new shape only when approve writes it. `renderSpecRecordFile`/`renderPlanRecordFile` render the new shape.
+- `src/app/migrateApprovals.ts`: each decoded ledger entry renders as `{ artifact, ...entry, approvedBy: { kind: "unattributed" } }`. `readExisting` already renders an existing target through the lifting reader, so a 0.19.0 target holding the same record compares equal and is kept, never rewritten (byte-identical). Everything else about the migration is unchanged.
+- Domain, `src/domain/artifact/arbiter.ts` (pure, no I/O): an `Arbiter` type matching `ApprovedBy`'s three variants (structurally, or imported as a type if the `boundaries` skill allows domain → schemas type imports). Add a parser for the raw `--by` value: `operator` → operator declaration; `machine:<grant>` → machine declaration, refused naming `GRANT_PATTERN` when the grant does not match; anything else → refused naming `--by operator` and `--by machine:<grant>`. Add `resolveArbiter({ declared, stdinIsTerminal, gitUserName })`: a machine declaration resolves to `{ kind: "machine", grant }`; an operator declaration, or no declaration from a terminal, needs a non-empty `gitUserName`, else it is refused naming `git config user.name`; no declaration without a terminal is refused naming both `--by` forms. Add `describeArbiter(arbiter)`, which returns `machine (<grant>)`, `operator (<name>)` or `unattributed`. Refusals are data (Either) carrying the message, never thrown.
+- Ports, following the `effect-services`, `infrastructure-adapters` and `boundaries` skills. (1) `src/ports/git.ts`: add `userName(repo): Effect<string | null, GitError>`, the value `git config user.name` reads in `repo` (null when unset or empty). Implement it in `src/infra/git.ts`, where an unset key (git exits 1) is null, not an error, and in `src/infra/fakes/git.ts` with a configurable value. (2) `src/ports/terminal.ts`: a `Terminal` tag (`phax/Terminal`) whose ops expose `stdinIsTerminal: Effect<boolean>`. Add a Node adapter layer in `src/infra/terminal.ts` that reads `Boolean(process.stdin.isTTY)` (the stream `prune` and `init` use) and a fake in `src/infra/fakes/terminal.ts` with a fixed value. Do not move `prune` or `init` onto the port.
+- App, `src/app/resolveArbiter.ts`: an Effect taking the raw `--by` value (or undefined) and the repo root. It parses the value with the domain parser, reads `stdinIsTerminal` from the Terminal port and, only when an operator is needed, `userName` from the Git port, then returns the resolved `Arbiter` or fails with a typed refusal. Add that refusal error (for example `ArtifactArbiterRefusedError`, carrying the message) to `src/domain/errors.ts`, and map it to exit 12 in `exitCodeForError` in `src/cli/commands/runLayers.ts`.
+- `src/app/artifactStatus.ts`, approve: `transitionArtifact` must receive the resolved arbiter when the target is Approved, and approve (Draft → Approved, Stale → Approved and Approved → Approved) writes it as the record's `approvedBy` for specs and plans. Resolve the arbiter before anything is written: a refusal leaves the tree and HEAD unchanged. Other targets (Stale, Completed, Abandoned, Draft) need no arbiter in this phase. Shape the options so that `planStaleness` and `completeRunArtifacts` keep calling `transitionArtifact` without one, and no default arbiter is ever invented. `ArtifactTransitionResult` gains the approver of an approval. The approve commit message is unchanged.
+- `src/app/artifactStatus.ts`, status: generalize `SpecApprovalInfo` to the approval info of both kinds (rename it, for example `ApprovalInfo`), and give the `recorded` variant `approvedBy`. Compute it for plans too, from the plan's record file and `approved` stamp: `editedSinceApproval` for a plan means that its record's `planFingerprint` differs from its current fingerprint (reuse lineage's comparison if one exists). Spec behaviour is otherwise unchanged.
+- CLI, `src/cli/commands/artifact.ts` (thin, per the `cli-view-layer` skill): `approve` gains `--by <arbiter>` (help: `operator or machine:<grant>; required without a terminal`). The command passes the raw value to the use case. Add the Terminal layer to the command's `buildLayer`. Approve prints `Approver: <describeArbiter>` after `Status:`. `runArtifactStatus` prints `Approved:          <date> @ <baseline> by machine (<grant>)`, `by operator (<name>)`, or `<date> @ <baseline> unattributed`, then the `Edited since:` line, for plans as well as specs. Do not add `--by` to stale, abandon, complete or reopen (reopen is phase 02). In `src/cli/cliDocs.ts`, update `artifact approve`'s long help: `--by`, the terminal default, the no-terminal refusal, the user.name refusal, and that the record file names the approver. Add an example with `--by machine:roadmap-loop`. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`, which regenerate `phax.usage.kdl`, `docs/cli/reference.md` and the README's generated CLI section. Do not hand-edit other README sections in this phase.
+- Callers without a terminal: every test that runs `phax artifact approve` as a subprocess, or drives `runArtifactTransition` for Approved without a terminal, now needs `--by operator` (or `machine:<grant>`), or a fake terminal. Update them; do not weaken the refusal. Temp git repos in tests must set `user.name` wherever an operator approval is expected; check `tests/helpers/` before adding a helper.
+- Fixtures and assertions name stamps only through the current-stamp helpers (`currentSchemaUrl`, `CURRENT_STAMPS`, `CURRENT_SHAPES`), never as literal release numbers. The only exception is the frozen 0.19.0 modules and fixtures that name their own release, as existing frozen-module tests do. Every name, grant and path in fixtures is made up (e.g. `Ada Lovelace`, `roadmap-loop`).
+
+### Planned files to create
+
+- `src/schemas/approvedBy.ts`
+- `src/schemas/history/spec-approval-record/0.19.0.ts`
+- `src/schemas/history/plan-approval-record/0.19.0.ts`
+- `packages/schemas/snapshots/spec-approval-record/next.schema.json`
+- `packages/schemas/snapshots/plan-approval-record/next.schema.json`
+- `src/domain/artifact/arbiter.ts`
+- `src/ports/terminal.ts`
+- `src/infra/terminal.ts`
+- `src/infra/fakes/terminal.ts`
+- `src/app/resolveArbiter.ts`
+- `tests/unit/artifact/arbiter.test.ts`
+- `tests/type/terminal.ts`
+- `tests/integration/gitUserName.test.ts`
+- `tests/integration/approvalAttribution.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/specApprovalRecord.ts`
+- `src/schemas/approvalRecord.ts`
+- `src/schemas/persisted.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/formats/repository.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/history.lock.json`
+- `src/app/approvalRecordStore.ts`
+- `src/app/migrateApprovals.ts`
+- `src/app/artifactStatus.ts`
+- `src/ports/git.ts`
+- `src/infra/git.ts`
+- `src/infra/fakes/git.ts`
+- `src/domain/errors.ts`
+- `src/cli/commands/runLayers.ts`
+- `src/cli/commands/artifact.ts`
+- `src/cli/cliDocs.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `README.md`
+- `tests/unit/schemas/specApprovalRecord.test.ts`
+- `tests/unit/schemas/approvalRecordFile.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/repositoryFormats.test.ts`
+- `tests/type/schemasPackage.ts`
+- `tests/integration/migrateApprovals.test.ts`
+- `tests/integration/artifactStatus.test.ts`
+- `tests/unit/cli/artifactStatusRender.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/artifact/lineage.ts`
+- `src/domain/artifact/approvalRecordFile.ts`
+- `src/cli/cliCompleters.ts`
+- `tests/unit/artifact/lineage.test.ts`
+- `tests/unit/artifact/approvalRecordFile.test.ts`
+- `tests/integration/approvalRecordGround.test.ts`
+- `tests/integration/approvalRecordMerge.test.ts`
+- `tests/integration/approvalLedgerRefusal.test.ts`
+- `tests/integration/planStaleness.test.ts`
+- `tests/integration/completeRunArtifacts.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/cliProgram.test.ts`
+- `tests/integration/cliErrors.test.ts`
+- `tests/unit/cli/artifact.test.ts`
+- `tests/unit/cli/run.test.ts`
+- `tests/unit/readmeExitCodes.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/frozenHistory.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/helpers/tempGit.ts`
+
+### Boundary contracts
+
+cli → app: `artifact approve` hands the use case the raw `--by` string (or undefined) and renders the returned `Arbiter` through `describeArbiter`. The CLI holds no resolution logic. app → domain: `resolveArbiter` (pure) consumes `{ declared, stdinIsTerminal, gitUserName }` and returns an `Arbiter` or a refusal message. app → ports: the Git port provides `userName(repo): string | null`, and the new Terminal port provides `stdinIsTerminal: boolean`. Both are read only by `src/app/resolveArbiter.ts`. app → schemas: `putSpecApprovalRecord`/`putPlanApprovalRecord` produce a record file at the current shape with a required `approvedBy`. `readSpecRecordFile`/`readPlanRecordFile` give every consumer a record that always carries `approvedBy`, with 0.19.0 files lifted to `{ kind: "unattributed" }`. schemas package → readers: approval record shapes are `0.19.0` and the current one, and `toLatest…ApprovalRecord` always yields `approvedBy`. Phase 02 consumes `resolveArbiter`, `describeArbiter` and the `--by` option shape for reopen.
+
+### Test strategy
+
+Test first. Unit, `tests/unit/artifact/arbiter.test.ts`, the domain contract: `operator`; `machine:roadmap-loop`; grants refused for `machine:Roadmap Loop`, `machine:a.b`, `machine:`, `machine:-x` and `machine:name@1.2`, each refusal naming the pattern; `bogus` refused naming both forms; resolution for each combination of declaration, terminal and user.name, including no declaration without a terminal (refused), operator with an empty or null user.name (refused, naming `git config user.name`) and machine without a user.name (accepted); and `describeArbiter` for the three kinds. Unit, schemas (`tests/unit/schemas/specApprovalRecord.test.ts`, `tests/unit/schemas/approvalRecordFile.test.ts`): at the current stamp, a record without `approvedBy`, with `{ kind: "human" }`, with a machine grant `Bad Grant`, or with an excess key is refused. A 0.19.0 record built from the frozen module reads through `readSpecRecordFile`/`readPlanRecordFile` and through the package (`parse…ApprovalRecord` + `toLatest…`) as unattributed. Encoded key order puts `approvedBy` last. Type-level, `tests/type/terminal.ts`: the port contract, as `tests/type/prompt.ts` does for Prompt, plus the widened shape unions in `tests/type/schemasPackage.ts`. Integration, `tests/integration/gitUserName.test.ts`: the Node git adapter returns the configured name in a temp repo and null when it is unset (isolate from the global config through the environment, as other git tests do). Integration, `tests/integration/approvalAttribution.test.ts` (temp git repo, real FileSystem and Git layers, fake Terminal), one test per acceptance criterion step: approve with `--by machine:roadmap-loop` writes `docs/specs/approvals/<spec file name>.json` at the current `spec-approval-record` stamp with `{ kind: machine, grant: roadmap-loop }`, and status prints `by machine (roadmap-loop)`. A terminal without `--by` gives `{ kind: operator, name: <user.name> }` and status prints `by operator (<name>)`. No terminal and no `--by` exits 12 naming `--by`, with nothing written and HEAD unchanged. A bad grant exits 12 naming the pattern. An operator with no user.name exits 12 naming `git config user.name`, with nothing written. The same flow on a plan approval. A spec record and a plan record stamped 0.19.0 (hand-built fixtures without `approvedBy`): status prints the spec's approval as unattributed, never operator; `phax plans status` reports the plan's staleness as before; both files are byte-identical afterwards. Extend `tests/integration/migrateApprovals.test.ts`: an old `docs/plans/approvals.json` ledger splits into record files at the new shape carrying `approvedBy: { kind: unattributed }`, and a pre-existing 0.19.0 target that holds the same record is kept byte-identical. Update `tests/integration/artifactStatus.test.ts` and `tests/unit/cli/artifactStatusRender.test.ts` for the approver on the `Approved:` line, for a plan as well as a spec. The snapshot gate itself proves the shape change: `schemas-check` is clean after `--write`.
+
+### Implementation order
+
+1. Domain `arbiter.ts` and its unit tests.
+2. `approvedBy.ts`, the frozen 0.19.0 modules and the record-file fields; then `pnpm exec tsx scripts/schemas-check.ts --write` and the clean check.
+3. The lift in `persisted.ts` and in the schemas package; schema, package and type tests; fix fixtures.
+4. Store and `migrate-approvals`; their integration tests.
+5. Ports: Git `userName` (adapter, fake, integration test) and the Terminal port (port, adapter, fake, type test).
+6. `resolveArbiter.ts`, the refusal error and its exit code; approve writes `approvedBy`; status approval info for both kinds.
+7. CLI `--by` on approve, the `Approver:`/`Approved:` lines, the cliDocs help; `pnpm gen:usage-spec` and `pnpm docs:cli`.
+8. `approvalAttribution` integration tests; update callers without a terminal.
+9. Run the `standard` gate.
+
+### Excluded scope
+
+- Reopen from Approved, `--by` on reopen, the `Reopened-By:` trailer, bound plans and Draft among an Approved artifact's legal transitions (phase 02).
+- Skill files, the README's hand-written sections and NEXT_STEPS (phase 03).
+- Plan B: open and arbitrated questions, the `Questions:` status line, the renderer, `spec-document`/`plan-document` shape changes, `migrate-documents`, and the refusals while a sidecar is unmigrated.
+- Plan C: `decide`, the decision record, decision attribution (§5.25), the doctrine skills, `skills install`, and the approval lock (§5.38–§5.39).
+- The approver in the frontmatter `approved` stamp; a migration command for approval records; any change to the `spec-approvals`/`plan-approvals` ledger formats.
+- Moving `prune` or `init` onto the Terminal port.
+- Changing the approve commit message, or any released snapshot, `site/retired-schemas/` copy or existing module under `src/schemas/history/`.
+
+### Verification
+
+The project's `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+Give the exact module paths and signatures of `ApprovedBySchema`/`GRANT_PATTERN` (`src/schemas/approvedBy.ts`), the `--by` parser, `resolveArbiter` and `describeArbiter` (`src/domain/artifact/arbiter.ts`), the app helper in `src/app/resolveArbiter.ts`, the refusal error's name and exit code, `GitOps.userName`, and the Terminal port's tag and ops. Phase 02 reuses all of them for reopen. Describe how `transitionArtifact`'s options now carry the arbiter, and how phase 02 should extend them to the Draft target. Paste the `schemas-check --write` output, and confirm that only the two approval record formats gained a `next` and moved their stamp. Say how phax's reader and the schemas package lift a 0.19.0 record. List every test changed to pass `--by` or a fake terminal. Give the final status `Approved:` line formats and the approve `Approver:` line. Explain any deviation from the planned file lists.
+
+### Commit subject
+
+`feat(artifact): name the approver of every approval record`
+
+### Commit body
+
+Both approval record formats gain a required approvedBy, an explicit union: machine (with its grant), operator (with the committing git user.name) or unattributed. The 0.19.0 shapes are frozen under src/schemas/history/ and recorded as the formats' releases. phax's reader and the schemas package lift a 0.19.0 record to unattributed, never to an operator, and a record that phax only reads stays byte-identical on disk. migrate-approvals writes each split ledger entry at the new shape as unattributed. The ledger formats themselves are unchanged.
+
+phax artifact approve takes --by operator or --by machine:<grant>, where a grant is a kebab-case slug. Without --by, a terminal means the operator. With no terminal, approve refuses with exit 12 and names both forms. An operator approval without a git user.name refuses, naming git config user.name. Both facts are read through ports: the git identity on the Git port, and stdin's terminal state on a new Terminal port. phax artifact status names the approver on the Approved line, for plans as well as specs.
+
+Refs: spec artifact-decide §5.40–§5.45, §5.57 (plan A).
+
+---
+
+## phase-02 — Reopen an Approved spec or plan {#phase-02-reopen-from-approved}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+An operator or a declared machine can take an Approved spec or plan back to Draft with `phax artifact reopen`, which voids its approval visibly: the stamp is cleared, the record file is deleted and the commit names who reopened it. A reopened spec's bound plans are named and left alone.
+
+### Detailed instructions
+
+- Read spec §5.35–§5.37, §6 `phax artifact reopen`, the §9 answers Q1 and Q15, and the §8 criteria 'Artifact reopen returns an Approved artifact to Draft' and 'Reopening a spec names its plans and leaves them'. Leave out their decide steps, which belong to plan C. Follow the `state-machines` skill for the transition tables.
+- `src/domain/artifact/status.ts`: add `Draft` to `SPEC_TRANSITIONS.Approved` and `PLAN_TRANSITIONS.Approved`. Specs still have no Stale. Draft → Draft, and any transition out of Completed or Abandoned, stay illegal, so `requestTransition` already refuses them with `InvalidArtifactTransitionError` (exit 12) before anything is written. Keep that path, and check that the message names the artifact's status.
+- `src/domain/artifact/writeSet.ts`: a Draft target deletes the artifact's own record file for both kinds (today, plans only), so the spec's `docs/specs/approvals/<spec file name>.json` joins the write-set when it exists beforehand. `transitionCommitMessage` takes the arbiter for a Draft target and appends a trailer block to the body: a blank line, then `Reopened-By: <describeArbiter(arbiter)>`, e.g. `Reopened-By: machine (roadmap-loop)`. The subject stays `chore(<scope>): reopen <slug>`. Every other target's message, the approve message included, is unchanged.
+- `src/app/artifactStatus.ts`: extend the arbiter plumbing from phase 01 so that a Draft target also requires a resolved arbiter, resolved before anything is written. A refusal (no terminal and no `--by`, bad grant, operator without `user.name`) leaves the tree and HEAD unchanged. The Draft branch (today `kind === "plan" && target === "Draft"`) applies to both kinds: clear the `approved` stamp with `clearApproved`, then delete the artifact's record file (`removeSpecApprovalRecord` for specs, `removePlanApprovalRecord` for plans), before `finalizeTransition`. Keep the read-before-delete, so an unreadable record file is refused rather than deleted.
+- Bound plans: when a spec goes Approved → Draft, collect every live plan that names it in `source-spec` with its status, reusing `findDependentPlans`. Return them in `ArtifactTransitionResult` (for example `boundPlans: readonly { path, status }[]`). Never read or write their files, frontmatter or record files: the write-set stays the spec, its sidecar when headless-authored, and its record file.
+- The fingerprint ignores `status` and `approved` (`fingerprintSource`), so after the reopen a bound plan's recorded source-spec fingerprint still matches and `phax plans status` reports it fresh. Do not add any guard or staleness change for the window between reopen and the next edit of the spec (§9 Q15).
+- CLI, `src/cli/commands/artifact.ts`: `reopen` gains `--by <arbiter>` exactly as `approve` has it. The command prints `Status:   Draft (was <previous status>; <record file> deleted)` when a record file was deleted. For each bound plan it prints `Bound:    <plan path> (<status>) — left as is`, then the `Commit:` line. Layout is indicative and wording may follow the existing lines. Update the command description in the transitions table, which today reads 'Reopen a Stale plan back to Draft', to cover an Approved spec or plan and a Stale plan.
+- `src/cli/cliDocs.ts`, `artifact reopen` long help: legal from Approved (specs and plans) and Stale (plans); clears the `approved` stamp; deletes the record file; `--by` with the terminal default and the no-terminal refusal; the `Reopened-By:` trailer; a reopened spec's bound plans are named and left unchanged; Draft, Completed and Abandoned are refused with exit 12. Add an example with `--by machine:roadmap-loop` on a spec. Mention in `artifact approve`'s and `artifact status`'s help that Approved → Draft is now legal, wherever they list legal transitions. Run `pnpm gen:usage-spec` and `pnpm docs:cli`.
+- Callers without a terminal: every test that runs `phax artifact reopen` as a subprocess, or drives a Draft transition without a terminal, now needs `--by` or a fake terminal. The phase guard already classifies `artifact reopen` as refused; leave it so.
+- Fixtures are made up (e.g. a spec slug `plan-prune`, a plan bound to it, grant `roadmap-loop`, operator `Ada Lovelace`).
+
+### Planned files to create
+
+- `tests/integration/artifactReopen.test.ts`
+
+### Planned files to edit
+
+- `src/domain/artifact/status.ts`
+- `src/domain/artifact/writeSet.ts`
+- `src/app/artifactStatus.ts`
+- `src/cli/commands/artifact.ts`
+- `src/cli/cliDocs.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `README.md`
+- `tests/unit/artifact/status.test.ts`
+- `tests/unit/artifact/writeSet.test.ts`
+- `tests/integration/artifactStatus.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/artifact/arbiter.ts`
+- `src/app/resolveArbiter.ts`
+- `src/domain/errors.ts`
+- `src/cli/commands/runLayers.ts`
+- `src/cli/cliCompleters.ts`
+- `tests/unit/artifact/arbiter.test.ts`
+- `tests/unit/cli/artifact.test.ts`
+- `tests/unit/cli/artifactStatusRender.test.ts`
+- `tests/integration/cliProgram.test.ts`
+- `tests/integration/cliErrors.test.ts`
+- `tests/integration/planStaleness.test.ts`
+- `tests/integration/approvalRecordGround.test.ts`
+- `tests/unit/approvalRecordDocs.test.ts`
+- `tests/unit/security/phaseGuard.test.ts`
+
+### Boundary contracts
+
+cli → app: `artifact reopen` passes the raw `--by` string to the same arbiter resolution approve uses, and renders `ArtifactTransitionResult`'s new bound plans and deleted record file. app → domain: `requestTransition` decides legality from the transition tables. `transitionWriteSet` decides which record file joins. `transitionCommitMessage(kind, "Draft", path, arbiter)` produces the `Reopened-By:` trailer. app → ports: unchanged. The arbiter is resolved through the Terminal and Git ports exactly as in phase 01. Consumers of `transitionArtifact` without an arbiter (`planStaleness`, `completeRunArtifacts`) are unaffected, because they never target Draft.
+
+### Test strategy
+
+Test first. Unit, `tests/unit/artifact/status.test.ts`: Approved → Draft is legal for specs and plans; Draft → Draft, Completed → Draft and Abandoned → Draft are refused; Stale → Draft for plans stays legal. Unit, `tests/unit/artifact/writeSet.test.ts`: a spec reopen with a record file lists the spec, its sidecar when present and `docs/specs/approvals/<spec file name>.json`; without a record file, the record path is not listed; the reopen commit body ends with `Reopened-By: machine (roadmap-loop)` or `Reopened-By: operator (Ada Lovelace)`; the approve, stale, abandon and complete messages are unchanged. Integration, `tests/integration/artifactReopen.test.ts` (temp git repo, real FileSystem and Git layers, fake Terminal), one test per criterion step. An Approved spec reopened with `--by machine:roadmap-loop` is Draft, with its `approved` stamp cleared and its record file deleted, and the new HEAD commit holds exactly the spec (and its sidecar when headless) and the deleted record, with the trailer naming `machine (roadmap-loop)`. An Approved headless plan reopens the same way with its sidecar carried. A Draft spec's reopen exits 12, writes nothing and leaves HEAD unchanged; so do a Completed and an Abandoned artifact. A Stale plan reopens to Draft as before, its commit naming the arbiter. Reopen without a terminal and without `--by` exits 12 naming `--by`, with nothing written; from a terminal it names the operator by `user.name`. An Approved spec with an Approved bound plan, reopened with `--by operator`: the output names the plan and its status; the plan's file and record file are byte-identical; `phax plans status` reports the plan fresh. In `tests/integration/artifactStatus.test.ts`, assert that an Approved spec's and an Approved plan's legal transitions include Draft.
+
+### Implementation order
+
+1. Unit tests and the transition tables in `status.ts`.
+2. Unit tests and the write-set and commit trailer in `writeSet.ts`.
+3. `artifactStatus.ts`: the arbiter for Draft, the spec reopen branch and the bound plans.
+4. CLI `--by` on reopen, its output lines and description; cliDocs; `pnpm gen:usage-spec` and `pnpm docs:cli`.
+5. `artifactReopen` integration tests; update callers without a terminal.
+6. Run the `standard` gate.
+
+### Excluded scope
+
+- `decide`, `--question`, and every decide step of the reopen criteria (plan C).
+- The refusal of reopen while a live sidecar is unmigrated, and any `Questions:` status line (plan B).
+- Moving bound plans to Stale, refusing reopen while plans name the spec, or any guard on running a plan whose spec is Draft (§9 Q15 rejected these).
+- A trailer on the approve, stale, abandon or complete commits.
+- Skill files, the README's hand-written sections and NEXT_STEPS (phase 03).
+
+### Verification
+
+The project's `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+Give the new transition tables, the signature of `transitionCommitMessage` and the exact trailer text, and the shape of `ArtifactTransitionResult`'s bound plans and deleted-record fields. Paste a sample `phax artifact reopen` output for a spec with a bound plan, and the commit body it produced. Confirm that reopen leaves bound plans byte-identical and that `plans status` reads them fresh. List every test changed to pass `--by` or a fake terminal, and name the help texts updated in `cliDocs.ts`. Explain any deviation from the planned file lists.
+
+### Commit subject
+
+`feat(artifact): reopen an Approved spec or plan to Draft`
+
+### Commit body
+
+phax artifact reopen now moves an Approved spec or plan back to Draft. It clears the approved stamp, deletes the artifact's approval record file and commits the write-set in one commit. Stale plans reopen to Draft as before. Draft, Completed and Abandoned artifacts are refused with exit 12, and nothing is written.
+
+Reopen takes the same --by as approve, with the same terminal default and no-terminal refusal. Its commit carries a Reopened-By trailer naming the arbiter, machine (<grant>) or operator (<name>), on both reopen edges. Reopening a spec leaves every live plan bound to it unchanged and names each one. Because reopen changes only status and approved, which the fingerprint ignores, a bound plan still reads fresh. Draft now appears among an Approved artifact's legal transitions in phax artifact status.
+
+Refs: spec artifact-decide §5.35–§5.37, §5.40–§5.42 (plan A).
+
+---
+
+## phase-03 — Skills, README and NEXT_STEPS for attribution and reopen {#phase-03-docs-and-skills}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The guidance an agent or operator reads matches what phases 01 and 02 shipped: who approved is recorded and declared with `--by`, scripts must declare themselves, and reopen brings an Approved artifact back to Draft.
+
+### Detailed instructions
+
+- Read the `--by`, approve and reopen help in `src/cli/cliDocs.ts` and the regenerated `docs/cli/reference.md` as phases 01–02 left them, and describe exactly that behaviour. Do not invent flags or wording that the CLI does not have.
+- `.claude/skills/phax-cli/SKILL.md`: in the `phax artifact approve` entry (around 'the `Draft → Approved` gate'), add `--by operator | --by machine:<grant>`, the kebab-case grant, the terminal default (the operator, named by git `user.name`), the no-terminal refusal (exit 12), the `user.name` refusal, and that the record file's `approvedBy` names the approver, with older records reading as unattributed. In the `stale` / `reopen` entry, say that reopen moves an Approved spec or plan, or a Stale plan, to Draft, clears the stamp, deletes the record file, takes `--by`, writes a `Reopened-By:` trailer, and names a reopened spec's bound plans while leaving them unchanged. Note that a loop must pass `--by machine:<grant>`.
+- `.claude/skills/phax-spec/SKILL.md`: where it describes `phax artifact approve` and the `approved` stamp (around the lifecycle commands paragraph), add one or two sentences: approve takes `--by` (required without a terminal), the approval record names the approver, and `phax artifact reopen` returns an Approved spec to Draft (its plans are named and left as they are). Keep the skill's voice and density.
+- `.claude/skills/phax-planning/SKILL.md`: in the 'Plan frontmatter block' section, where `status` explains approving with `phax artifact approve`, and where `approved` is described, add that approve takes `--by` (required without a terminal), and that `phax artifact reopen` moves an Approved or Stale plan back to Draft, clearing `approved`. Do not touch the generated model-catalog table between its `BEGIN generated` / `END generated` markers.
+- `README.md`, hand-written sections only (the generated CLI section was regenerated in phases 01–02): update the lifecycle table rows for `phax artifact approve` and `phax artifact reopen` (reopen is legal from Approved, for specs and plans, and from Stale for plans), and the quick-start approve examples if they run outside a terminal. Add an upgrade note in the style of the existing ones ('**Approval records are per-artifact files.**'): approve and reopen without a terminal now refuse unless given `--by operator` or `--by machine:<grant>`; new approval records carry `approvedBy`; records written earlier read as unattributed and are never rewritten by a read. Where the Persisted formats section lists the approval record fields, add `approvedBy`. Where the README lists exit-12 refusals, add the `--by` refusal if that list enumerates them.
+- `NEXT_STEPS.md`, the `artifact-decide` entry: note that plan A (approver attribution and reopen) shipped: `--by`, `approvedBy` with the unattributed lift, and reopen from Approved. Plans B (question model, renderer, `migrate-documents`) and C (`decide`, doctrine skills, approval lock) follow, each authored after the previous one merges. Keep the entry unticked.
+- Edit only the files listed. If another skill or doc describes approve or reopen in a way that is now wrong, name it in the handoff instead of editing it.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `.claude/skills/phax-cli/SKILL.md`
+- `.claude/skills/phax-spec/SKILL.md`
+- `.claude/skills/phax-planning/SKILL.md`
+- `README.md`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `tests/unit/approvalRecordDocs.test.ts`
+- `tests/unit/readmeExitCodes.test.ts`
+
+### Test strategy
+
+Documentation only, so no new tests. The `standard` gate verifies that formatting holds, that the generated model-catalog table in phax-planning is untouched (`pnpm gen:model-catalog --check`), and that the existing doc tests (`tests/unit/approvalRecordDocs.test.ts`, `tests/unit/readmeExitCodes.test.ts`) still pass. Adjust one of them only if a README sentence it pins was legitimately reworded.
+
+### Implementation order
+
+1. Read the shipped CLI help and reference.
+2. phax-cli skill.
+3. phax-spec and phax-planning skills.
+4. README hand-written sections.
+5. NEXT_STEPS entry.
+6. Run the `standard` gate.
+
+### Excluded scope
+
+- Any code change.
+- Regenerating or hand-editing the README's generated CLI section, `docs/cli/reference.md` or `phax.usage.kdl`.
+- The phax-planning generated model-catalog table.
+- Docs for `decide`, questions, `migrate-documents` or the doctrine skills (plans B and C).
+- `docs/arbitration.md` (the spec's §11 docs page), which is written once `decide` exists (plan C).
+
+### Verification
+
+The project's `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+List each file edited, with a one-line summary of the change. Quote the new README upgrade note. Name any other skill or doc found describing approve or reopen out of date (reported, not edited). Confirm that the model-catalog table was untouched. Explain any deviation from the planned file lists.
+
+### Commit subject
+
+`docs(skills): describe --by and reopen from Approved`
+
+### Commit body
+
+The phax-cli, phax-spec and phax-planning skills and the README now describe approver attribution and the widened reopen. approve and reopen take --by operator or --by machine:<grant>, where a grant is a kebab-case slug. A terminal defaults to the operator, named by git user.name. Without a terminal, --by is required. Approval record files carry approvedBy, and older records read as unattributed. reopen moves an Approved spec or plan, or a Stale plan, back to Draft, deletes the record file, names the bound plans and records the arbiter in a Reopened-By trailer.
+
+The README gains an upgrade note: scripted approvals and reopens must add --by. NEXT_STEPS records that plan A of artifact-decide shipped attribution and reopen.
+
+Refs: spec artifact-decide (plan A).
