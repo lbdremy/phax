@@ -1,8 +1,10 @@
 // The files of a repository: each plan's and each spec's approval record
 // file, the old plan and spec approvals ledgers (read to migrate), and the
-// JSON sidecar beside a headless-authored spec or plan. Each pre-schema shape
-// is phax's frozen module under src/schemas/history/; the approval record
-// files are born with $schema and have none. Each current shape, named by
+// JSON sidecar beside a headless-authored spec or plan. Each pre-schema and
+// released shape that is no longer current is phax's frozen module under
+// src/schemas/history/; the approval record files are born with $schema and
+// have no pre-schema shape, and list their 0.19.0 shape, written before they
+// named the approver, as a release. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import {
@@ -15,6 +17,16 @@ import {
   type PlanRecord,
   type PlanRecordFile,
 } from "../../../../src/schemas/approvalRecord.js";
+import {
+  PlanApprovalRecordV0_19_0Schema,
+  decodePlanApprovalRecordV0_19_0,
+  type PlanApprovalRecordV0_19_0,
+} from "../../../../src/schemas/history/plan-approval-record/0.19.0.js";
+import {
+  SpecApprovalRecordV0_19_0Schema,
+  decodeSpecApprovalRecordV0_19_0,
+  type SpecApprovalRecordV0_19_0,
+} from "../../../../src/schemas/history/spec-approval-record/0.19.0.js";
 import {
   PlanApprovalsPreSchemaSchema,
   decodePlanApprovalsPreSchema,
@@ -68,13 +80,14 @@ import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../s
 
 // A document without `$schema` is read by the format's frozen pre-schema
 // module as shape `pre-schema`, or fails when the format is born with
-// `$schema`; a `$schema` document is read by phax's decoder as the current
-// shape, named by `CURRENT_SHAPES`: `next` until a release renames it, then
-// that release.
+// `$schema`; a `$schema` document stamped at a release the format lists is
+// read by that release's frozen module; any other `$schema` document is read
+// by phax's decoder as the current shape, named by `CURRENT_SHAPES`: `next`
+// until a release renames it, then that release.
 
 // ── plan approval record
 
-export type PlanApprovalRecordShapes = {
+export type PlanApprovalRecordShapes = { "0.19.0": PlanApprovalRecordV0_19_0 } & {
   [K in CurrentShapeName<"plan-approval-record">]: PlanRecordFile;
 };
 
@@ -85,7 +98,12 @@ export const planApprovalRecordFormat = defineFormat<PlanApprovalRecordShapes>({
   id: "plan-approval-record",
   label: "plan approval record",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.19.0",
+      { schema: PlanApprovalRecordV0_19_0Schema, decode: decodePlanApprovalRecordV0_19_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["plan-approval-record"],
     shape: { schema: PlanRecordFileSchema, decode: decodePlanRecordFile },
@@ -99,15 +117,25 @@ export const parsePlanApprovalRecord: (input: unknown) => ParsedShape<PlanApprov
 /** The latest plan approval record: phax's in-memory value, with no `$schema`. */
 export type LatestPlanApprovalRecord = PlanRecord;
 
-/** Upgrades a parsed plan approval record in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPlanApprovalRecord(value: PlanRecordFile): LatestPlanApprovalRecord {
+/**
+ * Upgrades a parsed plan approval record in memory. Keeps every recorded fact;
+ * never invents one: a 0.19.0 record, written before phax named the approver,
+ * is `approvedBy: { kind: "unattributed" }`, never an operator.
+ */
+export function toLatestPlanApprovalRecord(
+  value: PlanApprovalRecordV0_19_0 | PlanRecordFile,
+): LatestPlanApprovalRecord {
+  if ("approvedBy" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { $schema: _schema, ...recorded } = value;
-  return recorded;
+  return { ...recorded, approvedBy: { kind: "unattributed" } };
 }
 
 // ── spec approval record
 
-export type SpecApprovalRecordShapes = {
+export type SpecApprovalRecordShapes = { "0.19.0": SpecApprovalRecordV0_19_0 } & {
   [K in CurrentShapeName<"spec-approval-record">]: SpecRecordFile;
 };
 
@@ -118,7 +146,12 @@ export const specApprovalRecordFormat = defineFormat<SpecApprovalRecordShapes>({
   id: "spec-approval-record",
   label: "spec approval record",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.19.0",
+      { schema: SpecApprovalRecordV0_19_0Schema, decode: decodeSpecApprovalRecordV0_19_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["spec-approval-record"],
     shape: { schema: SpecRecordFileSchema, decode: decodeSpecRecordFile },
@@ -132,10 +165,20 @@ export const parseSpecApprovalRecord: (input: unknown) => ParsedShape<SpecApprov
 /** The latest spec approval record: phax's in-memory value, with no `$schema`. */
 export type LatestSpecApprovalRecord = SpecRecord;
 
-/** Upgrades a parsed spec approval record in memory. Keeps every recorded fact; never invents one. */
-export function toLatestSpecApprovalRecord(value: SpecRecordFile): LatestSpecApprovalRecord {
+/**
+ * Upgrades a parsed spec approval record in memory. Keeps every recorded fact;
+ * never invents one: a 0.19.0 record, written before phax named the approver,
+ * is `approvedBy: { kind: "unattributed" }`, never an operator.
+ */
+export function toLatestSpecApprovalRecord(
+  value: SpecApprovalRecordV0_19_0 | SpecRecordFile,
+): LatestSpecApprovalRecord {
+  if ("approvedBy" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { $schema: _schema, ...recorded } = value;
-  return recorded;
+  return { ...recorded, approvedBy: { kind: "unattributed" } };
 }
 
 // ── plan approvals: the old ledger, read to migrate

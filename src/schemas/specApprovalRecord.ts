@@ -1,4 +1,5 @@
 import { Schema, type Types } from "effect";
+import { ApprovedBySchema } from "./approvedBy.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 export const SpecApprovalRecordSchema = Schema.Struct({
@@ -38,21 +39,26 @@ export const decodeSpecApprovalRecordFile = Schema.decodeUnknownEither(
 
 export const encodeSpecApprovalRecordFile = Schema.encodeSync(SpecApprovalRecordFileSchema);
 
+// The ledger's entry shape above stays as it was: only the record file names
+// its approver.
 const specRecordFields = {
   artifact: Schema.NonEmptyString,
   ...SpecApprovalRecordSchema.fields,
+  approvedBy: ApprovedBySchema,
 };
 
 /**
  * One spec's approval record in memory: the record file without `$schema`.
- * `artifact` is the spec path the record approves.
+ * `artifact` is the spec path the record approves; `approvedBy` names who
+ * approved it, `unattributed` for a record written before phax named its
+ * approver.
  */
 export type SpecRecord = Types.Simplify<Schema.Struct.Type<typeof specRecordFields>>;
 
 /**
  * `docs/specs/approvals/<spec>.json`, one spec's approval record file:
- * `$schema` first, then `artifact`, then the record. Born with `$schema`;
- * unknown keys are rejected.
+ * `$schema` first, then `artifact`, then the record, then `approvedBy`. Born
+ * with `$schema`; unknown keys are rejected.
  */
 export const SpecRecordFileSchema = Schema.Struct({
   $schema: schemaUrlField("spec-approval-record"),

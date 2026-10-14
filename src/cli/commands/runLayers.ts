@@ -30,6 +30,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  ArtifactArbiterRefusedError,
   ArtifactCommitFailedError,
   ArtifactCreationError,
   AuthoringDocumentError,
@@ -184,6 +185,7 @@ export function exitCodeForError(err: unknown): number {
     return 11;
   if (
     err instanceof InvalidArtifactTransitionError ||
+    err instanceof ArtifactArbiterRefusedError ||
     err instanceof ArtifactValidationError ||
     err instanceof PlanNotApprovedError ||
     err instanceof SpecNotApprovedError ||

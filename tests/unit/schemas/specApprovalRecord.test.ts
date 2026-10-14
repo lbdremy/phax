@@ -1,8 +1,11 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
   decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
   encodeSpecApprovalRecordFile,
+  encodeSpecRecordFile,
 } from "../../../src/schemas/specApprovalRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
@@ -110,5 +113,58 @@ describe("SpecApprovalRecordFileSchema", () => {
       },
     };
     expect(Either.isRight(decodeSpecApprovalRecordFile(multi))).toBe(true);
+  });
+
+  it("refuses an approvedBy in a ledger entry: only the record file names the approver", () => {
+    const entry = sample.records["docs/specs/2609101231-spec-approval-ground.md"];
+    const attributed = {
+      ...sample,
+      records: {
+        "docs/specs/2609101231-spec-approval-ground.md": {
+          ...entry,
+          approvedBy: { kind: "unattributed" },
+        },
+      },
+    };
+    expect(Either.isLeft(decodeSpecApprovalRecordFile(attributed))).toBe(true);
+  });
+});
+
+// A spec's approval record file at the current stamp names its approver.
+describe("SpecRecordFileSchema: approvedBy", () => {
+  const { approvedBy: _approvedBy, ...withoutApprover } = {
+    $schema: currentSchemaUrl("spec-approval-record"),
+    artifact: "docs/specs/2609101231-spec-approval-ground.md",
+    specFingerprint: "spec-fp",
+    approvedAt: "2026-09-03T12:00:00.000Z",
+    baseline: VALID_BASELINE,
+    approvedBy: null,
+  };
+  const record = { ...withoutApprover, approvedBy: { kind: "machine", grant: "roadmap-loop" } };
+
+  it.each([
+    ["a machine and its grant", { kind: "machine", grant: "roadmap-loop" }],
+    ["the operator by name", { kind: "operator", name: "Ada Lovelace" }],
+    ["no one recorded", { kind: "unattributed" }],
+  ])("reads %s, approvedBy last when encoded", (_label, approvedBy) => {
+    const decoded = decodeSpecRecordFile({ ...record, approvedBy });
+    if (Either.isLeft(decoded)) throw new Error("record rejected");
+    const encoded = encodeSpecRecordFile(decoded.right);
+    expect(encoded.approvedBy).toEqual(approvedBy);
+    expect(Object.keys(encoded).at(-1)).toBe("approvedBy");
+  });
+
+  it.each([
+    ["no approvedBy", withoutApprover],
+    ["an unknown kind", { ...record, approvedBy: { kind: "human" } }],
+    [
+      "a grant that is not a slug",
+      { ...record, approvedBy: { kind: "machine", grant: "Bad Grant" } },
+    ],
+    ["a machine without a grant", { ...record, approvedBy: { kind: "machine" } }],
+    ["an operator with an empty name", { ...record, approvedBy: { kind: "operator", name: "" } }],
+    ["an excess key", { ...record, approvedBy: { kind: "unattributed", name: "Ada Lovelace" } }],
+  ])("refuses %s", (_label, input) => {
+    expect(Either.isLeft(decodeSpecRecordFile(input))).toBe(true);
   });
 });

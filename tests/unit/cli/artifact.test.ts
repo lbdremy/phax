@@ -13,6 +13,7 @@ import {
 } from "../../../src/cli/commands/artifact.js";
 import {
   ApprovalMigrationRefusedError,
+  ArtifactArbiterRefusedError,
   ArtifactCommitFailedError,
   ArtifactCreationError,
   ArtifactDirtyWriteSetError,
@@ -35,7 +36,7 @@ import type {
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
-  transitionArtifact: vi.fn(),
+  transitionArtifactBy: vi.fn(),
 }));
 
 vi.mock("../../../src/app/migrateApprovals.js", () => ({
@@ -174,8 +175,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("approve: logs the resulting status without a path line, exits 0", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -195,8 +196,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("complete: logs the resulting status and the new archived path", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Completed",
         path: "docs/specs/archive/2608091526-artifact-lifecycle-status.md",
@@ -217,8 +218,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns exit code 12 and names the legal targets on an illegal transition", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new InvalidArtifactTransitionError({
           kind: "plan",
@@ -242,8 +243,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("approve of a plan with a captured baseline logs the short sha", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -263,8 +264,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns exit code 12 when the declared spec is not approved", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new SpecNotApprovedError({
           planPath: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -286,8 +287,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns exit code 12 and names both remedies when the sidecar diverged", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new ArtifactSidecarDivergedError({
           path: "docs/specs/2609230835-plan-prune.md",
@@ -313,8 +314,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns exit code 12 when spec retirement is blocked by a live dependent", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new SpecRetirementBlockedError({
           specPath: "docs/specs/2609101222-foo.md",
@@ -333,8 +334,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("always passes commit: true to the use case", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -348,16 +349,70 @@ describe("runArtifactTransition", () => {
       out,
     );
 
-    expect(transitionArtifact).toHaveBeenCalledWith(
+    expect(transitionArtifactBy).toHaveBeenCalledWith(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       expect.objectContaining({ commit: true }),
     );
   });
 
+  it("hands the raw --by to the use case and prints the approver after the status", async () => {
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/specs/2609251400-plan-prune.md",
+        approvedBaseline: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/specs/2609251400-plan-prune.md",
+      "Approved",
+      out,
+      { by: "machine:roadmap-loop" },
+    );
+
+    expect(code).toBe(0);
+    expect(transitionArtifactBy).toHaveBeenCalledWith(
+      "docs/specs/2609251400-plan-prune.md",
+      "Approved",
+      expect.objectContaining({ by: "machine:roadmap-loop" }),
+    );
+    expect(lines.slice(0, 3)).toEqual([
+      "Status: Approved",
+      "Approver: machine (roadmap-loop)",
+      "Baseline: a1b2c3d",
+    ]);
+  });
+
+  it("returns exit code 12 when the arbiter is refused", async () => {
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
+      Effect.fail(
+        new ArtifactArbiterRefusedError({
+          message:
+            "Approval refused: no terminal and no --by — pass `--by operator` or `--by machine:<grant>`",
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/specs/2609251400-plan-prune.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("--by operator");
+  });
+
   it("renders the Commit: line with hash and subject when a commit was created", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -393,8 +448,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("omits the Commit: line when no commit was created", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.succeed({
         status: "Approved",
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -412,8 +467,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns exit code 12 when the write-set target is dirty", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new ArtifactDirtyWriteSetError({
           paths: ["docs/plans/2607101056-typescript-7-migration-plan.md"],
@@ -433,8 +488,8 @@ describe("runArtifactTransition", () => {
   });
 
   it("returns a non-zero exit code when the transition commit fails", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
+    const { transitionArtifactBy } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifactBy.mockReturnValue(
       Effect.fail(
         new ArtifactCommitFailedError({
           paths: ["docs/plans/2607101056-typescript-7-migration-plan.md"],

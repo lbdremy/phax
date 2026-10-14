@@ -594,11 +594,15 @@ describe("documents from another release", () => {
   it.each(table)("%s at the %s release", (id, _name, read, label, release, newer) => {
     const file = `/home/example/.phax/example/${id}.json`;
     // An authoring manifest stamped below its current stamp is read as the
-    // frozen 0.17.0 shape, which has no retry.
+    // frozen 0.17.0 shape, which has no retry; an approval record, as the
+    // frozen 0.19.0 shape, which has no approvedBy.
+    const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
     const document =
-      id === "authoring-record-manifest" && compareReleases(release, CURRENT_STAMPS[id]) < 0
+      id === "authoring-record-manifest" && below
         ? withoutKey(validDocuments[id], "retry")
-        : validDocuments[id];
+        : (id === "plan-approval-record" || id === "spec-approval-record") && below
+          ? withoutKey(validDocuments[id], "approvedBy")
+          : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);

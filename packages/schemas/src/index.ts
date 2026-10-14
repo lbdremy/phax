@@ -317,6 +317,14 @@ export {
   type AuthoringRecordManifestV0_17_0,
 } from "../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
 export {
+  PlanApprovalRecordV0_19_0Schema,
+  type PlanApprovalRecordV0_19_0,
+} from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+export {
+  SpecApprovalRecordV0_19_0Schema,
+  type SpecApprovalRecordV0_19_0,
+} from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
+export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";

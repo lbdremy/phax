@@ -79,6 +79,7 @@ function seedRepo(ledger: { readonly path: string; readonly content: string }): 
         approvedAt: NOW,
         baseline: "a".repeat(40),
         sourceSpec: { path: SPEC, fingerprint: "specfp" },
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
       }),
       null,
       2,
@@ -92,6 +93,7 @@ function seedRepo(ledger: { readonly path: string; readonly content: string }): 
         specFingerprint: "specfp",
         approvedAt: NOW,
         baseline: "a".repeat(40),
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
       }),
       null,
       2,
@@ -160,6 +162,7 @@ describe("An old ledger refuses until migrated", () => {
             repoRoot: repoDir,
             nowIso: NOW,
             commit: true,
+            arbiter: { kind: "machine", grant: "roadmap-loop" },
           }).pipe(Effect.provide(repoLayer())),
         );
         expectRefused(result, ledger.path);

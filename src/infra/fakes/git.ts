@@ -64,6 +64,7 @@ export type GitCall =
   | { method: "cloneRepo"; remote: string; path: string }
   | { method: "fetchRemote"; remote: string; repo: string }
   | { method: "remoteUrl"; remote: string; repo: string }
+  | { method: "userName"; repo: string }
   | { method: "listRefs"; repo: string; prefix: string }
   | {
       method: "countUnpreservedCommits";
@@ -482,6 +483,18 @@ export class FakeGitImpl implements GitOps {
     this.calls.push({ method: "remoteUrl", remote, repo });
     if (remote !== "origin") return Effect.succeed(null);
     return Effect.succeed(this.clonedPaths.get(repo) ?? null);
+  }
+
+  /** What `userName` returns: the configured git user.name, or null when unset. */
+  userNameValue: string | null = null;
+
+  setUserName(name: string | null): void {
+    this.userNameValue = name;
+  }
+
+  userName(repo: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "userName", repo });
+    return Effect.succeed(this.userNameValue);
   }
 
   readonly addedRefs = new Set<string>();

@@ -4,12 +4,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { transitionArtifact } from "../../src/app/artifactStatus.js";
+import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { computeStalenessForPlan } from "../../src/app/planStaleness.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import type { PlanStalenessVerdict } from "../../src/domain/artifact/lineage.js";
 import type { ArtifactStatus } from "../../src/domain/artifact/status.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
+import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 
 // Two ground-change rules over a real repository. Spec approval-record-files
@@ -51,11 +52,13 @@ function layer() {
   return Layer.merge(makeRootedNodeFileSystemLayer(repoDir), NodeGitLayer);
 }
 
+// Run from a script: no terminal, so an approval names its machine.
 async function transition(path: string, target: ArtifactStatus): Promise<void> {
+  const opts = { repoRoot: repoDir, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
   const result = await Effect.runPromise(
     Effect.either(
-      transitionArtifact(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true }).pipe(
-        Effect.provide(layer()),
+      transitionArtifactBy(path, target, opts).pipe(
+        Effect.provide(Layer.merge(layer(), makeFakeTerminal(false).layer)),
       ),
     ),
   );

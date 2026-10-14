@@ -53,6 +53,7 @@ import type {
   PhaxPlanShape,
   PlanApprovalRecord,
   PlanApprovalRecordShape,
+  PlanApprovalRecordV0_19_0,
   PlanApprovals,
   PlanApprovalsShape,
   PlanDocument,
@@ -71,6 +72,7 @@ import type {
   RunStatusShape,
   SpecApprovalRecord,
   SpecApprovalRecordShape,
+  SpecApprovalRecordV0_19_0,
   SpecApprovals,
   SpecApprovalsShape,
   SpecDocument,
@@ -221,7 +223,9 @@ import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
+import type { PlanApprovalRecordV0_19_0 as FrozenPlanApprovalRecordV0_19_0 } from "../../src/schemas/history/plan-approval-record/0.19.0.js";
 import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
+import type { SpecApprovalRecordV0_19_0 as FrozenSpecApprovalRecordV0_19_0 } from "../../src/schemas/history/spec-approval-record/0.19.0.js";
 import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src/schemas/history/plan-document/0.17.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
@@ -401,7 +405,7 @@ const complete: Equals<DocumentFormatId, FormatId> = true;
 void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
-  const shape: Equals<typeof document.shape, "pre-schema" | Current<FormatId>> = true;
+  const shape: Equals<typeof document.shape, "pre-schema" | "0.19.0" | Current<FormatId>> = true;
   void format;
   void shape;
   if (
@@ -420,8 +424,12 @@ if (document.ok) {
     void exact;
   }
   if (document.format === "plan-approval-record") {
-    const exact: Equals<typeof document.value, PhaxPlanRecordFile> = true;
-    const recordShape: Equals<typeof document.shape, Current<"plan-approval-record">> = true;
+    const exact: Equals<
+      typeof document.value,
+      FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile
+    > = true;
+    const recordShape: Equals<typeof document.shape, "0.19.0" | Current<"plan-approval-record">> =
+      true;
     void exact;
     void recordShape;
   }
@@ -448,7 +456,8 @@ if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
 }
 
 // Every format reads its current shape, named by CURRENT_SHAPES; a format
-// phax wrote before $schema also reads its frozen pre-schema shape
+// phax wrote before $schema also reads its frozen pre-schema shape; the
+// approval record files also read their frozen 0.19.0 shape
 const shapeIds: Equals<
   | RegistryShape
   | RunStatusShape
@@ -470,7 +479,7 @@ const shapeIds: Equals<
   | BriefRecordShape
   | GateReportShape
   | BriefReportShape,
-  "pre-schema" | Current<FormatId>
+  "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
 const eachShapeId: [
@@ -490,8 +499,8 @@ const eachShapeId: [
   >,
   Equals<GateAttributionShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"gate-attribution">>,
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
-  Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
-  Equals<SpecApprovalRecordShape, Current<"spec-approval-record">>,
+  Equals<PlanApprovalRecordShape, "0.19.0" | Current<"plan-approval-record">>,
+  Equals<SpecApprovalRecordShape, "0.19.0" | Current<"spec-approval-record">>,
   Equals<GateRequestShape, Current<"gate-request">>,
 ] = [
   true,
@@ -560,8 +569,14 @@ const parseValues: [
     Value<typeof parsePhaseFileReconciliation>,
     FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile
   >,
-  Equals<Value<typeof parsePlanApprovalRecord>, PhaxPlanRecordFile>,
-  Equals<Value<typeof parseSpecApprovalRecord>, PhaxSpecRecordFile>,
+  Equals<
+    Value<typeof parsePlanApprovalRecord>,
+    FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile
+  >,
+  Equals<
+    Value<typeof parseSpecApprovalRecord>,
+    FrozenSpecApprovalRecordV0_19_0 | PhaxSpecRecordFile
+  >,
   Equals<Value<typeof parseGateRequest>, PhaxGateRequestFile>,
 ] = [
   true,
@@ -666,10 +681,31 @@ const specRecordToPhax: PhaxSpecRecordFile = packageSpecRecord;
 void planRecordToPhax;
 void specRecordToPhax;
 const recordUpgrades: [
-  Equals<Parameters<typeof toLatestPlanApprovalRecord>, [value: PhaxPlanRecordFile]>,
-  Equals<Parameters<typeof toLatestSpecApprovalRecord>, [value: PhaxSpecRecordFile]>,
+  Equals<
+    Parameters<typeof toLatestPlanApprovalRecord>,
+    [value: FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestSpecApprovalRecord>,
+    [value: FrozenSpecApprovalRecordV0_19_0 | PhaxSpecRecordFile]
+  >,
 ] = [true, true];
 void recordUpgrades;
+// A 0.19.0 record is its frozen module's type, and always upgrades with an approver
+const approvalRecordsV0_19_0AreFrozen: [
+  Equals<PlanApprovalRecordV0_19_0, FrozenPlanApprovalRecordV0_19_0>,
+  Equals<SpecApprovalRecordV0_19_0, FrozenSpecApprovalRecordV0_19_0>,
+] = [true, true];
+void approvalRecordsV0_19_0AreFrozen;
+declare const planRecordV0_19_0: PlanApprovalRecordV0_19_0;
+declare const specRecordV0_19_0: SpecApprovalRecordV0_19_0;
+const approverAlwaysPresent: [
+  Equals<ReturnType<typeof toLatestPlanApprovalRecord>["approvedBy"], PhaxPlanRecord["approvedBy"]>,
+  Equals<ReturnType<typeof toLatestSpecApprovalRecord>["approvedBy"], PhaxSpecRecord["approvedBy"]>,
+] = [true, true];
+void approverAlwaysPresent;
+void toLatestPlanApprovalRecord(planRecordV0_19_0).approvedBy;
+void toLatestSpecApprovalRecord(specRecordV0_19_0).approvedBy;
 declare const latestPlanRecord: LatestPlanApprovalRecord;
 // @ts-expect-error: the in-memory plan approval record carries no $schema
 void latestPlanRecord.$schema;

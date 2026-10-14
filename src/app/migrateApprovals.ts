@@ -53,9 +53,14 @@ type ReadExisting = (
   artifact: string,
 ) => Effect.Effect<string | null, FsError | ApprovalRecordUnreadableError, FileSystem>;
 
+// A ledger never recorded who approved: each entry is written as unattributed.
+const UNATTRIBUTED = { kind: "unattributed" } as const;
+
 // One old ledger's kind: how to decode it into rendered record files, and how
 // to render an existing target record file the same way, so "holds the same
-// record" is a comparison of canonical bytes.
+// record" is a comparison of canonical bytes. An existing 0.19.0 target reads
+// lifted to unattributed, so one holding the same record compares equal and
+// is kept as it is on disk.
 interface LedgerKind {
   readonly kind: ArtifactKind;
   readonly ledgerPath: string;
@@ -74,7 +79,10 @@ const LEDGER_KINDS: readonly LedgerKind[] = [
       Either.map(readPlanApprovalsFile(file, input), (ledger) =>
         Object.entries(ledger.records).map(
           ([artifact, record]) =>
-            [artifact, renderPlanRecordFile({ artifact, ...record })] as const,
+            [
+              artifact,
+              renderPlanRecordFile({ artifact, ...record, approvedBy: UNATTRIBUTED }),
+            ] as const,
         ),
       ),
     readExisting: (artifact) =>
@@ -89,7 +97,10 @@ const LEDGER_KINDS: readonly LedgerKind[] = [
       Either.map(readSpecApprovalsFile(file, input), (ledger) =>
         Object.entries(ledger.records).map(
           ([artifact, record]) =>
-            [artifact, renderSpecRecordFile({ artifact, ...record })] as const,
+            [
+              artifact,
+              renderSpecRecordFile({ artifact, ...record, approvedBy: UNATTRIBUTED }),
+            ] as const,
         ),
       ),
     readExisting: (artifact) =>

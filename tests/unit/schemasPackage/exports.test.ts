@@ -8,6 +8,8 @@ import * as authoringRecordManifestV0_17_0 from "../../../src/schemas/history/au
 import * as briefRecordV0_20_0 from "../../../src/schemas/history/brief-record/0.20.0.js";
 import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document/0.17.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
+import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+import * as specApprovalRecordV0_19_0 from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -89,6 +91,7 @@ describe("schemas package entry", () => {
       "PhaxPlanPreSchemaSchema",
       "PhaxPlanSchema",
       "PlanApprovalRecordSchema",
+      "PlanApprovalRecordV0_19_0Schema",
       "PlanApprovalsPreSchemaSchema",
       "PlanApprovalsSchema",
       "PlanDocumentPreSchemaSchema",
@@ -100,6 +103,7 @@ describe("schemas package entry", () => {
       "RunStatusPreSchemaSchema",
       "RunStatusSchema",
       "SpecApprovalRecordSchema",
+      "SpecApprovalRecordV0_19_0Schema",
       "SpecApprovalsPreSchemaSchema",
       "SpecApprovalsSchema",
       "SpecDocumentPreSchemaSchema",
@@ -271,6 +275,19 @@ describe("schemas package entry", () => {
     );
     expect(authoringRecordManifestV0_17_0.decodeAuthoringRecordManifestV0_17_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodeAuthoringRecordManifestV0_17_0");
+  });
+
+  it("re-exports the approval record 0.19.0 frozen modules' schemas, never a copy, and never their decoders", () => {
+    expect(entry.PlanApprovalRecordV0_19_0Schema).toBe(
+      planApprovalRecordV0_19_0.PlanApprovalRecordV0_19_0Schema,
+    );
+    expect(entry.SpecApprovalRecordV0_19_0Schema).toBe(
+      specApprovalRecordV0_19_0.SpecApprovalRecordV0_19_0Schema,
+    );
+    expect(planApprovalRecordV0_19_0.decodePlanApprovalRecordV0_19_0).toBeDefined();
+    expect(specApprovalRecordV0_19_0.decodeSpecApprovalRecordV0_19_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodePlanApprovalRecordV0_19_0");
+    expect(Object.keys(entry)).not.toContain("decodeSpecApprovalRecordV0_19_0");
   });
 
   it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {
