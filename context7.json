@@ -1,0 +1,45 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "phax",
+  "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
+  "folders": [],
+  "excludeFolders": [
+    "docs/plans",
+    "docs/specs",
+    "docs/briefs",
+    "docs/ideas",
+    "docs/spikes",
+    "spikes",
+    "src",
+    "tests",
+    "scripts",
+    "site",
+    "packages/schemas/snapshots",
+    ".claude/rules",
+    ".claude/skills/boundaries",
+    ".claude/skills/cli-view-layer",
+    ".claude/skills/effect-services",
+    ".claude/skills/find-docs",
+    ".claude/skills/infrastructure-adapters",
+    ".claude/skills/model-routing",
+    ".claude/skills/observability",
+    ".claude/skills/state-machines",
+    ".claude/skills/validation-boundaries"
+  ],
+  "excludeFiles": [
+    "CLAUDE.md",
+    "NEXT_STEPS.md",
+    "acceptance-coverage.md",
+    "vocabulary-review.md",
+    "e2e-testing.md"
+  ],
+  "rules": [
+    "Install phax with `npm install -g @lbdremy/phax` (or run `npx @lbdremy/phax`); the unscoped `phax` package on npm is unrelated.",
+    "phax drives an agent CLI that must be on your PATH: `claude` (Claude Code) always, and optionally `codex` (OpenAI Codex) or `vibe` (Mistral Vibe); phax falls back to Claude Code.",
+    "Set up a repository with `phax init` (writes phax.json: project name and gate commands), then `phax skills install --target claude` (or codex, or agent).",
+    "Write a spec, then a plan, and approve each: `phax artifact new spec <name>`, `phax artifact approve <spec>`, `phax artifact new plan <name> --spec <spec> --last`, `phax plans lint <plan>`, `phax artifact approve <plan>`.",
+    "Run an approved plan with `phax run --plan <plan.md>`: each phase runs in its own Git worktree and must pass the gate before the next starts; the run stops at review with the last phase open.",
+    "After the run reaches review: `phax review-code <name>` to review with an agent, `phax publish-pr <name>` to open the pull request, `phax archive <name>` after the merge.",
+    "`phax --usage` prints the exact command and flag contract; https://docs.phax.run is the documentation."
+  ]
+}
