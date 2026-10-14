@@ -126,7 +126,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 
    A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
 7. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
-8. Creates the GitHub Release and uploads binaries and checksums.
+8. Creates the GitHub Release and uploads binaries and checksums. GitHub writes its notes from the pull requests merged since the previous tag, grouped by label as `.github/release.yml` says (breaking changes, features, fixes, documentation, other).
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
