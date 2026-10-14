@@ -64,8 +64,17 @@ describe("npm/package.json", () => {
   it("names the docs site, the issue tracker and its keywords", () => {
     expect(manifest.homepage).toBe("https://docs.phax.run");
     expect(manifest.bugs?.url).toBe("https://github.com/lbdremy/phax/issues");
-    expect(manifest.keywords).toEqual(
-      expect.arrayContaining(["claude-code", "openai-codex", "mistral-vibe", "coding-agent"]),
-    );
+    // The same words as the GitHub repository's topics, so both describe phax alike.
+    expect(manifest.keywords).toEqual([
+      "agent-harness",
+      "agentic-coding",
+      "claude-code",
+      "codex-cli",
+      "deterministic-ai",
+      "git-worktree",
+      "mistral-vibe",
+      "quality-gates",
+      "spec-driven-development",
+    ]);
   });
 });
