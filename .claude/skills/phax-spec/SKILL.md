@@ -60,7 +60,9 @@ frontmatter and writes the spec's own record file, `docs/specs/approvals/<spec f
 never by hand** — treat them as machine state, not authored content. Re-approving an
 already-**Approved** spec is legal and is the supported way to record an **in-place
 revision**: it re-stamps the block and rewrites the record against the spec's current
-content. Because a plan can only be approved against a recorded, unmodified spec, a plan
+content. Approve takes `--by operator` or `--by machine:<grant>` (required without a
+terminal), and the record names the approver. `phax artifact reopen` returns an Approved
+spec to Draft; its bound plans are named and left as they are. Because a plan can only be approved against a recorded, unmodified spec, a plan
 whose `Source-Spec` is Approved but **unrecorded** (no record file under `docs/specs/approvals/`) or
 **edited since** its approval fails plan approval with exit 12 — re-approve the spec first.
 `phax artifact status <spec>` reports the approval date, baseline, and whether the spec has

@@ -123,6 +123,10 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
       Draft; every artifact gets the approval lock; `--by` names who approved; an approval record
       without `approvedBy` lifts to `unattributed`; `phax artifact migrate-documents` lifts the
       live headless sidecars once, and approve, reopen and decide refuse until it has run.
+      Plan A (approver attribution and reopen) shipped: `--by`, `approvedBy` with the
+      `unattributed` lift, and reopen from Approved. Plan B (question model, renderer,
+      `migrate-documents`) and plan C (`decide`, doctrine skills, approval lock) follow, each
+      authored after the previous one merges.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
       approver form and skill (`docs/ideas/headless-code-review.md`). decide's re-authoring
       dropped the escalation block and changed the approver form to `--by`, so this spec's
