@@ -188,9 +188,14 @@ spec of its own. In this order:
       (`planAuditor`, `phax plans lint`'s advisory check) still receives `{phases}` and answers
       without one. Version its request and its answer the same way, with an answer that has no
       `$schema` refused and no fallback. A small spec of its own, before the 1.0 freeze.
-- [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
-      `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
-      Sweep that text when `drop-gate-scopes` lands. No change to its design.
+- [ ] **`oracle-phases` needs re-authoring, not a wording sweep** (rechecked 2026-10-14). Its
+      oracle provider answers with the diagnostics document (§3 "Oracle provider", §5's failure
+      and provider-error requirements, §11), which `guarantee-reports` replaced with
+      `gate-report` in 0.21 with no shim, and a provider answer now needs a `$schema`. Its
+      ground (§1) still lists `orient`, the `scopes` provider and `src/schemas/gateDiagnostics.ts`,
+      all gone; it says its `oracles` key "mirrors `scopes`" and lists "deriving oracles from
+      `scopes`" as a non-goal. Reopen it (behind `artifact-decide`) and re-author it against
+      `gate-report` before planning.
 - [x] **Teach the skills what the gate chain added.** `brief-provider` left the skills out of
       scope; its handoffs (PR #126) ask for them. `phax-cli` and `phax-planning`
       (`.claude/skills/`) should cover:
