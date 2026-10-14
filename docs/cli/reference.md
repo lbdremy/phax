@@ -2,7 +2,7 @@
 # `phax`
 - **version**: 0.24.0
 
-Drive AI Coding agent through isolated, gated phases
+Drive AI coding agents through isolated, gated phases
 
 
 - **Usage**: `phax [FLAGS] <SUBCOMMAND>`
