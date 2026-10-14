@@ -1,31 +1,47 @@
-Write the phax spec `artifact-decide`. This is the second draft: the first (`docs/specs/archive/2609241227-artifact-decide.md`, Abandoned 2026-09-25) predates decisions taken on 2026-09-25 and listed under "Revised on 2026-09-25" below; read it for structure, not for content that those decisions change.
+Write the phax spec `artifact-decide`. This is the third draft. The second, `docs/specs/archive/2609250815-artifact-decide.md` (approved 2026-09-29 at baseline `bc84612`, abandoned 2026-10-14), stands in its design and in the §9 answers listed below. The ground under it changed, and its §1, its §6 file section and the criteria built on them describe storage phax no longer has. Read it first and keep its structure, its terminology, its requirements and criteria wherever the current code still holds them. Re-ground everything else in the code as it is today; do not trust its §1.
 
-Revised on 2026-09-25 — decisions the spec must reflect:
-- **Two modes only: interactive and headless.** Interactive: the human decides everything, the agent facilitates (resumes the authoring session when it exists). Headless: the agent decides within the menu and escalates what is off-menu, what changes the artifact's public surface, what reverses an earlier decision. A "headless total" mode (no escalation) is named as deferred, not specified.
-- **Propose and escalate, never decide off-menu.** When no option fits (a badly posed question, a better option outside the menu), the headless arbiter writes its proposal and escalates; the proposal never wins by itself. The proposal is always recorded (`escalate` with the proposal text), so it is deferred, not lost. Escalations are counted and reported so a loop that escalates everything is visible.
-- **Reversibility is a cost, not a state**: at equal value prefer the option cheaper to reverse; destructive is a floor that stops.
-- **The three doctrine skills already exist** at `.claude/skills/phax-decide-spec`, `phax-decide-plan`, `phax-decide-review` (landed by hand 2026-09-25, listed in `package.json` `files`). The spec registers them in the skill catalog (`src/domain/skills/catalog.ts`) and tests that `phax skills install` installs them; it does not write or rewrite their text. Read them: they define the five pairs (C1–C5) on the ground E0 explicit over implicit, the precedence order, the principle ids (S*, P*, R*) decisions cite, and the modes.
-- **Doctrine format is decided**: prose whose principles are list items opening with a backticked id; phax collects the ids from the skill and from `--doctrine` and validates that every cited id exists. Do not leave this as an open question.
-- A decision's JSON carries `advocate` (the case for the abandoned option), `principles[]`, `reversibility` (as a cost note), and `escalate` (null or the proposal); the plan variant adds `phase`.
+What changed since `bc84612` (read these files; each change must reach every section that relies on the old ground):
+1. **Approvals are one file per artifact.**
+   - `docs/specs/approvals/<spec>.json` (format `spec-approval-record`) and `docs/plans/approvals/<plan>.json` (format `plan-approval-record`): `$schema` first, then `artifact`, then the record (`src/schemas/specApprovalRecord.ts`, `src/schemas/approvalRecord.ts`, `src/domain/artifact/approvalRecordFile.ts`, `src/app/artifactStatus.ts`).
+   - The old `docs/{specs,plans}/approvals.json` ledgers are read only to migrate them, and approval commands refuse while one exists.
+   - Rewrite every `approvals.json` mention (§1, §6's file section, the §8 criteria) against the record files. `artifact reopen` on an Approved artifact removes its record file.
+2. **Persisted formats are versioned by shape.**
+   - A file's `$schema` stamp names the release that last changed the format's shape (`src/schemas/release.ts` `CURRENT_STAMPS`: `spec-document` 0.17.0, `plan-document` 0.20.0, `spec-approval-record` and `plan-approval-record` 0.19.0).
+   - A shape change is recorded as `packages/schemas/snapshots/<format>/next.schema.json` and released by the cut (`docs/release.md`).
+   - The previous shape is frozen under `src/schemas/history/<format>/<release>.ts`, pinned by `packages/schemas/history.lock.json`. phax reads a file stamped below the current shape through that frozen decoder and lifts it (`src/schemas/persisted.ts`). Example: an `authoring-record-manifest` stamped 0.17.0 is lifted with `retry: "none"` (shipped in 0.23.0).
+   - The spec names every format it changes and, for each, how an older file is lifted: `spec-document` gains `arbitratedQuestions`, `plan-document` gains `openQuestions` and `arbitratedQuestions`, and both approval record formats gain `approvedBy`.
+   - Read NEXT_STEPS §"A persisted-format stability promise" for the rule on provider answers.
+3. **The plan document carries `completesSpec`** (frontmatter `completes-spec`), and `artifact new plan --spec` requires `--last` or `--not-last`. Decide re-renders plan documents and must keep both.
+4. **The authoring retry (0.23.0)** resumes a headless authoring session once, within the same process, to retry a refused document. No provider session id is persisted (`src/schemas/authoringRecord.ts`). Correct §1's sentence on resumable sessions.
+5. **phax runs stay autonomous** (decided 2026-10-10): the `decision` class was dropped, `phase-decision-requests` stays parked, and a person reaches a run only through review notes after it. Decide is an artifact gesture before any run. Say so, and say it never runs inside one: the phase guard already refuses it in a phase worktree.
+6. **No other repository's files are ground.** The second draft cited the steme corpus. The first consumer is still the steme roadmap-1.0 conductor (NEXT_STEPS), and the contract the second draft states for it stands. Cite no path outside this repository.
 
-Ground to read first, in this order:
-- docs/ideas/artifact-decide.md — the idea (2026-09-24): arbitration of a spec's or plan's open questions; interactive and headless modes; a caller-owned doctrine; JSON out, re-implanted into the sidecar, Markdown re-rendered; `--reopen`; a fresh session by default in headless mode (an oracle is independent of what it judges), the authoring session resumed in interactive mode; the doctrines shipped as default skills.
-- docs/ideas/skills/phax-decide-spec.md and docs/ideas/skills/phax-decide-plan.md — the two default doctrines (S1–S10, P1–P9) the `decide` session loads; their output shape; how a project extends them with `--doctrine <file>` and replaces them with a project-scoped skill of the same name.
-- docs/ideas/autopilot.md §"Decision policy" and docs/specs/2608091526-phase-decision-requests.md — the decision-request shape open questions already take (`id`, `question`, `options[]`, `recommendation`, `rationale`).
-- The headless-authoring implementation landed in 0.16.0: the spec and plan document schemas (`phax artifact schema spec|plan`), the JSON sidecar that travels with transitions and blocks `approve` when diverged, the deterministic renderers, authoring records. `decide` writes into that sidecar and re-renders with those renderers.
-- src/app/ around `artifact approve` / `artifact status` and `docs/specs/approvals.json` / `docs/plans/approvals.json`: how approvals are recorded today, so the spec can say how a machine approval is distinguished from a human one (the autopilot idea requires it; see below).
-- The skills mechanism (package.json `files`, `phax skills install --target claude --scope project`) so the three doctrine skills ship and install like `phax-spec` and `phax-planning`.
-- NEXT_STEPS.md §"Road to 1.0.0" (additive only) and §"Spec candidates" → "Three additive specs…".
-- The first consumer's contract: /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md §3.3, §5.2, §8 (the `rouvre` steering instruction), and the evidence note /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md (the reflexes the doctrines distil; decisions P1–P7 on plans).
+Carried over, decided by the author. Write each in §9 as decided, keeping its original date and decision, with " (Decided by the author on <its date>; not reopened.)" appended to the question:
+- **Q1:** decide runs on Draft only. `phax artifact reopen` extends from Stale plans to Approved specs and plans and removes the approval record.
+- **Q2:** the plan preamble gets `openQuestions`, in the decision-request shape plus `history`, rendered before the first phase. Settled arbitrations stay prose in `technicalArbitrations`.
+- **Q3:** `--by operator | machine:<grant>`, required when not run from a terminal; from a terminal without it, the operator.
+- **Q6:** decide reads and writes a hand-authored §9 in the §9 format.
+- **Q8:** on a Draft, `decide --question <id>` re-arbitrates; the new decision joins the question's history.
+- **Q9:** the approval lock covers every spec and plan, with or without a sidecar.
+- **Q10:** a hand-authored question is decided when its last block is a `Decision:` block.
+- **Q11:** arbitrating moves a question to `arbitratedQuestions` with everything it had, plus its verdict.
+- **Q12:** the interactive session returns the revised document. phax checks it, shows the body diff, and writes only what the operator accepts.
+- **Q14:** decide is interactive only. A headless mode is built later from the recorded sessions.
 
-What the spec must cover:
-- `phax artifact decide <artifact> [--headless --doctrine <file>] [--model … --effort …] [--resume-authoring]` and `phax artifact decide <artifact> --question <id> --reopen [--note …]`.
-- Input: the artifact's open questions — from the sidecar when it exists, otherwise extracted from the Markdown §9 (specs) or `## Technical arbitrations` / open questions (plans) through the same extractor headless authoring uses. Say what happens when an artifact has no open questions.
-- The session: which skill it loads (`phax-decide-spec` or `phax-decide-plan` by artifact kind), how `--doctrine` is appended, JSON-only output validated against a decision schema (`id`, `chosen`, `abandoned[]`, `advocate`, `why`, `principles[]`, `reversibility`, `escalate`), a provider error on invalid output, nothing half-written.
-- Re-implantation: each decision written into the sidecar's question; the Markdown re-rendered (§9 answered, a decision log appended); the artifact committed; the session recorded; `artifact status` reporting questions open / decided / escalated; `approve` refusing while an escalated question is unanswered (or stating the policy).
-- `--reopen`: marks a decided question open again with a note; the next `decide` sees it first; an Approved artifact with a reopened question — say what happens (back to Draft, or an amendment).
-- Machine vs human: a headless decision and a headless approval are recorded as such (`by: <doctrine + model>` vs the operator), visible in `artifact status` and in `approvals.json`, so a loop's approvals are never presented as human ones. If that needs an addition to `approve` (e.g. `--by`), specify it here.
-- The three doctrine skills ship with phax (`phax-decide-spec`, `phax-decide-plan`, `phax-decide-review`), installed by `phax skills install`; a project-scoped skill of the same name replaces the default; `--doctrine` extends it. State that their content is the draft in docs/ideas/skills/ and that the spec does not rewrite it.
-- Open questions in §9 with options, losses and a recommended default: whether `decide` may run after `approve` and what becomes of the approval; whether plans need a structured open-questions section in their document schema; how `--machine` (or an equivalent) distinguishes a machine approval in `approvals.json` and what a record without attribution reads as; what `artifact status` shows for an artifact with an escalated proposal pending.
+Drop Q5, Q7 and Q13, which Q14 superseded. With no headless mode there is no machine proposal, no escalation and no machine reversal: remove them from every section, including Q8's "a machine reversal escalates". `--by machine:<grant>` stays for approve and reopen.
 
-Constraints: additive; nothing changes for artifacts authored by hand without a sidecar beyond the extractor path; keep to what the first consumer (the steme conductor) needs and name what is deliberately out of scope (the decision queue UI, multi-human arbitration).
+Reopened by the ground change. Pose each in §9 with its options, what each abandons, and a recommendation:
+- **Q4, approval records without `approvedBy`.** The second draft decided to refuse such a record and rewrite the in-repo ledgers, at a time when approvals were unversioned ledgers. Today phax lifts its own older files through their frozen shape. Weigh lifting a record stamped 0.19.0 to `approvedBy: { kind: unattributed }` against the old refusal. Neither may present an old approval as an operator's.
+- **Lifting existing spec and plan documents.** Today a decided question stays in `openQuestions`, marked by convention: " (Decided by the author on <date>; not reopened.)" appended to `question`, and `rationale` prefixed "Decided by the author on <date>, …".
+  - Lifted as open, such questions meet the approval lock at the next approval. Draft and Approved artifacts in flight would be affected; Completed and Abandoned ones are never approved again.
+  - Decide whether the lift moves marked questions to `arbitratedQuestions`, leaves them open, or does something else. Say what a lifted verdict holds when no structured decision was ever recorded.
+- **Anything else the current code contradicts in the second draft's design:** pose it as a question; do not settle it silently.
+
+Constraints:
+- The CLI stays additive.
+- A frozen-shape lift is the sanctioned way to read an older file; it is not a back-compat shim, and no field becomes optional. New persisted fields are required, as explicit per-variant enums (`approvedBy` kinds).
+- Every example and fixture is made up.
+- Keep the second draft's §11 docs page.
+- Out of scope, named: headless arbitration, a decision queue UI, multi-human arbitration, `headless-review` (it reopens after this spec ships), and `oracle-phases`.
+
+Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
