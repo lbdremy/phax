@@ -31,7 +31,8 @@
     "NEXT_STEPS.md",
     "acceptance-coverage.md",
     "vocabulary-review.md",
-    "e2e-testing.md"
+    "e2e-testing.md",
+    "release.md"
   ],
   "rules": [
     "Install phax with `npm install -g @lbdremy/phax` (or run `npx @lbdremy/phax`); the unscoped `phax` package on npm is unrelated.",
@@ -40,6 +41,6 @@
     "Write a spec, then a plan, and approve each: `phax artifact new spec <name>`, `phax artifact approve <spec>`, `phax artifact new plan <name> --spec <spec> --last`, `phax plans lint <plan>`, `phax artifact approve <plan>`.",
     "Run an approved plan with `phax run --plan <plan.md>`: each phase runs in its own Git worktree and must pass the gate before the next starts; the run stops at review with the last phase open.",
     "After the run reaches review: `phax review-code <name>` to review with an agent, `phax publish-pr <name>` to open the pull request, `phax archive <name>` after the merge.",
-    "`phax --usage` prints the exact command and flag contract; https://docs.phax.run is the documentation."
+    "`phax --usage` prints the exact command and flag contract, and https://docs.phax.run/reference/cli (docs/cli/reference.md) lists every command with its flags; check it before using a flag. https://docs.phax.run is the documentation."
   ]
 }
