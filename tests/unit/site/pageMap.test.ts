@@ -8,26 +8,35 @@ import {
   type SourceInventory,
 } from "../../../site/build/pageMap.js";
 
+const DESCRIBED = "A page of the made-up tool these tests map, said in one sentence.";
+
 const MAP = definePageMap({
   repository: "https://github.com/example/tool",
   readme: [
     { route: "/", title: "Tool", sections: [INTRO, "Quickstart"] },
-    { route: "/guide/run", title: "Running", sections: ["Run", "Locks"] },
+    { route: "/guide/run", title: "Running", sections: ["Run", "Locks"], description: DESCRIBED },
     { omit: ["Generated reference"], why: "generated; /reference/cli is the full reference" },
   ],
   files: [
-    { route: "/reference/cli", title: "CLI reference", source: "docs/cli/reference.md" },
-    { route: "/security", title: "Security", source: "docs/security.md" },
+    {
+      route: "/reference/cli",
+      title: "CLI reference",
+      source: "docs/cli/reference.md",
+      description: DESCRIBED,
+    },
+    { route: "/security", title: "Security", source: "docs/security.md", description: DESCRIBED },
     {
       route: "/compare/other-vs-tool",
       title: "Other vs. tool",
       source: "docs/comparisons/other.md",
+      description: DESCRIBED,
     },
     {
       route: "/blog/announcing-tool-1-0",
       title: "Announcing tool 1.0",
       source: "docs/blog/announcing.md",
       holdUntil: "1.0.0",
+      description: DESCRIBED,
     },
   ],
 });
@@ -93,7 +102,10 @@ describe("checkPageMap", () => {
   it("refuses a section or file assigned twice and a duplicate route", () => {
     const map: PageMap = {
       ...MAP,
-      readme: [...MAP.readme, { route: "/guide/run", title: "Again", sections: ["Run"] }],
+      readme: [
+        ...MAP.readme,
+        { route: "/guide/run", title: "Again", sections: ["Run"], description: DESCRIBED },
+      ],
       files: [...MAP.files, { omit: "docs/security.md", why: "twice" }],
     };
     expect(checkPageMap(map, SOURCES)).toEqual([
@@ -107,8 +119,19 @@ describe("checkPageMap", () => {
     const map: PageMap = {
       ...MAP,
       readme: [
-        { route: "/v1/guide", title: "Tool", sections: [INTRO, "Quickstart"] },
-        { route: "/0.17/run", title: "Running", sections: ["Run", "Locks"], holdUntil: "1.0" },
+        {
+          route: "/v1/guide",
+          title: "Tool",
+          sections: [INTRO, "Quickstart"],
+          description: DESCRIBED,
+        },
+        {
+          route: "/0.17/run",
+          title: "Running",
+          sections: ["Run", "Locks"],
+          holdUntil: "1.0",
+          description: DESCRIBED,
+        },
         { omit: ["Generated reference"], why: "generated" },
       ],
     };
@@ -116,6 +139,31 @@ describe("checkPageMap", () => {
       "✗ page map: route /v1/guide starts with a version segment",
       "✗ page map: route /0.17/run starts with a version segment",
       '✗ page map: /0.17/run holds until "1.0", which is not X.Y.Z',
+    ]);
+  });
+
+  it("describes every page but /, in 50 to 160 characters", () => {
+    const map: PageMap = {
+      ...MAP,
+      readme: [
+        { route: "/", title: "Tool", sections: [INTRO, "Quickstart"], description: DESCRIBED },
+        { route: "/guide/run", title: "Running", sections: ["Run", "Locks"] },
+        { omit: ["Generated reference"], why: "generated" },
+      ],
+      files: [
+        {
+          route: "/reference/cli",
+          title: "CLI reference",
+          source: "docs/cli/reference.md",
+          description: "Too short.",
+        },
+        ...MAP.files.slice(1),
+      ],
+    };
+    expect(checkPageMap(map, SOURCES)).toEqual([
+      "✗ page map: / takes README.md's first paragraph as its description, not its own",
+      "✗ page map: /guide/run has no description",
+      "✗ page map: /reference/cli's description is 10 characters, not 50 to 160",
     ]);
   });
 
@@ -135,7 +183,13 @@ describe("checkPageMap", () => {
       ...MAP,
       readme: [
         { route: "/", title: "Tool", sections: [INTRO, "Quickstart"], home },
-        { route: "/guide/run", title: "Running", sections: ["Run", "Locks"], home },
+        {
+          route: "/guide/run",
+          title: "Running",
+          sections: ["Run", "Locks"],
+          home,
+          description: DESCRIBED,
+        },
         { omit: ["Generated reference"], why: "generated" },
       ],
     };

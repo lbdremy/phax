@@ -30,13 +30,32 @@ function meta(key: "property" | "name", name: string, content: string): HeadTag 
   return ["meta", { [key]: name, content }];
 }
 
+/** A page's URL on the site: the origin and its clean route. */
+export function pageUrl(routePath: string): string {
+  return `${SITE_ORIGIN}${routePath}`;
+}
+
 /**
- * The tags every page carries for link previews: the card as og:image and
- * twitter:image (a large-image card), and the page's own URL as og:url.
- * Rspress adds og:title and og:description from each page's title and first
- * paragraph; the home's description is README.md's first paragraph.
+ * The home's structured data: a schema.org WebSite, the signal Google reads
+ * for the site name it shows in results.
  */
-export function socialHead(): Array<HeadTag | ((route: { routePath: string }) => HeadTag)> {
+export const WEBSITE_JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "phax",
+  url: pageUrl("/"),
+});
+
+/**
+ * What every page's head carries for search engines and link previews: its
+ * canonical URL (its clean route), the card as og:image and twitter:image (a
+ * large-image card), its URL as og:url, and on the home the WebSite JSON-LD.
+ * Rspress adds og:title and og:description from each page's title and
+ * description.
+ */
+export function socialHead(): Array<
+  HeadTag | ((route: { routePath: string }) => HeadTag | string | undefined)
+> {
   return [
     meta("property", "og:type", "website"),
     meta("property", "og:site_name", "phax"),
@@ -47,7 +66,12 @@ export function socialHead(): Array<HeadTag | ((route: { routePath: string }) =>
     meta("name", "twitter:card", "summary_large_image"),
     meta("name", "twitter:image", OG_IMAGE_URL),
     meta("name", "twitter:image:alt", OG_IMAGE_ALT),
-    (route) => meta("property", "og:url", `${SITE_ORIGIN}${route.routePath}`),
+    (route) => ["link", { rel: "canonical", href: pageUrl(route.routePath) }],
+    (route) => meta("property", "og:url", pageUrl(route.routePath)),
+    (route) =>
+      route.routePath === "/"
+        ? `<script type="application/ld+json">${WEBSITE_JSON_LD}</script>`
+        : undefined,
   ];
 }
 
@@ -78,7 +102,14 @@ const PATH: ReadonlyArray<{ readonly phase: boolean; readonly gate: boolean }> =
  * description and the domain, so it holds only what reads at that size: the
  * logo and name, the promise, and the golden path.
  */
-export function cardHtml(logoSvg: string, fonts: CardFonts): string {
+export function cardHtml(
+  logoSvg: string,
+  fonts: CardFonts,
+  size: { readonly width: number; readonly height: number } = {
+    width: OG_IMAGE_WIDTH,
+    height: OG_IMAGE_HEIGHT,
+  },
+): string {
   const theme = THEMES.dark;
   const logo = logoSvg.replace("<svg ", '<svg class="logo" ');
   const steps = PATH.map(
@@ -90,7 +121,7 @@ export function cardHtml(logoSvg: string, fonts: CardFonts): string {
 <html><head><meta charset="utf-8"><style>
 @font-face { font-family: "Plex Sans"; font-weight: 600; src: url("${fonts.sans600}") format("woff2"); }
 * { box-sizing: border-box; margin: 0; }
-html, body { width: ${OG_IMAGE_WIDTH}px; height: ${OG_IMAGE_HEIGHT}px; overflow: hidden; }
+html, body { width: ${size.width}px; height: ${size.height}px; overflow: hidden; }
 body {
   position: relative;
   padding: 72px 88px 0;
@@ -125,41 +156,62 @@ function fontUrl(require: NodeJS.Require, file: string): string {
   return pathToFileURL(require.resolve(file)).href;
 }
 
-/** Renders the card with a local headless Chrome into site/public/og.png. */
+/**
+ * The repository's social preview on GitHub: the same card at GitHub's
+ * recommended 1280×640, uploaded by hand in the repository's settings (GitHub
+ * has no API for it).
+ */
+export const GITHUB_PREVIEW_PATH = ".github/social-preview.png";
+export const GITHUB_PREVIEW_SIZE = { width: 1280, height: 640 } as const;
+
+/**
+ * Renders the card with a local headless Chrome: site/public/og.png at
+ * 1200×630, and the GitHub social preview at 1280×640.
+ */
 function render(): void {
   const siteDir = resolve(import.meta.dirname, "..");
-  const require = createRequire(join(siteDir, "..", "package.json"));
-  const html = cardHtml(readFileSync(join(siteDir, "public", "logo.svg"), "utf8"), {
+  const repoDir = resolve(siteDir, "..");
+  const require = createRequire(join(repoDir, "package.json"));
+  const logo = readFileSync(join(siteDir, "public", "logo.svg"), "utf8");
+  const fonts = {
     sans600: fontUrl(
       require,
       "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2",
     ),
-  });
+  };
+  const targets = [
+    {
+      out: join(siteDir, "public", "og.png"),
+      size: { width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT },
+    },
+    { out: join(repoDir, GITHUB_PREVIEW_PATH), size: GITHUB_PREVIEW_SIZE },
+  ];
   const work = mkdtempSync(join(tmpdir(), "phax-og-"));
   try {
-    const page = join(work, "card.html");
-    writeFileSync(page, html);
-    const out = join(siteDir, "public", "og.png");
-    const chrome = process.env["PHAX_CHROME"] ?? CHROME_MAC;
-    const result = spawnSync(
-      chrome,
-      [
-        "--headless=new",
-        "--disable-gpu",
-        "--hide-scrollbars",
-        "--no-first-run",
-        `--user-data-dir=${join(work, "profile")}`,
-        `--window-size=${OG_IMAGE_WIDTH},${OG_IMAGE_HEIGHT}`,
-        "--virtual-time-budget=2000",
-        `--screenshot=${out}`,
-        pathToFileURL(page).href,
-      ],
-      { encoding: "utf8" },
-    );
-    if (result.status !== 0) {
-      throw new Error(`site:og: ${chrome} exited with ${result.status ?? result.signal}`);
+    for (const { out, size } of targets) {
+      const page = join(work, `card-${size.width}.html`);
+      writeFileSync(page, cardHtml(logo, fonts, size));
+      const chrome = process.env["PHAX_CHROME"] ?? CHROME_MAC;
+      const result = spawnSync(
+        chrome,
+        [
+          "--headless=new",
+          "--disable-gpu",
+          "--hide-scrollbars",
+          "--no-first-run",
+          `--user-data-dir=${join(work, `profile-${size.width}`)}`,
+          `--window-size=${size.width},${size.height}`,
+          "--virtual-time-budget=2000",
+          `--screenshot=${out}`,
+          pathToFileURL(page).href,
+        ],
+        { encoding: "utf8" },
+      );
+      if (result.status !== 0) {
+        throw new Error(`site:og: ${chrome} exited with ${result.status ?? result.signal}`);
+      }
+      console.log(`site:og: wrote ${out}`);
     }
-    console.log(`site:og: wrote ${out}`);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

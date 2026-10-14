@@ -3,15 +3,16 @@
 // emitted reached the HTML, every anchor a link was rewritten to is an id on
 // its target page, and no HTML, CSS or JS file loads anything from another
 // origin. Outbound `<a href>` links are fine. Every page's favicon is the
-// logo, its nav shows the lowercase wordmark, and it names the social card as
-// its og:image in a large-image preview. Every served JSON Schema, the
+// logo, its nav shows the lowercase wordmark, its one canonical link is its
+// clean URL, and it names the social card as its og:image in a large-image
+// preview. Every served JSON Schema, the
 // schema index, _headers and the logos are in the output byte for byte. Pure
 // over maps of built files; readBuiltSite and readBuiltPublic are the only I/O.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
 import type { SiteLink } from "./links.js";
-import { OG_IMAGE_URL } from "./og.js";
+import { OG_IMAGE_URL, pageUrl } from "./og.js";
 
 /** The built files a check reads, relative to the output directory → text. */
 export type BuiltFiles = ReadonlyMap<string, string>;
@@ -178,6 +179,17 @@ export function metaContent(
   return undefined;
 }
 
+/** The href of every `<link rel="canonical">` in `html`. */
+export function canonicalHrefs(html: string): ReadonlyArray<string> {
+  const hrefs: Array<string> = [];
+  for (const match of html.matchAll(TAG)) {
+    if ((match[1] ?? "").toLowerCase() !== "link") continue;
+    const attrs = attributes(match[2] ?? "");
+    if ((attrs.get("rel") ?? "").toLowerCase() === "canonical") hrefs.push(attrs.get("href") ?? "");
+  }
+  return hrefs;
+}
+
 /** The text of the nav title link (Rspress's `rp-nav__title__link`), or undefined without one. */
 export function navTitle(html: string): string | undefined {
   const match =
@@ -220,6 +232,12 @@ export function checkBuiltSite(
     if (icons.length === 0 || icons.some((href) => href !== FAVICON)) {
       findings.push(
         `✗ ${outLabel}/${path}: favicon is ${icons.length === 0 ? "missing" : icons.join(", ")}, not ${FAVICON}`,
+      );
+    }
+    const canonicals = canonicalHrefs(html);
+    if (canonicals.length !== 1 || canonicals[0] !== pageUrl(route)) {
+      findings.push(
+        `✗ ${outLabel}/${path}: canonical is ${canonicals.length === 0 ? "missing" : canonicals.join(", ")}, not ${pageUrl(route)}`,
       );
     }
     for (const [attribute, name, content] of SOCIAL_TAGS) {

@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type UserConfig } from "@rspress/core";
 import { THEME_CSS, type SiteJson } from "./build/generate.js";
-import { socialHead } from "./build/og.js";
+import { SITE_ORIGIN, socialHead } from "./build/og.js";
 import { DARK_MODE } from "./theme/appearance.js";
 
 const SITE_JSON = resolve(import.meta.dirname, "generated/site.json");
@@ -25,7 +25,10 @@ export default defineConfig({
   outDir: resolve(import.meta.dirname, "doc_build"),
   title: "phax",
   description: site.description,
+  siteOrigin: SITE_ORIGIN,
   head: socialHead(),
+  // One URL per page: /guide/run, never /guide/run.html.
+  route: { cleanUrls: true },
   logo: { dark: "/logo.svg", light: "/logo-light.svg" },
   logoText: "phax",
   icon: "/logo.svg",
@@ -33,7 +36,8 @@ export default defineConfig({
   themeDir: resolve(import.meta.dirname, "theme"),
   lang: "en",
   search: { codeBlocks: true },
-  llms: false,
+  // llms.txt, llms-full.txt and a .md twin of every page, for coding agents.
+  llms: true,
   markdown: {
     // Links are emitted as the sources wrote them; site/build checks its own.
     link: { checkDeadLinks: false, checkAnchors: false },

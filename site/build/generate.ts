@@ -32,6 +32,7 @@ import {
   type RepositoryIndex,
   type SiteLink,
 } from "./links.js";
+import { robotsTxt, sitemapXml, type SitemapEntry } from "./discovery.js";
 import { liveRun } from "./liveRun.js";
 import {
   applyEdits,
@@ -56,7 +57,12 @@ export interface GenerateInput {
   readonly schemas?: SchemaSources;
   /** site/public's files by URL path (`/logo.svg`) → bytes, copied verbatim; none when omitted. */
   readonly assets?: ReadonlyMap<string, Uint8Array>;
+  /** Source path → the YYYY-MM-DD it last changed in git, the sitemap's lastmod; none when omitted. */
+  readonly lastModified?: ReadonlyMap<string, string>;
 }
+
+/** The discovery files the generator writes itself, which site/public must not hold. */
+const DISCOVERY_FILES = ["/robots.txt", "/sitemap.xml"] as const;
 
 /** site/generated/site.json: read by site/rspress.config.ts and site/build/postbuild.ts. */
 export interface SiteJson {
@@ -126,21 +132,31 @@ export function pagePath(route: string): string {
   return route === "/" ? "docs/index.md" : `docs${route}.md`;
 }
 
-function frontmatter(title: string | undefined, home?: Home, description?: string): string {
-  if (title === undefined) return "";
-  const lines = [`title: ${JSON.stringify(title)}`];
-  // JSON is YAML: the hero and features go in as single-line flow values.
-  if (home !== undefined) lines.push(...homeFrontmatter(home, description ?? ""));
-  return `---\n${lines.join("\n")}\n---\n\n`;
+/**
+ * A page's frontmatter: its title, its description (search results, link
+ * previews and llms.txt; Rspress would otherwise take the site's or a long
+ * first paragraph), and on the home its hero and cards.
+ */
+function frontmatter(
+  title: string | undefined,
+  description: string | undefined,
+  home?: Home,
+): string {
+  const lines = [
+    ...(title === undefined ? [] : [`title: ${JSON.stringify(title)}`]),
+    ...(description === undefined ? [] : [`description: ${JSON.stringify(description)}`]),
+    // JSON is YAML: the hero and features go in as single-line flow values.
+    ...(home === undefined ? [] : homeFrontmatter(home)),
+  ];
+  return lines.length === 0 ? "" : `---\n${lines.join("\n")}\n---\n\n`;
 }
 
 /**
- * The Rspress home's frontmatter: its description in link previews (README's
- * first paragraph; Rspress would take the whole intro), the hero, the feature
- * cards, the install command above the hero's actions, and the run the hero
- * plays where Rspress would show an image (site/theme/LiveRun.tsx).
+ * The Rspress home's frontmatter: the hero, the feature cards, the install
+ * command above the hero's actions, and the run the hero plays where Rspress
+ * would show an image (site/theme/LiveRun.tsx).
  */
-function homeFrontmatter(home: Home, description: string): ReadonlyArray<string> {
+function homeFrontmatter(home: Home): ReadonlyArray<string> {
   const hero = {
     name: home.name,
     text: home.text,
@@ -157,7 +173,6 @@ function homeFrontmatter(home: Home, description: string): ReadonlyArray<string>
     "pageType: home",
     // The tab and preview title: "phax - The golden path, just facts".
     `titleSuffix: ${JSON.stringify(home.text.replace(/\.$/, ""))}`,
-    `description: ${JSON.stringify(description)}`,
     `hero: ${JSON.stringify(hero)}`,
     `features: ${JSON.stringify(features)}`,
     `install: ${JSON.stringify(home.install)}`,
@@ -205,7 +220,11 @@ function readmePage(
     .join("\n\n");
   return {
     route: page.route,
-    content: `${frontmatter(page.title, page.home, readmeDescription(readme))}${body}\n`,
+    content: `${frontmatter(
+      page.title,
+      page.route === "/" ? readmeDescription(readme) : page.description,
+      page.home,
+    )}${body}\n`,
     headingIds: ordered.map((heading) => heading.id),
   };
 }
@@ -213,7 +232,7 @@ function readmePage(
 function filePage(page: FilePage, text: string, transform: MarkdownTransform): RenderedPage {
   return {
     route: page.route,
-    content: `${frontmatter(page.title)}${applyEdits(text, transform.edits).trimEnd()}\n`,
+    content: `${frontmatter(page.title, page.description)}${applyEdits(text, transform.edits).trimEnd()}\n`,
     headingIds: transform.headings.map((heading) => heading.id),
   };
 }
@@ -338,7 +357,7 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   if (schemas !== undefined) findings.push(...schemas.findings);
   const publicFiles = new Map(schemas?.files ?? []);
   for (const [path, bytes] of input.assets ?? []) {
-    if (publicFiles.has(path))
+    if (publicFiles.has(path) || (DISCOVERY_FILES as ReadonlyArray<string>).includes(path))
       findings.push(`✗ site/public${path}: the build already serves ${path}`);
     publicFiles.set(path, bytes);
   }
@@ -443,6 +462,17 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   output.set("site.json", `${JSON.stringify(site, null, 2)}\n`);
   output.set("links.json", `${JSON.stringify(siteLinks, null, 2)}\n`);
   output.set(THEME_CSS, themeCss());
+  const sourceOf = new Map<string, string>([
+    ...renderedReadme.map((page) => [page.route, README] as const),
+    ...renderedFiles.map((page) => [page.route, page.source] as const),
+  ]);
+  const sitemap = rendered.map((page): SitemapEntry => {
+    const lastmod = input.lastModified?.get(sourceOf.get(page.route) ?? "");
+    return lastmod === undefined ? { route: page.route } : { route: page.route, lastmod };
+  });
+  const encoder = new TextEncoder();
+  publicFiles.set("/sitemap.xml", encoder.encode(sitemapXml(sitemap)));
+  publicFiles.set("/robots.txt", encoder.encode(robotsTxt()));
   return {
     files: new Map([...output].toSorted(([left], [right]) => (left < right ? -1 : 1))),
     publicFiles: new Map([...publicFiles].toSorted(([left], [right]) => (left < right ? -1 : 1))),

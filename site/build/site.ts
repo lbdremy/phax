@@ -19,6 +19,7 @@ import {
   type SiteJson,
 } from "./generate.js";
 import type { RepositoryIndex, SiteLink } from "./links.js";
+import { isFilePage } from "./pageMap.js";
 import {
   checkBuiltSite,
   checkLinkAnchors,
@@ -86,6 +87,24 @@ function diskRepository(root: string): RepositoryIndex {
   };
 }
 
+/**
+ * The YYYY-MM-DD each page source last changed in git, for the sitemap's
+ * lastmod. A source git does not know yet (uncommitted, or no git) has none.
+ */
+function lastModified(): ReadonlyMap<string, string> {
+  const sources = ["README.md", ...pageMap.files.filter(isFilePage).map((page) => page.source)];
+  const dates = new Map<string, string>();
+  for (const source of sources) {
+    const result = spawnSync("git", ["log", "-1", "--format=%cs", "--", source], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+    const date = result.status === 0 ? result.stdout.trim() : "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) dates.set(source, date);
+  }
+  return dates;
+}
+
 /** Generates site/generated/ and returns the files Rspress must copy verbatim. */
 function generate(): ReadonlyMap<string, Uint8Array> {
   const result = generateSite({
@@ -95,6 +114,7 @@ function generate(): ReadonlyMap<string, Uint8Array> {
     repository: diskRepository(REPO_ROOT),
     schemas: readSchemaSources(REPO_ROOT),
     assets: readPublicAssets(resolve(SITE_DIR, "public")),
+    lastModified: lastModified(),
   });
   if (result.findings.length > 0) {
     fail(

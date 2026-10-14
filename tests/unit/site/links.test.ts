@@ -69,32 +69,47 @@ const REPOSITORY = new Map([
   ["examples/hello/plan.md", "# Plan\n"],
 ]);
 
+const DESCRIBED = "A page of the made-up tool these tests link, said in one sentence.";
+
 const MAP = definePageMap({
   repository: "https://github.com/example/tool",
   readme: [
     { route: "/", title: "tool", sections: [INTRO, "Quickstart"] },
-    { route: "/guide/run", title: "Running a plan", sections: ["Run"] },
-    { route: "/guide/security-modes", title: "Modes", sections: ["Security modes"] },
+    { route: "/guide/run", title: "Running a plan", sections: ["Run"], description: DESCRIBED },
+    {
+      route: "/guide/security-modes",
+      title: "Modes",
+      sections: ["Security modes"],
+      description: DESCRIBED,
+    },
     { omit: ["Generated reference"], why: "generated" },
   ],
   files: [
-    { route: "/reference/cli", title: "CLI", source: "docs/cli/reference.md" },
-    { route: "/security", title: "Security", source: "docs/security.md" },
+    {
+      route: "/reference/cli",
+      title: "CLI",
+      source: "docs/cli/reference.md",
+      description: DESCRIBED,
+    },
+    { route: "/security", title: "Security", source: "docs/security.md", description: DESCRIBED },
     {
       route: "/compare/openspec-vs-tool",
       title: "OpenSpec",
       source: "docs/comparisons/openspec-vs-tool.md",
+      description: DESCRIBED,
     },
     {
       route: "/compare/spec-kit-vs-tool",
       title: "Spec Kit",
       source: "docs/comparisons/spec-kit-vs-tool.md",
+      description: DESCRIBED,
     },
     {
       route: "/blog/announcing-tool-1-0",
       title: "Announcing",
       source: "docs/blog/announcing.md",
       holdUntil: "1.0.0",
+      description: DESCRIBED,
     },
   ],
 });

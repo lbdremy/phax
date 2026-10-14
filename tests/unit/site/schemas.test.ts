@@ -337,6 +337,7 @@ describe("the generator serves the schemas", () => {
         title: "File formats",
         sections: ["Persisted formats"],
         generated: "served-schemas",
+        description: "Every format the made-up tool writes, and the schemas it serves.",
       },
     ],
     files: [],
@@ -362,8 +363,10 @@ describe("the generator serves the schemas", () => {
     expect([...result.publicFiles.keys()]).toEqual(
       [
         "/_headers",
+        "/robots.txt",
         ...PRE_SCHEMA_FORMAT_IDS.map((id) => `/schemas/${id}/0.17.0.json`),
         SCHEMA_INDEX_PATH,
+        "/sitemap.xml",
       ].toSorted(),
     );
     expect(PUBLIC_DIR).toBe("docs/public");
@@ -407,6 +410,9 @@ describe("the generator serves the schemas", () => {
   it("serves the same bytes from publicSchemas", () => {
     const direct = publicSchemas(schemas, "0.17.0");
     expect(direct.findings).toEqual([]);
-    expect(generate("0.17.0").publicFiles).toEqual(direct.files);
+    const served = new Map(generate("0.17.0").publicFiles);
+    served.delete("/robots.txt");
+    served.delete("/sitemap.xml");
+    expect(served).toEqual(direct.files);
   });
 });
