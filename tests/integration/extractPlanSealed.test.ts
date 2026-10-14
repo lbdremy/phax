@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
-import { RateLimitError } from "../../src/domain/errors.js";
+import { PlanValidationError, RateLimitError } from "../../src/domain/errors.js";
 
 const PLAN_MD = [
   "# Plan — Sealed extraction test",
@@ -126,5 +126,46 @@ describe("extractPlanLlm — sealed completion path", () => {
     expect(opts?.provider).toBe("claude-code");
     expect(opts?.model).toBe("my-model");
     expect(opts?.effort).toBe("high");
+  });
+
+  it("tells the model the short name is the title heading, so a strict model does not refuse it", async () => {
+    const { fakeBackend, layer } = setup();
+    fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
+
+    await Effect.runPromise(
+      Effect.either(
+        extractPlanLlm(PLAN_MD, { model: "claude-haiku-5-5", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
+      ),
+    );
+
+    expect(fakeBackend.impl.completeCalls[0]?.prompt).toContain(
+      "run.title and run.shortName are both the text of the plan's single `# ` heading",
+    );
+  });
+
+  it("reports an {error} answer as the model's reason", async () => {
+    const { fakeBackend, layer } = setup();
+    fakeBackend.impl.addCompletionResponse({
+      finalText: JSON.stringify({ error: "phase-01 is missing commit.subject" }),
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        extractPlanLlm(PLAN_MD, { model: "claude-haiku-5-5", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
+      ),
+    );
+
+    expect(result).toEqual(
+      Either.left(
+        new PlanValidationError({
+          message:
+            "The extraction model found the plan incomplete: phase-01 is missing commit.subject",
+        }),
+      ),
+    );
   });
 });

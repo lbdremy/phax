@@ -32,6 +32,8 @@ function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
     "- Do not invent phases that are not explicitly described in the document.",
     "- Do not guess missing required fields — if a field is missing, that is an error.",
     "- Extract ONLY what is explicitly stated.",
+    "- run.title and run.shortName are both the text of the plan's single `# ` heading, verbatim; phax slugifies the short name itself.",
+    '- If a required field really is missing, return {"error": "<what is missing>"} instead of the plan.',
     "",
     "JSON Schema:",
     JSON.stringify(jsonSchema, null, 2),
@@ -89,6 +91,15 @@ export function extractPlanLlm(
       );
     }
 
+    const refusal = refusalReason(parsed);
+    if (refusal !== undefined) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `The extraction model found the plan incomplete: ${refusal}`,
+        }),
+      );
+    }
+
     const decoded = decodeExtractedPlan(parsed);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
@@ -100,4 +111,11 @@ export function extractPlanLlm(
 
     return decoded.right;
   });
+}
+
+/** The reason in an `{"error": …}` answer, the prompt's way to report a missing field. */
+function refusalReason(parsed: unknown): string | undefined {
+  if (typeof parsed !== "object" || parsed === null || !("error" in parsed)) return undefined;
+  const { error } = parsed;
+  return typeof error === "string" ? error : undefined;
 }

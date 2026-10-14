@@ -42,6 +42,13 @@ output against the `PhaxPlanSchema` locally before it is used. This means a chea
 that produces structurally invalid output is caught immediately rather than silently
 poisoning a run later (spec §6).
 
+The prompt forbids guessing a missing field, and `claude-haiku-5-5` holds to that more
+strictly than Haiku 4.5 did. So the prompt states the fields phax derives rather than
+reads (the run's title and short name both come from the `# ` heading). A model that
+still finds a required field missing answers `{"error": …}`, and phax reports that
+reason ("The extraction model found the plan incomplete: …") instead of a schema
+mismatch.
+
 ## TODO: `assess-extract-model` command (deferred)
 
 A future `phax assess-extract-model` command would benchmark candidate models against a
