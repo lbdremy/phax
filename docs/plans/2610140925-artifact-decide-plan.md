@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610140742-artifact-decide.md
 completes-spec: false
+approved:
+  date: 2026-10-14
+  baseline: e4447f1
 ---
 # Approver attribution and reopen
 
