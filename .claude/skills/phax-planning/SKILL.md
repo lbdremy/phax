@@ -93,8 +93,9 @@ completes-spec: false
   `Approved` plan can run** — `phax run` refuses any other status (naming the
   remedy) before extraction. Approve a repo-tracked plan with
   `phax artifact approve docs/plans/<YYMMDDHHMM>-<slug>-plan.md`; for a loose `plan.md`, set
-  the key by hand. Extraction is never gated, so a `Draft` still extracts for
-  preview.
+  the key by hand. `approve` takes `--by operator` or `--by machine:<grant>`, required
+  without a terminal. `phax artifact reopen` moves an `Approved` or `Stale` plan back to
+  `Draft`. Extraction is never gated, so a `Draft` still extracts for preview.
 - **`source-spec`** — the spec this plan implements
   (`docs/specs/<YYMMDDHHMM>-<slug>.md`), or `null` when there is no source spec. It is the
   lineage anchor for staleness tracking.
@@ -106,7 +107,7 @@ completes-spec: false
   `--not-last` writes `false`.
 - **`approved`** — optional; a mapping with `date` and `baseline` written by
   `phax artifact approve` when it stamps the approval. Absent on a plan that has
-  never been approved.
+  never been approved; `reopen` clears it.
 
 This block is frontmatter, not preamble prose. It is **not** extracted into
 `phax-plan.json` — it governs the run gate and lineage, not phase structure — but

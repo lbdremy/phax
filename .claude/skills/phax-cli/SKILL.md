@@ -141,19 +141,29 @@ legal transitions (see `--usage` for the exact subcommands and flags):
 
 - `phax artifact status <path>` — report an artifact's kind, current status, and
   legal transitions.
-- `phax artifact approve <path>` — the `Draft → Approved` gate; run it on a plan
+- `phax artifact approve [--by <arbiter>] <path>` — the `Draft → Approved` gate; run it on a plan
   under `docs/plans/` before `phax run`. Approving stamps `approved: { date, baseline }`
   into the frontmatter and writes the artifact's own record file (`docs/plans/approvals/<plan file name>.json`
-  for plans, `docs/specs/approvals/<spec file name>.json` for specs). Re-approving an already-`Approved` artifact
+  for plans, `docs/specs/approvals/<spec file name>.json` for specs). `--by operator` or
+  `--by machine:<grant>` (a kebab-case slug) says who approves; the record file's `approvedBy`
+  names them. From a terminal, `--by` defaults to the operator, named by git `user.name`;
+  with no terminal and no `--by`, approve refuses with exit 12, so **a loop or script must pass
+  `--by machine:<grant>`**. An operator approval without a git `user.name` also refuses with
+  exit 12 (`git config user.name`). A record written before attribution reads as
+  `unattributed` and is never rewritten by a read. Re-approving an already-`Approved` artifact
   is legal — it re-records the approval against the current content, the correct way to log an
   in-place revision (don't hand-edit the stamp). Approving a plan whose `Source-Spec` is an
   Approved spec that is **unrecorded** or **edited since** its approval is refused with exit
   12 — re-approve the spec first.
-- `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen a `Stale`
-  plan back to `Draft` (plans only).
+- `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen an `Approved` spec or
+  plan, or a `Stale` plan, back to `Draft`. Reopen clears the `approved` stamp, deletes the
+  record file, takes `--by` like approve (same terminal default and no-terminal refusal),
+  and writes a `Reopened-By: machine (<grant>)` / `operator (<name>)` trailer in its commit.
+  Reopening a spec names its bound plans and leaves them unchanged. A `Draft`, `Completed`
+  or `Abandoned` artifact is refused with exit 12.
 - `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
   into the matching `archive/` directory and deletes its record file as part of the transition.
-  Reopen deletes the plan's record file the same way. No transition touches another
+  Reopen deletes the artifact's record file the same way. No transition touches another
   artifact's record file.
 - `phax artifact migrate-approvals` — the one-time upgrade from the old shared ledgers
   (`docs/plans/approvals.json`, `docs/specs/approvals.json`) to per-artifact record files

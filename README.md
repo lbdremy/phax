@@ -249,16 +249,16 @@ A read-only check, with no model: the plan's structure, its planned files agains
 
 ### Move them through their lifecycle
 
-| Command                         | From                                                           | To                                            |
-| ------------------------------- | -------------------------------------------------------------- | --------------------------------------------- |
-| `phax artifact approve <path>`  | `Draft`; `Stale` (plan); `Approved` again to record a revision | `Approved`                                    |
-| `phax artifact stale <path>`    | `Approved` (plan)                                              | `Stale`                                       |
-| `phax artifact reopen <path>`   | `Stale` (plan)                                                 | `Draft`                                       |
-| `phax artifact complete <path>` | `Approved`; `Stale` (plan)                                     | `Completed`                                   |
-| `phax artifact abandon <path>`  | `Draft`, `Approved`; `Stale` (plan)                            | `Abandoned`                                   |
-| `phax artifact status <path>`   | any                                                            | — prints the status and the legal transitions |
+| Command                                         | From                                                           | To                                            |
+| ----------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| `phax artifact approve [--by <arbiter>] <path>` | `Draft`; `Stale` (plan); `Approved` again to record a revision | `Approved`                                    |
+| `phax artifact stale <path>`                    | `Approved` (plan)                                              | `Stale`                                       |
+| `phax artifact reopen [--by <arbiter>] <path>`  | `Approved`; `Stale` (plan)                                     | `Draft`                                       |
+| `phax artifact complete <path>`                 | `Approved`; `Stale` (plan)                                     | `Completed`                                   |
+| `phax artifact abandon <path>`                  | `Draft`, `Approved`; `Stale` (plan)                            | `Abandoned`                                   |
+| `phax artifact status <path>`                   | any                                                            | — prints the status and the legal transitions |
 
-Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; completing or abandoning an artifact, or reopening a plan, deletes that file in the same commit, and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, on the run's branch.
+Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; the record's `approvedBy` names the approver, `--by operator` (the git `user.name`) or `--by machine:<grant>`, and approve and reopen refuse with exit 12 without a terminal unless `--by` is given; completing or abandoning an artifact, or reopening one, deletes that file in the same commit (a reopen commit also carries a `Reopened-By:` trailer, and reopening a spec names its bound plans and leaves them unchanged), and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, on the run's branch.
 
 ### Keep several plans in step
 
@@ -760,6 +760,8 @@ phax reads no environment variable for its configuration: everything is in `phax
   committed a1b2c3d chore(approvals): migrate approval ledgers to record files
   $ phax artifact approve docs/plans/2610051200-foo-plan.md   # now writes docs/plans/approvals/2610051200-foo-plan.json
   ```
+
+- **Approvals name their approver.** `phax artifact approve` and `phax artifact reopen` now take `--by operator` or `--by machine:<grant>` (a kebab-case slug). Without a terminal they refuse with exit 12 unless given `--by`, so add it to scripts and loops; from a terminal the default is the operator, named by git `user.name`, and an operator approval without one refuses. New approval records carry `approvedBy`; records written earlier read as `unattributed` and are never rewritten by a read.
 
 Something else? `phax report <run>` opens a GitHub issue with the run's telemetry.
 
