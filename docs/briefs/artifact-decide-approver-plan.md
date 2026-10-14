@@ -38,7 +38,7 @@ Ground to read (the spec's §1 is current as of 2026-10-14; these are the files 
 Phase shape: as few as the gates allow, inside-out. A likely split is (1) the two formats with their frozen 0.19.0 shapes, lifts and `next` snapshots, `migrate-approvals`, and the status approver line, then (2) `--by`, the identity and terminal ports, approve writing `approvedBy`, reopen from Approved with its trailer and bound plans, usage, docs and skills. Merge or split as the gates require. Approve must write a valid record at every commit, so the phase that makes `approvedBy` required also makes approve write it.
 
 Constraints:
-- The plan's own phases name only models in the installed 0.23.0 catalog: `claude-opus-5-5` (the default) or `claude-sonnet-5-5` for mechanical work.
+- The plan's own phases name only models in the installed phax's catalog (`phax agent`): `claude-opus-5-5` (the default) or `claude-sonnet-5-5` for mechanical work.
 - Every phase is verified by the `standard` gate profile, and every command it runs must be allowed by `phax.json`.
 - Fixtures and examples are made up.
 - It must pass `phax plans lint`.
