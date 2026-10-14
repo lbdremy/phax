@@ -653,13 +653,19 @@ const specRecord: SpecApprovalRecord = {
   approvedAt: "2026-08-10T00:00:00.000Z",
   baseline: "b".repeat(40),
 };
+const APPROVER = { kind: "machine", grant: "roadmap-loop" } as const;
 
 function planRecordText(
   artifact: string,
   release: string = CURRENT_STAMPS["plan-approval-record"],
 ): string {
   return JSON.stringify(
-    { $schema: schemaUrl("plan-approval-record", release), artifact, ...planRecord },
+    {
+      $schema: schemaUrl("plan-approval-record", release),
+      artifact,
+      ...planRecord,
+      approvedBy: APPROVER,
+    },
     null,
     2,
   );
@@ -670,7 +676,12 @@ function specRecordText(
   release: string = CURRENT_STAMPS["spec-approval-record"],
 ): string {
   return JSON.stringify(
-    { $schema: schemaUrl("spec-approval-record", release), artifact, ...specRecord },
+    {
+      $schema: schemaUrl("spec-approval-record", release),
+      artifact,
+      ...specRecord,
+      approvedBy: APPROVER,
+    },
     null,
     2,
   );
@@ -678,8 +689,8 @@ function specRecordText(
 
 // Plan approval writes its own record file; spec approval too.
 describe("approval record store: one file per artifact", () => {
-  it("writes a plan's record file with $schema, artifact, then the record fields", () => {
-    const { fs } = runWith({}, putPlanApprovalRecord(PLAN, planRecord));
+  it("writes a plan's record file with $schema, artifact, the record fields, then approvedBy", () => {
+    const { fs } = runWith({}, putPlanApprovalRecord(PLAN, planRecord, APPROVER));
     const file = written(fs, PLAN_RECORD);
     expect(Object.keys(file)).toEqual([
       "$schema",
@@ -688,17 +699,19 @@ describe("approval record store: one file per artifact", () => {
       "approvedAt",
       "baseline",
       "sourceSpec",
+      "approvedBy",
     ]);
     expect(file).toEqual({
       $schema: currentSchemaUrl("plan-approval-record"),
       artifact: PLAN,
       ...planRecord,
+      approvedBy: APPROVER,
     });
     expect(fs.getFile(OLD_PLAN_LEDGER)).toBeUndefined();
   });
 
-  it("writes a spec's record file with $schema, artifact, then the record fields", () => {
-    const { fs } = runWith({}, putSpecApprovalRecord(SPEC, specRecord));
+  it("writes a spec's record file with $schema, artifact, the record fields, then approvedBy", () => {
+    const { fs } = runWith({}, putSpecApprovalRecord(SPEC, specRecord, APPROVER));
     const file = written(fs, SPEC_RECORD);
     expect(Object.keys(file)).toEqual([
       "$schema",
@@ -706,26 +719,65 @@ describe("approval record store: one file per artifact", () => {
       "specFingerprint",
       "approvedAt",
       "baseline",
+      "approvedBy",
     ]);
     expect(file).toEqual({
       $schema: currentSchemaUrl("spec-approval-record"),
       artifact: SPEC,
       ...specRecord,
+      approvedBy: APPROVER,
     });
     expect(fs.getFile(OLD_SPEC_LEDGER)).toBeUndefined();
   });
 
-  it("reads back the record it wrote, carrying artifact", () => {
+  it("reads back the record it wrote, carrying artifact and approvedBy", () => {
     const { value } = runWith(
       {},
-      Effect.zipRight(putPlanApprovalRecord(PLAN, planRecord), readPlanApprovalRecord(PLAN)),
+      Effect.zipRight(
+        putPlanApprovalRecord(PLAN, planRecord, APPROVER),
+        readPlanApprovalRecord(PLAN),
+      ),
     );
-    expect(value).toEqual({ artifact: PLAN, ...planRecord });
+    expect(value).toEqual({ artifact: PLAN, ...planRecord, approvedBy: APPROVER });
     const { value: spec } = runWith(
       {},
-      Effect.zipRight(putSpecApprovalRecord(SPEC, specRecord), readSpecApprovalRecord(SPEC)),
+      Effect.zipRight(
+        putSpecApprovalRecord(SPEC, specRecord, APPROVER),
+        readSpecApprovalRecord(SPEC),
+      ),
     );
-    expect(spec).toEqual({ artifact: SPEC, ...specRecord });
+    expect(spec).toEqual({ artifact: SPEC, ...specRecord, approvedBy: APPROVER });
+  });
+
+  it("rewrites a 0.19.0 record at the current shape only when approval writes it", () => {
+    const { $schema: _schema, ...current } = JSON.parse(specRecordText(SPEC)) as Record<
+      string,
+      unknown
+    >;
+    const { approvedBy: _approvedBy, ...older } = current;
+    const olderText = JSON.stringify(
+      { $schema: schemaUrl("spec-approval-record", "0.19.0"), ...older },
+      null,
+      2,
+    );
+    const read = runWith({ [SPEC_RECORD]: olderText }, readSpecApprovalRecord(SPEC));
+    expect(read.value).toEqual({
+      artifact: SPEC,
+      ...specRecord,
+      approvedBy: { kind: "unattributed" },
+    });
+    expect(read.fs.getFile(SPEC_RECORD)).toBe(olderText);
+
+    const { fs } = runWith(
+      { [SPEC_RECORD]: olderText },
+      putSpecApprovalRecord(SPEC, specRecord, APPROVER),
+    );
+    expect(written(fs, SPEC_RECORD)).toEqual({
+      $schema: currentSchemaUrl("spec-approval-record"),
+      artifact: SPEC,
+      ...specRecord,
+      approvedBy: APPROVER,
+    });
   });
 
   it("replaces only the artifact's own file on re-approval", () => {
@@ -733,7 +785,7 @@ describe("approval record store: one file per artifact", () => {
     const reapproved = { ...specRecord, specFingerprint: "spec-fp-2" };
     const { fs } = runWith(
       { [SPEC_RECORD]: specRecordText(SPEC), [OTHER_SPEC_RECORD]: other },
-      putSpecApprovalRecord(SPEC, reapproved),
+      putSpecApprovalRecord(SPEC, reapproved, APPROVER),
     );
     expect(written(fs, SPEC_RECORD)["specFingerprint"]).toBe("spec-fp-2");
     expect(fs.getFile(OTHER_SPEC_RECORD)).toBe(other);
@@ -771,9 +823,12 @@ describe("approval record store: one file per artifact", () => {
   it("never reads another artifact's record file, even an unreadable one", () => {
     const { value, fs } = runWith(
       { [OTHER_PLAN_RECORD]: "{ not json" },
-      Effect.zipRight(putPlanApprovalRecord(PLAN, planRecord), readPlanApprovalRecord(PLAN)),
+      Effect.zipRight(
+        putPlanApprovalRecord(PLAN, planRecord, APPROVER),
+        readPlanApprovalRecord(PLAN),
+      ),
     );
-    expect(value).toEqual({ artifact: PLAN, ...planRecord });
+    expect(value).toEqual({ artifact: PLAN, ...planRecord, approvedBy: APPROVER });
     expect(fs.getFile(OTHER_PLAN_RECORD)).toBe("{ not json");
   });
 });
@@ -809,7 +864,7 @@ describe("approval record store: no record", () => {
   it("refuses to write a record for a path that is not a live artifact", () => {
     const { result } = failure(
       {},
-      putPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md", planRecord),
+      putPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md", planRecord, APPROVER),
     );
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ArtifactValidationError);
@@ -868,7 +923,7 @@ describe("approval record store over an unreadable record file", () => {
 
   it.each(unreadablePlanRecords)("never rewrites or deletes a plan record file %s", (_, text) => {
     for (const effect of [
-      putPlanApprovalRecord(PLAN, planRecord),
+      putPlanApprovalRecord(PLAN, planRecord, APPROVER),
       removePlanApprovalRecord(PLAN),
     ]) {
       const { result, fs } = failure({ [PLAN_RECORD]: text }, effect);
@@ -881,7 +936,7 @@ describe("approval record store over an unreadable record file", () => {
     const text = specRecordText(SPEC, NEWER);
     const { result, fs } = failure(
       { [SPEC_RECORD]: text },
-      putSpecApprovalRecord(SPEC, specRecord),
+      putSpecApprovalRecord(SPEC, specRecord, APPROVER),
     );
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
@@ -896,7 +951,7 @@ describe("approval record store over a copied record file", () => {
     const copied = planRecordText(OTHER_PLAN);
     for (const effect of [
       readPlanApprovalRecord(PLAN),
-      putPlanApprovalRecord(PLAN, planRecord),
+      putPlanApprovalRecord(PLAN, planRecord, APPROVER),
       removePlanApprovalRecord(PLAN),
     ]) {
       const { result, fs } = failure({ [PLAN_RECORD]: copied }, effect);

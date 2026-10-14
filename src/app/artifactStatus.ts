@@ -1,9 +1,11 @@
 import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError, type GitOps } from "../ports/git.js";
+import type { Terminal } from "../ports/terminal.js";
 import {
   type ApprovalLedgerMigrationRequiredError,
   type ApprovalRecordUnreadableError,
+  ArtifactArbiterRefusedError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -29,7 +31,9 @@ import {
   frontmatterProblemMessage,
   validateArtifact,
 } from "../domain/artifact/document.js";
+import type { Arbiter, ResolvedArbiter } from "../domain/artifact/arbiter.js";
 import {
+  approvalVerdict,
   clearApproved,
   readSourceSpec,
   specApprovalVerdict,
@@ -50,6 +54,7 @@ import {
   planApprovalRecordExists,
   putPlanApprovalRecord,
   putSpecApprovalRecord,
+  readPlanApprovalRecord,
   readSpecApprovalRecord,
   refuseOldApprovalLedgers,
   removePlanApprovalRecord,
@@ -57,14 +62,17 @@ import {
   specApprovalRecordExists,
 } from "./approvalRecordStore.js";
 import type { OrphanApprovalRecord } from "../domain/artifact/approvalRecordFile.js";
+import { resolveArbiter } from "./resolveArbiter.js";
 
-export type SpecApprovalInfo =
+/** A spec's or plan's approval as status reports it. */
+export type ApprovalInfo =
   | { readonly kind: "none" }
   | { readonly kind: "unrecorded" }
   | {
       readonly kind: "recorded";
       readonly date: string;
       readonly baseline: string;
+      readonly approvedBy: Arbiter;
       readonly editedSinceApproval: boolean;
     };
 
@@ -80,7 +88,7 @@ export interface ArtifactReport {
   readonly kind: ArtifactKind;
   readonly status: ArtifactStatus;
   readonly legalTargets: readonly ArtifactStatus[];
-  readonly approval: SpecApprovalInfo;
+  readonly approval: ApprovalInfo;
   readonly authoring: ArtifactAuthoring;
   /** Record files of the inspected artifact's kind whose artifact does not exist. */
   readonly orphanRecords: readonly OrphanApprovalRecord[];
@@ -121,37 +129,51 @@ function describeDisagreement(agreement: Exclude<SidecarAgreement, "in-sync">): 
     : `has an invalid sidecar (${agreement.message})`;
 }
 
-function computeSpecApprovalInfo(
+// The artifact's own record, with the fingerprint it recorded for the artifact.
+function readOwnApprovalRecord(
+  kind: ArtifactKind,
+  repoRelPath: string,
+): Effect.Effect<
+  { readonly fingerprint: string; readonly approvedBy: Arbiter } | null,
+  FsError | ApprovalRecordUnreadableError,
+  FileSystem
+> {
+  return kind === "spec"
+    ? Effect.map(readSpecApprovalRecord(repoRelPath), (r) =>
+        r === null ? null : { fingerprint: r.specFingerprint, approvedBy: r.approvedBy },
+      )
+    : Effect.map(readPlanApprovalRecord(repoRelPath), (r) =>
+        r === null ? null : { fingerprint: r.planFingerprint, approvedBy: r.approvedBy },
+      );
+}
+
+function computeApprovalInfo(
+  kind: ArtifactKind,
   repoRelPath: string,
   md: string,
   status: ArtifactStatus,
-): Effect.Effect<SpecApprovalInfo, FsError | ApprovalRecordUnreadableError, FileSystem> {
+): Effect.Effect<ApprovalInfo, FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
-    const decoded = decodeArtifactFrontmatter("spec", md);
+    const decoded = decodeArtifactFrontmatter(kind, md);
     const stamp = Either.isRight(decoded) ? decoded.right.approved : undefined;
 
     if (status !== "Approved" && stamp == null) {
       return { kind: "none" };
     }
 
-    const fingerprint = artifactFingerprint(md);
-    const record = yield* readSpecApprovalRecord(repoRelPath);
-    const verdict = specApprovalVerdict(record, fingerprint);
-
-    if (verdict.kind === "unrecorded") {
+    const record = yield* readOwnApprovalRecord(kind, repoRelPath);
+    const verdict = approvalVerdict(record?.fingerprint ?? null, artifactFingerprint(md));
+    if (record === null || verdict.kind === "unrecorded" || stamp == null) {
       return { kind: "unrecorded" };
     }
 
-    if (stamp != null) {
-      return {
-        kind: "recorded",
-        date: stamp.date,
-        baseline: stamp.baseline,
-        editedSinceApproval: verdict.editedSinceApproval,
-      };
-    }
-
-    return { kind: "unrecorded" };
+    return {
+      kind: "recorded",
+      date: stamp.date,
+      baseline: stamp.baseline,
+      approvedBy: record.approvedBy,
+      editedSinceApproval: verdict.editedSinceApproval,
+    };
   });
 }
 
@@ -179,8 +201,7 @@ export function inspectArtifact(
         ? legalTargetsFrom("spec", status as never)
         : legalTargetsFrom("plan", status as never);
 
-    const approval: SpecApprovalInfo =
-      kind === "spec" ? yield* computeSpecApprovalInfo(repoRelPath, md, status) : { kind: "none" };
+    const approval = yield* computeApprovalInfo(kind, repoRelPath, md, status);
     const authoring = authoringOf(yield* readSidecar(repoRelPath, kind, md));
     const orphanRecords = yield* findOrphanApprovalRecords(kind);
 
@@ -192,6 +213,8 @@ export interface ArtifactTransitionResult {
   readonly status: ArtifactStatus;
   readonly path: string;
   readonly approvedBaseline?: string;
+  /** Who approved: set on every transition to Approved. */
+  readonly approvedBy?: ResolvedArbiter;
   readonly commit?: { readonly hash: string; readonly subject: string };
 }
 
@@ -200,6 +223,21 @@ export interface TransitionArtifactOptions {
   readonly nowIso: string;
   readonly commit: boolean;
 }
+
+/** The targets whose gesture names who performs it: the caller resolves the arbiter first. */
+export type ArbitratedTarget = Extract<ArtifactStatus, "Approved">;
+
+/** The options of a transition to an arbitrated target: they carry its resolved arbiter. */
+export interface ArbitratedTransitionOptions extends TransitionArtifactOptions {
+  readonly arbiter: ResolvedArbiter;
+}
+
+// A transition to an arbitrated target takes its arbiter; any other takes
+// none, so run completion and plan staleness never name one, and phax never
+// invents one.
+type TransitionRequest =
+  | [target: ArbitratedTarget, opts: ArbitratedTransitionOptions]
+  | [target: Exclude<ArtifactStatus, ArbitratedTarget>, opts: TransitionArtifactOptions];
 
 // Resolves a Source-Spec declaration to the spec's actual location: the declared
 // path if it still lives there, else its archive/ counterpart (a spec archived
@@ -260,12 +298,7 @@ function findDependentPlans(
   });
 }
 
-export function transitionArtifact(
-  repoRelPath: string,
-  target: ArtifactStatus,
-  opts: TransitionArtifactOptions,
-): Effect.Effect<
-  ArtifactTransitionResult,
+export type TransitionArtifactError =
   | FsError
   | ApprovalRecordUnreadableError
   | ApprovalLedgerMigrationRequiredError
@@ -278,9 +311,14 @@ export function transitionArtifact(
   | ArtifactSidecarDivergedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
-  | GitError,
-  FileSystem | Git
-> {
+  | GitError;
+
+export function transitionArtifact(
+  repoRelPath: string,
+  ...[target, opts]: TransitionRequest
+): Effect.Effect<ArtifactTransitionResult, TransitionArtifactError, FileSystem | Git> {
+  // Non-null exactly on an approval: the approver its record names.
+  const approver = target === "Approved" ? opts.arbiter : null;
   return Effect.gen(function* () {
     // Before anything is read or written, so a refused transition (and the
     // run completion built on it) leaves the tree untouched.
@@ -346,7 +384,7 @@ export function transitionArtifact(
     let updatedMd = statusRewrite.right;
     let approvedBaseline: string | undefined;
 
-    if (kind === "spec" && target === "Approved") {
+    if (kind === "spec" && approver !== null) {
       const baseline = yield* git.headCommit(opts.repoRoot);
       const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
       if (Either.isLeft(stamped)) {
@@ -359,15 +397,15 @@ export function transitionArtifact(
       }
       updatedMd = stamped.right;
       const specFingerprint = artifactFingerprint(updatedMd);
-      yield* putSpecApprovalRecord(repoRelPath, {
-        specFingerprint,
-        approvedAt: opts.nowIso,
-        baseline,
-      });
+      yield* putSpecApprovalRecord(
+        repoRelPath,
+        { specFingerprint, approvedAt: opts.nowIso, baseline },
+        approver,
+      );
       approvedBaseline = baseline;
     }
 
-    if (kind === "plan" && target === "Approved") {
+    if (kind === "plan" && approver !== null) {
       const declaration = readSourceSpec(md);
       let sourceSpec: { path: string; fingerprint: string } | null = null;
 
@@ -434,12 +472,11 @@ export function transitionArtifact(
       }
       updatedMd = stamped.right;
       const planFingerprint = artifactFingerprint(updatedMd);
-      yield* putPlanApprovalRecord(repoRelPath, {
-        planFingerprint,
-        approvedAt: opts.nowIso,
-        baseline,
-        sourceSpec,
-      });
+      yield* putPlanApprovalRecord(
+        repoRelPath,
+        { planFingerprint, approvedAt: opts.nowIso, baseline, sourceSpec },
+        approver,
+      );
       approvedBaseline = baseline;
     }
 
@@ -508,8 +545,50 @@ export function transitionArtifact(
       status: target,
       path: repoRelPath,
       ...(approvedBaseline !== undefined ? { approvedBaseline } : {}),
+      ...(approver !== null ? { approvedBy: approver } : {}),
     };
     return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
+  });
+}
+
+export interface TransitionArtifactByOptions extends TransitionArtifactOptions {
+  /** The raw `--by` value, or undefined when it was not given. */
+  readonly by: string | undefined;
+}
+
+const REFUSED_GESTURE: Readonly<Record<ArbitratedTarget, string>> = {
+  Approved: "Approval refused",
+};
+
+/**
+ * A transition as a person or a script asks for it: an arbitrated target's
+ * arbiter is resolved from `--by` and the terminal first, so a refusal writes
+ * nothing; any other target ignores `by`.
+ */
+export function transitionArtifactBy(
+  repoRelPath: string,
+  target: ArtifactStatus,
+  opts: TransitionArtifactByOptions,
+): Effect.Effect<
+  ArtifactTransitionResult,
+  TransitionArtifactError | ArtifactArbiterRefusedError,
+  FileSystem | Git | Terminal
+> {
+  return Effect.gen(function* () {
+    const { by, ...transitionOpts } = opts;
+    if (target !== "Approved") {
+      return yield* transitionArtifact(repoRelPath, target, transitionOpts);
+    }
+    const arbiter = yield* resolveArbiter(by, opts.repoRoot).pipe(
+      Effect.catchTag("ArtifactArbiterRefusedError", (refused) =>
+        Effect.fail(
+          new ArtifactArbiterRefusedError({
+            message: `${REFUSED_GESTURE[target]}: ${refused.message}`,
+          }),
+        ),
+      ),
+    );
+    return yield* transitionArtifact(repoRelPath, target, { ...transitionOpts, arbiter });
   });
 }
 

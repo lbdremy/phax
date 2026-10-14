@@ -255,6 +255,29 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
       expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
     }
   });
+
+  // A record written before phax named the approver: no approvedBy.
+  const older = withKey(
+    withoutKey(document, "approvedBy"),
+    "$schema",
+    schemaUrl(format.id, "0.19.0"),
+  );
+
+  it("parses a 0.19.0 record as shape 0.19.0 and lifts it to unattributed, never an operator", () => {
+    const result = format.parse(older);
+    expect(result).toMatchObject({ ok: true, shape: "0.19.0" });
+    expect(parseDocument(older)).toMatchObject({ ok: true, format: format.id, shape: "0.19.0" });
+    if (!result.ok) throw new Error("document rejected");
+    expect(format.toLatest(result.value as never)).toEqual({
+      ...withoutKey(older, "$schema"),
+      approvedBy: { kind: "unattributed" },
+    });
+  });
+
+  it("fails a 0.19.0 record carrying approvedBy, and a current record without one", () => {
+    expect(format.parse(withKey(older, "approvedBy", { kind: "unattributed" })).ok).toBe(false);
+    expect(format.parse(withoutKey(document, "approvedBy")).ok).toBe(false);
+  });
 });
 
 describe("the plan document's completesSpec history", () => {

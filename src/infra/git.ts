@@ -326,6 +326,27 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout, exitCode }) => (exitCode === 0 ? stdout.trim() : null)),
     ),
 
+  // `git config` exits 1 when the key is unset: that is no name, not an error.
+  // Any other failure (not a repository, an unreadable config) is.
+  userName: (repo) =>
+    gitRunAllowFail(["config", "--get", "user.name"], repo).pipe(
+      Effect.flatMap(({ stdout, stderr, exitCode }) => {
+        if (exitCode === 1) return Effect.succeed(null);
+        if (exitCode !== 0) {
+          return Effect.fail(
+            new GitError({
+              message: `git config --get user.name failed: ${stderr.trim()}`,
+              command: "git config --get user.name",
+              stderr,
+              exitCode,
+            }),
+          );
+        }
+        const name = stdout.trim();
+        return Effect.succeed(name.length > 0 ? name : null);
+      }),
+    ),
+
   listRefs: (repo, prefix) =>
     gitRun(["for-each-ref", "--format=%(refname)", prefix], repo).pipe(
       Effect.map(({ stdout }) => parseRefList(stdout).toSorted()),

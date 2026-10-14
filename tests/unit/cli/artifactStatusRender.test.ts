@@ -37,6 +37,7 @@ describe("runArtifactStatus — approval rendering", () => {
           kind: "recorded",
           date: "2026-09-01",
           baseline: "abc1234",
+          approvedBy: { kind: "machine", grant: "roadmap-loop" },
           editedSinceApproval: false,
         },
         authoring: INTERACTIVE,
@@ -49,9 +50,47 @@ describe("runArtifactStatus — approval rendering", () => {
 
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("Approved:          2026-09-01 @ abc1234");
+    expect(text).toContain("Approved:          2026-09-01 @ abc1234 by machine (roadmap-loop)");
     expect(text).toContain("Edited since:      no");
   });
+
+  it.each([
+    [{ kind: "operator", name: "Ada Lovelace" }, "2026-09-01 @ abc1234 by operator (Ada Lovelace)"],
+    [{ kind: "unattributed" }, "2026-09-01 @ abc1234 unattributed"],
+  ] as const)(
+    "names a plan's approver %j on the Approved line, then Edited since",
+    async (approvedBy, approvedLine) => {
+      const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+      inspectArtifact.mockReturnValue(
+        Effect.succeed({
+          kind: "plan",
+          status: "Approved",
+          legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
+          approval: {
+            kind: "recorded",
+            date: "2026-09-01",
+            baseline: "abc1234",
+            approvedBy,
+            editedSinceApproval: false,
+          },
+          authoring: INTERACTIVE,
+          orphanRecords: [],
+        }),
+      );
+
+      const { out, lines } = makeOutput();
+      const code = await runArtifactStatus(
+        "docs/plans/2609101256-spec-approval-ground-plan.md",
+        out,
+      );
+
+      expect(code).toBe(0);
+      const approvedAt = lines.findIndex((l) => l.startsWith("Approved:"));
+      expect(lines[approvedAt]).toBe(`Approved:          ${approvedLine}`);
+      expect(lines[approvedAt + 1]).toBe("Edited since:      no");
+      expect(lines.join("\n")).not.toContain("by unattributed");
+    },
+  );
 
   it("recorded and edited: prints Approved date/baseline and 'Edited since: yes'", async () => {
     const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
@@ -64,6 +103,7 @@ describe("runArtifactStatus — approval rendering", () => {
           kind: "recorded",
           date: "2026-09-01",
           baseline: "abc1234",
+          approvedBy: { kind: "operator", name: "Ada Lovelace" },
           editedSinceApproval: true,
         },
         authoring: INTERACTIVE,
@@ -76,7 +116,7 @@ describe("runArtifactStatus — approval rendering", () => {
 
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("Approved:          2026-09-01 @ abc1234");
+    expect(text).toContain("Approved:          2026-09-01 @ abc1234 by operator (Ada Lovelace)");
     expect(text).toContain("Edited since:      yes");
   });
 

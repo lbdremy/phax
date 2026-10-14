@@ -865,7 +865,7 @@ phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 
 - **Usage**: `phax artifact status <path>`
 
-Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
+Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
 
 ### Arguments
 
@@ -885,9 +885,11 @@ phax artifact status docs/specs/2609030749-spec-approval-ground.md
 
 ## `phax artifact approve`
 
-- **Usage**: `phax artifact approve <path>`
+- **Usage**: `phax artifact approve [--by <arbiter>] <path>`
 
 Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.
+
+Every approval names its approver, and the approval record file records it as approvedBy. `--by machine:<grant>` declares a machine — a loop or a script — by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator by the repository's git user.name. Without a terminal there is no default: approve refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator approval refuses with exit 12 when git user.name is unset or empty, naming `git config user.name`. A malformed --by or grant refuses with exit 12. Every refusal comes before anything is written. Approval records written before phax named the approver read as unattributed.
 
 For specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.
 For plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.
@@ -901,6 +903,12 @@ Side effects: writes the artifact file and commits the transition's write-set (t
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
 
+### Flags
+
+#### `--by <arbiter>`
+
+operator or machine:<grant>; required without a terminal
+
 ### Examples
 
 ```
@@ -908,7 +916,11 @@ phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ```
-phax artifact approve docs/specs/2609030749-spec-approval-ground.md
+phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by operator
+```
+
+```
+phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by machine:roadmap-loop
 ```
 
 ## `phax artifact stale`

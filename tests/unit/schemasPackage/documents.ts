@@ -245,14 +245,15 @@ const specApprovals: SpecApprovalsPreSchema = {
   },
 };
 
-// A format born with $schema has no frozen type: its record is typed as
-// phax's in-memory value.
+// A format born with $schema has no pre-schema type: its current record is
+// typed as phax's in-memory value.
 const planRecord: PlanRecord = {
   artifact: "docs/plans/example.md",
   planFingerprint: "plan-fingerprint-0001",
   approvedAt: CREATED_AT,
   baseline: BASELINE,
   sourceSpec: { path: "docs/specs/example.md", fingerprint: "spec-fingerprint-0001" },
+  approvedBy: { kind: "machine", grant: "roadmap-loop" },
 };
 
 const specRecord: SpecRecord = {
@@ -260,6 +261,7 @@ const specRecord: SpecRecord = {
   specFingerprint: "spec-fingerprint-0001",
   approvedAt: CREATED_AT,
   baseline: BASELINE,
+  approvedBy: { kind: "operator", name: "Ada Lovelace" },
 };
 
 const phaseRecordManifest: PhaseRecordManifestPreSchema = {

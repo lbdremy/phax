@@ -15,6 +15,7 @@ import {
   type OrphanApprovalRecord,
 } from "../domain/artifact/approvalRecordFile.js";
 import { fingerprintSource } from "../domain/artifact/frontmatter.js";
+import type { ResolvedArbiter } from "../domain/artifact/arbiter.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import {
   encodePlanRecordFile,
@@ -102,6 +103,8 @@ function liveRecordPath(
 }
 
 // Reads first, so an unreadable existing file is refused and left byte-identical.
+// A readable one, at the current shape or lifted from 0.19.0, is replaced
+// whole at the current shape.
 function putRecordFile<R extends { readonly artifact: string }>(
   kind: ArtifactKind,
   artifactPath: string,
@@ -159,17 +162,18 @@ export function readPlanApprovalRecord(
 export function putPlanApprovalRecord(
   planPath: string,
   record: ApprovalRecord,
+  approvedBy: ResolvedArbiter,
 ): Effect.Effect<
   void,
   FsError | ApprovalRecordUnreadableError | ArtifactValidationError,
   FileSystem
 > {
   return putRecordFile("plan", planPath, readPlanRecordFile, () =>
-    renderPlanRecordFile({ artifact: planPath, ...record }),
+    renderPlanRecordFile({ artifact: planPath, ...record, approvedBy }),
   );
 }
 
-/** The bytes of a plan record file: `$schema`, `artifact`, then the record fields. */
+/** The bytes of a plan record file: `$schema`, `artifact`, the record fields, then `approvedBy`. */
 export function renderPlanRecordFile(record: PlanRecord): string {
   return JSON.stringify(
     encodePlanRecordFile(withSchemaUrl("plan-approval-record", record)),
@@ -201,17 +205,18 @@ export function readSpecApprovalRecord(
 export function putSpecApprovalRecord(
   specPath: string,
   record: SpecApprovalRecord,
+  approvedBy: ResolvedArbiter,
 ): Effect.Effect<
   void,
   FsError | ApprovalRecordUnreadableError | ArtifactValidationError,
   FileSystem
 > {
   return putRecordFile("spec", specPath, readSpecRecordFile, () =>
-    renderSpecRecordFile({ artifact: specPath, ...record }),
+    renderSpecRecordFile({ artifact: specPath, ...record, approvedBy }),
   );
 }
 
-/** The bytes of a spec record file: `$schema`, `artifact`, then the record fields. */
+/** The bytes of a spec record file: `$schema`, `artifact`, the record fields, then `approvedBy`. */
 export function renderSpecRecordFile(record: SpecRecord): string {
   return JSON.stringify(
     encodeSpecRecordFile(withSchemaUrl("spec-approval-record", record)),

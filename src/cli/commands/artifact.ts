@@ -14,8 +14,11 @@ import type { GitHub } from "../../ports/github.js";
 import {
   type ArtifactAuthoring,
   inspectArtifact,
-  transitionArtifact,
+  transitionArtifactBy,
 } from "../../app/artifactStatus.js";
+import { type Arbiter, describeArbiter } from "../../domain/artifact/arbiter.js";
+import { NodeTerminalLayer } from "../../infra/terminal.js";
+import type { Terminal } from "../../ports/terminal.js";
 import { createArtifact, type CompletionFlags } from "../../app/createArtifact.js";
 import { authorArtifact, recordPushWarning, recordWarning } from "../../app/authorArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -65,8 +68,12 @@ function toRepoRelativePath(pathArg: string, repoRoot: string): string {
   return rel.split(sep).join("/");
 }
 
-function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git> {
-  return Layer.merge(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer());
+function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git | Terminal> {
+  return Layer.mergeAll(
+    makeRootedNodeFileSystemLayer(repoRoot),
+    makeNodeGitLayer(),
+    NodeTerminalLayer,
+  );
 }
 
 function authoringText(authoring: ArtifactAuthoring): string {
@@ -79,6 +86,12 @@ function authoringText(authoring: ArtifactAuthoring): string {
         ? "diverged — body differs from the sidecar's rendering"
         : `invalid sidecar — ${agreement.message}`;
   return `headless — sidecar ${sidecarPath} (${state})`;
+}
+
+// `by machine (<grant>)`, `by operator (<name>)`, or `unattributed`.
+function approverText(approvedBy: Arbiter): string {
+  const described = describeArbiter(approvedBy);
+  return approvedBy.kind === "unattributed" ? described : `by ${described}`;
 }
 
 export async function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
@@ -97,7 +110,9 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   out.log(`Status:            ${status}`);
   out.log(`Authored:          ${authoringText(authoring)}`);
   if (approval.kind === "recorded") {
-    out.log(`Approved:          ${approval.date} @ ${approval.baseline}`);
+    out.log(
+      `Approved:          ${approval.date} @ ${approval.baseline} ${approverText(approval.approvedBy)}`,
+    );
     out.log(`Edited since:      ${approval.editedSinceApproval ? "yes" : "no"}`);
   } else if (approval.kind === "unrecorded") {
     out.log(`Approved:          (unrecorded — run phax artifact approve to record)`);
@@ -109,15 +124,21 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   return 0;
 }
 
+export interface TransitionFlags {
+  /** `--by`, raw: the use case parses and resolves it. */
+  readonly by?: string;
+}
+
 export async function runArtifactTransition(
   pathArg: string,
   target: ArtifactStatus,
   out: OutputPort,
+  flags: TransitionFlags = {},
 ): Promise<number> {
   const repoRoot = findGitRoot(process.cwd());
   const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
-  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true };
-  const effect = transitionArtifact(repoRelPath, target, opts).pipe(
+  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true, by: flags.by };
+  const effect = transitionArtifactBy(repoRelPath, target, opts).pipe(
     Effect.provide(buildLayer(repoRoot)),
   );
   const result = await Effect.runPromise(Effect.either(effect));
@@ -126,8 +147,11 @@ export async function runArtifactTransition(
     return exitCodeForError(result.left);
   }
 
-  const { status, path, approvedBaseline, commit: madeCommit } = result.right;
+  const { status, path, approvedBaseline, approvedBy, commit: madeCommit } = result.right;
   out.log(`Status: ${status}`);
+  if (approvedBy !== undefined) {
+    out.log(`Approver: ${describeArbiter(approvedBy)}`);
+  }
   if (target === "Abandoned" || target === "Completed") {
     out.log(`Path:   ${path}`);
   }
@@ -391,22 +415,36 @@ interface TransitionSpec {
   readonly name: string;
   readonly description: string;
   readonly target: ArtifactStatus;
+  /** Whether the gesture names its arbiter with `--by`. */
+  readonly takesBy: boolean;
 }
 
 const TRANSITIONS: readonly TransitionSpec[] = [
-  { name: "approve", description: "Transition an artifact to Approved", target: "Approved" },
-  { name: "stale", description: "Manually mark a plan Stale", target: "Stale" },
+  {
+    name: "approve",
+    description: "Transition an artifact to Approved",
+    target: "Approved",
+    takesBy: true,
+  },
+  { name: "stale", description: "Manually mark a plan Stale", target: "Stale", takesBy: false },
   {
     name: "abandon",
     description: "Abandon an artifact — terminal; moves the file to its archive/ directory",
     target: "Abandoned",
+    takesBy: false,
   },
   {
     name: "complete",
     description: "Complete an artifact — terminal; moves the file to its archive/ directory",
     target: "Completed",
+    takesBy: false,
   },
-  { name: "reopen", description: "Reopen a Stale plan back to Draft", target: "Draft" },
+  {
+    name: "reopen",
+    description: "Reopen a Stale plan back to Draft",
+    target: "Draft",
+    takesBy: false,
+  },
 ];
 
 const ARCHIVE_REFUSAL_MESSAGE =
@@ -435,14 +473,20 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     });
 
   for (const t of TRANSITIONS) {
-    artifactCmd
+    const transitionCmd = artifactCmd
       .command(t.name)
       .description(t.description)
-      .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
-      .action(async (path: string) => {
-        const exitCode = await runArtifactTransition(path, t.target, out);
-        process.exit(exitCode);
-      });
+      .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/");
+    if (t.takesBy) {
+      transitionCmd.option(
+        "--by <arbiter>",
+        "operator or machine:<grant>; required without a terminal",
+      );
+    }
+    transitionCmd.action(async (path: string, cmdOpts: TransitionFlags) => {
+      const exitCode = await runArtifactTransition(path, t.target, out, cmdOpts);
+      process.exit(exitCode);
+    });
   }
 
   // `new` is a parent command; `spec` and `plan` are real nested subcommands

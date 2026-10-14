@@ -112,14 +112,16 @@ function makeHarness() {
   return { fsImpl, gitImpl, layer };
 }
 
+// Approvals name a machine; other transitions ignore the arbiter.
 const DEFAULT_OPTS = {
   repoRoot: "/fake-repo",
   nowIso: "2026-08-10T12:00:00.000Z",
   commit: false,
-};
+  arbiter: { kind: "machine", grant: "roadmap-loop" },
+} as const;
 
 describe("inspectArtifact", () => {
-  it("reports kind, status, legal targets, and approval:none for an Approved plan", async () => {
+  it("reports kind, status, legal targets, and approval:unrecorded for an Approved plan with no record", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile("docs/plans/2609101221-foo-plan.md", APPROVED_PLAN);
 
@@ -133,7 +135,7 @@ describe("inspectArtifact", () => {
         kind: "plan",
         status: "Approved",
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
-        approval: { kind: "none" },
+        approval: { kind: "unrecorded" },
         authoring: { kind: "interactive" },
         orphanRecords: [],
       });
@@ -242,9 +244,36 @@ describe("inspectArtifact", () => {
           kind: "recorded",
           date: "2026-08-10",
           baseline: gitImpl.headCommitValue.slice(0, 7),
+          approvedBy: { kind: "machine", grant: "roadmap-loop" },
           editedSinceApproval: false,
         });
       }
+    });
+
+    it("reports a plan's approval and its approver the same way, edited or not", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      const PLAN = "docs/plans/2609101240-thing-plan.md";
+      fsImpl.setFile(PLAN, planMd("Draft", "null"));
+
+      await run(
+        transitionArtifact(PLAN, "Approved", {
+          ...DEFAULT_OPTS,
+          arbiter: { kind: "operator", name: "Ada Lovelace" },
+        }).pipe(Effect.provide(layer)),
+      );
+      const fresh = await run(inspectArtifact(PLAN).pipe(Effect.provide(layer)));
+      fsImpl.setFile(PLAN, (fsImpl.getFile(PLAN) as string).replace("Body text.", "Body v2."));
+      const afterEdit = await run(inspectArtifact(PLAN).pipe(Effect.provide(layer)));
+
+      const recorded = (editedSinceApproval: boolean) => ({
+        kind: "recorded",
+        date: "2026-08-10",
+        baseline: gitImpl.headCommitValue.slice(0, 7),
+        approvedBy: { kind: "operator", name: "Ada Lovelace" },
+        editedSinceApproval,
+      });
+      expect(Either.getOrThrow(fresh).approval).toEqual(recorded(false));
+      expect(Either.getOrThrow(afterEdit).approval).toEqual(recorded(true));
     });
 
     it("reports approval:recorded/edited after a body edit post-approval", async () => {
@@ -273,6 +302,7 @@ describe("inspectArtifact", () => {
           kind: "recorded",
           date: "2026-08-10",
           baseline: gitImpl.headCommitValue.slice(0, 7),
+          approvedBy: { kind: "machine", grant: "roadmap-loop" },
           editedSinceApproval: true,
         });
       }
@@ -297,6 +327,7 @@ describe("transitionArtifact", () => {
         status: "Approved",
         path: "docs/specs/2609101221-foo.md",
         approvedBaseline: expect.any(String),
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
       });
     }
     expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toContain("status: Approved");
@@ -464,6 +495,7 @@ describe("transitionArtifact", () => {
         specFingerprint: artifactFingerprint(updatedMd),
         approvedAt: DEFAULT_OPTS.nowIso,
         baseline: gitImpl.headCommitValue,
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
       });
       expect(fsImpl.getFile("docs/specs/approvals.json")).toBeUndefined();
     });
@@ -482,9 +514,8 @@ describe("transitionArtifact", () => {
       const secondNowIso = "2026-08-11T09:00:00.000Z";
       const result = await run(
         transitionArtifact("docs/specs/2609101221-foo.md", "Approved", {
-          repoRoot: DEFAULT_OPTS.repoRoot,
+          ...DEFAULT_OPTS,
           nowIso: secondNowIso,
-          commit: false,
         }).pipe(Effect.provide(layer)),
       );
 
@@ -507,6 +538,7 @@ describe("transitionArtifact", () => {
           specFingerprint: "other-fp",
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "e".repeat(40),
+          approvedBy: { kind: "operator", name: "Ada Lovelace" },
         }),
         null,
         2,
@@ -752,6 +784,7 @@ describe("transitionArtifact", () => {
         "approvedAt",
         "baseline",
         "sourceSpec",
+        "approvedBy",
       ]);
       expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toEqual({
         planFingerprint: artifactFingerprint(updatedMd as string),
@@ -761,6 +794,7 @@ describe("transitionArtifact", () => {
           path: "docs/specs/2609101222-foo.md",
           fingerprint: artifactFingerprint(specSource),
         },
+        approvedBy: { kind: "machine", grant: "roadmap-loop" },
       });
       expect(fsImpl.getFile("docs/plans/approvals.json")).toBeUndefined();
     });
@@ -821,9 +855,8 @@ describe("transitionArtifact", () => {
       const secondNowIso = "2026-08-11T09:00:00.000Z";
       const result = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
-          repoRoot: DEFAULT_OPTS.repoRoot,
+          ...DEFAULT_OPTS,
           nowIso: secondNowIso,
-          commit: false,
         }).pipe(Effect.provide(layer)),
       );
       expect(Either.isRight(result)).toBe(true);
@@ -1154,6 +1187,7 @@ describe("transitionArtifact", () => {
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "a".repeat(40),
           sourceSpec: null,
+          approvedBy: { kind: "machine", grant: "roadmap-loop" },
         }),
       );
       fsImpl.setFile(THING_RECORD, copied);
@@ -1187,6 +1221,7 @@ describe("transitionArtifact", () => {
             specFingerprint: artifactFingerprint(APPROVED_SPEC),
             approvedAt: "2026-01-01T00:00:00.000Z",
             baseline: "a".repeat(40),
+            approvedBy: { kind: "machine", grant: "roadmap-loop" },
           }),
         ),
       );
@@ -1251,6 +1286,7 @@ describe("transitionArtifact", () => {
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "a".repeat(40),
           sourceSpec: null,
+          approvedBy: { kind: "machine", grant: "roadmap-loop" },
         }),
         null,
         2,
@@ -1377,6 +1413,7 @@ describe("transitionArtifact", () => {
             specFingerprint: artifactFingerprint(APPROVED_SPEC),
             approvedAt: "2026-01-01T00:00:00.000Z",
             baseline: "a".repeat(40),
+            approvedBy: { kind: "machine", grant: "roadmap-loop" },
           }),
         ),
       );

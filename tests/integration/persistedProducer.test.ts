@@ -369,19 +369,27 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
   // A plan approval and a spec approval.
   await run(
-    putPlanApprovalRecord("docs/plans/2601010900-example-plan.md", {
-      planFingerprint: "plan-fingerprint-0001",
-      approvedAt: SPEC_NOW,
-      baseline: BASELINE,
-      sourceSpec: { path: SOURCE_SPEC, fingerprint: "spec-fingerprint-0001" },
-    }),
+    putPlanApprovalRecord(
+      "docs/plans/2601010900-example-plan.md",
+      {
+        planFingerprint: "plan-fingerprint-0001",
+        approvedAt: SPEC_NOW,
+        baseline: BASELINE,
+        sourceSpec: { path: SOURCE_SPEC, fingerprint: "spec-fingerprint-0001" },
+      },
+      { kind: "machine", grant: "roadmap-loop" },
+    ),
   );
   await run(
-    putSpecApprovalRecord(SOURCE_SPEC, {
-      specFingerprint: "spec-fingerprint-0001",
-      approvedAt: SPEC_NOW,
-      baseline: BASELINE,
-    }),
+    putSpecApprovalRecord(
+      SOURCE_SPEC,
+      {
+        specFingerprint: "spec-fingerprint-0001",
+        approvedAt: SPEC_NOW,
+        baseline: BASELINE,
+      },
+      { kind: "operator", name: "Ada Lovelace" },
+    ),
   );
 
   // Two headless authoring sessions, records on: a sidecar, the session's

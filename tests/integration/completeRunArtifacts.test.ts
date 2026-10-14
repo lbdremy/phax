@@ -48,6 +48,7 @@ function writePlanRecord(planPath: string, specPath: string): void {
     approvedAt: NOW,
     baseline: "a".repeat(40),
     sourceSpec: { path: specPath, fingerprint: "specfp" },
+    approvedBy: { kind: "machine", grant: "roadmap-loop" },
   });
   writeRepoFile(ownRecordPath("plan", planPath), JSON.stringify(record, null, 2));
 }
@@ -59,6 +60,7 @@ function writeSpecRecord(specPath: string): void {
     specFingerprint: "specfp",
     approvedAt: NOW,
     baseline: "a".repeat(40),
+    approvedBy: { kind: "machine", grant: "roadmap-loop" },
   });
   writeRepoFile(ownRecordPath("spec", specPath), JSON.stringify(record, null, 2));
 }

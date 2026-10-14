@@ -20,7 +20,12 @@ import { FileSystem } from "../../src/ports/fs.js";
 
 const REPO_ROOT = "/fake-repo";
 const NOW_ISO = "2026-08-10T12:00:00.000Z";
-const APPROVE_OPTS = { repoRoot: REPO_ROOT, nowIso: NOW_ISO, commit: false };
+const APPROVE_OPTS = {
+  repoRoot: REPO_ROOT,
+  nowIso: NOW_ISO,
+  commit: false,
+  arbiter: { kind: "machine", grant: "roadmap-loop" },
+} as const;
 
 function specMd(status: string): string {
   return `---\nstatus: ${status}\ndate: 2026-01-01\naudience: test\nscope: test\n---\n# Some spec\n\n## Overview\n\nSpec body v1.\n`;
@@ -446,9 +451,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     await run(
       transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
-        repoRoot: REPO_ROOT,
+        ...APPROVE_OPTS,
         nowIso: "2026-08-11T09:00:00.000Z",
-        commit: false,
       }).pipe(Effect.provide(layer)),
     );
     const reapprovedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;

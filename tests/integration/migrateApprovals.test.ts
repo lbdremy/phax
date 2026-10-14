@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findOrphanApprovalRecords } from "../../src/app/approvalRecordStore.js";
-import { transitionArtifact } from "../../src/app/artifactStatus.js";
+import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { completeRunArtifacts } from "../../src/app/completeRunArtifacts.js";
 import { MIGRATION_COMMIT_SUBJECT, migrateApprovals } from "../../src/app/migrateApprovals.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
@@ -22,8 +22,13 @@ import {
 } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeRootedNodeFileSystemLayer, NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
-import { readPlanRecordFile, readSpecRecordFile } from "../../src/schemas/persisted.js";
+import {
+  currentSchemaUrl,
+  readPlanRecordFile,
+  readSpecRecordFile,
+} from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // Real-git acceptance for spec approval-record-files §8 (§5.15–§5.21):
@@ -33,6 +38,8 @@ import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 // are made up.
 
 const NOW = "2026-10-05T12:00:00.000Z";
+// A ledger never recorded who approved: every split entry is unattributed.
+const UNATTRIBUTED = { kind: "unattributed" } as const;
 const BASELINE_A = "a".repeat(40);
 const BASELINE_B = "b".repeat(40);
 
@@ -234,10 +241,18 @@ describe("Migration splits made-up ledgers with no record lost", () => {
       expect(porcelain()).toBe("");
 
       for (const [artifact, entry] of Object.entries(PLAN_ENTRIES)) {
-        expect(decodedPlanRecord(artifact)).toEqual({ artifact, ...entry });
+        expect(decodedPlanRecord(artifact)).toEqual({
+          artifact,
+          ...entry,
+          approvedBy: UNATTRIBUTED,
+        });
       }
       for (const [artifact, entry] of Object.entries(SPEC_ENTRIES)) {
-        expect(decodedSpecRecord(artifact)).toEqual({ artifact, ...entry });
+        expect(decodedSpecRecord(artifact)).toEqual({
+          artifact,
+          ...entry,
+          approvedBy: UNATTRIBUTED,
+        });
       }
 
       expect(result).toEqual({
@@ -262,24 +277,61 @@ describe("Migration splits made-up ledgers with no record lost", () => {
     });
   }
 
-  it("writes each record file with $schema, artifact, then the record fields", async () => {
+  it("writes each record file at the current shape: $schema, artifact, the record fields, then approvedBy unattributed", async () => {
     seedLedgers("pre-schema", "pre-schema");
     await migrateOk();
-    expect(Object.keys(JSON.parse(readRepoFile(recordOf("plan", PLAN_1))))).toEqual([
+    const plan = JSON.parse(readRepoFile(recordOf("plan", PLAN_1))) as Record<string, unknown>;
+    const spec = JSON.parse(readRepoFile(recordOf("spec", SPEC_1))) as Record<string, unknown>;
+    expect(Object.keys(plan)).toEqual([
       "$schema",
       "artifact",
       "planFingerprint",
       "approvedAt",
       "baseline",
       "sourceSpec",
+      "approvedBy",
     ]);
-    expect(Object.keys(JSON.parse(readRepoFile(recordOf("spec", SPEC_1))))).toEqual([
+    expect(Object.keys(spec)).toEqual([
       "$schema",
       "artifact",
       "specFingerprint",
       "approvedAt",
       "baseline",
+      "approvedBy",
     ]);
+    expect(plan["$schema"]).toBe(currentSchemaUrl("plan-approval-record"));
+    expect(spec["$schema"]).toBe(currentSchemaUrl("spec-approval-record"));
+    expect(plan["approvedBy"]).toEqual(UNATTRIBUTED);
+    expect(spec["approvedBy"]).toEqual(UNATTRIBUTED);
+  });
+
+  it("keeps a 0.19.0 target that holds the same record byte-identical, and still splits the rest", async () => {
+    seedArtifacts();
+    writeRepoFile(PLAN_LEDGER, ledgerJson("plan-approvals", "pre-schema", PLAN_ENTRIES));
+    const olderTarget = JSON.stringify(
+      {
+        $schema: schemaUrl("plan-approval-record", "0.19.0"),
+        artifact: PLAN_1,
+        ...PLAN_ENTRIES[PLAN_1],
+      },
+      null,
+      2,
+    );
+    writeRepoFile(recordOf("plan", PLAN_1), olderTarget);
+    commitAll();
+
+    await migrateOk();
+
+    expect(readRepoFile(recordOf("plan", PLAN_1))).toBe(olderTarget);
+    expect(headNameStatus()).toEqual(
+      [`D\t${PLAN_LEDGER}`, `A\t${recordOf("plan", PLAN_2)}`].toSorted(),
+    );
+    expect(decodedPlanRecord(PLAN_1)).toEqual({
+      artifact: PLAN_1,
+      ...PLAN_ENTRIES[PLAN_1],
+      approvedBy: UNATTRIBUTED,
+    });
+    expect(JSON.parse(readRepoFile(recordOf("plan", PLAN_2)))["approvedBy"]).toEqual(UNATTRIBUTED);
   });
 
   it("migrates a lone spec ledger, leaving the plan side untouched", async () => {
@@ -366,6 +418,7 @@ describe("A gone artifact's entry migrates as an orphan", () => {
       artifact: GONE_PLAN,
       ...PLAN_ENTRIES[PLAN_2],
       planFingerprint: "gonefp",
+      approvedBy: UNATTRIBUTED,
     });
 
     const found = await runEither(
@@ -582,9 +635,11 @@ describe("Old formats stay readable and are never written", () => {
   }
 
   async function transition(path: string, target: ArtifactStatus): Promise<void> {
+    // Run from a script: no terminal, so an approval names its machine.
+    const opts = { repoRoot: repoDir, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
     const result = await runEither(
-      transitionArtifact(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true }).pipe(
-        Effect.provide(repoLayer()),
+      transitionArtifactBy(path, target, opts).pipe(
+        Effect.provide(Layer.merge(repoLayer(), makeFakeTerminal(false).layer)),
       ),
     );
     if (Either.isLeft(result)) throw new Error(`${path} → ${target}: ${result.left.message}`);

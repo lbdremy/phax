@@ -4,12 +4,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type ArtifactTransitionResult, transitionArtifact } from "../../src/app/artifactStatus.js";
+import {
+  type ArtifactTransitionResult,
+  transitionArtifactBy,
+} from "../../src/app/artifactStatus.js";
 import { completeRunArtifacts } from "../../src/app/completeRunArtifacts.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import type { ArtifactStatus } from "../../src/domain/artifact/status.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { makeRootedNodeFileSystemLayer, NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { decodePlanDocument } from "../../src/schemas/planDocument.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -79,6 +83,7 @@ function writePlanRecord(planPath: string, sourceSpec: string | null = null): vo
     approvedAt: NOW,
     baseline: "a".repeat(40),
     sourceSpec: sourceSpec === null ? null : { path: sourceSpec, fingerprint: "specfp" },
+    approvedBy: { kind: "machine", grant: "roadmap-loop" },
   });
   writeRepoFile(recordOf("plan", planPath), JSON.stringify(record, null, 2));
 }
@@ -89,6 +94,7 @@ function writeSpecRecord(specPath: string): void {
     specFingerprint: "specfp",
     approvedAt: NOW,
     baseline: "a".repeat(40),
+    approvedBy: { kind: "operator", name: "Ada Lovelace" },
   });
   writeRepoFile(recordOf("spec", specPath), JSON.stringify(record, null, 2));
 }
@@ -98,13 +104,15 @@ async function transition(
   target: ArtifactStatus,
   root: string = repoDir,
 ): Promise<ArtifactTransitionResult> {
-  const layer = Layer.merge(makeRootedNodeFileSystemLayer(root), NodeGitLayer);
+  // Run from a script: no terminal, so an approval names its machine.
+  const layer = Layer.mergeAll(
+    makeRootedNodeFileSystemLayer(root),
+    NodeGitLayer,
+    makeFakeTerminal(false).layer,
+  );
+  const opts = { repoRoot: root, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
   const result = await Effect.runPromise(
-    Effect.either(
-      transitionArtifact(path, target, { repoRoot: root, nowIso: NOW, commit: true }).pipe(
-        Effect.provide(layer),
-      ),
-    ),
+    Effect.either(transitionArtifactBy(path, target, opts).pipe(Effect.provide(layer))),
   );
   if (Either.isLeft(result)) throw new Error(`transition failed: ${String(result.left)}`);
   return result.right;

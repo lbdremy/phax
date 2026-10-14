@@ -316,6 +316,16 @@ export class ArtifactValidationError extends Data.TaggedError("ArtifactValidatio
   message: string;
 }> {}
 
+/**
+ * A gesture that must name its arbiter could not: a `--by` that is not
+ * `operator` or `machine:<grant>`, a grant that is not a kebab-case slug, no
+ * terminal and no `--by`, or an operator without a git user.name. Refused
+ * before anything is written.
+ */
+export class ArtifactArbiterRefusedError extends Data.TaggedError("ArtifactArbiterRefusedError")<{
+  message: string;
+}> {}
+
 export class ArtifactCreationError extends Data.TaggedError("ArtifactCreationError")<{
   message: string;
 }> {}

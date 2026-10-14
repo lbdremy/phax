@@ -15,10 +15,12 @@
 // `defineFormat` does: a document with `$schema` is read only by phax's
 // current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape. One format also reads an older `$schema`
-// shape: an authoring record manifest stamped below its current stamp is read
-// by the frozen 0.17.0 decoder, then stepped to the current shape, so the
-// records already on phax/records/v1 stay listed. A format born with `$schema`
+// then stepped to the current shape. Three formats also read an older
+// `$schema` shape: an authoring record manifest stamped below its current
+// stamp is read by the frozen 0.17.0 decoder, then stepped to the current
+// shape, so the records already on phax/records/v1 stay listed; a spec or plan
+// approval record stamped below its current stamp is read by its frozen 0.19.0
+// decoder and lifted to an unattributed approval. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
 // format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
@@ -59,10 +61,12 @@ import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-rec
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
+import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
 import { decodePlanDocumentPreSchema } from "./history/plan-document/pre-schema.js";
 import { decodeRegistryPreSchema } from "./history/registry/pre-schema.js";
 import { decodeRunStatusPreSchema } from "./history/run-status/pre-schema.js";
+import { decodeSpecApprovalRecordV0_19_0 } from "./history/spec-approval-record/0.19.0.js";
 import { decodeSpecApprovalsPreSchema } from "./history/spec-approvals/pre-schema.js";
 import { decodeSpecDocumentPreSchema } from "./history/spec-document/pre-schema.js";
 import { decodePhaxPlanFile, type PhaxPlan } from "./phaxPlan.js";
@@ -351,25 +355,48 @@ export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
     fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
   });
 
+// An approval record stamped below its format's current stamp was written
+// before phax named the approver: it is read by the frozen 0.19.0 decoder and
+// lifted to `approvedBy: { kind: "unattributed" }`, never to an operator. The
+// file itself is never rewritten by a read.
+
 /** Reads one plan's `docs/plans/approvals/<plan>.json`. Born with `$schema`. */
-export const readPlanRecordFile: Reader<PlanRecord> = (file, input) =>
-  readSchemaBornPersisted(input, {
+export const readPlanRecordFile: Reader<PlanRecord> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("plan-approval-record", input)) {
+    const older = decodePlanApprovalRecordV0_19_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "plan-approval-record", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...record } = older.right;
+    return Either.right({ ...record, approvedBy: { kind: "unattributed" } });
+  }
+  return readSchemaBornPersisted(input, {
     format: "plan-approval-record",
     label: "plan approval record",
     file,
     decodeCurrent: decodePlanRecordFile,
     fromCurrent: ({ $schema: _schema, ...record }) => record,
   });
+};
 
 /** Reads one spec's `docs/specs/approvals/<spec>.json`. Born with `$schema`. */
-export const readSpecRecordFile: Reader<SpecRecord> = (file, input) =>
-  readSchemaBornPersisted(input, {
+export const readSpecRecordFile: Reader<SpecRecord> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("spec-approval-record", input)) {
+    const older = decodeSpecApprovalRecordV0_19_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "spec-approval-record", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...record } = older.right;
+    return Either.right({ ...record, approvedBy: { kind: "unattributed" } });
+  }
+  return readSchemaBornPersisted(input, {
     format: "spec-approval-record",
     label: "spec approval record",
     file,
     decodeCurrent: decodeSpecRecordFile,
     fromCurrent: ({ $schema: _schema, ...record }) => record,
   });
+};
 
 /** Reads a spec's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>

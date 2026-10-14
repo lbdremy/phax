@@ -1,13 +1,23 @@
 // The per-artifact approval record files (spec approval-record-files §5.3,
 // §6): each is a `$schema` document carrying `artifact` plus every field of
-// the record it replaces, born with `$schema`. Every record is made up.
+// the record it replaces, born with `$schema`, and since spec artifact-decide
+// §5.43–§5.45 `approvedBy`; a 0.19.0 record is lifted to unattributed. Every
+// record is made up.
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
+import {
+  parsePlanApprovalRecord,
+  parseSpecApprovalRecord,
+  toLatestPlanApprovalRecord,
+  toLatestSpecApprovalRecord,
+} from "../../../packages/schemas/src/formats/repository.js";
 import {
   decodePlanRecordFile,
   encodePlanRecordFile,
   type PlanRecord,
 } from "../../../src/schemas/approvalRecord.js";
+import { decodePlanApprovalRecordV0_19_0 } from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+import { decodeSpecApprovalRecordV0_19_0 } from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
 import {
   currentSchemaUrl,
   readPlanRecordFile,
@@ -32,6 +42,7 @@ const planRecord: PlanRecord = {
   approvedAt: "2026-01-01T09:00:00.000Z",
   baseline: BASELINE,
   sourceSpec: { path: "docs/specs/2601010800-example.md", fingerprint: "spec-fingerprint-0001" },
+  approvedBy: { kind: "machine", grant: "roadmap-loop" },
 };
 
 const specRecord: SpecRecord = {
@@ -39,6 +50,7 @@ const specRecord: SpecRecord = {
   specFingerprint: "spec-fingerprint-0001",
   approvedAt: "2026-01-01T08:00:00.000Z",
   baseline: BASELINE,
+  approvedBy: { kind: "operator", name: "Ada Lovelace" },
 };
 
 const planFile = withSchemaUrl("plan-approval-record", planRecord);
@@ -63,7 +75,7 @@ describe("PlanRecordFileSchema", () => {
     expect(Either.isRight(decodePlanRecordFile({ ...planFile, sourceSpec: null }))).toBe(true);
   });
 
-  it("keys the file exactly $schema, artifact, planFingerprint, approvedAt, baseline, sourceSpec", () => {
+  it("keys the file exactly $schema, artifact, planFingerprint, approvedAt, baseline, sourceSpec, approvedBy", () => {
     const decoded = decodePlanRecordFile(planFile);
     if (Either.isLeft(decoded)) throw new Error("record rejected");
     expect(Object.keys(encodePlanRecordFile(decoded.right))).toEqual([
@@ -73,6 +85,7 @@ describe("PlanRecordFileSchema", () => {
       "approvedAt",
       "baseline",
       "sourceSpec",
+      "approvedBy",
     ]);
   });
 
@@ -81,6 +94,16 @@ describe("PlanRecordFileSchema", () => {
     ["an empty artifact", { ...planFile, artifact: "" }],
     ["an extra key", { ...planFile, records: {} }],
     ["a non-40-hex baseline", { ...planFile, baseline: "abc1234" }],
+    ["a missing approvedBy", without(planFile, "approvedBy")],
+    ["an approvedBy of an unknown kind", { ...planFile, approvedBy: { kind: "human" } }],
+    [
+      "a machine grant that is not a slug",
+      { ...planFile, approvedBy: { kind: "machine", grant: "Bad Grant" } },
+    ],
+    [
+      "an approvedBy with an excess key",
+      { ...planFile, approvedBy: { kind: "operator", name: "Ada Lovelace", email: "x" } },
+    ],
     [
       "a $schema naming plan-approvals",
       { ...planFile, $schema: currentSchemaUrl("plan-approvals") },
@@ -107,11 +130,18 @@ describe("SpecRecordFileSchema", () => {
       "specFingerprint",
       "approvedAt",
       "baseline",
+      "approvedBy",
     ]);
   });
 
   it.each([
     ["a missing artifact", without(specFile, "artifact")],
+    ["a missing approvedBy", without(specFile, "approvedBy")],
+    ["an approvedBy of an unknown kind", { ...specFile, approvedBy: { kind: "human" } }],
+    [
+      "a machine grant that is not a slug",
+      { ...specFile, approvedBy: { kind: "machine", grant: "Bad Grant" } },
+    ],
     ["an extra key", { ...specFile, sourceSpec: null }],
     ["a non-40-hex baseline", { ...specFile, baseline: "not-hex" }],
     [
@@ -125,6 +155,17 @@ describe("SpecRecordFileSchema", () => {
 });
 
 type AnyReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+
+// Each format's frozen 0.19.0 decoder: a hand-built older record must be that shape.
+const FROZEN_V0_19_0: Readonly<
+  Record<
+    "plan-approval-record" | "spec-approval-record",
+    (input: unknown) => Either.Either<object, unknown>
+  >
+> = {
+  "plan-approval-record": decodePlanApprovalRecordV0_19_0,
+  "spec-approval-record": decodeSpecApprovalRecordV0_19_0,
+};
 
 const READERS: ReadonlyArray<
   readonly [
@@ -177,4 +218,63 @@ describe.each(READERS)("read%sRecordFile", (kind, read, file, record, path, form
     expect(message({ ...file, baseline: "abc1234" })).toContain("baseline");
     expect(message(without(file, "artifact"))).toContain("artifact");
   });
+
+  it("refuses a current-stamped document without approvedBy", () => {
+    expect(message(without(file, "approvedBy"))).toContain("approvedBy");
+  });
+
+  // A record written before phax named the approver.
+  const older = {
+    ...without(file, "approvedBy"),
+    $schema: schemaUrl(format, "0.19.0"),
+  };
+
+  it("lifts a 0.19.0 record to unattributed, never to an operator", () => {
+    expect(Either.isRight(FROZEN_V0_19_0[format](older))).toBe(true);
+    expect(read(path, older)).toEqual(
+      Either.right({ ...without(record, "approvedBy"), approvedBy: { kind: "unattributed" } }),
+    );
+  });
+
+  it("refuses a 0.19.0 record that carries approvedBy, or fails its frozen shape", () => {
+    expect(message({ ...older, approvedBy: { kind: "unattributed" } })).toContain("approvedBy");
+    expect(message({ ...older, baseline: "abc1234" })).toContain("baseline");
+  });
+});
+
+// The schemas package reads the same two shapes and lifts the older one the
+// same way phax's reader does.
+describe("the schemas package over approval record files", () => {
+  const PACKAGE = [
+    [
+      "plan",
+      parsePlanApprovalRecord,
+      toLatestPlanApprovalRecord as (value: never) => object,
+      planFile,
+      planRecord,
+      "plan-approval-record",
+    ],
+    [
+      "spec",
+      parseSpecApprovalRecord,
+      toLatestSpecApprovalRecord as (value: never) => object,
+      specFile,
+      specRecord,
+      "spec-approval-record",
+    ],
+  ] as const;
+
+  it.each(PACKAGE)(
+    "parses a 0.19.0 %s record as shape 0.19.0 and lifts it to unattributed",
+    (_kind, parse, toLatest, file, record, format) => {
+      const older = { ...without(file, "approvedBy"), $schema: schemaUrl(format, "0.19.0") };
+      const parsed = parse(older);
+      if (!parsed.ok) throw new Error("record rejected");
+      expect(parsed.shape).toBe("0.19.0");
+      expect(toLatest(parsed.value as never)).toEqual({
+        ...without(record, "approvedBy"),
+        approvedBy: { kind: "unattributed" },
+      });
+    },
+  );
 });

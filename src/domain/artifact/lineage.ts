@@ -166,9 +166,20 @@ export function specApprovalVerdict(
   record: { readonly specFingerprint: string } | null,
   currentFingerprint: string,
 ): SpecApprovalVerdict {
-  if (record === null) return { kind: "unrecorded" };
+  return approvalVerdict(record === null ? null : record.specFingerprint, currentFingerprint);
+}
+
+/**
+ * A spec's or plan's approval against its current text: unrecorded without a
+ * recorded fingerprint, else whether the text was edited since.
+ */
+export function approvalVerdict(
+  recordedFingerprint: string | null,
+  currentFingerprint: string,
+): SpecApprovalVerdict {
+  if (recordedFingerprint === null) return { kind: "unrecorded" };
   return {
     kind: "recorded",
-    editedSinceApproval: record.specFingerprint !== currentFingerprint,
+    editedSinceApproval: recordedFingerprint !== currentFingerprint,
   };
 }
