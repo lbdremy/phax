@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
 import { runArtifactStatus } from "../../../src/cli/commands/artifact.js";
-import type { ArtifactAuthoring } from "../../../src/app/artifactStatus.js";
+import type { ArtifactAuthoring, ArtifactQuestions } from "../../../src/app/artifactStatus.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
@@ -20,6 +20,7 @@ function makeOutput() {
 }
 
 const INTERACTIVE: ArtifactAuthoring = { kind: "interactive" };
+const NO_QUESTIONS: ArtifactQuestions = { kind: "none" };
 
 describe("runArtifactStatus — approval rendering", () => {
   beforeEach(() => {
@@ -41,6 +42,7 @@ describe("runArtifactStatus — approval rendering", () => {
           editedSinceApproval: false,
         },
         authoring: INTERACTIVE,
+        questions: NO_QUESTIONS,
         orphanRecords: [],
       }),
     );
@@ -74,6 +76,7 @@ describe("runArtifactStatus — approval rendering", () => {
             editedSinceApproval: false,
           },
           authoring: INTERACTIVE,
+          questions: NO_QUESTIONS,
           orphanRecords: [],
         }),
       );
@@ -107,6 +110,7 @@ describe("runArtifactStatus — approval rendering", () => {
           editedSinceApproval: true,
         },
         authoring: INTERACTIVE,
+        questions: NO_QUESTIONS,
         orphanRecords: [],
       }),
     );
@@ -129,6 +133,7 @@ describe("runArtifactStatus — approval rendering", () => {
         legalTargets: ["Approved", "Abandoned", "Completed"],
         approval: { kind: "unrecorded" },
         authoring: INTERACTIVE,
+        questions: NO_QUESTIONS,
         orphanRecords: [],
       }),
     );
@@ -151,6 +156,7 @@ describe("runArtifactStatus — approval rendering", () => {
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
         authoring: INTERACTIVE,
+        questions: NO_QUESTIONS,
         orphanRecords: [],
       }),
     );
@@ -202,6 +208,7 @@ describe("runArtifactStatus — authoring rendering", () => {
         legalTargets: ["Approved", "Abandoned"],
         approval: { kind: "none" },
         authoring,
+        questions: NO_QUESTIONS,
         orphanRecords: [],
       }),
     );
@@ -212,5 +219,105 @@ describe("runArtifactStatus — authoring rendering", () => {
     expect(code).toBe(0);
     expect(lines).toContain(expected);
     expect(lines.indexOf(expected)).toBe(lines.findIndex((l) => l.startsWith("Status:")) + 1);
+  });
+
+  it.each<[string, ArtifactAuthoring, string]>([
+    [
+      "spec stamped 0.17.0",
+      {
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: { kind: "unmigrated", format: "spec-document", shape: "0.17.0" },
+      },
+      `Authored:          headless — sidecar ${SIDECAR} (spec-document 0.17.0 — migrate with \`phax artifact migrate-documents\`)`,
+    ],
+    [
+      "spec written before $schema",
+      {
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: { kind: "unmigrated", format: "spec-document", shape: "pre-schema" },
+      },
+      `Authored:          headless — sidecar ${SIDECAR} (spec-document written before $schema — migrate with \`phax artifact migrate-documents\`)`,
+    ],
+  ])(
+    "unmigrated %s: names the stamped shape and the migrate command",
+    async (_l, authoring, expected) => {
+      const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+      inspectArtifact.mockReturnValue(
+        Effect.succeed({
+          kind: "spec",
+          status: "Draft",
+          legalTargets: ["Approved", "Abandoned"],
+          approval: { kind: "none" },
+          authoring,
+          questions: NO_QUESTIONS,
+          orphanRecords: [],
+        }),
+      );
+
+      const { out, lines } = makeOutput();
+      await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out);
+
+      expect(lines).toContain(expected);
+    },
+  );
+});
+
+describe("runArtifactStatus — questions rendering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function questionLines(questions: ArtifactQuestions): Promise<string[]> {
+    const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    inspectArtifact.mockReturnValue(
+      Effect.succeed({
+        kind: "spec",
+        status: "Draft",
+        legalTargets: ["Approved", "Abandoned"],
+        approval: { kind: "none" },
+        authoring: INTERACTIVE,
+        questions,
+        orphanRecords: [],
+      }),
+    );
+    const { out, lines } = makeOutput();
+    expect(await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out)).toBe(0);
+    return lines;
+  }
+
+  it("prints the counts and open ids right after Authored", async () => {
+    const lines = await questionLines({
+      kind: "summary",
+      summary: { open: ["Q3", "Q4"], arbitrated: 2, lifted: 1 },
+    });
+    const at = lines.findIndex((l) => l.startsWith("Authored:"));
+    expect(lines[at + 1]).toBe("Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)");
+    expect(lines.join("\n")).not.toContain("decide");
+  });
+
+  it("omits the parenthesized ids when nothing is open", async () => {
+    const lines = await questionLines({
+      kind: "summary",
+      summary: { open: [], arbitrated: 3, lifted: 3 },
+    });
+    expect(lines).toContain("Questions:         3 — open 0 · arbitrated 3 (3 lifted)");
+  });
+
+  it("names the departing line of a hand-authored §9", async () => {
+    const lines = await questionLines({
+      kind: "departs",
+      line: 42,
+      text: "**Q2 — Logs: kept per run, or rotated daily?**",
+    });
+    expect(lines).toContain(
+      "Questions:         does not parse — line 42 departs from the §9 format: **Q2 — Logs: kept per run, or rotated daily?**",
+    );
+  });
+
+  it("prints no Questions line when there are none", async () => {
+    const lines = await questionLines(NO_QUESTIONS);
+    expect(lines.some((l) => l.startsWith("Questions:"))).toBe(false);
   });
 });

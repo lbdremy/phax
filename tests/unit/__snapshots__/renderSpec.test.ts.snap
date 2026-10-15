@@ -68,14 +68,18 @@ Given an archived run usage-cli, when \`phax prune usage-cli\` runs, then the sl
 
 Given a live run usage-cli, when \`phax prune usage-cli\` runs, then it refuses. (refs §5.2, §5.1)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
 
-### Q1 — Is pruning manual or automatic past \`keep\`?
+### prune-mode — Is pruning manual or automatic past \`keep\`?
 
-- manual — an explicit \`phax prune\` — abandons: self-shrinking
-- auto — prune at archive time — abandons: later inspection
+- manual — manual — an explicit \`phax prune\` — abandons: self-shrinking
+- auto — auto — prune at archive time — abandons: later inspection
 
-Recommendation: manual — an explicit \`phax prune\` — records already keep the trajectory.
+Recommendation: manual — records already keep the trajectory.
+
+## 9b. Arbitrated questions
+
+None.
 
 ## 10. Implementation-planning note
 

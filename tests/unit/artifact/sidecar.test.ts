@@ -3,7 +3,14 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { archivePathFor } from "../../../src/domain/artifact/document.js";
-import { sidecarAgreement, sidecarPathFor } from "../../../src/domain/artifact/sidecar.js";
+import {
+  type SidecarAgreement,
+  describeStampedShape,
+  inspectSidecar,
+  sidecarAgreement,
+  sidecarPathFor,
+} from "../../../src/domain/artifact/sidecar.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
@@ -116,14 +123,27 @@ function planBody(): string {
   return renderPlanBody(decoded.right);
 }
 
-// The sidecar as 0.16.0 wrote it: the authored document, `version: 1`, no `$schema`.
-const specJson = JSON.stringify(SPEC_DOCUMENT, null, 2);
-
 /** A sidecar as phax writes it now: `version` dropped, `$schema` first, at the current shape. */
 function stampedJson(id: "spec-document" | "plan-document"): string {
   const { version: _version, ...rest } =
     id === "spec-document" ? CURRENT_SPEC_DOCUMENT : CURRENT_PLAN_DOCUMENT;
   return JSON.stringify(withSchemaUrl(id, rest), null, 2);
+}
+
+const specJson = stampedJson("spec-document");
+
+/** A sidecar stamped at an older release of its format, in that release's shape. */
+function olderJson(id: "spec-document" | "plan-document", release: string, doc: object): string {
+  const { version: _version, ...rest } = doc as { readonly version?: number };
+  return JSON.stringify({ $schema: schemaUrl(id, release), ...rest }, null, 2);
+}
+
+const PLAN_MD = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
+
+function messageOf(agreement: SidecarAgreement): string | undefined {
+  return typeof agreement === "object" && agreement.kind === "invalid"
+    ? agreement.message
+    : undefined;
 }
 
 describe("sidecarPathFor", () => {
@@ -155,19 +175,17 @@ describe("sidecarAgreement", () => {
   });
 
   it("is in-sync for a plan", () => {
-    const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
-    // A spec-less 0.16.0 sidecar: no completesSpec, which steps to null.
-    const { completesSpec: _unrecorded, ...preSchema } = PLAN_DOCUMENT;
-    const sidecarJson = JSON.stringify(preSchema, null, 2);
-    expect(sidecarAgreement({ md, sidecarJson, kind: "plan" })).toBe("in-sync");
+    expect(
+      sidecarAgreement({ md: PLAN_MD, sidecarJson: stampedJson("plan-document"), kind: "plan" }),
+    ).toBe("in-sync");
   });
 
-  it("is invalid for a $schema plan sidecar written before completesSpec", () => {
-    const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
-    const { completesSpec: _unrecorded, ...older } = JSON.parse(stampedJson("plan-document"));
-    const agreement = sidecarAgreement({ md, sidecarJson: JSON.stringify(older), kind: "plan" });
+  it("is invalid for a plan sidecar stamped 0.19.0, written before completesSpec", () => {
+    const { completesSpec: _unrecorded, ...older } = PLAN_DOCUMENT;
+    const sidecarJson = olderJson("plan-document", "0.19.0", older);
+    const agreement = sidecarAgreement({ md: PLAN_MD, sidecarJson, kind: "plan" });
     expect(agreement).toMatchObject({ kind: "invalid" });
-    expect(typeof agreement === "object" && agreement.message).toContain("completesSpec");
+    expect(messageOf(agreement)).toContain("completesSpec");
   });
 
   it("is in-sync for a sidecar written with $schema", () => {
@@ -183,6 +201,69 @@ describe("sidecarAgreement", () => {
     );
   });
 
+  // Agreement compares with the current rendering only: an older sidecar is
+  // unmigrated whatever its body, and is read lifted.
+  describe("an older sidecar is unmigrated, never compared", () => {
+    const MARKED = {
+      id: "q-keep",
+      question: "How many runs are kept?",
+      options: [
+        { id: "keep-10", label: "Ten", abandons: "older runs" },
+        { id: "keep-20", label: "Twenty", abandons: "disk space" },
+      ],
+      recommendation: "keep-20",
+      rationale: "Decided by the author on 2026-09-30, two weeks are asked for",
+    };
+    const OPEN = { ...MARKED, id: "q-scope", rationale: "the scope stays local" };
+    const QUESTIONED = { ...SPEC_DOCUMENT, openQuestions: [MARKED, OPEN] };
+
+    it.each([
+      ["a spec stamped 0.17.0", olderJson("spec-document", "0.17.0", QUESTIONED), "0.17.0"],
+      ["a spec written before $schema", JSON.stringify(QUESTIONED), "pre-schema"],
+    ] as const)("%s, whose questions lift by the marker", (_label, sidecarJson, shape) => {
+      for (const md of [SPEC_FRONTMATTER + specBody(), SPEC_FRONTMATTER + "# Edited by hand\n"]) {
+        const inspection = inspectSidecar({ md, sidecarJson, kind: "spec" });
+        expect(inspection.agreement).toEqual({
+          kind: "unmigrated",
+          format: "spec-document",
+          shape,
+        });
+        expect(inspection.sidecar?.kind === "spec" && inspection.sidecar.document).toMatchObject({
+          openQuestions: [{ id: "q-scope" }],
+          arbitratedQuestions: [{ id: "q-keep", verdict: { kind: "lifted", chosen: "keep-20" } }],
+        });
+      }
+    });
+
+    it.each([
+      ["a plan stamped 0.20.0", olderJson("plan-document", "0.20.0", PLAN_DOCUMENT), "0.20.0"],
+      [
+        "a spec-less plan written before $schema",
+        JSON.stringify((({ completesSpec: _c, ...p }) => p)(PLAN_DOCUMENT)),
+        "pre-schema",
+      ],
+    ] as const)("%s, lifted with empty preamble questions", (_label, sidecarJson, shape) => {
+      const inspection = inspectSidecar({ md: PLAN_MD, sidecarJson, kind: "plan" });
+      expect(inspection.agreement).toEqual({ kind: "unmigrated", format: "plan-document", shape });
+      expect(
+        inspection.sidecar?.kind === "plan" && inspection.sidecar.document.preamble,
+      ).toMatchObject({ openQuestions: [], arbitratedQuestions: [] });
+    });
+
+    it("names the stamped shape", () => {
+      expect(describeStampedShape("spec-document", "0.17.0")).toBe("spec-document 0.17.0");
+      expect(describeStampedShape("plan-document", "pre-schema")).toBe(
+        "plan-document written before $schema",
+      );
+    });
+
+    it("an invalid sidecar carries no document", () => {
+      expect(
+        inspectSidecar({ md: PLAN_MD, sidecarJson: "{ nope", kind: "plan" }).sidecar,
+      ).toBeNull();
+    });
+  });
+
   it("is invalid, naming the sidecar, when a $schema sidecar still carries version", () => {
     const md = SPEC_FRONTMATTER + specBody();
     const both = JSON.stringify({
@@ -196,9 +277,7 @@ describe("sidecarAgreement", () => {
       sidecarPath: "docs/specs/2609230835-plan-prune.json",
     });
     expect(agreement).toMatchObject({ kind: "invalid" });
-    expect(typeof agreement === "object" && agreement.message).toMatch(
-      /^docs\/specs\/2609230835-plan-prune\.json: .*version/,
-    );
+    expect(messageOf(agreement)).toMatch(/^docs\/specs\/2609230835-plan-prune\.json: .*version/);
   });
 
   it("ignores frontmatter changes (a transition's status rewrite and approval stamp)", () => {
@@ -233,7 +312,7 @@ ${specBody()}`;
     const md = SPEC_FRONTMATTER + specBody();
     const agreement = sidecarAgreement({ md, sidecarJson: "{ nope", kind: "spec" });
     expect(agreement).toMatchObject({ kind: "invalid" });
-    expect(typeof agreement === "object" && agreement.message).toMatch(/^not JSON/);
+    expect(messageOf(agreement)).toMatch(/^not JSON/);
   });
 
   it("is invalid when the sidecar fails the kind's document schema, naming the path", () => {
@@ -241,7 +320,7 @@ ${specBody()}`;
     const broken = JSON.stringify({ ...SPEC_DOCUMENT, title: "" });
     const agreement = sidecarAgreement({ md, sidecarJson: broken, kind: "spec" });
     expect(agreement).toMatchObject({ kind: "invalid" });
-    expect(typeof agreement === "object" && agreement.message).toContain("title");
+    expect(messageOf(agreement)).toContain("title");
   });
 
   it("is invalid when the sidecar is a document of the other kind", () => {

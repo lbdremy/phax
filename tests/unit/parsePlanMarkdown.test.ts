@@ -532,3 +532,57 @@ describe("collectPlanStructureErrors", () => {
     });
   });
 });
+
+// A plan's preamble may carry question sections in the §9 format, between
+// `## Required commands` and the first phase; the projection never reads them.
+describe("preamble question sections", () => {
+  const QUESTIONS = [
+    "## Open questions",
+    "",
+    "### q-owner — Does phase-01 own the cache write?",
+    "",
+    "- p1 — phase-01 writes it — abandons: a smaller first phase",
+    "- p2 — phase-02 writes it — abandons: an early cache",
+    "",
+    "Recommendation: p1 — the schema phase already touches the cache.",
+    "",
+    "## Arbitrated questions",
+    "",
+    "### q-keep — How many entries are kept?",
+    "",
+    "- keep-10 — Ten — abandons: older entries",
+    "- keep-20 — Twenty — abandons: disk space",
+    "",
+    "Recommendation: keep-10 — ten covers a week.",
+    "",
+    "Decision: keep-20 — by operator (Ada Lovelace), 2026-10-20",
+    "Why: two weeks are asked for. Advocate: ten is enough. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-01.",
+    "",
+    "## Decision log",
+    "",
+    "- 2026-10-20 q-keep decided keep-20 — operator (Ada Lovelace)",
+    "",
+    "---",
+    "",
+    "",
+  ].join("\n");
+
+  function withQuestions(md: string): string {
+    const at = md.indexOf("## phase-01");
+    return `${md.slice(0, at)}${QUESTIONS}${md.slice(at)}`;
+  }
+
+  it("extracts the same plan, required commands included", () => {
+    const plain = makePlan({ requiredCommands: "- pnpm test" });
+    const questioned = withQuestions(plain);
+    expect(questioned).toContain("### q-keep");
+    const before = extractPlanDeterministic(plain);
+    const after = extractPlanDeterministic(questioned);
+    expect(Either.isRight(after)).toBe(true);
+    expect(after).toEqual(before);
+  });
+
+  it("adds no structure error", () => {
+    expect(collectPlanStructureErrors(withQuestions(makePlan()))).toEqual([]);
+  });
+});

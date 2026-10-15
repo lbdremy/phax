@@ -3,11 +3,21 @@ import { describe, expect, it } from "vitest";
 import { rerenderSpec } from "../../scripts/rerender-spec.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { readSpecDocumentFile } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { preSchemaDocuments, validDocuments, withKey } from "./schemasPackage/documents.js";
 
 const MD_PATH = "docs/specs/2610010000-made-up.md";
 const SIDECAR_PATH = "docs/specs/2610010000-made-up.json";
 const FRONTMATTER = "---\nstatus: Draft\ndate: 2026-10-01\n---\n";
+
+// A sidecar stamped spec-document 0.17.0: the pre-schema document, restamped.
+function frozenSpecDocument(): unknown {
+  const { version: _version, ...rest } = preSchemaDocuments["spec-document"] as Record<
+    string,
+    unknown
+  >;
+  return { $schema: schemaUrl("spec-document", "0.17.0"), ...rest };
+}
 
 function specMarkdown(sidecar: unknown): string {
   const doc = readSpecDocumentFile(SIDECAR_PATH, sidecar);
@@ -24,10 +34,30 @@ describe("rerenderSpec", () => {
     expect(rerenderSpec(MD_PATH, md, SIDECAR_PATH, sidecar)).toEqual(Either.right(md));
   });
 
-  it("re-renders from a pre-schema (version: 1) sidecar", () => {
-    const sidecar = preSchemaDocuments["spec-document"];
-    const md = specMarkdown(sidecar);
-    expect(rerenderSpec(MD_PATH, md, SIDECAR_PATH, sidecar)).toEqual(Either.right(md));
+  it("renders a current sidecar in the current layout: §9 and §9b by id", () => {
+    const sidecar = validDocuments["spec-document"];
+    const result = rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, sidecar);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right).toContain("\n## 9. Open questions\n");
+      expect(result.right).toContain("\n## 9b. Arbitrated questions\n");
+    }
+  });
+
+  // Re-rendering a lifted body beside an older sidecar would diverge the pair.
+  it.each([
+    [
+      "a pre-schema (version: 1) sidecar",
+      preSchemaDocuments["spec-document"],
+      "spec-document written before $schema",
+    ],
+    ["a 0.17.0 sidecar", frozenSpecDocument(), "spec-document 0.17.0"],
+  ])("refuses %s, naming migrate-documents", (_label, sidecar, shape) => {
+    expect(rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, sidecar)).toEqual(
+      Either.left(
+        `${SIDECAR_PATH}: stamped ${shape} — run \`phax artifact migrate-documents\` first`,
+      ),
+    );
   });
 
   it("applies a sidecar edit to the body and keeps the frontmatter", () => {

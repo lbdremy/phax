@@ -137,6 +137,7 @@ describe("inspectArtifact", () => {
         legalTargets: ["Approved", "Draft", "Stale", "Abandoned", "Completed"],
         approval: { kind: "unrecorded" },
         authoring: { kind: "interactive" },
+        questions: { kind: "none" },
         orphanRecords: [],
       });
     }
@@ -1603,7 +1604,14 @@ describe("headless-authored artifacts (JSON sidecar)", () => {
     planningNote: { settled: ["manual prune"], open: [], constraints: [] },
     docsPage: { kind: "none", why: "the CLI reference covers it" },
   };
-  const SIDECAR_JSON = `${JSON.stringify(SPEC_DOCUMENT, null, 2)}\n`;
+  // The sidecar as 0.16.0 committed it: `version: 1`, no `$schema`.
+  const PRE_SCHEMA_SIDECAR_JSON = `${JSON.stringify(SPEC_DOCUMENT, null, 2)}\n`;
+  // The sidecar as phax writes it now, at the current shape.
+  const SIDECAR_JSON = (() => {
+    const { version: _version, ...authored } = SPEC_DOCUMENT;
+    const current = { ...authored, arbitratedQuestions: [] };
+    return `${JSON.stringify(withSchemaUrl("spec-document", current), null, 2)}\n`;
+  })();
 
   function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
     // SPEC_DOCUMENT is the 0.16.0 shape; the current one adds arbitratedQuestions.
@@ -1626,8 +1634,6 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
   }
 
   describe("inspectArtifact", () => {
-    // SIDECAR_JSON is the shape 0.16.0 committed (`version: 1`, no `$schema`):
-    // it is read through the frozen pre-schema decoder (ac-own-legacy).
     it("reports headless, in sync, when the body is the sidecar's rendering", async () => {
       const { layer } = headlessHarness(headlessSpecMd("Draft"));
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
@@ -1636,19 +1642,25 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         sidecarPath: SIDECAR,
         agreement: "in-sync",
       });
+      // A spec always reports its questions, even when it has none.
+      expect(Either.isRight(result) && result.right.questions).toEqual({
+        kind: "summary",
+        summary: { open: [], arbitrated: 0, lifted: 0 },
+      });
     });
 
-    it("reports headless, in sync, for a sidecar phax wrote with $schema", async () => {
-      const { version: _version, ...authored } = SPEC_DOCUMENT;
-      const current = { ...authored, arbitratedQuestions: [] };
-      const stamped = `${JSON.stringify(withSchemaUrl("spec-document", current), null, 2)}\n`;
-      const { layer } = headlessHarness(headlessSpecMd("Draft"), stamped);
-      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(result) && result.right.authoring).toEqual({
-        kind: "headless",
-        sidecarPath: SIDECAR,
-        agreement: "in-sync",
-      });
+    // PRE_SCHEMA_SIDECAR_JSON is the shape 0.16.0 committed: read through the
+    // frozen pre-schema decoder and lifted, never compared with the body.
+    it("reports a sidecar written before $schema as unmigrated, whatever the body", async () => {
+      for (const md of [headlessSpecMd("Draft"), headlessSpecMd("Draft", edited)]) {
+        const { layer } = headlessHarness(md, PRE_SCHEMA_SIDECAR_JSON);
+        const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+        expect(Either.isRight(result) && result.right.authoring).toEqual({
+          kind: "headless",
+          sidecarPath: SIDECAR,
+          agreement: { kind: "unmigrated", format: "spec-document", shape: "pre-schema" },
+        });
+      }
     });
 
     it("reports diverged after a body edit", async () => {
@@ -1753,6 +1765,42 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       expect(fsImpl.getFile(SPEC)).toBe(source);
       expect(fsImpl.getFile(SPEC_RECORD)).toBeUndefined();
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("approve of an artifact with an unmigrated sidecar fails naming migrate-documents, writing nothing", async () => {
+      const source = headlessSpecMd("Draft");
+      const { fsImpl, gitImpl, layer } = headlessHarness(source, PRE_SCHEMA_SIDECAR_JSON);
+
+      const result = await run(
+        transitionArtifact(SPEC, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(exitCodeForError(result.left)).toBe(12);
+        expect(result.left.message).toBe(
+          `Approval refused: ${SPEC} has a sidecar stamped spec-document written before $schema. ` +
+            `Run \`phax artifact migrate-documents\` first, to rewrite ${SIDECAR} at its current shape.`,
+        );
+      }
+      expect(fsImpl.getFile(SPEC)).toBe(source);
+      expect(fsImpl.getFile(SIDECAR)).toBe(PRE_SCHEMA_SIDECAR_JSON);
+      expect(fsImpl.getFile(SPEC_RECORD)).toBeUndefined();
+      expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("an unmigrated sidecar still travels with abandon", async () => {
+      const { fsImpl, layer } = headlessHarness(headlessSpecMd("Draft"), PRE_SCHEMA_SIDECAR_JSON);
+
+      const result = await run(
+        transitionArtifact(SPEC, "Abandoned", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(fsImpl.getFile(ARCHIVED_SIDECAR)).toBe(PRE_SCHEMA_SIDECAR_JSON);
     });
 
     it("approve of an artifact with an invalid sidecar fails the same way", async () => {
