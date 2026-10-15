@@ -237,7 +237,9 @@
         ],
         "properties": {
           "id": {
-            "$ref": "#/$defs/NonEmptyString"
+            "type": "string",
+            "description": "An id: a run of characters without whitespace.",
+            "pattern": "^\\S+$"
           },
           "question": {
             "$ref": "#/$defs/NonEmptyString"
@@ -253,7 +255,9 @@
               ],
               "properties": {
                 "id": {
-                  "$ref": "#/$defs/NonEmptyString"
+                  "type": "string",
+                  "description": "An id: a run of characters without whitespace.",
+                  "pattern": "^\\S+$"
                 },
                 "label": {
                   "$ref": "#/$defs/NonEmptyString"
@@ -293,7 +297,9 @@
         ],
         "properties": {
           "id": {
-            "$ref": "#/$defs/NonEmptyString"
+            "type": "string",
+            "description": "An id: a run of characters without whitespace.",
+            "pattern": "^\\S+$"
           },
           "question": {
             "$ref": "#/$defs/NonEmptyString"
@@ -309,7 +315,9 @@
               ],
               "properties": {
                 "id": {
-                  "$ref": "#/$defs/NonEmptyString"
+                  "type": "string",
+                  "description": "An id: a run of characters without whitespace.",
+                  "pattern": "^\\S+$"
                 },
                 "label": {
                   "$ref": "#/$defs/NonEmptyString"

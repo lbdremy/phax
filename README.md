@@ -668,7 +668,7 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | Plan document                                | `plan-document`             | `.json` sidecar beside a headless-authored plan                                 | `parsePlanDocument`            | `json/plan-document.schema.json`             |
 | Record manifest (union)                      | `record-manifest`           | any `record.json` on `phax/records/v1`                                          | `parseRecordManifest`          | `json/record-manifest.schema.json`           |
 
-Spec and plan documents carry open and arbitrated questions. A sidecar written in an older shape is lifted when phax reads it, and `phax artifact migrate-documents` restamps it at the current shape.
+Spec and plan documents carry open and arbitrated questions. A spec sidecar written in an older shape, or a plan sidecar stamped 0.20.0 or written before `$schema` without a source spec, is lifted when phax reads it, and `phax artifact migrate-documents` restamps it at the current shape; an older plan sidecar stays refused.
 
 ## Read phax files from code
 

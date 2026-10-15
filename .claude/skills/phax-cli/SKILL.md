@@ -142,8 +142,8 @@ legal transitions (see `--usage` for the exact subcommands and flags):
 - `phax artifact status <path>` — report an artifact's kind, current status, and
   legal transitions. It also prints a `Questions:` line when the artifact has question
   sections: the count, the open questions with their ids, and the arbitrated ones with how
-  many are lifted (`Questions: 4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)`). A spec always
-  prints it, a plan only when it has questions; a hand-authored §9 that departs from the §9
+  many are lifted (`Questions: 4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)`). A headless spec
+  with a valid sidecar always prints it, a plan only when it has questions; a hand-authored §9 that departs from the §9
   format prints the first departing line instead, and status still exits 0. A headless
   sidecar stamped below its format's current shape, or written before `$schema`, is not
   compared: the `Authored:` line names its stamped shape and `phax artifact migrate-documents`.

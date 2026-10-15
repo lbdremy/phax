@@ -86,6 +86,8 @@ interface Line {
   /** 1-based, in the whole file. */
   readonly n: number;
   readonly text: string;
+  /** Inside a fenced code block, where nothing is a heading. */
+  readonly fenced: boolean;
 }
 
 // The section headings, exact once trailing whitespace is dropped. A spec
@@ -104,24 +106,32 @@ const SECTION_HEADINGS: Readonly<Record<ArtifactKind, Readonly<Record<string, Se
 };
 
 const FENCE = /^ {0,3}(?:```|~~~)/;
-const SECTION_END = /^#{1,2}(?:\s|$)|^ {0,3}(?:-{3,}|\*{3,}|_{3,})$/;
+// Where a question section ends. A spec's sections are numbered, so only an h1
+// or the next numbered h2 ends one: a stray h2 or a thematic break inside it
+// is read as part of it, and departs rather than hiding the questions after
+// it. A plan's preamble has unnumbered h2s, and a thematic break opens each
+// phase.
+const SECTION_END: Readonly<Record<ArtifactKind, RegExp>> = {
+  spec: /^#(?:\s|$)|^## \d+[a-z]?\.(?:\s|$)/,
+  plan: /^#{1,2}(?:\s|$)|^ {0,3}(?:-{3,}|\*{3,}|_{3,})$/,
+};
 const PHASE_HEADING = /^## phase-\d{2}\b/i;
 const HEADING = /^#{1,6}(?:\s|$)/;
 const QUESTION_HEADING = /^### (\S+) — \S/;
 const OPTION_BULLET = /^- (\S+) — [\s\S]+ — abandons: \S/;
-const RECOMMENDATION = /^Recommendation: \S+ —(?: |$)/;
+const RECOMMENDATION = /^Recommendation: (\S+) —(?: |$)/;
 const DECISION = /^Decision: (\S+) — ([\s\S]*)$/;
 
 // Every line of the file with its 1-based number, the frontmatter skipped, and
-// whether it sits inside a fenced code block (where nothing is a heading).
-function bodyLines(md: string): readonly (Line & { readonly fenced: boolean })[] {
+// whether it sits inside a fenced code block.
+function bodyLines(md: string): readonly Line[] {
   const all = md.split(/\r\n?|\n/);
   let start = 0;
   if (all[0] === "---") {
     const close = all.indexOf("---", 1);
     if (close > 0) start = close + 1;
   }
-  const out: (Line & { readonly fenced: boolean })[] = [];
+  const out: Line[] = [];
   let inFence = false;
   for (let i = start; i < all.length; i++) {
     const text = (all[i] ?? "").trimEnd();
@@ -145,7 +155,7 @@ function blocksOf(lines: readonly Line[]): Line[][] {
   for (const line of lines) {
     if (line.text.trim().length === 0) {
       current = null;
-    } else if (HEADING.test(line.text)) {
+    } else if (!line.fenced && HEADING.test(line.text)) {
       blocks.push([line]);
       current = null;
     } else if (current === null) {
@@ -219,7 +229,7 @@ function parseSection(
   for (const block of blocks) {
     const first = block[0];
     if (first === undefined) continue;
-    if (HEADING.test(first.text)) {
+    if (!first.fenced && HEADING.test(first.text)) {
       const heading = QUESTION_HEADING.exec(first.text);
       if (heading?.[1] === undefined) return departs(first);
       if (draft !== null) {
@@ -243,7 +253,10 @@ function parseSection(
         // A loose list splits its bullets into blocks; an indented block
         // continues the bullet before it.
         if (draft.stage === "options" && /^\s/.test(first.text)) break;
-        if (draft.stage === "options" && RECOMMENDATION.test(first.text)) {
+        const recommendation = draft.stage === "options" ? RECOMMENDATION.exec(first.text) : null;
+        if (recommendation?.[1] !== undefined) {
+          // It recommends one of the question's own options.
+          if (!draft.optionIds.includes(recommendation[1])) return departs(first);
           draft.stage = "recommendation";
           break;
         }
@@ -256,9 +269,16 @@ function parseSection(
       }
       case "recommendation": {
         // Further paragraphs continue the rationale, until a Decision opens.
-        if (!first.text.startsWith("Decision:")) break;
+        if (first.fenced || !first.text.startsWith("Decision:")) break;
         const decision = DECISION.exec(block.map((l) => l.text).join("\n"));
-        if (role === "open" || decision?.[1] === undefined) return departs(first);
+        // It chooses one of the question's own options.
+        if (
+          role === "open" ||
+          decision?.[1] === undefined ||
+          !draft.optionIds.includes(decision[1])
+        ) {
+          return departs(first);
+        }
         draft.chosen = decision[1];
         draft.lifted = (decision[2] ?? "").startsWith("lifted");
         draft.stage = "decision";
@@ -283,8 +303,10 @@ function parseSection(
  * A spec's sections are `## 9. Open questions` (or the older `## 9. Open
  * questions for implementation planning`) and `## 9b. Arbitrated questions`;
  * a plan's are `## Open questions` and `## Arbitrated questions`, before its
- * first `## phase-` heading. A section ends at the next h1 or h2 (or a
- * thematic break); the decision log is not read.
+ * first `## phase-` heading. A spec's section ends at the next h1 or
+ * numbered h2; a plan's at the next h1, h2 or thematic break. A
+ * Recommendation or Decision line names one of its question's options. The
+ * decision log is not read.
  */
 export function parseHandAuthoredQuestions(kind: ArtifactKind, md: string): HandAuthoredQuestions {
   const lines = bodyLines(md);
@@ -302,7 +324,7 @@ export function parseHandAuthoredQuestions(kind: ArtifactKind, md: string): Hand
       continue;
     }
     if (current === null) continue;
-    if (!line.fenced && SECTION_END.test(line.text)) {
+    if (!line.fenced && SECTION_END[kind].test(line.text)) {
       current = null;
       continue;
     }

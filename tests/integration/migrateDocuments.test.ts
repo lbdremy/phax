@@ -680,6 +680,65 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
   });
 });
 
+describe("migrate-documents — names only the plans it makes stale", { timeout: 30_000 }, () => {
+  async function migrateWithPlan(planStatus: string, recordedSpecMd: (md: string) => string) {
+    const pruneMd = writeOlderSpec(
+      PLAN_PRUNE,
+      olderSpec("Plan prune", [marked("Q1", "2026-09-24")]),
+      specFrontmatter("Approved", approvedStamp()),
+    );
+    const planMd = writeOlderPlan(
+      PLAN_PRUNE,
+      planFrontmatter(planStatus, PLAN_PRUNE, approvedStamp()),
+    );
+    writeOlderSpecRecord(PLAN_PRUNE, pruneMd);
+    writeOlderPlanRecord(planMd, { path: PLAN_PRUNE, md: recordedSpecMd(pruneMd) });
+    commitAll("approve before migration");
+    return renderDocumentMigrationReport(await migrated()).join("\n");
+  }
+
+  it("does not name a plan that was already Stale", async () => {
+    const report = await migrateWithPlan("Stale", (md) => md);
+    expect(report).toContain(PLAN_PRUNE);
+    expect(report).not.toContain("stale (spec-changed)");
+  });
+
+  it("does not name an Approved plan already behind its spec before migration", async () => {
+    const report = await migrateWithPlan("Approved", (md) => `${md}\nAn earlier revision.\n`);
+    expect(report).toContain(PLAN_PRUNE);
+    expect(report).not.toContain("stale (spec-changed)");
+  });
+});
+
+describe("migrate-documents — an unreadable sidecar", { timeout: 30_000 }, () => {
+  it("refuses a live sidecar that is not JSON, naming it, and writes nothing", async () => {
+    const md = writeOlderSpec(
+      LOG_ROTATION,
+      olderSpec("Log rotation", [question("Q2")]),
+      specFrontmatter("Draft"),
+    );
+    writeOlderSpec(CACHE_KEYS, olderSpec("Cache keys", [question("Q3")]), specFrontmatter("Draft"));
+    const broken = `${readRepoFile(sidecarOf(LOG_ROTATION))}}\n`;
+    writeRepoFile(sidecarOf(LOG_ROTATION), broken);
+    commitAll();
+    const head = headSha();
+
+    const result = await migrate();
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.left.message).toContain(
+        `migrate refused: ${LOG_ROTATION} has an invalid sidecar`,
+      );
+    }
+    expect(headSha()).toBe(head);
+    expect(readRepoFile(LOG_ROTATION)).toBe(md);
+    expect(readRepoFile(sidecarOf(LOG_ROTATION))).toBe(broken);
+    expect(porcelain()).toBe("");
+  });
+});
+
 function escape(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

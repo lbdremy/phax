@@ -178,7 +178,8 @@ when there are none. Resolve or default each before marking the spec Approved.>
 
 A hand-authored spec writes its questions so phax can read them: `phax artifact status` counts
 them, and prints the first line that departs from the format when it cannot. Both sections
-are h2 headings, and a section ends at the next h2. `None.` alone is an empty section.
+are h2 headings, and a section ends at the next numbered h2 (`## 10. …`): any other h2 or
+heading inside it departs. `None.` alone is an empty section.
 
 ```markdown
 ### <id> — <question>
@@ -190,6 +191,7 @@ Recommendation: <option id> — <rationale>
 ```
 
 Ids are runs of characters without whitespace; use short kebab-case ones (`q-keep`, `keep-10`).
+The `Recommendation:` and `Decision:` lines name one of the question's own option ids.
 An arbitrated question under `## 9b. Arbitrated questions` has the same block, then its
 decision:
 

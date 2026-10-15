@@ -1,5 +1,7 @@
+import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  OpenQuestionSchema,
   firstQuestionViolation,
   liftMarkedQuestions,
   type OpenQuestion,
@@ -231,5 +233,22 @@ describe("firstQuestionViolation", () => {
       phaseIds: ["phase-01", "phase-02"],
     });
     expect(violation).toBeUndefined();
+  });
+});
+
+describe("question and option ids", () => {
+  const decode = Schema.decodeUnknownEither(OpenQuestionSchema);
+
+  it("accepts ids without whitespace", () => {
+    expect(Either.isRight(decode(question("q-keep", "ten is enough")))).toBe(true);
+  });
+
+  it("refuses a question id or an option id holding whitespace, which the §9 format cannot read back", () => {
+    const base = question("q-keep", "ten is enough");
+    expect(Either.isLeft(decode({ ...base, id: "Q 1" }))).toBe(true);
+    const [first, ...rest] = base.options;
+    expect(
+      Either.isLeft(decode({ ...base, options: [{ ...first, id: "keep ten" }, ...rest] })),
+    ).toBe(true);
   });
 });
