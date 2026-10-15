@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610140742-artifact-decide.md
 completes-spec: false
+approved:
+  date: 2026-10-15
+  baseline: 2d52afa
 ---
 # Question model and document migration
 
