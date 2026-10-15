@@ -326,6 +326,33 @@ export type TransitionArtifactError =
   | ArtifactCommitFailedError
   | GitError;
 
+/** The artifact as read, once its move to `target` is known legal. Writes nothing. */
+function readLegalTransition(
+  repoRelPath: string,
+  target: ArtifactStatus,
+): Effect.Effect<
+  { readonly md: string; readonly kind: ArtifactKind; readonly status: ArtifactStatus },
+  FsError | ArtifactValidationError | InvalidArtifactTransitionError,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const md = yield* (yield* FileSystem).readText(repoRelPath);
+    const validated = validateArtifact(repoRelPath, md);
+    if (Either.isLeft(validated)) {
+      return yield* Effect.fail(validated.left);
+    }
+    const { kind, status } = validated.right;
+    const requested =
+      kind === "spec"
+        ? requestTransition("spec", status as never, target as never)
+        : requestTransition("plan", status as never, target as never);
+    if (Either.isLeft(requested)) {
+      return yield* Effect.fail(requested.left);
+    }
+    return { md, kind, status };
+  });
+}
+
 export function transitionArtifact(
   repoRelPath: string,
   ...[target, opts]: TransitionRequest
@@ -340,20 +367,7 @@ export function transitionArtifact(
     yield* refuseOldApprovalLedgers();
     const fs = yield* FileSystem;
     const git = yield* Git;
-    const md = yield* fs.readText(repoRelPath);
-    const validated = validateArtifact(repoRelPath, md);
-    if (Either.isLeft(validated)) {
-      return yield* Effect.fail(validated.left);
-    }
-    const { kind, status } = validated.right;
-
-    const requested =
-      kind === "spec"
-        ? requestTransition("spec", status as never, target as never)
-        : requestTransition("plan", status as never, target as never);
-    if (Either.isLeft(requested)) {
-      return yield* Effect.fail(requested.left);
-    }
+    const { md, kind, status } = yield* readLegalTransition(repoRelPath, target);
 
     // A headless artifact is approved only while its body is its sidecar's
     // rendering; other transitions carry the sidecar along whatever its state.
@@ -600,8 +614,9 @@ function isArbitratedTarget(target: ArtifactStatus): target is ArbitratedTarget 
 
 /**
  * A transition as a person or a script asks for it: an arbitrated target's
- * arbiter is resolved from `--by` and the terminal first, so a refusal writes
- * nothing; any other target ignores `by`.
+ * arbiter is resolved from `--by` and the terminal before anything is written,
+ * so a refusal writes nothing; any other target ignores `by`. An illegal move
+ * is refused first, so reopening a Draft says it is Draft whatever `--by` says.
  */
 export function transitionArtifactBy(
   repoRelPath: string,
@@ -617,6 +632,7 @@ export function transitionArtifactBy(
     if (!isArbitratedTarget(target)) {
       return yield* transitionArtifact(repoRelPath, target, transitionOpts);
     }
+    yield* readLegalTransition(repoRelPath, target);
     const arbiter = yield* resolveArbiter(by, opts.repoRoot).pipe(
       Effect.catchTag("ArtifactArbiterRefusedError", (refused) =>
         Effect.fail(

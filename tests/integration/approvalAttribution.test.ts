@@ -182,6 +182,9 @@ beforeEach(() => {
   writeFileSync(join(configDir, "gitconfig"), "[user]\n\tuseConfigOnly = true\n");
   vi.stubEnv("GIT_CONFIG_GLOBAL", join(configDir, "gitconfig"));
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
+  // The operator is named as git commits: the caller's own identity stays out.
+  vi.stubEnv("GIT_COMMITTER_NAME", undefined);
+  vi.stubEnv("GIT_AUTHOR_NAME", undefined);
   repoDir = mkdtempSync(join(tmpdir(), "phax-attribution-"));
   git(["init", "-q", "-b", "main"]);
   disableGitAutoMaintenance(repoDir);
@@ -241,6 +244,16 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
   it("--by operator names the operator without a terminal", async () => {
     await approve(SPEC, "operator", false);
     expect(recordJson("spec", SPEC)["approvedBy"]).toEqual({ kind: "operator", name: OPERATOR });
+  });
+
+  it("the operator is the committing identity: GIT_COMMITTER_NAME over user.name", async () => {
+    vi.stubEnv("GIT_COMMITTER_NAME", "Grace Hopper");
+    await approve(SPEC, "operator", false);
+    expect(recordJson("spec", SPEC)["approvedBy"]).toEqual({
+      kind: "operator",
+      name: "Grace Hopper",
+    });
+    expect(git(["log", "-1", "--format=%cn"]).trim()).toBe("Grace Hopper");
   });
 
   it.each([SPEC, PLAN])(

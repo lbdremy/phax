@@ -30,11 +30,11 @@ export function parseArbiterDeclaration(raw: string): Either.Either<ArbiterDecla
 export interface ArbiterFacts {
   readonly declared: ArbiterDeclaration | null;
   readonly stdinIsTerminal: boolean;
-  /** `git config user.name`; null when unset or empty. Read only when `needsOperatorName`. */
-  readonly gitUserName: string | null;
+  /** The name git commits under; null when unset or empty. Read only when `needsOperatorName`. */
+  readonly committerName: string | null;
 }
 
-/** Whether resolving `declared` names the operator, so needs the git user.name. */
+/** Whether resolving `declared` names the operator, so needs the committer name. */
 export function needsOperatorName(
   declared: ArbiterDeclaration | null,
   stdinIsTerminal: boolean,
@@ -44,21 +44,21 @@ export function needsOperatorName(
 
 /**
  * Resolves who performs a gesture: a declared machine; the operator when
- * declared, or by default from a terminal, named by the git user.name. Without
+ * declared, or by default from a terminal, named by the committing git identity. Without
  * a terminal nothing is assumed. A refusal is the message to print.
  */
 export function resolveArbiter(facts: ArbiterFacts): Either.Either<ResolvedArbiter, string> {
-  const { declared, stdinIsTerminal, gitUserName } = facts;
+  const { declared, stdinIsTerminal, committerName } = facts;
   if (declared?.kind === "machine") return Either.right({ kind: "machine", grant: declared.grant });
   if (!needsOperatorName(declared, stdinIsTerminal)) {
     return Either.left(`no terminal and no --by — pass ${BY_FORMS}`);
   }
-  if (gitUserName === null || gitUserName.length === 0) {
+  if (committerName === null || committerName.length === 0) {
     return Either.left(
-      'the operator is named by git user.name, which is not set — set it with `git config user.name "<name>"`',
+      'the operator is named as git commits, by GIT_COMMITTER_NAME or git user.name, and neither is set — set it with `git config user.name "<name>"`',
     );
   }
-  return Either.right({ kind: "operator", name: gitUserName });
+  return Either.right({ kind: "operator", name: committerName });
 }
 
 /** `machine (<grant>)`, `operator (<name>)` or `unattributed`. */
