@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import {
   decodeSpecDocument,
+  decodeSpecDocumentFile,
   getSpecDocumentJsonSchema,
   type SpecDocument,
 } from "../../src/schemas/specDocument.js";
 import { formatFirstViolation } from "../../src/schemas/formatError.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 function validSpecDocument() {
   return {
@@ -81,6 +83,7 @@ function validSpecDocument() {
         rationale: "records already keep the trajectory",
       },
     ],
+    arbitratedQuestions: [],
     planningNote: { settled: ["manual prune"], open: [], constraints: ["no new state"] },
     docsPage: {
       kind: "page",
@@ -160,7 +163,9 @@ describe("decodeSpecDocument", () => {
   it("rejects duplicate question ids", () => {
     const doc = validSpecDocument();
     doc.openQuestions.push({ ...doc.openQuestions[0]! });
-    expect(rejection(doc)).toBe('openQuestions[1].id: "Q1" duplicates the question id at index 0');
+    expect(rejection(doc)).toBe(
+      'openQuestions[1].id: "Q1" duplicates the question id at openQuestions[0]',
+    );
   });
 
   it("rejects duplicate option ids within a question", () => {
@@ -191,6 +196,108 @@ describe("decodeSpecDocument", () => {
     const { nonGoals: _dropped, ...doc } = validSpecDocument();
     expect(rejection(doc)).toMatch(/^nonGoals: is missing/);
   });
+
+  it("rejects a missing arbitratedQuestions", () => {
+    const { arbitratedQuestions: _dropped, ...doc } = validSpecDocument();
+    expect(rejection(doc)).toBe("arbitratedQuestions: is missing");
+  });
+
+  it("rejects an authoring answer carrying an arbitrated question, at its first entry (§5.60)", () => {
+    const doc = { ...validSpecDocument(), arbitratedQuestions: [liftedQuestion()] };
+    expect(rejection(doc)).toBe(
+      "arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []",
+    );
+  });
+});
+
+// A sidecar of the made-up spec `plan-prune`, at the current shape.
+function sidecar(arbitratedQuestions: ReadonlyArray<unknown>) {
+  const { version: _version, ...doc } = validSpecDocument();
+  return { $schema: currentSchemaUrl("spec-document"), ...doc, arbitratedQuestions };
+}
+
+function liftedQuestion() {
+  return {
+    id: "q-keep",
+    question: "How many archived runs are kept?",
+    options: [
+      { id: "keep-10", label: "ten", abandons: "older trajectories" },
+      { id: "keep-20", label: "twenty", abandons: "a small archive" },
+    ],
+    recommendation: "keep-10",
+    rationale: "Decided by the author on 2026-09-28, as recommended.",
+    verdict: {
+      kind: "lifted",
+      chosen: "keep-10",
+      abandoned: ["keep-20"],
+      why: "Decided by the author on 2026-09-28, as recommended.",
+      at: "2026-09-28",
+      by: { kind: "unattributed" },
+    } as Record<string, unknown>,
+    history: [] as unknown[],
+  };
+}
+
+function decidedVerdict() {
+  return {
+    kind: "decided",
+    chosen: "keep-20",
+    abandoned: ["keep-10"],
+    why: "twenty covers a release cycle",
+    advocate: "ten keeps the archive small",
+    principles: ["S2"],
+    reversibility: "cheap",
+    by: { kind: "operator", name: "Ada Lovelace" } as Record<string, unknown>,
+    at: "2026-10-20T08:02:11Z",
+    revised: ["§5.4"],
+  };
+}
+
+function fileRejection(doc: unknown): string {
+  const result = decodeSpecDocumentFile(doc);
+  if (Either.isRight(result)) throw new Error("expected the sidecar to be rejected");
+  return formatFirstViolation(result.left);
+}
+
+describe("decodeSpecDocumentFile", () => {
+  it("accepts lifted and decided verdicts, with a history", () => {
+    const decided = { ...liftedQuestion(), id: "q-scope", verdict: decidedVerdict() };
+    const rearbitrated = {
+      ...liftedQuestion(),
+      id: "q-again",
+      verdict: decidedVerdict(),
+      history: [liftedQuestion().verdict],
+    };
+    expect(
+      Either.isRight(decodeSpecDocumentFile(sidecar([liftedQuestion(), decided, rearbitrated]))),
+    ).toBe(true);
+  });
+
+  it("rejects a lifted verdict carrying a decided verdict's key", () => {
+    const question = liftedQuestion();
+    question.verdict["advocate"] = "ten keeps the archive small";
+    expect(fileRejection(sidecar([question]))).toMatch(/^arbitratedQuestions\[0\]\.verdict/);
+  });
+
+  it("rejects a decided verdict that names no operator", () => {
+    const verdict = { ...decidedVerdict(), by: { kind: "unattributed" } };
+    expect(fileRejection(sidecar([{ ...liftedQuestion(), verdict }]))).toMatch(
+      /^arbitratedQuestions\[0\]\.verdict/,
+    );
+  });
+
+  it("rejects a missing arbitratedQuestions", () => {
+    const { arbitratedQuestions: _dropped, ...doc } = sidecar([]);
+    expect(fileRejection(doc)).toBe("arbitratedQuestions: is missing");
+  });
+
+  it("runs the question checks, at document-relative paths", () => {
+    const question = liftedQuestion();
+    question.verdict["abandoned"] = [];
+    expect(fileRejection(sidecar([question]))).toBe(
+      'arbitratedQuestions[0].verdict.abandoned: misses "keep-20": a verdict abandons every option it does not choose',
+    );
+  });
 });
 
 describe("getSpecDocumentJsonSchema", () => {
@@ -209,8 +316,24 @@ describe("getSpecDocumentJsonSchema", () => {
   it("declares the traceability checks it cannot express in its root description", () => {
     const schema = getSpecDocumentJsonSchema() as { description: string };
     expect(schema.description).toMatch(/^Checked by phax's parser, not by this JSON Schema: /);
-    for (const check of ["unique", "`refs` entry", "referenced by", "`recommendation`"]) {
+    for (const check of [
+      "unique",
+      "`refs` entry",
+      "referenced by",
+      "`recommendation`",
+      "`chosen`",
+      "`abandoned`",
+    ]) {
       expect(schema.description).toContain(check);
     }
+  });
+
+  it("says an authoring answer's arbitratedQuestions is empty", () => {
+    const schema = getSpecDocumentJsonSchema() as {
+      required: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toContain("arbitratedQuestions");
+    expect(schema.properties["arbitratedQuestions"]).toMatchObject({ type: "array", maxItems: 0 });
   });
 });

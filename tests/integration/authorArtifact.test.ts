@@ -28,10 +28,18 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { decodeExtractedPlanCacheEntry } from "../../src/schemas/extractedPlanCacheEntry.js";
-import { decodePlanDocument, projectExtractedPlan } from "../../src/schemas/planDocument.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import {
+  decodePlanDocument,
+  decodePlanDocumentFile,
+  projectExtractedPlan,
+} from "../../src/schemas/planDocument.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { FormatId } from "../../src/schemas/schemaUrl.js";
-import { decodeSpecDocument, getSpecDocumentJsonSchema } from "../../src/schemas/specDocument.js";
+import {
+  decodeSpecDocument,
+  decodeSpecDocumentFile,
+  getSpecDocumentJsonSchema,
+} from "../../src/schemas/specDocument.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 const NOW = "2026-09-23T08:35:12.000Z";
@@ -107,6 +115,7 @@ const SPEC_DOCUMENT = {
       rationale: "records already keep the trajectory",
     },
   ],
+  arbitratedQuestions: [],
   planningNote: { settled: ["manual prune"], open: [], constraints: ["no new state"] },
   docsPage: { kind: "none", why: "the CLI reference covers it" },
 };
@@ -121,6 +130,8 @@ const PLAN_DOCUMENT = {
     summary: "One phase: the prune command.",
     requiredCommandsNote: "No extra commands.",
     technicalArbitrations: [],
+    openQuestions: [],
+    arbitratedQuestions: [],
   },
   phases: [
     {
@@ -280,6 +291,10 @@ describe("authorArtifact — spec", () => {
     expect(written).toEqual(stamped("spec-document", SPEC_DOCUMENT));
     expect(written).not.toHaveProperty("version");
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBe(sidecar);
+    // At the current shape: every question open, none arbitrated.
+    expect(written["$schema"]).toBe(currentSchemaUrl("spec-document"));
+    expect(written["arbitratedQuestions"]).toEqual([]);
+    expect(Either.isRight(decodeSpecDocumentFile(written))).toBe(true);
 
     const commits = git.calls.filter((call) => call.method === "commitPaths");
     expect(commits).toHaveLength(1);
@@ -369,6 +384,10 @@ describe("authorArtifact — plan", () => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written).toEqual(stamped("plan-document", PLAN_DOCUMENT));
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBe(sidecar);
+    // At the current shape: both preamble question arrays, empty.
+    expect(written["$schema"]).toBe(currentSchemaUrl("plan-document"));
+    expect(written["preamble"]).toMatchObject({ openQuestions: [], arbitratedQuestions: [] });
+    expect(Either.isRight(decodePlanDocumentFile(written))).toBe(true);
 
     const key = planCacheKey(md, "claude-sonnet-5", "medium");
     const entryText = fs.getFile(cacheEntryPath(STATE_ROOT, key));
@@ -505,6 +524,56 @@ describe("authorArtifact — failures land nothing", () => {
       expect(result.left).toBeInstanceOf(AuthoringDocumentError);
       expect(result.left.message).toContain("plan document rejected twice — ");
       expect(result.left.message).toContain("completesSpec");
+      expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
+      expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
+      expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+    }
+  });
+
+  it("a document carrying an arbitrated question, on both attempts, exits 5 writing nothing (§5.60)", async () => {
+    const lifted = {
+      ...SPEC_DOCUMENT.openQuestions[0],
+      verdict: {
+        kind: "lifted",
+        chosen: "manual",
+        abandoned: ["auto"],
+        why: "records already keep the trajectory",
+        at: "2026-09-28",
+        by: { kind: "unattributed" },
+      },
+      history: [],
+    };
+    const refusal =
+      "arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []";
+    const cases = [
+      { kind: "spec" as const, document: { ...SPEC_DOCUMENT, arbitratedQuestions: [lifted] } },
+      {
+        kind: "plan" as const,
+        document: {
+          ...PLAN_DOCUMENT,
+          preamble: { ...PLAN_DOCUMENT.preamble, arbitratedQuestions: [lifted] },
+        },
+      },
+    ];
+    for (const { kind, document } of cases) {
+      const { fs, git, backend, run } = setup(JSON.stringify(document));
+      fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+      const result = await run(
+        kind === "spec"
+          ? input()
+          : input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) return;
+      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+      const path = kind === "spec" ? refusal : `preamble.${refusal}`;
+      expect(result.left.message).toBe(
+        `${kind} document rejected twice — first answer: ${path}; retry: ${path}`,
+      );
+      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(backend.resumeCalls).toHaveLength(1);
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
       expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);

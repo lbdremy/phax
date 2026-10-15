@@ -1,5 +1,14 @@
 import { Array as Arr, JSONSchema, Schema, type Types } from "effect";
 import { ExtractedPhaseFields, ExtractedRunSchema, type ExtractedPhaxPlan } from "./phaxPlan.js";
+import {
+  OpenQuestionSchema,
+  PlanArbitratedQuestionSchema,
+  PlanAuthoringArbitratedQuestionsSchema,
+  QUESTION_CHECKS_DESCRIPTION,
+  firstQuestionViolation,
+  type OpenQuestion,
+  type PlanArbitratedQuestion,
+} from "./questions.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 // The plan document: the JSON a headless plan authoring session returns. Its
@@ -25,6 +34,14 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   expectedHandoff: Schema.NonEmptyString,
 });
 
+const preambleFields = {
+  summary: Schema.NonEmptyString,
+  requiredCommandsNote: Schema.NonEmptyString,
+  technicalArbitrations: Schema.Array(Schema.NonEmptyString),
+  openQuestions: Schema.Array(OpenQuestionSchema),
+  arbitratedQuestions: Schema.Array(PlanArbitratedQuestionSchema),
+};
+
 const planDocumentFields = {
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(Schema.NonEmptyString),
@@ -33,11 +50,7 @@ const planDocumentFields = {
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
   run: ExtractedRunSchema,
-  preamble: Schema.Struct({
-    summary: Schema.NonEmptyString,
-    requiredCommandsNote: Schema.NonEmptyString,
-    technicalArbitrations: Schema.Array(Schema.NonEmptyString),
-  }),
+  preamble: Schema.Struct(preambleFields),
   phases: Schema.NonEmptyArray(PlanDocumentPhaseSchema),
 };
 
@@ -84,13 +97,49 @@ const lineageFilter = <A extends Parameters<typeof isLineage>[0]>() =>
     },
   });
 
+interface QuestionBearing {
+  readonly preamble: {
+    readonly openQuestions: ReadonlyArray<OpenQuestion>;
+    readonly arbitratedQuestions: ReadonlyArray<PlanArbitratedQuestion>;
+  };
+  readonly phases: ReadonlyArray<{ readonly id: string }>;
+}
+
+// The shared question checks, plus a decided verdict's phase.
+function firstPlanQuestionViolation(doc: QuestionBearing) {
+  return firstQuestionViolation({
+    basePath: ["preamble"],
+    openQuestions: doc.preamble.openQuestions,
+    arbitratedQuestions: doc.preamble.arbitratedQuestions,
+    phaseIds: doc.phases.map((phase) => phase.id),
+  });
+}
+
+// JSON Schema cannot express the question checks: the annotation declares the
+// gap in the exported schema rather than dropping the filter silently.
+const QUESTIONS_FILTER_OPTIONS = {
+  jsonSchema: {
+    description: `Checked by phax's parser, not by this JSON Schema, in the preamble: ${QUESTION_CHECKS_DESCRIPTION}; and a decided verdict's \`phase\` names one of the plan's phases.`,
+  },
+};
+
+// The authoring answer leaves every question open (§5.60): its
+// `preamble.arbitratedQuestions` is always empty, and a non-empty one is
+// refused at its first entry, through the invalid-document path. Its
+// `preamble.openQuestions` is accepted.
 const PlanDocumentStruct = Schema.Struct({
   version: Schema.Literal(1),
   ...planDocumentFields,
+  preamble: Schema.Struct({
+    ...preambleFields,
+    arbitratedQuestions: PlanAuthoringArbitratedQuestionsSchema,
+  }),
 }).annotations({ title: "phax plan document (experimental)" });
 
-export const PlanDocumentSchema =
-  PlanDocumentStruct.pipe(lineageFilter<typeof PlanDocumentStruct.Type>());
+export const PlanDocumentSchema = PlanDocumentStruct.pipe(
+  lineageFilter<typeof PlanDocumentStruct.Type>(),
+  Schema.filter(firstPlanQuestionViolation, QUESTIONS_FILTER_OPTIONS),
+);
 
 /** The document an authoring session returns: `version: 1`, then the plan. */
 export type AuthoredPlanDocument = Schema.Schema.Type<typeof PlanDocumentSchema>;
@@ -113,10 +162,13 @@ const PlanDocumentFileStruct = Schema.Struct({
 
 /**
  * A plan's JSON sidecar as phax persists it: `$schema` first, then the
- * document's fields, with the same lineage check. Unknown keys are rejected.
+ * document's fields, with the same lineage and question checks. Unlike the
+ * authoring answer, it carries arbitrated questions. Unknown keys are rejected.
  */
-export const PlanDocumentFileSchema =
-  PlanDocumentFileStruct.pipe(lineageFilter<typeof PlanDocumentFileStruct.Type>());
+export const PlanDocumentFileSchema = PlanDocumentFileStruct.pipe(
+  lineageFilter<typeof PlanDocumentFileStruct.Type>(),
+  Schema.filter(firstPlanQuestionViolation, QUESTIONS_FILTER_OPTIONS),
+);
 
 export type PlanDocumentFile = Schema.Schema.Type<typeof PlanDocumentFileSchema>;
 

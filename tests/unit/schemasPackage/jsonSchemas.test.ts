@@ -212,30 +212,66 @@ describe("renderJsonSchemas over the real table", () => {
     expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
 
-  // The authoring contract never gains $schema: `phax artifact schema spec`
-  // and the authoring prompt still print the shape 0.16.0 printed.
-  it("keeps the spec-document authoring contract equal to its pre-schema snapshot, apart from the title", () => {
-    expect(withoutTitle(getSpecDocumentJsonSchema())).toEqual(
-      withoutTitle(readSnapshot("spec-document", "pre-schema")),
+  // Each document's authoring contract gains its fields with its file shape,
+  // still carries `version` where the file carries `$schema`, and holds its
+  // arbitrated questions to an empty array: an authoring session leaves every
+  // question open.
+  it("keeps the spec-document authoring contract equal to its current file snapshot, with version for $schema and no arbitrated question", () => {
+    const file = authoringContractOf(
+      readSnapshot("spec-document", CURRENT_SHAPES["spec-document"]),
     );
-  });
-
-  // The plan document's contract gained completesSpec with its file shape, and
-  // still carries `version` where the file carries `$schema`.
-  it("keeps the plan-document authoring contract equal to its current file snapshot, with version for $schema", () => {
-    const file = readSnapshot("plan-document", CURRENT_SHAPES["plan-document"]) as {
-      readonly required: ReadonlyArray<string>;
-      readonly properties: Readonly<Record<string, unknown>>;
-    };
-    const { $schema: _url, ...properties } = file.properties;
     const expected = {
       ...file,
-      required: ["version", ...file.required.filter((key) => key !== "$schema")],
-      properties: { version: { type: "number", enum: [1] }, ...properties },
+      properties: { ...file.properties, arbitratedQuestions: AUTHORING_ARBITRATED_QUESTIONS },
+    };
+    expect(withoutTitle(getSpecDocumentJsonSchema())).toEqual(withoutTitle(expected));
+  });
+
+  it("keeps the plan-document authoring contract equal to its current file snapshot, with version for $schema and no arbitrated question", () => {
+    const file = authoringContractOf(
+      readSnapshot("plan-document", CURRENT_SHAPES["plan-document"]),
+    );
+    const preamble = file.properties["preamble"] as {
+      readonly properties: Readonly<Record<string, unknown>>;
+    };
+    const expected = {
+      ...file,
+      properties: {
+        ...file.properties,
+        preamble: {
+          ...preamble,
+          properties: {
+            ...preamble.properties,
+            arbitratedQuestions: AUTHORING_ARBITRATED_QUESTIONS,
+          },
+        },
+      },
     };
     expect(withoutTitle(getPlanDocumentJsonSchema())).toEqual(withoutTitle(expected));
   });
 });
+
+const AUTHORING_ARBITRATED_QUESTIONS = {
+  type: "array",
+  maxItems: 0,
+  description: "Always empty: an authoring session leaves every question open, in openQuestions.",
+};
+
+interface ObjectSchema {
+  readonly required: ReadonlyArray<string>;
+  readonly properties: Readonly<Record<string, unknown>>;
+}
+
+/** A file snapshot with `version` in place of `$schema`, as the authoring contract carries it. */
+function authoringContractOf(snapshot: object): ObjectSchema {
+  const file = snapshot as ObjectSchema;
+  const { $schema: _url, ...properties } = file.properties;
+  return {
+    ...file,
+    required: ["version", ...file.required.filter((key) => key !== "$schema")],
+    properties: { version: { type: "number", enum: [1] }, ...properties },
+  };
+}
 
 function readSnapshot(id: string, name: string): object {
   return JSON.parse(

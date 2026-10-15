@@ -86,6 +86,7 @@ function fixture(): SpecDocument {
         rationale: "records already keep the trajectory",
       },
     ],
+    arbitratedQuestions: [],
     planningNote: {
       settled: ["manual prune", "exit codes"],
       open: [],

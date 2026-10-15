@@ -505,15 +505,35 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
   return rest;
 }
 
+/** A plan document without the preamble's question arrays, as every shape before them. */
+export function withoutPreambleQuestions(doc: Doc): Doc {
+  const {
+    openQuestions: _open,
+    arbitratedQuestions: _arbitrated,
+    ...preamble
+  } = doc["preamble"] as Doc;
+  return { ...doc, preamble };
+}
+
+/** A plan document's preamble with the question arrays an older shape lifts to: both empty. */
+function withEmptyQuestions(doc: Doc): Doc {
+  const preamble = doc["preamble"] as Doc;
+  return { ...doc, preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] } };
+}
+
 /**
  * A format's pre-schema document as phax's bridge and the package's
  * `toLatest*` both read it: without `version`, and with each fact a later
  * shape added set to the only value the document allows — a spec-less plan
- * document's `completesSpec` is null.
+ * document's `completesSpec` is null and its preamble questions empty, and a
+ * spec document whose questions carry no author's marker has no arbitrated
+ * question.
  */
 export function latestPreSchema(id: PreSchemaFormatId): Doc {
   const { version: _version, ...rest } = preSchemaDocuments[id];
-  return id === "plan-document" ? { ...rest, completesSpec: null } : rest;
+  if (id === "plan-document") return withEmptyQuestions({ ...rest, completesSpec: null });
+  if (id === "spec-document") return { ...rest, arbitratedQuestions: [] };
+  return rest;
 }
 
 /**
@@ -561,7 +581,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "spec-document": encoded(
     SpecDocumentFileSchema,
-    withSchemaUrl("spec-document", stepped(specDocument)),
+    withSchemaUrl("spec-document", { ...stepped(specDocument), arbitratedQuestions: [] }),
   ),
   "plan-document": encoded(
     PlanDocumentFileSchema,
@@ -569,6 +589,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       ...stepped(planDocument),
       sourceSpec: null,
       completesSpec: null,
+      preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
     }),
   ),
   "plan-approval-record": encoded(

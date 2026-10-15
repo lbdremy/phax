@@ -86,6 +86,7 @@ const SPEC_DOCUMENT = {
       rationale: "records already keep the trajectory",
     },
   ],
+  arbitratedQuestions: [],
   planningNote: { settled: ["manual prune"], open: [], constraints: ["no new state"] },
   docsPage: { kind: "none", why: "the CLI reference covers it" },
 };

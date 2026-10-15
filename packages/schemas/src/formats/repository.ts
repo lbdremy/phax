@@ -4,7 +4,9 @@
 // released shape that is no longer current is phax's frozen module under
 // src/schemas/history/; the approval record files are born with $schema and
 // have no pre-schema shape, and list their 0.19.0 shape, written before they
-// named the approver, as a release. Each current shape, named by
+// named the approver, as a release; the spec and plan documents list their
+// 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, as
+// releases, and lift them as phax's reader does. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import {
@@ -38,6 +40,11 @@ import {
   type PlanDocumentV0_17_0,
 } from "../../../../src/schemas/history/plan-document/0.17.0.js";
 import {
+  PlanDocumentV0_20_0Schema,
+  decodePlanDocumentV0_20_0,
+  type PlanDocumentV0_20_0,
+} from "../../../../src/schemas/history/plan-document/0.20.0.js";
+import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -47,6 +54,11 @@ import {
   decodeSpecApprovalsPreSchema,
   type SpecApprovalsPreSchema,
 } from "../../../../src/schemas/history/spec-approvals/pre-schema.js";
+import {
+  SpecDocumentV0_17_0Schema,
+  decodeSpecDocumentV0_17_0,
+  type SpecDocumentV0_17_0,
+} from "../../../../src/schemas/history/spec-document/0.17.0.js";
 import {
   SpecDocumentPreSchemaSchema,
   decodeSpecDocumentPreSchema,
@@ -58,6 +70,7 @@ import {
   type PlanDocument,
   type PlanDocumentFile,
 } from "../../../../src/schemas/planDocument.js";
+import { liftMarkedQuestions } from "../../../../src/schemas/questions.js";
 import {
   SpecApprovalRecordFileSchema,
   SpecRecordFileSchema,
@@ -261,7 +274,10 @@ export function toLatestSpecApprovals(
 
 // ── spec document
 
-export type SpecDocumentShapes = { "pre-schema": SpecDocumentPreSchema } & {
+export type SpecDocumentShapes = {
+  "pre-schema": SpecDocumentPreSchema;
+  "0.17.0": SpecDocumentV0_17_0;
+} & {
   [K in CurrentShapeName<"spec-document">]: SpecDocumentFile;
 };
 
@@ -272,7 +288,7 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   id: "spec-document",
   label: "spec document",
   preSchema: { schema: SpecDocumentPreSchemaSchema, decode: decodeSpecDocumentPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: SpecDocumentV0_17_0Schema, decode: decodeSpecDocumentV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES["spec-document"],
     shape: { schema: SpecDocumentFileSchema, decode: decodeSpecDocumentFile },
@@ -286,16 +302,26 @@ export const parseSpecDocument: (input: unknown) => ParsedShape<SpecDocumentShap
 /** The latest spec document: phax's in-memory value, with no `version` and no `$schema`. */
 export type LatestSpecDocument = SpecDocument;
 
-/** Upgrades a parsed spec document in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed spec document in memory. Keeps every recorded fact; never
+ * invents one: a 0.17.0 or pre-schema document, written before verdicts
+ * existed, is lifted by the author's rationale marker (`liftMarkedQuestions`),
+ * its marked questions arbitrated with a lifted, unattributed verdict.
+ */
 export function toLatestSpecDocument(
-  value: SpecDocumentPreSchema | SpecDocumentFile,
+  value: SpecDocumentPreSchema | SpecDocumentV0_17_0 | SpecDocumentFile,
 ): LatestSpecDocument {
-  if ("$schema" in value) {
+  if ("arbitratedQuestions" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  const { openQuestions } = value;
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, ...liftMarkedQuestions(openQuestions) };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, ...liftMarkedQuestions(openQuestions) };
 }
 
 // ── plan document
@@ -303,6 +329,7 @@ export function toLatestSpecDocument(
 export type PlanDocumentShapes = {
   "pre-schema": PlanDocumentPreSchema;
   "0.17.0": PlanDocumentV0_17_0;
+  "0.20.0": PlanDocumentV0_20_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -314,7 +341,10 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   id: "plan-document",
   label: "plan document",
   preSchema: { schema: PlanDocumentPreSchemaSchema, decode: decodePlanDocumentPreSchema },
-  releases: [["0.17.0", { schema: PlanDocumentV0_17_0Schema, decode: decodePlanDocumentV0_17_0 }]],
+  releases: [
+    ["0.17.0", { schema: PlanDocumentV0_17_0Schema, decode: decodePlanDocumentV0_17_0 }],
+    ["0.20.0", { schema: PlanDocumentV0_20_0Schema, decode: decodePlanDocumentV0_20_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
     shape: { schema: PlanDocumentFileSchema, decode: decodePlanDocumentFile },
@@ -340,21 +370,35 @@ export type LatestPlanDocument =
 /**
  * Upgrades a parsed plan document in memory. Keeps every recorded fact; never
  * invents one: an older shape's `completesSpec` is null beside `sourceSpec:
- * null`, the only value that variant allows, and `Unknown` beside a spec path.
+ * null`, the only value that variant allows, and `Unknown` beside a spec path;
+ * an older shape carried no questions, so its preamble's `openQuestions` and
+ * `arbitratedQuestions` are empty.
  */
 export function toLatestPlanDocument(
-  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentFile,
+  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentV0_20_0 | PlanDocumentFile,
 ): LatestPlanDocument {
-  if ("completesSpec" in value) {
+  if (carriesQuestions(value)) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
+  if ("completesSpec" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, preamble };
+  }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return withUnrecordedCompletesSpec(recorded);
+    return withUnrecordedCompletesSpec({ ...recorded, preamble });
   }
   const { version: _version, ...recorded } = value;
-  return withUnrecordedCompletesSpec(recorded);
+  return withUnrecordedCompletesSpec({ ...recorded, preamble });
+}
+
+/** Whether a parsed plan document is the current shape: only it carries preamble questions. */
+function carriesQuestions(
+  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentV0_20_0 | PlanDocumentFile,
+): value is PlanDocumentFile {
+  return "openQuestions" in value.preamble;
 }
 
 function withUnrecordedCompletesSpec(

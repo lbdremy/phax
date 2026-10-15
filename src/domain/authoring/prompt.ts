@@ -47,6 +47,13 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
             "- Set `completesSpec` to null: this plan has no source spec.",
           ]
         : []),
+    ...(input.kind === "spec"
+      ? [
+          "- Set `arbitratedQuestions` to `[]`: an authoring session leaves every question open, in `openQuestions`.",
+        ]
+      : [
+          "- Set `preamble.openQuestions` and `preamble.arbitratedQuestions` to `[]`: settled arbitrations stay prose in `preamble.technicalArbitrations`.",
+        ]),
     "",
     `## ${documentName} JSON Schema`,
     "",

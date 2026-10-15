@@ -359,6 +359,8 @@ describe("Plan approval writes its own record file", () => {
         summary: "One phase: the alpha command.",
         requiredCommandsNote: "No extra commands.",
         technicalArbitrations: [],
+        openQuestions: [],
+        arbitratedQuestions: [],
       },
       phases: [
         {
