@@ -8,14 +8,22 @@ import { Schema } from "effect";
 // decoders reject unknown keys. Shared by the spec and plan documents, phax's
 // reader and the schemas package, so they agree on every check and every lift.
 
+// A question or option id: a run of characters without whitespace, so the §9
+// format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
+// read it back.
+const QuestionIdSchema = Schema.String.pipe(
+  Schema.pattern(/^\S+$/),
+  Schema.annotations({ description: "An id: a run of characters without whitespace." }),
+);
+
 export const QuestionOptionSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
+  id: QuestionIdSchema,
   label: Schema.NonEmptyString,
   abandons: Schema.NonEmptyString,
 });
 
 export const OpenQuestionSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
+  id: QuestionIdSchema,
   question: Schema.NonEmptyString,
   options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
   recommendation: Schema.NonEmptyString,

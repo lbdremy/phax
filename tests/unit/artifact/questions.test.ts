@@ -318,4 +318,127 @@ describe("parseHandAuthoredQuestions — departures", () => {
       text: "Decision: kept per run",
     });
   });
+
+  const LOGS_OPTIONS = [
+    "- per-run — Kept per run — abandons: a bounded log directory",
+    "- daily — Rotated daily — abandons: one log per run",
+  ];
+
+  it("a Recommendation naming an option the question does not list departs", () => {
+    const md = [
+      `${OPEN_HEAD}### Q2 — Logs?`,
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: weekly — a report names its week",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, "Recommendation: weekly — a report names its week"),
+      text: "Recommendation: weekly — a report names its week",
+    });
+  });
+
+  it("a Decision choosing an option the question does not list departs", () => {
+    const decision = "Decision: weekly — by operator (Ada Lovelace), 2026-10-20";
+    const md = [
+      `${SPEC_FRONTMATTER}# Log rotation`,
+      "",
+      "## 9b. Arbitrated questions",
+      "",
+      "### Q2 — Logs?",
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: per-run — a report names its run",
+      "",
+      decision,
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, decision),
+      text: decision,
+    });
+  });
+
+  it("a stray h2 inside a spec's open section departs instead of hiding the questions after it", () => {
+    const md = [
+      `${OPEN_HEAD}### Q1 — Logs?`,
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: per-run — a report names its run",
+      "",
+      "## Notes",
+      "",
+      "### Q2 — Retention?",
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+      "## 10. Implementation-planning note",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, "## Notes"),
+      text: "## Notes",
+    });
+  });
+
+  it("a thematic break between a spec's questions does not end the section", () => {
+    const md = [
+      `${OPEN_HEAD}### Q1 — Logs?`,
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: per-run — a report names its run",
+      "",
+      "---",
+      "",
+      "### Q2 — Retention?",
+      "",
+      ...LOGS_OPTIONS,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      open: [{ id: "Q1" }, { id: "Q2" }],
+    });
+  });
+});
+
+describe("parseHandAuthoredQuestions — fenced code inside a question", () => {
+  it("reads a heading-shaped line in a fenced rationale as part of the rationale", () => {
+    const md = [
+      `${SPEC_FRONTMATTER}# Log rotation`,
+      "",
+      "## 9. Open questions",
+      "",
+      "### Q1 — Logs?",
+      "",
+      "- per-run — Kept per run — abandons: a bounded log directory",
+      "- daily — Rotated daily — abandons: one log per run",
+      "",
+      "Recommendation: per-run — a report names its run, as in:",
+      "",
+      "```sh",
+      "# one log per run",
+      "Decision: not a decision",
+      "```",
+      "",
+      "## 10. Implementation-planning note",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      open: [{ id: "Q1", optionIds: ["per-run", "daily"] }],
+      arbitrated: [],
+    });
+  });
 });

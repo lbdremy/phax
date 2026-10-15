@@ -16,6 +16,7 @@ import {
   documentMigrationCommitBody,
   groupMigratedArtifacts,
 } from "../domain/artifact/documentMigration.js";
+import { validateArtifact } from "../domain/artifact/document.js";
 import { approvalVerdict, specChangedEvidence } from "../domain/artifact/lineage.js";
 import { renderDocumentMigrationRefusal } from "../domain/artifact/render.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -27,7 +28,7 @@ import {
   refuseOldApprovalLedgers,
 } from "./approvalRecordStore.js";
 import { seedPlanCache } from "./planCacheStore.js";
-import { findUnmigratedSidecars } from "./unmigratedDocuments.js";
+import { scanLiveSidecars } from "./unmigratedDocuments.js";
 
 // `phax artifact migrate-documents`: the one writer of older spec and plan
 // sidecars. It never calls refuseUnmigratedDocuments — the older sidecars are
@@ -70,27 +71,43 @@ function editedSinceApproval(
   });
 }
 
-// Every live plan whose approval recorded one of the re-rendered specs at a
-// fingerprint its new text no longer has: `spec-changed`, sorted by path.
+// Every live Approved plan this migration leaves stale: its approval recorded
+// one of the re-rendered specs at the fingerprint of its text before
+// migration, which the new text no longer has (`spec-changed`), sorted by
+// path. A plan already Stale, or already behind its spec, is not one.
 function plansLeftStale(
   migrations: readonly DocumentMigration[],
+  mdBefore: ReadonlyMap<string, string>,
 ): Effect.Effect<readonly PlanLeftStale[], FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const reRendered = new Map(
       migrations
         .filter((m) => m.kind === "spec" && m.bodyChanged)
-        .map((m) => [m.path, artifactFingerprint(m.md)] as const),
+        .map((m) => {
+          const before = mdBefore.get(m.path);
+          return [
+            m.path,
+            {
+              before: before === undefined ? null : artifactFingerprint(before),
+              after: artifactFingerprint(m.md),
+            },
+          ] as const;
+        }),
     );
     if (reRendered.size === 0 || !(yield* fs.exists("docs/plans"))) return [];
     const stale: PlanLeftStale[] = [];
     for (const entry of (yield* fs.list("docs/plans")).toSorted()) {
       if (!entry.endsWith(".md")) continue; // skips archive/ and approvals/
       const planPath = `docs/plans/${entry}`;
+      const validated = validateArtifact(planPath, yield* fs.readText(planPath));
+      if (Either.isLeft(validated) || validated.right.status !== "Approved") continue;
       const record = yield* readPlanApprovalRecord(planPath);
       const recordedSpec = record?.sourceSpec ?? null;
       if (recordedSpec === null) continue;
-      const evidence = specChangedEvidence(recordedSpec, reRendered.get(recordedSpec.path) ?? null);
+      const spec = reRendered.get(recordedSpec.path);
+      if (spec === undefined || recordedSpec.fingerprint !== spec.before) continue;
+      const evidence = specChangedEvidence(recordedSpec, spec.after);
       if (evidence !== null) stale.push({ path: planPath, specPath: evidence.specPath });
     }
     return stale;
@@ -106,17 +123,24 @@ export function migrateDocuments(
     const git = yield* Git;
 
     // ── Phase A: decide everything, write nothing ──────────────────────────
-    const unmigrated = yield* findUnmigratedSidecars();
-    if (unmigrated.length === 0) return { kind: "nothing-to-migrate" } as const;
+    // An unreadable sidecar may be one to migrate: it is refused as invalid,
+    // never passed over as already current.
+    const { unmigrated, unreadable } = yield* scanLiveSidecars();
+    if (unmigrated.length === 0 && unreadable.length === 0) {
+      return { kind: "nothing-to-migrate" } as const;
+    }
 
     const migrations: DocumentMigration[] = [];
     const refusals: DocumentMigrationRefusal[] = [];
-    for (const sidecar of unmigrated) {
+    const mdBefore = new Map<string, string>();
+    for (const sidecar of [...unmigrated, ...unreadable]) {
+      const md = yield* fs.readText(sidecar.path);
+      mdBefore.set(sidecar.path, md);
       const decision = decideDocumentMigration({
         kind: sidecar.kind,
         path: sidecar.path,
         sidecarPath: sidecar.sidecarPath,
-        md: yield* fs.readText(sidecar.path),
+        md,
         sidecarJson: sidecar.sidecarJson,
       });
       if (decision.kind === "refuse") refusals.push(decision.refusal);
@@ -144,7 +168,7 @@ export function migrateDocuments(
     for (const migration of migrations) {
       entries.push({ migration, editedSinceApproval: yield* editedSinceApproval(migration) });
     }
-    const stalePlans = yield* plansLeftStale(migrations);
+    const stalePlans = yield* plansLeftStale(migrations, mdBefore);
 
     // ── Phase B: seed, write, commit ───────────────────────────────────────
     for (const m of migrations) {
