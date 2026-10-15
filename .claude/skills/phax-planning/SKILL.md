@@ -336,6 +336,13 @@ deliberately leaves these open ("what, not how"); do not resolve them silently.
   It is informational (not extracted), but it lets the executing agent and the
   reviewer read a phase without re-litigating the choice. Omit the section when
   the plan required no arbitration.
+- **Questions in the preamble are optional.** A plan may also carry `## Open questions`,
+  `## Arbitrated questions` and `## Decision log` sections in its preamble, before the first
+  phase heading, each only when non-empty. A question follows the §9 format of the phax-spec
+  skill: `### <id> — <question>`, option bullets `- <option id> — <label> — abandons: <loss>`,
+  and `Recommendation: <option id> — <rationale>`; an arbitrated one also carries its
+  `Decision:` block. `phax plans lint` and extraction accept these sections and read the same
+  phases and required commands with or without them.
 
 ## Spike and discovery plans
 
@@ -564,9 +571,13 @@ Top-level keys:
   sets it from `--last`/`--not-last` regardless.
 - `run`: `{ shortName, title, requiredCommands }` — the extracted run fields
   (`# <Title>`, `## Required commands`).
-- `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations }` — the prose under
-  the title, the note after the required-commands list, and one string per arbitration
-  (rendered as `## Technical arbitrations`, omitted when empty).
+- `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations, openQuestions,
+  arbitratedQuestions }` — the prose under the title, the note after the required-commands
+  list, and one string per arbitration (rendered as `## Technical arbitrations`, omitted when
+  empty). `openQuestions` and `arbitratedQuestions` are required and both `[]` for now: an
+  authoring session returns no arbitrated question (a non-empty `arbitratedQuestions` is
+  refused as an invalid document), and settled arbitrations stay prose in
+  `technicalArbitrations`.
 - `phases`: a non-empty array, one object per phase.
 
 Each phase carries the **extracted fields** — exactly what `phax run` reads, and exactly

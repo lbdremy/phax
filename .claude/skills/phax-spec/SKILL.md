@@ -162,12 +162,46 @@ of the E2E tests the plan will produce (see Traceability).>
 
 Given <precondition>, when <action>, then <observable outcome>. (refs §5.1)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
 
 <Ambiguities you could not resolve, with a recommended default for each. This is the Clarify
 gate: surface every unknown here rather than letting the planner guess. When a question is an
 arbitration between options, frame each option by its dominant loss (see Arbitration below) —
-never a symmetric pros/cons list. Resolve or default each before marking the spec Approved.>
+never a symmetric pros/cons list. Write each question in the §9 format (below), or `None.`
+when there are none. Resolve or default each before marking the spec Approved.>
+
+## 9b. Arbitrated questions
+
+<Questions that have been decided, each with its Decision block, or `None.`.>
+
+### The §9 format
+
+A hand-authored spec writes its questions so phax can read them: `phax artifact status` counts
+them, and prints the first line that departs from the format when it cannot. Both sections
+are h2 headings, and a section ends at the next h2. `None.` alone is an empty section.
+
+```markdown
+### <id> — <question>
+
+- <option id> — <label> — abandons: <loss>
+- <option id> — <label> — abandons: <loss>
+
+Recommendation: <option id> — <rationale>
+```
+
+Ids are runs of characters without whitespace; use short kebab-case ones (`q-keep`, `keep-10`).
+An arbitrated question under `## 9b. Arbitrated questions` has the same block, then its
+decision:
+
+```markdown
+Decision: <option id> — by operator (<name>), <YYYY-MM-DD>
+Why: <why>
+```
+
+A decision that was lifted from an older spec reads `Decision: <option id> — lifted, unattributed,
+<date>`. Earlier decisions follow as `Earlier decision: …` lines, and the decision log is
+`## 12. Decision log`, which phax does not read back. A `Decision:` block in `## 9. Open questions`,
+an arbitrated question without one, or a bold `**Q2 — …**` heading departs from the format.
 
 ## 10. Implementation-planning note
 
@@ -267,15 +301,15 @@ justifying whichever preference came first. Instead, name — per option — the
 loss**: the strongest thing you abandon by choosing it. The decision becomes a comparison
 of losses, and the recommendation states which loss is acceptable and why.
 
-Format, inside a §9 question:
+Format, inside a §9 question (the §9 format above):
 
 ```markdown
-Question: <the arbitration>
+### <id> — <the arbitration>
 
-- Option A — abandons: <the strongest thing this choice gives up>
-- Option B — abandons: <the strongest thing this choice gives up>
+- <option-a> — <label> — abandons: <the strongest thing this choice gives up>
+- <option-b> — <label> — abandons: <the strongest thing this choice gives up>
 
-Recommendation: <option> — <why its loss is the acceptable one>.
+Recommendation: <option-a> — <why its loss is the acceptable one>.
 ```
 
 One line per option is enough. If you cannot name what an option abandons, you have not
@@ -364,6 +398,7 @@ Top-level keys, with the section each renders to:
 | `nonGoals`           | `[string]`                                                   | §7 Non-goals                             |
 | `acceptanceCriteria` | non-empty `[{ id, name, given, when, then, refs }]`          | §8, "Given …, when …, then …" + refs     |
 | `openQuestions`      | `[{ id, question, options, recommendation, rationale }]`     | §9 Open questions                        |
+| `arbitratedQuestions`| `[]` — required, and must be empty                           | §9b Arbitrated questions                 |
 | `planningNote`       | `{ settled, open, constraints }` — three string arrays       | §10 Implementation-planning note         |
 | `docsPage`           | `{ kind: "page", page, reader, example }` or `{ kind: "none", why }` | §11 Docs page                    |
 
@@ -379,6 +414,9 @@ The constrained shapes:
 - **Open questions** — each has two or more `options` of `{ id, label, abandons }`
   (`abandons` is the option's dominant loss — see Arbitration), and `recommendation` is the
   `id` of one of them, argued in `rationale`.
+- **`arbitratedQuestions`** — required and always `[]`: an authoring session leaves every
+  question open, and a non-empty array is refused as an invalid document. Each question renders
+  under its id, with option ids on its bullets and its recommendation.
 
 Traceability is checked when phax decodes the document, and the first violation rejects it:
 requirement, question and per-question option ids are unique; every acceptance criterion's

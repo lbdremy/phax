@@ -260,6 +260,8 @@ A read-only check, with no model: the plan's structure, its planned files agains
 
 Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; the record's `approvedBy` names the approver, `--by operator` (the committing git name: `GIT_COMMITTER_NAME`, else `user.name`) or `--by machine:<grant>`, and approve and reopen refuse with exit 12 without a terminal unless `--by` is given; completing or abandoning an artifact, or reopening one, deletes that file in the same commit (a reopen commit also carries a `Reopened-By:` trailer, and reopening a spec names its bound plans and leaves them unchanged), and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, on the run's branch.
 
+`phax artifact migrate-documents` lifts the headless sidecars written in an older shape and re-renders their bodies, once, after an upgrade; `approve` and `reopen` refuse until it has run. See [Troubleshooting](#troubleshooting).
+
 ### Keep several plans in step
 
 ```bash
@@ -666,6 +668,8 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | Plan document                                | `plan-document`             | `.json` sidecar beside a headless-authored plan                                 | `parsePlanDocument`            | `json/plan-document.schema.json`             |
 | Record manifest (union)                      | `record-manifest`           | any `record.json` on `phax/records/v1`                                          | `parseRecordManifest`          | `json/record-manifest.schema.json`           |
 
+Spec and plan documents carry open and arbitrated questions. A sidecar written in an older shape is lifted when phax reads it, and `phax artifact migrate-documents` restamps it at the current shape.
+
 ## Read phax files from code
 
 `@lbdremy/phax-schemas` reads all of them, with phax's own types and verdicts, without phax installed. `parseDocument` reads any file that carries `$schema`; the JSON Schema of each format is in the package, as `json/<format id>.schema.json`.
@@ -762,6 +766,8 @@ phax reads no environment variable for its configuration: everything is in `phax
   ```
 
 - **Approvals name their approver.** `phax artifact approve` and `phax artifact reopen` now take `--by operator` or `--by machine:<grant>` (a kebab-case slug). Without a terminal they refuse with exit 12 unless given `--by`, so add it to scripts and loops; from a terminal the default is the operator, named as git commits (`GIT_COMMITTER_NAME`, else `user.name`), and an operator approval with neither set refuses. New approval records carry `approvedBy`; records written earlier read as `unattributed` and are never rewritten by a read.
+
+- **Spec and plan documents carry questions.** A spec or plan can hold open and arbitrated questions, each named by id, and `phax artifact status` prints a `Questions:` line counting them. After upgrading, run `phax artifact migrate-documents` once in the main checkout: `phax artifact approve` and `phax artifact reopen` refuse with exit 12 until every live headless sidecar is at its current shape. The command rewrites each older sidecar, re-renders its body keeping the frontmatter, and commits exactly what it wrote in one commit. It refuses, writing nothing, on an invalid sidecar, on a body that is not its sidecar's own rendering (a hand edit would be overwritten), or on an uncommitted change to a path it would write. It names the Approved artifacts it leaves edited since approval, with their open question ids, and the plans it leaves stale. A spec question whose rationale opens with `Decided by the author on <date>` becomes arbitrated, lifted and unattributed; every other question stays open. `complete`, `abandon` and run completion are not refused.
 
 Something else? `phax report <run>` opens a GitHub issue with the run's telemetry.
 

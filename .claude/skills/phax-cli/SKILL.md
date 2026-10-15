@@ -140,7 +140,13 @@ The `phax artifact` command group inspects and moves lifecycle status through it
 legal transitions (see `--usage` for the exact subcommands and flags):
 
 - `phax artifact status <path>` — report an artifact's kind, current status, and
-  legal transitions.
+  legal transitions. It also prints a `Questions:` line when the artifact has question
+  sections: the count, the open questions with their ids, and the arbitrated ones with how
+  many are lifted (`Questions: 4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)`). A spec always
+  prints it, a plan only when it has questions; a hand-authored §9 that departs from the §9
+  format prints the first departing line instead, and status still exits 0. A headless
+  sidecar stamped below its format's current shape, or written before `$schema`, is not
+  compared: the `Authored:` line names its stamped shape and `phax artifact migrate-documents`.
 - `phax artifact approve [--by <arbiter>] <path>` — the `Draft → Approved` gate; run it on a plan
   under `docs/plans/` before `phax run`. Approving stamps `approved: { date, baseline }`
   into the frontmatter and writes the artifact's own record file (`docs/plans/approvals/<plan file name>.json`
@@ -172,6 +178,24 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   ledger, an entry that is not a live artifact path, an uncommitted change to a path it
   would write, or an existing record file holding a different record. While a ledger
   exists, every other approval command exits 12 and names this command.
+- `phax artifact migrate-documents` — the one-time upgrade of headless sidecars. It rewrites
+  every live spec and plan sidecar (a `.json` directly under `docs/specs/` or `docs/plans/`
+  beside its `.md`) stamped below its format's current shape, or written before `$schema`,
+  and re-renders its body, keeping the frontmatter byte for byte. A spec question whose
+  rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated, lifted and
+  unattributed; every other question stays open. A plan stamped 0.20.0 lifts with empty
+  question arrays and keeps its body. It refuses (exit 12, nothing written) on an invalid
+  sidecar (a plan stamped 0.17.0–0.19.x stays refused), on a body that is not the sidecar's
+  own rendering (a hand edit would be overwritten), or on an uncommitted change to a path it
+  would write; the remedy is to re-author it headless, or delete its sidecar to demote it to
+  hand-authored. It names every Approved artifact it leaves edited since approval (with its
+  open question ids and `phax artifact reopen <path>` when it has any, else
+  `phax artifact approve <path>`) and every plan it leaves stale with `spec-changed`, then
+  commits exactly what it wrote in one commit. With nothing to migrate it says so and exits 0.
+  Until it has run, `approve` and `reopen` exit 12 and name it; `complete`, `abandon` and run
+  completion carry an older sidecar as before. Archived and hand-authored artifacts and
+  approval record files are never touched. The phase guard refuses it inside a phase worktree:
+  run it in the main checkout.
 
 Transitions are validated: an illegal one is refused and names the legal set, and
 a terminal status must live under `archive/` (status and location must agree). A
