@@ -42,6 +42,7 @@ import {
   validDocuments,
   withKey,
   withoutKey,
+  withoutPreambleQuestions,
   type Doc,
 } from "./documents.js";
 
@@ -283,7 +284,7 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
 describe("the plan document's completesSpec history", () => {
   const spec = "docs/specs/example.md";
   const current = validDocuments["plan-document"];
-  const { completesSpec: _unrecorded, ...withoutCompletesSpec } = current;
+  const { completesSpec: _unrecorded, ...withoutCompletesSpec } = withoutPreambleQuestions(current);
   /** A sidecar as phax 0.17.0 through 0.19.x wrote it: `$schema`, no completesSpec. */
   function older(release: string, sourceSpec: string | null): Doc {
     return {
@@ -314,13 +315,14 @@ describe("the plan document's completesSpec history", () => {
     expect(result).toMatchObject({ ok: false, error: { path: "completesSpec" } });
   });
 
-  it("upgrades an older spec-less document with completesSpec: null", () => {
+  it("upgrades an older spec-less document with completesSpec: null and empty preamble questions", () => {
     for (const document of [older("0.17.0", null), preSchemaDocuments["plan-document"]]) {
       const result = parsePlanDocument(document);
       if (!result.ok) throw new Error("document rejected");
       expect(toLatestPlanDocument(result.value)).toMatchObject({
         sourceSpec: null,
         completesSpec: null,
+        preamble: { openQuestions: [], arbitratedQuestions: [] },
       });
     }
   });
@@ -342,6 +344,101 @@ describe("the plan document's completesSpec history", () => {
     expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES["plan-document"] });
     if (!result.ok) return;
     expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(document, "$schema"));
+  });
+});
+
+describe("the plan document's question history", () => {
+  const spec = "docs/specs/example.md";
+  const current = validDocuments["plan-document"];
+  // Literal releases, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  const v0_20_0 = withKey(
+    withoutPreambleQuestions({ ...current, sourceSpec: spec, completesSpec: true }),
+    "$schema",
+    schemaUrl("plan-document", "0.20.0"),
+  );
+
+  it("parses a 0.20.0 document as shape 0.20.0 and lifts it with empty preamble questions", () => {
+    const result = parsePlanDocument(v0_20_0);
+    expect(result).toEqual({ ok: true, shape: "0.20.0", value: v0_20_0 });
+    expect(parseDocument(v0_20_0)).toMatchObject({
+      ok: true,
+      format: "plan-document",
+      shape: "0.20.0",
+    });
+    if (!result.ok) throw new Error("document rejected");
+    const preamble = v0_20_0["preamble"] as Doc;
+    expect(toLatestPlanDocument(result.value)).toEqual({
+      ...withoutKey(v0_20_0, "$schema"),
+      preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
+    });
+  });
+
+  it("refuses preamble questions in a 0.20.0 document, and a current document without them", () => {
+    const preamble = v0_20_0["preamble"] as Doc;
+    const withQuestions = withKey(v0_20_0, "preamble", { ...preamble, openQuestions: [] });
+    expect(parsePlanDocument(withQuestions).ok).toBe(false);
+    expect(parsePlanDocument(withoutPreambleQuestions(current)).ok).toBe(false);
+  });
+});
+
+describe("the spec document's question history", () => {
+  const current = validDocuments["spec-document"];
+  const [question] = current["openQuestions"] as ReadonlyArray<Doc>;
+  const marked = {
+    ...question,
+    id: "q-marked",
+    rationale: "Decided by the author on 2026-09-28, as recommended.",
+  };
+  // Literal release, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  const v0_17_0 = withKey(
+    withKey(withoutKey(current, "arbitratedQuestions"), "openQuestions", [question, marked]),
+    "$schema",
+    schemaUrl("spec-document", "0.17.0"),
+  );
+
+  it("parses a 0.17.0 document as shape 0.17.0 and lifts it by the rationale marker", () => {
+    const result = parseSpecDocument(v0_17_0);
+    expect(result).toEqual({ ok: true, shape: "0.17.0", value: v0_17_0 });
+    expect(parseDocument(v0_17_0)).toMatchObject({
+      ok: true,
+      format: "spec-document",
+      shape: "0.17.0",
+    });
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(result.value)).toEqual({
+      ...withoutKey(v0_17_0, "$schema"),
+      openQuestions: [question],
+      arbitratedQuestions: [
+        {
+          ...marked,
+          verdict: {
+            kind: "lifted",
+            chosen: "a",
+            abandoned: ["b"],
+            why: "Decided by the author on 2026-09-28, as recommended.",
+            at: "2026-09-28",
+            by: { kind: "unattributed" },
+          },
+          history: [],
+        },
+      ],
+    });
+  });
+
+  it("lifts a pre-schema document by the same rule", () => {
+    const preSchema = withKey(preSchemaDocuments["spec-document"], "openQuestions", [
+      question,
+      marked,
+    ]);
+    const old = parseSpecDocument(preSchema);
+    const stamped = parseSpecDocument(v0_17_0);
+    if (!old.ok || !stamped.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(old.value)).toEqual(toLatestSpecDocument(stamped.value));
+  });
+
+  it("refuses arbitratedQuestions in a 0.17.0 document, and a current document without it", () => {
+    expect(parseSpecDocument(withKey(v0_17_0, "arbitratedQuestions", [])).ok).toBe(false);
+    expect(parseSpecDocument(withoutKey(current, "arbitratedQuestions")).ok).toBe(false);
   });
 });
 

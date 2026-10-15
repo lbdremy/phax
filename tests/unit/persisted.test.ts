@@ -10,6 +10,7 @@ import {
   readBriefReport,
   readBriefRequestFile,
   readComplianceReviewFile,
+  readDocumentSidecar,
   readGateAttributionFile,
   readGateReport,
   readPersisted,
@@ -48,6 +49,7 @@ import {
   versionOnePhaseRecordManifest,
   withKey,
   withoutKey,
+  withoutPreambleQuestions,
 } from "./schemasPackage/documents.js";
 
 // Toy formats: a pre-schema shape with `version: 1`, and a current shape with
@@ -89,6 +91,14 @@ function spec(
 function left<A>(result: Either.Either<A, PersistedReadError>): PersistedReadError {
   if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
   return result.left;
+}
+
+/** A plan document whose preamble gains the empty question arrays an older shape lifts to. */
+function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
+  return {
+    ...doc,
+    preamble: { ...(doc["preamble"] as object), openQuestions: [], arbitratedQuestions: [] },
+  };
 }
 
 function right<A>(result: Either.Either<A, PersistedReadError>): A {
@@ -408,7 +418,9 @@ describe("format readers", () => {
     });
 
     it("refuses a $schema sidecar written before completesSpec (0.17.0–0.19.x)", () => {
-      const { completesSpec: _unrecorded, ...older } = validDocuments["plan-document"];
+      const { completesSpec: _unrecorded, ...older } = withoutPreambleQuestions(
+        validDocuments["plan-document"],
+      );
       const refused = left(
         readPlanDocumentFile(file, withKey(older, "$schema", schemaUrl("plan-document", "0.19.0"))),
       );
@@ -425,6 +437,159 @@ describe("format readers", () => {
         sourceSpec: specPath,
         completesSpec: false,
       });
+    });
+  });
+
+  // Literal frozen stamps: these sidecars are the shapes phax wrote before
+  // questions were arbitrated, whatever release is current.
+  describe("spec-document: lifted by the rationale marker", () => {
+    const file = "docs/specs/2609251400-plan-prune.json";
+    const options = [
+      { id: "keep-10", label: "ten runs", abandons: "older trajectories" },
+      { id: "keep-20", label: "twenty runs", abandons: "a small archive" },
+    ];
+    const marked = {
+      id: "Q1",
+      question: "How many runs are kept? (Decided by the author on 2026-09-28; not reopened.)",
+      options,
+      recommendation: "keep-20",
+      rationale: "Decided by the author on 2026-09-28, against the previous recommendation.",
+    };
+    const unmarked = {
+      id: "Q2",
+      question: "Is pruning manual? (Decided by the author on 2026-09-29; not reopened.)",
+      options,
+      recommendation: "keep-10",
+      rationale: "ten matches the default keep",
+    };
+    const older = withKey(
+      withKey(withoutKey(validDocuments["spec-document"], "arbitratedQuestions"), "openQuestions", [
+        marked,
+        unmarked,
+      ]),
+      "$schema",
+      schemaUrl("spec-document", "0.17.0"),
+    );
+    const lifted = {
+      ...withoutKey(older, "$schema"),
+      openQuestions: [unmarked],
+      arbitratedQuestions: [
+        {
+          ...marked,
+          verdict: {
+            kind: "lifted",
+            chosen: "keep-20",
+            abandoned: ["keep-10"],
+            why: marked.rationale,
+            at: "2026-09-28",
+            by: { kind: "unattributed" },
+          },
+          history: [],
+        },
+      ],
+    };
+
+    it("lifts a sidecar stamped 0.17.0", () => {
+      expect(right(readSpecDocumentFile(file, older))).toEqual(lifted);
+    });
+
+    it("lifts a sidecar written before $schema by the same rule", () => {
+      const preSchema = withKey(withoutKey(older, "$schema"), "version", 1);
+      expect(right(readSpecDocumentFile(file, preSchema))).toEqual(lifted);
+    });
+
+    it("refuses a 0.17.0 sidecar carrying arbitratedQuestions, naming the file", () => {
+      const refused = left(readSpecDocumentFile(file, withKey(older, "arbitratedQuestions", [])));
+      expect(refused.message).toMatch(new RegExp(`^${file}: arbitratedQuestions: is unexpected`));
+    });
+
+    it("reports the stamped shape and the frozen value", () => {
+      expect(right(readDocumentSidecar("spec", file, older))).toEqual({
+        kind: "spec",
+        shape: "0.17.0",
+        document: lifted,
+        older: withoutKey(older, "$schema"),
+      });
+      const preSchema = withKey(withoutKey(older, "$schema"), "version", 1);
+      expect(right(readDocumentSidecar("spec", file, preSchema))).toMatchObject({
+        shape: "pre-schema",
+        older: withoutKey(older, "$schema"),
+      });
+      expect(right(readDocumentSidecar("spec", file, validDocuments["spec-document"]))).toEqual({
+        kind: "spec",
+        shape: "current",
+        document: withoutKey(validDocuments["spec-document"], "$schema"),
+      });
+    });
+  });
+
+  describe("plan-document: lifted with empty preamble questions", () => {
+    const file = "docs/plans/2609251400-plan-prune-plan.json";
+    const specPath = "docs/specs/2609251400-plan-prune.md";
+    const v0_20_0 = withKey(
+      withoutPreambleQuestions({
+        ...validDocuments["plan-document"],
+        sourceSpec: specPath,
+        completesSpec: true,
+      }),
+      "$schema",
+      schemaUrl("plan-document", "0.20.0"),
+    );
+
+    it("lifts a sidecar stamped 0.20.0", () => {
+      expect(right(readPlanDocumentFile(file, v0_20_0))).toEqual(
+        withEmptyQuestions(withoutKey(v0_20_0, "$schema")),
+      );
+    });
+
+    it("lifts a sidecar written before $schema with sourceSpec: null, with completesSpec: null", () => {
+      expect(right(readPlanDocumentFile(file, preSchemaDocuments["plan-document"]))).toEqual(
+        latestPreSchema("plan-document"),
+      );
+    });
+
+    it("refuses a 0.20.0 sidecar carrying preamble questions, naming the file", () => {
+      const preamble = v0_20_0["preamble"] as object;
+      const refused = left(
+        readPlanDocumentFile(
+          file,
+          withKey(v0_20_0, "preamble", { ...preamble, openQuestions: [] }),
+        ),
+      );
+      expect(refused.message).toMatch(
+        new RegExp(`^${file}: preamble\\.openQuestions: is unexpected`),
+      );
+    });
+
+    it("reports the stamped shape and the frozen value", () => {
+      expect(right(readDocumentSidecar("plan", file, v0_20_0))).toEqual({
+        kind: "plan",
+        shape: "0.20.0",
+        document: withEmptyQuestions(withoutKey(v0_20_0, "$schema")),
+        older: withoutKey(v0_20_0, "$schema"),
+      });
+      const { version: _version, ...preSchema } = preSchemaDocuments["plan-document"];
+      expect(
+        right(readDocumentSidecar("plan", file, preSchemaDocuments["plan-document"])),
+      ).toMatchObject({ shape: "pre-schema", older: { ...preSchema, completesSpec: null } });
+      expect(
+        right(readDocumentSidecar("plan", file, validDocuments["plan-document"])),
+      ).toMatchObject({ kind: "plan", shape: "current" });
+    });
+
+    it("refuses, through the shape-reporting reader too, a plan stamped 0.19.0 and one written before $schema that names a spec", () => {
+      const { completesSpec: _unrecorded, ...v0_19_0 } = withKey(
+        v0_20_0,
+        "$schema",
+        schemaUrl("plan-document", "0.19.0"),
+      );
+      expect(left(readDocumentSidecar("plan", file, v0_19_0)).message).toBe(
+        `${file}: completesSpec: is missing`,
+      );
+      const beside = withKey(preSchemaDocuments["plan-document"], "sourceSpec", specPath);
+      expect(left(readDocumentSidecar("plan", file, beside)).message).toContain(
+        "lacks completesSpec",
+      );
     });
   });
 
@@ -596,13 +761,21 @@ describe("documents from another release", () => {
     // An authoring manifest stamped below its current stamp is read as the
     // frozen 0.17.0 shape, which has no retry; an approval record, as the
     // frozen 0.19.0 shape, which has no approvedBy.
+    // A spec document, as the frozen 0.17.0 shape, which has no
+    // arbitratedQuestions; a plan document, as the frozen 0.20.0 shape, which
+    // has no preamble questions.
     const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
-    const document =
-      id === "authoring-record-manifest" && below
+    const document = !below
+      ? validDocuments[id]
+      : id === "authoring-record-manifest"
         ? withoutKey(validDocuments[id], "retry")
-        : (id === "plan-approval-record" || id === "spec-approval-record") && below
+        : id === "plan-approval-record" || id === "spec-approval-record"
           ? withoutKey(validDocuments[id], "approvedBy")
-          : validDocuments[id];
+          : id === "spec-document"
+            ? withoutKey(validDocuments[id], "arbitratedQuestions")
+            : id === "plan-document"
+              ? withoutPreambleQuestions(validDocuments[id])
+              : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);

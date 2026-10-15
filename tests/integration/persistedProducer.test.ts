@@ -169,6 +169,7 @@ const SPEC_DOCUMENT = {
     },
   ],
   openQuestions: [],
+  arbitratedQuestions: [],
   planningNote: { settled: ["One phase."], open: [], constraints: [] },
   docsPage: { kind: "none", why: "Nothing user-facing." },
 };
@@ -183,6 +184,8 @@ const PLAN_DOCUMENT = {
     summary: "An example plan.",
     requiredCommandsNote: "No command beyond the gate.",
     technicalArbitrations: [],
+    openQuestions: [],
+    arbitratedQuestions: [],
   },
   phases: [
     {

@@ -36,6 +36,8 @@ function fixture(): PlanDocument {
         "**The cache is keyed on the body.** Accepted loss: one miss per plan.",
         "The brief is read by the CLI.\nRejected: a port for one flag.",
       ],
+      openQuestions: [],
+      arbitratedQuestions: [],
     },
     phases: [
       {

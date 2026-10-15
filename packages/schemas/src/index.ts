@@ -297,6 +297,14 @@ export {
   type PlanDocumentV0_17_0,
 } from "../../../src/schemas/history/plan-document/0.17.0.js";
 export {
+  PlanDocumentV0_20_0Schema,
+  type PlanDocumentV0_20_0,
+} from "../../../src/schemas/history/plan-document/0.20.0.js";
+export {
+  SpecDocumentV0_17_0Schema,
+  type SpecDocumentV0_17_0,
+} from "../../../src/schemas/history/spec-document/0.17.0.js";
+export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";

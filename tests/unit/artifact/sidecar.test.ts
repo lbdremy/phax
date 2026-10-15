@@ -96,14 +96,22 @@ scope: functional behavior and consumption surface
 ---
 `;
 
+// SPEC_DOCUMENT and PLAN_DOCUMENT are the shapes 0.16.0 wrote, before
+// questions were arbitrated; the current shape adds the question arrays.
+const CURRENT_SPEC_DOCUMENT = { ...SPEC_DOCUMENT, arbitratedQuestions: [] };
+const CURRENT_PLAN_DOCUMENT = {
+  ...PLAN_DOCUMENT,
+  preamble: { ...PLAN_DOCUMENT.preamble, openQuestions: [], arbitratedQuestions: [] },
+};
+
 function specBody(): string {
-  const decoded = decodeSpecDocument(SPEC_DOCUMENT);
+  const decoded = decodeSpecDocument(CURRENT_SPEC_DOCUMENT);
   if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
   return renderSpecBody(decoded.right);
 }
 
 function planBody(): string {
-  const decoded = decodePlanDocument(PLAN_DOCUMENT);
+  const decoded = decodePlanDocument(CURRENT_PLAN_DOCUMENT);
   if (Either.isLeft(decoded)) throw new Error("fixture plan document must decode");
   return renderPlanBody(decoded.right);
 }
@@ -111,12 +119,10 @@ function planBody(): string {
 // The sidecar as 0.16.0 wrote it: the authored document, `version: 1`, no `$schema`.
 const specJson = JSON.stringify(SPEC_DOCUMENT, null, 2);
 
-/** A sidecar as phax writes it now: `version` dropped, `$schema` first. */
-function stampedJson(
-  id: "spec-document" | "plan-document",
-  doc: { readonly version: number },
-): string {
-  const { version: _version, ...rest } = doc;
+/** A sidecar as phax writes it now: `version` dropped, `$schema` first, at the current shape. */
+function stampedJson(id: "spec-document" | "plan-document"): string {
+  const { version: _version, ...rest } =
+    id === "spec-document" ? CURRENT_SPEC_DOCUMENT : CURRENT_PLAN_DOCUMENT;
   return JSON.stringify(withSchemaUrl(id, rest), null, 2);
 }
 
@@ -158,9 +164,7 @@ describe("sidecarAgreement", () => {
 
   it("is invalid for a $schema plan sidecar written before completesSpec", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
-    const { completesSpec: _unrecorded, ...older } = JSON.parse(
-      stampedJson("plan-document", PLAN_DOCUMENT),
-    );
+    const { completesSpec: _unrecorded, ...older } = JSON.parse(stampedJson("plan-document"));
     const agreement = sidecarAgreement({ md, sidecarJson: JSON.stringify(older), kind: "plan" });
     expect(agreement).toMatchObject({ kind: "invalid" });
     expect(typeof agreement === "object" && agreement.message).toContain("completesSpec");
@@ -168,12 +172,12 @@ describe("sidecarAgreement", () => {
 
   it("is in-sync for a sidecar written with $schema", () => {
     const specMd = SPEC_FRONTMATTER + specBody();
-    const specSidecar = stampedJson("spec-document", SPEC_DOCUMENT);
+    const specSidecar = stampedJson("spec-document");
     expect(sidecarAgreement({ md: specMd, sidecarJson: specSidecar, kind: "spec" })).toBe(
       "in-sync",
     );
     const planMd = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
-    const planSidecar = stampedJson("plan-document", PLAN_DOCUMENT);
+    const planSidecar = stampedJson("plan-document");
     expect(sidecarAgreement({ md: planMd, sidecarJson: planSidecar, kind: "plan" })).toBe(
       "in-sync",
     );
@@ -182,7 +186,7 @@ describe("sidecarAgreement", () => {
   it("is invalid, naming the sidecar, when a $schema sidecar still carries version", () => {
     const md = SPEC_FRONTMATTER + specBody();
     const both = JSON.stringify({
-      ...JSON.parse(stampedJson("spec-document", SPEC_DOCUMENT)),
+      ...JSON.parse(stampedJson("spec-document")),
       version: 1,
     });
     const agreement = sidecarAgreement({

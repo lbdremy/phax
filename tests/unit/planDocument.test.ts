@@ -47,14 +47,77 @@ function validPlanDocument() {
       summary: "Core to surface.",
       requiredCommandsNote: "Regenerates the usage spec.",
       technicalArbitrations: [],
+      openQuestions: [] as unknown[],
+      arbitratedQuestions: [] as unknown[],
     },
     phases: [validPhase(1), { ...validPhase(2), boundaryContracts: "phase-03 consumes X." }],
   };
 }
 
+// Made-up questions of the plan: which phase owns the registry write.
+function openQuestion(id = "q-owner") {
+  return {
+    id,
+    question: "Does phase-01 or phase-02 own the registry write?",
+    options: [
+      { id: "p1", label: "phase-01 writes it", abandons: "a smaller first phase" },
+      { id: "p2", label: "phase-02 writes it", abandons: "an early registry" },
+    ],
+    recommendation: "p1",
+    rationale: "the registry is the core",
+  };
+}
+
+function decidedQuestion(phase: string, by: unknown = { kind: "operator", name: "Ada Lovelace" }) {
+  return {
+    ...openQuestion("q-decided"),
+    verdict: {
+      kind: "decided",
+      chosen: "p2",
+      abandoned: ["p1"],
+      why: "phase-02 already touches the registry",
+      advocate: "phase-01 is the core",
+      principles: [],
+      reversibility: "costly",
+      by,
+      at: "2026-10-20T08:02:11Z",
+      revised: [],
+      phase,
+    },
+    history: [],
+  };
+}
+
+function liftedQuestion(extra: Record<string, unknown> = {}) {
+  return {
+    ...openQuestion("q-lifted"),
+    verdict: {
+      kind: "lifted",
+      chosen: "p1",
+      abandoned: ["p2"],
+      why: "the registry is the core",
+      at: "2026-09-28",
+      by: { kind: "unattributed" },
+      ...extra,
+    },
+    history: [],
+  };
+}
+
+function withPreamble(questions: { openQuestions?: unknown[]; arbitratedQuestions?: unknown[] }) {
+  const doc = validPlanDocument();
+  return { ...doc, preamble: { ...doc.preamble, ...questions } };
+}
+
 const decodeExtractedStrict = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
+
+function fileRejection(doc: unknown): string {
+  const result = decodePlanDocumentFile(doc);
+  if (Either.isRight(result)) throw new Error("expected the sidecar to be rejected");
+  return formatFirstViolation(result.left);
+}
 
 function rejection(doc: unknown): string {
   const result = decodePlanDocument(doc);
@@ -126,6 +189,35 @@ describe("decodePlanDocument", () => {
   it("rejects a non-boolean completesSpec", () => {
     expect(rejection({ ...validPlanDocument(), completesSpec: "yes" })).toMatch(/^completesSpec: /);
   });
+
+  it("accepts an authoring answer with an open question", () => {
+    expect(
+      Either.isRight(decodePlanDocument(withPreamble({ openQuestions: [openQuestion()] }))),
+    ).toBe(true);
+  });
+
+  it("checks an authoring answer's open questions", () => {
+    const doc = withPreamble({ openQuestions: [{ ...openQuestion(), recommendation: "p3" }] });
+    expect(rejection(doc)).toBe(
+      'preamble.openQuestions[0].recommendation: "p3" names none of the question\'s options (p1, p2)',
+    );
+  });
+
+  it("rejects an authoring answer carrying an arbitrated question, at its first entry (§5.60)", () => {
+    expect(rejection(withPreamble({ arbitratedQuestions: [liftedQuestion()] }))).toBe(
+      "preamble.arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []",
+    );
+  });
+
+  it("rejects a preamble missing either question array", () => {
+    const doc = validPlanDocument();
+    const { arbitratedQuestions: _a, ...noArbitrated } = doc.preamble;
+    const { openQuestions: _o, ...noOpen } = doc.preamble;
+    expect(rejection({ ...doc, preamble: noArbitrated })).toBe(
+      "preamble.arbitratedQuestions: is missing",
+    );
+    expect(rejection({ ...doc, preamble: noOpen })).toBe("preamble.openQuestions: is missing");
+  });
 });
 
 describe("decodePlanDocumentFile", () => {
@@ -156,6 +248,39 @@ describe("decodePlanDocumentFile", () => {
     });
     expect(Either.isLeft(decodePlanDocumentFile(missing))).toBe(true);
   });
+
+  function fileWithQuestions(arbitratedQuestions: unknown[]) {
+    const doc = fileDoc({ sourceSpec: null, completesSpec: null });
+    return { ...doc, preamble: { ...doc.preamble, arbitratedQuestions } };
+  }
+
+  it("accepts lifted and decided verdicts naming one of its phases", () => {
+    const doc = fileWithQuestions([liftedQuestion(), decidedQuestion("phase-02")]);
+    expect(Either.isRight(decodePlanDocumentFile(doc))).toBe(true);
+  });
+
+  it("rejects a decided verdict naming a phase the plan does not have", () => {
+    expect(fileRejection(fileWithQuestions([decidedQuestion("phase-09")]))).toBe(
+      'preamble.arbitratedQuestions[0].verdict.phase: "phase-09" names none of the plan\'s phases (phase-01, phase-02)',
+    );
+  });
+
+  it("rejects a lifted verdict carrying a decided verdict's key", () => {
+    expect(fileRejection(fileWithQuestions([liftedQuestion({ advocate: "x" })]))).toMatch(
+      /^preamble\.arbitratedQuestions\[0\]\.verdict/,
+    );
+  });
+
+  it("rejects a decided verdict that names no operator", () => {
+    const doc = fileWithQuestions([decidedQuestion("phase-01", { kind: "unattributed" })]);
+    expect(fileRejection(doc)).toMatch(/^preamble\.arbitratedQuestions\[0\]\.verdict/);
+  });
+
+  it("rejects a missing preamble.arbitratedQuestions", () => {
+    const doc = fileDoc({ sourceSpec: null, completesSpec: null });
+    const { arbitratedQuestions: _dropped, ...preamble } = doc.preamble;
+    expect(fileRejection({ ...doc, preamble })).toBe("preamble.arbitratedQuestions: is missing");
+  });
 });
 
 describe("projectExtractedPlan", () => {
@@ -183,6 +308,14 @@ describe("projectExtractedPlan", () => {
         commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
       })),
     });
+  });
+
+  it("never carries a question into the projection", () => {
+    const plain = Either.getOrThrow(decodePlanDocument(validPlanDocument()));
+    const questioned = Either.getOrThrow(
+      decodePlanDocument(withPreamble({ openQuestions: [openQuestion()] })),
+    );
+    expect(projectExtractedPlan(questioned)).toEqual(projectExtractedPlan(plain));
   });
 });
 
@@ -216,5 +349,26 @@ describe("getPlanDocumentJsonSchema", () => {
         ],
       },
     ]);
+  });
+
+  it("says an authoring answer's preamble.arbitratedQuestions is empty, and declares the question checks", () => {
+    const schema = getPlanDocumentJsonSchema() as {
+      description: string;
+      properties: { preamble: { required: string[]; properties: Record<string, unknown> } };
+    };
+    const { preamble } = schema.properties;
+    expect(preamble.required).toEqual([
+      "summary",
+      "requiredCommandsNote",
+      "technicalArbitrations",
+      "openQuestions",
+      "arbitratedQuestions",
+    ]);
+    expect(preamble.properties["arbitratedQuestions"]).toMatchObject({
+      type: "array",
+      maxItems: 0,
+    });
+    expect(schema.description).toMatch(/^Checked by phax's parser, not by this JSON Schema/);
+    expect(schema.description).toContain("`phase`");
   });
 });

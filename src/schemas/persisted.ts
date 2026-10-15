@@ -15,12 +15,18 @@
 // `defineFormat` does: a document with `$schema` is read only by phax's
 // current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape. Three formats also read an older
+// then stepped to the current shape. Five formats also read an older
 // `$schema` shape: an authoring record manifest stamped below its current
 // stamp is read by the frozen 0.17.0 decoder, then stepped to the current
 // shape, so the records already on phax/records/v1 stay listed; a spec or plan
 // approval record stamped below its current stamp is read by its frozen 0.19.0
-// decoder and lifted to an unattributed approval. A format born with `$schema`
+// decoder and lifted to an unattributed approval; a spec document stamped
+// below its current stamp is read by the frozen 0.17.0 decoder, and one
+// written before `$schema` by the pre-schema decoder, then lifted by the
+// author's rationale marker (`liftMarkedQuestions`); a plan document stamped
+// below its current stamp is read by the frozen 0.20.0 decoder and lifted
+// with empty preamble questions. `readDocumentSidecar` also reports the shape
+// a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
 // format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
@@ -63,14 +69,33 @@ import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js
 import { decodePhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
-import { decodePlanDocumentPreSchema } from "./history/plan-document/pre-schema.js";
+import {
+  decodePlanDocumentV0_20_0,
+  type PlanDocumentV0_20_0,
+} from "./history/plan-document/0.20.0.js";
+import {
+  decodePlanDocumentPreSchema,
+  type PlanDocumentPreSchema,
+} from "./history/plan-document/pre-schema.js";
 import { decodeRegistryPreSchema } from "./history/registry/pre-schema.js";
 import { decodeRunStatusPreSchema } from "./history/run-status/pre-schema.js";
 import { decodeSpecApprovalRecordV0_19_0 } from "./history/spec-approval-record/0.19.0.js";
 import { decodeSpecApprovalsPreSchema } from "./history/spec-approvals/pre-schema.js";
-import { decodeSpecDocumentPreSchema } from "./history/spec-document/pre-schema.js";
+import {
+  decodeSpecDocumentV0_17_0,
+  type SpecDocumentV0_17_0,
+} from "./history/spec-document/0.17.0.js";
+import {
+  decodeSpecDocumentPreSchema,
+  type SpecDocumentPreSchema,
+} from "./history/spec-document/pre-schema.js";
 import { decodePhaxPlanFile, type PhaxPlan } from "./phaxPlan.js";
-import { decodePlanDocumentFile, type PlanDocument } from "./planDocument.js";
+import {
+  decodePlanDocumentFile,
+  type PlanDocument,
+  type PlanDocumentFile,
+} from "./planDocument.js";
+import { liftMarkedQuestions } from "./questions.js";
 import {
   decodePhaseFileReconciliationFile,
   type PhaseFileReconciliation,
@@ -92,7 +117,11 @@ import {
   type SpecApprovals,
   type SpecRecord,
 } from "./specApprovalRecord.js";
-import { decodeSpecDocumentFile, type SpecDocument } from "./specDocument.js";
+import {
+  decodeSpecDocumentFile,
+  type SpecDocument,
+  type SpecDocumentFile,
+} from "./specDocument.js";
 import {
   decodePhaseStatusFile,
   decodeRunStatusFile,
@@ -398,38 +427,186 @@ export const readSpecRecordFile: Reader<SpecRecord> = (file, input) => {
   });
 };
 
-/** Reads a spec's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */
-export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
-  readPersisted(input, {
+// A spec or plan sidecar stamped below its format's current stamp, or written
+// before `$schema`, is read by its frozen decoder and lifted to the current
+// in-memory document; the file itself is never rewritten by a read.
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/**
+ * A spec document in its 0.17.0 shape, as a 0.17.0 sidecar or one written
+ * before `$schema` carried it: no `$schema`, no `version`.
+ */
+export type SpecDocumentV0_17_0Value = Omit<SpecDocumentV0_17_0, "$schema">;
+
+/**
+ * A plan document in its 0.20.0 shape, as a 0.20.0 sidecar or one written
+ * before `$schema` with `sourceSpec: null` carried it (its `completesSpec`
+ * null): no `$schema`, no `version`.
+ */
+export type PlanDocumentV0_20_0Value = DistributiveOmit<PlanDocumentV0_20_0, "$schema">;
+
+/**
+ * A spec sidecar as read: the document at the current in-memory shape, and
+ * the shape the file is stamped at. A sidecar below the current shape also
+ * carries the value its frozen decoder read.
+ */
+export type SpecDocumentSidecar =
+  | { readonly kind: "spec"; readonly shape: "current"; readonly document: SpecDocument }
+  | {
+      readonly kind: "spec";
+      readonly shape: "0.17.0" | "pre-schema";
+      readonly document: SpecDocument;
+      readonly older: SpecDocumentV0_17_0Value;
+    };
+
+/**
+ * A plan sidecar as read: the document at the current in-memory shape, and
+ * the shape the file is stamped at. A sidecar below the current shape also
+ * carries the value its frozen decoder read.
+ */
+export type PlanDocumentSidecar =
+  | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
+  | {
+      readonly kind: "plan";
+      readonly shape: "0.20.0" | "pre-schema";
+      readonly document: PlanDocument;
+      readonly older: PlanDocumentV0_20_0Value;
+    };
+
+export type DocumentSidecar = SpecDocumentSidecar | PlanDocumentSidecar;
+
+// The marker lift: a question whose rationale opens with the author's marker
+// is arbitrated with a lifted verdict; every other question stays open.
+function liftSpecDocument(older: SpecDocumentV0_17_0Value): SpecDocument {
+  return { ...older, ...liftMarkedQuestions(older.openQuestions) };
+}
+
+// A plan written before questions carried none: both arrays lift empty.
+function liftPlanDocument(older: PlanDocumentV0_20_0Value): PlanDocument {
+  return { ...older, preamble: { ...older.preamble, openQuestions: [], arbitratedQuestions: [] } };
+}
+
+function readSpecDocumentSidecar(
+  file: string,
+  input: unknown,
+): Either.Either<SpecDocumentSidecar, PersistedReadError> {
+  if (isDocumentObject(input) && isStampedBelowCurrent("spec-document", input)) {
+    const older = decodeSpecDocumentV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "spec-document", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...value } = older.right;
+    return Either.right({
+      kind: "spec",
+      shape: "0.17.0",
+      document: liftSpecDocument(value),
+      older: value,
+    });
+  }
+  return readPersisted<SpecDocumentFile, SpecDocumentPreSchema, SpecDocumentSidecar>(input, {
     format: "spec-document",
     label: "spec document",
     file,
     decodeCurrent: decodeSpecDocumentFile,
     decodePreSchema: decodeSpecDocumentPreSchema,
-    fromCurrent: ({ $schema: _schema, ...doc }) => doc,
-    fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
+    fromCurrent: ({ $schema: _schema, ...document }) => ({
+      kind: "spec",
+      shape: "current",
+      document,
+    }),
+    fromPreSchema: ({ version: _version, ...value }) =>
+      Either.right({
+        kind: "spec",
+        shape: "pre-schema",
+        document: liftSpecDocument(value),
+        older: value,
+      }),
   });
+}
 
-/**
- * Reads a plan's JSON sidecar. A pre-schema sidecar never recorded
- * `completesSpec`: beside `sourceSpec: null` it steps to null, the only value
- * that variant allows; beside a spec path it is refused rather than given an
- * invented boolean. A `$schema` sidecar is read by the current decoder only, so
- * one written by 0.17.0–0.19.x, which lacks `completesSpec`, is refused too.
- */
-export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
-  readPersisted(input, {
+function readPlanDocumentSidecar(
+  file: string,
+  input: unknown,
+): Either.Either<PlanDocumentSidecar, PersistedReadError> {
+  if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
+    const older = decodePlanDocumentV0_20_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "plan-document", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...value } = older.right;
+    return Either.right({
+      kind: "plan",
+      shape: "0.20.0",
+      document: liftPlanDocument(value),
+      older: value,
+    });
+  }
+  return readPersisted<PlanDocumentFile, PlanDocumentPreSchema, PlanDocumentSidecar>(input, {
     format: "plan-document",
     label: "plan document",
     file,
     decodeCurrent: decodePlanDocumentFile,
     decodePreSchema: decodePlanDocumentPreSchema,
-    fromCurrent: ({ $schema: _schema, ...doc }) => doc,
-    fromPreSchema: ({ version: _version, sourceSpec, ...doc }) =>
-      sourceSpec === null
-        ? Either.right({ ...doc, sourceSpec, completesSpec: null })
-        : Either.left({ fact: "completesSpec" }),
+    fromCurrent: ({ $schema: _schema, ...document }) => ({
+      kind: "plan",
+      shape: "current",
+      document,
+    }),
+    fromPreSchema: ({ version: _version, sourceSpec, ...doc }) => {
+      if (sourceSpec !== null) return Either.left({ fact: "completesSpec" });
+      const value: PlanDocumentV0_20_0Value = { ...doc, sourceSpec, completesSpec: null };
+      return Either.right({
+        kind: "plan",
+        shape: "pre-schema",
+        document: liftPlanDocument(value),
+        older: value,
+      });
+    },
   });
+}
+
+/**
+ * Reads a spec's or plan's JSON sidecar, reporting the shape it is stamped
+ * at. Never throws; never rewrites the file. In order:
+ * - a spec stamped below its current stamp is read by the frozen 0.17.0
+ *   decoder, and a spec written before `$schema` by the pre-schema decoder;
+ *   either is lifted by `liftMarkedQuestions`;
+ * - a plan stamped below its current stamp is read by the frozen 0.20.0
+ *   decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`, is
+ *   refused naming it; a plan written before `$schema` steps to
+ *   `completesSpec: null` beside `sourceSpec: null` and is refused, naming
+ *   `completesSpec`, beside a spec path; either lifts with empty preamble
+ *   question arrays;
+ * - any other sidecar is read by the current file decoder, shape `current`.
+ */
+export function readDocumentSidecar(
+  kind: "spec",
+  file: string,
+  input: unknown,
+): Either.Either<SpecDocumentSidecar, PersistedReadError>;
+export function readDocumentSidecar(
+  kind: "plan",
+  file: string,
+  input: unknown,
+): Either.Either<PlanDocumentSidecar, PersistedReadError>;
+export function readDocumentSidecar(
+  kind: "spec" | "plan",
+  file: string,
+  input: unknown,
+): Either.Either<DocumentSidecar, PersistedReadError> {
+  return kind === "spec"
+    ? readSpecDocumentSidecar(file, input)
+    : readPlanDocumentSidecar(file, input);
+}
+
+/** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
+export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
+  Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);
+
+/** Reads a plan's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
+export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
+  Either.map(readPlanDocumentSidecar(file, input), (sidecar) => sidecar.document);
 
 type GateStepResult = GateAttribution["steps"][number];
 

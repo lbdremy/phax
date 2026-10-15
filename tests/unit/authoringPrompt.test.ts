@@ -89,6 +89,30 @@ describe("buildAuthoringPrompt", () => {
     expect(planPrompt(false)).not.toContain("`completesSpec` to `true`");
   });
 
+  it("a spec prompt asks for an empty arbitratedQuestions, before the schema", () => {
+    const prompt = specPrompt();
+    const line =
+      "- Set `arbitratedQuestions` to `[]`: an authoring session leaves every question open, in `openQuestions`.";
+    expect(prompt).toContain(line);
+    expect(prompt.indexOf(line)).toBeLessThan(prompt.indexOf('"title": "phax spec document'));
+    expect(prompt).not.toContain("preamble.openQuestions");
+  });
+
+  it("a plan prompt asks for both preamble question arrays empty, keeping settled arbitrations prose", () => {
+    for (const prompt of [planPrompt(true), planPrompt(false)]) {
+      expect(prompt).toContain(
+        "- Set `preamble.openQuestions` and `preamble.arbitratedQuestions` to `[]`: settled arbitrations stay prose in `preamble.technicalArbitrations`.",
+      );
+      expect(prompt).not.toContain("an authoring session leaves every question open");
+    }
+  });
+
+  it("names no decide command", () => {
+    for (const prompt of [specPrompt(), planPrompt(true)]) {
+      expect(prompt).not.toContain("decide");
+    }
+  });
+
   it("a plan prompt without a source spec asks for a null sourceSpec and completesSpec", () => {
     const prompt = buildAuthoringPrompt({
       kind: "plan",

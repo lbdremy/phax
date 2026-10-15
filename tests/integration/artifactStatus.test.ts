@@ -1606,7 +1606,8 @@ describe("headless-authored artifacts (JSON sidecar)", () => {
   const SIDECAR_JSON = `${JSON.stringify(SPEC_DOCUMENT, null, 2)}\n`;
 
   function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
-    const decoded = decodeSpecDocument(SPEC_DOCUMENT);
+    // SPEC_DOCUMENT is the 0.16.0 shape; the current one adds arbitratedQuestions.
+    const decoded = decodeSpecDocument({ ...SPEC_DOCUMENT, arbitratedQuestions: [] });
     if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
     return `---
 status: ${status}
@@ -1639,7 +1640,8 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
 
     it("reports headless, in sync, for a sidecar phax wrote with $schema", async () => {
       const { version: _version, ...authored } = SPEC_DOCUMENT;
-      const stamped = `${JSON.stringify(withSchemaUrl("spec-document", authored), null, 2)}\n`;
+      const current = { ...authored, arbitratedQuestions: [] };
+      const stamped = `${JSON.stringify(withSchemaUrl("spec-document", current), null, 2)}\n`;
       const { layer } = headlessHarness(headlessSpecMd("Draft"), stamped);
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
       expect(Either.isRight(result) && result.right.authoring).toEqual({

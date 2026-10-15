@@ -1,4 +1,11 @@
 import { JSONSchema, Schema, type Types } from "effect";
+import {
+  OpenQuestionSchema,
+  QUESTION_CHECKS_DESCRIPTION,
+  SpecArbitratedQuestionSchema,
+  SpecAuthoringArbitratedQuestionsSchema,
+  firstQuestionViolation,
+} from "./questions.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 // The spec document: the JSON a headless spec authoring session returns, from
@@ -53,20 +60,6 @@ const AcceptanceCriterionSchema = Schema.Struct({
   refs: Schema.NonEmptyArray(Schema.NonEmptyString),
 });
 
-const QuestionOptionSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  label: Schema.NonEmptyString,
-  abandons: Schema.NonEmptyString,
-});
-
-const OpenQuestionSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  question: Schema.NonEmptyString,
-  options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
-  recommendation: Schema.NonEmptyString,
-  rationale: Schema.NonEmptyString,
-});
-
 const PlanningNoteSchema = Schema.Struct({
   settled: Schema.Array(Schema.NonEmptyString),
   open: Schema.Array(Schema.NonEmptyString),
@@ -102,13 +95,18 @@ const specDocumentFields = {
   nonGoals: Schema.Array(Schema.NonEmptyString),
   acceptanceCriteria: Schema.NonEmptyArray(AcceptanceCriterionSchema),
   openQuestions: Schema.Array(OpenQuestionSchema),
+  arbitratedQuestions: Schema.Array(SpecArbitratedQuestionSchema),
   planningNote: PlanningNoteSchema,
   docsPage: DocsPageSchema,
 };
 
+// The authoring answer leaves every question open (§5.60): its
+// `arbitratedQuestions` is always empty, and a non-empty one is refused at its
+// first entry, through the invalid-document path.
 const SpecDocumentStruct = Schema.Struct({
   version: Schema.Literal(1),
   ...specDocumentFields,
+  arbitratedQuestions: SpecAuthoringArbitratedQuestionsSchema,
 }).annotations({ title: "phax spec document (experimental)" });
 
 /** A spec document in memory: never a `version`, never a `$schema`. */
@@ -141,22 +139,19 @@ function firstDuplicateId(
 // Spec §5.3 traceability, checked in a fixed order so the first violation
 // reported for a given document is stable. Each violation carries the path of
 // the offending value; `formatFirstViolation` renders it as
-// `acceptanceCriteria[2].refs[0]: "5.9" names no requirement`.
+// `acceptanceCriteria[2].refs[0]: "5.9" names no requirement`. The question
+// checks (`firstQuestionViolation`) run where the question ids were checked.
 function firstTraceabilityViolation(doc: SpecDocument): Violation | undefined {
   const duplicateRequirement = firstDuplicateId(doc.requirements, ["requirements"], "requirement");
   if (duplicateRequirement !== undefined) return duplicateRequirement;
 
-  const duplicateQuestion = firstDuplicateId(doc.openQuestions, ["openQuestions"], "question");
-  if (duplicateQuestion !== undefined) return duplicateQuestion;
-
-  for (const [q, question] of doc.openQuestions.entries()) {
-    const duplicateOption = firstDuplicateId(
-      question.options,
-      ["openQuestions", q, "options"],
-      "option",
-    );
-    if (duplicateOption !== undefined) return duplicateOption;
-  }
+  const question = firstQuestionViolation({
+    basePath: [],
+    openQuestions: doc.openQuestions,
+    arbitratedQuestions: doc.arbitratedQuestions,
+    phaseIds: null,
+  });
+  if (question !== undefined) return question;
 
   const requirementIds = new Set(doc.requirements.map((r) => r.id));
   for (const [c, criterion] of doc.acceptanceCriteria.entries()) {
@@ -180,24 +175,13 @@ function firstTraceabilityViolation(doc: SpecDocument): Violation | undefined {
     }
   }
 
-  for (const [q, question] of doc.openQuestions.entries()) {
-    const optionIds = question.options.map((o) => o.id);
-    if (!optionIds.includes(question.recommendation)) {
-      return {
-        path: ["openQuestions", q, "recommendation"],
-        message: `"${question.recommendation}" names none of the question's options (${optionIds.join(", ")})`,
-      };
-    }
-  }
-
   return undefined;
 }
 
 // JSON Schema cannot express the traceability checks: the annotation declares
 // the gap in the exported schema rather than dropping the filter silently. It
 // adds no constraint, and decoding is unchanged.
-const TRACEABILITY_DESCRIPTION =
-  "Checked by phax's parser, not by this JSON Schema: requirement ids, question ids and each question's option ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; and each open question's `recommendation` names one of its options.";
+const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: requirement ids are unique; every acceptance criterion \`refs\` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; ${QUESTION_CHECKS_DESCRIPTION}.`;
 
 export const SpecDocumentSchema = SpecDocumentStruct.pipe(
   Schema.filter(firstTraceabilityViolation, {
@@ -215,8 +199,8 @@ export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema,
 
 /**
  * A spec's JSON sidecar as phax persists it: `$schema` first, then the
- * document's fields, with the same traceability checks. Unknown keys are
- * rejected.
+ * document's fields, with the same traceability checks. Unlike the authoring
+ * answer, it carries arbitrated questions. Unknown keys are rejected.
  */
 export const SpecDocumentFileSchema = Schema.Struct({
   $schema: schemaUrlField("spec-document"),

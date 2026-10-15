@@ -71,6 +71,7 @@ const SPEC_DOCUMENT = {
     },
   ],
   openQuestions: [],
+  arbitratedQuestions: [],
   planningNote: { settled: ["one file per widget"], open: [], constraints: [] },
   docsPage: { kind: "none", why: "the CLI reference covers it" },
 };
