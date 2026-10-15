@@ -113,6 +113,20 @@ export interface ComputeStalenessInput {
   readonly footprint: readonly string[];
 }
 
+/**
+ * The `spec-changed` evidence of a plan whose approval recorded its source
+ * spec at a fingerprint the spec's current text no longer has; null when the
+ * plan recorded no spec, the spec's fingerprint is unknown, or it still matches.
+ */
+export function specChangedEvidence(
+  recordedSpec: ApprovalRecordLike["sourceSpec"],
+  currentSpecFingerprint: string | null,
+): Extract<StalenessEvidence, { readonly reason: "spec-changed" }> | null {
+  if (recordedSpec === null || currentSpecFingerprint === null) return null;
+  if (recordedSpec.fingerprint === currentSpecFingerprint) return null;
+  return { reason: "spec-changed", specPath: recordedSpec.path };
+}
+
 export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVerdict {
   const { record } = input;
   if (record === null) {
@@ -127,13 +141,8 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
 
   const evidence: StalenessEvidence[] = [];
 
-  if (
-    record.sourceSpec !== null &&
-    input.currentSpecFingerprint !== null &&
-    record.sourceSpec.fingerprint !== input.currentSpecFingerprint
-  ) {
-    evidence.push({ reason: "spec-changed", specPath: record.sourceSpec.path });
-  }
+  const specChanged = specChangedEvidence(record.sourceSpec, input.currentSpecFingerprint);
+  if (specChanged !== null) evidence.push(specChanged);
 
   // The plan's own content is judged by self-changed through its fingerprint,
   // and its own record file is written only by its own transitions, so neither

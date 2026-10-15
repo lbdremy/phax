@@ -3,7 +3,10 @@ import {
   type DocumentSidecar,
   type PersistedReadError,
   readDocumentSidecar,
+  withSchemaUrl,
 } from "../../schemas/persisted.js";
+import { encodePlanDocumentFile, type PlanDocument } from "../../schemas/planDocument.js";
+import { encodeSpecDocumentFile, type SpecDocument } from "../../schemas/specDocument.js";
 import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderSpecBody } from "../authoring/renderSpec.js";
 import { splitFrontmatter } from "./frontmatter.js";
@@ -38,8 +41,12 @@ export type SidecarAgreement =
       readonly shape: OlderDocumentShape;
     };
 
-/** `spec-document 0.17.0`, or `spec-document written before $schema`: the shape a sidecar is stamped at. */
-export function describeStampedShape(format: DocumentFormat, shape: OlderDocumentShape): string {
+/**
+ * `spec-document 0.17.0`, or `spec-document written before $schema`: the
+ * shape a sidecar is stamped at. `shape` is a release or `pre-schema`; a
+ * refused older stamp (a plan at 0.19.0) is named the same way.
+ */
+export function describeStampedShape(format: DocumentFormat, shape: string): string {
   return shape === "pre-schema" ? `${format} written before $schema` : `${format} ${shape}`;
 }
 
@@ -52,6 +59,38 @@ function normalise(text: string): string {
     .map((line) => line.trimEnd())
     .join("\n")
     .trimEnd();
+}
+
+/**
+ * Whether two Markdown texts agree up to line endings and trailing
+ * whitespace: the comparison agreement makes between a body and its sidecar's
+ * rendering.
+ */
+export function sameRendering(a: string, b: string): boolean {
+  return normalise(a) === normalise(b);
+}
+
+/** An artifact's body: the text after its frontmatter block, or the whole text without one. */
+export function artifactBody(md: string): string {
+  return splitFrontmatter(md)?.body ?? md;
+}
+
+/** A spec's or plan's document at the current in-memory shape, as its sidecar holds it. */
+export type SidecarDocument =
+  | { readonly kind: "spec"; readonly document: SpecDocument }
+  | { readonly kind: "plan"; readonly document: PlanDocument };
+
+/**
+ * The sidecar text phax writes for a document: encoded through the current
+ * file schema with `$schema` first, as two-space JSON with a final newline.
+ * Authoring and `phax artifact migrate-documents` both write through it.
+ */
+export function serializeSidecar(sidecar: SidecarDocument): string {
+  const encoded =
+    sidecar.kind === "spec"
+      ? encodeSpecDocumentFile(withSchemaUrl("spec-document", sidecar.document))
+      : encodePlanDocumentFile(withSchemaUrl("plan-document", sidecar.document));
+  return JSON.stringify(encoded, null, 2) + "\n";
 }
 
 function readSidecarJson(
@@ -73,7 +112,8 @@ function readSidecarJson(
   return Either.mapLeft(decoded, (error) => ({ kind: "invalid", message: error.message }));
 }
 
-function renderCurrent(sidecar: DocumentSidecar): string {
+/** The body phax renders for a document at the current shape. */
+export function renderCurrent(sidecar: SidecarDocument): string {
   return sidecar.kind === "spec"
     ? renderSpecBody(sidecar.document)
     : renderPlanBody(sidecar.document);
@@ -120,8 +160,9 @@ export function inspectSidecar(input: SidecarInput): SidecarInspection {
     const format = sidecar.kind === "spec" ? "spec-document" : "plan-document";
     return { agreement: { kind: "unmigrated", format, shape: sidecar.shape }, sidecar };
   }
-  const body = splitFrontmatter(input.md)?.body ?? input.md;
-  const agreement = normalise(body) === normalise(renderCurrent(sidecar)) ? "in-sync" : "diverged";
+  const agreement = sameRendering(artifactBody(input.md), renderCurrent(sidecar))
+    ? "in-sync"
+    : "diverged";
   return { agreement, sidecar };
 }
 

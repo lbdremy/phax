@@ -865,7 +865,9 @@ phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 
 - **Usage**: `phax artifact status <path>`
 
-Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status (an Approved spec or plan lists Draft, reached with phax artifact reopen). For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
+Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status (an Approved spec or plan lists Draft, reached with phax artifact reopen). For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. A sidecar stamped below its document format's current shape, or written before $schema, is not compared: status names its stamped shape and `phax artifact migrate-documents` instead.
+
+An artifact with question sections also prints a Questions line: the number of questions, the open ones with their ids, and the arbitrated ones with how many are lifted (`Questions: 4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)`). A headless artifact's questions come from its sidecar, lifted when it is older; a spec always prints the line, a plan only when it has questions. A hand-authored artifact's come from its `## 9. Open questions` and `## 9b. Arbitrated questions` sections (a plan's `## Open questions` and `## Arbitrated questions`); one that departs from the §9 format prints the first departing line instead, and status still exits 0. Read-only — no side effects.
 
 ### Arguments
 
@@ -894,6 +896,7 @@ Every approval names its approver, and the approval record file records it as ap
 For specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.
 For plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.
 For headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.
+While any live spec or plan sidecar is stamped below its document format's current shape, approval refuses with exit 12 before anything is written, naming each such sidecar and `phax artifact migrate-documents`.
 
 Side effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus its own approval record file under docs/plans/approvals/ or docs/specs/approvals/) in a single commit; no transition touches another artifact's record file. Refuses with exit code 12 if any write-set path already has uncommitted changes.
 
@@ -989,7 +992,7 @@ phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 
 Reopens an artifact back to Draft, voiding its approval, for when it must be revised before re-approval. Legal from Approved (specs and plans) and from Stale (plans only); a Draft, Completed or Abandoned artifact is refused with exit 12 and nothing is written. Rewrites the frontmatter status key in place and clears the `approved` stamp.
 
-Every reopen names its arbiter, as approve does. `--by machine:<grant>` declares a machine by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: reopen refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator reopen refuses with exit 12 when neither is set. Every refusal comes before anything is written. The reopen commit ends with a `Reopened-By: machine (<grant>)` or `Reopened-By: operator (<name>)` trailer.
+Every reopen names its arbiter, as approve does. `--by machine:<grant>` declares a machine by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: reopen refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator reopen refuses with exit 12 when neither is set. While any live spec or plan sidecar is stamped below its document format's current shape, reopen refuses with exit 12, naming each such sidecar and `phax artifact migrate-documents`. Every refusal comes before anything is written. The reopen commit ends with a `Reopened-By: machine (<grant>)` or `Reopened-By: operator (<name>)` trailer.
 
 Reopening a spec leaves every live plan that names it in source-spec unchanged — its file, frontmatter and approval record file — and names each one with its status. Reopen changes only status and approved, which the fingerprint ignores, so a bound plan still reads fresh.
 
@@ -1177,6 +1180,26 @@ Side effects: writes the record files, deletes the ledgers and commits those pat
 
 ```
 phax artifact migrate-approvals
+```
+
+## `phax artifact migrate-documents`
+
+- **Usage**: `phax artifact migrate-documents`
+
+Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. Archived artifacts, hand-authored artifacts and approval record files are never touched.
+
+Before writing anything it decides everything, and exits 12, writing nothing, on an invalid sidecar (including a plan document stamped 0.17.0–0.19.x, which stays refused), on a body that is not its sidecar's own-shape rendering (a hand edit would be overwritten), or on an uncommitted change to any path it would write; each refused artifact is named with its remedy: re-author it headless, or delete its sidecar to demote it to hand-authored.
+
+The report names each migrated artifact with its status and question counts (open, with their ids, and arbitrated, with how many are lifted), or `body unchanged`. It names every Approved artifact the re-rendering leaves edited since approval — with its open question ids and `phax artifact reopen <path>` when it has any, else `phax artifact approve <path>` — and every live plan it leaves stale with spec-changed evidence. With nothing to migrate it says so, writes nothing and exits 0.
+
+Until it has run, phax artifact approve and phax artifact reopen refuse with exit 12, naming each unmigrated sidecar; complete, abandon and run completion carry an older sidecar as before.
+
+Side effects: writes the sidecars and re-rendered bodies, re-seeds each rewritten plan's extraction cache so phax run never re-extracts it, and commits exactly the rewritten paths in one commit. A failed commit exits 12, leaving the files written but uncommitted.
+
+### Examples
+
+```
+phax artifact migrate-documents
 ```
 
 ## `phax plans`

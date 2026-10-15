@@ -54,6 +54,8 @@ import {
   ApprovalRecordUnreadableError,
   ApprovalLedgerMigrationRequiredError,
   ApprovalMigrationRefusedError,
+  DocumentMigrationRefusedError,
+  DocumentMigrationRequiredError,
   SecurityEnforcementError,
   SecurityPreflightError,
   SkillEditConsentError,
@@ -198,17 +200,20 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactCreationError ||
     err instanceof ApprovalRecordUnreadableError ||
     err instanceof ApprovalLedgerMigrationRequiredError ||
-    err instanceof ApprovalMigrationRefusedError
+    err instanceof ApprovalMigrationRefusedError ||
+    err instanceof DocumentMigrationRequiredError ||
+    err instanceof DocumentMigrationRefusedError
   )
     return 12;
   return 1;
 }
 
 /**
- * Exit code for a failed headless `artifact new`. Same families as
- * `exitCodeForError`, except a failed artifact commit is an artifact error
- * (12): the headless path's own commit is part of creating the artifact,
- * whereas a transition's failed commit keeps its generic code.
+ * Exit code for a failed headless `artifact new` or `artifact
+ * migrate-documents`. Same families as `exitCodeForError`, except a failed
+ * artifact commit is an artifact error (12): the command's own commit is part
+ * of creating or migrating the artifact, whereas a transition's failed commit
+ * keeps its generic code.
  */
 export function exitCodeForAuthoringError(err: unknown): number {
   if (err instanceof ArtifactCommitFailedError) return 12;

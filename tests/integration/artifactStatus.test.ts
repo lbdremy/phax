@@ -15,6 +15,7 @@ import {
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
+  DocumentMigrationRequiredError,
   InvalidArtifactTransitionError,
   SpecApprovalUnrecordedError,
   SpecEditedSinceApprovalError,
@@ -1779,11 +1780,11 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
         expect(exitCodeForError(result.left)).toBe(12);
         expect(result.left.message).toBe(
-          `Approval refused: ${SPEC} has a sidecar stamped spec-document written before $schema. ` +
-            `Run \`phax artifact migrate-documents\` first, to rewrite ${SIDECAR} at its current shape.`,
+          `Approval refused: ${SIDECAR} is stamped spec-document written before $schema — ` +
+            "run `phax artifact migrate-documents` first",
         );
       }
       expect(fsImpl.getFile(SPEC)).toBe(source);

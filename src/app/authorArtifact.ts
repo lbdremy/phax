@@ -16,7 +16,7 @@ import {
   type SecurityEnforcementError,
   type UsageLimitError,
 } from "../domain/errors.js";
-import { sidecarPathFor } from "../domain/artifact/sidecar.js";
+import { serializeSidecar, sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { formatStamp } from "../domain/artifact/name.js";
 import { AUTHORING_PROMPT_FILENAME, buildAuthoringPrompt } from "../domain/authoring/prompt.js";
@@ -30,18 +30,14 @@ import {
 } from "../domain/authoring/retry.js";
 import { renderPlanBody } from "../domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../domain/authoring/renderSpec.js";
-import { EXTRACTOR_VERSION, planCacheKey } from "../domain/planCache/key.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
 import { formatFirstViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
-import { withSchemaUrl } from "../schemas/persisted.js";
 import {
   decodePlanDocument,
-  encodePlanDocumentFile,
   getPlanDocumentJsonSchema,
-  projectExtractedPlan,
   type AuthoredPlanDocument,
 } from "../schemas/planDocument.js";
 import type { ProviderId } from "../schemas/providerId.js";
@@ -49,7 +45,6 @@ import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import {
   decodeSpecDocument,
-  encodeSpecDocumentFile,
   getSpecDocumentJsonSchema,
   type AuthoredSpecDocument,
 } from "../schemas/specDocument.js";
@@ -61,7 +56,7 @@ import {
   type ArtifactTarget,
   type CompletionFlags,
 } from "./createArtifact.js";
-import { planMdSha256, writeCacheEntry } from "./planCacheStore.js";
+import { seedPlanCache } from "./planCacheStore.js";
 import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
 import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
 import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
@@ -260,15 +255,11 @@ function retryRefusedDocument(
 // document.json): the authoring contract's `version` dropped, `$schema` first.
 function encodeDocument(authored: AuthoredDocument): string {
   if (authored.kind === "spec") {
-    const { version: _version, ...doc } = authored.doc;
-    return (
-      JSON.stringify(encodeSpecDocumentFile(withSchemaUrl("spec-document", doc)), null, 2) + "\n"
-    );
+    const { version: _version, ...document } = authored.doc;
+    return serializeSidecar({ kind: "spec", document });
   }
-  const { version: _version, ...doc } = authored.doc;
-  return (
-    JSON.stringify(encodePlanDocumentFile(withSchemaUrl("plan-document", doc)), null, 2) + "\n"
-  );
+  const { version: _version, ...document } = authored.doc;
+  return serializeSidecar({ kind: "plan", document });
 }
 
 function renderArtifact(
@@ -357,14 +348,13 @@ function runAuthoringSession(
     // Seeded before the artifact is written: the entry is content-addressed, so a
     // seed whose artifact never lands is inert, and a failed seed lands nothing.
     if (authored.kind === "plan") {
-      const key = planCacheKey(artifactMd, input.extractPlanModel, input.extractPlanEffort);
-      yield* writeCacheEntry(input.stateRoot, key, {
-        planMdSha256: planMdSha256(artifactMd),
-        model: input.extractPlanModel,
-        effort: input.extractPlanEffort,
-        extractorVersion: EXTRACTOR_VERSION,
-        extractedAt: input.nowIso,
-        extracted: projectExtractedPlan(authored.doc),
+      yield* seedPlanCache({
+        stateRoot: input.stateRoot,
+        planMd: artifactMd,
+        document: authored.doc,
+        extractPlanModel: input.extractPlanModel,
+        extractPlanEffort: input.extractPlanEffort,
+        nowIso: input.nowIso,
       });
     }
 

@@ -10,6 +10,7 @@ import {
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
+  type DocumentMigrationRequiredError,
   InvalidArtifactTransitionError,
   PlanNotApprovedError,
   SpecApprovalUnrecordedError,
@@ -74,6 +75,7 @@ import {
   type OrphanApprovalRecord,
 } from "../domain/artifact/approvalRecordFile.js";
 import { resolveArbiter } from "./resolveArbiter.js";
+import { refuseUnmigratedDocuments } from "./unmigratedDocuments.js";
 
 /** A spec's or plan's approval as status reports it. */
 export type ApprovalInfo =
@@ -406,18 +408,50 @@ function readLegalTransition(
   });
 }
 
+/** Approve or reopen: also refused while any live sidecar is unmigrated. */
+export function transitionArtifact(
+  repoRelPath: string,
+  target: ArbitratedTarget,
+  opts: ArbitratedTransitionOptions,
+): Effect.Effect<
+  ArtifactTransitionResult,
+  TransitionArtifactError | DocumentMigrationRequiredError,
+  FileSystem | Git
+>;
+/** Stale, complete or abandon: carries an older sidecar as it is. */
+export function transitionArtifact(
+  repoRelPath: string,
+  target: Exclude<ArtifactStatus, ArbitratedTarget>,
+  opts: TransitionArtifactOptions,
+): Effect.Effect<ArtifactTransitionResult, TransitionArtifactError, FileSystem | Git>;
+/** Any target: refused while unmigrated when it is approve or reopen. */
+export function transitionArtifact(
+  repoRelPath: string,
+  ...request: TransitionRequest
+): Effect.Effect<
+  ArtifactTransitionResult,
+  TransitionArtifactError | DocumentMigrationRequiredError,
+  FileSystem | Git
+>;
 export function transitionArtifact(
   repoRelPath: string,
   ...[target, opts]: TransitionRequest
-): Effect.Effect<ArtifactTransitionResult, TransitionArtifactError, FileSystem | Git> {
+): Effect.Effect<
+  ArtifactTransitionResult,
+  TransitionArtifactError | DocumentMigrationRequiredError,
+  FileSystem | Git
+> {
   // Non-null exactly on an approval: the approver its record names.
   const approver = target === "Approved" ? opts.arbiter : null;
   // Non-null exactly on a reopen: the arbiter its commit trailer names.
   const reopener = target === "Draft" ? opts.arbiter : null;
   return Effect.gen(function* () {
     // Before anything is read or written, so a refused transition (and the
-    // run completion built on it) leaves the tree untouched.
+    // run completion built on it) leaves the tree untouched. Approve and
+    // reopen also wait for every live sidecar to be migrated; complete,
+    // abandon and stale carry an older sidecar as it is.
     yield* refuseOldApprovalLedgers();
+    if (isArbitratedTarget(target)) yield* refuseUnmigratedDocuments(REFUSED_GESTURE[target]);
     const fs = yield* FileSystem;
     const git = yield* Git;
     const { md, kind, status } = yield* readLegalTransition(repoRelPath, target);
@@ -682,7 +716,7 @@ export function transitionArtifactBy(
   opts: TransitionArtifactByOptions,
 ): Effect.Effect<
   ArtifactTransitionResult,
-  TransitionArtifactError | ArtifactArbiterRefusedError,
+  TransitionArtifactError | DocumentMigrationRequiredError | ArtifactArbiterRefusedError,
   FileSystem | Git | Terminal
 > {
   return Effect.gen(function* () {
@@ -691,6 +725,9 @@ export function transitionArtifactBy(
       return yield* transitionArtifact(repoRelPath, target, transitionOpts);
     }
     yield* readLegalTransition(repoRelPath, target);
+    // Before the arbiter is resolved, so an unmigrated repository refuses
+    // whatever `--by` says; transitionArtifact checks again.
+    yield* refuseUnmigratedDocuments(REFUSED_GESTURE[target]);
     const arbiter = yield* resolveArbiter(by, opts.repoRoot).pipe(
       Effect.catchTag("ArtifactArbiterRefusedError", (refused) =>
         Effect.fail(
