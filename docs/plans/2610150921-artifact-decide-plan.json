@@ -1,0 +1,353 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.20.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610140742-artifact-decide.md",
+  "completesSpec": false,
+  "run": {
+    "shortName": "question-model-and-document-migration",
+    "title": "Question model and document migration",
+    "requiredCommands": []
+  },
+  "preamble": {
+    "summary": "Plan B of three for spec artifact-decide. It implements the question model, the renderer and `phax artifact migrate-documents`: §5.27 for rendering and status, §5.29 and §5.31–§5.32 for `migrate-documents`, §5.46–§5.56, §5.59 and §5.60. Plan A (approver attribution and reopen) shipped. Plan C (`decide`, the doctrine skills and the approval lock) is authored after this one merges.\n\nPhase 1 changes the two document formats. `spec-document` gains `arbitratedQuestions`. `plan-document` gains `preamble.openQuestions` and `preamble.arbitratedQuestions`. An arbitrated question carries an explicit `verdict` union (`decided` | `lifted`) and a `history`. Both the decoder and the schemas package check every verdict against its question's options. The shapes before this change (spec-document 0.17.0, plan-document 0.20.0) are frozen. phax and the schemas package lift a spec document stamped 0.17.0, or written before `$schema`, by the rationale marker, and a plan document stamped 0.20.0 with both question arrays empty. The authoring answer gains the same arrays and refuses arbitrated questions.\n\nPhase 2 renders questions by id: §9, §9b, the Decision block and the decision log for specs, and the plan preamble's question sections. It freezes today's spec §9 rendering for migration's own-shape check. It ships the read-only parser of the hand-authored §9 format. It makes agreement compare at the current shape only. It gives `phax artifact status` its `Questions:` line and its unmigrated-sidecar line.\n\nPhase 3 adds `phax artifact migrate-documents`. While any live sidecar is unmigrated, approve and reopen refuse. The phase guard classifies `migrate-documents` as refused, and the phase regenerates the usage spec and CLI reference. Phase 4 updates the README, three skills and NEXT_STEPS.\n\nOut of scope (plan C): `decide` and everything about its session, prompt, doctrine, principle ids, decision record and decision attribution (§5.25); `--question`; the approval lock (§5.38–§5.39) and status's `Approved (once no question is open)` wording; writing a hand-authored §9 in place; `skills install` of the doctrine skills; `docs/arbitration.md`; and inviting headless plan sessions to leave open questions.\n\nThe run does not migrate this repository's own live sidecars, because the phase guard refuses the command in a phase worktree. The operator runs `phax artifact migrate-documents` once in the main checkout after the merge. The run's own completion, the archival of this plan, is not blocked: complete and abandon carry an older sidecar as they do today. Every example and fixture is made up.",
+    "requiredCommandsNote": "This plan adds no new tool. The phases use the repository's pnpm scripts and three commands `phax.json` already allows: `pnpm exec tsx scripts/schemas-check.ts` (with and without `--write`), `pnpm gen:usage-spec` and `pnpm docs:cli`. No `phax.json` security change is needed. Phase 4 edits `.claude/skills/phax-cli/SKILL.md`, `.claude/skills/phax-spec/SKILL.md` and `.claude/skills/phax-planning/SKILL.md`, so run the plan with `phax run --allow-skill-edits`.",
+    "technicalArbitrations": [
+      "This plan ships the hand-authored §9 parser (read side only), and `phax artifact status` uses it. Plan C reuses it for the approval lock and for decide's in-place write. Loss accepted: B grows by a parser, and the hand-authored §9 format becomes normative one plan before anything enforces it. Decided with the author on 2026-10-14.",
+      "The plan authoring answer gains `preamble.openQuestions` and `preamble.arbitratedQuestions`, and the prompt asks for both as empty arrays. The decoder enforces only §5.60: arbitrated questions must be empty. Loss accepted: until plan C, a headless plan session cannot return an unsettled choice as a structured question, and settles it in prose as today. Decided with the author on 2026-10-14.",
+      "Nothing in this plan names `phax artifact decide`, which does not exist until plan C. The status `Questions:` line prints the counts and open ids with no decide pointer. `migrate-documents` names an Approved artifact left with open questions by those ids and by `phax artifact reopen <path>`. Loss accepted: until C, nothing tells the operator which command answers an open question. Decided with the author on 2026-10-14.",
+      "Planner's choice: today's spec rendering is frozen as a full, self-contained copy in `src/domain/authoring/renderSpecV0_17_0.ts`, pinned by a golden test. `migrate-documents` uses it only for its own-shape check of spec sidecars stamped 0.17.0 or written before `$schema`. A plan sidecar stamped 0.20.0 is checked against the current plan renderer, because plan question sections render only when non-empty; a byte-identity test pins that equality. Loss accepted: about 130 lines of rendering are duplicated for as long as phax reads spec-document 0.17.0.",
+      "Planner's choice: the format change lands in phase 1, with every writer of the two documents, and the renderers change in phase 2. Loss accepted: between those two commits, a lifted arbitrated question is not rendered, so an older sidecar with marked questions reads diverged. No release falls between them, and every commit stays green.",
+      "Planner's choice: a verdict's `abandoned` is checked as a set, holding each unchosen option id exactly once in any order. The lift writes the ids in option order. Loss accepted: two documents recording the same verdict may differ in the order of `abandoned`."
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-question-model-formats",
+      "plannedFilesToCreate": [
+        "src/schemas/questions.ts",
+        "src/schemas/history/spec-document/0.17.0.ts",
+        "src/schemas/history/plan-document/0.20.0.ts",
+        "packages/schemas/snapshots/spec-document/next.schema.json",
+        "packages/schemas/snapshots/plan-document/next.schema.json",
+        "tests/unit/schemas/questions.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/specDocument.ts",
+        "src/schemas/planDocument.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/release.ts",
+        "packages/schemas/src/formats/repository.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "src/domain/authoring/prompt.ts",
+        "tests/unit/specDocument.test.ts",
+        "tests/unit/planDocument.test.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/unit/authoringPrompt.test.ts",
+        "tests/integration/authorArtifact.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/repositoryFormats.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/authorArtifact.ts",
+        "scripts/rerender-spec.ts",
+        "tests/integration/authorArtifactRetry.test.ts",
+        "tests/integration/artifactNewHeadlessCommand.test.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/integration/approvalRecordMerge.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/renderSpec.test.ts",
+        "tests/unit/renderPlan.test.ts",
+        "tests/unit/artifact/sidecar.test.ts",
+        "tests/unit/artifact/document.test.ts",
+        "tests/unit/rerenderSpec.test.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/exampleStamps.test.ts",
+        "tests/unit/site/schemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas): give spec and plan documents open and arbitrated questions",
+        "body": "The spec-document format gains a required arbitratedQuestions, and the plan-document preamble gains required openQuestions and arbitratedQuestions. An arbitrated question keeps every field it had, plus a verdict and its history. The verdict is an explicit union: decided (by the operator, with why, advocate, principles, reversibility and revised; a plan's also names its phase) or lifted (unattributed, with only chosen, abandoned, why and the date). The decoders check that ids are unique across both arrays, that chosen names an option, and that abandoned is exactly the unchosen options.\n\nThe shapes before this change, spec-document 0.17.0 and plan-document 0.20.0, are frozen and recorded as releases. phax and the schemas package lift an older spec document by the rationale marker: a question whose rationale opens with 'Decided by the author on <date>' becomes arbitrated with a lifted, unattributed verdict, and the question text is never read. A 0.20.0 plan document lifts with empty question arrays. Plan documents stamped 0.17.0–0.19.x stay refused. An authoring answer carrying an arbitrated question is an invalid document, and the authoring prompt asks for empty arrays.\n\nRefs: spec artifact-decide §5.46–§5.48, §5.59, §5.60 (plan B)."
+      },
+      "title": "Open and arbitrated questions in spec and plan documents",
+      "objective": "Spec and plan documents can carry their questions in two states, open or arbitrated, and every arbitrated question carries a verdict that is checked against its options. A document written before this change is lifted with nothing invented: a spec question whose rationale opens with the author's marker is arbitrated with a lifted, unattributed verdict, and a 0.20.0 plan gains empty question arrays. An authoring session can still return open questions only.",
+      "detailedInstructions": [
+        "Before you edit, read spec `docs/specs/2610140742-artifact-decide.md`: §5.46–§5.48, §5.59 and §5.60; the §6 surfaces 'revised document', 'docs/specs/<stamp>-<slug>.json open and arbitrated questions', 'docs/plans/<stamp>-<slug>-plan.json open and arbitrated questions' and the persisted-formats table (spec-document and plan-document rows); the §10 constraints; and §9 Q12 (the marker rule). For the mechanics of a persisted shape change, follow commit `e2b55922` and phase-01 of `docs/plans/archive/2610140925-artifact-decide-plan.md`, which applied the same steps to the approval record formats.",
+        "Shared shapes in a new `src/schemas/questions.ts`. Move `QuestionOptionSchema` and `OpenQuestionSchema` there from `src/schemas/specDocument.ts`. Add these explicit per-variant schemas:\n- A lifted verdict: `{ kind: \"lifted\", chosen, abandoned: string[], why, at, by: { kind: \"unattributed\" } }`. `at` is a `YYYY-MM-DD` date.\n- A spec decided verdict: `{ kind: \"decided\", chosen, abandoned, why, advocate, principles: string[], reversibility: \"cheap\" | \"costly\" | \"irreversible\", by: { kind: \"operator\", name }, at, revised: string[] }`. `at` is an ISO-8601 UTC timestamp.\n- A plan decided verdict: the spec decided fields plus `phase`, matching `^phase-\\d{2}$`.\n- The spec verdict union (spec decided | lifted) and the plan verdict union (plan decided | lifted).\n- The spec and plan arbitrated question: every open-question field, plus `verdict` (the kind's union) and `history` (an array of the same union).\nEvery key is required, and every decoder rejects unknown keys (`onExcessProperty: \"error\"`). No field is optional.",
+        "Shared document checks in `src/schemas/questions.ts`: one pure function that returns the first `{ path, message }` violation, in a fixed order, for a pair of question arrays.\n1. Question ids are unique across the open and arbitrated arrays; the path names the later duplicate.\n2. Option ids are unique within each question.\n3. Each question's `recommendation` names one of its options, in both arrays.\n4. For the current verdict and every `history` entry, `chosen` is a listed option id, and `abandoned` holds exactly the other option ids, each once, in any order.\n5. On a plan only, a decided verdict's `phase` names a phase id the document has.\nPaths are document-relative, e.g. `arbitratedQuestions[1].verdict.abandoned` for a spec and `preamble.arbitratedQuestions[0].verdict.phase` for a plan, so they render through the existing `formatFirstViolation`.",
+        "The marker lift in `src/schemas/questions.ts`: `liftMarkedQuestions(openQuestions)` returns `{ openQuestions, arbitratedQuestions }`.\n- A question moves, in order, when its `rationale` matches `^Decided by the author on (\\d{4}-\\d{2}-\\d{2})` exactly. The match is case-sensitive, with no trimming or other leniency.\n- The moved question gets `verdict: { kind: \"lifted\", chosen: recommendation, abandoned: the other option ids in option order, why: rationale, at: the captured date, by: { kind: \"unattributed\" } }` and `history: []`.\n- Every other question stays open, in order.\n- The function never reads the `question` text. It is pure; phax's reader and the schemas package both import it.",
+        "`src/schemas/specDocument.ts`:\n- Add `arbitratedQuestions: Schema.Array(<spec arbitrated question>)` right after `openQuestions` in `specDocumentFields`.\n- Run the shared question checks where `firstTraceabilityViolation` checks questions today. The requirement and criterion checks keep their order.\n- Update `TRACEABILITY_DESCRIPTION`.\n- The authoring answer (`SpecDocumentSchema`, `version: 1`) refuses a non-empty `arbitratedQuestions`, at path `arbitratedQuestions[0]`, with a message saying that an authoring session returns open questions only (§5.60). Its exported JSON Schema must say the array is empty, e.g. `maxItems: 0` or a description. `SpecDocumentFileSchema` accepts both arrays.",
+        "`src/schemas/planDocument.ts`:\n- `preamble` gains `openQuestions: Schema.Array(OpenQuestion)` and `arbitratedQuestions: Schema.Array(<plan arbitrated question>)`, after `technicalArbitrations`.\n- Apply the shared checks, including the phase check, to `PlanDocumentSchema` and `PlanDocumentFileSchema`, after the lineage filter.\n- The authoring answer refuses a non-empty `preamble.arbitratedQuestions` (path `preamble.arbitratedQuestions[0]`, same message as the spec's), and its exported JSON Schema says that array is empty. A non-empty `preamble.openQuestions` is accepted by the decoder.\n- `projectExtractedPlan` is unchanged: questions never reach the projection.",
+        "Frozen shapes:\n- Write `src/schemas/history/spec-document/0.17.0.ts` and `src/schemas/history/plan-document/0.20.0.ts`. Each is a self-contained copy of today's sidecar file shape, with its own inlined `$schema` field, the traceability filter (spec) or the lineage filter (plan), and the same JSON Schema annotations and wording.\n- Each must render to `packages/schemas/snapshots/spec-document/0.17.0.schema.json` or `packages/schemas/snapshots/plan-document/0.20.0.schema.json` exactly.\n- Each exports its schema, a decoder (`onExcessProperty: \"error\"`) and its type, named `…V0_17_0` / `…V0_20_0`, following `src/schemas/history/plan-document/0.17.0.ts` and `src/schemas/history/spec-approval-record/0.19.0.ts`.\n- A frozen module never imports `src/schemas/questions.ts` or any current schema.",
+        "phax's reader, `src/schemas/persisted.ts`. For spec documents, `readSpecDocumentFile` reads:\n- a stamped sidecar below current (reuse `isStampedBelowCurrent`) with the frozen 0.17.0 decoder, then strips `$schema` and applies `liftMarkedQuestions`;\n- a sidecar written before `$schema` (`version: 1`) with the pre-schema decoder and the same lift;\n- a current sidecar as today.\nFor plan documents, `readPlanDocumentFile` reads:\n- a sidecar stamped 0.20.0 with the frozen 0.20.0 decoder, adding `openQuestions: []` and `arbitratedQuestions: []` to `preamble`;\n- a sidecar written before `$schema` with `sourceSpec: null` the same way, plus `completesSpec: null`;\n- a sidecar written before `$schema` that names a spec, or one stamped 0.17.0–0.19.x, is refused exactly as today, naming the missing `completesSpec`.\nAlso export a sidecar reader that reports the shape (e.g. `readDocumentSidecar(kind, file, input)`). It returns the lifted document, the stamped shape (`current`, `pre-schema` or the release name), and, for an older shape, the value decoded by the frozen decoder, without `$schema` or `version`. Phase 2 uses it for status, and phase 3 for migration's own-shape check. Update the module header that lists which formats phax lifts.",
+        "Schemas package, `packages/schemas/src/formats/repository.ts`:\n- Spec document: list `[\"0.17.0\", frozen]` in `releases`, widen `SpecDocumentShapes`, and have `toLatestSpecDocument` lift both the 0.17.0 and pre-schema shapes with `liftMarkedQuestions`.\n- Plan document: add `[\"0.20.0\", frozen]` to `releases` and widen `PlanDocumentShapes`. `toLatestPlanDocument` adds empty preamble question arrays to every older shape and keeps today's `Unknown` `completesSpec` rule.\n- Re-export the two frozen shapes from `packages/schemas/src/index.ts`, as other frozen shapes are.",
+        "Record the shape change.\n- Run `pnpm exec tsx scripts/schemas-check.ts --write` as soon as the schemas compile. It must write `next.schema.json` for `spec-document` and `plan-document` only, and move only their entries in `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts` and `packages/schemas/history.lock.json`.\n- Never hand-edit those generated files, and never write a release number by hand.\n- Then run `pnpm exec tsx scripts/schemas-check.ts`. It must report nothing.",
+        "Writers at the new shape:\n- The authoring writer in `src/app/authorArtifact.ts` encodes through the current file schema with `withSchemaUrl`. Confirm, in a test, that a freshly authored spec sidecar carries `arbitratedQuestions: []` and a plan sidecar carries both preamble arrays.\n- `scripts/rerender-spec.ts` reads through the lifting reader and must still compile; its layout changes in phase 2.\n- No other writer of either document may write the old shape.",
+        "Authoring prompt, `src/domain/authoring/prompt.ts`:\n- For a spec, state that `arbitratedQuestions` must be `[]`: an authoring session leaves every question open.\n- For a plan, state that `preamble.openQuestions` and `preamble.arbitratedQuestions` must both be `[]`, and that settled arbitrations stay prose in `technicalArbitrations`.\n- Do not mention `decide`.",
+        "Leave the renderers alone in this phase. Every test fixture that builds a `SpecDocument` or `PlanDocument` gains the new arrays (empty unless the test is about questions). Fixtures name current stamps only through `currentSchemaUrl`, `CURRENT_STAMPS` and `CURRENT_SHAPES`; frozen-shape fixtures may name 0.17.0 or 0.20.0 literally. All question text, ids and names are made up."
+      ],
+      "boundaryContracts": "schemas → every reader: `readSpecDocumentFile` and `readPlanDocumentFile` always yield a document at the current in-memory shape. A spec always has `openQuestions` and `arbitratedQuestions`; a plan always has `preamble.openQuestions` and `preamble.arbitratedQuestions`. Older shapes are lifted, never rewritten by a read. The shape-reporting sidecar reader gives phases 2 and 3 the stamped shape and the frozen-shape value they need, without a second decoding path. The authoring answer contract (`decodeSpecDocument`, `decodePlanDocument`) refuses arbitrated questions; the failure surfaces through the existing invalid-document path (retry once, then exit 5). The schemas package and phax share `liftMarkedQuestions` and the question checks, so they agree on every lift. `projectExtractedPlan` and the extracted-plan shape are unchanged.",
+      "testStrategy": "Test first.\n\nUnit, `tests/unit/schemas/questions.test.ts`. The lift rule:\n- Q1 is marked in both question and rationale, and lifts.\n- Q2 is unmarked and stays open.\n- Q3 is marked only by its question suffix and stays open.\n- Q4 is marked only in its rationale, with a recommendation naming the option chosen against an earlier one. It lifts with that option as `chosen` and the marker's date as `at`.\n- A rationale with a lowercase `decided by the author on` stays open.\n- The lifted verdict holds exactly `kind`, `chosen`, `abandoned` (option order), `why`, `at` and `by`.\n\nThe checks, each refused with its path:\n- a duplicate id across arrays;\n- an arbitrated recommendation naming no option;\n- a `chosen` not listed;\n- `abandoned` missing an option, holding the chosen one, or holding a duplicate;\n- a history verdict breaking the same rules;\n- a plan decided verdict naming `phase-09` in a two-phase plan.\n\nAccepted: `abandoned` in reverse option order.\n\nUnit, `tests/unit/specDocument.test.ts` and `tests/unit/planDocument.test.ts`:\n- A lifted verdict with an extra `advocate` key is refused.\n- A decided verdict with `by: { kind: \"unattributed\" }` is refused.\n- A missing `arbitratedQuestions` is refused.\n- An authoring answer with an arbitrated question is refused at `arbitratedQuestions[0]` (spec) or `preamble.arbitratedQuestions[0]` (plan).\n- A plan authoring answer with an open question is accepted.\n- `projectExtractedPlan` is unchanged.\n\nUnit, `tests/unit/persisted.test.ts`:\n- A spec sidecar stamped 0.17.0, built as a fixture of the frozen shape, lifts by the marker rule. So does a sidecar written before `$schema`.\n- A plan sidecar stamped 0.20.0 lifts with empty arrays.\n- A plan written before `$schema` with `sourceSpec: null` lifts.\n- A plan stamped 0.19.0, and one written before `$schema` that names a spec, are refused naming `completesSpec`.\n- The shape-reporting reader returns the stamped shape and the frozen value.\n\nSchemas package (`tests/unit/schemasPackage/documents.ts`, `repositoryFormats.test.ts`, `tests/type/schemasPackage.ts`): the new release keys parse, and `toLatest…` applies the same lifts.\n\nIntegration, `tests/integration/authorArtifact.test.ts`:\n- An authoring session whose document carries an arbitrated question, on both attempts, exits 5, with nothing written and HEAD unchanged.\n- A fresh headless spec's sidecar carries `arbitratedQuestions: []` at the current stamp; a plan's sidecar carries both preamble arrays.\n\n`tests/unit/authoringPrompt.test.ts` asserts the empty-array instructions per kind. The `schemas-check` gate is clean after `--write`.",
+      "implementationOrder": [
+        "`src/schemas/questions.ts` and its unit tests (shapes, checks, lift).",
+        "Frozen modules for spec-document 0.17.0 and plan-document 0.20.0.",
+        "The new fields in `specDocument.ts` and `planDocument.ts`, and the authoring-answer refusals.",
+        "`pnpm exec tsx scripts/schemas-check.ts --write`, then the clean check.",
+        "The lifts and the shape-reporting reader in `persisted.ts`; persisted tests.",
+        "The schemas package releases and lifts; package and type tests.",
+        "The authoring prompt lines; authoring tests; fix the remaining fixtures.",
+        "Run the `standard` gate."
+      ],
+      "excludedScope": [
+        "Rendering questions by id, §9b, the Decision block, the decision log and plan preamble question sections (phase 02).",
+        "The hand-authored §9 parser, the agreement change and every status line (phase 02).",
+        "`migrate-documents`, the approve and reopen refusal while a sidecar is unmigrated, and the phase guard (phase 03).",
+        "Plan C: `decide`, its session, doctrine loading, principle-id checks, decision record and decision attribution (§5.25), `--question`, the approval lock (§5.38–§5.39), and inviting plan sessions to leave open questions.",
+        "Any change to `projectExtractedPlan`, the extracted-plan shape, the authoring record format, or the `version: 1` authoring answer form beyond the new arrays.",
+        "Any released snapshot, `site/retired-schemas/` copy, or existing module under `src/schemas/history/`.",
+        "Rewriting any file under `docs/specs/` or `docs/plans/`."
+      ],
+      "verification": "The project's `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give:\n- the exact exports of `src/schemas/questions.ts`: the shape names, the checks function's signature and violation order, and `liftMarkedQuestions`;\n- the names of the frozen modules' exports;\n- the shape-reporting reader's name, signature and return shape in `persisted.ts`, which phases 02 and 03 build on.\n\nPaste the `schemas-check --write` output, and confirm that only spec-document and plan-document gained a `next` and moved their stamp. Say how phax and the schemas package lift each older shape, and which shapes stay refused. Note that the renderers still print the old §9 layout and ignore `arbitratedQuestions` until phase 02. List the test fixtures updated. Explain any deviation from the planned file lists."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-render-and-report-questions",
+      "plannedFilesToCreate": [
+        "src/domain/authoring/renderQuestions.ts",
+        "src/domain/authoring/renderSpecV0_17_0.ts",
+        "src/domain/artifact/questions.ts",
+        "tests/unit/renderSpecV0_17_0.test.ts",
+        "tests/unit/artifact/questions.test.ts",
+        "tests/integration/artifactQuestionsStatus.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/authoring/renderSpec.ts",
+        "src/domain/authoring/renderPlan.ts",
+        "src/domain/artifact/sidecar.ts",
+        "src/app/artifactStatus.ts",
+        "src/cli/commands/artifact.ts",
+        "scripts/rerender-spec.ts",
+        "tests/unit/renderSpec.test.ts",
+        "tests/unit/__snapshots__/renderSpec.test.ts.snap",
+        "tests/unit/renderPlan.test.ts",
+        "tests/unit/artifact/sidecar.test.ts",
+        "tests/unit/rerenderSpec.test.ts",
+        "tests/unit/parsePlanMarkdown.test.ts",
+        "tests/integration/lintPlan.test.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/unit/cli/artifactStatusRender.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/authoring/markdown.ts",
+        "src/domain/plan/parsePlanMarkdown.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/questions.ts",
+        "tests/unit/specDocument.test.ts",
+        "tests/unit/planDocument.test.ts",
+        "tests/unit/artifact/document.test.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "tests/integration/authorArtifact.test.ts",
+        "tests/integration/artifactNewHeadlessCommand.test.ts",
+        "tests/integration/approvalRecordMerge.test.ts",
+        "tests/integration/approvalAttribution.test.ts",
+        "tests/integration/artifactReopen.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): render and report questions by id",
+        "body": "A spec now renders '## 9. Open questions' and '## 9b. Arbitrated questions'. Each question is headed by its id, each option bullet and Recommendation line opens with an option id, and an arbitrated question carries its Decision block, lifted and unattributed or decided by the operator. A decision log follows when any question is arbitrated. A plan renders the same sections in its preamble only when it has questions, so a plan without questions keeps its body byte for byte, and it still projects to the same extracted plan.\n\nToday's spec rendering is frozen for one use: migrate-documents' check that an older body is untouched. Agreement compares a body with its sidecar's rendering at the current shape only. A sidecar stamped below its current shape now reads as unmigrated, and approve names migrate-documents for it.\n\nA pure parser reads a hand-authored §9 in the §9 format, reporting the first line that departs. phax artifact status prints a Questions line, with open ids, arbitrated count and lifted count, for headless and hand-authored specs and plans. For an unmigrated sidecar, it prints the stamped shape and the migrate command. scripts/rerender-spec.ts follows the new layout and refuses an older sidecar.\n\nRefs: spec artifact-decide §5.27, §5.55, §5.56, §5.59 (plan B)."
+      },
+      "title": "Render and report questions by id",
+      "objective": "A spec renders its open questions, then its arbitrated questions with their Decision blocks, then a decision log, with every question and option named by id. A plan renders the same sections in its preamble only when it has questions, so an untouched plan keeps its body byte for byte. `phax artifact status` tells the operator how many questions are open and arbitrated, for headless and hand-authored artifacts alike, and names an unmigrated sidecar instead of comparing it.",
+      "detailedInstructions": [
+        "Read spec §5.27, §5.55, §5.56 and §5.59; the §6 surfaces 'rendered spec — §9 answered and a decision log', 'hand-authored §9 in the §9 format', the plan sidecar note and 'phax artifact status'; and the §8 criteria 'Questions are named by their ids' and 'Status counts questions by state and arbiter'. Leave out their decide steps, the decide pointer and the `Approved (once no question is open)` wording, which belong to plan C. Use the shape-reporting reader and question exports from phase 01's handoff.",
+        "Freeze today's spec rendering first. Before changing `renderSpec.ts`, write `src/domain/authoring/renderSpecV0_17_0.ts`, exporting `renderSpecBodyV0_17_0(doc)`.\n- `doc` is a spec document in the 0.17.0 in-memory shape, the frozen value without `$schema` or `version`.\n- The module is a self-contained copy of today's `renderSpec.ts` output, including the `## 9. Open questions for implementation planning` heading, positional `Q<n>` headings and label-only bullets.\n- Copy the small markdown helpers it uses rather than importing `markdown.ts`, so a later helper change cannot move it.\n- Its header says that only `phax artifact migrate-documents` uses it, as the own-shape rendering of spec sidecars stamped 0.17.0 or written before `$schema`.\n- Pin it with a golden test whose expected text is today's rendering of a made-up fixture.",
+        "Shared question rendering in `src/domain/authoring/renderQuestions.ts`, used by both renderers:\n- A question renders as `### <id> — <question>`, one bullet per option `<option id> — <label> — abandons: <loss>`, then `Recommendation: <option id> — <rationale>`.\n- Under an arbitrated question comes its Decision block:\n  - Lifted: `Decision: <chosen> — lifted, unattributed, <at>`.\n  - Decided: `Decision: <chosen> — by operator (<name>), <date part of at>`, then one line `Why: <why> Advocate: <advocate> Principles: <ids or none>. Reversibility: <r>. Revised: <list or none>.` A plan's decided verdict adds `Phase: <phase>.`\n  - Then one `Earlier decision: …` line per `history` entry, in the Decision line form.\n- A decision log entry is `- <date> <id> lifted <chosen> — unattributed` or `- <date> <id> decided <chosen> — operator (<name>)`, followed by ` — revised <n> sections` when `revised` is non-empty. The log lists every verdict, current and history, ordered by date (the first 10 characters of `at`), with ties kept in document order.\n- Wording is indicative, but it must stay parseable by the hand-authored parser below.",
+        "`src/domain/authoring/renderSpec.ts`:\n- §9 becomes `## 9. Open questions` (`None.` when empty), then `## 9b. Arbitrated questions` (`None.` when empty), so a spec always shows both sections.\n- `## 12. Decision log` follows `## 11. Docs page`, only when any question is arbitrated.\n- Nothing else in the body changes.",
+        "`src/domain/authoring/renderPlan.ts`: after `## Technical arbitrations` and before the first phase, render `## Open questions`, `## Arbitrated questions` and `## Decision log`, each only when non-empty. A plan with both arrays empty must render byte-identical to today's output. Pin that with a test on an existing fixture.",
+        "Plan parse and lint: check that a rendered plan with all three preamble sections parses on the deterministic path (`src/domain/plan/parsePlanMarkdown.ts`) to the same extracted plan as `projectExtractedPlan`, and that `phax plans lint` reports no structure error. The `###` question headings in the preamble must not be read as phase sections or break `## Required commands` extraction. Fix the parser only if a test shows it is needed.",
+        "Hand-authored parser, pure domain, in a new `src/domain/artifact/questions.ts`. `parseHandAuthoredQuestions(kind, md)` returns one of:\n- `{ kind: \"none\" }` when the artifact has neither question section;\n- `{ kind: \"parsed\", open, arbitrated }`;\n- `{ kind: \"departs\", line, text }`, with the 1-based line in the whole file (frontmatter included) of the first line that departs from the format.\nWhere it looks:\n- A spec's open section is an h2 `## 9. Open questions`, or the older heading `## 9. Open questions for implementation planning`. A hand-written spec with that heading counts as a question section, so content that does not follow the format departs.\n- A spec's arbitrated section is `## 9b. Arbitrated questions`.\n- A plan's sections are `## Open questions` and `## Arbitrated questions`, before the first `## phase-` heading.\n- A section ends at the next h2. The decision log is not read.\nThe format:\n- `None.` alone is an empty section.\n- A question is `### <id> — <question>`, then option bullets `- <option id> — <label> — abandons: <loss>`, then a `Recommendation: <option id> — <rationale>` paragraph. Ids are runs of non-whitespace characters.\n- In the arbitrated section, a question is decided when its last block is a `Decision:` block; the following `Why:` and `Earlier decision:` lines belong to it. It reads as lifted when the text after the chosen id opens with `lifted`.\n- A `Decision:` block in the open section, or an arbitrated question without one, departs.\n- A bold `**Q2 — …**` heading departs at its own line.\nReturn per question its id, its option ids and, for an arbitrated one, its chosen id and whether it is lifted. Plan C extends this module, so keep its types explicit.",
+        "Summary in `src/domain/artifact/questions.ts`: a `QuestionSummary` type `{ open: string[] (ids, in order), arbitrated: number, lifted: number }`, plus builders from a document's two arrays and from a parsed hand-authored result.",
+        "Agreement, `src/domain/artifact/sidecar.ts`:\n- `SidecarAgreement` gains `{ kind: \"unmigrated\", format, shape }` for a sidecar stamped below its format's current shape that phax lifts: a spec at 0.17.0 or written before `$schema`, a plan at 0.20.0, or a plan written before `$schema` with `sourceSpec: null`.\n- Agreement compares a body with the rendering at the current shape only. No older layout is kept for it.\n- A refused older shape (a plan at 0.17.0–0.19.x, or written before `$schema` and naming a spec) stays `invalid`, exactly as today.\n- In `src/app/artifactStatus.ts`, approve's existing refusal path (`ArtifactSidecarDivergedError`) covers the new variant, with a problem naming the stamped shape and `phax artifact migrate-documents`. Phase 03 adds the repository-wide refusal ahead of it.",
+        "Status, `src/app/artifactStatus.ts`: `ArtifactReport` gains `questions`: `{ kind: \"none\" } | { kind: \"summary\", summary } | { kind: \"departs\", line, text }`. The source of a question's state:\n- A headless artifact whose sidecar decodes (in sync, diverged or unmigrated) reads the lifted sidecar document. A spec always reports a summary. A plan reports one only when either array is non-empty.\n- An invalid sidecar reports `none`.\n- A hand-authored artifact reads the parser.\nA parse failure never fails status.",
+        "CLI status render, `src/cli/commands/artifact.ts` (thin, per the `cli-view-layer` skill). Indicative layout:\n- After `Authored:`, print `Questions:         <n> — open <k> (<ids>) · arbitrated <m> (<l> lifted)`, omitting the parenthesized ids when `k` is 0.\n- A departure prints `Questions:         does not parse — line <n> departs from the §9 format: <text>`.\n- An unmigrated sidecar prints `Authored:          headless — sidecar <path> (<format> <shape> — migrate with \\`phax artifact migrate-documents\\`)` in place of the agreement value.\n- Print no decide pointer.",
+        "`scripts/rerender-spec.ts` follows the renderer. It refuses a sidecar that is not at the current shape, naming `phax artifact migrate-documents`, because re-rendering a lifted body while leaving the older sidecar would diverge them. It renders current sidecars in the new layout. Update its header comment, which mentions `decide`, to describe the script as it is.",
+        "Fixtures are made up, e.g. a spec `plan-prune` with questions `q-keep` (options `keep-10`, `keep-20`) and `q-scope`, an operator `Ada Lovelace`, a grant `roadmap-loop`. Never copy this repository's specs."
+      ],
+      "boundaryContracts": "domain/authoring → every consumer of a rendering: `renderSpecBody` and `renderPlanBody` take the current in-memory document. `renderSpecBodyV0_17_0` takes the 0.17.0 in-memory shape and serves only phase 03. domain/artifact → app: `sidecarAgreement` returns in-sync | diverged | invalid | unmigrated. `parseHandAuthoredQuestions(kind, md)` returns none | parsed | departs, with a 1-based line. The question summary builders feed status, and plan C will feed the approval lock and decide's in-place write. app → cli: `ArtifactReport.questions` and the unmigrated agreement carry everything the status render prints; the CLI computes nothing. The plan renderer → the deterministic plan parser: question sections in the preamble never change the projection.",
+      "testStrategy": "Test first for the parser and the frozen rendering.\n\nUnit, `tests/unit/renderSpecV0_17_0.test.ts`: the golden text of today's rendering for a fixture with two questions.\n\nUnit, `tests/unit/artifact/questions.test.ts`:\n- Round trip: rendering a spec and a plan with open, lifted, decided and re-arbitrated questions, then parsing the result, yields the same ids, option ids, chosen ids and lifted flags.\n- `None.` sections parse as empty, and neither section gives `none`.\n- Departures, each with its line: the older heading followed by a bold `**Q2 — …**` heading (departs at the bold line, not the heading); an option bullet without an id (`- Kept per run — abandons: …`); a `Decision:` block in the open section; an arbitrated question without one; plan sections after the first phase heading.\n\nUnit, renderer tests (`tests/unit/renderSpec.test.ts` and its snapshot, `tests/unit/renderPlan.test.ts`):\n- Headings `### q-keep — …`, bullets opening `keep-10 —` and `keep-20 —`, and a `Recommendation:` line naming an option id.\n- Both §9 sections, Decision lines for lifted and decided verdicts, `Earlier decision:` for history, and a decision log ordered by date.\n- A plan with no questions renders byte-identical to before; a plan with questions renders its three preamble sections before the first phase.\n\nUnit, `tests/unit/parsePlanMarkdown.test.ts` and integration `tests/integration/lintPlan.test.ts`: a rendered plan with question sections projects to `projectExtractedPlan` and lints clean.\n\nUnit, `tests/unit/artifact/sidecar.test.ts`: in sync at the current shape; unmigrated for a 0.17.0 spec, a pre-schema spec and a 0.20.0 plan; invalid for a 0.19.0 plan.\n\nIntegration, `tests/integration/artifactQuestionsStatus.test.ts` (temp git repo, fixtures written directly, no decide):\n- An Approved headless spec with Q1 lifted, Q2 decided, Q3 and Q4 open, approved `--by machine:roadmap-loop`, prints `open 2 (Q3, Q4)`, `arbitrated 2 (1 lifted)` and `by machine (roadmap-loop)`. A plan in the same situation prints the same lines.\n- A Draft spec stamped 0.17.0 with the four marker cases prints the stamped shape and the migrate command, `open 2 (Q2, Q3)` and `arbitrated 2 (2 lifted)`.\n- A 0.20.0 plan prints no Questions line and names migrate-documents.\n- A hand-authored spec in the §9 format prints its counts. One with bold headings prints the departing line and exits 0.\n- A spec with ids `q-keep` and `q-scope` names `q-keep` as open.\n\nUnit, `tests/unit/rerenderSpec.test.ts`: refuses an older sidecar naming migrate-documents.",
+      "implementationOrder": [
+        "The frozen `renderSpecV0_17_0.ts` and its golden test, before touching `renderSpec.ts`.",
+        "`renderQuestions.ts`, then the spec and plan renderers and their tests.",
+        "Plan parse and lint checks on a rendered plan with questions.",
+        "The hand-authored parser, the summary and their round-trip tests.",
+        "The unmigrated agreement in `sidecar.ts`.",
+        "Status questions in `artifactStatus.ts`, the CLI render, and `rerender-spec.ts`.",
+        "The status integration tests.",
+        "Run the `standard` gate."
+      ],
+      "excludedScope": [
+        "`migrate-documents`, its own-shape check dispatch, the repository-wide refusal of approve and reopen, the phase guard, and the CLI help and usage regeneration (phase 03).",
+        "Plan C: `decide`, `--question`, the decide pointer on the Questions line, `Approved (once no question is open)`, the approval lock refusing open questions or an unparseable §9 (§5.38–§5.39), and writing a hand-authored §9 in place.",
+        "Any change to the document shapes from phase 01, except a fix that a test shows to be needed.",
+        "Rewriting any file under `docs/specs/` or `docs/plans/`.",
+        "README, skills and NEXT_STEPS (phase 04)."
+      ],
+      "verification": "The project's `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give the exact exports and signatures of:\n- `renderSpecBodyV0_17_0` (`src/domain/authoring/renderSpecV0_17_0.ts`), which phase 03 calls;\n- `src/domain/authoring/renderQuestions.ts`;\n- `parseHandAuthoredQuestions` and the summary builders (`src/domain/artifact/questions.ts`), which plan C reuses;\n- the new `SidecarAgreement` variant and `ArtifactReport.questions`.\n\nPaste a rendered §9/§9b/decision log for a fixture, a rendered plan preamble with questions, and the status output for a headless spec, an unmigrated spec and a hand-authored spec that departs. Confirm that a plan without questions renders byte-identical, and that a rendered plan with questions projects to the same extracted plan. Explain any deviation from the planned file lists."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-migrate-documents",
+      "plannedFilesToCreate": [
+        "src/app/unmigratedDocuments.ts",
+        "src/app/migrateDocuments.ts",
+        "src/domain/artifact/documentMigration.ts",
+        "tests/unit/artifact/documentMigration.test.ts",
+        "tests/integration/migrateDocuments.test.ts",
+        "tests/integration/documentMigrationRefusal.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/artifactStatus.ts",
+        "src/app/authorArtifact.ts",
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/cli/commands/artifact.ts",
+        "src/domain/artifact/render.ts",
+        "src/domain/security/phaseGuard.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "tests/unit/security/phaseGuard.test.ts",
+        "tests/unit/artifact/render.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/planCacheStore.ts",
+        "src/schemas/persisted.ts",
+        "src/domain/artifact/sidecar.ts",
+        "src/domain/artifact/lineage.ts",
+        "src/app/approvalRecordStore.ts",
+        "src/cli/cliCompleters.ts",
+        "tests/integration/phaseGuard.test.ts",
+        "tests/integration/authorArtifact.test.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/integration/artifactReopen.test.ts",
+        "tests/integration/approvalAttribution.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/cliErrors.test.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "tests/unit/readmeExitCodes.test.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): add migrate-documents and wait for it before approve and reopen",
+        "body": "phax artifact migrate-documents lifts every live spec and plan sidecar stamped below its document format's current shape. It writes each at that shape and re-renders its body in the new layout, keeping its frontmatter. Before writing anything, it decides everything: it refuses, naming each artifact and both remedies, on an invalid sidecar, on a body that is not its sidecar's own-shape rendering, or on uncommitted changes to a path it would write. It names every Approved artifact the re-rendering leaves edited since approval, with any open question ids and phax artifact reopen, and every live plan it leaves stale with spec-changed. It re-seeds a rewritten plan's extraction cache, keeps its lineage, and commits exactly the rewritten paths in one commit. With nothing to migrate, it says so and exits 0.\n\nWhile any live sidecar is unmigrated, phax artifact approve and phax artifact reopen refuse with exit 12, naming the sidecar and the command. Complete, abandon and run completion carry an older sidecar as before. The phase guard refuses migrate-documents inside a phase worktree. The authoring writer and the migration share one sidecar serializer and one cache-seeding helper.\n\nRefs: spec artifact-decide §5.29, §5.31, §5.32, §5.49–§5.54 (plan B)."
+      },
+      "title": "Migrate documents, and wait for it before approve and reopen",
+      "objective": "An operator upgrades every live headless spec and plan to the current document shapes with one command, `phax artifact migrate-documents`. It refuses rather than overwrite a hand edit, names every approval and plan the re-rendering unsettles, and commits exactly what it rewrote. Until it has run, approve and reopen refuse, naming it.",
+      "detailedInstructions": [
+        "Read:\n- spec §5.29, §5.31, §5.32 and §5.49–§5.54;\n- the §6 surfaces `phax artifact migrate-documents`, `phax artifact approve` (the unmigrated refusal) and `phax artifact reopen` (the same refusal);\n- the §10 constraints on `migrate-documents`;\n- the §8 criteria 'Plan documents in flight are lifted and restamped, older ones still refused', 'Spec documents in flight are lifted by the rationale marker' (minus the second approve and the decide step), 'Migration refuses rather than overwrite a hand edit', 'Migration names the approvals and plans it unsettles', 'Approve, reopen and decide wait for migration' (minus decide), and the `migrate-documents` half of 'Commit failure leaves the files'.\nFollow `src/app/migrateApprovals.ts` and its CLI wiring as the precedent.",
+        "Scan, in a new `src/app/unmigratedDocuments.ts`: `findUnmigratedSidecars()` lists every live sidecar (a `.json` directly under `docs/specs/` or `docs/plans/` with an `.md` of the same name beside it) whose stamp is below its document format's current shape or that has no `$schema`. This includes refused shapes such as a plan at 0.19.0. It skips `archive/`, `approvals/` and the old ledgers `approvals.json`. Also export `refuseUnmigratedDocuments()`, which fails with a new `DocumentMigrationRequiredError`. That error lists each sidecar with its stamped shape and names `phax artifact migrate-documents`. Plan C reuses it for decide.",
+        "Errors, `src/domain/errors.ts`: add `DocumentMigrationRequiredError` and a `DocumentMigrationRefusedError`. The refusal carries one entry per refused artifact: its path, the problem and the remedy. Map both to exit 12 in `exitCodeForError` in `src/cli/commands/runLayers.ts`. Reuse `ArtifactDirtyWriteSetError` and `ArtifactCommitFailedError` for dirty paths and a failed commit, as `migrate-approvals` does.",
+        "Approve and reopen wait, in `src/app/artifactStatus.ts`:\n- For targets `Approved` and `Draft` only, run `refuseUnmigratedDocuments()` right after `refuseOldApprovalLedgers()`, before anything is read for the transition or written. This covers approve and reopen of specs and plans.\n- Stale, Completed and Abandoned targets are not refused, so run completion, `phax artifact complete`, `abandon` and staleness marking carry an older sidecar as today.\n- Make sure the arbiter resolution of `transitionArtifactBy` cannot write anything before this refusal.",
+        "Pure decisions in a new `src/domain/artifact/documentMigration.ts`. For each unmigrated sidecar, given the md text and the shape-reporting reader's result from phase 01:\n- Refuse an invalid sidecar, including refused shapes. The remedy is `sidecarRemedy`'s, and the problem names the reader's message, e.g. the missing `completesSpec`.\n- Refuse a body that is not the sidecar's own-shape rendering. That rendering is `renderSpecBodyV0_17_0` for a spec stamped 0.17.0 or written before `$schema`, and `renderPlanBody` of the lifted document for a plan stamped 0.20.0 or written before `$schema` with `sourceSpec: null`. Compare with the same normalisation `sidecarAgreement` uses. The problem says a hand edit would be overwritten, and the remedy is `sidecarRemedy`'s: re-author headless, or delete the sidecar to demote the artifact to hand-authored.\n- Otherwise produce the new sidecar text: the lifted document encoded through the current file schema with `$schema` first, serialized exactly as authoring serializes a sidecar.\n- Also produce the new md: the original frontmatter text kept byte for byte, plus the current renderer's body.\nReport types per migrated artifact: path, kind, status, question summary, and whether the body changed.",
+        "Serialization: extract the sidecar serialization from `src/app/authorArtifact.ts` (the `JSON.stringify(encode…File(withSchemaUrl(…)), null, 2) + \"\\n\"` lines) into one exported function. Extract the plan extraction-cache seeding (`writeCacheEntry` with `planCacheKey` and `projectExtractedPlan`) into a reusable helper, e.g. in `src/app/planCacheStore.ts`. Authoring and migration then share both, and authoring's behavior must not change.",
+        "Use case, `src/app/migrateDocuments.ts`, following `migrateApprovals.ts`. Phase A decides everything, writing nothing:\n1. Scan.\n2. Return `nothing to migrate` when the scan is empty.\n3. Decide each sidecar, collect every refusal, and fail with `DocumentMigrationRefusedError` naming all of them.\n4. Compute the write-set: each rewritten sidecar, plus each md whose body changes. A 0.20.0 plan's md is not in it.\n5. Refuse dirty paths in the write-set with `ArtifactDirtyWriteSetError`.\n6. Compute the report:\n   - Each Approved artifact that now reads edited since approval: its approval record's fingerprint differs from the new md's `artifactFingerprint`. Give its open ids when it has any.\n   - Each live plan that the rewritten specs leave stale with `spec-changed` evidence: its recorded source-spec fingerprint differs from its spec's new fingerprint. Reuse `src/domain/artifact/lineage.ts`.\nPhase B writes:\n- the files;\n- for each rewritten plan, re-seeds the extraction cache with its projection (§5.31);\n- commits exactly the write-set in one commit with subject `chore(artifacts): migrate documents to their current shapes`. A failed commit fails with `ArtifactCommitFailedError` (exit 12), leaving the files written.\nNever touch frontmatter, `approved` stamps, approval record files, archived artifacts or hand-authored artifacts. Never call `refuseUnmigratedDocuments`. Do call `refuseOldApprovalLedgers`, since the command reads approval records.",
+        "Report render, `src/domain/artifact/render.ts`, next to `renderMigrationReport`. Indicative layout, per §6:\n- One group per format: `<format> <old shape> → <current shape>`, with the current shape read from `CURRENT_SHAPES`, never a literal.\n- Per artifact: its path, status and `open <k> (<ids>) · arbitrated <m> (<l> lifted)`, or `body unchanged` for a plan.\n- For an Approved artifact now edited since approval without open questions: `now edited since approval — re-approve with \\`phax artifact approve <path>\\``.\n- With open questions: `now edited since approval, with open questions <ids> — reopen it with \\`phax artifact reopen <path>\\` before re-approving`. Never name `decide`.\n- A `stale (spec-changed)` group naming each plan and its re-rendered spec.\n- `committed <sha> <subject>`.\nRender the refusal as §6 shows: each artifact, its problem and both remedies.",
+        "CLI, `src/cli/commands/artifact.ts` (thin): register `migrate-documents` beside `migrate-approvals`. It calls the use case once and renders the report or `nothing to migrate: every live spec and plan sidecar is at its current shape`. Phase guard, `src/domain/security/phaseGuard.ts`: classify `artifact migrate-documents` as `refused`.",
+        "Help and generated docs, `src/cli/cliDocs.ts`:\n- Add `artifact migrate-documents`: scope, refusals, report, one commit, and that approve and reopen refuse until it has run. Example: `phax artifact migrate-documents`.\n- In `artifact approve` and `artifact reopen`, add the refusal while a live sidecar is unmigrated.\n- In `artifact status`, describe the `Questions:` line and the unmigrated-sidecar line from phase 02, without naming decide.\nThen run `pnpm gen:usage-spec` and `pnpm docs:cli`, which regenerate `phax.usage.kdl`, `docs/cli/reference.md` and the README's generated CLI section. Do not hand-edit other README sections in this phase.",
+        "Tests that start the phax CLI as a process use their own temporary repositories. This repository's live sidecars are never migrated, and no file under `docs/specs/` or `docs/plans/` is rewritten by this phase. Fixtures are made up: specs `log-rotation`, `plan-prune` and `cache-keys`; a plan bound to `plan-prune`; operator `Ada Lovelace`; grant `roadmap-loop`. Build older sidecars with the frozen modules' shapes and literal frozen stamps, and their bodies with the frozen rendering."
+      ],
+      "boundaryContracts": "cli → app: `artifact migrate-documents` calls `migrateDocuments({ repoRoot })` once and renders its result through `src/domain/artifact/render.ts`. The CLI holds no logic. app → domain: `documentMigration.ts` decides, per sidecar, from text and decoded values only (refusal, or new sidecar and md texts plus a report entry), and `lineage.ts` decides staleness. app → ports: FileSystem lists, reads and writes; Git checks dirty paths and commits exactly the write-set. The plan-cache helper writes the seeds. app → app: `refuseUnmigratedDocuments()` is a shared precondition, used by approve and reopen here and by decide in plan C. It fails with `DocumentMigrationRequiredError` (exit 12) before anything is read for the transition or written. The authoring writer and migration share one sidecar serializer and one cache-seeding helper.",
+      "testStrategy": "Test first for the pure decisions.\n\nUnit, `tests/unit/artifact/documentMigration.test.ts`:\n- An in-sync 0.17.0 spec yields a current-shape sidecar with lifted questions and a re-rendered body, with its frontmatter kept byte for byte.\n- A hand-edited body is refused with both remedies.\n- A 0.19.0 plan is refused as an invalid sidecar.\n- A 0.20.0 plan yields a new sidecar and an unchanged body.\n\nUnit, `tests/unit/artifact/render.test.ts`: the report groups, both edited-since-approval lines (neither naming decide), the stale group, `nothing to migrate`, and the refusal rendering.\n\nUnit, `tests/unit/security/phaseGuard.test.ts`: `artifact migrate-documents` is refused.\n\nIntegration, `tests/integration/migrateDocuments.test.ts` (temp git repos, real FileSystem and Git layers), one test per criterion:\n- (a) A Draft 0.20.0 plan in sync. Status names migrate-documents and prints no Questions line. Migration rewrites the sidecar at the current `plan-document` shape with both arrays empty, the body and lineage are byte-identical, and the plan's extraction cache holds its projection, so a run finds it without extraction. In another repo, a 0.19.0 plan beside a spec: status behaves as today, naming `completesSpec`, and migration exits 12 naming the invalid sidecar and writes nothing.\n- (b) A Draft 0.17.0 spec with the four marker cases. Status names the shape and migrate. Approve exits 12 naming the sidecar and migrate-documents. Migration commits the sidecar and the re-rendered body. Q1 and Q4 are lifted with exactly the lifted keys; Q2 and Q3 stay open. Status then reads in sync with `open 2 (Q2, Q3)` and `arbitrated 2 (2 lifted)`, and the body prints Q1's and Q4's Decision lines as lifted and unattributed.\n- (c) Two 0.17.0 specs, one hand-edited. The first run exits 12 naming the edited spec and both remedies, with every file and HEAD unchanged. Commit the edit elsewhere and dirty the in-sync spec's sidecar: the second run exits 12 naming the uncommitted path and writes nothing. Revert the edit and discard the change: the third run migrates both specs in one commit. The fourth exits 0 with `nothing to migrate` and no commit.\n- (d) An Approved 0.17.0 spec with a 0.19.0 approval record and no open question once lifted; an Approved 0.20.0 plan bound to it; a second Approved 0.17.0 spec with an unmarked Q3. The output names both specs as edited since approval, names Q3 and `phax artifact reopen`, and names the plan stale with `spec-changed`. The commit holds exactly the two specs, their sidecars and the plan's sidecar. The plan's body and lineage, and both approval record files, are byte-identical. `phax plans status` reports the plan stale with `spec-changed`. Status on the first spec reads `Edited since: yes`, with its approval unattributed.\n- (e) A failing commit, e.g. through a failing pre-commit hook in the temp repo: exit 12, with the files written but uncommitted.\n\nIntegration, `tests/integration/documentMigrationRefusal.test.ts`: one live 0.17.0 spec sidecar, plus a Draft spec and an Approved spec at the current shape. Approve on the Draft spec and `reopen --by operator` on the Approved spec each exit 12, naming the 0.17.0 sidecar and `phax artifact migrate-documents`, with nothing written and HEAD unchanged. Completing and abandoning are not refused.",
+      "implementationOrder": [
+        "`documentMigration.ts` and its unit tests.",
+        "Extract the sidecar serializer and the cache-seeding helper from `authorArtifact.ts`; authoring tests stay green.",
+        "Errors and exit codes; `unmigratedDocuments.ts`; the approve and reopen refusal and its integration test.",
+        "`migrateDocuments.ts`, the report render and its unit tests.",
+        "CLI registration, the phase guard, the cliDocs help; `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "`migrateDocuments` integration tests.",
+        "Run the `standard` gate."
+      ],
+      "excludedScope": [
+        "Plan C: `decide` and its refusal while a sidecar is unmigrated (only `refuseUnmigratedDocuments` is prepared for it), `--question`, the approval lock, and naming decide in any output.",
+        "Migrating archived artifacts, hand-authored artifacts or approval record files; a migration command for approval records.",
+        "Re-approving the artifacts migration leaves edited since approval, or refreshing the plans it leaves stale.",
+        "Blocking complete, abandon, run completion or staleness marking until migration.",
+        "Reading plan documents stamped 0.17.0–0.19.x.",
+        "Running `migrate-documents` on this repository or rewriting any file under `docs/specs/` or `docs/plans/`.",
+        "The README's hand-written sections, skills and NEXT_STEPS (phase 04)."
+      ],
+      "verification": "The project's `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give the signatures of `migrateDocuments`, `findUnmigratedSidecars` and `refuseUnmigratedDocuments` (plan C reuses the last one for decide), the two new errors and their exit codes, and the shared sidecar serializer and cache-seeding helper. Paste a sample `phax artifact migrate-documents` report covering a migrated Draft spec, an Approved spec with and without open questions, an unchanged 0.20.0 plan and a stale plan. Also paste a refusal, and the approve refusal while a sidecar is unmigrated. Confirm that complete and abandon are not refused, that a 0.20.0 plan's body stays byte-identical and its cache is re-seeded, and that approval record files are never touched. List the cliDocs entries updated. State that this repository's own sidecars still need `phax artifact migrate-documents` in the main checkout after the merge. Explain any deviation from the planned file lists."
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-docs-and-skills",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        ".claude/skills/phax-cli/SKILL.md",
+        ".claude/skills/phax-spec/SKILL.md",
+        ".claude/skills/phax-planning/SKILL.md",
+        "NEXT_STEPS.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/readmePersistedFormats.test.ts",
+        "tests/unit/readmeExitCodes.test.ts",
+        "tests/unit/exampleStamps.test.ts"
+      ],
+      "commit": {
+        "subject": "docs(skills): describe the question model and migrate-documents",
+        "body": "The phax-cli, phax-spec and phax-planning skills and the README now describe what plan B shipped. A spec or plan carries open and arbitrated questions, each named by id. A hand-authored spec follows the §9 format: '## 9. Open questions', '## 9b. Arbitrated questions', Decision blocks and a decision log. A plan may carry the same sections in its preamble. Headless authoring returns empty arbitrated questions. phax artifact status prints a Questions line, and names an unmigrated sidecar.\n\nThe README gains an upgrade note: run phax artifact migrate-documents once after upgrading, because approve and reopen refuse until then. It names the approvals and plans the re-rendering unsettles, and questions decided by the author's marker become lifted and unattributed. NEXT_STEPS records that plan B of artifact-decide shipped.\n\nRefs: spec artifact-decide (plan B)."
+      },
+      "title": "README, skills and NEXT_STEPS for the question model",
+      "objective": "The guidance an operator or agent reads matches what phases 01–03 shipped: questions are open or arbitrated and named by id, a hand-authored §9 follows the §9 format, `phax artifact status` counts questions, and `phax artifact migrate-documents` must run once after upgrading before approve and reopen work again.",
+      "detailedInstructions": [
+        "Read the `artifact migrate-documents`, `artifact status`, `artifact approve` and `artifact reopen` help in `src/cli/cliDocs.ts`, the regenerated `docs/cli/reference.md`, and the renderers and parser as phases 01–03 left them. Describe exactly that behavior. Invent no flag, and never name `phax artifact decide` (plan C).",
+        "`README.md`, hand-written sections only (the generated CLI section was regenerated in phase 03):\n- Under `## Troubleshooting`, add an upgrade note in the style of '**Approvals name their approver.**': after upgrading, run `phax artifact migrate-documents` once in the main checkout; approve and reopen refuse until then; it names the Approved artifacts it leaves edited since approval and the plans it leaves stale; a question whose rationale opens with `Decided by the author on <date>` becomes arbitrated, lifted and unattributed.\n- In `## Persisted formats`, after the table, add a short paragraph: spec and plan documents carry open and arbitrated questions, and older sidecars are lifted on read and restamped by `migrate-documents`.\n- Wherever the README lists the artifact commands or `migrate-approvals`, add `migrate-documents` beside it.",
+        "`.claude/skills/phax-cli/SKILL.md`:\n- Next to `migrate-approvals`, add `phax artifact migrate-documents`: what it migrates, its refusals, what it names, and that approve and reopen refuse until it has run.\n- In the `phax artifact status` entry, add the `Questions:` line and the unmigrated-sidecar line.",
+        "`.claude/skills/phax-spec/SKILL.md`: rewrite the §9 guidance for hand-authored specs to the §9 format.\n- The sections are `## 9. Open questions` and `## 9b. Arbitrated questions`.\n- Each question is `### <id> — <question>`, followed by option bullets `- <option id> — <label> — abandons: <loss>` and `Recommendation: <option id> — <rationale>`.\n- An arbitrated question carries its `Decision:` block; the decision log is `## 12. Decision log`.\nIn its headless-authoring section, add that `arbitratedQuestions` is required and must be `[]`. Keep the skill's voice and density.",
+        "`.claude/skills/phax-planning/SKILL.md`:\n- Describe the plan preamble's optional question sections (`## Open questions`, `## Arbitrated questions`, `## Decision log`, before the first phase heading, in the §9 question format) and say that `phax plans lint` and extraction accept them.\n- In the 'Headless authoring' section's `preamble` key list, add `openQuestions` and `arbitratedQuestions`, both `[]` for now; settled arbitrations stay in `technicalArbitrations`.\n- Do not touch the generated model-catalog table between its `BEGIN generated` and `END generated` markers.",
+        "`NEXT_STEPS.md`, the `artifact-decide` entry: note that plan B shipped the question model (open and arbitrated questions, lifted verdicts), rendering by id, the hand-authored §9 parser, the status `Questions:` line, and `migrate-documents` with the approve and reopen refusal. Say that the operator must run `phax artifact migrate-documents` once in this repository. Say that plan C (`decide`, the doctrine skills, the approval lock, the plan-prompt invitation and `docs/arbitration.md`) follows. Keep the entry unticked.",
+        "Edit only the listed files. If another doc or skill describes §9 or the sidecar shape in a way that is now wrong, name it in the handoff instead of editing it."
+      ],
+      "boundaryContracts": null,
+      "testStrategy": "Documentation only, so no new tests. The `standard` gate verifies formatting, that the generated model-catalog table in phax-planning is untouched, and that the existing doc tests (`tests/unit/readmePersistedFormats.test.ts`, `tests/unit/readmeExitCodes.test.ts`, `tests/unit/exampleStamps.test.ts`) still pass. Adjust one only if a README sentence it pins was legitimately reworded.",
+      "implementationOrder": [
+        "Read the shipped CLI help, reference and renderers.",
+        "README hand-written sections.",
+        "phax-cli skill.",
+        "phax-spec and phax-planning skills.",
+        "NEXT_STEPS entry.",
+        "Run the `standard` gate."
+      ],
+      "excludedScope": [
+        "Any code change.",
+        "Regenerating or hand-editing the README's generated CLI section, `docs/cli/reference.md` or `phax.usage.kdl`.",
+        "The phax-planning generated model-catalog table.",
+        "`docs/arbitration.md`, the doctrine skills and anything about `decide` (plan C).",
+        "Running `migrate-documents` on this repository's own specs and plans."
+      ],
+      "verification": "The project's `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "List each file edited, with a one-line summary of the change. Quote the new README upgrade note and the new §9 format text in phax-spec. Name any other doc or skill found describing §9 or the sidecar shape out of date (reported, not edited). Confirm that the model-catalog table was untouched and that no text names `phax artifact decide`. Explain any deviation from the planned file lists."
+    }
+  ]
+}
