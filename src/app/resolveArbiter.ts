@@ -11,7 +11,7 @@ import { Terminal } from "../ports/terminal.js";
 
 /**
  * Who performs a gesture, from its raw `--by` value (undefined when absent):
- * stdin's terminal state is always read, the git user.name only when the
+ * stdin's terminal state is always read, the committer name only when the
  * operator is named. Writes nothing, so a refusal leaves the tree as it was.
  */
 export function resolveArbiter(
@@ -24,10 +24,10 @@ export function resolveArbiter(
       return yield* Effect.fail(new ArtifactArbiterRefusedError({ message: declared.left }));
     }
     const stdinIsTerminal = yield* (yield* Terminal).stdinIsTerminal;
-    const gitUserName = needsOperatorName(declared.right, stdinIsTerminal)
-      ? yield* (yield* Git).userName(repoRoot)
+    const committerName = needsOperatorName(declared.right, stdinIsTerminal)
+      ? yield* (yield* Git).committerName(repoRoot)
       : null;
-    const resolved = resolveFromFacts({ declared: declared.right, stdinIsTerminal, gitUserName });
+    const resolved = resolveFromFacts({ declared: declared.right, stdinIsTerminal, committerName });
     if (Either.isLeft(resolved)) {
       return yield* Effect.fail(new ArtifactArbiterRefusedError({ message: resolved.left }));
     }

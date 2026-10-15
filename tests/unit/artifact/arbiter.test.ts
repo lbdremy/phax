@@ -44,26 +44,26 @@ describe("resolveArbiter", () => {
   const machine: ArbiterDeclaration = { kind: "machine", grant: "roadmap-loop" };
 
   it.each([true, false])("resolves a declared machine with terminal %s and no user.name", (tty) => {
-    expect(resolveArbiter({ declared: machine, stdinIsTerminal: tty, gitUserName: null })).toEqual(
-      Either.right({ kind: "machine", grant: "roadmap-loop" }),
-    );
+    expect(
+      resolveArbiter({ declared: machine, stdinIsTerminal: tty, committerName: null }),
+    ).toEqual(Either.right({ kind: "machine", grant: "roadmap-loop" }));
   });
 
   it.each([true, false])("resolves a declared operator by user.name, terminal %s", (tty) => {
     expect(
-      resolveArbiter({ declared: operator, stdinIsTerminal: tty, gitUserName: "Ada Lovelace" }),
+      resolveArbiter({ declared: operator, stdinIsTerminal: tty, committerName: "Ada Lovelace" }),
     ).toEqual(Either.right({ kind: "operator", name: "Ada Lovelace" }));
   });
 
   it("defaults to the operator from a terminal", () => {
     expect(
-      resolveArbiter({ declared: null, stdinIsTerminal: true, gitUserName: "Ada Lovelace" }),
+      resolveArbiter({ declared: null, stdinIsTerminal: true, committerName: "Ada Lovelace" }),
     ).toEqual(Either.right({ kind: "operator", name: "Ada Lovelace" }));
   });
 
   it("refuses no declaration without a terminal, naming both forms", () => {
     const message = refusal(
-      resolveArbiter({ declared: null, stdinIsTerminal: false, gitUserName: "Ada Lovelace" }),
+      resolveArbiter({ declared: null, stdinIsTerminal: false, committerName: "Ada Lovelace" }),
     );
     expect(message).toContain("--by operator");
     expect(message).toContain("--by machine:<grant>");
@@ -78,7 +78,7 @@ describe("resolveArbiter", () => {
     "refuses %s without a user.name (%#), naming git config user.name",
     (_label, declared, tty, name) => {
       const message = refusal(
-        resolveArbiter({ declared, stdinIsTerminal: tty, gitUserName: name }),
+        resolveArbiter({ declared, stdinIsTerminal: tty, committerName: name }),
       );
       expect(message).toContain("git config user.name");
     },

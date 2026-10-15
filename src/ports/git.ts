@@ -95,8 +95,11 @@ export interface GitOps {
   fetchRemote(remote: string, repo: string): Effect.Effect<void, GitError>;
   /** The URL configured for `remote` in `repo`, or `null` when no such remote exists. */
   remoteUrl(remote: string, repo: string): Effect.Effect<string | null, GitError>;
-  /** The `user.name` git reads in `repo`, or `null` when it is unset or empty. */
-  userName(repo: string): Effect.Effect<string | null, GitError>;
+  /**
+   * The name git commits under in `repo` (`GIT_COMMITTER_NAME`, else
+   * `user.name`), or `null` when neither is set — never a guessed name.
+   */
+  committerName(repo: string): Effect.Effect<string | null, GitError>;
 
   /** The full ref names under `prefix` (e.g. `refs/heads/`, `refs/remotes/`), sorted. */
   listRefs(repo: string, prefix: string): Effect.Effect<readonly string[], GitError>;

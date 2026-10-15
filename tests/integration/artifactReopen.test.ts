@@ -187,6 +187,9 @@ beforeEach(() => {
   writeFileSync(join(configDir, "gitconfig"), "[user]\n\tuseConfigOnly = true\n");
   vi.stubEnv("GIT_CONFIG_GLOBAL", join(configDir, "gitconfig"));
   vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
+  // The operator is named as git commits: the caller's own identity stays out.
+  vi.stubEnv("GIT_COMMITTER_NAME", undefined);
+  vi.stubEnv("GIT_AUTHOR_NAME", undefined);
   repoDir = mkdtempSync(join(tmpdir(), "phax-reopen-"));
   git(["init", "-q", "-b", "main"]);
   disableGitAutoMaintenance(repoDir);
@@ -254,6 +257,12 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
   it("a Draft spec's reopen exits 12, writing nothing", async () => {
     const before = headSha();
     const result = await transition(SPEC, "Draft", "machine:roadmap-loop");
+    expectRefusedUntouched(result, "Draft → Draft", before);
+  });
+
+  it("a Draft spec's reopen with no terminal and no --by says it is Draft, not --by", async () => {
+    const before = headSha();
+    const result = await transition(SPEC, "Draft", undefined, false);
     expectRefusedUntouched(result, "Draft → Draft", before);
   });
 

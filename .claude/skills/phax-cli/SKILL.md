@@ -146,10 +146,10 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   into the frontmatter and writes the artifact's own record file (`docs/plans/approvals/<plan file name>.json`
   for plans, `docs/specs/approvals/<spec file name>.json` for specs). `--by operator` or
   `--by machine:<grant>` (a kebab-case slug) says who approves; the record file's `approvedBy`
-  names them. From a terminal, `--by` defaults to the operator, named by git `user.name`;
-  with no terminal and no `--by`, approve refuses with exit 12, so **a loop or script must pass
-  `--by machine:<grant>`**. An operator approval without a git `user.name` also refuses with
-  exit 12 (`git config user.name`). A record written before attribution reads as
+  names them. From a terminal, `--by` defaults to the operator, named as git commits
+  (`GIT_COMMITTER_NAME`, else `user.name`); with no terminal and no `--by`, approve refuses
+  with exit 12, so **a loop or script must pass `--by machine:<grant>`**. An operator approval
+  with neither name set also refuses with exit 12 (`git config user.name`). A record written before attribution reads as
   `unattributed` and is never rewritten by a read. Re-approving an already-`Approved` artifact
   is legal — it re-records the approval against the current content, the correct way to log an
   in-place revision (don't hand-edit the stamp). Approving a plan whose `Source-Spec` is an

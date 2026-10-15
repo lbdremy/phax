@@ -326,10 +326,14 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout, exitCode }) => (exitCode === 0 ? stdout.trim() : null)),
     ),
 
-  // `git config` exits 1 when the key is unset: that is no name, not an error.
-  // Any other failure (not a repository, an unreadable config) is.
-  userName: (repo) =>
-    gitRunAllowFail(["config", "--get", "user.name"], repo).pipe(
+  // The name git commits under, in git's own order: GIT_COMMITTER_NAME, then
+  // user.name — never the account name git would guess. `git config` exits 1
+  // when the key is unset: that is no name, not an error. Any other failure
+  // (not a repository, an unreadable config) is.
+  committerName: (repo) => {
+    const fromEnv = process.env["GIT_COMMITTER_NAME"]?.trim();
+    if (fromEnv !== undefined && fromEnv.length > 0) return Effect.succeed(fromEnv);
+    return gitRunAllowFail(["config", "--get", "user.name"], repo).pipe(
       Effect.flatMap(({ stdout, stderr, exitCode }) => {
         if (exitCode === 1) return Effect.succeed(null);
         if (exitCode !== 0) {
@@ -345,7 +349,8 @@ export const NodeGitLayer = Layer.succeed(Git, {
         const name = stdout.trim();
         return Effect.succeed(name.length > 0 ? name : null);
       }),
-    ),
+    );
+  },
 
   listRefs: (repo, prefix) =>
     gitRun(["for-each-ref", "--format=%(refname)", prefix], repo).pipe(
