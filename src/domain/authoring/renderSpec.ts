@@ -1,14 +1,21 @@
 import type { SpecDocument } from "../../schemas/specDocument.js";
 import { bulletList, finishDocument, headingText, inlineCode, sentence } from "./markdown.js";
+import {
+  renderArbitratedQuestion,
+  renderDecisionLog,
+  renderOpenQuestion,
+} from "./renderQuestions.js";
 
 // Renders a spec document to the canonical ten-section spec plus `## 11. Docs
 // page`. Requirements are numbered 5.N by position and acceptance-criterion
 // refs cite that number, so a ref always names a heading that exists whatever
-// the document's id scheme. The body only: the caller prepends the frontmatter.
-// Prose is emitted as given — nothing is wrapped or reflowed.
+// the document's id scheme. Questions are named by id: §9 holds the open ones,
+// §9b the arbitrated ones with their Decision blocks, and `## 12. Decision
+// log` follows when any question is arbitrated. The body only: the caller
+// prepends the frontmatter. Prose is emitted as given — nothing is wrapped or
+// reflowed. The 0.17.0 layout is frozen in renderSpecV0_17_0.ts.
 
 type Surface = SpecDocument["surface"][number];
-type Question = SpecDocument["openQuestions"][number];
 
 const NONE = "None.";
 
@@ -76,21 +83,17 @@ function renderCriteria(doc: SpecDocument): string {
   return ["## 8. Acceptance criteria", ...criteria].join("\n\n");
 }
 
-function renderQuestion(question: Question, index: number): string {
-  const options = bulletList(question.options.map((o) => `${o.label} — abandons: ${o.abandons}`));
-  const recommended =
-    question.options.find((o) => o.id === question.recommendation)?.label ??
-    question.recommendation;
-  return [
-    `### Q${String(index + 1)} — ${headingText(question.question)}`,
-    options,
-    `Recommendation: ${recommended} — ${sentence(question.rationale)}`,
-  ].join("\n\n");
+function renderOpenQuestions(doc: SpecDocument): string {
+  const body = doc.openQuestions.length === 0 ? [NONE] : doc.openQuestions.map(renderOpenQuestion);
+  return ["## 9. Open questions", ...body].join("\n\n");
 }
 
-function renderQuestions(doc: SpecDocument): string {
-  const body = doc.openQuestions.length === 0 ? [NONE] : doc.openQuestions.map(renderQuestion);
-  return ["## 9. Open questions for implementation planning", ...body].join("\n\n");
+function renderArbitratedQuestions(doc: SpecDocument): string {
+  const body =
+    doc.arbitratedQuestions.length === 0
+      ? [NONE]
+      : doc.arbitratedQuestions.map(renderArbitratedQuestion);
+  return ["## 9b. Arbitrated questions", ...body].join("\n\n");
 }
 
 function labelled(label: string, items: readonly string[]): string {
@@ -128,8 +131,12 @@ export function renderSpecBody(doc: SpecDocument): string {
     renderSurface(doc),
     `## 7. Non-goals\n\n${listOrNone(doc.nonGoals)}`,
     renderCriteria(doc),
-    renderQuestions(doc),
+    renderOpenQuestions(doc),
+    renderArbitratedQuestions(doc),
     renderPlanningNote(doc),
     renderDocsPage(doc),
+    ...(doc.arbitratedQuestions.length === 0
+      ? []
+      : [`## 12. Decision log\n\n${renderDecisionLog(doc.arbitratedQuestions)}`]),
   ]);
 }

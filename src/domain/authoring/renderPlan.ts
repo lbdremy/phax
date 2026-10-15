@@ -1,5 +1,10 @@
 import type { PlanDocument, PlanDocumentPhase } from "../../schemas/planDocument.js";
 import { bulletList, finishDocument, headingText, inlineCode, listItem } from "./markdown.js";
+import {
+  renderArbitratedQuestion,
+  renderDecisionLog,
+  renderOpenQuestion,
+} from "./renderQuestions.js";
 
 // Renders a plan document to the phax-planning shape. The deterministic parser
 // (src/domain/plan/parsePlanMarkdown.ts) is the oracle: rendering then parsing
@@ -65,6 +70,27 @@ function renderPhase(phase: PlanDocumentPhase): string {
   return blocks.join("\n\n");
 }
 
+// The preamble's question sections, each only when non-empty, so a plan
+// without questions renders exactly as it did before questions existed. They
+// sit before the first phase heading, where the deterministic parser reads
+// only `## Required commands`.
+function renderPreambleQuestions(preamble: PlanDocument["preamble"]): string[] {
+  const { openQuestions, arbitratedQuestions } = preamble;
+  return [
+    ...(openQuestions.length === 0
+      ? []
+      : [["## Open questions", ...openQuestions.map(renderOpenQuestion)].join("\n\n")]),
+    ...(arbitratedQuestions.length === 0
+      ? []
+      : [
+          ["## Arbitrated questions", ...arbitratedQuestions.map(renderArbitratedQuestion)].join(
+            "\n\n",
+          ),
+          `## Decision log\n\n${renderDecisionLog(arbitratedQuestions)}`,
+        ]),
+  ];
+}
+
 /** Takes the in-memory document: an authored one or a sidecar read back, neither `version` nor `$schema` matters. */
 export function renderPlanBody(doc: PlanDocument): string {
   const { preamble, run } = doc;
@@ -76,6 +102,7 @@ export function renderPlanBody(doc: PlanDocument): string {
     ...(preamble.technicalArbitrations.length === 0
       ? []
       : [`## Technical arbitrations\n\n${bulletList(preamble.technicalArbitrations)}`]),
+    ...renderPreambleQuestions(preamble),
     ...doc.phases.map(renderPhase),
   ];
   return finishDocument(blocks);

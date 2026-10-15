@@ -5,6 +5,9 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { ArtifactValidationError } from "../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { decodePlanDocumentFile, type PlanDocument } from "../../src/schemas/planDocument.js";
 
 const REPO_ROOT = "/repo";
 const PLAN_REL = "docs/plans/2609101260-thing-plan.md";
@@ -197,12 +200,116 @@ feat(test): do thing two
 Does the second thing.
 `;
 
+// A made-up plan document with an open, a lifted and a decided question.
+function planWithQuestions(): PlanDocument {
+  const options = [
+    { id: "p1", label: "phase-01 writes it", abandons: "a smaller first phase" },
+    { id: "p2", label: "phase-02 writes it", abandons: "an early write" },
+  ];
+  const decoded = decodePlanDocumentFile(
+    withSchemaUrl("plan-document", {
+      kind: "plan",
+      sourceSpec: null,
+      completesSpec: null,
+      run: { shortName: "thing", title: "Thing", requiredCommands: [] },
+      preamble: {
+        summary: "One phase.",
+        requiredCommandsNote: "No extra commands.",
+        technicalArbitrations: [],
+        openQuestions: [
+          {
+            id: "q-owner",
+            question: "Who owns the write?",
+            options,
+            recommendation: "p1",
+            rationale: "the first phase already touches it",
+          },
+        ],
+        arbitratedQuestions: [
+          {
+            id: "q-lifted",
+            question: "Is the write cached?",
+            options,
+            recommendation: "p2",
+            rationale: "Decided by the author on 2026-09-28, the cache waits",
+            verdict: {
+              kind: "lifted",
+              chosen: "p2",
+              abandoned: ["p1"],
+              why: "Decided by the author on 2026-09-28, the cache waits",
+              at: "2026-09-28",
+              by: { kind: "unattributed" },
+            },
+            history: [],
+          },
+          {
+            id: "q-decided",
+            question: "Which phase logs it?",
+            options,
+            recommendation: "p1",
+            rationale: "logging comes first",
+            verdict: {
+              kind: "decided",
+              chosen: "p2",
+              abandoned: ["p1"],
+              why: "the log names the write",
+              advocate: "logging comes first",
+              principles: [],
+              reversibility: "cheap",
+              by: { kind: "operator", name: "Ada Lovelace" },
+              at: "2026-10-20T08:02:11Z",
+              revised: [],
+              phase: "phase-01",
+            },
+            history: [],
+          },
+        ],
+      },
+      phases: [
+        {
+          id: "phase-01",
+          title: "First Phase",
+          model: "claude-sonnet-5",
+          effort: "medium",
+          planMarkdownAnchor: "#phase-01-first",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: ["src/a.ts"],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat(test): do thing", body: "Does the thing." },
+          objective: "Do the thing.",
+          detailedInstructions: [],
+          boundaryContracts: null,
+          testStrategy: "Unit.",
+          implementationOrder: [],
+          excludedScope: [],
+          verification: "standard",
+          expectedHandoff: "Nothing.",
+        },
+      ],
+    }),
+  );
+  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
+  const { $schema: _schema, ...doc } = decoded.right;
+  return doc;
+}
+
 describe("lintPlan", () => {
   it("returns no findings for a conforming plan whose files all resolve", async () => {
     const report = await runLint(planMd({ edit: "- src/a.ts" }), { "/repo/src/a.ts": "export {}" });
 
     expect(report.findings).toEqual([]);
     expect(report.plan).toBe(PLAN_PATH);
+  });
+
+  it("returns no findings for a rendered plan whose preamble carries question sections", async () => {
+    const md = DRAFT_FRONTMATTER + renderPlanBody(planWithQuestions());
+    expect(md).toContain("\n## Open questions\n");
+    expect(md).toContain("\n## Arbitrated questions\n");
+    expect(md).toContain("\n## Decision log\n");
+
+    const report = await runLint(md, { "/repo/src/a.ts": "export {}" });
+
+    expect(report.findings).toEqual([]);
   });
 
   it("reports only structure findings for a structurally broken plan", async () => {

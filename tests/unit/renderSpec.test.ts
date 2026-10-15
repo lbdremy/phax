@@ -3,7 +3,12 @@
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
-import { decodeSpecDocument, type SpecDocument } from "../../src/schemas/specDocument.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import {
+  decodeSpecDocument,
+  decodeSpecDocumentFile,
+  type SpecDocument,
+} from "../../src/schemas/specDocument.js";
 
 function decoded(raw: unknown): SpecDocument {
   const result = decodeSpecDocument(raw);
@@ -101,6 +106,76 @@ function fixture(): SpecDocument {
   });
 }
 
+// The fixture as a sidecar carries it once both questions are arbitrated:
+// prune-mode lifted by the author's marker, q-keep decided by the operator
+// after an earlier lifted verdict. Read through the file decoder, since an
+// authoring answer never carries arbitrated questions.
+function withArbitrated(): SpecDocument {
+  const [pruneMode] = fixture().openQuestions;
+  if (pruneMode === undefined) throw new Error("fixture has a question");
+  // The authored fixture still carries its `version`, which a sidecar drops.
+  const { version: _version, ...base } = fixture() as SpecDocument & { readonly version?: 1 };
+  const marked = {
+    ...pruneMode,
+    rationale: "Decided by the author on 2026-09-28, records already keep the trajectory",
+  };
+  const file = decodeSpecDocumentFile(
+    withSchemaUrl("spec-document", {
+      ...base,
+      openQuestions: [],
+      arbitratedQuestions: [
+        {
+          id: "q-keep",
+          question: "How many runs are kept?",
+          options: [
+            { id: "keep-10", label: "Ten", abandons: "older runs" },
+            { id: "keep-20", label: "Twenty", abandons: "disk space" },
+          ],
+          recommendation: "keep-10",
+          rationale: "ten covers a working week",
+          verdict: {
+            kind: "decided",
+            chosen: "keep-20",
+            abandoned: ["keep-10"],
+            why: "two weeks are asked for",
+            advocate: "ten is enough",
+            principles: ["S2", "S5"],
+            reversibility: "cheap",
+            by: { kind: "operator", name: "Ada Lovelace" },
+            at: "2026-10-20T08:02:11Z",
+            revised: ["§5.1", "§6 phax prune output", "AC keep bound"],
+          },
+          history: [
+            {
+              kind: "lifted",
+              chosen: "keep-10",
+              abandoned: ["keep-20"],
+              why: "Decided by the author on 2026-09-30",
+              at: "2026-09-30",
+              by: { kind: "unattributed" },
+            },
+          ],
+        },
+        {
+          ...marked,
+          verdict: {
+            kind: "lifted",
+            chosen: "manual",
+            abandoned: ["auto"],
+            why: marked.rationale,
+            at: "2026-09-28",
+            by: { kind: "unattributed" },
+          },
+          history: [],
+        },
+      ],
+    }),
+  );
+  if (Either.isLeft(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
+  const { $schema: _schema, ...doc } = file.right;
+  return doc;
+}
+
 function sectionOf(md: string, heading: string): string {
   const start = md.indexOf(`\n${heading}\n`);
   if (start < 0) throw new Error(`missing ${heading}`);
@@ -126,7 +201,8 @@ describe("renderSpecBody", () => {
       "## 6. Surface",
       "## 7. Non-goals",
       "## 8. Acceptance criteria",
-      "## 9. Open questions for implementation planning",
+      "## 9. Open questions",
+      "## 9b. Arbitrated questions",
       "## 10. Implementation-planning note",
       "## 11. Docs page",
     ]);
@@ -229,30 +305,89 @@ describe("renderSpecBody", () => {
     );
   });
 
-  it("§9 shows one abandons line per option and the recommendation line", () => {
-    expect(
-      sectionOf(renderSpecBody(fixture()), "## 9. Open questions for implementation planning"),
-    ).toBe(
+  it("§9 names the question and its options by id, then the recommended option's id", () => {
+    expect(sectionOf(renderSpecBody(fixture()), "## 9. Open questions")).toBe(
       [
-        "## 9. Open questions for implementation planning",
+        "## 9. Open questions",
         "",
-        "### Q1 — Is pruning manual or automatic past `keep`?",
+        "### prune-mode — Is pruning manual or automatic past `keep`?",
         "",
-        "- manual — an explicit `phax prune` — abandons: self-shrinking",
-        "- auto — prune at archive time — abandons: later inspection",
+        "- manual — manual — an explicit `phax prune` — abandons: self-shrinking",
+        "- auto — auto — prune at archive time — abandons: later inspection",
         "",
-        "Recommendation: manual — an explicit `phax prune` — records already keep the trajectory.",
+        "Recommendation: manual — records already keep the trajectory.",
         "",
       ].join("\n"),
     );
   });
 
-  it("§7 and §9 say None when empty", () => {
+  it("§7, §9 and §9b say None when empty, and no decision log follows", () => {
     const md = renderSpecBody({ ...fixture(), nonGoals: [], openQuestions: [] });
     expect(sectionOf(md, "## 7. Non-goals")).toBe("## 7. Non-goals\n\nNone.\n");
-    expect(sectionOf(md, "## 9. Open questions for implementation planning")).toBe(
-      "## 9. Open questions for implementation planning\n\nNone.\n",
+    expect(sectionOf(md, "## 9. Open questions")).toBe("## 9. Open questions\n\nNone.\n");
+    expect(sectionOf(md, "## 9b. Arbitrated questions")).toBe(
+      "## 9b. Arbitrated questions\n\nNone.\n",
     );
+    expect(md).not.toContain("## 12. Decision log");
+  });
+
+  it("§9b renders each arbitrated question with its Decision block, and §12 logs every verdict by date", () => {
+    const md = renderSpecBody(withArbitrated());
+    expect(sectionOf(md, "## 9. Open questions")).toBe("## 9. Open questions\n\nNone.\n");
+    expect(sectionOf(md, "## 9b. Arbitrated questions")).toBe(
+      [
+        "## 9b. Arbitrated questions",
+        "",
+        "### q-keep — How many runs are kept?",
+        "",
+        "- keep-10 — Ten — abandons: older runs",
+        "- keep-20 — Twenty — abandons: disk space",
+        "",
+        "Recommendation: keep-10 — ten covers a working week.",
+        "",
+        "Decision: keep-20 — by operator (Ada Lovelace), 2026-10-20",
+        "Why: two weeks are asked for. Advocate: ten is enough. Principles: S2, S5. Reversibility: cheap. Revised: §5.1, §6 phax prune output, AC keep bound.",
+        "Earlier decision: keep-10 — lifted, unattributed, 2026-09-30",
+        "",
+        "### prune-mode — Is pruning manual or automatic past `keep`?",
+        "",
+        "- manual — manual — an explicit `phax prune` — abandons: self-shrinking",
+        "- auto — auto — prune at archive time — abandons: later inspection",
+        "",
+        "Recommendation: manual — Decided by the author on 2026-09-28, records already keep the trajectory.",
+        "",
+        "Decision: manual — lifted, unattributed, 2026-09-28",
+        "",
+      ].join("\n"),
+    );
+    // The log follows §11, ordered by date across questions, history included.
+    expect(md.slice(md.indexOf("## 11. Docs page"))).toContain("\n## 12. Decision log\n");
+    expect(sectionOf(md, "## 12. Decision log")).toBe(
+      [
+        "## 12. Decision log",
+        "",
+        "- 2026-09-28 prune-mode lifted manual — unattributed",
+        "- 2026-09-30 q-keep lifted keep-10 — unattributed",
+        "- 2026-10-20 q-keep decided keep-20 — operator (Ada Lovelace) — revised 3 sections",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("a decided verdict with no principles and no revision says none, and its log line names no revision", () => {
+    const base = withArbitrated();
+    const [keep, ...rest] = base.arbitratedQuestions;
+    if (keep === undefined || keep.verdict.kind !== "decided") throw new Error("fixture");
+    const md = renderSpecBody({
+      ...base,
+      arbitratedQuestions: [
+        { ...keep, verdict: { ...keep.verdict, principles: [], revised: [] }, history: [] },
+        ...rest,
+      ],
+    });
+    expect(md).toContain("Principles: none. Reversibility: cheap. Revised: none.\n");
+    expect(md).not.toContain("Earlier decision:");
+    expect(md).toContain("- 2026-10-20 q-keep decided keep-20 — operator (Ada Lovelace)\n");
   });
 
   it("§10 renders the settled, left-open and constraints paragraphs", () => {

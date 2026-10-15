@@ -13,10 +13,12 @@ import { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
 import {
   type ArtifactAuthoring,
+  type ArtifactQuestions,
   inspectArtifact,
   transitionArtifactBy,
 } from "../../app/artifactStatus.js";
 import { type Arbiter, describeArbiter } from "../../domain/artifact/arbiter.js";
+import { describeStampedShape } from "../../domain/artifact/sidecar.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import type { Terminal } from "../../ports/terminal.js";
 import { createArtifact, type CompletionFlags } from "../../app/createArtifact.js";
@@ -84,8 +86,24 @@ function authoringText(authoring: ArtifactAuthoring): string {
       ? "in sync"
       : agreement === "diverged"
         ? "diverged — body differs from the sidecar's rendering"
-        : `invalid sidecar — ${agreement.message}`;
+        : agreement.kind === "invalid"
+          ? `invalid sidecar — ${agreement.message}`
+          : `${describeStampedShape(agreement.format, agreement.shape)} — migrate with \`phax artifact migrate-documents\``;
   return `headless — sidecar ${sidecarPath} (${state})`;
+}
+
+// `<n> — open <k> (<ids>) · arbitrated <m> (<l> lifted)`, or the departing line.
+function questionsText(questions: ArtifactQuestions): string | null {
+  if (questions.kind === "none") return null;
+  if (questions.kind === "departs") {
+    return `does not parse — line ${String(questions.line)} departs from the §9 format: ${questions.text}`;
+  }
+  const { open, arbitrated, lifted } = questions.summary;
+  const openIds = open.length === 0 ? "" : ` (${open.join(", ")})`;
+  return (
+    `${String(open.length + arbitrated)} — open ${String(open.length)}${openIds}` +
+    ` · arbitrated ${String(arbitrated)} (${String(lifted)} lifted)`
+  );
 }
 
 // `by machine (<grant>)`, `by operator (<name>)`, or `unattributed`.
@@ -104,11 +122,14 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
     return exitCodeForError(result.left);
   }
 
-  const { kind, status, legalTargets, approval, authoring, orphanRecords } = result.right;
+  const { kind, status, legalTargets, approval, authoring, questions, orphanRecords } =
+    result.right;
   out.log(`Path:              ${repoRelPath}`);
   out.log(`Kind:              ${kind}`);
   out.log(`Status:            ${status}`);
   out.log(`Authored:          ${authoringText(authoring)}`);
+  const questionsLine = questionsText(questions);
+  if (questionsLine !== null) out.log(`Questions:         ${questionsLine}`);
   if (approval.kind === "recorded") {
     out.log(
       `Approved:          ${approval.date} @ ${approval.baseline} ${approverText(approval.approvedBy)}`,

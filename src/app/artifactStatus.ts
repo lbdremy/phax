@@ -43,10 +43,18 @@ import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifac
 import { parseArtifactName } from "../domain/artifact/name.js";
 import {
   type SidecarAgreement,
-  sidecarAgreement,
+  describeStampedShape,
+  inspectSidecar,
   sidecarPathFor,
   sidecarRemedy,
 } from "../domain/artifact/sidecar.js";
+import {
+  type QuestionSummary,
+  parseHandAuthoredQuestions,
+  summarizeDocumentQuestions,
+  summarizeParsedQuestions,
+} from "../domain/artifact/questions.js";
+import type { DocumentSidecar } from "../schemas/persisted.js";
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
@@ -87,12 +95,24 @@ export type ArtifactAuthoring =
       readonly agreement: SidecarAgreement;
     };
 
+/**
+ * An artifact's questions as status reports them: a summary, the first line
+ * of a hand-authored §9 that departs from the format, or none — a plan
+ * without questions, an invalid sidecar, or a hand-authored artifact with
+ * neither question section.
+ */
+export type ArtifactQuestions =
+  | { readonly kind: "none" }
+  | { readonly kind: "summary"; readonly summary: QuestionSummary }
+  | { readonly kind: "departs"; readonly line: number; readonly text: string };
+
 export interface ArtifactReport {
   readonly kind: ArtifactKind;
   readonly status: ArtifactStatus;
   readonly legalTargets: readonly ArtifactStatus[];
   readonly approval: ApprovalInfo;
   readonly authoring: ArtifactAuthoring;
+  readonly questions: ArtifactQuestions;
   /** Record files of the inspected artifact's kind whose artifact does not exist. */
   readonly orphanRecords: readonly OrphanApprovalRecord[];
 }
@@ -101,6 +121,8 @@ interface Sidecar {
   readonly path: string;
   readonly text: string;
   readonly agreement: SidecarAgreement;
+  /** The sidecar as read, lifted to the current shape; null when it is invalid. */
+  readonly read: DocumentSidecar | null;
 }
 
 // A sidecar beside the artifact marks it headless-authored; its absence,
@@ -115,8 +137,13 @@ function readSidecar(
     const path = sidecarPathFor(repoRelPath);
     if (!(yield* fs.exists(path))) return null;
     const text = yield* fs.readText(path);
-    const agreement = sidecarAgreement({ md, sidecarJson: text, kind, sidecarPath: path });
-    return { path, text, agreement };
+    const { agreement, sidecar } = inspectSidecar({
+      md,
+      sidecarJson: text,
+      kind,
+      sidecarPath: path,
+    });
+    return { path, text, agreement, read: sidecar };
   });
 }
 
@@ -126,10 +153,34 @@ function authoringOf(sidecar: Sidecar | null): ArtifactAuthoring {
     : { kind: "headless", sidecarPath: sidecar.path, agreement: sidecar.agreement };
 }
 
+// A headless artifact's questions come from its sidecar, lifted when it is
+// older; a hand-authored one's from its §9 sections. A plan reports questions
+// only when it has some, since its question sections render only then.
+function questionsOf(kind: ArtifactKind, md: string, sidecar: Sidecar | null): ArtifactQuestions {
+  if (sidecar === null) {
+    const parsed = parseHandAuthoredQuestions(kind, md);
+    return parsed.kind === "parsed"
+      ? { kind: "summary", summary: summarizeParsedQuestions(parsed) }
+      : parsed;
+  }
+  if (sidecar.read === null) return { kind: "none" };
+  const arrays =
+    sidecar.read.kind === "spec" ? sidecar.read.document : sidecar.read.document.preamble;
+  if (
+    sidecar.read.kind === "plan" &&
+    arrays.openQuestions.length === 0 &&
+    arrays.arbitratedQuestions.length === 0
+  ) {
+    return { kind: "none" };
+  }
+  return { kind: "summary", summary: summarizeDocumentQuestions(arrays) };
+}
+
 function describeDisagreement(agreement: Exclude<SidecarAgreement, "in-sync">): string {
-  return agreement === "diverged"
-    ? "has a body that differs from its sidecar's rendering"
-    : `has an invalid sidecar (${agreement.message})`;
+  if (agreement === "diverged") return "has a body that differs from its sidecar's rendering";
+  return agreement.kind === "invalid"
+    ? `has an invalid sidecar (${agreement.message})`
+    : `has a sidecar stamped ${describeStampedShape(agreement.format, agreement.shape)}`;
 }
 
 // The artifact's own record, with the fingerprint it recorded for the artifact.
@@ -205,10 +256,12 @@ export function inspectArtifact(
         : legalTargetsFrom("plan", status as never);
 
     const approval = yield* computeApprovalInfo(kind, repoRelPath, md, status);
-    const authoring = authoringOf(yield* readSidecar(repoRelPath, kind, md));
+    const sidecar = yield* readSidecar(repoRelPath, kind, md);
+    const authoring = authoringOf(sidecar);
+    const questions = questionsOf(kind, md, sidecar);
     const orphanRecords = yield* findOrphanApprovalRecords(kind);
 
-    return { kind, status, legalTargets, approval, authoring, orphanRecords };
+    return { kind, status, legalTargets, approval, authoring, questions, orphanRecords };
   });
 }
 
@@ -370,18 +423,23 @@ export function transitionArtifact(
     const { md, kind, status } = yield* readLegalTransition(repoRelPath, target);
 
     // A headless artifact is approved only while its body is its sidecar's
-    // rendering; other transitions carry the sidecar along whatever its state.
+    // rendering at the current shape; an older sidecar is migrated first.
+    // Other transitions carry the sidecar along whatever its state.
     const sidecar = yield* readSidecar(repoRelPath, kind, md);
     if (target === "Approved" && sidecar !== null && sidecar.agreement !== "in-sync") {
       const slug =
         parseArtifactName(kind, repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1))?.slug ??
         repoRelPath;
+      const unmigrated =
+        typeof sidecar.agreement === "object" && sidecar.agreement.kind === "unmigrated";
       return yield* Effect.fail(
         new ArtifactSidecarDivergedError({
           path: repoRelPath,
           sidecarPath: sidecar.path,
           problem: describeDisagreement(sidecar.agreement),
-          remedy: sidecarRemedy(kind, slug, sidecar.path),
+          remedy: unmigrated
+            ? `Run \`phax artifact migrate-documents\` first, to rewrite ${sidecar.path} at its current shape.`
+            : sidecarRemedy(kind, slug, sidecar.path),
         }),
       );
     }

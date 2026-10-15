@@ -8,9 +8,11 @@ import {
 import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
 import {
   decodePlanDocument,
+  decodePlanDocumentFile,
   projectExtractedPlan,
   type AuthoredPlanDocument as PlanDocument,
 } from "../../src/schemas/planDocument.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
 function decoded(raw: unknown): PlanDocument {
   const result = decodePlanDocument(raw);
@@ -206,6 +208,308 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
     expect(collectPlanStructureErrors(md)).toEqual([]);
     const { fromMarkdown, fromDocument } = roundTrip(doc, md);
     expect(fromMarkdown.plan).toEqual(fromDocument.plan);
+  });
+});
+
+// The fixture's rendering before plans carried questions, byte for byte.
+const BEFORE_QUESTIONS = `# Headless authoring
+
+Core to surface: schemas, then renderers.
+Each phase leaves the gates green.
+
+## Required commands
+
+- \`pnpm gen:usage-spec\`
+- \`pnpm dev schema upgrade\`
+
+Both are granted in \`security.agentCommands\`.
+
+## Technical arbitrations
+
+- **The cache is keyed on the body.** Accepted loss: one miss per plan.
+- The brief is read by the CLI.
+  Rejected: a port for one flag.
+
+---
+
+## phase-01 — Spec and plan document schemas, \`artifact schema\` {#phase-01-document-schemas}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+Introduce the two document formats as Effect Schemas.
+
+### Detailed instructions
+
+- \`src/schemas/specDocument.ts\`: the schema.
+  ### Not a heading: it stays inside the item
+- Run \`pnpm gen:usage-spec\`.
+
+### Planned files to create
+
+- \`src/schemas/specDocument.ts\`
+- \`tests/unit/**/*.test.ts\`
+
+### Planned files to edit
+
+- \`src/schemas/phaxPlan.ts\`
+- \`docs/cli/reference_v2_.md\`
+
+### Optional files that may be edited
+
+- \`docs/cli/inventory.md\`
+
+### Boundary contracts
+
+Consumer: phase-02's renderers. Producer: this phase.
+
+### Test strategy
+
+Unit, written first: a full valid spec document decodes.
+
+### Implementation order
+
+1. Schemas
+2. Projection
+3. CLI
+
+### Excluded scope
+
+- Rendering (phase-02).
+
+### Verification
+
+The \`standard\` gate profile.
+
+### Expected handoff content
+
+The exported names from both schema files.
+
+### Commit subject
+
+\`\` feat(schemas): spec and plan document schemas with \`phax artifact schema\` \`\`
+
+### Commit body
+
+Add the experimental spec document and plan document formats.
+
+- a strict projection
+- JSON Schema export
+
+Unit-tested; usage spec regenerated.
+
+---
+
+## phase-02 — Renderers {#phase-02-renderers}
+
+**Recommended model:** claude-sonnet-5
+**Recommended effort:** medium
+
+Render both documents.
+
+### Detailed instructions
+
+- (none)
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Test strategy
+
+Round trip.
+
+### Implementation order
+
+- (none)
+
+### Excluded scope
+
+- (none)
+
+### Verification
+
+standard
+
+### Expected handoff content
+
+The signatures.
+
+### Commit subject
+
+\`feat(authoring): renderers\`
+
+### Commit body
+
+Add the renderers.
+`;
+
+// The fixture with one open question and two arbitrated ones: one lifted, one
+// decided for phase-02 after an earlier lifted verdict.
+// Read as a sidecar: an authoring answer never carries arbitrated questions.
+function withQuestions(): PlanDocument {
+  const { version, ...base } = fixture();
+  const file = decodePlanDocumentFile(
+    withSchemaUrl("plan-document", { ...base, preamble: questionPreamble(base.preamble) }),
+  );
+  if (Either.isLeft(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
+  const { $schema: _schema, ...doc } = file.right;
+  return { version, ...doc };
+}
+
+function questionPreamble(preamble: PlanDocument["preamble"]): unknown {
+  return {
+    ...preamble,
+    openQuestions: [
+      {
+        id: "q-owner",
+        question: "Does phase-01 or phase-02 own the cache write?",
+        options: [
+          { id: "p1", label: "phase-01 writes it", abandons: "a smaller first phase" },
+          { id: "p2", label: "phase-02 writes it", abandons: "an early cache" },
+        ],
+        recommendation: "p1",
+        rationale: "the schema phase already touches the cache",
+      },
+    ],
+    arbitratedQuestions: [
+      {
+        id: "q-keep",
+        question: "How many cache entries are kept?",
+        options: [
+          { id: "keep-10", label: "Ten", abandons: "older entries" },
+          { id: "keep-20", label: "Twenty", abandons: "disk space" },
+        ],
+        recommendation: "keep-10",
+        rationale: "ten covers a working week",
+        verdict: {
+          kind: "decided",
+          chosen: "keep-20",
+          abandoned: ["keep-10"],
+          why: "two weeks of history are asked for",
+          advocate: "ten is enough for most runs",
+          principles: ["P2"],
+          reversibility: "cheap",
+          by: { kind: "operator", name: "Ada Lovelace" },
+          at: "2026-10-20T08:02:11Z",
+          revised: ["phase-02"],
+          phase: "phase-02",
+        },
+        history: [
+          {
+            kind: "lifted",
+            chosen: "keep-10",
+            abandoned: ["keep-20"],
+            why: "Decided by the author on 2026-09-28",
+            at: "2026-09-28",
+            by: { kind: "unattributed" },
+          },
+        ],
+      },
+      {
+        id: "q-scope",
+        question: "Is the cache shared across runs?",
+        options: [
+          { id: "shared", label: "Shared", abandons: "isolation" },
+          { id: "per-run", label: "Per run", abandons: "reuse" },
+        ],
+        recommendation: "shared",
+        rationale: "Decided by the author on 2026-09-30, reuse wins",
+        verdict: {
+          kind: "lifted",
+          chosen: "shared",
+          abandoned: ["per-run"],
+          why: "Decided by the author on 2026-09-30, reuse wins",
+          at: "2026-09-30",
+          by: { kind: "unattributed" },
+        },
+        history: [],
+      },
+    ],
+  };
+}
+
+describe("renderPlanBody preamble questions", () => {
+  it("renders a plan without questions byte for byte as before questions existed", () => {
+    expect(renderPlanBody(fixture())).toBe(BEFORE_QUESTIONS);
+  });
+
+  it("renders the three question sections after the arbitrations, before the first phase", () => {
+    const md = renderPlanBody(withQuestions());
+    const preamble = md.slice(md.indexOf("## Technical arbitrations"), md.indexOf("## phase-01"));
+    expect(preamble.slice(preamble.indexOf("## Open questions"))).toBe(
+      [
+        "## Open questions",
+        "",
+        "### q-owner — Does phase-01 or phase-02 own the cache write?",
+        "",
+        "- p1 — phase-01 writes it — abandons: a smaller first phase",
+        "- p2 — phase-02 writes it — abandons: an early cache",
+        "",
+        "Recommendation: p1 — the schema phase already touches the cache.",
+        "",
+        "## Arbitrated questions",
+        "",
+        "### q-keep — How many cache entries are kept?",
+        "",
+        "- keep-10 — Ten — abandons: older entries",
+        "- keep-20 — Twenty — abandons: disk space",
+        "",
+        "Recommendation: keep-10 — ten covers a working week.",
+        "",
+        "Decision: keep-20 — by operator (Ada Lovelace), 2026-10-20",
+        "Why: two weeks of history are asked for. Advocate: ten is enough for most runs. Principles: P2. Reversibility: cheap. Revised: phase-02. Phase: phase-02.",
+        "Earlier decision: keep-10 — lifted, unattributed, 2026-09-28",
+        "",
+        "### q-scope — Is the cache shared across runs?",
+        "",
+        "- shared — Shared — abandons: isolation",
+        "- per-run — Per run — abandons: reuse",
+        "",
+        "Recommendation: shared — Decided by the author on 2026-09-30, reuse wins.",
+        "",
+        "Decision: shared — lifted, unattributed, 2026-09-30",
+        "",
+        "## Decision log",
+        "",
+        "- 2026-09-28 q-keep lifted keep-10 — unattributed",
+        "- 2026-09-30 q-scope lifted shared — unattributed",
+        "- 2026-10-20 q-keep decided keep-20 — operator (Ada Lovelace) — revised 1 section",
+        "",
+        "---",
+        "",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("renders only the open section when nothing is arbitrated", () => {
+    const base = withQuestions();
+    const md = renderPlanBody({ ...base, preamble: { ...base.preamble, arbitratedQuestions: [] } });
+    expect(md).toContain("## Open questions");
+    expect(md).not.toContain("## Arbitrated questions");
+    expect(md).not.toContain("## Decision log");
+  });
+
+  it("projects to the same extracted plan, and lint finds no structure error", () => {
+    const doc = withQuestions();
+    const md = `---\nstatus: Draft\nsource-spec: ${String(doc.sourceSpec)}\ncompletes-spec: true\n---\n\n${renderPlanBody(doc)}`;
+    expect(collectPlanStructureErrors(md)).toEqual([]);
+    const { parsed, fromMarkdown, fromDocument } = roundTrip(doc, md);
+    expect(parsed.phases).toEqual(projectExtractedPlan(doc).phases);
+    expect(parsed.run.requiredCommands).toEqual(["pnpm gen:usage-spec", "pnpm dev schema upgrade"]);
+    expect(fromMarkdown.plan).toEqual(fromDocument.plan);
+    expect(fromMarkdown.plan).toEqual(
+      roundTrip(fixture(), renderPlanBody(fixture())).fromDocument.plan,
+    );
   });
 });
 

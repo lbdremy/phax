@@ -94,6 +94,7 @@ describe("runArtifactStatus", () => {
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
         authoring: { kind: "interactive" },
+        questions: { kind: "none" },
         orphanRecords: [],
       }),
     );
@@ -123,6 +124,7 @@ describe("runArtifactStatus", () => {
       legalTargets: ["Approved" as const, "Abandoned" as const],
       approval: { kind: "none" as const },
       authoring: { kind: "interactive" as const },
+      questions: { kind: "none" as const },
     };
     inspectArtifact.mockReturnValue(Effect.succeed({ ...report, orphanRecords: [] }));
     const clean = makeOutput();
