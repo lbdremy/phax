@@ -29,7 +29,13 @@ import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { migrateApprovals } from "../../app/migrateApprovals.js";
-import { renderMigrationReport, renderOrphanRecordWarning } from "../../domain/artifact/render.js";
+import { migrateDocuments } from "../../app/migrateDocuments.js";
+import {
+  renderDocumentMigrationReport,
+  renderMigrationReport,
+  renderOrphanRecordWarning,
+  renderQuestionCounts,
+} from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
@@ -98,12 +104,8 @@ function questionsText(questions: ArtifactQuestions): string | null {
   if (questions.kind === "departs") {
     return `does not parse — line ${String(questions.line)} departs from the §9 format: ${questions.text}`;
   }
-  const { open, arbitrated, lifted } = questions.summary;
-  const openIds = open.length === 0 ? "" : ` (${open.join(", ")})`;
-  return (
-    `${String(open.length + arbitrated)} — open ${String(open.length)}${openIds}` +
-    ` · arbitrated ${String(arbitrated)} (${String(lifted)} lifted)`
-  );
+  const { summary } = questions;
+  return `${String(summary.open.length + summary.arbitrated)} — ${renderQuestionCounts(summary)}`;
 }
 
 // `by machine (<grant>)`, `by operator (<name>)`, or `unattributed`.
@@ -218,6 +220,30 @@ export async function runArtifactMigrateApprovals(out: OutputPort): Promise<numb
   if (result.right.kind === "migrated") {
     for (const orphan of result.right.orphans) out.warn(renderOrphanRecordWarning(orphan));
   }
+  return 0;
+}
+
+export async function runArtifactMigrateDocuments(out: OutputPort): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(`Config error: ${configResult.left.message}`);
+    return 1;
+  }
+  const config = configResult.right;
+  const effect = migrateDocuments({
+    repoRoot: config.repoRoot,
+    stateRoot: effectiveStateRoot(config),
+    extractPlanModel: config.extractPlanModel,
+    extractPlanEffort: config.extractPlanEffort,
+    nowIso: new Date().toISOString(),
+  }).pipe(Effect.provide(buildLayer(config.repoRoot)));
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(result.left.message);
+    return exitCodeForAuthoringError(result.left);
+  }
+
+  for (const line of renderDocumentMigrationReport(result.right)) out.log(line);
   return 0;
 }
 
@@ -602,6 +628,16 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .description("Split the old approval ledgers into one record file per artifact (one-time)")
     .action(async () => {
       const exitCode = await runArtifactMigrateApprovals(out);
+      process.exit(exitCode);
+    });
+
+  artifactCmd
+    .command("migrate-documents")
+    .description(
+      "Rewrite every live spec and plan sidecar below its current shape, re-rendering its body (one-time)",
+    )
+    .action(async () => {
+      const exitCode = await runArtifactMigrateDocuments(out);
       process.exit(exitCode);
     });
 

@@ -600,6 +600,21 @@ export function readDocumentSidecar(
     : readPlanDocumentSidecar(file, input);
 }
 
+/**
+ * The shape a spec's or plan's parsed sidecar is stamped at when it is below
+ * its format's current one: `pre-schema` for an object without `$schema`, or
+ * the release its `$schema` names. Null for anything else — a current or
+ * newer stamp, another format, or not an object. Reads the stamp only, so a
+ * refused older shape (a plan stamped 0.19.0) is named too.
+ */
+export function olderDocumentStamp(kind: "spec" | "plan", input: unknown): string | null {
+  if (!isDocumentObject(input)) return null;
+  if (!Object.hasOwn(input, "$schema")) return "pre-schema";
+  const format = kind === "spec" ? "spec-document" : "plan-document";
+  if (!isStampedBelowCurrent(format, input)) return null;
+  return parseSchemaUrl(input["$schema"])?.release ?? null;
+}
+
 /** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
   Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);

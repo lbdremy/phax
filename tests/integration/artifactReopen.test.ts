@@ -13,6 +13,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // Real-git acceptance for spec artifact-decide §8 'Artifact reopen returns an
@@ -237,9 +238,10 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
     writeRepoFile(PLAN, planMd(null));
     commitAll();
     await approve(PLAN);
-    // Reopen carries a sidecar whatever its agreement, so any sidecar marks
-    // the plan headless here.
-    const sidecar = `${JSON.stringify({ kind: "plan" }, null, 2)}\n`;
+    // Reopen carries a sidecar whatever its agreement, so any sidecar stamped
+    // at the current shape marks the plan headless here (an older stamp would
+    // refuse the reopen until migrate-documents has run).
+    const sidecar = `${JSON.stringify({ $schema: currentSchemaUrl("plan-document"), kind: "plan" }, null, 2)}\n`;
     writeRepoFile(PLAN_SIDECAR, sidecar);
     commitAll("headless");
 

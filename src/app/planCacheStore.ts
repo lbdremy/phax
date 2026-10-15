@@ -1,8 +1,10 @@
 import { Effect, Either, Option } from "effect";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { EXTRACTOR_VERSION, planCacheKey } from "../domain/planCache/key.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ExtractedPhaxPlan } from "../schemas/phaxPlan.js";
+import { type PlanDocument, projectExtractedPlan } from "../schemas/planDocument.js";
 import {
   decodeExtractedPlanCacheEntry,
   encodeExtractedPlanCacheEntry,
@@ -57,6 +59,33 @@ export function writeCacheEntry(
     };
 
     yield* fs.writeAtomic(path, JSON.stringify(encodeExtractedPlanCacheEntry(full), null, 2));
+  });
+}
+
+export interface PlanCacheSeed {
+  readonly stateRoot: string;
+  /** The plan file as written, frontmatter included. */
+  readonly planMd: string;
+  readonly document: PlanDocument;
+  readonly extractPlanModel: string;
+  readonly extractPlanEffort: string;
+  readonly nowIso: string;
+}
+
+/**
+ * Seeds the extraction cache with a plan document's projection, keyed on the
+ * plan as written, so `phax run` never extracts it through a model. Headless
+ * authoring and `phax artifact migrate-documents` both seed through it.
+ */
+export function seedPlanCache(seed: PlanCacheSeed): Effect.Effect<void, FsError, FileSystem> {
+  const key = planCacheKey(seed.planMd, seed.extractPlanModel, seed.extractPlanEffort);
+  return writeCacheEntry(seed.stateRoot, key, {
+    planMdSha256: planMdSha256(seed.planMd),
+    model: seed.extractPlanModel,
+    effort: seed.extractPlanEffort,
+    extractorVersion: EXTRACTOR_VERSION,
+    extractedAt: seed.nowIso,
+    extracted: projectExtractedPlan({ version: 1, ...seed.document }),
   });
 }
 

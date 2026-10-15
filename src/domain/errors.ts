@@ -228,6 +228,43 @@ export class ApprovalMigrationRefusedError extends Data.TaggedError(
   path: string;
 }> {}
 
+/**
+ * A live spec or plan sidecar is stamped below its document format's current
+ * shape, or written before `$schema`. Approve and reopen (and, later, decide)
+ * refuse before anything is written until `phax artifact migrate-documents`
+ * has rewritten it. `gesture` names the refused command ("Approval refused").
+ */
+export class DocumentMigrationRequiredError extends Data.TaggedError(
+  "DocumentMigrationRequiredError",
+)<{
+  gesture: string;
+  sidecars: readonly { readonly sidecarPath: string; readonly shape: string }[];
+}> {
+  override get message(): string {
+    const remedy = "run `phax artifact migrate-documents` first";
+    const [only] = this.sidecars;
+    if (this.sidecars.length === 1 && only !== undefined) {
+      return `${this.gesture}: ${only.sidecarPath} is stamped ${only.shape} — ${remedy}`;
+    }
+    return [
+      `${this.gesture}: ${String(this.sidecars.length)} live sidecars are stamped below their current shape — ${remedy}`,
+      ...this.sidecars.map((s) => `  ${s.sidecarPath} is stamped ${s.shape}`),
+    ].join("\n");
+  }
+}
+
+/**
+ * `phax artifact migrate-documents` refuses before writing anything: a
+ * sidecar is invalid, or a body is not its sidecar's own-shape rendering.
+ * One entry per refused artifact; `message` renders them all.
+ */
+export class DocumentMigrationRefusedError extends Data.TaggedError(
+  "DocumentMigrationRefusedError",
+)<{
+  message: string;
+  refusals: readonly { readonly path: string; readonly problem: string; readonly remedy: string }[];
+}> {}
+
 export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   message: string;
   shortName: string;
