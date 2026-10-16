@@ -117,7 +117,7 @@ exec zsh
 
 **Lifecycle.** An artifact moves through statuses: `Draft` → `Approved` → `Completed`, or `Abandoned` if the work is dropped. A plan can also be marked `Stale` when the ground it was approved on has changed (`phax plans status` tells you). `phax artifact` makes every transition and commits it; an approval records what the artifact was approved against, so phax can tell later whether it still holds. A run completes its plan on the run's own branch, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, so the merge lands the code and the completion together.
 
-**Run and phase.** `phax run` turns an approved plan into a **run**, named from the plan's title as `<namespace>.<name>`, where the namespace is your project's `name` in `phax.json`. Each **phase** runs in its own Git worktree on its own branch, `phax/<name>--phase-NN`, branched from the previous phase, so the last phase's branch carries the whole change.
+**Run and phase.** `phax run` turns an approved plan into a **run**, named from the plan's title as `<namespace>.<name>`, where the namespace is your project's `name` in `phax.json`. Each **phase** runs in its own Git worktree on its own branch, `phax/<name>--phase-NN`, branched from the previous phase, so the last phase's branch carries the whole change. A phase's prompt carries the plan's preamble, its own section, and an outline of every phase (id, title, planned files to create and edit); the full plan is at `.phax-context/plan.md` in its worktree.
 
 **Gate.** Your project's checks, declared once in `phax.json` as a gate profile. A step runs at every phase (`every-phase`) or only at the last one (`terminal`), and records what it verifies (`local`, `structural` or `product`). When a gate fails, the same agent session gets the failure and tries to fix it before the phase gives up.
 
@@ -246,6 +246,15 @@ phax plans lint docs/plans/2610041201-greet-plan.md
 ```
 
 A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
+
+The structure check also reports a phase missing from the phase numbering, for example a plan with phase-01 and phase-03 but no `## phase-02` heading:
+
+```text
+docs/plans/2610161201-greet-plan.md: 1 error, 0 warnings
+error    structure  phase-02  no section for phase-02 in plan.md (expected a "## phase-02 — …" heading)
+```
+
+`phax run` and `phax resume` refuse a plan with a phase whose section they cannot find in plan.md. They look for the phase's `## phase-NN` heading or its `{#anchor}`, refuse before the run is named, exit 11, and name the phase and `phax plans lint`.
 
 ### Decide open questions
 

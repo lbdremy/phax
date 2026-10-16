@@ -11,7 +11,8 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Four approved specs are open:
-headless-review is next and oracle-phases follows it; 23 and 24 stay parked.
+the three cost specs run first, in that order, then headless-review, then oracle-phases;
+23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
 three have landed. No plan is in flight.
 
@@ -103,7 +104,14 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
 Not blockers, on purpose: specs 23/24, records consumers, the durable context layer, the
 desktop — none is promised by the announcement.
 
-## Next up — the steme experiment specs, in order
+## Next up — the cost specs, approved 2026-10-16, in run order
+
+- [x] **`phase-prompt-scope`** — `docs/specs/2610161001-phase-prompt-scope.md`. Each phase's
+      prompt carries the plan preamble, its own section and an outline; landing with this run.
+- [ ] **`cost-ledger`** — `docs/specs/2610160919-cost-ledger.md`. **Next.**
+- [ ] **`plan-estimate`** — `docs/specs/2610160909-plan-estimate.md`. After cost-ledger.
+
+## The steme experiment specs, in order
 
 Three approved specs that the steme roadmap-1.0 experiment needs before it starts (raised
 2026-09-22/23; the steme conductor is their first consumer — see
