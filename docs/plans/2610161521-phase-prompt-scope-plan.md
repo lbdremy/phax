@@ -29,7 +29,7 @@ No new command. Every phase runs only the pnpm scripts of the `standard` gate pr
 - The new preflight check is named `phase-sections`. It is added last to `RUN_PREFLIGHT_CHECKS` and refuses with a new `PlanSectionsPreflightError`, exit 11 like the other preflight refusals. `runPreflights` returns the located sections beside the gate steps, and the prompt builder reads them from there instead of locating them a second time. Loss accepted: every check's signature now also receives the cached sections. When several refusals apply at once, the plan defect is reported after the environment refusals (gate profile, commands, consent, mcp, records, models).
 - A section runs from its heading to the next heading that locates a phase of the plan (spec §4). The parser's block split instead stops at the next `##`. Loss accepted: a non-phase `##` section placed between or after phases, such as an appendix, reaches only the phase before it.
 - The preamble is the plan body before the first located phase heading, without the frontmatter. Loss accepted: the prompt no longer shows the plan's status and lineage keys. These keys govern the run gate; they are not instructions.
-- `.phax-context/plan.md` is written after `setupPhase` on a fresh phase, and again on every resume re-entry. A write failure fails the phase, like the `prompt.md` write; it is not a warning like the brief request. Loss accepted: a run does not survive a failed write into its own fresh worktree. In exchange, the prompt never names a file that is missing.
+- `.phax-context/plan.md` is written after `setupPhase` on a fresh phase, and again when `phax resume` re-enters a phase whose agent session runs again (from `gates_exhausted` or `handoff_failed`). A commit, cleanup or completion re-entry runs no agent, and its worktree may already be gone, so it writes nothing. A write failure fails the phase, like the `prompt.md` write; it is not a warning like the brief request. Loss accepted: a run does not survive a failed write into its own fresh worktree. In exchange, the prompt never names a file that is missing.
 - Phase order: locating, lint, preflight and the test-fixture update come first, and the prompt change second. The fixture update is forced: the new preflight runs inside `executePlan`, and about thirty test files give it a plan.md with no phase sections. It is done once, through a shared `tests/helpers/planMarkdown.ts`. Loss accepted: the `executePlan` prompt snapshots change twice. They change in phase-01 because the fixture plan.md gains sections, and in phase-02 by design. In exchange, the snapshot that pins the resumed-session prompts lands in phase-01, before the prompt changes, so phase-02 proves §5.9 only by leaving that snapshot unchanged.
 
 ---
@@ -263,7 +263,7 @@ A phase's `prompt.md` carries only the plan's shared preamble, its own section, 
   - On a fresh phase, right after `setupPhase`, call `yield* writePhasePlanFile(worktreePath, planMd)`.
   - Pass `planPreamble: planSections.preamble`, `phaseSection` (this phase's entry in `planSections.sections`) and `plan` to `buildPhasePrompt`.
   - A missing entry is a defect that the preflight rules out. Handle it with `Effect.dieMessage` naming the phase. Do not fall back to the full plan.
-  - On every resume re-entry (gate, handoff, commit, cleanup, completion), write the plan file again once the worktree path is decoded, so `phax resume` restores it.
+  - On a resume re-entry from `gates_exhausted` or `handoff_failed`, the two that resume the agent session, write the plan file again once the worktree path is decoded, so `phax resume` restores it. Do not write it on a commit, cleanup or completion re-entry: no agent runs there, and the worktree may already be removed, where a write would recreate a stray directory or fail the phase.
   - Build the fix-attempt and handoff prompts exactly as today.
 - Before regenerating the snapshots, run `pnpm test` without the update flag. The only failing snapshots should be the prompt ones: `buildPhasePrompt` in the unit snapshot, and the two `prompt.md` entries in the executePlan snapshot. The `fix-attempt prompt` and `handoff prompt` entries pinned in phase-01 must pass unchanged. If they fail, the change has leaked into a resumed session: fix the code, do not re-snapshot. Then regenerate with `pnpm test -u`.
 
@@ -395,7 +395,7 @@ The README and the phax-planning skill describe what a phase reads, the new lint
   - `phase-prompt-scope` (`docs/specs/2610161001-phase-prompt-scope.md`), ticked, landing with this run;
   - `cost-ledger` (`docs/specs/2610160919-cost-ledger.md`), marked **Next**;
   - `plan-estimate` (`docs/specs/2610160909-plan-estimate.md`), after it.
-  Do not prune or rewrite other entries.
+  In the intro paragraph, replace the sentence that says headless-review is next: the three cost specs run first, in that order, then headless-review, then oracle-phases. Do not prune or rewrite other entries.
 
 ### Planned files to create
 
