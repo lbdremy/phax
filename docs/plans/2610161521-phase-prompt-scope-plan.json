@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/plan-document/0.20.0.json",
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.25.0.json",
   "kind": "plan",
   "sourceSpec": "docs/specs/2610161001-phase-prompt-scope.md",
   "completesSpec": true,
@@ -18,7 +18,9 @@
       "The preamble is the plan body before the first located phase heading, without the frontmatter. Loss accepted: the prompt no longer shows the plan's status and lineage keys. These keys govern the run gate; they are not instructions.",
       "`.phax-context/plan.md` is written after `setupPhase` on a fresh phase, and again when `phax resume` re-enters a phase whose agent session runs again (from `gates_exhausted` or `handoff_failed`). A commit, cleanup or completion re-entry runs no agent, and its worktree may already be gone, so it writes nothing. A write failure fails the phase, like the `prompt.md` write; it is not a warning like the brief request. Loss accepted: a run does not survive a failed write into its own fresh worktree. In exchange, the prompt never names a file that is missing.",
       "Phase order: locating, lint, preflight and the test-fixture update come first, and the prompt change second. The fixture update is forced: the new preflight runs inside `executePlan`, and about thirty test files give it a plan.md with no phase sections. It is done once, through a shared `tests/helpers/planMarkdown.ts`. Loss accepted: the `executePlan` prompt snapshots change twice. They change in phase-01 because the fixture plan.md gains sections, and in phase-02 by design. In exchange, the snapshot that pins the resumed-session prompts lands in phase-01, before the prompt changes, so phase-02 proves §5.9 only by leaving that snapshot unchanged."
-    ]
+    ],
+    "openQuestions": [],
+    "arbitratedQuestions": []
   },
   "phases": [
     {
