@@ -1,7 +1,11 @@
 {
-  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
   "artifact": "docs/specs/2610140742-artifact-decide.md",
-  "specFingerprint": "d71c5d7440227f27ac5c1979d3d6d54c7f8aa199ff3b320eb67da1988b675930",
-  "approvedAt": "2026-10-14T07:51:49.360Z",
-  "baseline": "a005dbbed3d6f1029555c2461596b78afdd16c93"
+  "specFingerprint": "683cb5096da67adabc0aff0fed26699091cc291c398253743db35abfab0aeaf4",
+  "approvedAt": "2026-10-16T09:21:18.832Z",
+  "baseline": "460e8e067014c4337cf42b2ce6e707c7d3a680c0",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
 }
