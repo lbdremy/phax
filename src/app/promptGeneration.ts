@@ -2,11 +2,17 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import { renderPlanOutline } from "../domain/plan/outline.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
+import { PHASE_PLAN_FILE } from "./worktree.js";
 
 export interface BuildPhasePromptOptions {
-  readonly planMd: string;
-  readonly planJson: PhaxPlan;
+  /** The plan body before the first phase section, without the frontmatter. */
+  readonly planPreamble: string;
+  /** The current phase's section of plan.md, verbatim. */
+  readonly phaseSection: string;
+  /** The whole plan, read only to build the outline. */
+  readonly plan: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
@@ -17,8 +23,9 @@ export interface BuildPhasePromptOptions {
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
   const {
-    planMd,
-    planJson,
+    planPreamble,
+    phaseSection,
+    plan,
     currentPhase,
     previousHandoff,
     previousReconciliation,
@@ -51,15 +58,21 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     "## Source intent/spec document",
     "",
-    "(not provided — see human-readable plan below)",
+    "(not provided — see the approved plan below)",
     "",
-    "## Human-readable approved plan",
+    "## Approved plan: shared preamble",
     "",
-    planMd,
+    planPreamble,
     "",
-    "## Machine-readable execution plan",
+    "## Plan outline",
     "",
-    JSON.stringify(planJson, null, 2),
+    renderPlanOutline(plan.phases, currentPhase.id),
+    "",
+    `The full plan is at \`${PHASE_PLAN_FILE}\`; read it only when this phase needs another phase's detail.`,
+    "",
+    "## Approved plan: current phase",
+    "",
+    phaseSection,
     "",
     "## Previous phase handoff",
     "",
@@ -116,17 +129,20 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     "The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:",
     "",
-    "- `plan.md`;",
-    "- `phax-plan.json`;",
-    "- the current phase definition;",
-    "- the previous `phase-handoff.md`.",
+    "- the plan preamble;",
+    "- its own section of the plan;",
+    "- the plan outline;",
+    `- \`${PHASE_PLAN_FILE}\`, the full plan;`,
+    "- its phase definition;",
+    "- this `phase-handoff.md`.",
   ].join("\n");
 }
 
 export interface GeneratePhasePromptOptions {
   readonly phaseFolderPath: string;
-  readonly planMd: string;
-  readonly planJson: PhaxPlan;
+  readonly planPreamble: string;
+  readonly phaseSection: string;
+  readonly plan: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;

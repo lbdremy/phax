@@ -17,40 +17,40 @@ Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitigno
 
 ## Source intent/spec document
 
-(not provided — see human-readable plan below)
+(not provided — see the approved plan below)
 
-## Human-readable approved plan
+## Approved plan: shared preamble
 
-# My Plan
+# My Run
 
-Phase overview.
+Shared preamble line.
 
-## Machine-readable execution plan
+## Technical arbitrations
 
-{
-  "run": {
-    "shortName": "my-run",
-    "title": "My Run",
-    "branch": "feature/my-run",
-    "requiredCommands": []
-  },
-  "phases": [
-    {
-      "id": "phase-01",
-      "title": "CLI skeleton",
-      "model": "claude-sonnet-4-6",
-      "effort": "medium",
-      "planMarkdownAnchor": "#phase-01-cli-skeleton",
-      "plannedFilesToCreate": [],
-      "plannedFilesToEdit": [],
-      "optionalFilesToEdit": [],
-      "commit": {
-        "subject": "ai(phase-01): create cli skeleton",
-        "body": "Bootstrap the project."
-      }
-    }
-  ]
-}
+- A made-up arbitration.
+
+## Plan outline
+
+- phase-01 — Add the parser
+  create: \`src/parser.ts\`
+  edit: (none)
+- phase-02 — Wire the parser
+  create: (none)
+  edit: \`src/cli.ts\`
+- phase-03 — Report errors ← current phase
+  create: \`src/report.ts\`
+  edit: \`src/cli.ts\`
+- phase-04 — Document it
+  create: (none)
+  edit: \`README.md\`
+
+The full plan is at \`.phax-context/plan.md\`; read it only when this phase needs another phase's detail.
+
+## Approved plan: current phase
+
+## phase-03 — Report errors {#phase-03-made-up}
+
+Instruction line of phase-03.
 
 ## Previous phase handoff
 
@@ -63,17 +63,23 @@ All done.
 ## Current phase
 
 {
-  "id": "phase-01",
-  "title": "CLI skeleton",
-  "model": "claude-sonnet-4-6",
-  "effort": "medium",
-  "planMarkdownAnchor": "#phase-01-cli-skeleton",
-  "plannedFilesToCreate": [],
-  "plannedFilesToEdit": [],
-  "optionalFilesToEdit": [],
+  "id": "phase-03",
+  "title": "Report errors",
+  "model": "claude-opus-4-6",
+  "effort": "high",
+  "planMarkdownAnchor": "#phase-03-made-up",
+  "plannedFilesToCreate": [
+    "src/report.ts"
+  ],
+  "plannedFilesToEdit": [
+    "src/cli.ts"
+  ],
+  "optionalFilesToEdit": [
+    "src/optional.ts"
+  ],
   "commit": {
-    "subject": "ai(phase-01): create cli skeleton",
-    "body": "Bootstrap the project."
+    "subject": "feat: report errors",
+    "body": "Commit body of phase-03."
   }
 }
 
@@ -145,8 +151,10 @@ Keep it 150–400 words. No session transcript summaries.
 
 The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
 
-- \`plan.md\`;
-- \`phax-plan.json\`;
-- the current phase definition;
-- the previous \`phase-handoff.md\`."
+- the plan preamble;
+- its own section of the plan;
+- the plan outline;
+- \`.phax-context/plan.md\`, the full plan;
+- its phase definition;
+- this \`phase-handoff.md\`."
 `;

@@ -126,6 +126,21 @@ export function prepareRunBranch(
 
 export const PHAX_CONTEXT_DIR = ".phax-context";
 
+/** The full plan inside a phase worktree, which the phase prompt names. */
+export const PHASE_PLAN_FILE = join(PHAX_CONTEXT_DIR, "plan.md");
+
+/** Write the run's plan.md, byte for byte, to `<worktree>/.phax-context/plan.md`. */
+export function writePhasePlanFile(
+  worktreePath: string,
+  planMd: string,
+): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* fs.mkdirp(join(worktreePath, PHAX_CONTEXT_DIR));
+    yield* fs.writeAtomic(join(worktreePath, PHASE_PLAN_FILE), planMd);
+  });
+}
+
 /**
  * Ensure `<worktree>/.gitignore` excludes `.phax-context/`. Phax writes phase
  * metadata (handoff, summary) inside that folder; gitignoring it lets the

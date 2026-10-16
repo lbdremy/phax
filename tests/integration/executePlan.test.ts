@@ -2623,6 +2623,34 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     expect(await s.phaseState(runPath, "phase-02")).toBe("cleaned_up");
     expect(await s.phaseState(runPath, "phase-03")).toBe("review_open");
   });
+
+  it("case 4: writes the full plan to .phax-context/plan.md, and resume restores it", async () => {
+    const s = makeBaselineScenario(stateRoot);
+    const { runPath, runId } = await s.startRun();
+    const runPlanMd = await readFile(join(runPath, "plan.md"), "utf8");
+    const phasePlanPath = join(s.worktreeOf("phase-02"), ".phax-context", "plan.md");
+
+    expect(await readFile(phasePlanPath, "utf8")).toBe(runPlanMd);
+    expect(await readFile(join(runPath, "phase-02", "prompt.md"), "utf8")).toContain(
+      "The full plan is at `.phax-context/plan.md`",
+    );
+
+    // Record the session id as the real provider's session writer would.
+    const statusPath = join(runPath, "phase-02", "status.json");
+    const status = JSON.parse(await readFile(statusPath, "utf8")) as Record<string, unknown>;
+    await writeFile(statusPath, JSON.stringify({ ...status, claudeSessionId: "sess-02" }));
+
+    await rm(phasePlanPath);
+    s.fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-02-fix-2" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    const resumed = await s.execute(runPath, runId, 1);
+    expect(Either.isLeft(resumed)).toBe(true);
+    expect(await s.phaseState(runPath, "phase-02")).toBe("gates_exhausted");
+    expect(await readFile(phasePlanPath, "utf8")).toBe(runPlanMd);
+  });
 });
 
 // Pins the prompts sent into a resumed agent session — the fix attempt and the
