@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610160946-artifact-decide-plan.md",
+  "planFingerprint": "ffe534cc8139f70bc5dbf8efe35dde887c0ac3d97e4ab5e41cc41e591949c58a",
+  "approvedAt": "2026-10-16T10:01:06.420Z",
+  "baseline": "ec3675ba3f5bc7972910aea73deaf34dc214d0b0",
+  "sourceSpec": {
+    "path": "docs/specs/2610140742-artifact-decide.md",
+    "fingerprint": "683cb5096da67adabc0aff0fed26699091cc291c398253743db35abfab0aeaf4"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

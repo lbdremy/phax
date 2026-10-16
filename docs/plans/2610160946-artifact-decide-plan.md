@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610140742-artifact-decide.md
 completes-spec: true
+approved:
+  date: 2026-10-16
+  baseline: ec3675b
 ---
 # Decide and the approval lock
 
