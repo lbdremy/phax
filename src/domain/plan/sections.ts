@@ -31,6 +31,17 @@ interface RootHeading {
   readonly anchor: string | null;
 }
 
+interface ThematicBreakSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+interface RootBlocks {
+  readonly headings: readonly RootHeading[];
+  /** The root thematic breaks (`---`), in source order. */
+  readonly breaks: readonly ThematicBreakSpan[];
+}
+
 function isRootH2(node: RootContent): node is Heading {
   return node.type === "heading" && node.depth === 2;
 }
@@ -44,11 +55,15 @@ function planBody(planMd: string): string {
   return splitFrontmatter(planMd)?.body ?? planMd;
 }
 
-// Depth-2 headings at the root of the document, in source order. mdast already
-// ignores a `## …` line inside a fenced code block.
-function rootHeadings(body: string): readonly RootHeading[] {
+// Depth-2 headings at the root of the document, in source order, and the root
+// thematic breaks. mdast already ignores a `## …` line inside a fenced code block.
+function rootBlocks(body: string): RootBlocks {
   const headings: RootHeading[] = [];
+  const breaks: ThematicBreakSpan[] = [];
   for (const node of fromMarkdown(body).children) {
+    if (node.type === "thematicBreak") {
+      breaks.push({ start: node.position?.start.offset ?? 0, end: node.position?.end.offset ?? 0 });
+    }
     if (!isRootH2(node)) continue;
     const text = toString(node).trim();
     const idMatch = text.match(PHASE_ID_RE);
@@ -59,7 +74,22 @@ function rootHeadings(body: string): readonly RootHeading[] {
       anchor: anchorMatch ? stripHash(anchorMatch[1]!) : null,
     });
   }
-  return headings;
+  return { headings, breaks };
+}
+
+// A slice ending at `end` stops before a separator `---` that only whitespace
+// parts from the heading at `end`, so neither the preamble nor a section
+// carries the rule a plan sets between its parts.
+function sliceBefore(
+  body: string,
+  start: number,
+  end: number,
+  breaks: readonly ThematicBreakSpan[],
+): string {
+  const separator = breaks.find(
+    (b) => b.start >= start && b.end <= end && body.slice(b.end, end).trim() === "",
+  );
+  return body.slice(start, separator?.start ?? end).trimEnd();
 }
 
 /**
@@ -72,7 +102,7 @@ export function locatePlanSections(
   phases: readonly LocatablePhase[],
 ): Either.Either<PlanSections, readonly string[]> {
   const body = planBody(planMd);
-  const headings = rootHeadings(body);
+  const { headings, breaks } = rootBlocks(body);
   const taken = new Set<RootHeading>();
   const located: { readonly id: string; readonly heading: RootHeading }[] = [];
   const missing: string[] = [];
@@ -97,10 +127,10 @@ export function locatePlanSections(
   const sections = new Map<string, string>();
   ordered.forEach(({ id, heading }, index) => {
     const end = ordered[index + 1]?.heading.offset ?? body.length;
-    sections.set(id, body.slice(heading.offset, end).trimEnd());
+    sections.set(id, sliceBefore(body, heading.offset, end, breaks));
   });
   const preambleEnd = ordered[0]?.heading.offset ?? body.length;
-  return Either.right({ preamble: body.slice(0, preambleEnd).trimEnd(), sections });
+  return Either.right({ preamble: sliceBefore(body, 0, preambleEnd, breaks), sections });
 }
 
 /**
@@ -109,5 +139,7 @@ export function locatePlanSections(
  * `locatePlanSections`.
  */
 export function phaseHeadingIds(planMd: string): readonly string[] {
-  return rootHeadings(planBody(planMd)).flatMap((h) => (h.phaseId === null ? [] : [h.phaseId]));
+  return rootBlocks(planBody(planMd)).headings.flatMap((h) =>
+    h.phaseId === null ? [] : [h.phaseId],
+  );
 }

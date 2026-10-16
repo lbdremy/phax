@@ -10,8 +10,8 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 (PRs #104–#110; `@lbdremy/phax-schemas` first published in 0.17.0 on 2026-10-03),
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
-and the global install bumped on 2026-10-05). Four approved specs are open:
-the three cost specs run first, in that order, then headless-review, then oracle-phases;
+and the global install bumped on 2026-10-05). Six approved specs are open: cost-ledger
+and plan-estimate run next, in that order, then headless-review, then oracle-phases;
 23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
 three have landed. No plan is in flight.
