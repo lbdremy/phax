@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  buildArgs,
-  buildCompletionArgs,
-  gateCommandAllowRules,
-} from "../../../src/infra/providers/claudeCode.js";
+import { buildArgs, buildCompletionArgs } from "../../../src/infra/providers/claudeCode.js";
+import { gateCommandAllowRules } from "../../../src/domain/session/claudePermissionFlags.js";
 import { buildSkillEditGrantSettings } from "../../../src/infra/providers/claudeSkillEditSettings.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";

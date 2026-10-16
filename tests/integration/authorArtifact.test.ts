@@ -361,6 +361,63 @@ describe("authorArtifact — spec", () => {
   });
 });
 
+describe("authorArtifact — the session kept for decide (§5.2)", () => {
+  // The artifact's stamp and the authoring id's stamp both come from
+  // formatStamp(nowIso), so decide finds the folder from the file name.
+  it("keeps the provider, session id and cwd in session.json after a first answer", async () => {
+    const { fs, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(input());
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(SPEC_PATH).toContain(`/${SESSION_FOLDER.slice(SESSION_FOLDER.lastIndexOf("/") + 1)}.md`);
+    expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toEqual({
+      version: 1,
+      provider: "claude-code",
+      sessionId: "sess-authoring",
+      retrySessionId: null,
+      cwd: REPO_ROOT,
+    });
+  });
+
+  it("rewrites session.json with the retried session's id after a retry", async () => {
+    const { fs, backend, run } = setup();
+    backend.addRunResponse({
+      sessionId: "sess-first" as ClaudeSessionId,
+      outputPath: `${SESSION_FOLDER}/output.jsonl`,
+      finalText: "not json",
+    });
+    backend.addResumeResponse({
+      sessionId: "sess-retried" as ClaudeSessionId,
+      outputPath: `${SESSION_FOLDER}/retry-output.jsonl`,
+      finalText: JSON.stringify(SPEC_DOCUMENT),
+    });
+
+    const result = await run(input());
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toEqual({
+      version: 1,
+      provider: "claude-code",
+      sessionId: "sess-first",
+      retrySessionId: "sess-retried",
+      cwd: REPO_ROOT,
+    });
+  });
+
+  it("keeps session.json even when the session's document is refused twice", async () => {
+    const { fs, run } = setup("not json");
+
+    const result = await run(input());
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toMatchObject({
+      sessionId: "sess-authoring",
+      retrySessionId: "sess-authoring",
+    });
+  });
+});
+
 describe("authorArtifact — plan", () => {
   it("seeds the extraction cache with the projection, keyed on the written file", async () => {
     const { fs, git, run } = setup(JSON.stringify(PLAN_DOCUMENT));

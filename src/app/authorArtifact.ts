@@ -33,6 +33,7 @@ import { renderSpecBody } from "../domain/authoring/renderSpec.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
+import { type AuthoringSession, encodeAuthoringSession } from "../schemas/authoringSession.js";
 import { formatFirstViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
 import {
@@ -69,6 +70,8 @@ import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 export const AUTHORING_BRIEF_FILENAME = "brief.md";
 export const AUTHORING_DOCUMENT_FILENAME = "document.json";
 export const AUTHORING_TRANSCRIPT_FILENAME = "output.jsonl";
+/** The provider session the authoring ran in (`AuthoringSessionSchema`), for decide to resume. */
+export const AUTHORING_SESSION_FILENAME = "session.json";
 
 export interface AuthorArtifactInput {
   readonly kind: ArtifactKind;
@@ -209,6 +212,30 @@ interface ObservedSession {
   retry: AuthoringRecordRetry;
 }
 
+// Keeps the provider session's ids and cwd in the session folder, so `phax
+// artifact decide` can resume it (§5.2). Local state only: the authoring
+// record never carries this file. Rewritten after a retry returns.
+function keepAuthoringSession(
+  folder: string,
+  options: AgentRunOptions,
+  observed: ObservedSession,
+): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    if (observed.sessionId === undefined) return;
+    const session: AuthoringSession = {
+      version: 1,
+      provider: options.provider,
+      sessionId: observed.sessionId,
+      retrySessionId: observed.retrySessionId ?? null,
+      cwd: options.cwd,
+    };
+    yield* (yield* FileSystem).writeAtomic(
+      join(folder, AUTHORING_SESSION_FILENAME),
+      `${JSON.stringify(encodeAuthoringSession(session), null, 2)}\n`,
+    );
+  });
+}
+
 // A refused first answer gets one resume of the same session, with the same
 // provider, model, effort, cwd and security, asking for the whole document
 // again. The retry prompt is written beside prompt.md and the retry's
@@ -236,6 +263,7 @@ function retryRefusedDocument(
       outputJsonlPath: join(session.folder, RETRY_TRANSCRIPT_FILENAME),
     });
     session.observed.retrySessionId = retried.sessionId;
+    yield* keepAuthoringSession(session.folder, options, session.observed);
 
     const parsed = parseAuthoredDocument(input.kind, retried.finalText);
     if (Either.isLeft(parsed)) {
@@ -311,6 +339,7 @@ function runAuthoringSession(
     };
     const agentResult = yield* backend.runAgent(session.prompt, options);
     session.observed.sessionId = agentResult.sessionId;
+    yield* keepAuthoringSession(session.folder, options, session.observed);
 
     const firstAnswer = parseAuthoredDocument(input.kind, agentResult.finalText);
     const accepted = Either.isRight(firstAnswer)

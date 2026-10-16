@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { claudeSessionAdapter } from "../../src/domain/session/claude.js";
+import { buildDecideInvocation, claudeSessionAdapter } from "../../src/domain/session/claude.js";
+import { claudePermissionFlags } from "../../src/domain/session/claudePermissionFlags.js";
+import { resolveReviewSecurityPolicy } from "../../src/domain/security/resolveReviewPolicy.js";
+import { buildArgs } from "../../src/infra/providers/claudeCode.js";
 import { codexSessionAdapter } from "../../src/domain/session/codex.js";
 import { mistralSessionAdapter } from "../../src/domain/session/mistral.js";
 import { getSessionAdapter } from "../../src/domain/session/index.js";
@@ -274,5 +277,92 @@ describe("getSessionAdapter (registry exhaustiveness)", () => {
 
   it("returns the mistral adapter for mistral-vibe", () => {
     expect(getSessionAdapter("mistral-vibe")).toBe(mistralSessionAdapter);
+  });
+});
+
+describe("buildDecideInvocation", () => {
+  const security = resolveReviewSecurityPolicy({
+    mode: "secure",
+    worktreePath: "/repo",
+    config: {
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+    },
+  });
+  const permissionFlags = claudePermissionFlags({
+    security,
+    cwd: "/repo",
+    agentCommands: [],
+    grantSettings: undefined,
+  });
+
+  it("starts a new session under a known id, the prompt last after --", () => {
+    const invocation = buildDecideInvocation({
+      cwd: "/repo",
+      session: { kind: "new", id: "0b6c-new" },
+      model: "claude-opus-5-5",
+      effort: "high",
+      permissionFlags,
+      prompt: "Read .phax-context/decide/2610160900-log-rotation-01/prompt.md and follow it.",
+    });
+    expect(invocation).toEqual({
+      executable: "claude",
+      args: [
+        "--session-id",
+        "0b6c-new",
+        "--model",
+        "claude-opus-5-5",
+        "--effort",
+        "high",
+        ...permissionFlags,
+        "--",
+        "Read .phax-context/decide/2610160900-log-rotation-01/prompt.md and follow it.",
+      ],
+      cwd: "/repo",
+    });
+  });
+
+  it("resumes the kept authoring session with --resume", () => {
+    const invocation = buildDecideInvocation({
+      cwd: "/repo",
+      session: { kind: "resume", id: "sess-kept" },
+      model: "claude-sonnet-5-5",
+      effort: "medium",
+      permissionFlags,
+      prompt: "Read p.md and follow it.",
+    });
+    expect(invocation.args.slice(0, 6)).toEqual([
+      "--resume",
+      "sess-kept",
+      "--model",
+      "claude-sonnet-5-5",
+      "--effort",
+      "medium",
+    ]);
+    expect(invocation.args.at(-1)).toBe("Read p.md and follow it.");
+  });
+
+  it("carries the same permission flags as the headless argv for the same policy", () => {
+    const headless = buildArgs({
+      provider: "claude-code",
+      model: "claude-opus-5-5",
+      effort: "high",
+      cwd: "/repo",
+      security,
+    });
+    // The headless argv: --print … --verbose, the permission flags, then --model.
+    expect(permissionFlags).toEqual(headless.slice(4, headless.indexOf("--model")));
+    expect(permissionFlags).toEqual([
+      "--permission-mode",
+      "acceptEdits",
+      "--add-dir",
+      "/repo/.phax-context",
+      "--disallowed-tools",
+      "Bash",
+      "--strict-mcp-config",
+    ]);
   });
 });

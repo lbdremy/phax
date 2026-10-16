@@ -18,7 +18,7 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
-import type { SecurityPolicy } from "../../domain/security/types.js";
+import { claudePermissionFlags } from "../../domain/session/claudePermissionFlags.js";
 import {
   classifyRateLimit,
   findResultEvent,
@@ -95,115 +95,6 @@ function spawnClaude(
   });
 }
 
-// Centralized secure-mode Claude flag set. Runbook 04b will validate which of
-// these the installed `claude` CLI actually enforces; corrections feed back
-// here. Today's surface:
-//   --permission-mode acceptEdits  (drops bypassPermissions; PHAX no longer
-//                              hands the agent blanket host access. acceptEdits
-//                              — NOT default — is required for headless runs:
-//                              under `default` the --print session has no
-//                              approver, so even in-worktree Write/Edit auto-
-//                              deny and the agent cannot edit its own code.
-//                              acceptEdits auto-approves edits *within* the
-//                              working dirs (cwd + --add-dir) while still
-//                              denying reads/writes outside them. Verified live
-//                              in runbook 04b against claude 2.1.162.)
-//   --add-dir <path>           (one per writable path outside cwd; cwd is
-//                              implicit, so worktree pass-through happens via
-//                              the spawn cwd)
-//   --allowedTools Bash(...)   (one prefix rule per frozen agentCommand; the
-//                              set is config ∪ gate commands, computed before
-//                              the agent spawns and recorded in security.json.
-//                              Under acceptEdits the headless --print session
-//                              has no approver, so any Bash not matched here
-//                              auto-denies. When the frozen set is empty we
-//                              fall back to --disallowed-tools Bash.)
-//   --disallowed-tools Bash    (full shell deny — only when there are no gate
-//                              commands to allowlist)
-//   --strict-mcp-config        (no MCP servers loaded unless explicitly given
-//                              via --mcp-config; satisfies mcp.mode "disabled"
-//                              and constrains "allowlist")
-//   --mcp-config <path>...     (one per file when mcp.mode === "allowlist")
-//   --settings <json>          (only with skill edit grants: an inline
-//                              PermissionRequest hook allowing exactly the
-//                              granted .claude/skills files; see
-//                              claudeSkillEditSettings.ts)
-//
-// Network: there is no native --allowed-domains flag and no domain-allowlist
-// concept in the policy (04b confirmed no provider enforces one). The Claude CLI
-// reaches api.anthropic.com intrinsically; the agent's own egress tools
-// (WebFetch/WebSearch) require approval and Bash is disallowed, so secure runs
-// have no unsanctioned network path. Only network.profile is carried.
-/**
- * Translate the frozen agentCommands set into Claude `--allowedTools` Bash rules.
- *
- * Each command is allowed by its exact token prefix using Claude's
- * `Bash(<prefix>:*)` wildcard, which matches the command itself plus any
- * trailing arguments. The prefix is the full normalized command — we do NOT
- * widen it to a script "family": a `pnpm format:check` entry allows
- * `pnpm format:check`, not `pnpm format`. This keeps the grant minimal;
- * commands from both config and gates are handled identically here.
- * Rules are de-duplicated and order-stable.
- */
-export function gateCommandAllowRules(commands: readonly string[]): string[] {
-  const rules = new Set<string>();
-  for (const raw of commands) {
-    const prefix = raw.trim().split(/\s+/).filter(Boolean).join(" ");
-    if (prefix.length === 0) continue;
-    rules.add(`Bash(${prefix}:*)`);
-  }
-  return [...rules];
-}
-
-function buildSecureClaudeFlags(
-  security: SecurityPolicy,
-  cwd: string,
-  agentCommands: readonly string[],
-  skillEditGrants: readonly string[],
-): string[] {
-  const addDirs = security.filesystem.allowWrite
-    .filter((p) => p !== cwd)
-    .flatMap((p) => ["--add-dir", p]);
-
-  const mcpFlags: string[] = [];
-  if (security.mcp.mode !== "provider-default") {
-    mcpFlags.push("--strict-mcp-config");
-  }
-  if (security.mcp.mode === "allowlist") {
-    for (const path of security.mcp.allow) {
-      mcpFlags.push("--mcp-config", path);
-    }
-  }
-
-  // Allowlist the frozen agentCommands set (config ∪ gates) as sandboxed Bash
-  // so the agent can run the commands it needs; everything else stays denied.
-  // With no commands, fall back to a full Bash deny (disallowed-tools takes
-  // precedence over allowedTools, so the two are mutually exclusive).
-  const allowRules = gateCommandAllowRules(agentCommands);
-  const shellFlags =
-    allowRules.length > 0
-      ? ["--allowedTools", allowRules.join(",")]
-      : ["--disallowed-tools", "Bash"];
-
-  // Declared skill files get through Claude's protected-path check via an
-  // inline PermissionRequest hook; with no grants the argv is unchanged.
-  const grantSettings =
-    skillEditGrants.length === 0
-      ? undefined
-      : buildSkillEditGrantSettings(resolveWorktreeRoot(cwd), skillEditGrants);
-  const settingsFlags =
-    grantSettings === undefined ? [] : ["--settings", JSON.stringify(grantSettings)];
-
-  return [
-    "--permission-mode",
-    "acceptEdits",
-    ...addDirs,
-    ...shellFlags,
-    ...mcpFlags,
-    ...settingsFlags,
-  ];
-}
-
 // The hook's absolute `if` rule must match the path Claude Code resolves, so a
 // worktree reached through a symlink (macOS $TMPDIR, a relocated state root)
 // is resolved first. A root that cannot be resolved is used as given: the rule
@@ -221,31 +112,26 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
   // `--output-format=stream-json`; without it the CLI exits with code 1.
   const common = ["--print", "--output-format", "stream-json", "--verbose"];
 
-  const modeFlags = (() => {
-    if (options.security.mode === "unsafe") {
-      // `--permission-mode bypassPermissions` is required for non-interactive
-      // runs in host-unrestricted mode: phax owns the worktree it spawns
-      // claude in, so prompting for Write/Edit approval would deadlock the
-      // headless session.
-      return ["--permission-mode", "bypassPermissions"];
-    }
-    // secure / isolated (the CLI gates isolated before reaching here; treat as
-    // secure for type totality).
-    if (options.security.filesystem.allowWrite.length === 0) {
-      throw new SecurityEnforcementError({
-        message:
-          "Claude Code secure mode requires at least one writable path in the security policy; refusing to run unrestricted.",
-        provider: "claude-code",
-        mode: options.security.mode,
-      });
-    }
-    return buildSecureClaudeFlags(
-      options.security,
-      options.cwd,
-      options.agentCommands ?? [],
-      options.skillEditGrants ?? [],
-    );
-  })();
+  // secure / isolated (the CLI gates isolated before reaching here; treat as
+  // secure for type totality) needs a writable path; unsafe needs none.
+  if (options.security.mode !== "unsafe" && options.security.filesystem.allowWrite.length === 0) {
+    throw new SecurityEnforcementError({
+      message:
+        "Claude Code secure mode requires at least one writable path in the security policy; refusing to run unrestricted.",
+      provider: "claude-code",
+      mode: options.security.mode,
+    });
+  }
+  const skillEditGrants = options.skillEditGrants ?? [];
+  const modeFlags = claudePermissionFlags({
+    security: options.security,
+    cwd: options.cwd,
+    agentCommands: options.agentCommands ?? [],
+    grantSettings:
+      options.security.mode === "unsafe" || skillEditGrants.length === 0
+        ? undefined
+        : buildSkillEditGrantSettings(resolveWorktreeRoot(options.cwd), skillEditGrants),
+  });
 
   const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];
   if (resumeSessionId) {

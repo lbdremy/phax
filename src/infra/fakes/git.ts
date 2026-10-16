@@ -43,6 +43,7 @@ export type GitCall =
       subject: string;
       body: string;
     }
+  | { method: "diffNoIndex"; repo: string; beforePath: string; afterPath: string }
   | { method: "worktreeIsClean"; path: string }
   | { method: "pruneWorktrees"; repo: string }
   | { method: "diffNameStatus"; path: string }
@@ -298,6 +299,18 @@ export class FakeGitImpl implements GitOps {
       );
     }
     return Effect.void;
+  }
+
+  /** What `diffNoIndex` returns: a scripted diff text, empty by default. */
+  diffNoIndexValue = "";
+
+  diffNoIndex(
+    repo: string,
+    beforePath: string,
+    afterPath: string,
+  ): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "diffNoIndex", repo, beforePath, afterPath });
+    return Effect.succeed(this.diffNoIndexValue);
   }
 
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError> {

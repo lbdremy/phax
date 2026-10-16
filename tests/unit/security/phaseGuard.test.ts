@@ -53,6 +53,13 @@ describe("phase guard — classification", () => {
     );
   });
 
+  it("refuses artifact decide, which spawns a session and commits the artifact (§5.9)", () => {
+    expect(PHASE_GUARD_CLASSIFICATION["artifact decide"]).toBe("refused");
+    expect(phaseGuardRefusal("artifact decide")).toBe(
+      "✗ phax artifact decide is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)",
+    );
+  });
+
   it("refuses plans status --apply, which flips and commits plan statuses", () => {
     expect(phaseGuardRefusal("plans status", { apply: true })).toBeDefined();
     expect(phaseGuardRefusal("plans status", { json: true })).toBeUndefined();

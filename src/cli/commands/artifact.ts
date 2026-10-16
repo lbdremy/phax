@@ -41,6 +41,7 @@ import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
 import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
 import { defaultBundleRoot } from "./skills.js";
+import { type DecideCommandOptions, runArtifactDecide } from "./artifactDecide.js";
 import { exitCodeForAuthoringError, exitCodeForError } from "./runLayers.js";
 
 const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
@@ -555,6 +556,21 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
       process.exit(exitCode);
     });
   }
+
+  artifactCmd
+    .command("decide")
+    .description(
+      "Decide a Draft spec's or plan's open questions in an interactive Claude Code session",
+    )
+    .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
+    .option("--question <id>", "Present this question alone: an open one, or re-arbitrate one")
+    .option("--doctrine <file>", "Append this doctrine file after the decide skill")
+    .option("--model <model>", "Override the decide model (a Claude Code model)")
+    .option("--effort <effort>", "Override the decide effort")
+    .action(async (path: string, cmdOpts: DecideCommandOptions) => {
+      const exitCode = await runArtifactDecide(path, cmdOpts, out);
+      process.exit(exitCode);
+    });
 
   // `new` is a parent command; `spec` and `plan` are real nested subcommands
   // (never a single space-separated command name — see the warning above).
