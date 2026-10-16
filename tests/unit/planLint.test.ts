@@ -9,6 +9,8 @@ import {
   advisoryFindings,
   auditorFailureFinding,
   lineageFindings,
+  sequenceGapFindings,
+  unlocatableFindings,
   type LintCheck,
   type LintSeverity,
   type FilePlanPhase,
@@ -81,6 +83,54 @@ describe("structureFindings", () => {
       expect(severities).toContain(finding.severity);
       expect(checks).toContain(finding.check);
     }
+  });
+});
+
+const PHASE_03_SECTION = CONFORMING_PLAN.slice(CONFORMING_PLAN.indexOf("## phase-01"))
+  .replace(
+    "## phase-01 — First Phase {#phase-01-first}",
+    "## phase-03 — Third Phase {#phase-03-third}",
+  )
+  .replace("do thing", "do the third thing");
+
+function missingSection(phaseId: string) {
+  return {
+    severity: "error",
+    check: "structure",
+    phase: phaseId,
+    message: `no section for ${phaseId} in plan.md (expected a "## ${phaseId} — …" heading)`,
+  };
+}
+
+describe("sequenceGapFindings", () => {
+  it("reports one structure error naming the phase missing from the numbering", () => {
+    expect(sequenceGapFindings(`${CONFORMING_PLAN}\n${PHASE_03_SECTION}`)).toEqual([
+      missingSection("phase-02"),
+    ]);
+  });
+
+  it("returns [] for contiguous phase ids", () => {
+    const phase02 = PHASE_03_SECTION.replaceAll("phase-03", "phase-02");
+    expect(sequenceGapFindings(`${CONFORMING_PLAN}\n${phase02}`)).toEqual([]);
+  });
+
+  it("returns [] for a plan with no phase heading", () => {
+    expect(sequenceGapFindings("# Plan\n\n## Required commands\n\n- (none)\n")).toEqual([]);
+  });
+});
+
+describe("unlocatableFindings", () => {
+  it("maps each unlocatable phase to a structure error", () => {
+    const phases = [
+      { id: "phase-01", planMarkdownAnchor: "#phase-01-first" },
+      { id: "phase-02", planMarkdownAnchor: "#phase-02-second" },
+    ];
+    expect(unlocatableFindings(CONFORMING_PLAN, phases)).toEqual([missingSection("phase-02")]);
+  });
+
+  it("returns [] when every phase is located", () => {
+    const phases = [{ id: "phase-01", planMarkdownAnchor: "#phase-01-first" }];
+    expect(unlocatableFindings(CONFORMING_PLAN, phases)).toEqual([]);
   });
 });
 

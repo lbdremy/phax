@@ -35,6 +35,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -156,7 +157,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers1)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers1)),
     );
 
     const firstResult = await Effect.runPromise(
@@ -165,7 +166,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
           namespace: "test-project",
           shortName,
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -288,7 +289,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
           namespace: "test-project",
           shortName,
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

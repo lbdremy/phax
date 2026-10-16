@@ -15,6 +15,7 @@ import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.j
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -149,7 +150,7 @@ describe("State Machine Contract", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -158,7 +159,7 @@ describe("State Machine Contract", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -259,7 +260,7 @@ describe("State Machine Contract", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const runResult = await Effect.runPromise(
@@ -268,7 +269,7 @@ describe("State Machine Contract", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -389,7 +390,7 @@ describe("State Machine Contract", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const runResult = await Effect.runPromise(
@@ -398,7 +399,7 @@ describe("State Machine Contract", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

@@ -13,11 +13,13 @@ import { checkCleanWorkingTree } from "../../src/app/worktree.js";
 import {
   ConfigValidationError,
   ModelPreflightError,
+  PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
   SkillEditConsentError,
   UnsafeGitStateError,
 } from "../../src/domain/errors.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -110,9 +112,14 @@ function makeConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   } as ResolvedConfig;
 }
 
+const PLAN_PATH = "docs/plans/foo.md";
+
 function makeInput(overrides: Partial<RunPreflightInput> = {}): RunPreflightInput {
+  const plan = overrides.plan ?? makePlan();
   return {
-    plan: makePlan(),
+    plan,
+    planMd: planMdFor(plan),
+    planPath: PLAN_PATH,
     config: makeConfig(),
     gateProfileId: "standard",
     namespace: NAMESPACE,
@@ -131,6 +138,7 @@ async function run(input: RunPreflightInput, fs = makeFakeFileSystem()) {
 const SKILL_FILE = ".claude/skills/foo/SKILL.md";
 const skillPhase = makePhase("phase-01", { plannedFilesToCreate: [SKILL_FILE] });
 const badModelPhase = makePhase("phase-01", { model: "completely-unknown-model-xyz" });
+const twoPhasePlan = makePlan([makePhase("phase-01"), makePhase("phase-02")]);
 const recordsRepoConfig = makeConfig({
   records: {
     enabled: true,
@@ -216,6 +224,14 @@ const REFUSALS = {
     errorClass: ModelPreflightError,
     message: expectedModelMessage(makePlan([badModelPhase])),
   },
+  "phase-sections": {
+    input: makeInput({ plan: twoPhasePlan, planMd: planMdFor(makePlan([makePhase("phase-01")])) }),
+    errorClass: PlanSectionsPreflightError,
+    message: [
+      'Plan preflight failed: phase-02 has no section in plan.md (expected a "## phase-02 — …" heading).',
+      `Fix the plan, then check it with \`phax plans lint ${PLAN_PATH}\`.`,
+    ].join("\n"),
+  },
 } satisfies Record<RunPreflightCheck, RefusalCase>;
 
 describe("runPreflights", () => {
@@ -227,6 +243,7 @@ describe("runPreflights", () => {
       "mcp-allow",
       "records-destination",
       "phase-models",
+      "phase-sections",
     ]);
   });
 
@@ -249,6 +266,47 @@ describe("runPreflights", () => {
       expect(result.left.failures.map((f) => f.phaseId)).toEqual(["phase-01"]);
       expect(result.left.failures[0]?.model).toBe("completely-unknown-model-xyz");
     }
+  });
+
+  it("phase-sections refusal names every unlocatable phase and the plan path", async () => {
+    const plan = makePlan([
+      makePhase("phase-01"),
+      makePhase("phase-02"),
+      makePhase("phase-03"),
+      makePhase("phase-04"),
+    ]);
+    const planMd = planMdFor(makePlan([makePhase("phase-01"), makePhase("phase-03")]));
+    const result = await run(makeInput({ plan, planMd }));
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(PlanSectionsPreflightError);
+      if (result.left instanceof PlanSectionsPreflightError) {
+        expect(result.left.phases).toEqual(["phase-02", "phase-04"]);
+        expect(result.left.planPath).toBe(PLAN_PATH);
+      }
+      expect(result.left.message.split("\n")[0]).toMatch(
+        /^Plan preflight failed: phase-02, phase-04 have no section in plan\.md \(/,
+      );
+      expect(result.left.message).toContain(`phax plans lint ${PLAN_PATH}`);
+    }
+  });
+
+  it("phase-sections checks every phase, not only those still to run", async () => {
+    const planMd = planMdFor(makePlan([makePhase("phase-02")]));
+    const result = await run(makeInput({ plan: twoPhasePlan, planMd, startIndex: 1 }));
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(PlanSectionsPreflightError);
+  });
+
+  it("an environment refusal is reported before the plan defect", async () => {
+    const result = await run(
+      makeInput({
+        plan: makePlan([badModelPhase, makePhase("phase-02")]),
+        planMd: planMdFor(makePlan([badModelPhase])),
+      }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ModelPreflightError);
   });
 
   it("first failure wins: required commands before models", async () => {
@@ -274,6 +332,19 @@ describe("runPreflights", () => {
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       expect(result.right.gateSteps).toEqual(makeConfig().raw.gateProfiles["standard"]);
+    }
+  });
+
+  it("returns the located plan sections on success", async () => {
+    const result = await run(makeInput({ plan: twoPhasePlan }));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      const { preamble, sections } = result.right.planSections;
+      expect(preamble).toBe("# Foo\n\n## Required commands\n\n- (none)");
+      expect([...sections.keys()]).toEqual(["phase-01", "phase-02"]);
+      expect(sections.get("phase-02")).toBe(
+        "## phase-02 — Phase phase-02 {#phase-02}\n\nCarry out phase-02's made-up instructions.",
+      );
     }
   });
 });
@@ -312,8 +383,11 @@ describe("checkCleanWorkingTree", () => {
 });
 
 function makeFreshInput(overrides: Partial<FreshRunPreflightInput> = {}): FreshRunPreflightInput {
+  const plan = overrides.plan ?? makePlan();
   return {
-    plan: makePlan(),
+    plan,
+    planMd: planMdFor(plan),
+    planPath: PLAN_PATH,
     config: makeConfig(),
     gateProfileId: "standard",
     namespace: NAMESPACE,

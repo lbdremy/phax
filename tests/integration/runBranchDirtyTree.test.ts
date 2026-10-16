@@ -25,6 +25,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const DIRTY_MESSAGE = "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.";
 
@@ -120,6 +121,8 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
       Effect.either(
         freshRunPreflight({
           plan,
+          planMd: planMdFor(plan),
+          planPath: "plan.md",
           config,
           gateProfileId: "full",
           namespace: "test-project",
@@ -145,13 +148,13 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
     );
     const result = await Effect.runPromise(
       Effect.either(
-        createRunFolder(shortName, "# Dirty Run", plan, config).pipe(
+        createRunFolder(shortName, planMdFor(plan), plan, config).pipe(
           Effect.flatMap(({ runPath, runId }) =>
             executePlan({
               shortName,
               namespace: "test-project",
               plan,
-              planMd: "# Dirty Run",
+              planMd: planMdFor(plan),
               config,
               gateProfileId: "full",
               allowDirty: false,

@@ -25,6 +25,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -219,7 +220,7 @@ async function runResume(opts: {
         shortName,
         namespace: "test-project",
         plan,
-        planMd: "# My Plan",
+        planMd: planMdFor(plan),
         config,
         gateProfileId: "full",
         allowDirty: true,
@@ -255,7 +256,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, config, PLAN_REL).pipe(
         Effect.provide(setupLayers),
       ),
     );
@@ -332,7 +333,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, config, PLAN_REL).pipe(
         Effect.provide(setupLayers),
       ),
     );

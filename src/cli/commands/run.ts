@@ -350,6 +350,8 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     Effect.either(
       freshRunPreflight({
         plan,
+        planMd,
+        planPath: opts.plan,
         config,
         gateProfileId,
         namespace,

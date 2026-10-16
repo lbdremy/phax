@@ -4,6 +4,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { ArtifactValidationError } from "../../src/domain/errors.js";
+import { hasLintErrors } from "../../src/domain/plan/lint.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -324,6 +325,27 @@ describe("lintPlan", () => {
       phase: null,
       message: `missing "## Required commands" section`,
     });
+  });
+
+  it("reports a phase whose heading lacks its id as a structure error naming it", async () => {
+    // phase-03 follows, so the numbering shows phase-02 is missing.
+    const phase03 = PLAN_WITH_TWO_PHASES.slice(PLAN_WITH_TWO_PHASES.indexOf("## phase-02"))
+      .replace(
+        "## phase-02 — Second Phase {#phase-02-second}",
+        "## phase-03 — Third Phase {#phase-03-third}",
+      )
+      .replace("do thing two", "do thing three");
+    const plan = `${PLAN_WITH_TWO_PHASES.replace("## phase-02 — Second", "## Step two — Second")}\n${phase03}`;
+
+    const report = await runLint(plan, { "/repo/src/b.ts": "export {}" });
+
+    expect(report.findings).toContainEqual({
+      severity: "error",
+      check: "structure",
+      phase: "phase-02",
+      message: 'no section for phase-02 in plan.md (expected a "## phase-02 — …" heading)',
+    });
+    expect(hasLintErrors(report.findings)).toBe(true);
   });
 
   it("reports an edit of a file absent from the working tree", async () => {

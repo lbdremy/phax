@@ -1,4 +1,6 @@
+import { Either } from "effect";
 import { collectPlanStructureErrors } from "./parsePlanMarkdown.js";
+import { locatePlanSections, phaseHeadingIds, type LocatablePhase } from "./sections.js";
 import { checkRequiredCommands } from "../security/agentCommands.js";
 import { preflightPhaseModels, type PreflightPhase } from "../routing/preflight.js";
 import type { ModelRouting } from "../../schemas/modelRouting.js";
@@ -26,6 +28,43 @@ export function structureFindings(planMd: string): readonly LintFinding[] {
     phase: e.phase,
     message: e.message,
   }));
+}
+
+function missingSectionFinding(phaseId: string): LintFinding {
+  return {
+    severity: "error",
+    check: "structure",
+    phase: phaseId,
+    message: `no section for ${phaseId} in plan.md (expected a "## ${phaseId} — …" heading)`,
+  };
+}
+
+/**
+ * One `structure` error per phase id missing from phase-01 … phase-NN, where
+ * NN is the highest `## phase-NN` heading. Nothing when the plan has no phase
+ * heading at all — the parser already reports that.
+ */
+export function sequenceGapFindings(planMd: string): readonly LintFinding[] {
+  const seen = new Set(phaseHeadingIds(planMd));
+  const highest = Math.max(0, ...[...seen].map((id) => Number(id.slice("phase-".length))));
+  const findings: LintFinding[] = [];
+  for (let n = 1; n <= highest; n++) {
+    const id = `phase-${String(n).padStart(2, "0")}`;
+    if (!seen.has(id)) findings.push(missingSectionFinding(id));
+  }
+  return findings;
+}
+
+/**
+ * One `structure` error per parsed phase the shared locating rule cannot find
+ * in plan.md — the same rule the run preflight refuses on.
+ */
+export function unlocatableFindings(
+  planMd: string,
+  phases: readonly LocatablePhase[],
+): readonly LintFinding[] {
+  const located = locatePlanSections(planMd, phases);
+  return Either.isLeft(located) ? located.left.map(missingSectionFinding) : [];
 }
 
 /**

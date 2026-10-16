@@ -22,6 +22,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -237,7 +238,7 @@ describe("executePlan — the Gate-Log trailer", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, opts.config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, opts.config).pipe(Effect.provide(layers)),
     );
     await opts.seed?.(runPath, runId);
     const result = await Effect.runPromise(
@@ -246,7 +247,7 @@ describe("executePlan — the Gate-Log trailer", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config: opts.config,
           gateProfileId: "full",
           allowDirty: false,

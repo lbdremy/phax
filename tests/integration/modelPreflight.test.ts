@@ -21,6 +21,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const shortName = Either.getOrThrow(decodeShortName("preflight-run"));
 
@@ -120,7 +121,7 @@ describe("executePlan — model preflight", () => {
     const { layer, fakeBackend } = makeLayers();
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Preflight Run", plan, config).pipe(Effect.provide(layer)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layer)),
     );
 
     const result = await Effect.runPromise(
@@ -129,7 +130,7 @@ describe("executePlan — model preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Preflight Run",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -184,7 +185,7 @@ describe("executePlan — model preflight", () => {
     const { layer, fakeBackend } = makeLayers();
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Preflight Run", plan, config).pipe(Effect.provide(layer)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layer)),
     );
 
     const result = await Effect.runPromise(
@@ -193,7 +194,7 @@ describe("executePlan — model preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Preflight Run",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -251,7 +252,7 @@ describe("executePlan — model preflight", () => {
     const { layer } = makeLayers();
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Preflight Run", plan, config).pipe(Effect.provide(layer)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layer)),
     );
 
     const result = await Effect.runPromise(
@@ -260,7 +261,7 @@ describe("executePlan — model preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Preflight Run",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -318,7 +319,7 @@ describe("executePlan — model preflight", () => {
     const { layer, fakeBackend } = makeLayers();
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Preflight Run", plan, config).pipe(Effect.provide(layer)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layer)),
     );
 
     const result = await Effect.runPromise(
@@ -327,7 +328,7 @@ describe("executePlan — model preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Preflight Run",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

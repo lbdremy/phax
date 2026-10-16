@@ -10,15 +10,17 @@
  * A check that needs the run's folder, registry entry or branch must be
  * declared outside this set, explicitly.
  */
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import {
   type ConfigValidationError,
   ModelPreflightError,
+  PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
   type SkillEditConsentError,
   UnsafeGitStateError,
 } from "../domain/errors.js";
+import { locatePlanSections, type PlanSections } from "../domain/plan/sections.js";
 import { preflightPhaseModels } from "../domain/routing/preflight.js";
 import {
   applyProviderPriorityOverride,
@@ -46,12 +48,17 @@ export const RUN_PREFLIGHT_CHECKS = [
   "mcp-allow",
   "records-destination",
   "phase-models",
+  "phase-sections",
 ] as const;
 
 export type RunPreflightCheck = (typeof RUN_PREFLIGHT_CHECKS)[number];
 
 export interface RunPreflightInput {
   readonly plan: PhaxPlan;
+  /** The plan.md the phases are located in. */
+  readonly planMd: string;
+  /** The path a phase-sections refusal tells the operator to lint. */
+  readonly planPath: string;
   readonly config: ResolvedConfig;
   readonly gateProfileId: string;
   readonly workspaceId?: string | undefined;
@@ -68,7 +75,8 @@ export type RunPreflightRefusal =
   | SecurityPreflightError
   | SkillEditConsentError
   | RecordsSyncRequiredError
-  | ModelPreflightError;
+  | ModelPreflightError
+  | PlanSectionsPreflightError;
 
 export type RunPreflightError = RunPreflightRefusal | FsError;
 
@@ -114,6 +122,36 @@ function resolveGateSteps(
 }
 
 type GateSteps = Effect.Effect<readonly GateStep[], UnsafeGitStateError>;
+
+type LocatedSections = Effect.Effect<PlanSections, PlanSectionsPreflightError>;
+
+function planSectionsRefusal(
+  phases: readonly string[],
+  planPath: string,
+): PlanSectionsPreflightError {
+  const [first] = phases;
+  const missing =
+    phases.length === 1
+      ? `${first} has no section in plan.md (expected a "## ${first} — …" heading)`
+      : `${phases.join(", ")} have no section in plan.md (expected a "## phase-NN — …" heading for each)`;
+  return new PlanSectionsPreflightError({
+    message: [
+      `Plan preflight failed: ${missing}.`,
+      `Fix the plan, then check it with \`phax plans lint ${planPath}\`.`,
+    ].join("\n"),
+    phases,
+    planPath,
+  });
+}
+
+function locateSections(input: RunPreflightInput): LocatedSections {
+  return Effect.suspend(() =>
+    Either.match(locatePlanSections(input.planMd, input.plan.phases), {
+      onLeft: (phases) => Effect.fail(planSectionsRefusal(phases, input.planPath)),
+      onRight: (sections) => Effect.succeed(sections),
+    }),
+  );
+}
 
 const checks = {
   "gate-profile": (_input, gateSteps) => Effect.asVoid(gateSteps),
@@ -218,29 +256,39 @@ const checks = {
       }),
     );
   },
+
+  // Locate every phase's section in plan.md — all phases, not only those still
+  // to run. The prompt builder reads the sections located here.
+  "phase-sections": (_input, _gateSteps, planSections) => Effect.asVoid(planSections),
 } satisfies Record<
   RunPreflightCheck,
   (
     input: RunPreflightInput,
     gateSteps: GateSteps,
+    planSections: LocatedSections,
   ) => Effect.Effect<void, RunPreflightError, FileSystem>
 >;
 
 /**
  * Run every check in RUN_PREFLIGHT_CHECKS order, stopping at the first refusal.
  * Reads only through the FileSystem port and writes nothing. On success yields
- * the resolved gate steps.
+ * the resolved gate steps and the located plan sections.
  */
 export function runPreflights(
   input: RunPreflightInput,
-): Effect.Effect<{ readonly gateSteps: readonly GateStep[] }, RunPreflightError, FileSystem> {
+): Effect.Effect<
+  { readonly gateSteps: readonly GateStep[]; readonly planSections: PlanSections },
+  RunPreflightError,
+  FileSystem
+> {
   return Effect.gen(function* () {
-    // Resolved once, by the first check that needs it, and shared with the rest.
+    // Each resolved once, by the first check that needs it, and shared with the rest.
     const gateSteps = yield* Effect.cached(resolveGateSteps(input));
+    const planSections = yield* Effect.cached(locateSections(input));
     for (const id of RUN_PREFLIGHT_CHECKS) {
-      yield* checks[id](input, gateSteps);
+      yield* checks[id](input, gateSteps, planSections);
     }
-    return { gateSteps: yield* gateSteps };
+    return { gateSteps: yield* gateSteps, planSections: yield* planSections };
   });
 }
 
@@ -253,6 +301,10 @@ export type FreshRunPreflightStep = "routing-config" | RunPreflightCheck | "clea
 
 export interface FreshRunPreflightInput {
   readonly plan: PhaxPlan;
+  /** The plan.md the phases are located in. */
+  readonly planMd: string;
+  /** The path a phase-sections refusal tells the operator to lint. */
+  readonly planPath: string;
   readonly config: ResolvedConfig;
   readonly gateProfileId: string;
   readonly workspaceId?: string | undefined;
@@ -292,6 +344,8 @@ export function freshRunPreflight(
 
     yield* runPreflights({
       plan: input.plan,
+      planMd: input.planMd,
+      planPath: input.planPath,
       config: input.config,
       gateProfileId: input.gateProfileId,
       workspaceId: input.workspaceId,

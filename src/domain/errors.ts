@@ -315,6 +315,13 @@ export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")
   }[];
 }> {}
 
+// A plan phase has no section in plan.md that `locatePlanSections` can find.
+export class PlanSectionsPreflightError extends Data.TaggedError("PlanSectionsPreflightError")<{
+  message: string;
+  phases: readonly string[];
+  planPath: string;
+}> {}
+
 export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
   "ReviewHandoffArtifactMissingError",
 )<{

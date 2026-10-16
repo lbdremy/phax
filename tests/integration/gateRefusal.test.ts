@@ -22,6 +22,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 // A report step that refuses to run, on fakes over a real run folder. The
 // report and the run are made up, after the spec's examples.
@@ -166,7 +167,7 @@ describe("a refused gate report", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Greet", plan, config, undefined, true).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
         Effect.provide(layer),
       ),
     );
@@ -177,7 +178,7 @@ describe("a refused gate report", () => {
             shortName,
             namespace: "hello-world",
             plan,
-            planMd: "# Greet",
+            planMd: planMdFor(plan),
             config,
             gateProfileId: "full",
             allowDirty: false,

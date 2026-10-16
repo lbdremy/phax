@@ -17,7 +17,9 @@ import {
   lineageFindings,
   modelFindings,
   plannedPaths,
+  sequenceGapFindings,
   structureFindings,
+  unlocatableFindings,
   type LintFinding,
 } from "../domain/plan/lint.js";
 import { makePlanAuditRequest } from "../domain/plan/projection.js";
@@ -91,7 +93,8 @@ export function lintPlan(
     const fs = yield* FileSystem;
     const planMd = yield* fs.readText(planMdPath);
 
-    const findings: LintFinding[] = [...structureFindings(planMd)];
+    // The numbering gap is reported even when the deterministic parse fails.
+    const findings: LintFinding[] = [...structureFindings(planMd), ...sequenceGapFindings(planMd)];
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
@@ -124,6 +127,8 @@ export function lintPlan(
     for (const warning of warnings) {
       findings.push({ severity: "warning", check: "structure", phase: null, message: warning });
     }
+    // The run preflight's locating rule; a parsed phase fails it only through a parser bug.
+    findings.push(...unlocatableFindings(planMd, plan.phases));
 
     // Files: probe exactly the paths the plan names, against the working tree.
     const existing = new Set<string>();

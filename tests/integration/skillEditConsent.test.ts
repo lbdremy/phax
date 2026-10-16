@@ -23,6 +23,7 @@ import {
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeRunStatusFile } from "../../src/schemas/status.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -178,7 +179,7 @@ describe("executePlan — skill edit consent preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Skill Run",
+          planMd: planMdFor(plan),
           config: makeConfig(stateRoot),
           gateProfileId: "full",
           allowDirty: false,
@@ -195,7 +196,7 @@ describe("executePlan — skill edit consent preflight", () => {
     const plan = makePlan(1);
     const { layer, fakeGit, fakeBackend } = makeLayers();
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Skill Run", plan, makeConfig(stateRoot)).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, makeConfig(stateRoot)).pipe(
         Effect.provide(layer),
       ),
     );
@@ -225,9 +226,14 @@ describe("executePlan — skill edit consent preflight", () => {
     const plan = makePlan(0);
     const { layer, fakeBackend } = makeLayers();
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Skill Run", plan, makeConfig(stateRoot), undefined, true).pipe(
-        Effect.provide(layer),
-      ),
+      createRunFolder(
+        shortName,
+        planMdFor(plan),
+        plan,
+        makeConfig(stateRoot),
+        undefined,
+        true,
+      ).pipe(Effect.provide(layer)),
     );
     expect(await readRecordedConsent(runPath)).toBe(true);
 
@@ -241,7 +247,7 @@ describe("executePlan — skill edit consent preflight", () => {
     const plan = makePlan(-1);
     const { layer, fakeBackend } = makeLayers();
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Skill Run", plan, makeConfig(stateRoot)).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, makeConfig(stateRoot)).pipe(
         Effect.provide(layer),
       ),
     );
@@ -256,9 +262,14 @@ describe("executePlan — skill edit consent preflight", () => {
     const plan = makePlan(1);
     const { layer, fakeBackend } = makeLayers();
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Skill Run", plan, makeConfig(stateRoot), undefined, true).pipe(
-        Effect.provide(layer),
-      ),
+      createRunFolder(
+        shortName,
+        planMdFor(plan),
+        plan,
+        makeConfig(stateRoot),
+        undefined,
+        true,
+      ).pipe(Effect.provide(layer)),
     );
     await markPhase01Committed(stateRoot, runPath);
 
@@ -272,7 +283,7 @@ describe("executePlan — skill edit consent preflight", () => {
     const plan = makePlan(1);
     const { layer, fakeBackend } = makeLayers();
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Skill Run", plan, makeConfig(stateRoot)).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, makeConfig(stateRoot)).pipe(
         Effect.provide(layer),
       ),
     );

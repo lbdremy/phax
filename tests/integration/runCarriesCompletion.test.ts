@@ -23,6 +23,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -213,7 +214,9 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config, PLAN_REL).pipe(
+        Effect.provide(layers),
+      ),
     );
     await seedWorktreeArtifacts(worktreePath, "Approved", SPEC_REL);
 
@@ -223,7 +226,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -310,7 +313,9 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config, PLAN_REL).pipe(
+        Effect.provide(layers),
+      ),
     );
     await seedWorktreeArtifacts(worktreePath, "Approved", SPEC_REL, false);
     const specBefore = await readFile(join(worktreePath, SPEC_REL), "utf8");
@@ -321,7 +326,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -377,7 +382,9 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config, PLAN_REL).pipe(
+        Effect.provide(layers),
+      ),
     );
     // A plan hand-edited to Draft on the branch: Draft → Completed is illegal.
     await seedWorktreeArtifacts(worktreePath, "Draft", "null");
@@ -388,7 +395,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

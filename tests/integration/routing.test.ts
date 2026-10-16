@@ -21,6 +21,7 @@ import { SystemTelemetry } from "../../src/ports/systemTelemetry.js";
 import type { TelemetryAttributes } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -200,7 +201,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Routing Test", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const mistralEnabledProviderConfig = {
@@ -216,7 +217,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
           shortName,
           namespace: "routing-test",
           plan,
-          planMd: "# Routing Test",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

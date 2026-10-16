@@ -35,6 +35,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -47,7 +48,6 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const PLAN_MD = "# Brief records plan\n\nMade-up phase.\n";
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 const BRIEF_COMMAND = "node ./brief.mjs";
 const BROKEN_COMMAND = "node ./broken.mjs";
@@ -213,7 +213,9 @@ type Fakes = ReturnType<typeof makeFakes>;
 async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
   const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
   const { runPath, runId } = await Effect.runPromise(
-    createRunFolder(shortName, PLAN_MD, plan, config, undefined, true).pipe(Effect.provide(layers)),
+    createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
+      Effect.provide(layers),
+    ),
   );
   const execute = (withLayers: Fakes["layers"]) =>
     Effect.runPromise(
@@ -222,7 +224,7 @@ async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: PLAN_MD,
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
