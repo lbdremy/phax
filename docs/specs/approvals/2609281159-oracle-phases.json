@@ -1,7 +1,11 @@
 {
-  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
   "artifact": "docs/specs/2609281159-oracle-phases.md",
-  "specFingerprint": "e706e68d969febb8b9bf4199bf0abdcc95b5114430d5a3ae34a84becb36fa41a",
-  "approvedAt": "2026-09-28T16:08:36.591Z",
-  "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
+  "specFingerprint": "a23045d9481beb41f992b20e561bc3ae5c337ea710481d649071d00c3e6a88c2",
+  "approvedAt": "2026-10-16T09:21:20.428Z",
+  "baseline": "35ae982dcab5273b696c9ef136370a5ebcc19461",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
 }

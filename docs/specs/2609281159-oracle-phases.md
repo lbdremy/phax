@@ -4,8 +4,8 @@ date: 2026-09-28
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
-  date: 2026-09-28
-  baseline: ddc1a9a
+  date: 2026-10-16
+  baseline: 35ae982
 ---
 # Oracle-first phases behind a pluggable oracle provider
 
