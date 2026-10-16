@@ -1095,6 +1095,36 @@ describe("records explain and list (real git)", () => {
       expect(outcome.record.sourceCommitReachable).toBe(true);
     });
 
+    it("picks the record naming the explained commit when two share a Decision-Id", async () => {
+      // Two machines decided under the same `<stamp>-<slug>/<NN>`; the newer
+      // record is the other machine's.
+      const first = commitDecision(DECISION_ID);
+      await recordDecision(DECISION_ID);
+      writeFileSync(join(repoDir, "elsewhere.md"), "another machine's decide\n");
+      const second = commitDecision(DECISION_ID);
+      await recordDecision(DECISION_ID);
+      writeFileSync(join(repoDir, "unrecorded.md"), "a decide with no record\n");
+      const third = commitDecision(DECISION_ID);
+
+      const explain = (sha: string) =>
+        run(
+          explainRecord({
+            sha,
+            repoRoot: repoDir,
+            records: IN_REPO_CONFIG,
+            publishRemote: "origin",
+          }),
+        );
+
+      const firstOutcome = await explain(first);
+      if (firstOutcome.kind !== "found-decision") throw new Error("expected found-decision");
+      expect(firstOutcome.record.manifest).toMatchObject({ commit: first });
+      const secondOutcome = await explain(second);
+      if (secondOutcome.kind !== "found-decision") throw new Error("expected found-decision");
+      expect(secondOutcome.record.manifest).toMatchObject({ commit: second });
+      expect(await explain(third)).toMatchObject({ kind: "not-found", sourceSha: third });
+    });
+
     it("renders the decision's facts, and prints its body diff under --diff", async () => {
       const sha = commitDecision(DECISION_ID);
       await recordDecision(DECISION_ID);

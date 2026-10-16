@@ -541,6 +541,88 @@ describe("writeHandDecisions", () => {
     }
   });
 
+  it("re-arbitrates replacing only the old verdict's lines, keeping earlier decisions and notes in place", () => {
+    const md = SPEC_ARBITRATED.replace(
+      "Decision: text — lifted, unattributed, 2026-09-28",
+      [
+        "Decision: text — by operator (Ada Lovelace), 2026-09-28",
+        "Why: people read it,",
+        "and grep works on it.",
+        "Earlier decision: json — lifted, unattributed, 2026-09-01",
+        "",
+        "Note: revisit after 1.0.",
+      ].join("\n"),
+    );
+    const answer = specAnswer(
+      [{ id: "Q3", verdict: verdict("json", ["text"], ["## 5. Requirements"]) }],
+      md,
+    );
+    const written = write(answer, { md, reArbitrated: "Q3" });
+    const why =
+      "Why: a report names its run. Advocate: a bounded directory is easier to reason about. Principles: S1. Reversibility: cheap. Revised: ## 5. Requirements.";
+    const expected = md
+      .replace(
+        [
+          "Decision: text — by operator (Ada Lovelace), 2026-09-28",
+          "Why: people read it,",
+          "and grep works on it.",
+          "Earlier decision: json — lifted, unattributed, 2026-09-01",
+        ].join("\n"),
+        [
+          "Decision: json — by operator (Grace Hopper), 2026-10-16",
+          why,
+          "Earlier decision: json — lifted, unattributed, 2026-09-01",
+          "Earlier decision: text — by operator (Ada Lovelace), 2026-09-28",
+        ].join("\n"),
+      )
+      .replace(
+        "- 2026-09-28 Q3 lifted text — unattributed\n",
+        "- 2026-09-28 Q3 lifted text — unattributed\n- 2026-10-16 Q3 decided json — operator (Grace Hopper) — revised 1 section\n",
+      );
+    expect(written).toBe(expected);
+    expect(parsedOf("spec", written)).toMatchObject({
+      open: [{ id: "Q1" }],
+      arbitrated: [{ id: "Q3", chosen: "json", lifted: false }],
+    });
+  });
+
+  it("re-arbitrates a Decision whose Why is a paragraph of its own", () => {
+    const md = SPEC_ARBITRATED.replace(
+      "Decision: text — lifted, unattributed, 2026-09-28",
+      [
+        "Decision: text — by operator (Ada Lovelace), 2026-09-28",
+        "",
+        "Why: people read it,",
+        "and grep works on it.",
+        "",
+        "Note: revisit after 1.0.",
+      ].join("\n"),
+    );
+    const answer = specAnswer(
+      [{ id: "Q3", verdict: verdict("json", ["text"], ["## 5. Requirements"]) }],
+      md,
+    );
+    const lines = write(answer, { md, reArbitrated: "Q3" }).split("\n");
+    const decision = lines.indexOf("Decision: json — by operator (Grace Hopper), 2026-10-16");
+    expect(lines.slice(decision + 2, decision + 6)).toEqual([
+      "Earlier decision: text — by operator (Ada Lovelace), 2026-09-28",
+      "",
+      "Note: revisit after 1.0.",
+      "",
+    ]);
+    expect(lines).not.toContain("Why: people read it,");
+    expect(lines).not.toContain("and grep works on it.");
+  });
+
+  it("keeps a CRLF file's line endings", () => {
+    const crlf = SPEC.replace(/\n/g, "\r\n");
+    const decisions = [{ id: "Q1", verdict: verdict("per-run", ["daily"]) }];
+    const written = write(specAnswer(decisions, crlf), { md: crlf });
+    expect(written).toBe(write(specAnswer(decisions)).replace(/\n/g, "\r\n"));
+    expect(written.replace(/\r\n/g, "")).not.toContain("\n");
+    expect(parsedOf("spec", written)).toMatchObject({ arbitrated: [{ id: "Q1" }] });
+  });
+
   it("writes a plan's arbitrated section and decision log before its first phase", () => {
     const answer = {
       kind: "plan",

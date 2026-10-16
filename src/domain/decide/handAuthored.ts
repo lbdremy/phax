@@ -451,6 +451,54 @@ function lastContent(lines: readonly string[], range: LineRange): number {
   return range.start - 1;
 }
 
+// A re-arbitrated question's Decision block, by 0-based line: the old
+// verdict's own lines, and the last of the `Earlier decision:` lines among
+// them, if any. Its own lines are its Decision line and its `Why:` paragraph
+// — the next line, or the next paragraph after blank lines — each with the
+// lines that continue it; an `Earlier decision:` line and the lines that
+// continue it are history. Read through the end of the Decision line's
+// paragraph (or of its Why paragraph): what follows a blank line is not the
+// verdict's. `decision` is its Decision line, continuation lines joined.
+interface DecisionBlock {
+  readonly own: readonly number[];
+  readonly decision: string;
+  readonly lastEarlier: number | undefined;
+}
+
+function decisionBlockOf(lines: readonly string[], q: ParsedArbitratedQuestion): DecisionBlock {
+  const start = q.decisionLine - 1;
+  const end = q.range.end - 1;
+  const text = (i: number) => (lines[i] ?? "").trim();
+  const own: number[] = [];
+  const decision: string[] = [];
+  let lastEarlier: number | undefined;
+  let owner: "decision" | "why" | "earlier" = "decision";
+  let sawWhy = false;
+  let i = start;
+  const readParagraph = () => {
+    for (; i <= end && text(i).length > 0; i++) {
+      if (i !== start && text(i).startsWith("Why:")) {
+        owner = "why";
+        sawWhy = true;
+      } else if (text(i).startsWith("Earlier decision:")) {
+        owner = "earlier";
+      }
+      if (owner === "earlier") lastEarlier = i;
+      else own.push(i);
+      if (owner === "decision") decision.push(text(i));
+    }
+  };
+  readParagraph();
+  let next = i;
+  while (next <= end && text(next).length === 0) next++;
+  if (!sawWhy && next <= end && text(next).startsWith("Why:")) {
+    for (let blank = i; blank < next; blank++) own.push(blank);
+    i = next;
+    readParagraph();
+  }
+  return { own, decision: decision.join(" "), lastEarlier };
+}
+
 // The 0-based index of a section's `None.` line, if it holds one.
 function noneLine(lines: readonly string[], section: ParsedSection): number | undefined {
   for (let i = section.range.start; i < section.range.end; i++) {
@@ -469,15 +517,17 @@ function noneLine(lines: readonly string[], section: ParsedSection): number | un
  * - each decided open question's block (its range) is cut from the open
  *   section and appended to the arbitrated section, followed by its Decision
  *   block; an open section left without a question holds `None.`;
- * - the re-arbitrated question's Decision block is replaced by the new one,
- *   which keeps its `Earlier decision:` lines and then the previous Decision
- *   line as an `Earlier decision:` line;
+ * - the re-arbitrated question's old verdict (its Decision line and its Why
+ *   paragraph) is replaced by the new one, and its previous Decision line is
+ *   added as an `Earlier decision:` line after its earlier decisions; every
+ *   other line of its block (earlier decisions, notes) stays in place;
  * - the decision log gains one entry per new verdict, after its last line;
  * - a missing arbitrated section is created right after the open section,
  *   and a missing decision log at the end of a spec, or right after a plan's
  *   arbitrated section (so before its first phase).
- * No other line changes. The Decision block and log entries are rendered as
- * the spec and plan renderers render them. The result is parsed again: a
+ * No other line changes, and the file keeps its line ending. The Decision
+ * block and log entries are rendered as the spec and plan renderers render
+ * them. The result is parsed again: a
  * Left when it does not parse, or its open and arbitrated ids are not the
  * expected ones.
  */
@@ -510,6 +560,8 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
   }
 
   const lines = splitLines(base);
+  // The file's line ending, kept: CRLF when it holds one, LF otherwise.
+  const eol = input.md.includes("\r\n") ? "\r\n" : "\n";
   const dropped = new Set<number>();
   const inserted = new Map<number, Chunk[]>();
   const insert = (index: number, chunkLines: readonly string[], section = false) => {
@@ -531,17 +583,22 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
     insert(firstOpen.range.start - 1, ["None.", ""]);
   }
 
-  // The re-arbitrated question: its Decision block replaced.
+  // The re-arbitrated question: its old verdict's own lines replaced by the
+  // new verdict's, and the old verdict added after its earlier decisions.
+  // Every other line of its block stays where it is.
   if (rearbitrated !== undefined) {
     const verdict = verdictOf.get(rearbitrated.id);
     if (verdict === undefined) return Either.left(`"${rearbitrated.id}" has no verdict`);
     const from = rearbitrated.decisionLine - 1;
-    const to = lastContent(lines, rearbitrated.range);
-    const old = lines.slice(from, to + 1).map((line) => line.trimEnd());
-    const earlier = old.slice(1).filter((line) => line.startsWith("Earlier decision:"));
-    const previous = `Earlier decision: ${(old[0] ?? "").slice("Decision: ".length)}`;
-    drop(from, to);
-    insert(from, [...decisionLines(verdict), ...earlier, previous]);
+    const block = decisionBlockOf(lines, rearbitrated);
+    const previous = `Earlier decision: ${block.decision.slice("Decision: ".length)}`;
+    for (const i of block.own) drop(i, i);
+    if (block.lastEarlier === undefined) {
+      insert(from, [...decisionLines(verdict), previous]);
+    } else {
+      insert(from, decisionLines(verdict));
+      insert(block.lastEarlier + 1, [previous]);
+    }
   }
 
   // The decision log entries, one per new verdict, in document order.
@@ -608,7 +665,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
     if (!dropped.has(i)) out.push(line);
   }
   emit(lines.length);
-  const result = `${out.join("\n").replace(/\n+$/, "")}\n`;
+  const result = `${out.join(eol).replace(/(?:\r?\n)+$/, "")}${eol}`;
 
   const reparsed = parseHandAuthoredQuestions(kind, result);
   if (reparsed.kind !== "parsed") {

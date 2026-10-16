@@ -428,14 +428,40 @@ function sameQuestionSet(before: LocatedArrays, after: LocatedArrays): RevisionR
   return undefined;
 }
 
+// The questions of `after`'s array that were in `before`'s, in the order
+// they were: a question that did not move keeps its place among the others.
+// Refused at the first one out of place.
+function sameOrder(
+  before: ReadonlyArray<{ readonly id: string }>,
+  after: ReadonlyArray<{ readonly id: string }>,
+  path: ReadonlyArray<PropertyKey>,
+  key: "openQuestions" | "arbitratedQuestions",
+): RevisionRefusal | undefined {
+  const afterIds = new Set(after.map((q) => q.id));
+  const beforeIds = new Set(before.map((q) => q.id));
+  const expected = before.map((q) => q.id).filter((id) => afterIds.has(id));
+  const kept = [...after.entries()].filter(([, q]) => beforeIds.has(q.id));
+  for (const [n, [i, { id }]] of kept.entries()) {
+    if (id !== expected[n]) {
+      return refusal(
+        [...path, key, i, "id"],
+        `"${id}" is out of place: the questions this session did not move keep their order (${expected.join(", ")})`,
+      );
+    }
+  }
+  return undefined;
+}
+
 /**
  * The first violation of the revision rules (§5.19–§5.21, §5.33), or
  * undefined. Checked in a fixed order, with document-relative paths:
  * 1. `after` has exactly the questions of `before`, by id;
  * 2. an open question not presented is still open, and an open question left
- *    open is unchanged;
- * 3. an arbitrated question is still arbitrated, and unchanged unless it is
- *    the re-arbitrated one with a new decision;
+ *    open is unchanged and keeps its place among the open questions;
+ * 3. an arbitrated question is still arbitrated, unchanged unless it is the
+ *    re-arbitrated one with a new decision, and keeps its place among the
+ *    questions that were arbitrated (a question decided in this session may
+ *    join them anywhere);
  * 4. each question decided in this session keeps its id, question, options,
  *    recommendation and rationale, has a `decided` verdict (never `lifted`),
  *    and its history is `[]` when it was open, or its earlier history then
@@ -487,6 +513,13 @@ export function firstRevisionViolation(input: RevisionCheckInput): RevisionRefus
     );
     if (violation !== undefined) return violation;
   }
+  const openOrder = sameOrder(
+    before.openQuestions,
+    after.openQuestions,
+    after.basePath,
+    "openQuestions",
+  );
+  if (openOrder !== undefined) return openOrder;
 
   // (3)
   const decided = sessionVerdicts(input);
@@ -511,6 +544,13 @@ export function firstRevisionViolation(input: RevisionCheckInput): RevisionRefus
     );
     if (violation !== undefined) return violation;
   }
+  const arbitratedOrder = sameOrder(
+    before.arbitratedQuestions,
+    after.arbitratedQuestions,
+    after.basePath,
+    "arbitratedQuestions",
+  );
+  if (arbitratedOrder !== undefined) return arbitratedOrder;
 
   // (4)
   const beforeOpen = locate(before.openQuestions, []);

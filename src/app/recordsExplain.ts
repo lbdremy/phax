@@ -270,13 +270,16 @@ function manifestKindLabel(manifest: RecordManifest): string {
  * literal substring matches, so an id containing regex metacharacters cannot
  * misbehave; a substring match on an `Authoring-Id` or a `Decision-Id` (one
  * id a prefix of another) is ruled out by checking the candidate's tree holds
- * the key.
+ * the key. A `Decision-Id` is unique only on the machine that decided, so a
+ * decision record is the one whose manifest names `sourceSha` as its commit:
+ * one naming another commit is someone else's decision under the same id.
  */
 function findRecordCommit(
   git: GitOps,
   repo: string,
   ref: string,
   address: RecordAddress,
+  sourceSha: string,
 ): Effect.Effect<string | null, ShellError | GitError, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -315,10 +318,36 @@ function findRecordCommit(
     for (const sha of result.stdout.split("\n").map((line) => line.trim())) {
       if (sha.length === 0) continue;
       const entries = yield* git.readTree(repo, sha);
-      if (entries.some((e) => e.type === "blob" && e.path === manifestPath)) return sha;
+      const manifest = entries.find((e) => e.type === "blob" && e.path === manifestPath);
+      if (manifest === undefined) continue;
+      if (address.kind === "decision") {
+        const bytes = yield* git.readBlob(repo, manifest.oid);
+        if (namesAnotherCommit(`${sha}:${manifestPath}`, bytes, sourceSha)) continue;
+      }
+      return sha;
     }
     return null;
   });
+}
+
+/**
+ * Whether a manifest is a well-formed decision manifest naming a commit other
+ * than `sourceSha`. A malformed one is not ruled out here: loading it reports
+ * it as malformed.
+ */
+function namesAnotherCommit(file: string, bytes: Uint8Array, sourceSha: string): boolean {
+  let json: unknown;
+  try {
+    json = JSON.parse(decodeText(bytes)) as unknown;
+  } catch {
+    return false;
+  }
+  const decoded = readRecordManifestFile(file, json);
+  return (
+    Either.isRight(decoded) &&
+    isDecisionRecordManifest(decoded.right) &&
+    decoded.right.commit !== sourceSha
+  );
 }
 
 interface LoadedRecord {
@@ -528,7 +557,7 @@ export function explainRecord(
 
     const localTip = yield* git.resolveRef(localPath, RECORDS_REF);
     if (localTip !== null) {
-      recordCommitSha = yield* findRecordCommit(git, localPath, localTip, address);
+      recordCommitSha = yield* findRecordCommit(git, localPath, localTip, address, resolvedSha);
     }
 
     if (recordCommitSha === null) {
@@ -542,7 +571,7 @@ export function explainRecord(
         `refs/remotes/${remote}/${RECORDS_BRANCH_NAME}`,
       );
       if (remoteTip !== null) {
-        recordCommitSha = yield* findRecordCommit(git, localPath, remoteTip, address);
+        recordCommitSha = yield* findRecordCommit(git, localPath, remoteTip, address, resolvedSha);
       }
       if (recordCommitSha === null) {
         return { kind: "not-found", key, sourceSha: resolvedSha, remoteConsulted: true } as const;

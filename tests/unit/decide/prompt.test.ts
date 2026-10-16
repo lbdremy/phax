@@ -260,9 +260,22 @@ describe("buildHandbackPrompt", () => {
 
 describe("buildDecideRetryPrompt", () => {
   it("names the refusal and asks for the whole document again", () => {
-    const text = buildDecideRetryPrompt('arbitratedQuestions[0].verdict.chosen: "x" names none');
+    const text = buildDecideRetryPrompt(
+      "headless",
+      'arbitratedQuestions[0].verdict.chosen: "x" names none',
+    );
+    expect(text).toContain("Your revised document was refused");
     expect(text).toContain('Refusal: arbitratedQuestions[0].verdict.chosen: "x" names none');
     expect(text).toContain("Return the whole revised document again");
+  });
+
+  it("asks a hand-authored artifact's session for its hand decision answer again", () => {
+    const text = buildDecideRetryPrompt("hand", 'decisions[0].id: "Q9" was not presented');
+    expect(text).toContain("Your hand decision answer was refused");
+    expect(text).toContain('Refusal: decisions[0].id: "Q9" was not presented');
+    expect(text).toContain("Return the whole hand decision answer again");
+    expect(text).toContain("revised `markdown`");
+    expect(text).not.toContain("revised document");
   });
 });
 

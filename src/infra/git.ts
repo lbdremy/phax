@@ -165,6 +165,20 @@ function writeTreeCommitEffect(
   );
 }
 
+// Rename both sides of a one-file diff's header (the `diff --git`, `---` and
+// `+++` lines before the first hunk) to `label`, so the diff never names the
+// scratch files it was computed from. Hunk lines are left as they are.
+function relabelDiffHeader(diff: string, label: string): string {
+  const lines = diff.split("\n");
+  for (let i = 0; i < lines.length && !lines[i]!.startsWith("@@"); i++) {
+    const line = lines[i]!;
+    if (line.startsWith("diff --git ")) lines[i] = `diff --git a/${label} b/${label}`;
+    else if (line.startsWith("--- ")) lines[i] = `--- a/${label}`;
+    else if (line.startsWith("+++ ")) lines[i] = `+++ b/${label}`;
+  }
+  return lines.join("\n");
+}
+
 function gitRunAllowFail(
   args: readonly string[],
   cwd: string,
@@ -254,17 +268,27 @@ export const NodeGitLayer = Layer.succeed(Git, {
 
   // `git diff --no-index` exits 1 when the files differ: that is the diff, not
   // a failure. It also exits 1, printing nothing, on a file it cannot read, so
-  // only an exit 1 with a diff on stdout succeeds.
-  diffNoIndex: (repo, beforePath, afterPath) => {
-    const args = ["diff", "--no-index", "--no-color", "--", beforePath, afterPath];
+  // only an exit 1 with a diff on stdout succeeds. The user's external diff,
+  // textconv and color config stay out of it; the header names `label`.
+  diffNoIndex: (repo, beforePath, afterPath, label) => {
+    const args = [
+      "diff",
+      "--no-index",
+      "--no-color",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--",
+      beforePath,
+      afterPath,
+    ];
     return Effect.tryPromise({
       try: () =>
         runGitProcess(args, repo, "utf8", {}).then(
-          ({ stdout }) => String(stdout),
+          ({ stdout }) => relabelDiffHeader(String(stdout), label),
           (err: unknown) => {
             const e = err as { code?: unknown; stdout?: unknown };
             if (e.code === 1 && typeof e.stdout === "string" && e.stdout.length > 0) {
-              return e.stdout;
+              return relabelDiffHeader(e.stdout, label);
             }
             throw err;
           },

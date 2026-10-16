@@ -149,7 +149,7 @@ A decided question keeps its `id`, `question`, `options`, `recommendation` and
 - The record: a re-arbitrated question keeps its previous verdict at the end of
   `history`.
 
-Every field is required; an empty `why` or a verdict without a cited principle is
-invalid. Never edit the spec's requirements to make a question disappear. The headless
+Every field is required; an empty `why` is invalid, and a verdict that departs from the
+recommendation cites the principle it rests on. Never edit the spec's requirements to make a question disappear. The headless
 modes above record a proposal as `escalate` or `note`; the interactive verdict has no such
 field — the operator decides.

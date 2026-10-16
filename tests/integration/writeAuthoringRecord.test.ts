@@ -291,6 +291,30 @@ describe("writeAuthoringRecord (real git)", () => {
     });
   });
 
+  it("with transcripts on, no recorded file carries the session ids decide resumes", async () => {
+    const sessionId = "0f6c2a1e-authoring-session";
+    const retrySessionId = "7d1b9e44-retry-session";
+    await seedSession({
+      "brief.md": "b\n",
+      "prompt.md": "p\n",
+      "document.json": '{"kind":"spec"}\n',
+      "output.jsonl": `{"type":"system","subtype":"init","session_id":"${sessionId}"}\n${CLAUDE_TRANSCRIPT}`,
+      "retry-prompt.md": "r\n",
+      "retry-output.jsonl": `{"type":"system","subtype":"init","session_id":"${retrySessionId}"}\n${CLAUDE_RETRY_TRANSCRIPT}`,
+    });
+
+    await run(baseInput({ retry: "retried", sessionId, retrySessionId }));
+
+    for (const path of lsRecords()) {
+      const text = git(["show", `${RECORDS_BRANCH_NAME}:${path}`], repoDir);
+      expect(text).not.toContain(sessionId);
+      expect(text).not.toContain(retrySessionId);
+    }
+    expect(git(["show", `${RECORDS_BRANCH_NAME}:${KEY}/output.jsonl`], repoDir)).toContain(
+      '"session_id":"[session id withheld]"',
+    );
+  });
+
   it("with transcripts off, neither transcript is carried; the retry prompt still is", async () => {
     await seedSession({
       "brief.md": "b\n",

@@ -287,7 +287,11 @@ function answer(
   return JSON.stringify(schema === null ? doc : { $schema: schema, ...doc });
 }
 
-function keepAuthoringSession(id = AUTHORING_ID, provider = "claude-code"): void {
+function keepAuthoringSession(
+  id = AUTHORING_ID,
+  provider = "claude-code",
+  cwd: string = repoDir,
+): void {
   const folder = join(stateRoot, "authoring", id);
   mkdirSync(folder, { recursive: true });
   writeFileSync(
@@ -297,7 +301,7 @@ function keepAuthoringSession(id = AUTHORING_ID, provider = "claude-code"): void
       provider,
       sessionId: "11111111-2222-4333-8444-555555555555",
       retrySessionId: KEPT_SESSION,
-      cwd: repoDir,
+      cwd,
     }),
   );
 }
@@ -407,7 +411,6 @@ beforeEach(() => {
   disableGitAutoMaintenance(repoDir);
   git(["config", "--local", "user.name", OPERATOR]);
   git(["config", "--local", "user.email", "ada@example.test"]);
-  writeRepoFile(".gitignore", ".phax-context/\n");
   writeRepoFile("README.md", "fixture\n");
   commitAll("init");
 });
@@ -458,11 +461,21 @@ describe("decide — an interactive session lands the revised document", { timeo
       "--effort",
       "high",
     ]);
-    expect(invocation?.args.at(-1)).toBe(
-      `Read .phax-context/decide/${AUTHORING_ID}-01/prompt.md and follow it.`,
-    );
-    // The in-repo prompt copy is gone after the session; the folder's stays.
-    expect(existsSync(join(repoDir, ".phax-context", "decide", `${AUTHORING_ID}-01`))).toBe(false);
+    // Read-only whatever the profile: Manual mode, the shell and the writing
+    // tools removed; the prompt is read from the decision folder, so the
+    // repository gets no file.
+    expect(invocation?.args.slice(6)).toEqual([
+      "--permission-mode",
+      "default",
+      "--add-dir",
+      decisionFolder(),
+      "--disallowed-tools",
+      "Bash,Edit,Write,NotebookEdit",
+      "--strict-mcp-config",
+      "--",
+      `Read ${join(decisionFolder(), "prompt.md")} and follow it.`,
+    ]);
+    expect(existsSync(join(repoDir, ".phax-context"))).toBe(false);
     const prompt = readFileSync(join(decisionFolder(), "prompt.md"), "utf8");
     expect(prompt.indexOf("- F1:")).toBeGreaterThan(0);
     expect(prompt.indexOf("- F5:")).toBeLessThan(prompt.indexOf("### Q1 —"));
@@ -478,11 +491,9 @@ describe("decide — an interactive session lands the revised document", { timeo
       effort: "high",
       cwd: repoDir,
       outputJsonlPath: join(decisionFolder(), "output.jsonl"),
+      readOnly: true,
       phaseFolderPath: decisionFolder(),
     });
-    expect(handback?.options.security.filesystem.allowWrite).toEqual([
-      join(repoDir, ".phax-context"),
-    ]);
     expect(handback?.prompt).toBe(
       readFileSync(join(decisionFolder(), "handback-prompt.md"), "utf8"),
     );
@@ -555,6 +566,20 @@ describe("decide — an interactive session lands the revised document", { timeo
     expect(h.session.invocations[0]?.args[0]).toBe("--session-id");
   });
 
+  it("starts a new session here when the kept session ran in another checkout", async () => {
+    writeSpec(SPEC, specDocument([Q1]));
+    commitAll();
+    keepAuthoringSession(AUTHORING_ID, "claude-code", join(configDir, "other-clone"));
+    const h = harness({ answers: [answer(specDocument([Q1]))] });
+
+    const result = await h.run();
+
+    expect(Either.getOrThrow(result)).toMatchObject({ session: "new" });
+    expect(h.session.invocations[0]?.args[0]).toBe("--session-id");
+    expect(h.session.invocations[0]?.cwd).toBe(repoDir);
+    expect(h.backend.resumeCalls[0]?.options.cwd).toBe(repoDir);
+  });
+
   it("numbers each decision of an artifact in its own folder", async () => {
     writeSpec(SPEC, specDocument([Q1, Q2]));
     commitAll();
@@ -622,6 +647,24 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
       expect(result.left.message).toContain(`${SPEC_JSON} has uncommitted changes`);
     }
     expect(headSha()).toBe(head);
+    expectNoSession(h);
+  });
+
+  it("names an uncommitted body edit as such, not as a diverged sidecar", async () => {
+    const md = writeSpec(SPEC, specDocument([Q1]));
+    commitAll();
+    writeRepoFile(SPEC, `${md}\nA stray edit.\n`);
+    const h = harness();
+
+    const result = await h.run();
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.left.message).toContain(
+        `${SPEC} has uncommitted changes — commit or discard them first`,
+      );
+    }
     expectNoSession(h);
   });
 

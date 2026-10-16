@@ -18,7 +18,10 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
-import { claudePermissionFlags } from "../../domain/session/claudePermissionFlags.js";
+import {
+  claudePermissionFlags,
+  claudeReadOnlyFlags,
+} from "../../domain/session/claudePermissionFlags.js";
 import {
   classifyRateLimit,
   findResultEvent,
@@ -111,6 +114,21 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
   // `claude` requires `--verbose` whenever `--print` is paired with
   // `--output-format=stream-json`; without it the CLI exits with code 1.
   const common = ["--print", "--output-format", "stream-json", "--verbose"];
+
+  // A read-only session writes nothing, so it needs no writable path and
+  // takes no grant.
+  if (options.readOnly === true) {
+    const args = [
+      ...common,
+      ...claudeReadOnlyFlags([]),
+      "--model",
+      options.model,
+      "--effort",
+      options.effort,
+    ];
+    if (resumeSessionId) args.push("--resume", resumeSessionId);
+    return args;
+  }
 
   // secure / isolated (the CLI gates isolated before reaching here; treat as
   // secure for type totality) needs a writable path; unsafe needs none.

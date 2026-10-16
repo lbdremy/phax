@@ -138,8 +138,8 @@ export interface CommitRecordTreeInput {
   readonly manifest: unknown;
   readonly message: string;
   /**
-   * Strings no recorded artifact may carry (a decision record's provider
-   * session ids): each occurrence is replaced by `[session id withheld]`.
+   * Strings no recorded artifact may carry (a decision or authoring record's
+   * provider session ids): each occurrence is replaced by `[session id withheld]`.
    */
   readonly redact?: readonly string[] | undefined;
 }
