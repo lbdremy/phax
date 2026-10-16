@@ -41,7 +41,9 @@ executing agent to explain any deviation in its handoff (see
 `phax plans lint <plan>` reports every mechanical defect of a plan before a run
 touches it — read-only, and model-free, so it never falls back to the extraction
 model. Five checks: **structure** (every field the deterministic parse requires,
-reported in full rather than stopping at the first), **files** (the planned
+reported in full rather than stopping at the first, plus an error for a phase
+number missing from phase-01 … phase-NN, such as phase-02 in a plan with phase-01
+and phase-03), **files** (the planned
 create/edit lists walked in phase order against the working tree — an edit of a
 file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
@@ -52,7 +54,9 @@ exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
 registered, or on a plan the deterministic parser cannot read, there are no
 advisory findings. A `Draft` plan lints like any other — run it while drafting,
-not only before approval.
+not only before approval. The run preflight (`phax run`, `phax resume`) also
+refuses, with exit 11, a phase whose section it cannot locate in plan.md; a phase
+is located by its `## phase-NN` id heading or by its `{#anchor}`.
 
 ## Run title and short name
 
@@ -503,6 +507,15 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
   gates can verify mechanically (type-check, tests, lint, build, etc.).
 - **Accurate file lists.** The planned-file sections must match what the phase
   actually touches; they are reconciled against git at the end of the phase.
+- **A phase reads its own section.** A phase's prompt carries the plan
+  preamble, its own section, an outline of every phase (id, title, planned files
+  to create and edit) and its phase definition; the full plan is at
+  `.phax-context/plan.md` in the worktree. So:
+  - put cross-phase decisions in the preamble, such as Technical arbitrations;
+  - make each section self-contained, with no bare "as in phase-02";
+  - rely on the planned file lists to show other phases' footprint;
+  - give every phase a `## phase-NN — Title {#anchor}` heading, numbered without
+    gaps.
 - **Handoff-complete.** The handoff the executing agent writes must be enough
   for the next phase to proceed without re-reading earlier phases.
 - **Comprehensive instructions.** Make sure each phase has enough detail for the
