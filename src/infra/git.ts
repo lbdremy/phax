@@ -252,6 +252,27 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.asVoid,
     ),
 
+  // `git diff --no-index` exits 1 when the files differ: that is the diff, not
+  // a failure. It also exits 1, printing nothing, on a file it cannot read, so
+  // only an exit 1 with a diff on stdout succeeds.
+  diffNoIndex: (repo, beforePath, afterPath) => {
+    const args = ["diff", "--no-index", "--no-color", "--", beforePath, afterPath];
+    return Effect.tryPromise({
+      try: () =>
+        runGitProcess(args, repo, "utf8", {}).then(
+          ({ stdout }) => String(stdout),
+          (err: unknown) => {
+            const e = err as { code?: unknown; stdout?: unknown };
+            if (e.code === 1 && typeof e.stdout === "string" && e.stdout.length > 0) {
+              return e.stdout;
+            }
+            throw err;
+          },
+        ),
+      catch: (err) => toGitError(err, `git ${args.join(" ")}`, args),
+    });
+  },
+
   worktreeIsClean: (path) =>
     gitRun(["status", "--porcelain"], path as string).pipe(
       Effect.map(({ stdout }) => isPortcelainClean(stdout)),

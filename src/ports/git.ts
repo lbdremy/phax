@@ -59,6 +59,12 @@ export interface GitOps {
     subject: string,
     body: string,
   ): Effect.Effect<void, GitError>;
+  /**
+   * The unified diff of two files outside any index (`git diff --no-index`),
+   * run from `repo`: empty when they are identical. Differences are not an
+   * error.
+   */
+  diffNoIndex(repo: string, beforePath: string, afterPath: string): Effect.Effect<string, GitError>;
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError>;
   pruneWorktrees(repo: string): Effect.Effect<void, GitError>;
   diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError>;

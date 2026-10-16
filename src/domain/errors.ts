@@ -388,6 +388,18 @@ export class DecideRefusedError extends Data.TaggedError("DecideRefusedError")<{
 }> {}
 
 /**
+ * A decide session handed back no usable document, twice: its answer was not
+ * JSON, not stamped with the current shape, refused by the decoder, or broke
+ * a revision rule. `path` is the first violation's document-relative path
+ * (`""` when the refusal is not about one place); `message` names both
+ * refusals. Nothing was written or committed. Reported as a provider error.
+ */
+export class DecideDocumentError extends Data.TaggedError("DecideDocumentError")<{
+  path: string;
+  message: string;
+}> {}
+
+/**
  * A headless authoring session ended without a usable document: its final
  * message was not JSON, or the JSON failed the kind's document schema.
  * `message` carries the reason (the first violation's path for a schema

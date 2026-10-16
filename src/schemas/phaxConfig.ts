@@ -148,6 +148,12 @@ export type AuthoringConfig = Schema.Schema.Type<typeof AuthoringConfigSchema>;
 export const DEFAULT_AUTHORING_MODEL = "claude-opus-5-5";
 export const DEFAULT_AUTHORING_EFFORT: Effort = "high";
 
+// The other interactive judgment session beside plan adjustment, on the same
+// basis: cheaper per token than Opus 5, scores above Fable 5.1 from medium
+// effort up. `--model`/`--effort` override it; no phax.json key.
+export const DEFAULT_DECIDE_MODEL = "claude-opus-5-5";
+export const DEFAULT_DECIDE_EFFORT: Effort = "high";
+
 export interface ResolvedAuthoringConfig {
   readonly spec: { readonly model: string; readonly effort: Effort };
   readonly plan: { readonly model: string; readonly effort: Effort };

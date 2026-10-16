@@ -102,10 +102,14 @@ export function questionsOf(sidecar: SidecarDocument): DecideQuestions {
  * every open question, in document order. With an open question's id, that
  * question alone; with an arbitrated question's id, that question alone,
  * re-arbitrated. An id the artifact does not have is refused, naming every
- * question id it has (§5.34).
+ * question id it has (§5.34). Only ids are read, so a hand-authored
+ * artifact's parsed questions serve as well as a sidecar's.
  */
 export function decideScope(
-  questions: DecideQuestions,
+  questions: {
+    readonly openQuestions: ReadonlyArray<{ readonly id: string }>;
+    readonly arbitratedQuestions: ReadonlyArray<{ readonly id: string }>;
+  },
   questionFlag: string | null,
 ): Either.Either<DecideScope, string> {
   const openIds = questions.openQuestions.map((q) => q.id);

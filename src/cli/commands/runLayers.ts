@@ -34,6 +34,7 @@ import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
   AuthoringDocumentError,
+  DecideDocumentError,
   DecideRefusedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -170,7 +171,8 @@ export function exitCodeForError(err: unknown): number {
   if (
     err instanceof AgentInvocationError ||
     err instanceof AgentSessionIdMissingError ||
-    err instanceof AuthoringDocumentError
+    err instanceof AuthoringDocumentError ||
+    err instanceof DecideDocumentError
   )
     return 5;
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;

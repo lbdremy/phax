@@ -1020,6 +1020,58 @@ phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md --by o
 phax artifact reopen docs/specs/2609030749-spec-approval-ground.md --by machine:roadmap-loop
 ```
 
+## `phax artifact decide`
+
+- **Usage**: `phax artifact decide [FLAGS] <path>`
+
+Decides a Draft spec's or plan's open questions with the operator, in an interactive Claude Code session. The session first raises the framing questions F1–F5, then presents the open questions in document order; --question <id> presents that question alone, an open one or an arbitrated one to re-arbitrate (its previous verdict is kept in its history). The session follows the doctrine skill for the artifact's kind (phax-decide-spec or phax-decide-plan; a project copy under .claude/skills/ replaces the bundled one), with --doctrine <file> appended after it; a verdict may cite only the backticked ids that open list items in that doctrine. It resumes the artifact's headless authoring session when phax kept its id, and starts a new one otherwise, and says which.
+
+decide runs on Claude Code only: the model is --model and --effort, else claude-opus-5-5 at high; a model outside the Claude Code catalog, or an effort it does not list, is refused. When the operator exits the session, phax resumes it headless for the revised document — the whole sidecar document of a headless artifact, `$schema` first at its current shape, or a hand-decision-answer for a hand-authored one — and asks once more when the answer is refused. phax stamps each verdict with the committing git identity and the time, checks the answer (only presented questions move, others stay as they were, chosen and abandoned name the question's options, cited principles are loaded ids, a departing verdict names what it revised), shows the body diff and the verdicts, and writes nothing unless the operator accepts the diff.
+
+Before any session it refuses, writing nothing: a live sidecar not yet migrated (`phax artifact migrate-documents`), an artifact that is not Draft (an Approved or Stale one names `phax artifact reopen <path>`), a diverged or invalid sidecar, a hand-authored §9 that does not parse (naming its first departing line), uncommitted changes on the artifact or its sidecar, an unknown --question (naming the artifact's question ids), no terminal (decide is interactive only), a model outside Claude Code, a doctrine file that is unreadable, defines no principle id or redefines a skill id, and no committing git identity. With no open question and no --question it says there is nothing to decide and exits 0. Inside a phase worktree the phase guard refuses it.
+
+Exit codes: 0 decided and committed, a declined diff, or nothing to decide; 1 inside a phase worktree; 5 no document, not JSON, an answer not stamped with its current shape, or one refused by the schema or its checks (after the one corrective resume), with nothing written; 8 a provider rate or usage limit, with nothing written; 12 an artifact refusal, the artifact changed during the session (its change left in place), or a failed commit (the files left written but uncommitted).
+
+Side effects: spawns an interactive and then a headless Claude Code session under the read-only review policy; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer.
+
+### Arguments
+
+#### `<path>`
+
+Path to a spec or plan file under docs/specs/ or docs/plans/
+
+### Flags
+
+#### `--question <id>`
+
+Present this question alone: an open one, or re-arbitrate one
+
+#### `--doctrine <file>`
+
+Append this doctrine file after the decide skill
+
+#### `--model <model>`
+
+Override the decide model (a Claude Code model)
+
+#### `--effort <effort>`
+
+Override the decide effort
+
+### Examples
+
+```
+phax artifact decide docs/specs/2609251400-plan-prune.md
+```
+
+```
+phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1
+```
+
+```
+phax artifact decide docs/plans/2609261000-plan-prune-store-plan.md --doctrine docs/doctrine/plan.md --model claude-sonnet-5-5 --effort medium
+```
+
 ## `phax artifact new`
 
 - **Usage**: `phax artifact new <SUBCOMMAND>`
