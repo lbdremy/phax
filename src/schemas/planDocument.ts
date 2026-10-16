@@ -181,6 +181,11 @@ export function getPlanDocumentJsonSchema(): object {
   return JSONSchema.make(PlanDocumentSchema);
 }
 
+/** The JSON Schema of a plan sidecar: what a decide session returns as its revised document. */
+export function getPlanDocumentFileJsonSchema(): object {
+  return JSONSchema.make(PlanDocumentFileSchema);
+}
+
 // The extracted-plan projection: the fields `phax run` reads, and nothing else —
 // not the phase `title` (derived from the rendered heading, as for any plan.md)
 // nor any informational field. Built key by key so an informational field can
