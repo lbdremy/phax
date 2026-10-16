@@ -26,6 +26,7 @@ import {
   HandoffPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
+  type PlanSectionsPreflightError,
   RateLimitError,
   RecordsDestinationRefusedError,
   RecordsSyncRequiredError,
@@ -224,6 +225,7 @@ export type ExecutePlanError =
   | SecurityPreflightError
   | SkillEditConsentError
   | ModelPreflightError
+  | PlanSectionsPreflightError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
   | RecordsSyncRequiredError;
@@ -405,6 +407,8 @@ export function executePlan(
     // A new check that does not need the run belongs in runPreflights, not inline here.
     const { gateSteps } = yield* runPreflights({
       plan,
+      planMd,
+      planPath: join(runPath, "plan.md"),
       config,
       gateProfileId,
       workspaceId,

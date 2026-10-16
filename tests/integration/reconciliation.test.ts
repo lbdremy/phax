@@ -22,6 +22,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -159,7 +160,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Recon Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -168,7 +169,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Recon Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -285,7 +286,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Recon Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -294,7 +295,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Recon Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

@@ -30,6 +30,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -42,7 +43,6 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const PLAN_MD = "# Gate request plan\n\nMade-up phases.\n";
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 const RUN_BRANCH = "ai/my-run";
 const PHASE_01_BRANCH = `${RUN_BRANCH}--phase-01`;
@@ -201,7 +201,7 @@ async function startRun(rawPlan: unknown, layers: ReturnType<typeof makeFakes>["
   const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
   const config = makeConfig();
   const { runPath, runId } = await Effect.runPromise(
-    createRunFolder(shortName, PLAN_MD, plan, config).pipe(Effect.provide(layers)),
+    createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
   );
   const execute = (withLayers: typeof layers) =>
     Effect.runPromise(
@@ -210,7 +210,7 @@ async function startRun(rawPlan: unknown, layers: ReturnType<typeof makeFakes>["
           shortName,
           namespace: "test-project",
           plan,
-          planMd: PLAN_MD,
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

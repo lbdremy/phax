@@ -50,6 +50,7 @@ import {
   ModelPreflightError,
   PhaseHadNoChangesError,
   PlanNotApprovedError,
+  PlanSectionsPreflightError,
   PlanStaleError,
   PlanValidationError,
   RateLimitError,
@@ -187,6 +188,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof SecurityPreflightError ||
     err instanceof SkillEditConsentError ||
     err instanceof ModelPreflightError ||
+    err instanceof PlanSectionsPreflightError ||
     err instanceof RecordsSyncRequiredError
   )
     return 11;

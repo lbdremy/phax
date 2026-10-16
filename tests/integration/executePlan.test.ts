@@ -31,6 +31,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -265,7 +266,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -274,7 +275,7 @@ describe("executePlan — happy-path 2-phase run", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -439,7 +440,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -448,7 +449,7 @@ describe("executePlan — happy-path 2-phase run", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -560,7 +561,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -569,7 +570,7 @@ describe("executePlan — happy-path 2-phase run", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -654,7 +655,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -663,7 +664,7 @@ describe("executePlan — happy-path 2-phase run", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -843,7 +844,7 @@ describe("executePlan — firing scheduling", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -852,7 +853,7 @@ describe("executePlan — firing scheduling", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -952,7 +953,7 @@ describe("executePlan — binding status lifecycle", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -961,7 +962,7 @@ describe("executePlan — binding status lifecycle", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1003,7 +1004,7 @@ describe("executePlan — binding status lifecycle", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1012,7 +1013,7 @@ describe("executePlan — binding status lifecycle", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1120,7 +1121,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1129,7 +1130,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1206,7 +1207,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1215,7 +1216,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1347,7 +1348,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
     await seedGatesExhaustedRun({
       runPath,
@@ -1361,7 +1362,7 @@ describe("executePlan — resume from gates_exhausted", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1421,7 +1422,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
     await seedGatesExhaustedRun({
       runPath,
@@ -1435,7 +1436,7 @@ describe("executePlan — resume from gates_exhausted", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1491,7 +1492,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
     await seedGatesExhaustedRun({
       runPath,
@@ -1505,7 +1506,7 @@ describe("executePlan — resume from gates_exhausted", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1563,7 +1564,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
     await seedGatesExhaustedRun({
       runPath,
@@ -1600,7 +1601,7 @@ describe("executePlan — resume from gates_exhausted", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1758,7 +1759,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1767,7 +1768,7 @@ describe("executePlan — auto-publish after final review", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1818,7 +1819,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1827,7 +1828,7 @@ describe("executePlan — auto-publish after final review", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -1877,7 +1878,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -1886,7 +1887,7 @@ describe("executePlan — auto-publish after final review", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -2000,7 +2001,7 @@ describe("executePlan — security preflight", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -2009,7 +2010,7 @@ describe("executePlan — security preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -2143,7 +2144,7 @@ describe("executePlan — security preflight", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -2152,7 +2153,7 @@ describe("executePlan — security preflight", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -2298,7 +2299,7 @@ describe("executePlan — records destination refusal", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -2307,7 +2308,7 @@ describe("executePlan — records destination refusal", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -2347,7 +2348,7 @@ const baselineRawPlan = {
   })),
 };
 
-const BASELINE_PLAN_MD = "# Baseline Plan\n\nThree made-up phases.\n";
+const BASELINE_PLAN_MD = planMdFor(baselineRawPlan);
 
 // What a fresh phase start leaves in the phase folder by the time the agent
 // launches, sorted by name.
@@ -2487,15 +2488,19 @@ function makeBaselineScenario(root: string) {
       };
       return status.state;
     },
-    // Replace run-specific values with fixed placeholders so a snapshot holds
-    // no machine path, id or timestamp.
     normalize(text: string, runPath: string, runId: RunId): string {
-      return text
-        .replaceAll(runPath, "<RUN_PATH>")
-        .replaceAll(root, "<STATE_ROOT>")
-        .replaceAll(runId, "<RUN_ID>");
+      return normalizeRunText(text, root, runPath, runId);
     },
   };
+}
+
+// Replace run-specific values with fixed placeholders so a snapshot holds
+// no machine path, id or timestamp.
+function normalizeRunText(text: string, root: string, runPath: string, runId: RunId): string {
+  return text
+    .replaceAll(runPath, "<RUN_PATH>")
+    .replaceAll(root, "<STATE_ROOT>")
+    .replaceAll(runId, "<RUN_ID>");
 }
 
 describe("executePlan — phase start on the no-provider baseline", () => {
@@ -2617,6 +2622,115 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     expect(await readFile(promptPath, "utf8")).toBe(goldenPrompt);
     expect(await s.phaseState(runPath, "phase-02")).toBe("cleaned_up");
     expect(await s.phaseState(runPath, "phase-03")).toBe("review_open");
+  });
+});
+
+// Pins the prompts sent into a resumed agent session — the fix attempt and the
+// handoff generation — so a change to the phase prompt cannot leak into them.
+describe("executePlan — resumed-session prompts", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-resumed-prompts-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("pins the fix-attempt and handoff prompts of a phase whose gate fails once", async () => {
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", {
+        ...baselineRawPlan,
+        phases: [baselineRawPlan.phases[0]],
+      }),
+    );
+    const base = makeStatusTestConfig(stateRoot);
+    const config: ResolvedConfig = {
+      ...base,
+      raw: {
+        ...base.raw,
+        gateProfiles: {
+          full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
+        },
+      },
+    };
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
+    await writeFile(join(worktreePath, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    for (const command of ["true", "git diff HEAD^ HEAD"]) {
+      fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
+    }
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    // Red until the fix attempt resumes the session, green after.
+    fakeShell.impl.setResponse("pnpm test", { exitCode: 1, stdout: "", stderr: "red" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    for (const id of ["sess-01-fix", "sess-01-handoff"]) {
+      fakeBackend.impl.addResumeResponse({
+        sessionId: id as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+    }
+    fakeBackend.impl.setOnResumeAgent(() => {
+      fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "", stderr: "" });
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
+    );
+    const planMd = planMdFor(plan);
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, planMd, plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd,
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    const [fixAttempt, handoff] = fakeBackend.impl.resumeCalls;
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
+    expect(normalizeRunText(fixAttempt!.prompt, stateRoot, runPath, runId)).toMatchSnapshot(
+      "fix-attempt prompt",
+    );
+    expect(normalizeRunText(handoff!.prompt, stateRoot, runPath, runId)).toMatchSnapshot(
+      "handoff prompt",
+    );
   });
 });
 

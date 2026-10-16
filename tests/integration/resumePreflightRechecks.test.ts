@@ -9,7 +9,7 @@
  * following the fixtures in skillEditConsent.test.ts and resumeFrom*.test.ts.
  * Only the HOME-derived loaders and the provider backend are replaced.
  */
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
@@ -190,7 +190,24 @@ const CASES: Record<string, RecheckCase> = {
         modelFailure("phase-02"),
       ].join("\n"),
   },
+  "the run folder's plan.md loses phase-02's section": {
+    change: (roots) => {
+      const planMdPath = runPlanMdPath(roots);
+      const planMd = readFileSync(planMdPath, "utf8");
+      writeFileSync(planMdPath, planMd.slice(0, planMd.indexOf("## phase-02")));
+    },
+    message: (roots) =>
+      [
+        `Plan preflight failed: phase-02 has no section in plan.md (expected a "## phase-02 — …" heading).`,
+        `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
+      ].join("\n"),
+  },
 };
+
+/** The paused run's own copy of plan.md, which `phax resume` reads. */
+function runPlanMdPath(roots: PreflightRepo): string {
+  return join(roots.stateRoot, "runs", `${roots.namespace}.foo`, "plan.md");
+}
 
 describe("phax resume — re-checks the inputs that can change before any worktree", () => {
   let roots: PreflightRepo | undefined;

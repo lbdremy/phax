@@ -21,6 +21,7 @@ import {
   type ResolvedConfig,
 } from "../../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../../src/schemas/persisted.js";
+import { planMdFor } from "../../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -146,7 +147,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -155,7 +156,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

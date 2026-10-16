@@ -23,6 +23,7 @@ import {
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -154,7 +155,7 @@ describe("executePlan — skill edit grants wiring", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Grant Run", opts.plan, config, undefined, true).pipe(
+      createRunFolder(shortName, planMdFor(opts.plan), opts.plan, config, undefined, true).pipe(
         Effect.provide(layer),
       ),
     );
@@ -164,7 +165,7 @@ describe("executePlan — skill edit grants wiring", () => {
           shortName,
           namespace: "test-project",
           plan: opts.plan,
-          planMd: "# Grant Run",
+          planMd: planMdFor(opts.plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

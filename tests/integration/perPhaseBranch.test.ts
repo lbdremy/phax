@@ -46,6 +46,7 @@ import {
   readPhaseStatusFile,
   readPhaxPlanFile,
 } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 // Made-up full commit shas for the fake git's branch tips.
 const RUN_TIP = "1111111111111111111111111111111111111111";
@@ -427,7 +428,7 @@ describe("executePlan — per-phase branch regression", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -436,7 +437,7 @@ describe("executePlan — per-phase branch regression", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -537,7 +538,7 @@ describe("executePlan — per-phase branch regression", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(setupLayers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(setupLayers)),
     );
 
     // Simulate phase-01 already committed
@@ -643,7 +644,7 @@ describe("executePlan — per-phase branch regression", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: true,

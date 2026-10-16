@@ -22,6 +22,7 @@ import {
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -162,7 +163,7 @@ describe("executePlan — agent command grants in secure mode", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Grants Run", plan, config, undefined, true).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
         Effect.provide(layer),
       ),
     );
@@ -173,7 +174,7 @@ describe("executePlan — agent command grants in secure mode", () => {
             shortName,
             namespace: "test-project",
             plan,
-            planMd: "# Grants Run",
+            planMd: planMdFor(plan),
             config,
             gateProfileId: "full",
             allowDirty: false,
@@ -279,7 +280,7 @@ describe("executePlan — agent command grants in secure mode", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# Grants Run", plan, config, undefined, true).pipe(
+      createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
         Effect.provide(layer),
       ),
     );
@@ -289,7 +290,7 @@ describe("executePlan — agent command grants in secure mode", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# Grants Run",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,

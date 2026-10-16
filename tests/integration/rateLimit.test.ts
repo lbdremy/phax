@@ -25,6 +25,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -150,7 +151,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -159,7 +160,7 @@ describe("executePlan — rate-limit detection and resume", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -219,7 +220,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const result = await Effect.runPromise(
@@ -228,7 +229,7 @@ describe("executePlan — rate-limit detection and resume", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: false,
@@ -260,7 +261,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(setupLayers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(setupLayers)),
     );
 
     const now = new Date().toISOString();
@@ -401,7 +402,7 @@ describe("executePlan — rate-limit detection and resume", () => {
           shortName,
           namespace: "test-project",
           plan,
-          planMd: "# My Plan",
+          planMd: planMdFor(plan),
           config,
           gateProfileId: "full",
           allowDirty: true,
@@ -483,13 +484,13 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(firstLayers)),
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(firstLayers)),
     );
     const executeOptions = {
       shortName,
       namespace: "test-project",
       plan,
-      planMd: "# My Plan",
+      planMd: planMdFor(plan),
       config,
       gateProfileId: "full",
       allowDirty: true,

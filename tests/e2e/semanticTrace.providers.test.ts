@@ -53,6 +53,7 @@ import {
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { withTelemetryCapture } from "./helpers/telemetry.js";
+import { planMdFor } from "../helpers/planMarkdown.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -241,7 +242,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
       );
 
       const { runPath, runId } = await Effect.runPromise(
-        createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+        createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
       );
 
       const result = await Effect.runPromise(
@@ -250,7 +251,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
             namespace: "test-project",
             shortName,
             plan,
-            planMd: "# My Plan",
+            planMd: planMdFor(plan),
             config,
             gateProfileId: "full",
             allowDirty: false,

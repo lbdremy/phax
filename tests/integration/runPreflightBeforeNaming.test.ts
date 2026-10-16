@@ -20,6 +20,7 @@ import { runLs } from "../../src/cli/commands/ls.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import { loadModelRouting } from "../../src/app/loadRouting.js";
+import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { reconcileRecordsSync } from "../../src/app/recordsSync.js";
 import type { FreshRunPreflightStep } from "../../src/app/runPreflight.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
@@ -67,6 +68,12 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
 vi.mock("../../src/app/gates.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/gates.js")>();
   return { ...actual, resolveGateProfile: vi.fn(actual.resolveGateProfile) };
+});
+// A deterministically parsed phase is always locatable, so the phase-sections
+// scenario simulates a model-extracted plan through this pass-through spy.
+vi.mock("../../src/app/loadOrExtractPlan.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/app/loadOrExtractPlan.js")>();
+  return { ...actual, loadOrExtractPlan: vi.fn(actual.loadOrExtractPlan) };
 });
 
 const SKILL_FILE = ".claude/skills/foo/SKILL.md";
@@ -158,6 +165,36 @@ const SCENARIOS = {
         `Model preflight failed: 1 phase(s) have invalid model configuration.`,
         `\n  phase-01 (${UNKNOWN_MODEL}/medium):`,
         `    - model id "${UNKNOWN_MODEL}" not found in catalog`,
+      ].join("\n")}`,
+  },
+  "phase-sections": {
+    // The extraction returns a second phase that plan.md has no section for.
+    arrange: () => {
+      const passThrough = vi.mocked(loadOrExtractPlan).getMockImplementation()!;
+      vi.mocked(loadOrExtractPlan).mockImplementationOnce((opts) =>
+        passThrough(opts).pipe(
+          Effect.map((extracted) => {
+            const [first] = extracted.plan.phases;
+            const second = {
+              ...first,
+              id: "phase-02",
+              title: "Step 02",
+              planMarkdownAnchor: "#phase-02-step",
+              plannedFilesToCreate: ["src/step-02.ts"],
+            };
+            return {
+              ...extracted,
+              plan: { ...extracted.plan, phases: [first, second] },
+            } as typeof extracted;
+          }),
+        ),
+      );
+    },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${[
+        `Plan preflight failed: phase-02 has no section in plan.md (expected a "## phase-02 — …" heading).`,
+        "Fix the plan, then check it with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
   "clean-tree": {
