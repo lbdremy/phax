@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-16
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-16
+  baseline: 75a8e13
 ---
 
 # Phase prompt scope — a phase reads its own part of the plan
