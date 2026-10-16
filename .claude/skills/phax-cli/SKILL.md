@@ -81,7 +81,7 @@ A phase worktree is a linked Git worktree whose root holds `.phax-context/`. Run
 anywhere inside one, phax refuses every command that acts on phax state or on an
 artifact's lifecycle, before the command runs, and names the main checkout as the place to
 run it. That covers `run`, `resume`, `archive`, `publish-pr`, `review-*`,
-`artifact approve`/`new`/…, `plans status --apply`, and also `enter`, `shell` and `open`.
+`artifact approve`/`new`/`decide`/…, `plans status --apply`, and also `enter`, `shell` and `open`.
 What still runs inside:
 
 - `phax brief [path…]`;
@@ -167,6 +167,20 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   and writes a `Reopened-By: machine (<grant>)` / `operator (<name>)` trailer in its commit.
   Reopening a spec names its bound plans and leaves them unchanged. A `Draft`, `Completed`
   or `Abandoned` artifact is refused with exit 12.
+- `phax artifact decide [--question <id>] [--doctrine <file>] [--model <m>] [--effort <e>] <path>` —
+  decide a Draft spec's or plan's open questions in an interactive Claude Code session. The agent
+  raises the framing questions F1–F5, then presents the open questions; the operator decides.
+  When the operator exits, phax asks the session for the revised document, checks it, prints the
+  body diff, and writes and commits the artifact and its sidecar only after the operator accepts
+  (a declined diff writes nothing and exits 0). `--question <id>` presents one question alone,
+  open or arbitrated; a new verdict keeps the old one in its history. The flow is
+  `status → decide → approve`, and to revisit a decision `reopen → decide --question <id>`.
+  decide needs a terminal (exit 12 without one), a Draft artifact (an Approved one names
+  `phax artifact reopen`), and a Claude model; it is refused inside a phase worktree, and never
+  runs inside a run. The doctrine is the `phax-decide-spec` or `phax-decide-plan` skill (a copy
+  under `.claude/skills/` wins), with `--doctrine` appended. **The approval lock:** `approve`
+  refuses with exit 12 while any question is open, naming the ids and `phax artifact decide`;
+  a loop cannot approve past an open question. See `docs/arbitration.md`.
 - `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
   into the matching `archive/` directory and deletes its record file as part of the transition.
   Reopen deletes the artifact's record file the same way. No transition touches another

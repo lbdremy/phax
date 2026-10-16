@@ -68,6 +68,11 @@ whose `Source-Spec` is Approved but **unrecorded** (no record file under `docs/s
 `phax artifact status <spec>` reports the approval date, baseline, and whether the spec has
 been edited since.
 
+**Approval needs an empty `## 9. Open questions` section.** `phax artifact approve` refuses
+(exit 12) while a question is open, headless or hand-authored, and names `phax artifact decide`;
+a hand-authored §9 that does not follow the §9 format (below) is refused too. `phax artifact
+decide <spec>` answers the open questions with the operator and moves them to `## 9b`.
+
 ## File and naming convention
 
 - One feature = one spec file: `docs/specs/<YYMMDDHHMM>-<slug>.md` — a ten-digit stamp
@@ -191,6 +196,8 @@ Recommendation: <option id> — <rationale>
 ```
 
 Ids are runs of characters without whitespace; use short kebab-case ones (`q-keep`, `keep-10`).
+Give every option an id: `phax artifact decide` records a verdict by option id, and a
+hand-authored §9 without them departs from the format.
 The `Recommendation:` and `Decision:` lines name one of the question's own option ids.
 An arbitrated question under `## 9b. Arbitrated questions` has the same block, then its
 decision:
