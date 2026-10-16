@@ -3,7 +3,7 @@ name: phax-decide-review
 description: Default doctrine for turning a headless code review's findings into a plan (`phax review-plan`) — the severity scale and its threshold, what a fix may touch, when not to plan at all, and how findings become phases.
 ---
 
-> Bundled default doctrine, landed by hand on 2026-09-24 from `docs/ideas/skills/`; wired into the
+> Bundled default doctrine, landed by hand on 2026-09-24; wired into the
 > skill catalog by the `artifact-decide` plan. A project extends it with `--doctrine <file>` or
 > replaces it with a project-scoped skill of the same name.
 

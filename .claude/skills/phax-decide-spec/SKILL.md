@@ -3,7 +3,7 @@ name: phax-decide-spec
 description: Default arbitration doctrine for `phax artifact decide` on a spec — how to answer a spec's §9 open questions when no human is in the session; adopt the recommendation unless a named principle says otherwise, argue for the abandoned option first, escalate what you may not decide, and emit decisions as data.
 ---
 
-> Bundled default doctrine, landed by hand on 2026-09-24 from `docs/ideas/skills/`; wired into the
+> Bundled default doctrine, landed by hand on 2026-09-24; wired into the
 > skill catalog by the `artifact-decide` plan. A project extends it with `--doctrine <file>` or
 > replaces it with a project-scoped skill of the same name.
 

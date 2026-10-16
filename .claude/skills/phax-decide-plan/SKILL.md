@@ -3,7 +3,7 @@ name: phax-decide-plan
 description: Default arbitration doctrine for `phax artifact decide` on a plan and for the planning agent's technical arbitrations when no human is in the session — split by shippable surface, oracle first when the surface is shown, footprint discipline, model and effort left to the planner, docs last.
 ---
 
-> Bundled default doctrine, landed by hand on 2026-09-24 from `docs/ideas/skills/`; wired into the
+> Bundled default doctrine, landed by hand on 2026-09-24; wired into the
 > skill catalog by the `artifact-decide` plan. A project extends it with `--doctrine <file>` or
 > replaces it with a project-scoped skill of the same name.
 
