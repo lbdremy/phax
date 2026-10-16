@@ -34,6 +34,7 @@ import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
   AuthoringDocumentError,
+  DecideRefusedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
@@ -198,6 +199,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
     err instanceof ArtifactCreationError ||
+    err instanceof DecideRefusedError ||
     err instanceof ApprovalRecordUnreadableError ||
     err instanceof ApprovalLedgerMigrationRequiredError ||
     err instanceof ApprovalMigrationRefusedError ||
