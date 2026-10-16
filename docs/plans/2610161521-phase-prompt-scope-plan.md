@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610161001-phase-prompt-scope.md
 completes-spec: true
+approved:
+  date: 2026-10-16
+  baseline: 0bf5596
 ---
 # Phase prompt scope
 
