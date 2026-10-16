@@ -14,6 +14,7 @@ import {
   briefArtifactsInOrder,
   gateArtifactsInOrder,
   type ExplainedAuthoringRecord,
+  type ExplainedDecisionRecord,
   type ExplainedRecord,
   type ExplainOutcome,
 } from "../../app/recordsExplain.js";
@@ -231,7 +232,7 @@ function renderExplainOutcome(
       return 1;
     case "not-phax-commit":
       out.error(
-        `Commit "${outcome.sha}" was not produced by a phax phase or a headless authoring session (no Run-Id/Phase-Id or Authoring-Id trailers).`,
+        `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session or a decide session (no Run-Id/Phase-Id, Authoring-Id or Decision-Id trailers).`,
       );
       return 1;
     case "not-found":
@@ -245,6 +246,8 @@ function renderExplainOutcome(
       return renderFoundRecord(outcome.record, opts, out);
     case "found-authoring":
       return renderFoundAuthoringRecord(outcome.record, opts, out);
+    case "found-decision":
+      return renderFoundDecisionRecord(outcome.record, opts, out);
   }
 }
 
@@ -311,6 +314,52 @@ function renderFoundAuthoringRecord(
   if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
   if (opts.gates === true) out.log("(an authoring record carries no gate logs)");
   if (opts.briefs === true) out.log("(an authoring record carries no provider briefs)");
+
+  return 0;
+}
+
+function renderFoundDecisionRecord(
+  record: ExplainedDecisionRecord,
+  opts: RecordsExplainOptions,
+  out: OutputPort,
+): number {
+  const { manifest } = record;
+  const key = `decision/${record.decisionId}`;
+  const filePath = (name: string): string =>
+    record.artifacts.has(name) ? `${key}/${name}` : "absent";
+
+  out.log(
+    `decision ${record.decisionId} · ${manifest.provider} (${manifest.model}, ${manifest.effort})`,
+  );
+  out.log(`artifact ${manifest.artifact} (${manifest.artifactKind})`);
+  out.log(`session  ${manifest.mode}, ${manifest.session}`);
+  out.log(`record   ${shapeAndUsageLabel(record)}`);
+  out.log(
+    `outcome  ${manifest.outcome}${manifest.commit === null ? "" : `   commit  ${manifest.commit}`}`,
+  );
+  const reachability =
+    record.sourceCommitReachable === true ? "reachable" : "not reachable — rebased or squashed";
+  out.log(`source   ${manifest.sourceSha} (${reachability})`);
+  out.log(
+    `questions ${manifest.questions.join(", ")}   arbitrated: ${manifest.arbitrated}   departed: ${manifest.departed}`,
+  );
+  for (const source of manifest.doctrine) {
+    out.log(
+      source.kind === "skill"
+        ? `doctrine skill ${source.name} (${source.source})   ${source.fingerprint}`
+        : `doctrine file ${source.path}   ${source.fingerprint}`,
+    );
+  }
+  out.log(
+    `prompt   ${filePath("prompt.md")}   document  ${filePath("document.json")}   diff  ${filePath("body.diff")}`,
+  );
+  out.log(`files    ${record.files.join(", ")}`);
+
+  if (opts.prompt === true) printArtifact(record, "prompt.md", out);
+  if (opts.diff === true) printArtifact(record, "body.diff", out);
+  if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
+  if (opts.gates === true) out.log("(a decision record carries no gate logs)");
+  if (opts.briefs === true) out.log("(a decision record carries no provider briefs)");
 
   return 0;
 }
@@ -413,8 +462,9 @@ async function runRecordsList(opts: RecordsListOptions, out: OutputPort): Promis
   }
 
   for (const entry of outcome.records) {
-    // An authoring record lists under its key (`authoring <id>`), with the
-    // artifact path where a phase record shows its verified surfaces.
+    // An authoring or decision record lists under its key (`authoring <id>`,
+    // `decision <id>`), with the artifact path where a phase record shows its
+    // verified surfaces.
     const [first, second, detail] =
       entry.kind === "phase"
         ? [
@@ -422,7 +472,9 @@ async function runRecordsList(opts: RecordsListOptions, out: OutputPort): Promis
             entry.phaseId,
             entry.verifiedSurfaces.length > 0 ? entry.verifiedSurfaces.join(",") : "-",
           ]
-        : ["authoring", entry.authoringId, entry.artifact];
+        : entry.kind === "authoring"
+          ? ["authoring", entry.authoringId, entry.artifact]
+          : ["decision", entry.decisionId, entry.artifact];
     out.log(
       `${first}  ${second}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${detail}`,
     );

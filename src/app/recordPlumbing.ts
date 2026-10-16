@@ -24,9 +24,10 @@ import {
   type TokenUsage,
 } from "../schemas/runRecord.js";
 
-// Shared by the two record writers (`writeRecord.ts` for phases,
-// `writeAuthoringRecord.ts` for headless authoring sessions): destination
-// policy, usage extraction, and the tree-only commit on the records branch.
+// Shared by the three record writers (`writeRecord.ts` for phases,
+// `writeAuthoringRecord.ts` for headless authoring sessions,
+// `writeDecisionRecord.ts` for decide sessions): destination policy, usage
+// extraction, and the tree-only commit on the records branch.
 
 /**
  * The records branch is an ordinary branch, not a custom ref namespace, so it
@@ -136,7 +137,14 @@ export interface CommitRecordTreeInput {
   /** The encoded manifest, written as `<key>/record.json`. */
   readonly manifest: unknown;
   readonly message: string;
+  /**
+   * Strings no recorded artifact may carry (a decision record's provider
+   * session ids): each occurrence is replaced by `[session id withheld]`.
+   */
+  readonly redact?: readonly string[] | undefined;
 }
+
+const REDACTED_SESSION_ID = "[session id withheld]";
 
 /**
  * Write one record as one commit on `phax/records/v1` — the artifacts plus
@@ -156,8 +164,10 @@ export function commitRecordTree(
 
     const encoder = new TextEncoder();
     const files: { path: string; content: Uint8Array }[] = [];
+    const redact = (input.redact ?? []).filter((value) => value.length > 0);
     for (const name of input.artifactPaths) {
-      const text = yield* fs.readText(join(input.folder, name));
+      let text = yield* fs.readText(join(input.folder, name));
+      for (const value of redact) text = text.replaceAll(value, REDACTED_SESSION_ID);
       files.push({ path: `${input.key}/${name}`, content: encoder.encode(text) });
     }
     files.push({

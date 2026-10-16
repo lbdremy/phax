@@ -9,6 +9,7 @@ import {
   isAuthoringRecordManifest,
   type AuthoringRecordOutcome,
 } from "../schemas/authoringRecord.js";
+import { isDecisionRecordManifest, type DecisionRecordOutcome } from "../schemas/decisionRecord.js";
 import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
@@ -33,6 +34,16 @@ export type RecordListEntry =
       /** The artifact the session authored — where a phase record shows its verified surfaces. */
       readonly artifact: string;
       readonly artifactKind: ArtifactKind;
+    }
+  | {
+      readonly kind: "decision";
+      readonly decisionId: string;
+      readonly shape: RecordShape;
+      readonly outcome: DecisionRecordOutcome;
+      readonly recordCommitSha: string;
+      /** The artifact the session decided. */
+      readonly artifact: string;
+      readonly artifactKind: ArtifactKind;
     };
 
 export type ListRecordsResult =
@@ -55,7 +66,7 @@ export interface ListRecordsInput {
  * checked-out local branch). Records are not cumulative (see
  * `recordsExplain.ts`), so this walks the whole history rather than reading
  * one tree: every commit on `phax/records/v1` is itself exactly one record —
- * a phase's or a headless authoring session's.
+ * a phase's, a headless authoring session's or a decide session's.
  */
 export function listRecords(
   input: ListRecordsInput,
@@ -109,6 +120,18 @@ export function listRecords(
         records.push({
           kind: "authoring",
           authoringId: manifest.authoringId,
+          shape: manifest.shape,
+          outcome: manifest.outcome,
+          recordCommitSha: sha,
+          artifact: manifest.artifact,
+          artifactKind: manifest.artifactKind,
+        });
+        continue;
+      }
+      if (isDecisionRecordManifest(manifest)) {
+        records.push({
+          kind: "decision",
+          decisionId: manifest.decisionId,
           shape: manifest.shape,
           outcome: manifest.outcome,
           recordCommitSha: sha,

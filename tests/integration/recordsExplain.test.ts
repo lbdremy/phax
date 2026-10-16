@@ -14,6 +14,10 @@ import {
   writeAuthoringRecord,
   type WriteAuthoringRecordInput,
 } from "../../src/app/writeAuthoringRecord.js";
+import {
+  writeDecisionRecord,
+  type WriteDecisionRecordInput,
+} from "../../src/app/writeDecisionRecord.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { Shell, type ShellError } from "../../src/ports/shell.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
@@ -984,6 +988,207 @@ describe("records explain and list (real git)", () => {
       );
       if (byRun.kind !== "listed") throw new Error("expected listed");
       expect(byRun.records.map((r) => r.kind)).toEqual(["phase"]);
+    });
+  });
+
+  describe("decision records", () => {
+    const DECISION_ID = "2610160930-log-rotation/01";
+    const ARTIFACT = "docs/specs/2610160930-log-rotation.md";
+    const SKILL_FINGERPRINT = "d".repeat(64);
+    let decisionFolder: string;
+
+    beforeEach(() => {
+      decisionFolder = mkdtempSync(join(tmpdir(), "phax-records-explain-decision-"));
+    });
+
+    afterEach(() => {
+      removeTempDir(decisionFolder);
+    });
+
+    // A decide commit as `artifact decide` makes it: the artifact, with the
+    // Artifact, Decided-By and Decision-Id trailers.
+    function commitDecision(decisionId: string): string {
+      writeFileSync(join(repoDir, "decided.md"), `${decisionId}\n`);
+      execGit(["add", "."], repoDir);
+      execGit(
+        [
+          "commit",
+          "-m",
+          "docs(specs): decide log-rotation Q1, Q2",
+          "-m",
+          `Decided in an interactive session.\n\nArtifact: ${ARTIFACT}\nDecided-By: operator (Ada Lovelace)\nDecision-Id: ${decisionId}`,
+        ],
+        repoDir,
+      );
+      return execGit(["rev-parse", "HEAD"], repoDir).trim();
+    }
+
+    async function recordDecision(
+      decisionId: string,
+      overrides: Partial<WriteDecisionRecordInput> = {},
+    ): Promise<void> {
+      writeFileSync(join(decisionFolder, "prompt.md"), "the decide prompt\n");
+      writeFileSync(join(decisionFolder, "document.json"), '{"kind":"spec"}\n');
+      writeFileSync(join(decisionFolder, "body.diff"), "-old line\n+new line\n");
+      writeFileSync(join(decisionFolder, "output.jsonl"), '{"type":"result"}\n');
+      await Effect.runPromise(
+        Effect.provide(
+          writeDecisionRecord({
+            repoRoot: repoDir,
+            records: IN_REPO_CONFIG,
+            folder: decisionFolder,
+            decisionId,
+            artifact: ARTIFACT,
+            artifactKind: "spec",
+            session: "new",
+            doctrine: [
+              {
+                kind: "skill",
+                name: "phax-decide-spec",
+                source: "project",
+                fingerprint: SKILL_FINGERPRINT,
+              },
+            ],
+            questions: ["Q1", "Q2"],
+            arbitrated: 2,
+            departed: 1,
+            sourceSha: execGit(["rev-parse", "HEAD"], repoDir).trim(),
+            provider: "claude-code",
+            model: "claude-opus-5-5",
+            effort: "high",
+            end: { outcome: "committed", commit: execGit(["rev-parse", "HEAD"], repoDir).trim() },
+            retried: false,
+            sessionIds: [],
+            ...overrides,
+          }),
+          Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, makeFakeGitHub().layer),
+        ),
+      );
+    }
+
+    it("resolves a decision record through the decide commit's Decision-Id trailer", async () => {
+      const sha = commitDecision(DECISION_ID);
+      await recordDecision(DECISION_ID);
+
+      const outcome = await run(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      );
+
+      expect(outcome.kind).toBe("found-decision");
+      if (outcome.kind !== "found-decision") throw new Error("expected found-decision");
+      expect(outcome.record.decisionId).toBe(DECISION_ID);
+      expect(outcome.record.manifest).toMatchObject({
+        kind: "decision",
+        artifact: ARTIFACT,
+        questions: ["Q1", "Q2"],
+        arbitrated: 2,
+        departed: 1,
+        outcome: "committed",
+        commit: sha,
+      });
+      expect(outcome.record.files).toEqual([
+        "body.diff",
+        "document.json",
+        "output.jsonl",
+        "prompt.md",
+      ]);
+      expect(outcome.record.sourceCommitReachable).toBe(true);
+    });
+
+    it("renders the decision's facts, and prints its body diff under --diff", async () => {
+      const sha = commitDecision(DECISION_ID);
+      await recordDecision(DECISION_ID);
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          records: { transcript: true, destination: { kind: "in-repo" }, autoPush: false },
+        }),
+      );
+      const originalCwd = process.cwd();
+      process.chdir(repoDir);
+      try {
+        const explained = await records(["explain", sha, "--diff"]);
+        expect(explained.code).toBe(0);
+        expect(explained.logs[0]).toBe(
+          `decision ${DECISION_ID} · claude-code (claude-opus-5-5, high)`,
+        );
+        expect(explained.text).toContain(`outcome  committed   commit  ${sha}`);
+        expect(explained.text).toContain("questions Q1, Q2   arbitrated: 2   departed: 1");
+        expect(explained.text).toContain(
+          `doctrine skill phax-decide-spec (project)   ${SKILL_FINGERPRINT}`,
+        );
+        expect(explained.text).toContain(
+          `prompt   decision/${DECISION_ID}/prompt.md   document  decision/${DECISION_ID}/document.json`,
+        );
+        expect(explained.text).toContain("tokens unavailable");
+        expect(explained.text).toContain("+new line");
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
+    it("reports an authoring manifest under a decision key as malformed", async () => {
+      const sha = commitDecision(DECISION_ID);
+      await writeRecordDocumentCommit(
+        repoDir,
+        `decision/${DECISION_ID}`,
+        {
+          version: 1,
+          kind: "authoring",
+          authoringId: "2610160930-log-rotation",
+          artifact: ARTIFACT,
+          artifactKind: "spec",
+          shape: "skeleton",
+          provider: "claude-code",
+          model: "claude-opus-5-5",
+          effort: "high",
+          outcome: "committed",
+          usage: { available: false },
+        },
+        [`records(decision): committed`, "", `Decision-Id: ${DECISION_ID}`].join("\n"),
+        {},
+      );
+
+      const outcome = await Effect.runPromise(
+        Effect.either(
+          explainRecord({
+            sha,
+            repoRoot: repoDir,
+            records: IN_REPO_CONFIG,
+            publishRemote: "origin",
+          }).pipe(Effect.provide(LAYER)),
+        ),
+      );
+
+      expect(Either.isLeft(outcome)).toBe(true);
+      if (Either.isLeft(outcome)) {
+        expect(outcome.left.message).toContain("an authoring manifest under a decision key");
+      }
+    });
+
+    it("records list shows a decision record by its id and artifact", async () => {
+      await recordDecision(DECISION_ID, { end: { outcome: "declined", commit: null } });
+
+      const all = await run(
+        listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      );
+
+      if (all.kind !== "listed") throw new Error("expected listed");
+      expect(all.records).toEqual([
+        expect.objectContaining({
+          kind: "decision",
+          decisionId: DECISION_ID,
+          artifact: ARTIFACT,
+          artifactKind: "spec",
+          outcome: "declined",
+          shape: "full",
+        }),
+      ]);
     });
   });
 });

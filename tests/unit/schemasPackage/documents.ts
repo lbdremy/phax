@@ -26,6 +26,10 @@ import {
 } from "../../../src/schemas/brief.js";
 import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
+import {
+  DecisionRecordManifestFileSchema,
+  type DecisionRecordManifest,
+} from "../../../src/schemas/decisionRecord.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
@@ -413,6 +417,30 @@ const handDecisionAnswer: HandDecisionAnswer = {
   markdown: "---\nstatus: Draft\n---\n# Example spec\n",
 };
 
+const decisionRecordManifest: DecisionRecordManifest = {
+  kind: "decision",
+  decisionId: "2610160930-example/01",
+  artifact: "docs/specs/2610160930-example.md",
+  artifactKind: "spec",
+  mode: "interactive",
+  session: "new",
+  doctrine: [
+    { kind: "skill", name: "phax-decide-spec", source: "bundled", fingerprint: "a".repeat(64) },
+    { kind: "file", path: "docs/doctrine/spec.md", fingerprint: "b".repeat(64) },
+  ],
+  questions: ["q-retention", "q-scope"],
+  arbitrated: 2,
+  departed: 1,
+  sourceSha: "abc1234",
+  shape: "skeleton",
+  provider: "claude-code",
+  model: "example-model",
+  effort: "high",
+  outcome: "committed",
+  commit: "def5678",
+  usage: { available: false },
+};
+
 const briefRecord: BriefRecord = {
   moment: "pulled",
   request: withSchemaUrl("brief-request", briefRequest),
@@ -634,6 +662,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "hand-decision-answer": encoded(
     HandDecisionAnswerFileSchema,
     withSchemaUrl("hand-decision-answer", handDecisionAnswer),
+  ),
+  "decision-record-manifest": encoded(
+    DecisionRecordManifestFileSchema,
+    withSchemaUrl("decision-record-manifest", decisionRecordManifest),
   ),
 };
 

@@ -23,6 +23,7 @@ import { createPhaseFolder } from "../../src/app/phaseFolder.js";
 import { reconcilePhaseFiles } from "../../src/app/reconcilePhaseFiles.js";
 import { reviewCompliance } from "../../src/app/reviewCompliance.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
+import { writeDecisionRecord } from "../../src/app/writeDecisionRecord.js";
 import { writeRecord } from "../../src/app/writeRecord.js";
 import {
   decodeShortName,
@@ -284,6 +285,7 @@ function formatAt(
   if (/\.report-\d{2,}\.json$/.test(name)) return "gate-report";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
+    if (location.startsWith("records:decision/")) return "decision-record-manifest";
     return location.includes("authoring/") ? "authoring-record-manifest" : "phase-record-manifest";
   }
   if (name === "document.json") {
@@ -548,6 +550,37 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   );
   if (Either.isLeft(recorded) || recorded.right.kind !== "written") {
     throw new Error("writeRecord wrote no record");
+  }
+
+  // A decide session's record, from its decision folder.
+  const decisionFolder = `${STATE_ROOT}/decide/2601011100-decided/01`;
+  seed(`${decisionFolder}/prompt.md`, "# Decide the example spec\n");
+  const decided = await run(
+    writeDecisionRecord({
+      repoRoot: REPO_ROOT,
+      records: RECORDS_IN_REPO,
+      folder: decisionFolder,
+      decisionId: "2601011100-decided/01",
+      artifact: "docs/specs/2601011100-decided.md",
+      artifactKind: "spec",
+      session: "new",
+      doctrine: [
+        { kind: "skill", name: "phax-decide-spec", source: "bundled", fingerprint: "c".repeat(64) },
+      ],
+      questions: ["Q1"],
+      arbitrated: 0,
+      departed: 0,
+      sourceSha: "abc1234",
+      provider: "claude-code",
+      model: "example-model",
+      effort: "high",
+      end: { outcome: "declined", commit: null },
+      retried: false,
+      sessionIds: [],
+    }),
+  );
+  if (Either.isLeft(decided) || decided.right.kind !== "written") {
+    throw new Error("writeDecisionRecord wrote no record");
   }
 
   // A compliance review with a fake agent, whose verdict file phax decodes.

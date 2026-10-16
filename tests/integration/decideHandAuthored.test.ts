@@ -9,6 +9,7 @@ import { exitCodeForAuthoringError } from "../../src/cli/commands/runLayers.js";
 import { parseHandAuthoredQuestions } from "../../src/domain/artifact/questions.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakePrompt } from "../../src/infra/fakes/prompt.js";
 import { makeFakeSession } from "../../src/infra/fakes/session.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
@@ -194,6 +195,7 @@ function harness(answers: readonly string[]) {
     session.layer,
     makeFakePrompt([true]).layer,
     makeFakeTerminal(true).layer,
+    makeFakeGitHub().layer,
   );
   const run = (overrides: Partial<DecideArtifactInput> = {}) =>
     Effect.runPromise(
@@ -211,6 +213,13 @@ function harness(answers: readonly string[]) {
           extractPlanModel: "claude-haiku-5-5",
           extractPlanEffort: "low",
           nowIso: NOW,
+          records: {
+            enabled: false,
+            transcript: false,
+            destination: { kind: "in-repo" },
+            autoPush: false,
+          },
+          publishRemote: "origin",
           output: { log: (l) => lines.push(l), warn: () => {} },
           ...overrides,
         }).pipe(Effect.provide(layer)),

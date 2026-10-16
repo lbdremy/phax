@@ -27,4 +27,5 @@ export const CURRENT_STAMPS = {
   "gate-report": "0.21.0",
   "brief-report": "0.21.0",
   "hand-decision-answer": "0.25.0",
+  "decision-record-manifest": "0.25.0",
 } as const;

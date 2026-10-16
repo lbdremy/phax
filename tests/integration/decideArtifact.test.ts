@@ -1,6 +1,7 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -18,6 +19,7 @@ import { inspectArtifact } from "../../src/app/artifactStatus.js";
 import { type DecideArtifactInput, decideArtifact } from "../../src/app/decideArtifact.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { readCacheEntry } from "../../src/app/planCacheStore.js";
+import { explainRecord } from "../../src/app/recordsExplain.js";
 import { exitCodeForAuthoringError } from "../../src/cli/commands/runLayers.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
@@ -26,11 +28,13 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { planCacheKey } from "../../src/domain/planCache/key.js";
 import { structureFindings } from "../../src/domain/plan/lint.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { FAKE_PROMPT_CANCEL, makeFakePrompt } from "../../src/infra/fakes/prompt.js";
 import { makeFakeSession } from "../../src/infra/fakes/session.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { NodeShellLayer } from "../../src/infra/shell.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PlanDocument } from "../../src/schemas/planDocument.js";
 import { projectExtractedPlan } from "../../src/schemas/planDocument.js";
@@ -40,6 +44,7 @@ import type {
   SpecArbitratedQuestion,
 } from "../../src/schemas/questions.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 import type { SpecDocument } from "../../src/schemas/specDocument.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -91,6 +96,13 @@ const SECURITY: ResolvedSecurityConfig = {
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
   agentCommands: [],
+};
+
+const RECORDS_OFF: ResolvedRecordsConfig = {
+  enabled: false,
+  transcript: false,
+  destination: { kind: "in-repo" },
+  autoPush: false,
 };
 
 let repoDir: string;
@@ -310,6 +322,7 @@ function harness(opts: HarnessOptions = {}) {
   const session = makeFakeSession();
   const prompt = makeFakePrompt([...(opts.confirm ?? [true])]);
   const terminal = makeFakeTerminal(opts.terminal ?? true);
+  const github = makeFakeGitHub();
   const lines: string[] = [];
   const warnings: string[] = [];
   const layer = Layer.mergeAll(
@@ -319,6 +332,7 @@ function harness(opts: HarnessOptions = {}) {
     session.layer,
     prompt.layer,
     terminal.layer,
+    github.layer,
   );
   const run = (overrides: Partial<DecideArtifactInput> = {}) =>
     Effect.runPromise(
@@ -336,6 +350,8 @@ function harness(opts: HarnessOptions = {}) {
           extractPlanModel: EXTRACT_MODEL,
           extractPlanEffort: EXTRACT_EFFORT,
           nowIso: NOW,
+          records: RECORDS_OFF,
+          publishRemote: "origin",
           output: { log: (l) => lines.push(l), warn: (w) => warnings.push(w) },
           ...overrides,
         }).pipe(Effect.provide(layer)),
@@ -345,6 +361,7 @@ function harness(opts: HarnessOptions = {}) {
     backend: backend.impl,
     session: session.impl,
     prompt: prompt.impl,
+    github: github.impl,
     lines,
     warnings,
     run,
@@ -1240,3 +1257,257 @@ describe(
     });
   },
 );
+
+// ── The decision record (§5.30) ───────────────────────────────────────────
+
+const RECORDS_ON: ResolvedRecordsConfig = {
+  enabled: true,
+  transcript: true,
+  destination: { kind: "in-repo" },
+  autoPush: false,
+};
+const RECORDS_BRANCH = "phax/records/v1";
+const KEPT_FIRST_SESSION = "11111111-2222-4333-8444-555555555555";
+
+// A Claude handback turn's stream: every event names the session it ran in.
+function claudeTranscript(sessionId: string): string {
+  return [
+    JSON.stringify({ type: "system", subtype: "init", session_id: sessionId }),
+    JSON.stringify({
+      type: "result",
+      session_id: sessionId,
+      result: "{}",
+      usage: {
+        input_tokens: 900,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 4000,
+        output_tokens: 700,
+      },
+      total_cost_usd: 0.2,
+    }),
+    "",
+  ].join("\n");
+}
+
+// The handback writes its transcript as Claude would, naming the session.
+function playTranscripts(h: Harness): void {
+  h.backend.setOnResumeAgent((sessionId, _prompt, options) => {
+    if (options.outputJsonlPath !== undefined) {
+      writeFileSync(options.outputJsonlPath, claudeTranscript(sessionId));
+    }
+  });
+}
+
+function recordsBranchExists(): boolean {
+  return git(["branch", "--list", RECORDS_BRANCH]).trim() !== "";
+}
+
+/** The newest record's files, by path, as committed on the records branch. */
+function recordBlobs(): ReadonlyMap<string, string> {
+  const paths = git(["ls-tree", "-r", "--name-only", RECORDS_BRANCH]).trim().split("\n");
+  return new Map(paths.map((path) => [path, git(["show", `${RECORDS_BRANCH}:${path}`])]));
+}
+
+function recordManifest(index = "01", id = AUTHORING_ID): Record<string, unknown> {
+  return JSON.parse(
+    git(["show", `${RECORDS_BRANCH}:decision/${id}/${index}/record.json`]),
+  ) as Record<string, unknown>;
+}
+
+describe("decide — the decision record", { timeout: 30_000 }, () => {
+  it("explains a committed decide: two arbitrated, one departing, no session id anywhere", async () => {
+    const before = specDocument([Q1, Q2]);
+    writeSpec(SPEC, before);
+    commitAll();
+    const head = headSha();
+    keepAuthoringSession();
+    const revised: SpecDocument = {
+      ...specDocument([], [arbitrated(Q1), arbitrated(Q2, "Q2-b", { revised: ["§5 R-keep"] })]),
+      requirements: [
+        {
+          id: "R-keep",
+          title: "Keep",
+          pattern: "event",
+          statement: "WHEN a run ends THE system SHALL keep its log for a week.",
+        },
+      ],
+    };
+    const h = harness({ answers: [answer(revised)] });
+    playTranscripts(h);
+
+    const result = await h.run({ records: RECORDS_ON });
+
+    const committed = Either.getOrThrow(result);
+    if (committed.kind !== "committed") throw new Error("expected committed");
+    expect(committed.record).toMatchObject({
+      kind: "written",
+      key: `decision/${AUTHORING_ID}/01`,
+      shape: "full",
+    });
+    expect(committed.recordPush).toEqual({ kind: "not-configured" });
+
+    const outcome = await Effect.runPromise(
+      explainRecord({
+        sha: committed.commit.hash,
+        repoRoot: repoDir,
+        records: RECORDS_ON,
+        publishRemote: "origin",
+      }).pipe(Effect.provide(Layer.mergeAll(NodeGitLayer, NodeShellLayer))),
+    );
+    if (outcome.kind !== "found-decision")
+      throw new Error(`expected found-decision: ${outcome.kind}`);
+    expect(outcome.record.manifest).toMatchObject({
+      kind: "decision",
+      decisionId: `${AUTHORING_ID}/01`,
+      artifact: SPEC,
+      artifactKind: "spec",
+      mode: "interactive",
+      session: "resumed-authoring",
+      doctrine: [
+        {
+          kind: "skill",
+          name: "phax-decide-spec",
+          source: "bundled",
+          fingerprint: createHash("sha256").update(SKILL_SPEC).digest("hex"),
+        },
+      ],
+      questions: ["Q1", "Q2"],
+      arbitrated: 2,
+      departed: 1,
+      sourceSha: head,
+      provider: "claude-code",
+      model: "claude-opus-5-5",
+      effort: "high",
+      outcome: "committed",
+      commit: committed.commit.hash,
+      usage: { available: true, usage: { provider: "claude-code", outputTokens: 700 } },
+    });
+    expect(outcome.record.files).toEqual([
+      "body.diff",
+      "document.json",
+      "handback-prompt.md",
+      "output.jsonl",
+      "prompt.md",
+    ]);
+    expect(recordManifest()["$schema"]).toBe(currentSchemaUrl("decision-record-manifest"));
+    const blobs = recordBlobs();
+    expect(blobs.get(`decision/${AUTHORING_ID}/01/body.diff`)).toContain("for a week");
+    expect(blobs.get(`decision/${AUTHORING_ID}/01/document.json`)).toBe(readRepoFile(SPEC_JSON));
+    // The kept authoring ids reach no blob, the transcript's included.
+    for (const [path, blob] of blobs) {
+      expect(blob, path).not.toContain(KEPT_SESSION);
+      expect(blob, path).not.toContain(KEPT_FIRST_SESSION);
+    }
+    expect(blobs.get(`decision/${AUTHORING_ID}/01/output.jsonl`)).toContain(
+      "[session id withheld]",
+    );
+  });
+
+  it("a refused document leaves a failed record, with the retry and without a document", async () => {
+    writeSpec(SPEC, specDocument([Q1, Q2]));
+    commitAll();
+    const h = harness({ answers: ["prose", "more prose"] });
+    playTranscripts(h);
+
+    expectRefused(await h.run({ records: RECORDS_ON }), 5, headSha());
+
+    const manifest = recordManifest();
+    expect(manifest).toMatchObject({
+      outcome: "failed",
+      commit: null,
+      arbitrated: 0,
+      departed: 0,
+      session: "new",
+    });
+    // Both handback turns are counted.
+    expect(manifest["usage"]).toMatchObject({ usage: { outputTokens: 1400 } });
+    const files = [...recordBlobs().keys()].map((path) => path.split("/").at(-1));
+    expect(files.toSorted()).toEqual([
+      "handback-prompt.md",
+      "output.jsonl",
+      "prompt.md",
+      "record.json",
+      "retry-output.jsonl",
+      "retry-prompt.md",
+    ]);
+    // The new session's own id is withheld too.
+    const newSession = h.session.invocations[0]?.args[1] ?? "";
+    for (const blob of recordBlobs().values()) expect(blob).not.toContain(newSession);
+  });
+
+  it("a declined diff leaves a declined record carrying the diff shown", async () => {
+    writeSpec(SPEC, specDocument([Q1, Q2]));
+    commitAll();
+    const h = harness({
+      answers: [answer(specDocument([Q2], [arbitrated(Q1)]))],
+      confirm: [false],
+    });
+
+    const result = await h.run({ records: RECORDS_ON });
+
+    expect(Either.getOrThrow(result)).toMatchObject({
+      kind: "declined",
+      record: { kind: "written" },
+    });
+    expect(recordManifest()).toMatchObject({
+      outcome: "declined",
+      commit: null,
+      arbitrated: 1,
+      departed: 0,
+      shape: "skeleton",
+      usage: { available: false },
+    });
+    expect([...recordBlobs().keys()]).toContain(`decision/${AUTHORING_ID}/01/body.diff`);
+  });
+
+  it("a document that decides nothing leaves an undecided record", async () => {
+    const doc = specDocument([Q1]);
+    writeSpec(SPEC, doc);
+    commitAll();
+    const h = harness({ answers: [answer(doc)] });
+
+    const result = await h.run({ records: RECORDS_ON });
+
+    expect(Either.getOrThrow(result)).toMatchObject({ kind: "undecided" });
+    expect(recordManifest()).toMatchObject({ outcome: "undecided", commit: null, arbitrated: 0 });
+  });
+
+  it("a usage limit and a concurrent edit each leave a failed record", async () => {
+    writeSpec(SPEC, specDocument([Q1, Q2]));
+    commitAll();
+    const limited = harness();
+    limited.backend.failNextResumeWithRateLimit({ kind: "usage_limit" });
+    expectRefused(await limited.run({ records: RECORDS_ON }), 8, headSha());
+    expect(recordManifest("01")).toMatchObject({ outcome: "failed", usage: { available: false } });
+
+    const md = readRepoFile(SPEC);
+    const edited = harness({ answers: [answer(specDocument([Q2], [arbitrated(Q1)]))] });
+    edited.backend.setOnResumeAgent(() => writeRepoFile(SPEC, `${md}\nEdited meanwhile.\n`));
+    const result = await edited.run({ records: RECORDS_ON });
+    expect(Either.isLeft(result)).toBe(true);
+    expect(recordManifest("02")).toMatchObject({ outcome: "failed", commit: null, arbitrated: 1 });
+  });
+
+  it("a refusal before the session writes no record", async () => {
+    writeSpec(SPEC, specDocument([Q1]));
+    commitAll();
+    const h = harness({ terminal: false });
+
+    expectRefused(await h.run({ records: RECORDS_ON }), 12, headSha());
+
+    expect(recordsBranchExists()).toBe(false);
+  });
+
+  it("a failed decide warns when its record is refused, and still fails as the decide did", async () => {
+    writeSpec(SPEC, specDocument([Q1]));
+    commitAll();
+    const h = harness();
+    h.github.setVisibility("public");
+    h.backend.failNextResumeWithRateLimit({ kind: "usage_limit" });
+
+    expectRefused(await h.run({ records: RECORDS_ON }), 8, headSha());
+
+    expect(h.warnings.some((w) => w.startsWith("decision record refused: "))).toBe(true);
+    expect(recordsBranchExists()).toBe(false);
+  });
+});

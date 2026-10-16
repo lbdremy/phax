@@ -8,6 +8,7 @@ import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { briefRecordFormat, briefRequestFormat } from "../src/formats/brief.js";
 import {
   authoringRecordManifestFormat,
+  decisionRecordManifestFormat,
   phaseRecordManifestFormat,
 } from "../src/formats/recordManifests.js";
 import {
@@ -43,7 +44,7 @@ export type Excess = "error" | "ignore";
 
 /** One file of `packages/schemas/json/`. */
 export interface JsonSchemaFormat {
-  /** A format id, or `record-manifest` for the union of the two manifests. */
+  /** A format id, or `record-manifest` for the union of the three manifests. */
   readonly format: string;
   readonly fileName: string;
   readonly title: string;
@@ -93,6 +94,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "gate-report": gateReportFormat,
   "brief-report": briefReportFormat,
   "hand-decision-answer": handDecisionAnswerFormat,
+  "decision-record-manifest": decisionRecordManifestFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -120,6 +122,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "gate-report": "error",
   "brief-report": "error",
   "hand-decision-answer": "error",
+  "decision-record-manifest": "error",
   "record-manifest": "error",
 };
 
