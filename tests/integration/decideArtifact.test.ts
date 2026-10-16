@@ -461,16 +461,15 @@ describe("decide — an interactive session lands the revised document", { timeo
       "--effort",
       "high",
     ]);
-    // Read-only whatever the profile: Manual mode, the shell and the writing
-    // tools removed; the prompt is read from the decision folder, so the
+    // Read-only whatever the profile: Manual mode, the reading tools only; the prompt is read from the decision folder, so the
     // repository gets no file.
     expect(invocation?.args.slice(6)).toEqual([
       "--permission-mode",
       "default",
       "--add-dir",
       decisionFolder(),
-      "--disallowed-tools",
-      "Bash,Edit,Write,NotebookEdit",
+      "--tools",
+      "Read,Grep,Glob",
       "--strict-mcp-config",
       "--",
       `Read ${join(decisionFolder(), "prompt.md")} and follow it.`,

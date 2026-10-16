@@ -1125,6 +1125,34 @@ describe("records explain and list (real git)", () => {
       expect(await explain(third)).toMatchObject({ kind: "not-found", sourceSha: third });
     });
 
+    it("resolves a decision record after its decide commit is rebased", async () => {
+      const original = commitDecision(DECISION_ID);
+      await recordDecision(DECISION_ID);
+      // Simulate a rebase: the decide commit replayed onto another parent,
+      // with the same trailers and a different sha; the original is gone from
+      // the branch.
+      execGit(["reset", "--hard", "HEAD~1"], repoDir);
+      writeFileSync(join(repoDir, "upstream.md"), "a commit landed upstream\n");
+      execGit(["add", "."], repoDir);
+      execGit(["commit", "-m", "chore: upstream"], repoDir);
+      const rebased = commitDecision(DECISION_ID);
+      expect(rebased).not.toBe(original);
+
+      const outcome = await run(
+        explainRecord({
+          sha: rebased,
+          repoRoot: repoDir,
+          records: IN_REPO_CONFIG,
+          publishRemote: "origin",
+        }),
+      );
+
+      expect(outcome.kind).toBe("found-decision");
+      if (outcome.kind !== "found-decision") throw new Error("expected found-decision");
+      expect(outcome.record.decisionId).toBe(DECISION_ID);
+      expect(outcome.record.manifest).toMatchObject({ commit: original });
+    });
+
     it("renders the decision's facts, and prints its body diff under --diff", async () => {
       const sha = commitDecision(DECISION_ID);
       await recordDecision(DECISION_ID);

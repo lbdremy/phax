@@ -1032,7 +1032,7 @@ Before any session it refuses, writing nothing: a live sidecar not yet migrated 
 
 Exit codes: 0 decided and committed, a declined diff, or nothing to decide; 1 inside a phase worktree; 5 no document, not JSON, an answer not stamped with its current shape, or one refused by the schema or its checks (after the one corrective resume), with nothing written; 8 a provider rate or usage limit, with nothing written; 12 an artifact refusal, the artifact changed during the session (its change left in place), or a failed commit (the files left written but uncommitted).
 
-Side effects: spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (the shell and every file-writing tool removed, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer.
+Side effects: spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (only the Read, Grep and Glob tools, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer.
 
 ### Arguments
 
