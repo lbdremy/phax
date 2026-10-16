@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610161001-phase-prompt-scope.md
 completes-spec: true
 approved:
