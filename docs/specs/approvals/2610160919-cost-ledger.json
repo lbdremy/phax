@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610160919-cost-ledger.md",
+  "specFingerprint": "4be7eb090078a7fde1b36d6ca19c9909311a45219bf15e3b86748ef5ebc4670d",
+  "approvedAt": "2026-10-16T10:26:26.043Z",
+  "baseline": "5b4ba82b27401430772aad9a08be099e5c899929",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
