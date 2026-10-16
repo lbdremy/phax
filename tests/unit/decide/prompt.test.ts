@@ -9,7 +9,7 @@ import {
   buildHandbackPrompt,
   positionalPrompt,
 } from "../../../src/domain/decide/prompt.js";
-import { type DecideScope, questionsOf } from "../../../src/domain/decide/revision.js";
+import type { DecideScope } from "../../../src/domain/decide/revision.js";
 import type { OpenQuestion } from "../../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
@@ -104,8 +104,39 @@ function prompt(scope: DecideScope, kind: "spec" = "spec"): string {
     artifactPath: "docs/specs/2609281200-log-rotation.md",
     doctrine: doctrine(),
     scope,
-    questions: questionsOf(SIDECAR),
-    document: SIDECAR,
+    authoring: { variant: "headless", document: SIDECAR },
+  });
+}
+
+// A hand-authored spec: no sidecar, its questions in its §9 sections.
+const HAND_SPEC = [
+  "---",
+  "status: Draft",
+  "---",
+  "# Log rotation",
+  "",
+  "## 9. Open questions",
+  "",
+  "### Q-new — Where do the Q-new logs go?",
+  "",
+  "- Q-new-keep — Keep them — abandons: disk space",
+  "- Q-new-drop — Drop them — abandons: the history",
+  "",
+  "Recommendation: Q-new-keep — history is cheap",
+  "",
+  "```sh",
+  "ls ```` logs",
+  "```",
+  "",
+].join("\n");
+
+function handPrompt(scope: DecideScope): string {
+  return buildDecidePrompt({
+    kind: "spec",
+    artifactPath: "docs/specs/2609281200-log-rotation.md",
+    doctrine: doctrine(),
+    scope,
+    authoring: { variant: "hand", markdown: HAND_SPEC },
   });
 }
 
@@ -175,10 +206,50 @@ describe("buildDecidePrompt", () => {
   });
 });
 
+describe("buildDecidePrompt — a hand-authored artifact", () => {
+  const text = handPrompt({ presented: ["Q-new"], reArbitrated: null });
+
+  it("raises F1–F5 before naming the presented questions", () => {
+    expect(text.indexOf("F5:")).toBeLessThan(text.indexOf("- Q-new — under `### Q-new — …`"));
+  });
+
+  it("carries the doctrine, then the Markdown in a fence it cannot close, then the hand decision answer's JSON Schema", () => {
+    const doctrineAt = text.indexOf("## Project doctrine (docs/doctrine.md)");
+    const markdownAt = text.indexOf("`````markdown\n---\nstatus: Draft");
+    const schemaAt = text.indexOf("## Hand decision answer JSON Schema");
+    expect(doctrineAt).toBeGreaterThan(0);
+    expect(markdownAt).toBeGreaterThan(doctrineAt);
+    expect(schemaAt).toBeGreaterThan(markdownAt);
+    expect(text).toContain(
+      "`## 9. Open questions`, `## 9b. Arbitrated questions` and `## 12. Decision log`",
+    );
+    expect(text.slice(schemaAt)).toContain("hand-decision-answer");
+    expect(text).not.toContain("## Revised spec document JSON Schema");
+  });
+
+  it("points a re-arbitrated question at its current Decision block", () => {
+    const rearbitrated = handPrompt({ presented: ["Q-done"], reArbitrated: "Q-done" });
+    expect(rearbitrated).toContain("- Q-done — re-arbitrated: its current Decision block");
+  });
+});
+
 describe("buildHandbackPrompt", () => {
+  it("asks a hand-authored artifact for its verdicts and its Markdown, the sections phax writes left as they were", () => {
+    const url = schemaUrl("hand-decision-answer", CURRENT_STAMPS["hand-decision-answer"]);
+    const text = buildHandbackPrompt({ kind: "plan", variant: "hand", schemaUrl: url });
+    expect(text).toContain("final message alone");
+    expect(text).toContain(`\`$schema\` first, set to \`${url}\``);
+    expect(text).toContain("with a `decided` verdict naming its `phase`");
+    expect(text).toContain(
+      "Leave its frontmatter, its `## Open questions`, `## Arbitrated questions` and `## Decision log` sections exactly as they were",
+    );
+    expect(text).toContain("phax sets each verdict's `by` and `at`");
+    expect(text).toContain("When nothing was decided, return the Markdown unchanged.");
+  });
+
   it("asks for the whole revised document, $schema first, decided questions moved", () => {
     const url = schemaUrl("plan-document", CURRENT_STAMPS["plan-document"]);
-    const text = buildHandbackPrompt({ kind: "plan", schemaUrl: url });
+    const text = buildHandbackPrompt({ kind: "plan", variant: "headless", schemaUrl: url });
     expect(text).toContain("final message alone");
     expect(text).toContain(`\`$schema\` first, set to \`${url}\``);
     expect(text).toContain("from `preamble.openQuestions` to `preamble.arbitratedQuestions`");

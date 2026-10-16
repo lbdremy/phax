@@ -24,6 +24,7 @@ import {
   type BriefReportShapes,
   type GateReportShapes,
 } from "./formats/reports.js";
+import { handDecisionAnswerFormat, type HandDecisionAnswerShapes } from "./formats/answers.js";
 import {
   authoringRecordManifestFormat,
   phaseRecordManifestFormat,
@@ -248,6 +249,19 @@ export {
   type LatestGateReport,
 } from "./formats/reports.js";
 
+// The answer a decide session returns for a hand-authored spec or plan. Its
+// schema and type are phax's own file schema and type.
+export {
+  HandDecisionAnswerFileSchema as HandDecisionAnswerSchema,
+  type HandDecisionAnswerFile as HandDecisionAnswer,
+} from "../../../src/schemas/handDecisionAnswer.js";
+export {
+  parseHandDecisionAnswer,
+  toLatestHandDecisionAnswer,
+  type HandDecisionAnswerShape,
+  type LatestHandDecisionAnswer,
+} from "./formats/answers.js";
+
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
@@ -373,6 +387,7 @@ type DocumentShapes = EveryFormat<{
   "brief-record": BriefRecordShapes;
   "gate-report": GateReportShapes;
   "brief-report": BriefReportShapes;
+  "hand-decision-answer": HandDecisionAnswerShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -408,4 +423,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "brief-record": briefRecordFormat,
     "gate-report": gateReportFormat,
     "brief-report": briefReportFormat,
+    "hand-decision-answer": handDecisionAnswerFormat,
   });

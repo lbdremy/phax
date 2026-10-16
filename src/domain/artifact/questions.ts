@@ -24,12 +24,25 @@ import type { ArtifactKind } from "./status.js";
 //
 // A section holding `None.` alone is empty. Pure: text in, value out.
 
-/** An open question as the §9 format names it: its id and its option ids, in order. */
+/** A run of lines, 1-based and inclusive, in the whole file. */
+export interface LineRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+/** An open question as the §9 format names it: its id, its option ids in order, and the one it recommends. */
 export interface ParsedQuestion {
   readonly id: string;
   readonly optionIds: readonly string[];
+  /** The option id its Recommendation line names. */
+  readonly recommendation: string;
   /** The 1-based line of its `### <id> — …` heading, in the whole file. */
   readonly line: number;
+  /**
+   * Its block: its heading through the line before the next question
+   * heading, or through the last line of its section.
+   */
+  readonly range: LineRange;
 }
 
 /** An arbitrated question: a parsed question, plus the option its Decision line chose. */
@@ -37,15 +50,38 @@ export interface ParsedArbitratedQuestion extends ParsedQuestion {
   readonly chosen: string;
   /** The Decision line reads `<chosen> — lifted…`: no arbiter is named. */
   readonly lifted: boolean;
+  /** The 1-based line of its `Decision:` line, in the whole file. */
+  readonly decisionLine: number;
+}
+
+/**
+ * A section of the artifact: its heading line, and its range from the heading
+ * through the line before the line that ends it (or the file's last line).
+ */
+export interface ParsedSection {
+  readonly heading: number;
+  readonly range: LineRange;
+}
+
+/** Where the question sections and the decision log sit; null for one the artifact lacks. */
+interface ParsedSections {
+  readonly open: ParsedSection | null;
+  readonly arbitrated: ParsedSection | null;
+  /** A spec's `## 12. Decision log`, or a plan's `## Decision log` before its first phase. */
+  readonly decisionLog: ParsedSection | null;
+}
+
+/** The parsed question sections of a hand-authored artifact. */
+export interface ParsedHandQuestions {
+  readonly kind: "parsed";
+  readonly open: readonly ParsedQuestion[];
+  readonly arbitrated: readonly ParsedArbitratedQuestion[];
+  readonly sections: ParsedSections;
 }
 
 export type HandAuthoredQuestions =
   | { readonly kind: "none" }
-  | {
-      readonly kind: "parsed";
-      readonly open: readonly ParsedQuestion[];
-      readonly arbitrated: readonly ParsedArbitratedQuestion[];
-    }
+  | ParsedHandQuestions
   /** The first line that departs from the §9 format, 1-based in the whole file, frontmatter included. */
   | { readonly kind: "departs"; readonly line: number; readonly text: string };
 
@@ -114,6 +150,12 @@ const FENCE = /^ {0,3}(?:```|~~~)/;
 const SECTION_END: Readonly<Record<ArtifactKind, RegExp>> = {
   spec: /^#(?:\s|$)|^## \d+[a-z]?\.(?:\s|$)/,
   plan: /^#{1,2}(?:\s|$)|^ {0,3}(?:-{3,}|\*{3,}|_{3,})$/,
+};
+// The decision log's heading. It is not parsed, only located: a plan's only
+// before its first phase, and the first one only.
+const DECISION_LOG_HEADING: Readonly<Record<ArtifactKind, string>> = {
+  spec: "## 12. Decision log",
+  plan: "## Decision log",
 };
 const PHASE_HEADING = /^## phase-\d{2}\b/i;
 const HEADING = /^#{1,6}(?:\s|$)/;
@@ -193,13 +235,17 @@ interface Draft {
   readonly id: string;
   optionIds: string[];
   stage: "heading" | "options" | "recommendation" | "decision";
+  recommendation: string;
   chosen: string;
   lifted: boolean;
+  decisionLine: number;
 }
 
 function parseSection(
   role: SectionRole,
   lines: readonly Line[],
+  /** The section's last line, which ends its last question's block. */
+  sectionEnd: number,
 ): { readonly questions: readonly ParsedArbitratedQuestion[] } | Departure {
   const blocks = blocksOf(lines);
   const [firstBlock] = blocks;
@@ -213,15 +259,20 @@ function parseSection(
   let draft: Draft | null = null;
   // A question ends complete: an open one once its Recommendation is read, an
   // arbitrated one once its Decision is; otherwise it departs at its heading.
-  const close = (q: Draft): Departure | null => {
+  // Its block ends at `end`: the line before the next heading, or the
+  // section's last line.
+  const close = (q: Draft, end: number): Departure | null => {
     const complete = role === "open" ? q.stage === "recommendation" : q.stage === "decision";
     if (!complete) return departs(q.heading);
     questions.push({
       id: q.id,
       optionIds: q.optionIds,
+      recommendation: q.recommendation,
       line: q.heading.n,
+      range: { start: q.heading.n, end },
       chosen: q.chosen,
       lifted: q.lifted,
+      decisionLine: q.decisionLine,
     });
     return null;
   };
@@ -233,7 +284,7 @@ function parseSection(
       const heading = QUESTION_HEADING.exec(first.text);
       if (heading?.[1] === undefined) return departs(first);
       if (draft !== null) {
-        const closed = close(draft);
+        const closed = close(draft, first.n - 1);
         if (closed !== null) return closed;
       }
       draft = {
@@ -241,8 +292,10 @@ function parseSection(
         id: heading[1],
         optionIds: [],
         stage: "heading",
+        recommendation: "",
         chosen: "",
         lifted: false,
+        decisionLine: 0,
       };
       continue;
     }
@@ -257,6 +310,7 @@ function parseSection(
         if (recommendation?.[1] !== undefined) {
           // It recommends one of the question's own options.
           if (!draft.optionIds.includes(recommendation[1])) return departs(first);
+          draft.recommendation = recommendation[1];
           draft.stage = "recommendation";
           break;
         }
@@ -281,6 +335,7 @@ function parseSection(
         }
         draft.chosen = decision[1];
         draft.lifted = (decision[2] ?? "").startsWith("lifted");
+        draft.decisionLine = first.n;
         draft.stage = "decision";
         break;
       }
@@ -290,10 +345,22 @@ function parseSection(
     }
   }
   if (draft !== null) {
-    const closed = close(draft);
+    const closed = close(draft, sectionEnd);
     if (closed !== null) return closed;
   }
   return { questions };
+}
+
+interface Span {
+  readonly role: SectionRole | "log";
+  readonly heading: Line;
+  readonly body: Line[];
+}
+
+function sectionOf(span: Span | undefined): ParsedSection | null {
+  if (span === undefined) return null;
+  const end = span.body.at(-1)?.n ?? span.heading.n;
+  return { heading: span.heading.n, range: { start: span.heading.n, end } };
 }
 
 /**
@@ -306,21 +373,33 @@ function parseSection(
  * first `## phase-` heading. A spec's section ends at the next h1 or
  * numbered h2; a plan's at the next h1, h2 or thematic break. A
  * Recommendation or Decision line names one of its question's options. The
- * decision log is not read.
+ * decision log (a spec's `## 12. Decision log`, a plan's `## Decision log`
+ * before its first phase) is located, never read. Each question carries its
+ * block's line range and each section its own, for a writer that moves them.
  */
 export function parseHandAuthoredQuestions(kind: ArtifactKind, md: string): HandAuthoredQuestions {
   const lines = bodyLines(md);
   const headings = SECTION_HEADINGS[kind];
-  const sections: { role: SectionRole; heading: Line; body: Line[] }[] = [];
-  let current: { role: SectionRole; heading: Line; body: Line[] } | null = null;
+  const spans: Span[] = [];
+  let current: Span | null = null;
   let pastFirstPhase = false;
   for (const line of lines) {
     if (!line.fenced && kind === "plan" && PHASE_HEADING.test(line.text)) pastFirstPhase = true;
     const role = line.fenced ? undefined : headings[line.text];
     if (role !== undefined) {
-      if (pastFirstPhase || sections.some((s) => s.role === role)) return departs(line);
+      if (pastFirstPhase || spans.some((s) => s.role === role)) return departs(line);
       current = { role, heading: line, body: [] };
-      sections.push(current);
+      spans.push(current);
+      continue;
+    }
+    if (
+      !line.fenced &&
+      line.text === DECISION_LOG_HEADING[kind] &&
+      !pastFirstPhase &&
+      !spans.some((s) => s.role === "log")
+    ) {
+      current = { role: "log", heading: line, body: [] };
+      spans.push(current);
       continue;
     }
     if (current === null) continue;
@@ -330,18 +409,39 @@ export function parseHandAuthoredQuestions(kind: ArtifactKind, md: string): Hand
     }
     current.body.push(line);
   }
-  if (sections.length === 0) return { kind: "none" };
+  const questionSpans = spans.filter(
+    (s): s is Span & { readonly role: SectionRole } => s.role !== "log",
+  );
+  if (questionSpans.length === 0) return { kind: "none" };
 
   const open: ParsedQuestion[] = [];
   const arbitrated: ParsedArbitratedQuestion[] = [];
-  for (const section of sections) {
-    const parsed = parseSection(section.role, section.body);
+  for (const span of questionSpans) {
+    const end = sectionOf(span)?.range.end ?? span.heading.n;
+    const parsed = parseSection(span.role, span.body, end);
     if ("kind" in parsed) return parsed;
-    if (section.role === "open") {
-      open.push(...parsed.questions.map(({ id, optionIds, line }) => ({ id, optionIds, line })));
+    if (span.role === "open") {
+      open.push(
+        ...parsed.questions.map(({ id, optionIds, recommendation, line, range }) => ({
+          id,
+          optionIds,
+          recommendation,
+          line,
+          range,
+        })),
+      );
     } else {
       arbitrated.push(...parsed.questions);
     }
   }
-  return { kind: "parsed", open, arbitrated };
+  return {
+    kind: "parsed",
+    open,
+    arbitrated,
+    sections: {
+      open: sectionOf(spans.find((s) => s.role === "open")),
+      arbitrated: sectionOf(spans.find((s) => s.role === "arbitrated")),
+      decisionLog: sectionOf(spans.find((s) => s.role === "log")),
+    },
+  };
 }

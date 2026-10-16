@@ -10,6 +10,7 @@ import {
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
+  parseHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -39,6 +40,7 @@ import { decodeComplianceReviewFile } from "../../../src/schemas/complianceRevie
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
+import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
@@ -243,6 +245,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeBriefReportFile,
     wrongType: ["rules", {}],
     required: "findings",
+    excess: "error",
+  },
+  "hand-decision-answer": {
+    id: "hand-decision-answer",
+    parse: parseHandDecisionAnswer,
+    phax: decodeHandDecisionAnswerFile,
+    wrongType: ["decisions", {}],
+    required: "markdown",
     excess: "error",
   },
 };

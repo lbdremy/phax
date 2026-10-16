@@ -26,6 +26,7 @@ import {
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
+  parseHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -46,6 +47,7 @@ import {
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
+  toLatestHandDecisionAnswer,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -212,13 +214,15 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "brief-record": latest(parseBriefRecord, toLatestBriefRecord),
   "gate-report": latest(parseGateReport, toLatestGateReport),
   "brief-report": latest(parseBriefReport, toLatestBriefReport),
+  "hand-decision-answer": latest(parseHandDecisionAnswer, toLatestHandDecisionAnswer),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
 // phax never reads gate requests back. It reads a gate report or a brief
 // report only as a provider's answer, through readGateReport and
-// readBriefReport, which name no file.
+// readBriefReport, which name no file, and a hand decision answer only as a
+// decide session's final message, through decodeCurrentHandDecisionAnswer.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -240,6 +244,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "brief-record": readBriefRecordFile,
   "gate-report": undefined,
   "brief-report": undefined,
+  "hand-decision-answer": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

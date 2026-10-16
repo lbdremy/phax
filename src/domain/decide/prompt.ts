@@ -1,10 +1,11 @@
+import { getHandDecisionAnswerFileJsonSchema } from "../../schemas/handDecisionAnswer.js";
 import { getPlanDocumentFileJsonSchema } from "../../schemas/planDocument.js";
 import type { OpenQuestion } from "../../schemas/questions.js";
 import { getSpecDocumentFileJsonSchema } from "../../schemas/specDocument.js";
 import { type SidecarDocument, serializeSidecar } from "../artifact/sidecar.js";
 import type { ArtifactKind } from "../artifact/status.js";
 import type { Doctrine } from "./doctrine.js";
-import type { DecideQuestions, DecideScope } from "./revision.js";
+import { type DecideQuestions, type DecideScope, questionsOf } from "./revision.js";
 
 // The texts of a decide session: the interactive prompt the operator's session
 // starts from, the handback that resumes it headless for the revised document,
@@ -21,23 +22,52 @@ export const FRAMING_QUESTIONS: ReadonlyArray<{ readonly id: string; readonly qu
     { id: "F5", question: "does the cited doctrine still say what the operator intends?" },
   ];
 
+/**
+ * How the artifact was authored, and so what the session reads and returns:
+ * a headless artifact's sidecar document, revised whole as a document; or a
+ * hand-authored artifact's Markdown, answered as a hand decision answer.
+ */
+type DecideAuthoring =
+  | {
+      readonly variant: "headless";
+      /** The artifact's document, as its sidecar holds it. */
+      readonly document: SidecarDocument;
+    }
+  | {
+      readonly variant: "hand";
+      /** The artifact's Markdown, frontmatter included. */
+      readonly markdown: string;
+    };
+
 export interface DecidePromptInput {
   readonly kind: ArtifactKind;
   /** The artifact's repo-relative path. */
   readonly artifactPath: string;
   readonly doctrine: Doctrine;
   readonly scope: DecideScope;
-  readonly questions: DecideQuestions;
-  /** The artifact's document, as its sidecar holds it. */
-  readonly document: SidecarDocument;
+  readonly authoring: DecideAuthoring;
 }
 
-function answerJsonSchema(kind: ArtifactKind): object {
+function answerJsonSchema(kind: ArtifactKind, variant: DecideAuthoring["variant"]): object {
+  if (variant === "hand") return getHandDecisionAnswerFileJsonSchema();
   return kind === "spec" ? getSpecDocumentFileJsonSchema() : getPlanDocumentFileJsonSchema();
 }
 
 function arrayPath(kind: ArtifactKind, key: "openQuestions" | "arbitratedQuestions"): string {
   return kind === "spec" ? key : `preamble.${key}`;
+}
+
+// The headings of the sections phax writes in a hand-authored artifact.
+const HAND_SECTIONS: Readonly<Record<ArtifactKind, string>> = {
+  spec: "`## 9. Open questions`, `## 9b. Arbitrated questions` and `## 12. Decision log`",
+  plan: "`## Open questions`, `## Arbitrated questions` and `## Decision log`",
+};
+
+// A code fence longer than any backtick run in the text, so the text stays
+// inside it.
+function fenceFor(text: string): string {
+  const longest = Math.max(0, ...Array.from(text.matchAll(/`+/g), (m) => m[0].length));
+  return "`".repeat(Math.max(3, longest + 1));
 }
 
 function renderQuestion(question: OpenQuestion): string[] {
@@ -50,11 +80,23 @@ function renderQuestion(question: OpenQuestion): string[] {
   ];
 }
 
-function presentedSection(input: DecidePromptInput): string[] {
+// A hand-authored artifact's questions are read in its Markdown, by id.
+function handPresentedSection(input: DecidePromptInput): string[] {
+  return [
+    "",
+    ...input.scope.presented.map((id) =>
+      id === input.scope.reArbitrated
+        ? `- ${id} — re-arbitrated: its current Decision block is under \`### ${id} — …\` in the artifact below. A new verdict replaces it; phax keeps the current one as an earlier decision.`
+        : `- ${id} — under \`### ${id} — …\` in the artifact below.`,
+    ),
+  ];
+}
+
+function presentedSection(input: DecidePromptInput, questions: DecideQuestions): string[] {
   const lines: string[] = [];
   for (const id of input.scope.presented) {
-    const open = input.questions.openQuestions.find((q) => q.id === id);
-    const arbitrated = input.questions.arbitratedQuestions.find((q) => q.id === id);
+    const open = questions.openQuestions.find((q) => q.id === id);
+    const arbitrated = questions.arbitratedQuestions.find((q) => q.id === id);
     const question = open ?? arbitrated;
     if (question === undefined) continue;
     lines.push("", ...renderQuestion(question));
@@ -78,12 +120,36 @@ function presentedSection(input: DecidePromptInput): string[] {
  * framing questions `F1`–`F5`; the questions in `scope.presented` order, an
  * arbitrated one with its current verdict; what to gather for each verdict;
  * the body revisions a departing verdict implies; how the session ends; then
- * the doctrine text, the sidecar JSON and the JSON Schema of the answer.
+ * the doctrine text, the artifact (a headless one's sidecar JSON, a
+ * hand-authored one's Markdown) and the JSON Schema of the answer (the
+ * document format, or the hand decision answer).
  */
 export function buildDecidePrompt(input: DecidePromptInput): string {
-  const { kind, artifactPath, doctrine, scope } = input;
+  const { kind, artifactPath, doctrine, scope, authoring } = input;
   const ids = scope.presented.join(", ");
   const principleIds = [...doctrine.principleIds];
+  const artifactSection =
+    authoring.variant === "headless"
+      ? [
+          `## The ${kind} document (sidecar of \`${artifactPath}\`)`,
+          "",
+          "```json",
+          serializeSidecar(authoring.document).trimEnd(),
+          "```",
+        ]
+      : [
+          `## The ${kind} artifact (\`${artifactPath}\`, hand-authored)`,
+          "",
+          `It has no sidecar: its questions are its ${HAND_SECTIONS[kind]} sections, which phax writes itself.`,
+          "",
+          `${fenceFor(authoring.markdown)}markdown`,
+          authoring.markdown.trimEnd(),
+          fenceFor(authoring.markdown),
+        ];
+  const schemaTitle =
+    authoring.variant === "headless"
+      ? `## Revised ${kind} document JSON Schema`
+      : "## Hand decision answer JSON Schema";
   const sections: string[] = [
     `# phax artifact decide — ${kind} \`${artifactPath}\``,
     "",
@@ -100,7 +166,9 @@ export function buildDecidePrompt(input: DecidePromptInput): string {
     "## 2. The questions",
     "",
     `Then present each question below, in this order: ${ids}. Give its options, what each abandons, and the recommendation; argue the strongest case for an abandoned option before the operator chooses. A question the operator does not decide stays as it is.`,
-    ...presentedSection(input),
+    ...(authoring.variant === "headless"
+      ? presentedSection(input, questionsOf(authoring.document))
+      : handPresentedSection(input)),
     "",
     "## 3. Each verdict",
     "",
@@ -126,16 +194,12 @@ export function buildDecidePrompt(input: DecidePromptInput): string {
     "",
     doctrine.text.trimEnd(),
     "",
-    `## The ${kind} document (sidecar of \`${artifactPath}\`)`,
+    ...artifactSection,
+    "",
+    schemaTitle,
     "",
     "```json",
-    serializeSidecar(input.document).trimEnd(),
-    "```",
-    "",
-    `## Revised ${kind} document JSON Schema`,
-    "",
-    "```json",
-    JSON.stringify(answerJsonSchema(kind), null, 2),
+    JSON.stringify(answerJsonSchema(kind, authoring.variant), null, 2),
     "```",
     "",
   ];
@@ -144,17 +208,44 @@ export function buildDecidePrompt(input: DecidePromptInput): string {
 
 export interface HandbackPromptInput {
   readonly kind: ArtifactKind;
-  /** The `$schema` URL the answer carries: the document format at its current stamp. */
+  /**
+   * How the artifact was authored: `headless` returns the revised document,
+   * `hand` a hand decision answer.
+   */
+  readonly variant: DecideAuthoring["variant"];
+  /**
+   * The `$schema` URL the answer carries, at its format's current stamp: the
+   * document format for `headless`, `hand-decision-answer` for `hand`.
+   */
   readonly schemaUrl: string;
 }
 
 /**
- * The prompt that resumes the session headless once the operator has exited:
- * the whole revised document as the final message alone, in its sidecar
- * form, `$schema` first, decided questions moved to the arbitrated array.
+ * The prompt that resumes the session headless once the operator has exited.
+ * For a headless artifact: the whole revised document as the final message
+ * alone, in its sidecar form, `$schema` first, decided questions moved to
+ * the arbitrated array. For a hand-authored one: a hand decision answer, the
+ * decided verdicts and the whole revised Markdown, with the frontmatter, the
+ * question sections and the decision log left exactly as they were, since
+ * phax writes those.
  */
 export function buildHandbackPrompt(input: HandbackPromptInput): string {
   const { kind, schemaUrl } = input;
+  if (input.variant === "hand") {
+    return [
+      "The operator has ended the decide session.",
+      "",
+      `Return now, as your final message alone, one JSON object valid against the hand decision answer JSON Schema you were given, with \`$schema\` first, set to \`${schemaUrl}\`. No code fence, no Markdown, no commentary before or after the JSON.`,
+      "",
+      `- \`kind\`: \`${kind}\`.`,
+      `- \`decisions\`: one \`{ id, verdict }\` per question the operator decided in this session, with a \`decided\` verdict${kind === "plan" ? " naming its `phase`" : ""}; \`[]\` when nothing was decided.`,
+      `- \`markdown\`: the artifact's whole revised Markdown. Leave its frontmatter, its ${HAND_SECTIONS[kind]} sections exactly as they were: phax moves each decided question, writes its Decision block and appends to the decision log itself.`,
+      "- Revise the body only as the verdicts imply, and name the revised sections in each verdict's `revised`.",
+      "- phax sets each verdict's `by` and `at`.",
+      "- When nothing was decided, return the Markdown unchanged.",
+      "",
+    ].join("\n");
+  }
   return [
     "The operator has ended the decide session.",
     "",

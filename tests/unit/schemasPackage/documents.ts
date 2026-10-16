@@ -30,6 +30,10 @@ import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.
 import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
 import {
+  HandDecisionAnswerFileSchema,
+  type HandDecisionAnswer,
+} from "../../../src/schemas/handDecisionAnswer.js";
+import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
 } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
@@ -387,6 +391,28 @@ const briefReport: BriefReport = {
   ],
 };
 
+const handDecisionAnswer: HandDecisionAnswer = {
+  kind: "spec",
+  decisions: [
+    {
+      id: "q-retention",
+      verdict: {
+        kind: "decided",
+        chosen: "keep-30",
+        abandoned: ["keep-7"],
+        why: "a month covers a release cycle",
+        advocate: "a week keeps the disk small",
+        principles: ["S1"],
+        reversibility: "cheap",
+        by: { kind: "operator", name: "Example Operator" },
+        at: "2026-10-16T09:30:00Z",
+        revised: [],
+      },
+    },
+  ],
+  markdown: "---\nstatus: Draft\n---\n# Example spec\n",
+};
+
 const briefRecord: BriefRecord = {
   moment: "pulled",
   request: withSchemaUrl("brief-request", briefRequest),
@@ -605,6 +631,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "brief-record": encoded(BriefRecordFileSchema, withSchemaUrl("brief-record", briefRecord)),
   "gate-report": encoded(GateReportFileSchema, withSchemaUrl("gate-report", gateReport)),
   "brief-report": encoded(BriefReportFileSchema, withSchemaUrl("brief-report", briefReport)),
+  "hand-decision-answer": encoded(
+    HandDecisionAnswerFileSchema,
+    withSchemaUrl("hand-decision-answer", handDecisionAnswer),
+  ),
 };
 
 /**

@@ -19,6 +19,8 @@ import type {
   GateReportShape,
   GateRequest,
   GateRequestShape,
+  HandDecisionAnswer,
+  HandDecisionAnswerShape,
   LatestAuthoringRecordManifest,
   LatestBriefRecord,
   LatestBriefReport,
@@ -27,6 +29,7 @@ import type {
   LatestGateAttribution,
   LatestGateReport,
   LatestGateRequest,
+  LatestHandDecisionAnswer,
   LatestPhaseFileReconciliation,
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
@@ -104,6 +107,7 @@ import {
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
+  parseHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -125,6 +129,7 @@ import {
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
+  toLatestHandDecisionAnswer,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -169,6 +174,10 @@ import type {
   GateRequest as PhaxGateRequest,
   GateRequestFile as PhaxGateRequestFile,
 } from "../../src/schemas/gateRequest.js";
+import type {
+  HandDecisionAnswer as PhaxHandDecisionAnswer,
+  HandDecisionAnswerFile as PhaxHandDecisionAnswerFile,
+} from "../../src/schemas/handDecisionAnswer.js";
 import type {
   BriefFinding as PhaxBriefFinding,
   BriefReport as PhaxBriefReport,
@@ -402,6 +411,7 @@ const formats: Equals<
   | "brief-record"
   | "gate-report"
   | "brief-report"
+  | "hand-decision-answer"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -482,7 +492,8 @@ const shapeIds: Equals<
   | BriefRequestShape
   | BriefRecordShape
   | GateReportShape
-  | BriefReportShape,
+  | BriefReportShape
+  | HandDecisionAnswerShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -811,6 +822,25 @@ void latestGateReport.$schema;
 declare const latestBriefReport: LatestBriefReport;
 // @ts-expect-error: the in-memory brief report carries no $schema
 void latestBriefReport.$schema;
+// The hand decision answer is born with $schema: phax's own types, both ways,
+// one current shape, and an in-memory value without $schema
+const handAnswerTypes: [
+  Equals<HandDecisionAnswer, PhaxHandDecisionAnswerFile>,
+  Equals<HandDecisionAnswerShape, Current<"hand-decision-answer">>,
+  Equals<Value<typeof parseHandDecisionAnswer>, PhaxHandDecisionAnswerFile>,
+  Equals<LatestHandDecisionAnswer, PhaxHandDecisionAnswer>,
+  Equals<Parameters<typeof toLatestHandDecisionAnswer>, [value: PhaxHandDecisionAnswerFile]>,
+] = [true, true, true, true, true];
+void handAnswerTypes;
+declare const latestHandAnswer: LatestHandDecisionAnswer;
+// @ts-expect-error: the in-memory hand decision answer carries no $schema
+void latestHandAnswer.$schema;
+if (document.ok && document.format === "hand-decision-answer") {
+  const exact: Equals<typeof document.value, PhaxHandDecisionAnswerFile> = true;
+  const answerShape: Equals<typeof document.shape, Current<"hand-decision-answer">> = true;
+  void exact;
+  void answerShape;
+}
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
   const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;
