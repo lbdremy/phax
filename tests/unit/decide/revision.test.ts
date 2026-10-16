@@ -416,6 +416,30 @@ describe("firstRevisionViolation", () => {
     );
   });
 
+  it("refuses open questions left open being reordered", () => {
+    expect(violation(spec({ openQuestions: [Q2, Q1] }))).toBe(
+      'openQuestions[0].id: "Q2" is out of place: the questions this session did not move keep their order (Q1, Q2)',
+    );
+  });
+
+  it("refuses arbitrated questions being reordered, a decided one joining anywhere", () => {
+    const Q3 = question("Q3");
+    const before = spec({
+      arbitratedQuestions: [
+        arbitrated(Q0, decided(Q0, "Q0-a")),
+        arbitrated(Q3, decided(Q3, "Q3-a")),
+      ],
+    });
+    const after = (order: SpecArbitratedQuestion[]) =>
+      spec({ openQuestions: [Q2], arbitratedQuestions: order });
+    const [q0, q3] = [arbitrated(Q0, decided(Q0, "Q0-a")), arbitrated(Q3, decided(Q3, "Q3-a"))];
+    const q1 = arbitrated(Q1, decided(Q1, "Q1-a"));
+    expect(violation(after([q0, q1, q3]), ALL_OPEN, before)).toBeUndefined();
+    expect(violation(after([q3, q0, q1]), ALL_OPEN, before)).toBe(
+      'arbitratedQuestions[0].id: "Q3" is out of place: the questions this session did not move keep their order (Q0, Q3)',
+    );
+  });
+
   it("refuses a moved question whose fields changed", () => {
     const after = specWithQ1Decided();
     if (after.kind !== "spec") throw new Error("spec");

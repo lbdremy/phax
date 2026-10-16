@@ -7,7 +7,7 @@ A spec or a plan can carry questions it could not settle. `phax artifact decide`
 ```bash
 phax artifact new spec plan-prune --headless --brief brief.md
 phax artifact status docs/specs/2609251400-plan-prune.md
-#   Questions:         3 — open 3 (Q1, Q2, Q3) · arbitrated 0
+#   Questions:         3 — open 3 (Q1, Q2, Q3) · arbitrated 0 (0 lifted)
 #     decide with `phax artifact decide docs/specs/2609251400-plan-prune.md`
 phax artifact decide docs/specs/2609251400-plan-prune.md          # framing F1–F5, then decide; accept the body diff
 phax artifact approve docs/specs/2609251400-plan-prune.md --by operator
@@ -49,7 +49,7 @@ phax does not trust the answer. Before it writes anything it checks, determinist
 - every principle cited is one the doctrine defines;
 - a verdict that departs from the recommendation names the body sections it revised, and when none departs, nothing outside the questions changed.
 
-phax sets who decided and when on each verdict itself: the committing git identity (`git config user.name`, or `GIT_COMMITTER_NAME`) and the clock. A session cannot attribute a verdict to anyone else. A refused answer gets one corrective resume; a second refusal exits 5 and nothing is written.
+phax sets who decided and when on each verdict itself: the committing git identity (`GIT_COMMITTER_NAME`, or `git config user.name`) and the clock. A session cannot attribute a verdict to anyone else. A refused answer gets one corrective resume; a second refusal exits 5 and nothing is written.
 
 phax then prints the body diff and one line per question presented, and asks `accept the body diff?`. The default is no:
 

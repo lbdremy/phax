@@ -44,6 +44,12 @@ export interface AgentRunOptions {
    * headless authoring never set it.
    */
   readonly skillEditGrants?: readonly string[] | undefined;
+  /**
+   * A session that answers and never writes (decide's handback). The claude
+   * provider removes the shell and every writing tool whatever `security`
+   * allows. Absent means the policy alone governs.
+   */
+  readonly readOnly?: boolean | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }

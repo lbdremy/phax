@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
-import { basename, join, relative } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { type ClaudeSessionId, decodeClaudeSessionId } from "../domain/branded.js";
 import { validateArtifact } from "../domain/artifact/document.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
@@ -56,7 +56,7 @@ import {
   type UsageLimitError,
 } from "../domain/errors.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
-import { claudePermissionFlags } from "../domain/session/claudePermissionFlags.js";
+import { claudeReadOnlyFlags } from "../domain/session/claudePermissionFlags.js";
 import { buildDecideInvocation } from "../domain/session/claude.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -237,10 +237,22 @@ function readArtifact(
     const slug = name?.slug ?? basename(path, ".md");
     const id = name === null ? basename(path, ".md") : `${name.stamp}-${name.slug}`;
 
+    // Uncommitted changes first: a stray edit is named as such, not as a
+    // sidecar the body diverged from.
     const sidecarPath = sidecarPathFor(path);
+    const hasSidecar = yield* fs.exists(sidecarPath);
+    const writeSet = hasSidecar ? [path, sidecarPath] : [path];
+    const dirty = yield* git.dirtyPaths(input.repoRoot, writeSet);
+    if (dirty.length > 0) {
+      return yield* refused(
+        "dirty",
+        `${dirty.join(", ")} ${dirty.length === 1 ? "has" : "have"} uncommitted changes — commit or discard them first`,
+      );
+    }
+
     let authored: Authored;
     let sidecarText: string | null = null;
-    if (yield* fs.exists(sidecarPath)) {
+    if (hasSidecar) {
       sidecarText = yield* fs.readText(sidecarPath);
       const { agreement, sidecar } = inspectSidecar({
         md,
@@ -277,15 +289,6 @@ function readArtifact(
         );
       }
       authored = { variant: "hand", parsed: parsed.kind === "parsed" ? parsed : null };
-    }
-
-    const writeSet = sidecarText === null ? [path] : [path, sidecarPath];
-    const dirty = yield* git.dirtyPaths(input.repoRoot, writeSet);
-    if (dirty.length > 0) {
-      return yield* refused(
-        "dirty",
-        `${dirty.join(", ")} ${dirty.length === 1 ? "has" : "have"} uncommitted changes — commit or discard them first`,
-      );
     }
     return { kind, slug, id, md, sidecarText, authored };
   });
@@ -338,6 +341,9 @@ function chooseSession(
     }
     const kept = decodeAuthoringSession(json);
     if (Either.isLeft(kept) || kept.right.provider !== "claude-code") return fresh();
+    // The state root is shared by every checkout: a session authored in
+    // another clone, or one since moved or deleted, is not resumed.
+    if (resolve(kept.right.cwd) !== resolve(input.repoRoot)) return fresh();
     const sessionId = decodeClaudeSessionId(kept.right.retrySessionId ?? kept.right.sessionId);
     if (Either.isLeft(sessionId)) return fresh();
     return {
@@ -550,10 +556,10 @@ function handBack(
     if (Either.isRight(firstAnswer)) return firstAnswer.right;
 
     const firstRefusal = describeRevisionRefusal(firstAnswer.left);
-    const retryPrompt = buildDecideRetryPrompt(firstRefusal);
+    const retryPrompt = buildDecideRetryPrompt(authored.variant, firstRefusal);
     yield* fs.writeAtomic(join(folder, DECIDE_RETRY_PROMPT_FILENAME), retryPrompt);
     input.output.warn(
-      `revised document refused — ${firstRefusal}\n  resuming the session once to ask for the whole document again`,
+      `${authored.variant === "hand" ? "hand decision answer" : "revised document"} refused — ${firstRefusal}\n  resuming the session once to ask for the whole ${authored.variant === "hand" ? "answer" : "document"} again`,
     );
     observed.retried = true;
     const retried = yield* backend.resumeAgentSession(first.sessionId, retryPrompt, {
@@ -695,18 +701,11 @@ export function decideArtifact(
           : { variant: "hand", markdown: snapshot.md },
     });
     yield* fs.mkdirp(folder);
-    yield* fs.writeAtomic(join(folder, DECIDE_PROMPT_FILENAME), prompt);
-    // The session reads its prompt from a gitignored copy in the repository
-    // (one argument is capped at 128 KiB on Linux); removed after the session.
-    const repoPromptDir = join(
-      input.repoRoot,
-      ".phax-context",
-      "decide",
-      `${snapshot.id}-${index}`,
-    );
-    const repoPromptPath = join(repoPromptDir, DECIDE_PROMPT_FILENAME);
-    yield* fs.mkdirp(repoPromptDir);
-    yield* fs.writeAtomic(repoPromptPath, prompt);
+    // The session reads its prompt from the decision folder, added as a
+    // read-only working directory (one argument is capped at 128 KiB on
+    // Linux), so nothing is written to the repository.
+    const promptPath = join(folder, DECIDE_PROMPT_FILENAME);
+    yield* fs.writeAtomic(promptPath, prompt);
 
     const security = resolveReviewSecurityPolicy({
       mode: input.security.profile,
@@ -718,13 +717,8 @@ export function decideArtifact(
       session: { kind: session.kind, id: session.id },
       model: model.right.model,
       effort: model.right.effort,
-      permissionFlags: claudePermissionFlags({
-        security,
-        cwd: session.cwd,
-        agentCommands: [],
-        grantSettings: undefined,
-      }),
-      prompt: positionalPrompt(relative(session.cwd, repoPromptPath)),
+      permissionFlags: claudeReadOnlyFlags([folder]),
+      prompt: positionalPrompt(promptPath),
     });
 
     input.output.log(
@@ -745,7 +739,6 @@ export function decideArtifact(
             argv: [invocation.executable, ...invocation.args],
           }),
       ),
-      Effect.ensuring(fs.remove(repoPromptDir).pipe(Effect.ignore)),
     );
 
     // The session has ended: whatever came of it (Right) or went wrong (Left)
@@ -868,6 +861,7 @@ function concludeSession(
         effort: model.effort,
         cwd: run.session.cwd,
         security: run.security,
+        readOnly: true,
         phaseFolderPath: folder,
       },
       observed,
@@ -881,7 +875,7 @@ function concludeSession(
     const afterPath = join(folder, DECIDE_AFTER_FILENAME);
     yield* fs.writeAtomic(beforePath, snapshot.md);
     yield* fs.writeAtomic(afterPath, accepted.md);
-    const diff = yield* git.diffNoIndex(input.repoRoot, beforePath, afterPath);
+    const diff = yield* git.diffNoIndex(input.repoRoot, beforePath, afterPath, path);
     yield* fs.writeAtomic(join(folder, DECIDE_DIFF_FILENAME), diff);
     for (const line of diff.trimEnd().split("\n")) input.output.log(line);
     for (const line of verdictLines(scope, accepted)) input.output.log(line);

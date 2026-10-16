@@ -318,7 +318,7 @@ describe("runArtifactStatus — questions rendering", () => {
     expect(lines).toContain("Legal transitions: Approved, Abandoned");
   });
 
-  it("names the departing line of a hand-authored §9", async () => {
+  it("names the departing line of a hand-authored §9 and annotates Approved", async () => {
     const lines = await questionLines({
       kind: "departs",
       line: 42,
@@ -326,6 +326,9 @@ describe("runArtifactStatus — questions rendering", () => {
     });
     expect(lines).toContain(
       "Questions:         does not parse — line 42 departs from the §9 format: **Q2 — Logs: kept per run, or rotated daily?**",
+    );
+    expect(lines).toContain(
+      "Legal transitions: Approved (once §9 parses and no question is open), Abandoned",
     );
   });
 

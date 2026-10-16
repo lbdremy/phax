@@ -63,7 +63,10 @@ export interface WriteAuthoringRecordInput {
   readonly records: ResolvedRecordsConfig;
   /** The artifact commit; absent when the session did not commit. */
   readonly sourceSha?: string | undefined;
-  /** The agent session id, used to locate a vibe session's `meta.json` for usage. */
+  /**
+   * The agent session id, used to locate a vibe session's `meta.json` for
+   * usage; withheld from every recorded artifact.
+   */
   readonly sessionId?: string | undefined;
   /** The session id the retry reported; absent when there was no retry or it failed. */
   readonly retrySessionId?: string | undefined;
@@ -142,6 +145,10 @@ export function writeAuthoringRecord(
       artifactPaths,
       manifest: encodeAuthoringRecordManifest(withSchemaUrl("authoring-record-manifest", manifest)),
       message,
+      // The kept session id is decide's to resume, never the records branch's.
+      redact: [input.sessionId, input.retrySessionId].filter(
+        (id): id is string => id !== undefined,
+      ),
     });
 
     return { kind: "written", commitSha, branch, key, shape, fileCount } as const;

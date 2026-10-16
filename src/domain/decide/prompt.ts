@@ -262,19 +262,24 @@ export function buildHandbackPrompt(input: HandbackPromptInput): string {
 }
 
 /**
- * The prompt of the single corrective resume: the refusal, and the whole
- * revised document asked for again. It repeats neither the schema nor the
- * document, which the resumed session already holds.
+ * The prompt of the single corrective resume: the refusal, and the answer
+ * asked for again — the whole revised document for a headless artifact, a
+ * hand decision answer for a hand-authored one. It repeats neither the schema
+ * nor the document, which the resumed session already holds.
  */
-export function buildDecideRetryPrompt(refusal: string): string {
-  return [
-    "Your revised document was refused, and phax wrote nothing.",
-    "",
-    `Refusal: ${refusal}`,
-    "",
-    "Return the whole revised document again as your final message: one JSON object valid against the schema you were given, `$schema` first, with no code fence and no commentary. This is your only retry.",
-    "",
-  ].join("\n");
+export function buildDecideRetryPrompt(
+  variant: DecideAuthoring["variant"],
+  refusal: string,
+): string {
+  const head =
+    variant === "hand"
+      ? "Your hand decision answer was refused, and phax wrote nothing."
+      : "Your revised document was refused, and phax wrote nothing.";
+  const ask =
+    variant === "hand"
+      ? "Return the whole hand decision answer again as your final message — its `kind`, its `decisions` and the artifact's whole revised `markdown`: one JSON object valid against the schema you were given, `$schema` first, with no code fence and no commentary. This is your only retry."
+      : "Return the whole revised document again as your final message: one JSON object valid against the schema you were given, `$schema` first, with no code fence and no commentary. This is your only retry.";
+  return [head, "", `Refusal: ${refusal}`, "", ask, ""].join("\n");
 }
 
 /** The short first message of the interactive session, pointing it at the prompt file. */

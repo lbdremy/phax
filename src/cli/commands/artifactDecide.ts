@@ -7,6 +7,7 @@ import { effectiveStateRoot } from "../../app/projectContext.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import { decisionRecordPushWarning, decisionRecordWarning } from "../../app/writeDecisionRecord.js";
 import { DECIDE_SKILL_FOR_KIND } from "../../domain/decide/doctrine.js";
+import { AgentInvocationError } from "../../domain/errors.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
@@ -22,7 +23,7 @@ import type { Prompt } from "../../ports/prompt.js";
 import type { Session } from "../../ports/session.js";
 import type { Terminal } from "../../ports/terminal.js";
 import { defaultBundleRoot } from "./skills.js";
-import { exitCodeForAuthoringError } from "./runLayers.js";
+import { exitCodeForAuthoringError, renderAgentInvocationError } from "./runLayers.js";
 
 export interface DecideCommandOptions {
   readonly question?: string;
@@ -139,8 +140,16 @@ export async function runArtifactDecide(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    out.error(`✗ ${result.left.message}`);
-    return exitCodeForAuthoringError(result.left);
+    const err = result.left;
+    if (err instanceof AgentInvocationError) {
+      // A handback that could not resume says why (Claude Code's stderr).
+      const { message, logHint } = renderAgentInvocationError(err);
+      out.error(`✗ ${message}`);
+      if (logHint !== undefined) out.error(`  ${logHint}`);
+    } else {
+      out.error(`✗ ${err.message}`);
+    }
+    return exitCodeForAuthoringError(err);
   }
   renderResult(result.right, out);
   return 0;

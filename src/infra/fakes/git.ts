@@ -43,7 +43,7 @@ export type GitCall =
       subject: string;
       body: string;
     }
-  | { method: "diffNoIndex"; repo: string; beforePath: string; afterPath: string }
+  | { method: "diffNoIndex"; repo: string; beforePath: string; afterPath: string; label: string }
   | { method: "worktreeIsClean"; path: string }
   | { method: "pruneWorktrees"; repo: string }
   | { method: "diffNameStatus"; path: string }
@@ -308,8 +308,9 @@ export class FakeGitImpl implements GitOps {
     repo: string,
     beforePath: string,
     afterPath: string,
+    label: string,
   ): Effect.Effect<string, GitError> {
-    this.calls.push({ method: "diffNoIndex", repo, beforePath, afterPath });
+    this.calls.push({ method: "diffNoIndex", repo, beforePath, afterPath, label });
     return Effect.succeed(this.diffNoIndexValue);
   }
 

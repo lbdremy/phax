@@ -143,10 +143,15 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   } else if (approval.kind === "unrecorded") {
     out.log(`Approved:          (unrecorded — run phax artifact approve to record)`);
   }
-  // Approval waits for no open question: the lock in transitionArtifact.
-  const targets = legalTargets.map((t) =>
-    t === "Approved" && anyOpen ? "Approved (once no question is open)" : t,
-  );
+  // Approval waits for a §9 that parses with no open question: the lock in
+  // transitionArtifact.
+  const approvalCondition =
+    questions.kind === "departs"
+      ? " (once §9 parses and no question is open)"
+      : anyOpen
+        ? " (once no question is open)"
+        : "";
+  const targets = legalTargets.map((t) => (t === "Approved" ? `${t}${approvalCondition}` : t));
   out.log(`Legal transitions: ${targets.length > 0 ? targets.join(", ") : "(none — terminal)"}`);
   for (const orphan of orphanRecords) out.warn(renderOrphanRecordWarning(orphan));
   return 0;

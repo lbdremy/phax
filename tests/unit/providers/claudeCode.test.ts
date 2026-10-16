@@ -155,6 +155,51 @@ describe("buildArgs — secure mode", () => {
   });
 });
 
+describe("buildArgs — read-only", () => {
+  const readOnlyArgs = [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    "default",
+    "--disallowed-tools",
+    "Bash,Edit,Write,NotebookEdit",
+    "--strict-mcp-config",
+    "--model",
+    "claude-sonnet-4-6",
+    "--effort",
+    "high",
+    "--resume",
+    "session-abc",
+  ];
+
+  it("removes the shell and every writing tool under a secure policy", () => {
+    const args = buildArgs({ ...baseOptions(securePolicy), readOnly: true }, "session-abc");
+    expect(args).toEqual(readOnlyArgs);
+    expect(args).not.toContain("acceptEdits");
+    expect(args).not.toContain("--add-dir");
+  });
+
+  it("is not loosened by an unsafe policy", () => {
+    const args = buildArgs({ ...baseOptions(unsafePolicy), readOnly: true }, "session-abc");
+    expect(args).toEqual(readOnlyArgs);
+    expect(args).not.toContain("bypassPermissions");
+  });
+
+  it("takes no skill edit grant", () => {
+    const args = buildArgs(
+      {
+        ...baseOptions(securePolicy),
+        readOnly: true,
+        skillEditGrants: [".claude/skills/foo/SKILL.md"],
+      },
+      "session-abc",
+    );
+    expect(args).toEqual(readOnlyArgs);
+  });
+});
+
 describe("buildArgs — skill edit grants", () => {
   const grants = [".claude/skills/foo/SKILL.md", ".claude/skills/new/SKILL.md"];
 
