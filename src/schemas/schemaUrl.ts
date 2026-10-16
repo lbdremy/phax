@@ -12,9 +12,10 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * Every persisted format: the thirteen of spec §4 phax still writes, then the two approval
  * record formats of spec approval-record-files, then the gate request of spec
  * gate-request, then the brief request and record of spec brief-provider,
- * then the gate report and brief report of spec guarantee-reports, appended so
- * existing order stays stable. `code-review` joins with the headless-review
- * plan, which ships that document.
+ * then the gate report and brief report of spec guarantee-reports, then the
+ * hand decision answer of spec artifact-decide, appended so existing order
+ * stays stable. `code-review` joins with the headless-review plan, which
+ * ships that document.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -37,6 +38,7 @@ export const FORMAT_IDS = [
   "brief-record",
   "gate-report",
   "brief-report",
+  "hand-decision-answer",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -50,7 +52,8 @@ export function isFormatId(value: string): value is FormatId {
  * with it, so they have no pre-schema shape and no frozen pre-schema module,
  * and a document of theirs without `$schema` is unreadable. The gate report
  * and the brief report, which phax reads but never writes, are born at
- * 0.21.0 with `$schema` too.
+ * 0.21.0 with `$schema` too. So is the hand decision answer a decide session
+ * returns for a hand-authored artifact, which phax reads but never writes.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -60,6 +63,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "brief-record",
   "gate-report",
   "brief-report",
+  "hand-decision-answer",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

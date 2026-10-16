@@ -169,10 +169,11 @@ describe("parseHandAuthoredQuestions — round trip through the renderers", () =
     const md =
       SPEC_FRONTMATTER +
       renderSpecBody({ ...baseSpec(), openQuestions: [], arbitratedQuestions: [] });
-    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
       kind: "parsed",
       open: [],
       arbitrated: [],
+      sections: { decisionLog: null },
     });
   });
 
@@ -440,5 +441,102 @@ describe("parseHandAuthoredQuestions — fenced code inside a question", () => {
       open: [{ id: "Q1", optionIds: ["per-run", "daily"] }],
       arbitrated: [],
     });
+  });
+});
+
+describe("parseHandAuthoredQuestions — recommendations and line ranges", () => {
+  // Lines, 1-based: the frontmatter takes 1–4.
+  const SPEC = [
+    "---",
+    "status: Draft",
+    "date: 2026-10-01",
+    "---",
+    "# Log rotation", // 5
+    "",
+    "## 9. Open questions", // 7
+    "",
+    "### Q1 — Logs?", // 9
+    "",
+    "- per-run — Kept per run — abandons: a bounded log directory",
+    "- daily — Rotated daily — abandons: one log per run",
+    "",
+    "Recommendation: daily — bounded", // 14
+    "",
+    "### q-keep — Retention?", // 16
+    "",
+    "- keep-7 — A week — abandons: a release cycle of logs",
+    "- keep-30 — A month — abandons: disk",
+    "",
+    "Recommendation: keep-30 — covers a release", // 21
+    "",
+    "## 9b. Arbitrated questions", // 23
+    "",
+    "### Q3 — Format?", // 25
+    "",
+    "- text — Plain text — abandons: structure",
+    "- json — JSON lines — abandons: grep",
+    "",
+    "Recommendation: json — tools read it",
+    "",
+    "Decision: json — lifted, unattributed, 2026-09-28", // 32
+    "",
+    "## 10. Implementation-planning note", // 34
+    "",
+    "Settled: none.",
+    "",
+    "## 12. Decision log", // 38
+    "",
+    "- 2026-09-28 Q3 lifted json — unattributed", // 40
+    "",
+  ].join("\n");
+
+  it("exposes each question's recommendation and block range", () => {
+    const parsed = parseHandAuthoredQuestions("spec", SPEC);
+    expect(parsed).toMatchObject({
+      kind: "parsed",
+      open: [
+        { id: "Q1", recommendation: "daily", line: 9, range: { start: 9, end: 15 } },
+        { id: "q-keep", recommendation: "keep-30", line: 16, range: { start: 16, end: 22 } },
+      ],
+      arbitrated: [
+        { id: "Q3", recommendation: "json", range: { start: 25, end: 33 }, decisionLine: 32 },
+      ],
+    });
+  });
+
+  it("exposes each section's heading and range, the decision log included", () => {
+    const parsed = parseHandAuthoredQuestions("spec", SPEC);
+    if (parsed.kind !== "parsed") throw new Error("expected parsed");
+    expect(parsed.sections).toEqual({
+      open: { heading: 7, range: { start: 7, end: 22 } },
+      arbitrated: { heading: 23, range: { start: 23, end: 33 } },
+      // The file ends with a newline: its last line is the empty one after it.
+      decisionLog: { heading: 38, range: { start: 38, end: 41 } },
+    });
+  });
+
+  it("locates a plan's decision log before its first phase only", () => {
+    const plan = basePlan();
+    const arrays = planQuestions();
+    const md =
+      PLAN_FRONTMATTER + renderPlanBody({ ...plan, preamble: { ...plan.preamble, ...arrays } });
+    const parsed = parseHandAuthoredQuestions("plan", md);
+    if (parsed.kind !== "parsed") throw new Error("expected parsed");
+    expect(parsed.sections.decisionLog?.heading).toBe(lineOf(md, "## Decision log"));
+    const firstPhase = md.split("\n").findIndex((line) => line.startsWith("## phase-")) + 1;
+    expect(parsed.sections.decisionLog?.range.end).toBeLessThan(firstPhase);
+
+    const late = `${PLAN_FRONTMATTER + renderPlanBody(plan)}`.replace(
+      "## Required commands",
+      "## Open questions\n\nNone.\n\n## Required commands",
+    );
+    const withLateLog = `${late}\n## Decision log\n\n- 2026-10-01 Q1 decided a — operator (Ada)\n`;
+    const lateParsed = parseHandAuthoredQuestions("plan", withLateLog);
+    expect(lateParsed).toMatchObject({ kind: "parsed", sections: { decisionLog: null } });
+  });
+
+  it("an artifact with only a decision log has no question section", () => {
+    const md = `${SPEC_FRONTMATTER}# A spec\n\n## 12. Decision log\n\n- 2026-10-01 Q1 decided a — operator (Ada)\n`;
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({ kind: "none" });
   });
 });

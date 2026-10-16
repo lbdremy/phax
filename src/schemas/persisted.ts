@@ -59,6 +59,7 @@ import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceR
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
+import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDecisionAnswer.js";
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
@@ -641,6 +642,21 @@ export function decodeCurrentDocumentSidecar(
     kind: "plan" as const,
     document,
   }));
+}
+
+/**
+ * Decodes a parsed hand decision answer with its current file decoder only
+ * and drops `$schema`. For an answer whose stamp the caller has already
+ * checked: a decide session's final message over a hand-authored artifact.
+ * Unknown keys are refused.
+ */
+export function decodeCurrentHandDecisionAnswer(
+  input: unknown,
+): Either.Either<HandDecisionAnswer, ParseResult.ParseError> {
+  return Either.map(
+    decodeHandDecisionAnswerFile(input),
+    ({ $schema: _schema, ...answer }) => answer,
+  );
 }
 
 /** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */

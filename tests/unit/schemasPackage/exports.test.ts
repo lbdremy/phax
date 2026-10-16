@@ -83,6 +83,7 @@ describe("schemas package entry", () => {
       "GateAttributionV0_20_0Schema",
       "GateReportSchema",
       "GateRequestSchema",
+      "HandDecisionAnswerSchema",
       "PhaseFileReconciliationPreSchemaSchema",
       "PhaseFileReconciliationSchema",
       "PhaseRecordManifestPreSchemaSchema",
@@ -123,6 +124,7 @@ describe("schemas package entry", () => {
       "parseGateAttribution",
       "parseGateReport",
       "parseGateRequest",
+      "parseHandDecisionAnswer",
       "parsePhaseFileReconciliation",
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
@@ -144,6 +146,7 @@ describe("schemas package entry", () => {
       "toLatestGateAttribution",
       "toLatestGateReport",
       "toLatestGateRequest",
+      "toLatestHandDecisionAnswer",
       "toLatestPhaseFileReconciliation",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
@@ -241,6 +244,12 @@ describe("schemas package entry", () => {
     const { BriefReportFileSchema } = await import("../../../src/schemas/briefReport.js");
     expect(entry.GateReportSchema).toBe(GateReportFileSchema);
     expect(entry.BriefReportSchema).toBe(BriefReportFileSchema);
+  });
+
+  it("re-exports phax's hand decision answer file schema under the spec's name, never a copy", async () => {
+    const { HandDecisionAnswerFileSchema } =
+      await import("../../../src/schemas/handDecisionAnswer.js");
+    expect(entry.HandDecisionAnswerSchema).toBe(HandDecisionAnswerFileSchema);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(

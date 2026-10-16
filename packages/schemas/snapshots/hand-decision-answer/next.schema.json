@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax hand decision answer",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "kind",
+        "decisions",
+        "markdown"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The hand-decision-answer format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/hand-decision-answer/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/hand-decision-answer\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "spec"
+          ]
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "verdict"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "A question id of the artifact: no whitespace.",
+                "pattern": "^\\S+$"
+              },
+              "verdict": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "chosen",
+                  "abandoned",
+                  "why",
+                  "advocate",
+                  "principles",
+                  "reversibility",
+                  "by",
+                  "at",
+                  "revised"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "decided"
+                    ]
+                  },
+                  "chosen": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "abandoned": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "why": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "advocate": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "principles": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "reversibility": {
+                    "type": "string",
+                    "enum": [
+                      "cheap",
+                      "costly",
+                      "irreversible"
+                    ]
+                  },
+                  "by": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ]
+                      },
+                      "name": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "at": {
+                    "type": "string",
+                    "description": "An ISO-8601 UTC timestamp.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                  },
+                  "revised": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "The verdicts decided in the session, one per question id; empty when none."
+        },
+        "markdown": {
+          "type": "string",
+          "description": "The artifact's whole revised Markdown, frontmatter included. Only edits outside the frontmatter, the question sections and the decision log are kept; phax writes those.",
+          "title": "nonEmptyString",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "kind",
+        "decisions",
+        "markdown"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The hand-decision-answer format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/hand-decision-answer/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/hand-decision-answer\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "plan"
+          ]
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "verdict"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "A question id of the artifact: no whitespace.",
+                "pattern": "^\\S+$"
+              },
+              "verdict": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "chosen",
+                  "abandoned",
+                  "why",
+                  "advocate",
+                  "principles",
+                  "reversibility",
+                  "by",
+                  "at",
+                  "revised",
+                  "phase"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "decided"
+                    ]
+                  },
+                  "chosen": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "abandoned": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "why": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "advocate": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "principles": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "reversibility": {
+                    "type": "string",
+                    "enum": [
+                      "cheap",
+                      "costly",
+                      "irreversible"
+                    ]
+                  },
+                  "by": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ]
+                      },
+                      "name": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "at": {
+                    "type": "string",
+                    "description": "An ISO-8601 UTC timestamp.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                  },
+                  "revised": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "phase": {
+                    "type": "string",
+                    "description": "a string matching the pattern ^phase-\\d{2}$",
+                    "pattern": "^phase-\\d{2}$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "The verdicts decided in the session, one per question id, each naming the plan phase it bears on; empty when none."
+        },
+        "markdown": {
+          "type": "string",
+          "description": "The artifact's whole revised Markdown, frontmatter included. Only edits outside the frontmatter, the question sections and the decision log are kept; phax writes those.",
+          "title": "nonEmptyString",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

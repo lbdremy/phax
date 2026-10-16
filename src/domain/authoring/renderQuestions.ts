@@ -36,8 +36,12 @@ function listOrNone(items: readonly string[]): string {
   return items.length === 0 ? "none" : items.join(", ");
 }
 
-function decisionBlock(question: ArbitratedQuestion): string {
-  const { verdict } = question;
+/**
+ * A verdict's own lines of a Decision block: its `Decision:` line, then, for
+ * a decided verdict, its `Why:` line. The `Earlier decision:` lines of the
+ * question's history follow them in the block.
+ */
+export function renderVerdictDecision(verdict: Verdict): string {
   const lines = [`Decision: ${verdictLine(verdict)}`];
   if (verdict.kind === "decided") {
     const phase = "phase" in verdict ? ` Phase: ${verdict.phase}.` : "";
@@ -47,6 +51,11 @@ function decisionBlock(question: ArbitratedQuestion): string {
         `Revised: ${listOrNone(verdict.revised)}.${phase}`,
     );
   }
+  return lines.join("\n");
+}
+
+function decisionBlock(question: ArbitratedQuestion): string {
+  const lines = [renderVerdictDecision(question.verdict)];
   for (const earlier of question.history) lines.push(`Earlier decision: ${verdictLine(earlier)}`);
   return lines.join("\n");
 }
@@ -66,7 +75,8 @@ function dateOf(verdict: Verdict): string {
   return verdict.at.slice(0, 10);
 }
 
-function logEntry(id: string, verdict: Verdict): string {
+/** One decision-log entry, without its bullet: the date, the question id, the verdict and its arbiter. */
+export function renderDecisionLogEntry(id: string, verdict: Verdict): string {
   const date = dateOf(verdict);
   if (verdict.kind === "lifted") return `${date} ${id} lifted ${verdict.chosen} — unattributed`;
   const n = verdict.revised.length;
@@ -83,7 +93,7 @@ export function renderDecisionLog(questions: ReadonlyArray<ArbitratedQuestion>):
   const entries = questions.flatMap((q) =>
     [...q.history, q.verdict].map((verdict) => ({
       date: dateOf(verdict),
-      line: logEntry(q.id, verdict),
+      line: renderDecisionLogEntry(q.id, verdict),
     })),
   );
   const ordered = entries.toSorted((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
