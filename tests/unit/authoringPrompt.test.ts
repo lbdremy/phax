@@ -98,12 +98,20 @@ describe("buildAuthoringPrompt", () => {
     expect(prompt).not.toContain("preamble.openQuestions");
   });
 
-  it("a plan prompt asks for both preamble question arrays empty, keeping settled arbitrations prose", () => {
+  it("a plan prompt invites open questions in the spec's shape, keeps settled arbitrations prose and arbitrates none, before the schema", () => {
     for (const prompt of [planPrompt(true), planPrompt(false)]) {
+      const invite =
+        "- Leave each technical arbitration you cannot settle as an open question in `preamble.openQuestions`, in the same shape as a spec's: `id`, `question`, `options` (each with `id`, `label` and `abandons`), `recommendation` naming one option id, and `rationale`. The operator answers them before the plan is approved.";
+      expect(prompt).toContain(invite);
       expect(prompt).toContain(
-        "- Set `preamble.openQuestions` and `preamble.arbitratedQuestions` to `[]`: settled arbitrations stay prose in `preamble.technicalArbitrations`.",
+        "- Settled arbitrations stay prose in `preamble.technicalArbitrations`.",
       );
+      expect(prompt).toContain(
+        "- Set `preamble.arbitratedQuestions` to `[]`: an authoring session arbitrates no question.",
+      );
+      expect(prompt).not.toContain("Set `preamble.openQuestions`");
       expect(prompt).not.toContain("an authoring session leaves every question open");
+      expect(prompt.indexOf(invite)).toBeLessThan(prompt.indexOf('"title": "phax plan document'));
     }
   });
 

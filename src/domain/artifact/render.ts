@@ -109,11 +109,11 @@ function migratedArtifactLines(artifact: MigratedArtifact, width: number): strin
   const state = artifact.bodyChanged ? renderQuestionCounts(artifact.questions) : "body unchanged";
   const lines = [`  ${artifact.path.padEnd(width)}  ${artifact.status.padEnd(8)}  ${state}`];
   if (!artifact.editedSinceApproval) return lines;
-  const { open } = artifact.questions;
+  const ids = artifact.questions.open.join(", ");
   lines.push(
-    open.length === 0
+    ids === ""
       ? `    now edited since approval — re-approve with \`phax artifact approve ${artifact.path}\``
-      : `    now edited since approval, with open questions ${open.join(", ")} — reopen it with \`phax artifact reopen ${artifact.path}\` before re-approving`,
+      : `    now edited since approval, with open questions ${ids} — reopen it and decide ${ids} before re-approving`,
   );
   return lines;
 }

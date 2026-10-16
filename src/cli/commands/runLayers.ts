@@ -37,6 +37,8 @@ import {
   DecideDocumentError,
   DecideRefusedError,
   ArtifactDirtyWriteSetError,
+  ArtifactOpenQuestionsError,
+  ArtifactQuestionsUnparsedError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
   ConfigValidationError,
@@ -200,6 +202,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof PlanStaleError ||
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
+    err instanceof ArtifactOpenQuestionsError ||
+    err instanceof ArtifactQuestionsUnparsedError ||
     err instanceof ArtifactCreationError ||
     err instanceof DecideRefusedError ||
     err instanceof ApprovalRecordUnreadableError ||
