@@ -117,26 +117,28 @@ function secureClaudeFlags(input: ClaudePermissionInput): string[] {
   ];
 }
 
-// The shell and every built-in tool that writes a file. A tool-name deny
-// removes the tool from the session in every permission mode, bypassPermissions
-// included, so no mode or approval brings it back.
-const WRITE_TOOLS = ["Bash", "Edit", "Write", "NotebookEdit"] as const;
+// The only built-in tools a read-only session has. An allowlist, not a deny
+// list: every other tool (the shell, the writing tools, and the ones that run
+// a command or start work elsewhere, such as Monitor, EnterWorktree, Agent or
+// Skill) is absent from the session, so no permission mode, allow rule or
+// hook brings one back, and a tool Claude Code adds later stays out.
+const READ_TOOLS = ["Read", "Grep", "Glob"] as const;
 
 /**
  * The permission flags of a read-only Claude Code session: decide's interactive
  * session and its headless handback, which answer with a document and never
- * write. Manual mode (`default`), the shell and the writing tools removed, no
- * MCP server, and `readDirs` added as working directories so the session can
- * read files phax keeps outside the repository (its prompt). The security
- * profile does not loosen it: an unsafe profile still gets no write.
+ * write. Manual mode (`default`), only the reading tools, no MCP server, and
+ * `readDirs` added as working directories so the session can read files phax
+ * keeps outside the repository (its prompt). The security profile does not
+ * loosen it: an unsafe profile still gets no write.
  */
 export function claudeReadOnlyFlags(readDirs: readonly string[]): string[] {
   return [
     "--permission-mode",
     "default",
     ...readDirs.flatMap((dir) => ["--add-dir", dir]),
-    "--disallowed-tools",
-    WRITE_TOOLS.join(","),
+    "--tools",
+    READ_TOOLS.join(","),
     "--strict-mcp-config",
   ];
 }

@@ -271,8 +271,12 @@ function manifestKindLabel(manifest: RecordManifest): string {
  * misbehave; a substring match on an `Authoring-Id` or a `Decision-Id` (one
  * id a prefix of another) is ruled out by checking the candidate's tree holds
  * the key. A `Decision-Id` is unique only on the machine that decided, so a
- * decision record is the one whose manifest names `sourceSha` as its commit:
- * one naming another commit is someone else's decision under the same id.
+ * decision record is first the one whose manifest names `sourceSha` as its
+ * commit. When none does, the decide commit may have been rewritten (a rebase
+ * or squash merge, a cherry-pick), and the newest record naming a commit that
+ * is not an ancestor of `sourceSha` in `sourceRepo` is taken; one naming an
+ * ancestor is an earlier decision under the same id (another machine's), so
+ * an unrecorded decide never borrows it.
  */
 function findRecordCommit(
   git: GitOps,
@@ -280,6 +284,7 @@ function findRecordCommit(
   ref: string,
   address: RecordAddress,
   sourceSha: string,
+  sourceRepo: string,
 ): Effect.Effect<string | null, ShellError | GitError, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -315,39 +320,45 @@ function findRecordCommit(
       cwd: repo,
     });
     const manifestPath = `${keyOf(address)}/record.json`;
+    let rewritten: string | null = null;
     for (const sha of result.stdout.split("\n").map((line) => line.trim())) {
       if (sha.length === 0) continue;
       const entries = yield* git.readTree(repo, sha);
       const manifest = entries.find((e) => e.type === "blob" && e.path === manifestPath);
       if (manifest === undefined) continue;
-      if (address.kind === "decision") {
-        const bytes = yield* git.readBlob(repo, manifest.oid);
-        if (namesAnotherCommit(`${sha}:${manifestPath}`, bytes, sourceSha)) continue;
-      }
-      return sha;
+      if (address.kind !== "decision") return sha;
+      const bytes = yield* git.readBlob(repo, manifest.oid);
+      const named = decisionCommitOf(`${sha}:${manifestPath}`, bytes);
+      if (named === undefined || named === sourceSha) return sha;
+      if (named === null || rewritten !== null) continue;
+      // `merge-base --is-ancestor` exits 0 for an ancestor, 1 for a non-ancestor
+      // and 128 for a commit this clone lacks (rewritten away before a fetch).
+      const ancestry = yield* shell.run({
+        command: ["git", "merge-base", "--is-ancestor", named, sourceSha],
+        cwd: sourceRepo,
+      });
+      if (ancestry.exitCode !== 0) rewritten = sha;
     }
-    return null;
+    return rewritten;
   });
 }
 
 /**
- * Whether a manifest is a well-formed decision manifest naming a commit other
- * than `sourceSha`. A malformed one is not ruled out here: loading it reports
- * it as malformed.
+ * The commit a well-formed decision manifest names (null for a decision that
+ * committed nothing), or undefined for any other manifest. A malformed one is
+ * not ruled out here: loading it reports it as malformed.
  */
-function namesAnotherCommit(file: string, bytes: Uint8Array, sourceSha: string): boolean {
+function decisionCommitOf(file: string, bytes: Uint8Array): string | null | undefined {
   let json: unknown;
   try {
     json = JSON.parse(decodeText(bytes)) as unknown;
   } catch {
-    return false;
+    return undefined;
   }
   const decoded = readRecordManifestFile(file, json);
-  return (
-    Either.isRight(decoded) &&
-    isDecisionRecordManifest(decoded.right) &&
-    decoded.right.commit !== sourceSha
-  );
+  return Either.isRight(decoded) && isDecisionRecordManifest(decoded.right)
+    ? decoded.right.commit
+    : undefined;
 }
 
 interface LoadedRecord {
@@ -557,7 +568,14 @@ export function explainRecord(
 
     const localTip = yield* git.resolveRef(localPath, RECORDS_REF);
     if (localTip !== null) {
-      recordCommitSha = yield* findRecordCommit(git, localPath, localTip, address, resolvedSha);
+      recordCommitSha = yield* findRecordCommit(
+        git,
+        localPath,
+        localTip,
+        address,
+        resolvedSha,
+        input.repoRoot,
+      );
     }
 
     if (recordCommitSha === null) {
@@ -571,7 +589,14 @@ export function explainRecord(
         `refs/remotes/${remote}/${RECORDS_BRANCH_NAME}`,
       );
       if (remoteTip !== null) {
-        recordCommitSha = yield* findRecordCommit(git, localPath, remoteTip, address, resolvedSha);
+        recordCommitSha = yield* findRecordCommit(
+          git,
+          localPath,
+          remoteTip,
+          address,
+          resolvedSha,
+          input.repoRoot,
+        );
       }
       if (recordCommitSha === null) {
         return { kind: "not-found", key, sourceSha: resolvedSha, remoteConsulted: true } as const;
