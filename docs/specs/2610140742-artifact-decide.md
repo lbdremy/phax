@@ -969,130 +969,166 @@ Given a headless authoring session whose document carries an arbitrated question
 
 Given a spec whose open question Q4 recommends `structural`, with a requirement written for that recommendation and an acceptance criterion that references it, when interactive decide runs, the operator chooses `oracle` for Q4, and the session returns the revised document; the operator first declines the diff, then runs decide again and accepts it, then The declined run writes nothing. The accepted run commits Q4 in `arbitratedQuestions` with `chosen: "oracle"` and a `revised` list naming the requirement and the criterion, both rewritten for `oracle`, with traceability intact. A verdict equal to the recommendation lands with `revised: []` and no body change beyond §9 and the decision log. (refs §5.21, §5.22, §5.20)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
+
+None.
+
+## 9b. Arbitrated questions
 
 ### Q1 — May `decide` and a question reopen run on an Approved artifact, and what becomes of its approval? (Decided by the author on 2026-09-28; not reopened.)
 
-- Allowed on Draft and Approved. The artifact stays Approved but reads edited since approval (spec) or self-changed (plan) until it is re-approved, which is the existing in-place revision. — abandons: a status that says the approval is void: until re-approval, the artifact still reads Approved, and only `Edited since` and the Questions line show the change
-- A decide or reopen on an Approved artifact moves it back to Draft through a new Approved → Draft transition. — abandons: the lifecycle graph of specs 21/22 (it gains a backward edge) and approval continuity: every plan bound to the spec loses its Approved source at once
-- Refuse decide and reopen once the artifact is Approved. — abandons: steering after approval: a `rouvre` on an approved spec would force abandoning and re-authoring it
-- Decide runs on Draft only; `phax artifact reopen` moves an Approved spec or plan back to Draft, removing its approval record. — abandons: steering an approved artifact without voiding its approval: every re-arbitration first costs a reopen and a re-approval
+- in-place — Allowed on Draft and Approved. The artifact stays Approved but reads edited since approval (spec) or self-changed (plan) until it is re-approved, which is the existing in-place revision. — abandons: a status that says the approval is void: until re-approval, the artifact still reads Approved, and only `Edited since` and the Questions line show the change
+- back-to-draft — A decide or reopen on an Approved artifact moves it back to Draft through a new Approved → Draft transition. — abandons: the lifecycle graph of specs 21/22 (it gains a backward edge) and approval continuity: every plan bound to the spec loses its Approved source at once
+- refuse — Refuse decide and reopen once the artifact is Approved. — abandons: steering after approval: a `rouvre` on an approved spec would force abandoning and re-authoring it
+- reopen-draft — Decide runs on Draft only; `phax artifact reopen` moves an Approved spec or plan back to Draft, removing its approval record. — abandons: steering an approved artifact without voiding its approval: every re-arbitration first costs a reopen and a re-approval
 
-Recommendation: Decide runs on Draft only; `phax artifact reopen` moves an Approved spec or plan back to Draft, removing its approval record. — Decided by the author on 2026-09-28, because an approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen`, extended from Stale plans to Approved specs and plans, is the one gesture back to Draft. The approval is voided visibly, with its record file deleted, instead of lingering as an in-place revision.
+Recommendation: reopen-draft — Decided by the author on 2026-09-28, because an approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen`, extended from Stale plans to Approved specs and plans, is the one gesture back to Draft. The approval is voided visibly, with its record file deleted, instead of lingering as an in-place revision.
+
+Decision: reopen-draft — lifted, unattributed, 2026-09-28
 
 ### Q2 — Do plans need a structured open-questions section in their document schema? (Decided by the author on 2026-09-28; not reopened.)
 
-- Add `openQuestions` to the plan preamble, in the decision-request shape plus `history`, rendered before the first phase. Settled arbitrations stay prose in `technicalArbitrations`. — abandons: an unchanged plan document: the format gains a new shape, and the planning skill's document table changes
-- Decide specs only in this spec, and refuse plans until a later spec. — abandons: the plan doctrine (P1–P9) and the first consumer's plan arbitrations, which would stay in a private session
-- Turn `technicalArbitrations` itself into decision requests. — abandons: settled arbitrations as one-line prose: every already-decided arbitration would have to be restated as a question with options
+- add — Add `openQuestions` to the plan preamble, in the decision-request shape plus `history`, rendered before the first phase. Settled arbitrations stay prose in `technicalArbitrations`. — abandons: an unchanged plan document: the format gains a new shape, and the planning skill's document table changes
+- specs-only — Decide specs only in this spec, and refuse plans until a later spec. — abandons: the plan doctrine (P1–P9) and the first consumer's plan arbitrations, which would stay in a private session
+- convert — Turn `technicalArbitrations` itself into decision requests. — abandons: settled arbitrations as one-line prose: every already-decided arbitration would have to be restated as a question with options
 
-Recommendation: Add `openQuestions` to the plan preamble, in the decision-request shape plus `history`, rendered before the first phase. Settled arbitrations stay prose in `technicalArbitrations`. — Decided by the author on 2026-09-28, because the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched.
+Recommendation: add — Decided by the author on 2026-09-28, because the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched.
+
+Decision: add — lifted, unattributed, 2026-09-28
 
 ### Q3 — How does phax know that an approval or a reopen is a machine's? (Decided by the author on 2026-09-28; not reopened.)
 
-- The caller declares it with `--machine <grant>`. Without the flag, the gesture is the operator's. — abandons: enforcement: a loop that omits the flag is recorded as the operator, so attribution is honest by declaration only
-- No TTY means machine. — abandons: determinism and scripted operators: the same command records differently depending on the terminal, and a human's scripted approval is labelled machine
-- `phax artifact approve` always requires `--by operator|machine:<grant>`. — abandons: every existing `artifact approve` invocation: a breaking CLI change against the additive constraint
-- `--by operator | machine:<grant>`, required when not run from a terminal; from a terminal without it, the operator. — abandons: an unchanged scripted `approve`: every non-terminal caller must add `--by`
+- machine-flag — The caller declares it with `--machine <grant>`. Without the flag, the gesture is the operator's. — abandons: enforcement: a loop that omits the flag is recorded as the operator, so attribution is honest by declaration only
+- no-tty — No TTY means machine. — abandons: determinism and scripted operators: the same command records differently depending on the terminal, and a human's scripted approval is labelled machine
+- by-required — `phax artifact approve` always requires `--by operator|machine:<grant>`. — abandons: every existing `artifact approve` invocation: a breaking CLI change against the additive constraint
+- by-tty — `--by operator | machine:<grant>`, required when not run from a terminal; from a terminal without it, the operator. — abandons: an unchanged scripted `approve`: every non-terminal caller must add `--by`
 
-Recommendation: `--by operator | machine:<grant>`, required when not run from a terminal; from a terminal without it, the operator. — Decided by the author on 2026-09-28. At a terminal, the operator is the honest default; without one, phax refuses to guess and asks for `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator, a risk accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`, the one non-additive CLI change.
+Recommendation: by-tty — Decided by the author on 2026-09-28. At a terminal, the operator is the honest default; without one, phax refuses to guess and asks for `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator, a risk accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`, the one non-additive CLI change.
+
+Decision: by-tty — lifted, unattributed, 2026-09-28
 
 ### Q4 — What does an approval record written before attribution read as? (Decided by the author on 2026-10-14; not reopened.)
 
-- A record stamped 0.19.0 is read through its frozen 0.19.0 shape and lifted to `approvedBy: { kind: unattributed }`. `approvedBy` is required at the new shape, approve writes it, and `migrate-approvals` writes each migrated entry as unattributed. — abandons: attribution written in the file itself: an untouched 0.19.0 record says nothing on disk, and every reader (phax, the schemas package) must apply the same lift to read it as unattributed
-- `approvedBy` is required. A record stamped 0.19.0 is refused, naming the record and the one-line fix, and this repository's record files are rewritten to `unattributed` in the same change. — abandons: reading the approvals made before this release in any other repository: status, approve, plans status and run refuse there until each record file is edited by hand; it also sets aside phax's way of reading its older files through their frozen shape
+- lift — A record stamped 0.19.0 is read through its frozen 0.19.0 shape and lifted to `approvedBy: { kind: unattributed }`. `approvedBy` is required at the new shape, approve writes it, and `migrate-approvals` writes each migrated entry as unattributed. — abandons: attribution written in the file itself: an untouched 0.19.0 record says nothing on disk, and every reader (phax, the schemas package) must apply the same lift to read it as unattributed
+- refuse — `approvedBy` is required. A record stamped 0.19.0 is refused, naming the record and the one-line fix, and this repository's record files are rewritten to `unattributed` in the same change. — abandons: reading the approvals made before this release in any other repository: status, approve, plans status and run refuse there until each record file is edited by hand; it also sets aside phax's way of reading its older files through their frozen shape
 
-Recommendation: A record stamped 0.19.0 is read through its frozen 0.19.0 shape and lifted to `approvedBy: { kind: unattributed }`. `approvedBy` is required at the new shape, approve writes it, and `migrate-approvals` writes each migrated entry as unattributed. — Decided by the author on 2026-10-14, as recommended. The 2026-09-28 answer chose refusal when approvals were a shared ledger whose shape had no name. Today a 0.19.0 stamp says exactly which shape a record has, and that no phax before this one recorded an approver. So `unattributed` is a fact phax knows and can write explicitly in the lift (E0), as it writes `retry: "none"` for authoring manifests stamped 0.17.0. Neither option reads an old approval as an operator's. The field stays required at the new shape, so the lift is not a shim. The loss is bounded: a lifted record is rewritten at the next approval, and deleted by reopen, completion or abandonment.
+Recommendation: lift — Decided by the author on 2026-10-14, as recommended. The 2026-09-28 answer chose refusal when approvals were a shared ledger whose shape had no name. Today a 0.19.0 stamp says exactly which shape a record has, and that no phax before this one recorded an approver. So `unattributed` is a fact phax knows and can write explicitly in the lift (E0), as it writes `retry: "none"` for authoring manifests stamped 0.17.0. Neither option reads an old approval as an operator's. The field stays required at the new shape, so the lift is not a shim. The loss is bounded: a lifted record is rewritten at the next approval, and deleted by reopen, completion or abandonment.
 
-### Q5 — What does decide do with a hand-authored artifact that has no sidecar? (Decided by the author on 2026-09-28; not reopened.)
+Decision: lift — lifted, unattributed, 2026-10-14
 
-- Decide and reopen refuse it, naming the remedy: re-author it headless, or answer its §9 by hand. — abandons: arbitration of hand-authored artifacts: a human who writes a spec interactively still answers its §9 by hand, as today
-- A new model extraction of §9 or the plan's arbitrations, with decisions kept in a file beside the artifact and decision lines spliced into the hand-written Markdown. — abandons: one home for decisions and the rule that phax edits Markdown only by rendering it: decisions would live in the sidecar for one artifact and in another file for the next
-- decide reads and writes a hand-authored §9 in the §9 format. — abandons: phax editing Markdown only by rendering it: for a hand-authored artifact it writes the question blocks and the decision log in place
+### Q6 — What does decide do with a hand-authored artifact that has no sidecar? (Decided by the author on 2026-09-28; not reopened.)
 
-Recommendation: decide reads and writes a hand-authored §9 in the §9 format. — Decided by the author on 2026-09-28, because every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically, in the layout the renderer produces, and decide writes only the question blocks and the decision log.
+- refuse — Decide and reopen refuse it, naming the remedy: re-author it headless, or answer its §9 by hand. — abandons: arbitration of hand-authored artifacts: a human who writes a spec interactively still answers its §9 by hand, as today
+- extract-and-splice — A new model extraction of §9 or the plan's arbitrations, with decisions kept in a file beside the artifact and decision lines spliced into the hand-written Markdown. — abandons: one home for decisions and the rule that phax edits Markdown only by rendering it: decisions would live in the sidecar for one artifact and in another file for the next
+- hand-format — decide reads and writes a hand-authored §9 in the §9 format. — abandons: phax editing Markdown only by rendering it: for a hand-authored artifact it writes the question blocks and the decision log in place
 
-### Q6 — How is an already decided question arbitrated again? (Decided by the author on 2026-09-28; not reopened.)
+Recommendation: hand-format — Decided by the author on 2026-09-28, because every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically, in the layout the renderer produces, and decide writes only the question blocks and the decision log.
 
-- On a Draft, `decide --question <id>` re-arbitrates it; the new decision joins its history. — abandons: a note-carrying reopened state that waits for the next decide
-- Keep `decide --question <id> --reopen --note`, a reopened state presented first. — abandons: one fewer state and flag, and a name distinct from `phax artifact reopen`
+Decision: hand-format — lifted, unattributed, 2026-09-28
 
-Recommendation: On a Draft, `decide --question <id>` re-arbitrates it; the new decision joins its history. — Decided by the author on 2026-09-28, because with decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own.
+### Q8 — How is an already decided question arbitrated again? (Decided by the author on 2026-09-28; not reopened.)
 
-### Q7 — Which artifacts does the approval lock cover? (Decided by the author on 2026-09-28; not reopened.)
+- question-flag — On a Draft, `decide --question <id>` re-arbitrates it; the new decision joins its history. — abandons: a note-carrying reopened state that waits for the next decide
+- reopen-flag — Keep `decide --question <id> --reopen --note`, a reopened state presented first. — abandons: one fewer state and flag, and a name distinct from `phax artifact reopen`
 
-- Every spec and plan: undecided questions refuse approval, with or without a sidecar. — abandons: approving a hand-authored artifact whose §9 is not in the §9 format until it is converted
-- Every artifact with a sidecar. — abandons: the guarantee for hand-authored artifacts
-- Only artifacts already arbitrated. — abandons: the guarantee for any artifact never passed through decide
+Recommendation: question-flag — Decided by the author on 2026-09-28, because with decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own.
 
-Recommendation: Every spec and plan: undecided questions refuse approval, with or without a sidecar. — Decided by the author on 2026-09-28, because the choice taken is now recorded in every case, interactively or by hand, so every open question is answered before approval.
+Decision: question-flag — lifted, unattributed, 2026-09-28
 
-### Q8 — How does approve know that a hand-authored question is decided? (Decided by the author on 2026-09-28; not reopened.)
+### Q9 — Which artifacts does the approval lock cover? (Decided by the author on 2026-09-28; not reopened.)
 
-- Each question follows the §9 format and is decided when its last block is a `Decision:` block. — abandons: free-form §9 layouts: hand-authored artifacts are converted once
-- A hand-authored artifact approves only with no open-questions section left. — abandons: the arbitration trail in the document
+- all — Every spec and plan: undecided questions refuse approval, with or without a sidecar. — abandons: approving a hand-authored artifact whose §9 is not in the §9 format until it is converted
+- sidecar — Every artifact with a sidecar. — abandons: the guarantee for hand-authored artifacts
+- arbitrated — Only artifacts already arbitrated. — abandons: the guarantee for any artifact never passed through decide
 
-Recommendation: Each question follows the §9 format and is decided when its last block is a `Decision:` block. — Decided by the author on 2026-09-28, because the layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document.
+Recommendation: all — Decided by the author on 2026-09-28, because the choice taken is now recorded in every case, interactively or by hand, so every open question is answered before approval.
 
-### Q9 — Where does an arbitrated question go? (Decided by the author on 2026-09-29; not reopened.)
+Decision: all — lifted, unattributed, 2026-09-28
 
-- An `arbitratedQuestions` section: arbitrating moves the question with everything it had, plus its verdict. — abandons: one list to read: the decided questions sit apart from the open ones
-- One section; each question gains a Decision block. — abandons: seeing at a glance that nothing is left: every question must be read
+### Q10 — How does approve know that a hand-authored question is decided? (Decided by the author on 2026-09-28; not reopened.)
 
-Recommendation: An `arbitratedQuestions` section: arbitrating moves the question with everything it had, plus its verdict. — Decided by the author on 2026-09-29, because an empty open section says there is nothing left to do, and approval checks exactly that.
+- decision-line — Each question follows the §9 format and is decided when its last block is a `Decision:` block. — abandons: free-form §9 layouts: hand-authored artifacts are converted once
+- empty-section — A hand-authored artifact approves only with no open-questions section left. — abandons: the arbitration trail in the document
 
-### Q10 — Who rewrites the body when a verdict departs from the recommendation? (Decided by the author on 2026-09-29; not reopened.)
+Recommendation: decision-line — Decided by the author on 2026-09-28, because the layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document.
 
-- The interactive session returns the revised document; phax checks it and shows the body diff; the operator accepts. — abandons: a decide gesture that writes only verdicts
-- decide writes the verdict; a separate `artifact revise` rewrites the body; approval is blocked in between. — abandons: one gesture, and a spec that never contradicts its verdicts
-- The operator revises the body by hand. — abandons: a spec consistent with its verdicts until someone fixes it
+Decision: decision-line — lifted, unattributed, 2026-09-28
 
-Recommendation: The interactive session returns the revised document; phax checks it and shows the body diff; the operator accepts. — Decided by the author on 2026-09-29, because a headless-authored body is written for its recommendations, and the 2026-09-28 arbitrations had to rewrite requirements, surfaces and criteria by hand wherever the verdict departed.
+### Q11 — Where does an arbitrated question go? (Decided by the author on 2026-09-29; not reopened.)
 
-### Q11 — Is there a headless mode at all in this spec? (Decided by the author on 2026-09-29; not reopened.)
+- two-sections — An `arbitratedQuestions` section: arbitrating moves the question with everything it had, plus its verdict. — abandons: one list to read: the decided questions sit apart from the open ones
+- one-section — One section; each question gains a Decision block. — abandons: seeing at a glance that nothing is left: every question must be read
 
-- No: decide is interactive only; a headless mode is built later from the recorded sessions. — abandons: any unattended arbitration for now
-- Headless pre-arbitration: the case for each abandoned option, a recommendation and answers to `F1`–`F5`, deciding nothing. — abandons: not redoing work: the authoring session already wrote the options, their losses and a recommendation, and the operator arbitrates again anyway
+Recommendation: two-sections — Decided by the author on 2026-09-29, because an empty open section says there is nothing left to do, and approval checks exactly that.
 
-Recommendation: No: decide is interactive only; a headless mode is built later from the recorded sessions. — Decided by the author on 2026-09-29, because pre-arbitration repeats what authoring already did and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from.
+Decision: two-sections — lifted, unattributed, 2026-09-29
 
-### Q12 — How are spec and plan documents written before this change lifted, given that decided questions stay in `openQuestions`, marked only in prose? (Decided by the author on 2026-10-14; not reopened.)
+### Q12 — Who rewrites the body when a verdict departs from the recommendation? (Decided by the author on 2026-09-29; not reopened.)
 
-- The lift moves each question whose `rationale` opens with `Decided by the author on <YYYY-MM-DD>` to `arbitratedQuestions`, whatever its `question` says. It gets a `lifted` verdict holding only its recommendation as chosen, its other options as abandoned, its rationale as why, the marker's date and `by: unattributed`; every other question stays open. A 0.20.0 plan document lifts with both arrays empty, since plans carry no questions today. — abandons: a lift that reads only structure: phax recognizes a prose prefix inside a field; a rationale that departs from the prefix by one character stays open
-- Every question lifts as open, and `arbitratedQuestions` lifts empty. — abandons: the author's recorded decisions on in-flight artifacts: each Draft must be re-decided before approval, and its decision record dates a September decision to the day it is restated
-- A spec document stamped below the new shape is refused, as plan documents without `completesSpec` were, and this repository's live sidecars are rewritten by hand in the same change. — abandons: reading an untouched in-flight headless artifact in any other repository, and the frozen-shape reading this spec otherwise uses
+- session — The interactive session returns the revised document; phax checks it and shows the body diff; the operator accepts. — abandons: a decide gesture that writes only verdicts
+- two-steps — decide writes the verdict; a separate `artifact revise` rewrites the body; approval is blocked in between. — abandons: one gesture, and a spec that never contradicts its verdicts
+- by-hand — The operator revises the body by hand. — abandons: a spec consistent with its verdicts until someone fixes it
 
-Recommendation: The lift moves each question whose `rationale` opens with `Decided by the author on <YYYY-MM-DD>` to `arbitratedQuestions`, whatever its `question` says. It gets a `lifted` verdict holding only its recommendation as chosen, its other options as abandoned, its rationale as why, the marker's date and `by: unattributed`; every other question stays open. A 0.20.0 plan document lifts with both arrays empty, since plans carry no questions today. — Decided by the author on 2026-10-14, as recommended. The rule is corrected: the third draft required both the question suffix and the rationale prefix, but the two other in-flight specs, `headless-review` and `oracle-phases`, mark their 13 decided questions with the rationale prefix alone, so the rationale is the marker. Where the author decided against a recommendation, `recommendation` was rewritten to the option chosen (`oracle-phases` reads "against the previous recommendation (`structural`)" beside `recommendation: new-oracle-surface`), so the recommendation is the choice. The marker is the only record of these decisions. Lifting it keeps the author's decisions decided without inventing what was never recorded: a lifted verdict holds only what the marker and the question carry, names no arbiter, and keeps the marker's date (E0). An exact prefix match is conservative: a question that does not match stays open, which costs one decide, never a false decision. Completed and Abandoned artifacts are never approved again, so the lift matters only for artifacts still in flight.
+Recommendation: session — Decided by the author on 2026-09-29, because a headless-authored body is written for its recommendations, and the 2026-09-28 arbitrations had to rewrite requirements, surfaces and criteria by hand wherever the verdict departed.
 
-### Q13 — The renderer changes §9 (ids, a 9b section, a decision log), and agreement compares the body with the sidecar's rendering. How does an untouched older artifact agree with its sidecar? (Decided by the author on 2026-10-14; not reopened.)
+Decision: session — lifted, unattributed, 2026-09-29
 
-- For a sidecar stamped below the new shape, agreement compares the body with that shape's rendering: today's §9 layout is kept for this check only. The first decide that writes the artifact re-renders it in the new layout, under the operator's diff review. — abandons: one rendering per document: the 0.17.0 §9 layout stays in phax for as long as such sidecars are read
-- Agreement gains a fourth value, `older shape`. Approve refuses it, naming decide, which re-renders even with nothing to decide. — abandons: detecting a hand edit on an older-shape body, which decide's re-render would then overwrite unseen, and approving an in-flight artifact in place
-- A one-time command lifts and re-renders every live sidecar and body, and approval refuses until it has run, like `migrate-approvals`. — abandons: approval continuity: re-rendering an Approved artifact edits it after its approval, so its record no longer matches and its bound plans go stale
+### Q14 — Is there a headless mode at all in this spec? (Decided by the author on 2026-09-29; not reopened.)
 
-Recommendation: A one-time command lifts and re-renders every live sidecar and body, and approval refuses until it has run, like `migrate-approvals`. — Decided by the author on 2026-10-14, against the recommendation (`frozen-layout`). A document has one rendering: no 0.17.0 §9 layout is kept for agreement. `phax artifact migrate-documents`, beside `migrate-approvals`, lifts every live spec and plan sidecar stamped below the new document shapes by Q15's rule, writes it at the current shape and re-renders its body in the new layout, once, in one path-scoped commit. Until it has run, approve, reopen and decide refuse, naming it, as the approval commands refuse while an old approvals ledger exists. A hand edit is never overwritten unseen: the command alone reads a body against its sidecar's own-shape rendering, and it refuses, writing nothing, when they differ or the sidecar is invalid. The loss is accepted: re-rendering an Approved artifact edits it after its approval, so a migrated Approved spec reads edited since approval and its bound plans go stale (`spec-changed`). The command says so, naming each artifact. A 0.20.0 plan's body does not change, because its question sections render only when non-empty.
+- interactive-only — No: decide is interactive only; a headless mode is built later from the recorded sessions. — abandons: any unattended arbitration for now
+- pre-arbitration — Headless pre-arbitration: the case for each abandoned option, a recommendation and answers to `F1`–`F5`, deciding nothing. — abandons: not redoing work: the authoring session already wrote the options, their losses and a recommendation, and the operator arbitrates again anyway
 
-### Q14 — How is a question named in the Markdown and on the command line, given that the renderer numbers headings by position and prints option labels, not ids? (Decided by the author on 2026-10-14; not reopened.)
+Recommendation: interactive-only — Decided by the author on 2026-09-29, because pre-arbitration repeats what authoring already did and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from.
 
-- Headings render the question id (`### <id> — <question>`), and option bullets and the `Recommendation:` line open with option ids. `--question`, status, refusals and the decision log name ids. — abandons: today's short positional headings: a question whose id is `q-release-name` is headed by that id, and every live headless spec's §9 changes when `migrate-documents` re-renders it
-- Keep `Q<n>` by position, counted across the open section and then the arbitrated one. — abandons: a stable name: a heading's number changes when a question moves between sections, which is exactly what decide does, so `--question`, status and the decision log could name a different question after each decide
+Decision: interactive-only — lifted, unattributed, 2026-09-29
 
-Recommendation: Headings render the question id (`### <id> — <question>`), and option bullets and the `Recommendation:` line open with option ids. `--question`, status, refusals and the decision log name ids. — Decided by the author on 2026-10-14, as recommended. An id is the question's identity in the document, on the command line and in its history (F3: a thing is identified without its location). Hand-authored artifacts already write `Q<n>`, which stays a valid id, and headless sessions choose their own. Existing artifacts change where `migrate-documents` re-renders them (Q16), so the heading change needs no re-render of its own.
+### Q15 — How are spec and plan documents written before this change lifted, given that decided questions stay in `openQuestions`, marked only in prose? (Decided by the author on 2026-10-14; not reopened.)
 
-### Q15 — What does `phax artifact reopen` do to the live plans bound to an Approved spec? (Decided by the author on 2026-10-14; not reopened.)
+- marked-move — The lift moves each question whose `rationale` opens with `Decided by the author on <YYYY-MM-DD>` to `arbitratedQuestions`, whatever its `question` says. It gets a `lifted` verdict holding only its recommendation as chosen, its other options as abandoned, its rationale as why, the marker's date and `by: unattributed`; every other question stays open. A 0.20.0 plan document lifts with both arrays empty, since plans carry no questions today. — abandons: a lift that reads only structure: phax recognizes a prose prefix inside a field; a rationale that departs from the prefix by one character stays open
+- all-open — Every question lifts as open, and `arbitratedQuestions` lifts empty. — abandons: the author's recorded decisions on in-flight artifacts: each Draft must be re-decided before approval, and its decision record dates a September decision to the day it is restated
+- refuse-migrate — A spec document stamped below the new shape is refused, as plan documents without `completesSpec` were, and this repository's live sidecars are rewritten by hand in the same change. — abandons: reading an untouched in-flight headless artifact in any other repository, and the frozen-shape reading this spec otherwise uses
 
-- Reopen proceeds and leaves each bound plan as it is, naming it in its output. A plan goes stale (`spec-changed`) once decide rewrites the spec. — abandons: a guard against running a plan whose spec is under reconsideration: between reopen and decide, an Approved plan bound to a Draft spec still reads fresh and can run
-- Reopen refuses while a live plan names the spec, as completion and abandonment do. — abandons: reconsidering a spec with plans in flight: each plan must first be abandoned, losing plan work even when the verdict changes nothing the plan relies on
-- Reopen also moves each Approved bound plan to Stale. — abandons: one artifact per gesture: reopen would write other artifacts' frontmatter, and its write-set would grow beyond the reopened artifact
+Recommendation: marked-move — Decided by the author on 2026-10-14, as recommended. The rule is corrected: the third draft required both the question suffix and the rationale prefix, but the two other in-flight specs, `headless-review` and `oracle-phases`, mark their 13 decided questions with the rationale prefix alone, so the rationale is the marker. Where the author decided against a recommendation, `recommendation` was rewritten to the option chosen (`oracle-phases` reads "against the previous recommendation (`structural`)" beside `recommendation: new-oracle-surface`), so the recommendation is the choice. The marker is the only record of these decisions. Lifting it keeps the author's decisions decided without inventing what was never recorded: a lifted verdict holds only what the marker and the question carry, names no arbiter, and keeps the marker's date (E0). An exact prefix match is conservative: a question that does not match stays open, which costs one decide, never a false decision. Completed and Abandoned artifacts are never approved again, so the lift matters only for artifacts still in flight.
 
-Recommendation: Reopen proceeds and leaves each bound plan as it is, naming it in its output. A plan goes stale (`spec-changed`) once decide rewrites the spec. — Decided by the author on 2026-10-14, as recommended. Staleness already answers this (C1). Reopening changes only `status` and `approved`, which the fingerprint ignores, so a bound plan stays fresh until decide rewrites the spec, and then reads `spec-changed`. Approving a plan against a Draft spec is already refused. Naming the bound plans in reopen's output makes the window visible without adding a guard.
+Decision: marked-move — lifted, unattributed, 2026-10-14
 
-### Q16 — What identifies the shape of the document a decide session returns? (Decided by the author on 2026-10-14; not reopened.)
+### Q16 — The renderer changes §9 (ids, a 9b section, a decision log), and agreement compares the body with the sidecar's rendering. How does an untouched older artifact agree with its sidecar? (Decided by the author on 2026-10-14; not reopened.)
 
-- The answer takes the sidecar form: `$schema` first, naming the document format at its current shape. Any other stamp, or none, is refused by name and never lifted. — abandons: one answer form across authoring and decide: authoring keeps answering `version: 1`, while decide answers with `$schema`
-- The answer takes the authoring form, `version: 1` then the document, decoded by the authoring contract. — abandons: naming the shape the answer was written against: an answer in an older document shape fails only as schema-invalid, never refused by name as the provider-answer rule requires
+- frozen-layout — For a sidecar stamped below the new shape, agreement compares the body with that shape's rendering: today's §9 layout is kept for this check only. The first decide that writes the artifact re-renders it in the new layout, under the operator's diff review. — abandons: one rendering per document: the 0.17.0 §9 layout stays in phax for as long as such sidecars are read
+- older-shape-state — Agreement gains a fourth value, `older shape`. Approve refuses it, naming decide, which re-renders even with nothing to decide. — abandons: detecting a hand edit on an older-shape body, which decide's re-render would then overwrite unseen, and approving an in-flight artifact in place
+- migrate-command — A one-time command lifts and re-renders every live sidecar and body, and approval refuses until it has run, like `migrate-approvals`. — abandons: approval continuity: re-rendering an Approved artifact edits it after its approval, so its record no longer matches and its bound plans go stale
 
-Recommendation: The answer takes the sidecar form: `$schema` first, naming the document format at its current shape. Any other stamp, or none, is refused by name and never lifted. — Decided by the author on 2026-10-14, as recommended. The revised document is a provider answer, and the rule decided on 2026-10-08 is that before 1.0 an answer in an older shape is refused by name. The session reads the sidecar in its file form and returns it in the same form, so its `$schema` says which shape it answered against. Aligning the authoring answer's `version: 1` is not this spec's job.
+Recommendation: migrate-command — Decided by the author on 2026-10-14, against the recommendation (`frozen-layout`). A document has one rendering: no 0.17.0 §9 layout is kept for agreement. `phax artifact migrate-documents`, beside `migrate-approvals`, lifts every live spec and plan sidecar stamped below the new document shapes by Q15's rule, writes it at the current shape and re-renders its body in the new layout, once, in one path-scoped commit. Until it has run, approve, reopen and decide refuse, naming it, as the approval commands refuse while an old approvals ledger exists. A hand edit is never overwritten unseen: the command alone reads a body against its sidecar's own-shape rendering, and it refuses, writing nothing, when they differ or the sidecar is invalid. The loss is accepted: re-rendering an Approved artifact edits it after its approval, so a migrated Approved spec reads edited since approval and its bound plans go stale (`spec-changed`). The command says so, naming each artifact. A 0.20.0 plan's body does not change, because its question sections render only when non-empty.
+
+Decision: migrate-command — lifted, unattributed, 2026-10-14
+
+### Q17 — How is a question named in the Markdown and on the command line, given that the renderer numbers headings by position and prints option labels, not ids? (Decided by the author on 2026-10-14; not reopened.)
+
+- ids — Headings render the question id (`### <id> — <question>`), and option bullets and the `Recommendation:` line open with option ids. `--question`, status, refusals and the decision log name ids. — abandons: today's short positional headings: a question whose id is `q-release-name` is headed by that id, and every live headless spec's §9 changes when `migrate-documents` re-renders it
+- positional — Keep `Q<n>` by position, counted across the open section and then the arbitrated one. — abandons: a stable name: a heading's number changes when a question moves between sections, which is exactly what decide does, so `--question`, status and the decision log could name a different question after each decide
+
+Recommendation: ids — Decided by the author on 2026-10-14, as recommended. An id is the question's identity in the document, on the command line and in its history (F3: a thing is identified without its location). Hand-authored artifacts already write `Q<n>`, which stays a valid id, and headless sessions choose their own. Existing artifacts change where `migrate-documents` re-renders them (Q16), so the heading change needs no re-render of its own.
+
+Decision: ids — lifted, unattributed, 2026-10-14
+
+### Q18 — What does `phax artifact reopen` do to the live plans bound to an Approved spec? (Decided by the author on 2026-10-14; not reopened.)
+
+- allow — Reopen proceeds and leaves each bound plan as it is, naming it in its output. A plan goes stale (`spec-changed`) once decide rewrites the spec. — abandons: a guard against running a plan whose spec is under reconsideration: between reopen and decide, an Approved plan bound to a Draft spec still reads fresh and can run
+- refuse — Reopen refuses while a live plan names the spec, as completion and abandonment do. — abandons: reconsidering a spec with plans in flight: each plan must first be abandoned, losing plan work even when the verdict changes nothing the plan relies on
+- cascade — Reopen also moves each Approved bound plan to Stale. — abandons: one artifact per gesture: reopen would write other artifacts' frontmatter, and its write-set would grow beyond the reopened artifact
+
+Recommendation: allow — Decided by the author on 2026-10-14, as recommended. Staleness already answers this (C1). Reopening changes only `status` and `approved`, which the fingerprint ignores, so a bound plan stays fresh until decide rewrites the spec, and then reads `spec-changed`. Approving a plan against a Draft spec is already refused. Naming the bound plans in reopen's output makes the window visible without adding a guard.
+
+Decision: allow — lifted, unattributed, 2026-10-14
+
+### Q19 — What identifies the shape of the document a decide session returns? (Decided by the author on 2026-10-14; not reopened.)
+
+- schema-stamped — The answer takes the sidecar form: `$schema` first, naming the document format at its current shape. Any other stamp, or none, is refused by name and never lifted. — abandons: one answer form across authoring and decide: authoring keeps answering `version: 1`, while decide answers with `$schema`
+- version-one — The answer takes the authoring form, `version: 1` then the document, decoded by the authoring contract. — abandons: naming the shape the answer was written against: an answer in an older document shape fails only as schema-invalid, never refused by name as the provider-answer rule requires
+
+Recommendation: schema-stamped — Decided by the author on 2026-10-14, as recommended. The revised document is a provider answer, and the rule decided on 2026-10-08 is that before 1.0 an answer in an older shape is refused by name. The session reads the sidecar in its file form and returns it in the same form, so its `$schema` says which shape it answered against. Aligning the authoring answer's `version: 1` is not this spec's job.
+
+Decision: schema-stamped — lifted, unattributed, 2026-10-14
 
 ## 10. Implementation-planning note
 
@@ -1144,3 +1180,22 @@ phax artifact decide docs/specs/2609251400-plan-prune.md          # framing F1�
 phax artifact approve docs/specs/2609251400-plan-prune.md --by operator
 phax artifact reopen docs/specs/2609251400-plan-prune.md --by operator     # back to Draft to reconsider
 phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1     # re-arbitrate one question; the old verdict stays in its history
+
+## 12. Decision log
+
+- 2026-09-28 Q1 lifted reopen-draft — unattributed
+- 2026-09-28 Q2 lifted add — unattributed
+- 2026-09-28 Q3 lifted by-tty — unattributed
+- 2026-09-28 Q6 lifted hand-format — unattributed
+- 2026-09-28 Q8 lifted question-flag — unattributed
+- 2026-09-28 Q9 lifted all — unattributed
+- 2026-09-28 Q10 lifted decision-line — unattributed
+- 2026-09-29 Q11 lifted two-sections — unattributed
+- 2026-09-29 Q12 lifted session — unattributed
+- 2026-09-29 Q14 lifted interactive-only — unattributed
+- 2026-10-14 Q4 lifted lift — unattributed
+- 2026-10-14 Q15 lifted marked-move — unattributed
+- 2026-10-14 Q16 lifted migrate-command — unattributed
+- 2026-10-14 Q17 lifted ids — unattributed
+- 2026-10-14 Q18 lifted allow — unattributed
+- 2026-10-14 Q19 lifted schema-stamped — unattributed

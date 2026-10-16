@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
   "kind": "spec",
   "title": "Review as a plan — headless code review, review-plan, run --append",
   "ground": [
@@ -982,7 +982,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "Q1",
       "question": "Do `info` findings accumulate across passes in the handoff note?",
@@ -1009,7 +1010,22 @@
         }
       ],
       "recommendation": "whole-change",
-      "rationale": "Decided by the author on 2026-09-28, off the previous menu. The code review covers the run's whole change set, not a pass or a phase, so the handoff note is one deduplicated list and needs no pass of origin."
+      "rationale": "Decided by the author on 2026-09-28, off the previous menu. The code review covers the run's whole change set, not a pass or a phase, so the handoff note is one deduplicated list and needs no pass of origin.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "whole-change",
+        "abandoned": [
+          "per-pass",
+          "dedupe",
+          "last-only"
+        ],
+        "why": "Decided by the author on 2026-09-28, off the previous menu. The code review covers the run's whole change set, not a pass or a phase, so the handoff note is one deduplicated list and needs no pass of origin.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q2",
@@ -1032,7 +1048,21 @@
         }
       ],
       "recommendation": "phase",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. Phase ids are unique within a run, and `pass.json` plus the review plan map every appended phase to its pass and findings. The attribution can therefore be derived without touching a persisted format (C1: the existing record before a new one)."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. Phase ids are unique within a run, and `pass.json` plus the review plan map every appended phase to its pass and findings. The attribution can therefore be derived without touching a persisted format (C1: the existing record before a new one).",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "phase",
+        "abandoned": [
+          "extend-record",
+          "artifact-level"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. Phase ids are unique within a run, and `pass.json` plus the review plan map every appended phase to its pass and findings. The attribution can therefore be derived without touching a persisted format (C1: the existing record before a new one).",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q3",
@@ -1055,7 +1085,21 @@
         }
       ],
       "recommendation": "resume",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. Interactive review-plan is where escalations get settled and where a human takes over after the bound. Both need the review's memory. `pass.json` records `mode: interactive`, and each decision names its arbiter, so the mixed transcript stays attributable (E0)."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. Interactive review-plan is where escalations get settled and where a human takes over after the bound. Both need the review's memory. `pass.json` records `mode: interactive`, and each decision names its arbiter, so the mixed transcript stays attributable (E0).",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "resume",
+        "abandoned": [
+          "fresh",
+          "no"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. Interactive review-plan is where escalations get settled and where a human takes over after the bound. Both need the review's memory. `pass.json` records `mode: interactive`, and each decision names its arbiter, so the mixed transcript stays attributable (E0).",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q4",
@@ -1078,7 +1122,21 @@
         }
       ],
       "recommendation": "plans-ledger",
-      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (the pass record). A review plan is a plan like any other: it lives under `docs/plans/`, is approved in the one ledger, and reads in the PR. The cost is accepted: each pass adds its plan and approval commits to the run branch."
+      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (the pass record). A review plan is a plan like any other: it lives under `docs/plans/`, is approved in the one ledger, and reads in the PR. The cost is accepted: each pass adds its plan and approval commits to the run branch.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "plans-ledger",
+        "abandoned": [
+          "pass-record",
+          "implicit"
+        ],
+        "why": "Decided by the author on 2026-09-28, against the previous recommendation (the pass record). A review plan is a plan like any other: it lives under `docs/plans/`, is approved in the one ledger, and reads in the PR. The cost is accepted: each pass adds its plan and approval commits to the run branch.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q5",
@@ -1101,7 +1159,21 @@
         }
       ],
       "recommendation": "none",
-      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (a path convention). No convention is built only to be replaced: the compliance review checks R4 until the oracle-separation lint lands. The cost is accepted: no mechanical guarantee in the meantime."
+      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (a path convention). No convention is built only to be replaced: the compliance review checks R4 until the oracle-separation lint lands. The cost is accepted: no mechanical guarantee in the meantime.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "none",
+        "abandoned": [
+          "convention",
+          "config"
+        ],
+        "why": "Decided by the author on 2026-09-28, against the previous recommendation (a path convention). No convention is built only to be replaced: the compliance review checks R4 until the oracle-separation lint lands. The cost is accepted: no mechanical guarantee in the meantime.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q6",
@@ -1119,7 +1191,20 @@
         }
       ],
       "recommendation": "block",
-      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (no block). A human sees every escalation before the pass's fixes land, as artifact-decide blocks an artifact with an escalated question. The cost is accepted: one escalation stops the unattended loop until an operator answers it. Restated on 2026-09-29, when machine decisions went (artifact-decide Q14): a finding a headless plan leaves unfixed is `awaiting` and blocks approval, append and the loop, as the author chose."
+      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (no block). A human sees every escalation before the pass's fixes land, as artifact-decide blocks an artifact with an escalated question. The cost is accepted: one escalation stops the unattended loop until an operator answers it. Restated on 2026-09-29, when machine decisions went (artifact-decide Q14): a finding a headless plan leaves unfixed is `awaiting` and blocks approval, append and the loop, as the author chose.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "block",
+        "abandoned": [
+          "no-block"
+        ],
+        "why": "Decided by the author on 2026-09-28, against the previous recommendation (no block). A human sees every escalation before the pass's fixes land, as artifact-decide blocks an artifact with an escalated question. The cost is accepted: one escalation stops the unattended loop until an operator answers it. Restated on 2026-09-29, when machine decisions went (artifact-decide Q14): a finding a headless plan leaves unfixed is `awaiting` and blocks approval, append and the loop, as the author chose.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q7",
@@ -1137,7 +1222,20 @@
         }
       ],
       "recommendation": "committed",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. `committed` is a condition phax verifies itself (C4), with no model call. The next pass sees prior outcomes in its brief and reports what still fails as a new finding, so a false `fixed` stays visible in the review-passes table instead of being hidden."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. `committed` is a condition phax verifies itself (C4), with no model call. The next pass sees prior outcomes in its brief and reports what still fails as a new finding, so a false `fixed` stays visible in the review-passes table instead of being hidden.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "committed",
+        "abandoned": [
+          "confirmed"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. `committed` is a condition phax verifies itself (C4), with no model call. The next pass sees prior outcomes in its brief and reports what still fails as a new finding, so a false `fixed` stays visible in the review-passes table instead of being hidden.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q8",
@@ -1155,7 +1253,20 @@
         }
       ],
       "recommendation": "awaiting",
-      "rationale": "Decided by the author on 2026-09-29, the same logic as artifact-decide: a machine writes the fixes, the operator decides."
+      "rationale": "Decided by the author on 2026-09-29, the same logic as artifact-decide: a machine writes the fixes, the operator decides.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "awaiting",
+        "abandoned": [
+          "machine-escalates"
+        ],
+        "why": "Decided by the author on 2026-09-29, the same logic as artifact-decide: a machine writes the fixes, the operator decides.",
+        "at": "2026-09-29",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     }
   ],
   "planningNote": {

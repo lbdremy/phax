@@ -851,69 +851,89 @@ Given The same run, with a handoff larger than 60,000 bytes., when `phax publish
 
 Given A run with no pass and no recorded decision., when `phax publish-pr <run>` builds the body., then `pr-body.md` is byte-identical to the body built before this change. (refs §5.59)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
+
+None.
+
+## 9b. Arbitrated questions
 
 ### Q1 — Do `info` findings accumulate across passes in the handoff note?
 
-- Each pass lists its own info findings in its own handoff note — abandons: A single list the human reads once: the same style note repeats on every pass
-- One handoff note, deduplicated by file and message across passes, each entry tagged with the first pass that raised it (doctrine R7) — abandons: Seeing directly that a later pass still raised the note
-- Only the last pass's info findings — abandons: Earlier passes' style notes, which vanish silently, against R6 and R7
-- One list over the run's whole change set, deduplicated by file and message, with no pass or phase tag — abandons: Knowing which pass raised a note: the review judges the whole change set, so a note's pass of origin tells the reader nothing they need
+- per-pass — Each pass lists its own info findings in its own handoff note — abandons: A single list the human reads once: the same style note repeats on every pass
+- dedupe — One handoff note, deduplicated by file and message across passes, each entry tagged with the first pass that raised it (doctrine R7) — abandons: Seeing directly that a later pass still raised the note
+- last-only — Only the last pass's info findings — abandons: Earlier passes' style notes, which vanish silently, against R6 and R7
+- whole-change — One list over the run's whole change set, deduplicated by file and message, with no pass or phase tag — abandons: Knowing which pass raised a note: the review judges the whole change set, so a note's pass of origin tells the reader nothing they need
 
-Recommendation: One list over the run's whole change set, deduplicated by file and message, with no pass or phase tag — Decided by the author on 2026-09-28, off the previous menu. The code review covers the run's whole change set, not a pass or a phase, so the handoff note is one deduplicated list and needs no pass of origin.
+Recommendation: whole-change — Decided by the author on 2026-09-28, off the previous menu. The code review covers the run's whole change set, not a pass or a phase, so the handoff note is one deduplicated list and needs no pass of origin.
+
+Decision: whole-change — lifted, unattributed, 2026-09-28
 
 ### Q2 — How is a decision request raised inside an appended phase attributed?
 
-- Like any phase: by run id plus phase id. The pass and finding ids are derived from `pass.json` and the phase's `findings` — abandons: Reading the pass and finding ids in the request itself, without a lookup
-- Add the pass and finding ids to the decision-request record — abandons: An unchanged spec 23 record: a persisted format gains a required field
-- Attribute it to the review plan as an artifact-level question — abandons: Answering the request in its phase's context and resuming the phase from it
+- phase — Like any phase: by run id plus phase id. The pass and finding ids are derived from `pass.json` and the phase's `findings` — abandons: Reading the pass and finding ids in the request itself, without a lookup
+- extend-record — Add the pass and finding ids to the decision-request record — abandons: An unchanged spec 23 record: a persisted format gains a required field
+- artifact-level — Attribute it to the review plan as an artifact-level question — abandons: Answering the request in its phase's context and resuming the phase from it
 
-Recommendation: Like any phase: by run id plus phase id. The pass and finding ids are derived from `pass.json` and the phase's `findings` — Decided by the author on 2026-09-28, as recommended. Phase ids are unique within a run, and `pass.json` plus the review plan map every appended phase to its pass and findings. The attribution can therefore be derived without touching a persisted format (C1: the existing record before a new one).
+Recommendation: phase — Decided by the author on 2026-09-28, as recommended. Phase ids are unique within a run, and `pass.json` plus the review plan map every appended phase to its pass and findings. The attribution can therefore be derived without touching a persisted format (C1: the existing record before a new one).
+
+Decision: phase — lifted, unattributed, 2026-09-28
 
 ### Q3 — May `review-plan` run interactively on a run whose review was headless?
 
-- Yes, resuming the headless review session in a terminal — abandons: A machine-only transcript for a session the loop started: the records mix machine and human turns
-- Yes, in a fresh session given `code-review.json` — abandons: The review's memory of why each finding was raised, which is exactly what settling an escalation needs
-- No — abandons: The only way an operator settles an escalated finding or takes over a pass the loop left unappended
+- resume — Yes, resuming the headless review session in a terminal — abandons: A machine-only transcript for a session the loop started: the records mix machine and human turns
+- fresh — Yes, in a fresh session given `code-review.json` — abandons: The review's memory of why each finding was raised, which is exactly what settling an escalation needs
+- no — No — abandons: The only way an operator settles an escalated finding or takes over a pass the loop left unappended
 
-Recommendation: Yes, resuming the headless review session in a terminal — Decided by the author on 2026-09-28, as recommended. Interactive review-plan is where escalations get settled and where a human takes over after the bound. Both need the review's memory. `pass.json` records `mode: interactive`, and each decision names its arbiter, so the mixed transcript stays attributable (E0).
+Recommendation: resume — Decided by the author on 2026-09-28, as recommended. Interactive review-plan is where escalations get settled and where a human takes over after the bound. Both need the review's memory. `pass.json` records `mode: interactive`, and each decision names its arbiter, so the mixed transcript stays attributable (E0).
+
+Decision: resume — lifted, unattributed, 2026-09-28
 
 ### Q4 — Where is a review plan's approval recorded, and how is a machine approval marked?
 
-- `phax artifact approve` accepts the review plan in the run directory. `approvedBy` is recorded in `pass.json` in the artifact-decide form: `{ kind: machine, grant }` from `--by machine:<grant>`, or grant `review.code.append` for the loop, or `{ kind: operator, name }` — abandons: A single approvals ledger in the repository: review-plan approvals live with the run and its records, not in `docs/plans/approvals.json`
-- Commit the review plan under `docs/plans/` on the run branch and approve it like any plan — abandons: A run branch that carries only the work: every pass adds bookkeeping to the PR, and the approval commit must land on the run branch rather than the checkout
-- No separate approval: invoking `run --append` is the approval — abandons: The 'plan not Approved' refusal, and a machine approval that can be told apart from an operator's
+- pass-record — `phax artifact approve` accepts the review plan in the run directory. `approvedBy` is recorded in `pass.json` in the artifact-decide form: `{ kind: machine, grant }` from `--by machine:<grant>`, or grant `review.code.append` for the loop, or `{ kind: operator, name }` — abandons: A single approvals ledger in the repository: review-plan approvals live with the run and its records, not in `docs/plans/approvals.json`
+- plans-ledger — Commit the review plan under `docs/plans/` on the run branch and approve it like any plan — abandons: A run branch that carries only the work: every pass adds bookkeeping to the PR, and the approval commit must land on the run branch rather than the checkout
+- implicit — No separate approval: invoking `run --append` is the approval — abandons: The 'plan not Approved' refusal, and a machine approval that can be told apart from an operator's
 
-Recommendation: Commit the review plan under `docs/plans/` on the run branch and approve it like any plan — Decided by the author on 2026-09-28, against the previous recommendation (the pass record). A review plan is a plan like any other: it lives under `docs/plans/`, is approved in the one ledger, and reads in the PR. The cost is accepted: each pass adds its plan and approval commits to the run branch.
+Recommendation: plans-ledger — Decided by the author on 2026-09-28, against the previous recommendation (the pass record). A review plan is a plan like any other: it lives under `docs/plans/`, is approved in the one ledger, and reads in the PR. The cost is accepted: each pass adds its plan and approval commits to the run branch.
+
+Decision: plans-ledger — lifted, unattributed, 2026-09-28
 
 ### Q5 — How does `--append` identify oracle files before the oracle-separation lint exists?
 
-- A built-in convention (`*.test.*`, `*.spec.*`, files under `tests/` or `__fixtures__/`), replaced by the lint when it lands — abandons: Oracles outside the convention (matrices, fixtures elsewhere), which only compliance guards until the lint lands
-- No refusal until the lint exists; compliance alone checks R4 — abandons: The mechanical guarantee that a fix never edits what judges it, which the first consumer relies on from its first pass
-- A declared glob list in `phax.json` (`review.code.oracles`) — abandons: Zero configuration: it adds one more config key right before the 1.0 freeze, which the lint would then duplicate
+- convention — A built-in convention (`*.test.*`, `*.spec.*`, files under `tests/` or `__fixtures__/`), replaced by the lint when it lands — abandons: Oracles outside the convention (matrices, fixtures elsewhere), which only compliance guards until the lint lands
+- none — No refusal until the lint exists; compliance alone checks R4 — abandons: The mechanical guarantee that a fix never edits what judges it, which the first consumer relies on from its first pass
+- config — A declared glob list in `phax.json` (`review.code.oracles`) — abandons: Zero configuration: it adds one more config key right before the 1.0 freeze, which the lint would then duplicate
 
-Recommendation: No refusal until the lint exists; compliance alone checks R4 — Decided by the author on 2026-09-28, against the previous recommendation (a path convention). No convention is built only to be replaced: the compliance review checks R4 until the oracle-separation lint lands. The cost is accepted: no mechanical guarantee in the meantime.
+Recommendation: none — Decided by the author on 2026-09-28, against the previous recommendation (a path convention). No convention is built only to be replaced: the compliance review checks R4 until the oracle-separation lint lands. The cost is accepted: no mechanical guarantee in the meantime.
+
+Decision: none — lifted, unattributed, 2026-09-28
 
 ### Q6 — Does an escalated finding block approval and append of the review plan that carries it?
 
-- No: the plan is approved and appended, and the escalation is reported in the output, `phax ls`, `artifact status` and the PR's decisions table — abandons: A human seeing each escalation before the pass's fixes land
-- Yes, as `artifact-decide` blocks approval of an artifact with escalated questions — abandons: An unattended loop: a single escalated finding stalls every fix of its pass until a human answers
+- no-block — No: the plan is approved and appended, and the escalation is reported in the output, `phax ls`, `artifact status` and the PR's decisions table — abandons: A human seeing each escalation before the pass's fixes land
+- block — Yes, as `artifact-decide` blocks approval of an artifact with escalated questions — abandons: An unattended loop: a single escalated finding stalls every fix of its pass until a human answers
 
-Recommendation: Yes, as `artifact-decide` blocks approval of an artifact with escalated questions — Decided by the author on 2026-09-28, against the previous recommendation (no block). A human sees every escalation before the pass's fixes land, as artifact-decide blocks an artifact with an escalated question. The cost is accepted: one escalation stops the unattended loop until an operator answers it. Restated on 2026-09-29, when machine decisions went (artifact-decide Q14): a finding a headless plan leaves unfixed is `awaiting` and blocks approval, append and the loop, as the author chose.
+Recommendation: block — Decided by the author on 2026-09-28, against the previous recommendation (no block). A human sees every escalation before the pass's fixes land, as artifact-decide blocks an artifact with an escalated question. The cost is accepted: one escalation stops the unattended loop until an operator answers it. Restated on 2026-09-29, when machine decisions went (artifact-decide Q14): a finding a headless plan leaves unfixed is `awaiting` and blocks approval, append and the loop, as the author chose.
+
+Decision: block — lifted, unattributed, 2026-09-28
 
 ### Q7 — When is a finding `fixed`?
 
-- When an appended phase naming it reaches `committed`. The next pass's brief lists it as fixed, and a recurrence is a new finding — abandons: Verified-fix semantics: a `fixed` count can include a fix that the next review would re-raise as a new finding
-- Only when the next pass's review does not re-raise it — abandons: Determinism and the last pass: the outcome depends on a model's re-judgement, and after the bound a fix is never confirmed
+- committed — When an appended phase naming it reaches `committed`. The next pass's brief lists it as fixed, and a recurrence is a new finding — abandons: Verified-fix semantics: a `fixed` count can include a fix that the next review would re-raise as a new finding
+- confirmed — Only when the next pass's review does not re-raise it — abandons: Determinism and the last pass: the outcome depends on a model's re-judgement, and after the bound a fix is never confirmed
 
-Recommendation: When an appended phase naming it reaches `committed`. The next pass's brief lists it as fixed, and a recurrence is a new finding — Decided by the author on 2026-09-28, as recommended. `committed` is a condition phax verifies itself (C4), with no model call. The next pass sees prior outcomes in its brief and reports what still fails as a new finding, so a false `fixed` stays visible in the review-passes table instead of being hidden.
+Recommendation: committed — Decided by the author on 2026-09-28, as recommended. `committed` is a condition phax verifies itself (C4), with no model call. The next pass sees prior outcomes in its brief and reports what still fails as a new finding, so a false `fixed` stays visible in the review-passes table instead of being hidden.
+
+Decision: committed — lifted, unattributed, 2026-09-28
 
 ### Q8 — Does a headless review plan decide the findings it does not fix?
 
-- No: it only plans fixes; an unfixed finding becomes `awaiting` and is decided in interactive mode — abandons: an unattended loop that classifies findings
-- Machine decisions that always escalate (the previous design) — abandons: one decision model across decide and review-plan
+- awaiting — No: it only plans fixes; an unfixed finding becomes `awaiting` and is decided in interactive mode — abandons: an unattended loop that classifies findings
+- machine-escalates — Machine decisions that always escalate (the previous design) — abandons: one decision model across decide and review-plan
 
-Recommendation: No: it only plans fixes; an unfixed finding becomes `awaiting` and is decided in interactive mode — Decided by the author on 2026-09-29, the same logic as artifact-decide: a machine writes the fixes, the operator decides.
+Recommendation: awaiting — Decided by the author on 2026-09-29, the same logic as artifact-decide: a machine writes the fixes, the operator decides.
+
+Decision: awaiting — lifted, unattributed, 2026-09-29
 
 ## 10. Implementation-planning note
 
@@ -967,3 +987,14 @@ Example: Automatic: in `phax.json`, set "review": { "compliance": { "enabled": t
 4. Read the plan, then `phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md`
 5. `phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md`
 6. `phax review-plan usage-cli` (interactive) to decide awaiting findings, then repeat or `phax publish-pr usage-cli`.
+
+## 12. Decision log
+
+- 2026-09-28 Q1 lifted whole-change — unattributed
+- 2026-09-28 Q2 lifted phase — unattributed
+- 2026-09-28 Q3 lifted resume — unattributed
+- 2026-09-28 Q4 lifted plans-ledger — unattributed
+- 2026-09-28 Q5 lifted none — unattributed
+- 2026-09-28 Q6 lifted block — unattributed
+- 2026-09-28 Q7 lifted committed — unattributed
+- 2026-09-29 Q8 lifted awaiting — unattributed

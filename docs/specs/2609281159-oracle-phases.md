@@ -556,46 +556,60 @@ Given an oracle pair run with a filesystem port that records every read, and a g
 
 Given a phax.json gate profile with a step `{ "command": "pnpm test", "surface": "oracle", "firing": "every-phase" }`, when `phax validate` runs, then `phax run --plan <plan>`, then both exit 2 naming the step and the reserved `oracle` surface, and no run is created. (refs §5.22)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
+
+None.
+
+## 9b. Arbitrated questions
 
 ### Q1 — What is the plan syntax for the oracle declaration?
 
-- A bold header line on the oracle phase, `**Oracle phase:** yes` or `**Oracle phase:** discharged by phase-NN`, beside Recommended model/effort — abandons: Seeing the role in the discharging phase's own section: it is derived, and shown only by lint, the prompt and the handoff
-- A bold line on the discharging phase, `**Discharges oracles of:** phase-NN` — abandons: The next-phase default the brief decided, and any mark on the oracle phase itself, which is where the agent writes the oracles
-- An `### Oracle role` subsection on both phases — abandons: A single source for the pair: it is declared twice, and lint needs one more rule to check that the halves agree
+- oracle-side-line — A bold header line on the oracle phase, `**Oracle phase:** yes` or `**Oracle phase:** discharged by phase-NN`, beside Recommended model/effort — abandons: Seeing the role in the discharging phase's own section: it is derived, and shown only by lint, the prompt and the handoff
+- discharge-side-line — A bold line on the discharging phase, `**Discharges oracles of:** phase-NN` — abandons: The next-phase default the brief decided, and any mark on the oracle phase itself, which is where the agent writes the oracles
+- both-subsections — An `### Oracle role` subsection on both phases — abandons: A single source for the pair: it is declared twice, and lint needs one more rule to check that the halves agree
 
-Recommendation: A bold header line on the oracle phase, `**Oracle phase:** yes` or `**Oracle phase:** discharged by phase-NN`, beside Recommended model/effort — Decided by the author on 2026-09-28, as recommended. Losing the discharge-side mark is acceptable: phax derives it and shows it in the prompt, lint and handoff. The alternatives give up the decided default or a single source for the pair. The line also reuses the header paragraph the deterministic parser already reads.
+Recommendation: oracle-side-line — Decided by the author on 2026-09-28, as recommended. Losing the discharge-side mark is acceptable: phax derives it and shows it in the prompt, lint and handoff. The alternatives give up the decided default or a single source for the pair. The line also reuses the header paragraph the deterministic parser already reads.
+
+Decision: oracle-side-line — lifted, unattributed, 2026-09-28
 
 ### Q2 — May a discharge span several phases?
 
-- Exactly one discharging phase per oracle phase: one-to-one pairs, and no phase in both roles — abandons: Plans that implement one oracle set over several phases, each lifting part of the markers. Such plans must split their oracles into one oracle phase per implementing phase.
-- Several discharging phases, each naming the oracle files it discharges — abandons: A single gate where 'every marker is gone' is proved. It adds a per-file discharge mapping to the plan syntax and a partial-discharge mode to the provider contract, which the first consumer does not need.
+- one-designated — Exactly one discharging phase per oracle phase: one-to-one pairs, and no phase in both roles — abandons: Plans that implement one oracle set over several phases, each lifting part of the markers. Such plans must split their oracles into one oracle phase per implementing phase.
+- several-partial — Several discharging phases, each naming the oracle files it discharges — abandons: A single gate where 'every marker is gone' is proved. It adds a per-file discharge mapping to the plan syntax and a partial-discharge mode to the provider contract, which the first consumer does not need.
 
-Recommendation: Exactly one discharging phase per oracle phase: one-to-one pairs, and no phase in both roles — Decided by the author on 2026-09-28, as recommended. The first consumer's conductor plans one oracle phase and one implementing phase per surface. Splitting the oracles is a planning cost, while partial discharge weakens the guarantee itself. The one-to-one pairing can be relaxed additively later.
+Recommendation: one-designated — Decided by the author on 2026-09-28, as recommended. The first consumer's conductor plans one oracle phase and one implementing phase per surface. Splitting the oracles is a planning cost, while partial discharge weakens the guarantee itself. The one-to-one pairing can be relaxed additively later.
+
+Decision: one-designated — lifted, unattributed, 2026-09-28
 
 ### Q3 — Is an oracle phase with no provider registered a lint error, or does it run without the check?
 
-- Lint error, and `run`/`resume` refuse in exit family 2 — abandons: Linting or running an oracle-first plan in a repo before its provider exists, which is steme-lab's situation until steme ships
-- Lint warning; the run proceeds without the oracle step — abandons: The guarantee the plan declared: the discharging phase could edit or delete oracles unchecked while the plan still reads as oracle-first
-- Lint warning, but `run` refuses — abandons: The rule that a lint-clean plan is one phax will run: a plan with no lint error could still be refused at run time
+- error-and-refuse — Lint error, and `run`/`resume` refuse in exit family 2 — abandons: Linting or running an oracle-first plan in a repo before its provider exists, which is steme-lab's situation until steme ships
+- warn-and-run — Lint warning; the run proceeds without the oracle step — abandons: The guarantee the plan declared: the discharging phase could edit or delete oracles unchecked while the plan still reads as oracle-first
+- warn-and-refuse — Lint warning, but `run` refuses — abandons: The rule that a lint-clean plan is one phax will run: a plan with no lint error could still be refused at run time
 
-Recommendation: Lint error, and `run`/`resume` refuse in exit family 2 — Decided by the author on 2026-09-28, as recommended. The lost capability is one nobody may use yet: it was decided that no plan declares an oracle phase before steme's provider ships. Running unchecked would quietly break exactly the separation the declaration promises.
+Recommendation: error-and-refuse — Decided by the author on 2026-09-28, as recommended. The lost capability is one nobody may use yet: it was decided that no plan declares an oracle phase before steme's provider ships. Running unchecked would quietly break exactly the separation the declaration promises.
+
+Decision: error-and-refuse — lifted, unattributed, 2026-09-28
 
 ### Q4 — Under which surface is the oracle verdict recorded?
 
-- `structural` — abandons: Telling the oracle verdict apart from other structural steps by surface alone: only the command string distinguishes it in attribution and records
-- `local` — abandons: The meaning of `local` as the project's own fast checks, such as unit tests. The verdict judges the shape of the change, not a local run.
-- A new `oracle` surface value — abandons: The closed three-value surface enum persisted in gate-attribution.json, run records and the run summary. It widens just before the 1.0 freeze, with a value no configured step may use.
+- structural — `structural` — abandons: Telling the oracle verdict apart from other structural steps by surface alone: only the command string distinguishes it in attribution and records
+- local — `local` — abandons: The meaning of `local` as the project's own fast checks, such as unit tests. The verdict judges the shape of the change, not a local run.
+- new-oracle-surface — A new `oracle` surface value — abandons: The closed three-value surface enum persisted in gate-attribution.json, run records and the run summary. It widens just before the 1.0 freeze, with a value no configured step may use.
 
-Recommendation: A new `oracle` surface value — Decided by the author on 2026-09-28, against the previous recommendation (`structural`). The oracle verdict reads apart from every other step by its surface alone, in attribution, records and the run summary. The cost is accepted: the persisted surface enum widens before the 1.0 freeze, and a configured step may not use the new value.
+Recommendation: new-oracle-surface — Decided by the author on 2026-09-28, against the previous recommendation (`structural`). The oracle verdict reads apart from every other step by its surface alone, in attribution, records and the run summary. The cost is accepted: the persisted surface enum widens before the 1.0 freeze, and a configured step may not use the new value.
+
+Decision: new-oracle-surface — lifted, unattributed, 2026-09-28
 
 ### Q5 — Which files are the oracle files?
 
-- All of the oracle phase's planned files to create and edit. Any stub the oracles need to compile against lands in an earlier ordinary phase. — abandons: An oracle phase that also ships the stubs its tests import. A typed project needs one more phase: surface stubs, then oracles, then implementation.
-- The declaration lists the oracle files explicitly, as a subset of the phase's planned files — abandons: A one-line declaration: each oracle file is named twice, and lint needs one more rule for a list that can drift from the planned files
-- phax sends every planned file, and the provider decides which are oracles — abandons: phax's own between-the-pair lint rule, which needs the oracle file set without calling a provider, and the lint staying provider-free for oracles
+- all-planned — All of the oracle phase's planned files to create and edit. Any stub the oracles need to compile against lands in an earlier ordinary phase. — abandons: An oracle phase that also ships the stubs its tests import. A typed project needs one more phase: surface stubs, then oracles, then implementation.
+- explicit-subset — The declaration lists the oracle files explicitly, as a subset of the phase's planned files — abandons: A one-line declaration: each oracle file is named twice, and lint needs one more rule for a list that can drift from the planned files
+- provider-decides — phax sends every planned file, and the provider decides which are oracles — abandons: phax's own between-the-pair lint rule, which needs the oracle file set without calling a provider, and the lint staying provider-free for oracles
 
-Recommendation: The declaration lists the oracle files explicitly, as a subset of the phase's planned files — Decided by the author on 2026-09-28, against the previous recommendation (all planned files). The oracle phase may carry the stubs its tests compile against without making them oracles, so a typed project needs no extra stub phase. The cost is accepted: each oracle file is named twice, and lint checks the list is a subset of the phase's planned files.
+Recommendation: explicit-subset — Decided by the author on 2026-09-28, against the previous recommendation (all planned files). The oracle phase may carry the stubs its tests compile against without making them oracles, so a typed project needs no extra stub phase. The cost is accepted: each oracle file is named twice, and lint checks the list is a subset of the phase's planned files.
+
+Decision: explicit-subset — lifted, unattributed, 2026-09-28
 
 ## 10. Implementation-planning note
 
@@ -636,3 +650,11 @@ Page: README §Oracle provider (under §Configure, after §Scope provider), plus
 Reader: A project owner registering a test-first provider such as `steme oracles`, and a planner writing an oracle-first plan whose tests must be written before the code
 
 Example: phax.json: "oracles": { "command": "steme oracles" }. In plan.md, phase-02 carries `**Oracle phase:** yes` and marks every new or edited test with the runner's expected-failure marker. At phase-02's gate phax sends {"mode":"authored","phase":"phase-02","oraclePhase":"phase-02","base":"3f2a91c…","files":["tests/prune.test.ts"]}. At phase-03's gate it sends mode "discharged" with the phase-02 commit as oracleCommit. The provider answers {"diagnostics": []} to pass, and a failing diagnostic drives the fix loop.
+
+## 12. Decision log
+
+- 2026-09-28 Q1 lifted oracle-side-line — unattributed
+- 2026-09-28 Q2 lifted one-designated — unattributed
+- 2026-09-28 Q3 lifted error-and-refuse — unattributed
+- 2026-09-28 Q4 lifted new-oracle-surface — unattributed
+- 2026-09-28 Q5 lifted explicit-subset — unattributed

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/spec-document/0.17.0.json",
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
   "kind": "spec",
   "title": "Artifact decide — arbitrating a spec's or plan's open questions",
   "ground": [
@@ -1081,7 +1081,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "Q1",
       "question": "May `decide` and a question reopen run on an Approved artifact, and what becomes of its approval? (Decided by the author on 2026-09-28; not reopened.)",
@@ -1108,7 +1109,22 @@
         }
       ],
       "recommendation": "reopen-draft",
-      "rationale": "Decided by the author on 2026-09-28, because an approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen`, extended from Stale plans to Approved specs and plans, is the one gesture back to Draft. The approval is voided visibly, with its record file deleted, instead of lingering as an in-place revision."
+      "rationale": "Decided by the author on 2026-09-28, because an approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen`, extended from Stale plans to Approved specs and plans, is the one gesture back to Draft. The approval is voided visibly, with its record file deleted, instead of lingering as an in-place revision.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "reopen-draft",
+        "abandoned": [
+          "in-place",
+          "back-to-draft",
+          "refuse"
+        ],
+        "why": "Decided by the author on 2026-09-28, because an approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen`, extended from Stale plans to Approved specs and plans, is the one gesture back to Draft. The approval is voided visibly, with its record file deleted, instead of lingering as an in-place revision.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q2",
@@ -1131,7 +1147,21 @@
         }
       ],
       "recommendation": "add",
-      "rationale": "Decided by the author on 2026-09-28, because the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched."
+      "rationale": "Decided by the author on 2026-09-28, because the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "add",
+        "abandoned": [
+          "specs-only",
+          "convert"
+        ],
+        "why": "Decided by the author on 2026-09-28, because the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q3",
@@ -1159,7 +1189,22 @@
         }
       ],
       "recommendation": "by-tty",
-      "rationale": "Decided by the author on 2026-09-28. At a terminal, the operator is the honest default; without one, phax refuses to guess and asks for `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator, a risk accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`, the one non-additive CLI change."
+      "rationale": "Decided by the author on 2026-09-28. At a terminal, the operator is the honest default; without one, phax refuses to guess and asks for `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator, a risk accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`, the one non-additive CLI change.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "by-tty",
+        "abandoned": [
+          "machine-flag",
+          "no-tty",
+          "by-required"
+        ],
+        "why": "Decided by the author on 2026-09-28. At a terminal, the operator is the honest default; without one, phax refuses to guess and asks for `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator, a risk accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`, the one non-additive CLI change.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q4",
@@ -1177,7 +1222,20 @@
         }
       ],
       "recommendation": "lift",
-      "rationale": "Decided by the author on 2026-10-14, as recommended. The 2026-09-28 answer chose refusal when approvals were a shared ledger whose shape had no name. Today a 0.19.0 stamp says exactly which shape a record has, and that no phax before this one recorded an approver. So `unattributed` is a fact phax knows and can write explicitly in the lift (E0), as it writes `retry: \"none\"` for authoring manifests stamped 0.17.0. Neither option reads an old approval as an operator's. The field stays required at the new shape, so the lift is not a shim. The loss is bounded: a lifted record is rewritten at the next approval, and deleted by reopen, completion or abandonment."
+      "rationale": "Decided by the author on 2026-10-14, as recommended. The 2026-09-28 answer chose refusal when approvals were a shared ledger whose shape had no name. Today a 0.19.0 stamp says exactly which shape a record has, and that no phax before this one recorded an approver. So `unattributed` is a fact phax knows and can write explicitly in the lift (E0), as it writes `retry: \"none\"` for authoring manifests stamped 0.17.0. Neither option reads an old approval as an operator's. The field stays required at the new shape, so the lift is not a shim. The loss is bounded: a lifted record is rewritten at the next approval, and deleted by reopen, completion or abandonment.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "lift",
+        "abandoned": [
+          "refuse"
+        ],
+        "why": "Decided by the author on 2026-10-14, as recommended. The 2026-09-28 answer chose refusal when approvals were a shared ledger whose shape had no name. Today a 0.19.0 stamp says exactly which shape a record has, and that no phax before this one recorded an approver. So `unattributed` is a fact phax knows and can write explicitly in the lift (E0), as it writes `retry: \"none\"` for authoring manifests stamped 0.17.0. Neither option reads an old approval as an operator's. The field stays required at the new shape, so the lift is not a shim. The loss is bounded: a lifted record is rewritten at the next approval, and deleted by reopen, completion or abandonment.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q6",
@@ -1200,7 +1258,21 @@
         }
       ],
       "recommendation": "hand-format",
-      "rationale": "Decided by the author on 2026-09-28, because every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically, in the layout the renderer produces, and decide writes only the question blocks and the decision log."
+      "rationale": "Decided by the author on 2026-09-28, because every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically, in the layout the renderer produces, and decide writes only the question blocks and the decision log.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "hand-format",
+        "abandoned": [
+          "refuse",
+          "extract-and-splice"
+        ],
+        "why": "Decided by the author on 2026-09-28, because every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically, in the layout the renderer produces, and decide writes only the question blocks and the decision log.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q8",
@@ -1218,7 +1290,20 @@
         }
       ],
       "recommendation": "question-flag",
-      "rationale": "Decided by the author on 2026-09-28, because with decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own."
+      "rationale": "Decided by the author on 2026-09-28, because with decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "question-flag",
+        "abandoned": [
+          "reopen-flag"
+        ],
+        "why": "Decided by the author on 2026-09-28, because with decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q9",
@@ -1241,7 +1326,21 @@
         }
       ],
       "recommendation": "all",
-      "rationale": "Decided by the author on 2026-09-28, because the choice taken is now recorded in every case, interactively or by hand, so every open question is answered before approval."
+      "rationale": "Decided by the author on 2026-09-28, because the choice taken is now recorded in every case, interactively or by hand, so every open question is answered before approval.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "all",
+        "abandoned": [
+          "sidecar",
+          "arbitrated"
+        ],
+        "why": "Decided by the author on 2026-09-28, because the choice taken is now recorded in every case, interactively or by hand, so every open question is answered before approval.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q10",
@@ -1259,7 +1358,20 @@
         }
       ],
       "recommendation": "decision-line",
-      "rationale": "Decided by the author on 2026-09-28, because the layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document."
+      "rationale": "Decided by the author on 2026-09-28, because the layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "decision-line",
+        "abandoned": [
+          "empty-section"
+        ],
+        "why": "Decided by the author on 2026-09-28, because the layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q11",
@@ -1277,7 +1389,20 @@
         }
       ],
       "recommendation": "two-sections",
-      "rationale": "Decided by the author on 2026-09-29, because an empty open section says there is nothing left to do, and approval checks exactly that."
+      "rationale": "Decided by the author on 2026-09-29, because an empty open section says there is nothing left to do, and approval checks exactly that.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "two-sections",
+        "abandoned": [
+          "one-section"
+        ],
+        "why": "Decided by the author on 2026-09-29, because an empty open section says there is nothing left to do, and approval checks exactly that.",
+        "at": "2026-09-29",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q12",
@@ -1300,7 +1425,21 @@
         }
       ],
       "recommendation": "session",
-      "rationale": "Decided by the author on 2026-09-29, because a headless-authored body is written for its recommendations, and the 2026-09-28 arbitrations had to rewrite requirements, surfaces and criteria by hand wherever the verdict departed."
+      "rationale": "Decided by the author on 2026-09-29, because a headless-authored body is written for its recommendations, and the 2026-09-28 arbitrations had to rewrite requirements, surfaces and criteria by hand wherever the verdict departed.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "session",
+        "abandoned": [
+          "two-steps",
+          "by-hand"
+        ],
+        "why": "Decided by the author on 2026-09-29, because a headless-authored body is written for its recommendations, and the 2026-09-28 arbitrations had to rewrite requirements, surfaces and criteria by hand wherever the verdict departed.",
+        "at": "2026-09-29",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q14",
@@ -1318,7 +1457,20 @@
         }
       ],
       "recommendation": "interactive-only",
-      "rationale": "Decided by the author on 2026-09-29, because pre-arbitration repeats what authoring already did and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from."
+      "rationale": "Decided by the author on 2026-09-29, because pre-arbitration repeats what authoring already did and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "interactive-only",
+        "abandoned": [
+          "pre-arbitration"
+        ],
+        "why": "Decided by the author on 2026-09-29, because pre-arbitration repeats what authoring already did and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from.",
+        "at": "2026-09-29",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q15",
@@ -1341,7 +1493,21 @@
         }
       ],
       "recommendation": "marked-move",
-      "rationale": "Decided by the author on 2026-10-14, as recommended. The rule is corrected: the third draft required both the question suffix and the rationale prefix, but the two other in-flight specs, `headless-review` and `oracle-phases`, mark their 13 decided questions with the rationale prefix alone, so the rationale is the marker. Where the author decided against a recommendation, `recommendation` was rewritten to the option chosen (`oracle-phases` reads \"against the previous recommendation (`structural`)\" beside `recommendation: new-oracle-surface`), so the recommendation is the choice. The marker is the only record of these decisions. Lifting it keeps the author's decisions decided without inventing what was never recorded: a lifted verdict holds only what the marker and the question carry, names no arbiter, and keeps the marker's date (E0). An exact prefix match is conservative: a question that does not match stays open, which costs one decide, never a false decision. Completed and Abandoned artifacts are never approved again, so the lift matters only for artifacts still in flight."
+      "rationale": "Decided by the author on 2026-10-14, as recommended. The rule is corrected: the third draft required both the question suffix and the rationale prefix, but the two other in-flight specs, `headless-review` and `oracle-phases`, mark their 13 decided questions with the rationale prefix alone, so the rationale is the marker. Where the author decided against a recommendation, `recommendation` was rewritten to the option chosen (`oracle-phases` reads \"against the previous recommendation (`structural`)\" beside `recommendation: new-oracle-surface`), so the recommendation is the choice. The marker is the only record of these decisions. Lifting it keeps the author's decisions decided without inventing what was never recorded: a lifted verdict holds only what the marker and the question carry, names no arbiter, and keeps the marker's date (E0). An exact prefix match is conservative: a question that does not match stays open, which costs one decide, never a false decision. Completed and Abandoned artifacts are never approved again, so the lift matters only for artifacts still in flight.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "marked-move",
+        "abandoned": [
+          "all-open",
+          "refuse-migrate"
+        ],
+        "why": "Decided by the author on 2026-10-14, as recommended. The rule is corrected: the third draft required both the question suffix and the rationale prefix, but the two other in-flight specs, `headless-review` and `oracle-phases`, mark their 13 decided questions with the rationale prefix alone, so the rationale is the marker. Where the author decided against a recommendation, `recommendation` was rewritten to the option chosen (`oracle-phases` reads \"against the previous recommendation (`structural`)\" beside `recommendation: new-oracle-surface`), so the recommendation is the choice. The marker is the only record of these decisions. Lifting it keeps the author's decisions decided without inventing what was never recorded: a lifted verdict holds only what the marker and the question carry, names no arbiter, and keeps the marker's date (E0). An exact prefix match is conservative: a question that does not match stays open, which costs one decide, never a false decision. Completed and Abandoned artifacts are never approved again, so the lift matters only for artifacts still in flight.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q16",
@@ -1364,7 +1530,21 @@
         }
       ],
       "recommendation": "migrate-command",
-      "rationale": "Decided by the author on 2026-10-14, against the recommendation (`frozen-layout`). A document has one rendering: no 0.17.0 §9 layout is kept for agreement. `phax artifact migrate-documents`, beside `migrate-approvals`, lifts every live spec and plan sidecar stamped below the new document shapes by Q15's rule, writes it at the current shape and re-renders its body in the new layout, once, in one path-scoped commit. Until it has run, approve, reopen and decide refuse, naming it, as the approval commands refuse while an old approvals ledger exists. A hand edit is never overwritten unseen: the command alone reads a body against its sidecar's own-shape rendering, and it refuses, writing nothing, when they differ or the sidecar is invalid. The loss is accepted: re-rendering an Approved artifact edits it after its approval, so a migrated Approved spec reads edited since approval and its bound plans go stale (`spec-changed`). The command says so, naming each artifact. A 0.20.0 plan's body does not change, because its question sections render only when non-empty."
+      "rationale": "Decided by the author on 2026-10-14, against the recommendation (`frozen-layout`). A document has one rendering: no 0.17.0 §9 layout is kept for agreement. `phax artifact migrate-documents`, beside `migrate-approvals`, lifts every live spec and plan sidecar stamped below the new document shapes by Q15's rule, writes it at the current shape and re-renders its body in the new layout, once, in one path-scoped commit. Until it has run, approve, reopen and decide refuse, naming it, as the approval commands refuse while an old approvals ledger exists. A hand edit is never overwritten unseen: the command alone reads a body against its sidecar's own-shape rendering, and it refuses, writing nothing, when they differ or the sidecar is invalid. The loss is accepted: re-rendering an Approved artifact edits it after its approval, so a migrated Approved spec reads edited since approval and its bound plans go stale (`spec-changed`). The command says so, naming each artifact. A 0.20.0 plan's body does not change, because its question sections render only when non-empty.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "migrate-command",
+        "abandoned": [
+          "frozen-layout",
+          "older-shape-state"
+        ],
+        "why": "Decided by the author on 2026-10-14, against the recommendation (`frozen-layout`). A document has one rendering: no 0.17.0 §9 layout is kept for agreement. `phax artifact migrate-documents`, beside `migrate-approvals`, lifts every live spec and plan sidecar stamped below the new document shapes by Q15's rule, writes it at the current shape and re-renders its body in the new layout, once, in one path-scoped commit. Until it has run, approve, reopen and decide refuse, naming it, as the approval commands refuse while an old approvals ledger exists. A hand edit is never overwritten unseen: the command alone reads a body against its sidecar's own-shape rendering, and it refuses, writing nothing, when they differ or the sidecar is invalid. The loss is accepted: re-rendering an Approved artifact edits it after its approval, so a migrated Approved spec reads edited since approval and its bound plans go stale (`spec-changed`). The command says so, naming each artifact. A 0.20.0 plan's body does not change, because its question sections render only when non-empty.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q17",
@@ -1382,7 +1562,20 @@
         }
       ],
       "recommendation": "ids",
-      "rationale": "Decided by the author on 2026-10-14, as recommended. An id is the question's identity in the document, on the command line and in its history (F3: a thing is identified without its location). Hand-authored artifacts already write `Q<n>`, which stays a valid id, and headless sessions choose their own. Existing artifacts change where `migrate-documents` re-renders them (Q16), so the heading change needs no re-render of its own."
+      "rationale": "Decided by the author on 2026-10-14, as recommended. An id is the question's identity in the document, on the command line and in its history (F3: a thing is identified without its location). Hand-authored artifacts already write `Q<n>`, which stays a valid id, and headless sessions choose their own. Existing artifacts change where `migrate-documents` re-renders them (Q16), so the heading change needs no re-render of its own.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "ids",
+        "abandoned": [
+          "positional"
+        ],
+        "why": "Decided by the author on 2026-10-14, as recommended. An id is the question's identity in the document, on the command line and in its history (F3: a thing is identified without its location). Hand-authored artifacts already write `Q<n>`, which stays a valid id, and headless sessions choose their own. Existing artifacts change where `migrate-documents` re-renders them (Q16), so the heading change needs no re-render of its own.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q18",
@@ -1405,7 +1598,21 @@
         }
       ],
       "recommendation": "allow",
-      "rationale": "Decided by the author on 2026-10-14, as recommended. Staleness already answers this (C1). Reopening changes only `status` and `approved`, which the fingerprint ignores, so a bound plan stays fresh until decide rewrites the spec, and then reads `spec-changed`. Approving a plan against a Draft spec is already refused. Naming the bound plans in reopen's output makes the window visible without adding a guard."
+      "rationale": "Decided by the author on 2026-10-14, as recommended. Staleness already answers this (C1). Reopening changes only `status` and `approved`, which the fingerprint ignores, so a bound plan stays fresh until decide rewrites the spec, and then reads `spec-changed`. Approving a plan against a Draft spec is already refused. Naming the bound plans in reopen's output makes the window visible without adding a guard.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "allow",
+        "abandoned": [
+          "refuse",
+          "cascade"
+        ],
+        "why": "Decided by the author on 2026-10-14, as recommended. Staleness already answers this (C1). Reopening changes only `status` and `approved`, which the fingerprint ignores, so a bound plan stays fresh until decide rewrites the spec, and then reads `spec-changed`. Approving a plan against a Draft spec is already refused. Naming the bound plans in reopen's output makes the window visible without adding a guard.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q19",
@@ -1423,7 +1630,20 @@
         }
       ],
       "recommendation": "schema-stamped",
-      "rationale": "Decided by the author on 2026-10-14, as recommended. The revised document is a provider answer, and the rule decided on 2026-10-08 is that before 1.0 an answer in an older shape is refused by name. The session reads the sidecar in its file form and returns it in the same form, so its `$schema` says which shape it answered against. Aligning the authoring answer's `version: 1` is not this spec's job."
+      "rationale": "Decided by the author on 2026-10-14, as recommended. The revised document is a provider answer, and the rule decided on 2026-10-08 is that before 1.0 an answer in an older shape is refused by name. The session reads the sidecar in its file form and returns it in the same form, so its `$schema` says which shape it answered against. Aligning the authoring answer's `version: 1` is not this spec's job.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "schema-stamped",
+        "abandoned": [
+          "version-one"
+        ],
+        "why": "Decided by the author on 2026-10-14, as recommended. The revised document is a provider answer, and the rule decided on 2026-10-08 is that before 1.0 an answer in an older shape is refused by name. The session reads the sidecar in its file form and returns it in the same form, so its `$schema` says which shape it answered against. Aligning the authoring answer's `version: 1` is not this spec's job.",
+        "at": "2026-10-14",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     }
   ],
   "planningNote": {

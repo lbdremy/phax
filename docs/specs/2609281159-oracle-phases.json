@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
   "kind": "spec",
   "title": "Oracle-first phases behind a pluggable oracle provider",
   "ground": [
@@ -712,7 +712,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "Q1",
       "question": "What is the plan syntax for the oracle declaration?",
@@ -734,7 +735,21 @@
         }
       ],
       "recommendation": "oracle-side-line",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. Losing the discharge-side mark is acceptable: phax derives it and shows it in the prompt, lint and handoff. The alternatives give up the decided default or a single source for the pair. The line also reuses the header paragraph the deterministic parser already reads."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. Losing the discharge-side mark is acceptable: phax derives it and shows it in the prompt, lint and handoff. The alternatives give up the decided default or a single source for the pair. The line also reuses the header paragraph the deterministic parser already reads.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "oracle-side-line",
+        "abandoned": [
+          "discharge-side-line",
+          "both-subsections"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. Losing the discharge-side mark is acceptable: phax derives it and shows it in the prompt, lint and handoff. The alternatives give up the decided default or a single source for the pair. The line also reuses the header paragraph the deterministic parser already reads.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q2",
@@ -752,7 +767,20 @@
         }
       ],
       "recommendation": "one-designated",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. The first consumer's conductor plans one oracle phase and one implementing phase per surface. Splitting the oracles is a planning cost, while partial discharge weakens the guarantee itself. The one-to-one pairing can be relaxed additively later."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The first consumer's conductor plans one oracle phase and one implementing phase per surface. Splitting the oracles is a planning cost, while partial discharge weakens the guarantee itself. The one-to-one pairing can be relaxed additively later.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "one-designated",
+        "abandoned": [
+          "several-partial"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. The first consumer's conductor plans one oracle phase and one implementing phase per surface. Splitting the oracles is a planning cost, while partial discharge weakens the guarantee itself. The one-to-one pairing can be relaxed additively later.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q3",
@@ -775,7 +803,21 @@
         }
       ],
       "recommendation": "error-and-refuse",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. The lost capability is one nobody may use yet: it was decided that no plan declares an oracle phase before steme's provider ships. Running unchecked would quietly break exactly the separation the declaration promises."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The lost capability is one nobody may use yet: it was decided that no plan declares an oracle phase before steme's provider ships. Running unchecked would quietly break exactly the separation the declaration promises.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "error-and-refuse",
+        "abandoned": [
+          "warn-and-run",
+          "warn-and-refuse"
+        ],
+        "why": "Decided by the author on 2026-09-28, as recommended. The lost capability is one nobody may use yet: it was decided that no plan declares an oracle phase before steme's provider ships. Running unchecked would quietly break exactly the separation the declaration promises.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q4",
@@ -798,7 +840,21 @@
         }
       ],
       "recommendation": "new-oracle-surface",
-      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (`structural`). The oracle verdict reads apart from every other step by its surface alone, in attribution, records and the run summary. The cost is accepted: the persisted surface enum widens before the 1.0 freeze, and a configured step may not use the new value."
+      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (`structural`). The oracle verdict reads apart from every other step by its surface alone, in attribution, records and the run summary. The cost is accepted: the persisted surface enum widens before the 1.0 freeze, and a configured step may not use the new value.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "new-oracle-surface",
+        "abandoned": [
+          "structural",
+          "local"
+        ],
+        "why": "Decided by the author on 2026-09-28, against the previous recommendation (`structural`). The oracle verdict reads apart from every other step by its surface alone, in attribution, records and the run summary. The cost is accepted: the persisted surface enum widens before the 1.0 freeze, and a configured step may not use the new value.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     },
     {
       "id": "Q5",
@@ -821,7 +877,21 @@
         }
       ],
       "recommendation": "explicit-subset",
-      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (all planned files). The oracle phase may carry the stubs its tests compile against without making them oracles, so a typed project needs no extra stub phase. The cost is accepted: each oracle file is named twice, and lint checks the list is a subset of the phase's planned files."
+      "rationale": "Decided by the author on 2026-09-28, against the previous recommendation (all planned files). The oracle phase may carry the stubs its tests compile against without making them oracles, so a typed project needs no extra stub phase. The cost is accepted: each oracle file is named twice, and lint checks the list is a subset of the phase's planned files.",
+      "verdict": {
+        "kind": "lifted",
+        "chosen": "explicit-subset",
+        "abandoned": [
+          "all-planned",
+          "provider-decides"
+        ],
+        "why": "Decided by the author on 2026-09-28, against the previous recommendation (all planned files). The oracle phase may carry the stubs its tests compile against without making them oracles, so a typed project needs no extra stub phase. The cost is accepted: each oracle file is named twice, and lint checks the list is a subset of the phase's planned files.",
+        "at": "2026-09-28",
+        "by": {
+          "kind": "unattributed"
+        }
+      },
+      "history": []
     }
   ],
   "planningNote": {
