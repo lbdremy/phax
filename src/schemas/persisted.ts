@@ -56,6 +56,7 @@ import {
 } from "./brief.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
+import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
@@ -903,15 +904,28 @@ const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest
 // A non-object names no kind; it fails before either decoder runs.
 const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 
+// Born with `$schema`: a decision manifest without one is unreadable.
+const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "decision-record-manifest",
+    label: "decision record manifest",
+    file,
+    decodeCurrent: decodeDecisionRecordManifestFile,
+    fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
+  });
+
 /**
- * Reads any `record.json` on phax/records/v1. A `$schema` manifest is read by
- * the file union. A manifest without `$schema` is read by the authoring
- * pre-schema decoder when its `kind` is "authoring", and by the phase
- * pre-schema decoder otherwise, so a version-1 phase manifest is refused as
- * not in the pre-schema shape.
+ * Reads any `record.json` on phax/records/v1, by its `kind`: "decision" is
+ * read as a decision manifest (born with `$schema`), "authoring" as an
+ * authoring manifest, anything else as a phase manifest. A `$schema` manifest
+ * is read by the file union. A manifest without `$schema` is read by the
+ * authoring pre-schema decoder when its `kind` is "authoring", and by the
+ * phase pre-schema decoder otherwise, so a version-1 phase manifest is refused
+ * as not in the pre-schema shape.
  */
 export const readRecordManifestFile: Reader<RecordManifest> = (file, input) => {
   if (!isDocumentObject(input)) return readAnyRecordManifest(file, input);
+  if (input["kind"] === "decision") return readDecisionRecordManifest(file, input);
   return input["kind"] === "authoring"
     ? readAuthoringRecordManifest(file, input)
     : readPhaseRecordManifest(file, input);

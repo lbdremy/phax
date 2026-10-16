@@ -61,6 +61,7 @@ import { buildDecideInvocation } from "../domain/session/claude.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import type { GitHub } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
 import { Prompt, type PromptError } from "../ports/prompt.js";
 import { Session } from "../ports/session.js";
@@ -68,28 +69,31 @@ import { Terminal } from "../ports/terminal.js";
 import { decodeAuthoringSession } from "../schemas/authoringSession.js";
 import type { HandDecisionAnswer } from "../schemas/handDecisionAnswer.js";
 import { currentSchemaUrl } from "../schemas/persisted.js";
+import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import { AUTHORING_SESSION_FILENAME, authoringSessionFolder } from "./authorArtifact.js";
 import { seedPlanCache } from "./planCacheStore.js";
+import { pushRecordsBranch } from "./recordsSync.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 import { resolveDoctrine } from "./resolveDoctrine.js";
 import { refuseUnmigratedDocuments } from "./unmigratedDocuments.js";
-
-/**
- * Files of a decision folder, `<stateRoot>/decide/<stamp>-<slug>/<NN>/`. A
- * retried handback also holds `retry-prompt.md` and `retry-output.jsonl`.
- * `document.json` is written once an answer decodes; `before.md`, `after.md`
- * and `body.diff` once its diff is shown.
- */
-export const DECIDE_PROMPT_FILENAME = "prompt.md";
-export const DECIDE_HANDBACK_PROMPT_FILENAME = "handback-prompt.md";
-export const DECIDE_RETRY_PROMPT_FILENAME = "retry-prompt.md";
-export const DECIDE_TRANSCRIPT_FILENAME = "output.jsonl";
-export const DECIDE_RETRY_TRANSCRIPT_FILENAME = "retry-output.jsonl";
-export const DECIDE_DOCUMENT_FILENAME = "document.json";
-export const DECIDE_BEFORE_FILENAME = "before.md";
-export const DECIDE_AFTER_FILENAME = "after.md";
-export const DECIDE_DIFF_FILENAME = "body.diff";
+import {
+  DECIDE_AFTER_FILENAME,
+  DECIDE_BEFORE_FILENAME,
+  DECIDE_DIFF_FILENAME,
+  DECIDE_DOCUMENT_FILENAME,
+  DECIDE_HANDBACK_PROMPT_FILENAME,
+  DECIDE_PROMPT_FILENAME,
+  DECIDE_RETRY_PROMPT_FILENAME,
+  DECIDE_RETRY_TRANSCRIPT_FILENAME,
+  DECIDE_TRANSCRIPT_FILENAME,
+  type DecisionRecordEnd,
+  type DecisionRecordPush,
+  type DecisionRecordStatus,
+  decisionRecordPushWarning,
+  decisionRecordWarning,
+  writeDecisionRecord,
+} from "./writeDecisionRecord.js";
 
 export interface DecideArtifactInput {
   /** Repo-relative path of the spec or plan. */
@@ -111,25 +115,38 @@ export interface DecideArtifactInput {
   readonly extractPlanEffort: string;
   /** The command's clock: the decision folder, each verdict's `at`, the cache seed. */
   readonly nowIso: string;
-  /** Progress lines (mode, model, diff, verdicts) and the retry warning. */
+  readonly records: ResolvedRecordsConfig;
+  /** The local records clone, required for a dedicated `repo` records destination. */
+  readonly recordsClonePath?: string | undefined;
+  /** `publish.remote` from `phax.json`: the push target for an in-repo records destination. */
+  readonly publishRemote: string;
+  /**
+   * Progress lines (mode, model, diff, verdicts), the retry warning, and a
+   * failed decide's record and push warnings.
+   */
   readonly output: Pick<OutputPort, "log" | "warn">;
 }
 
-/** The decision a session ran under, once it spawned: its id and folder. */
+/** The decision a session ran under, once it spawned: its id, folder and record. */
 export interface DecideSessionFacts {
   /** `<stamp>-<slug>/<NN>`: the `Decision-Id` trailer. */
   readonly decisionId: string;
   /** Absolute path of `<stateRoot>/decide/<stamp>-<slug>/<NN>/`. */
   readonly folder: string;
   readonly session: "new" | "resumed-authoring";
+  /** The decision record, written once the session ended. */
+  readonly record: DecisionRecordStatus;
+  /** The push of `phax/records/v1` after the record was written. */
+  readonly recordPush: DecisionRecordPush;
 }
 
 /**
  * What a decide came to. `nothing`: no open question and no `--question`, no
  * session spawned. `undecided`: the session returned a document that decided
  * nothing. `declined`: the operator refused the body diff. `committed`: the
- * artifact (and its sidecar) landed in one commit. Nothing is written but in
- * `committed`.
+ * artifact (and its sidecar) landed in one commit. Nothing is written to the
+ * repository but in `committed`; every outcome after the session spawned
+ * carries its decision record.
  */
 export type DecideArtifactResult =
   | { readonly kind: "nothing"; readonly path: string }
@@ -292,6 +309,8 @@ interface DecideSession {
   readonly kind: "new" | "resume";
   readonly id: ClaudeSessionId;
   readonly cwd: string;
+  /** Every session id kept for the authoring session (none for a new one). */
+  readonly keptIds: readonly string[];
 }
 
 // The authoring session kept in `session.json`, when it names claude-code
@@ -307,6 +326,7 @@ function chooseSession(
       kind: "new",
       id: randomUUID() as ClaudeSessionId,
       cwd: input.repoRoot,
+      keptIds: [],
     });
     const file = join(authoringSessionFolder(input.stateRoot, id), AUTHORING_SESSION_FILENAME);
     if (!(yield* fs.exists(file))) return fresh();
@@ -320,7 +340,15 @@ function chooseSession(
     if (Either.isLeft(kept) || kept.right.provider !== "claude-code") return fresh();
     const sessionId = decodeClaudeSessionId(kept.right.retrySessionId ?? kept.right.sessionId);
     if (Either.isLeft(sessionId)) return fresh();
-    return { kind: "resume", id: sessionId.right, cwd: kept.right.cwd };
+    return {
+      kind: "resume",
+      id: sessionId.right,
+      cwd: kept.right.cwd,
+      keptIds: [
+        kept.right.sessionId,
+        ...(kept.right.retrySessionId === null ? [] : [kept.right.retrySessionId]),
+      ],
+    };
   });
 }
 
@@ -466,6 +494,16 @@ function checkAnswer(
     : checkHand(parsed.right, ctx, authored.parsed);
 }
 
+/** What the decision record needs to know of the session once it has spawned. */
+interface ObservedDecide {
+  /** Set before the corrective resume runs, so even a failed resume records it. */
+  retried: boolean;
+  /** Every session id a handback turn reported. */
+  readonly sessionIds: string[];
+  /** The answer that passed every check, once there is one. */
+  accepted: AcceptedAnswer | null;
+}
+
 // Resumes the session headless for its answer; a refused answer resumes it
 // once more with the refusal (transcript in retry-output.jsonl). A second
 // refusal fails naming both. Provider errors and limits are never retried.
@@ -475,6 +513,7 @@ function handBack(
   session: DecideSession,
   folder: string,
   options: Omit<AgentRunOptions, "outputJsonlPath">,
+  observed: ObservedDecide,
 ): Effect.Effect<
   AcceptedAnswer,
   | DecideDocumentError
@@ -506,6 +545,7 @@ function handBack(
       ...options,
       outputJsonlPath: join(folder, DECIDE_TRANSCRIPT_FILENAME),
     });
+    observed.sessionIds.push(first.sessionId);
     const firstAnswer = checkAnswer(first.finalText, ctx);
     if (Either.isRight(firstAnswer)) return firstAnswer.right;
 
@@ -515,10 +555,12 @@ function handBack(
     input.output.warn(
       `revised document refused — ${firstRefusal}\n  resuming the session once to ask for the whole document again`,
     );
+    observed.retried = true;
     const retried = yield* backend.resumeAgentSession(first.sessionId, retryPrompt, {
       ...options,
       outputJsonlPath: join(folder, DECIDE_RETRY_TRANSCRIPT_FILENAME),
     });
+    observed.sessionIds.push(retried.sessionId);
     const retryAnswer = checkAnswer(retried.finalText, ctx);
     if (Either.isRight(retryAnswer)) return retryAnswer.right;
     return yield* Effect.fail(
@@ -588,14 +630,17 @@ export function decideCommitMessage(input: {
  * diff, and, once the operator accepts it, write the artifact (and its
  * sidecar, re-seeding a plan's extraction cache first) and commit exactly
  * those paths. Nothing reaches the repository before the operator accepts;
- * the files are left written only when the commit itself fails.
+ * the files are left written only when the commit itself fails. Every end
+ * after the session spawned — committed, declined, undecided or failed —
+ * then writes one decision record on `phax/records/v1`, pushed when
+ * `records.autoPush` is on; a record never fails the decide.
  */
 export function decideArtifact(
   input: DecideArtifactInput,
 ): Effect.Effect<
   DecideArtifactResult,
   DecideArtifactError,
-  FileSystem | Git | Backend | Session | Prompt | Terminal
+  FileSystem | Git | GitHub | Backend | Session | Prompt | Terminal
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -638,11 +683,7 @@ export function decideArtifact(
     const index = yield* nextDecisionIndex(join(input.stateRoot, "decide", snapshot.id));
     const decisionId = `${snapshot.id}/${index}`;
     const folder = join(input.stateRoot, "decide", snapshot.id, index);
-    const facts: DecideSessionFacts = {
-      decisionId,
-      folder,
-      session: session.kind === "resume" ? "resumed-authoring" : "new",
-    };
+    const sessionKind = session.kind === "resume" ? "resumed-authoring" : "new";
     const prompt = buildDecidePrompt({
       kind,
       artifactPath: path,
@@ -691,7 +732,11 @@ export function decideArtifact(
     );
     input.output.log(modelLine(model.right));
 
+    // The decision record's `sourceSha`: HEAD as the session starts.
+    const sourceSha = yield* git.headCommit(input.repoRoot);
+
     // The interactive session: its exit status says nothing about the document.
+    // A launch failure ends the decide here: no session spawned, no record.
     yield* (yield* Session).resume(invocation).pipe(
       Effect.mapError(
         (e) =>
@@ -703,17 +748,133 @@ export function decideArtifact(
       Effect.ensuring(fs.remove(repoPromptDir).pipe(Effect.ignore)),
     );
 
-    const ctx: CheckContext = { snapshot, scope, doctrine, operator, atIso: input.nowIso };
-    const accepted = yield* handBack(input, ctx, session, folder, {
+    // The session has ended: whatever came of it (Right) or went wrong (Left)
+    // is recorded, a committed decide after the commit it names, before a
+    // failure is re-raised.
+    const observed: ObservedDecide = { retried: false, sessionIds: [], accepted: null };
+    const ended = yield* Effect.either(
+      concludeSession(input, {
+        ctx: { snapshot, scope, doctrine, operator, atIso: input.nowIso },
+        session,
+        folder,
+        decisionId,
+        model: model.right,
+        security,
+        observed,
+      }),
+    );
+    const accepted = observed.accepted;
+    const end: DecisionRecordEnd = Either.isLeft(ended)
+      ? { outcome: "failed", commit: null }
+      : ended.right.kind === "committed"
+        ? { outcome: "committed", commit: ended.right.commit.hash }
+        : { outcome: ended.right.kind, commit: null };
+    const record = yield* writeDecisionRecord({
+      repoRoot: input.repoRoot,
+      recordsClonePath: input.recordsClonePath,
+      records: input.records,
+      folder,
+      decisionId,
+      artifact: path,
+      artifactKind: kind,
+      session: sessionKind,
+      doctrine: doctrine.sources,
+      questions: scope.presented,
+      arbitrated: accepted?.decided.length ?? 0,
+      departed: accepted?.decided.filter((d) => d.departs).length ?? 0,
+      sourceSha,
       provider: "claude-code",
       model: model.right.model,
       effort: model.right.effort,
-      cwd: session.cwd,
-      security,
-      phaseFolderPath: folder,
-    });
+      end,
+      retried: observed.retried,
+      sessionIds: [session.id, ...session.keptIds, ...observed.sessionIds],
+    }).pipe(
+      Effect.catchAll((e) => Effect.succeed({ kind: "write-failed", message: e.message } as const)),
+    );
+    const recordPush: DecisionRecordPush =
+      record.kind === "written"
+        ? yield* pushRecordsBranch({
+            records: input.records,
+            repoRoot: input.repoRoot,
+            publishRemote: input.publishRemote,
+            recordsClonePath: input.recordsClonePath,
+          })
+        : { kind: "no-record" };
+    if (Either.isLeft(ended)) {
+      const warning = decisionRecordWarning(record);
+      if (warning !== undefined) input.output.warn(warning);
+      const pushWarning = decisionRecordPushWarning(recordPush);
+      if (pushWarning !== undefined) input.output.warn(pushWarning);
+      return yield* Effect.fail(ended.left);
+    }
+    const facts: DecideSessionFacts = {
+      decisionId,
+      folder,
+      session: sessionKind,
+      record,
+      recordPush,
+    };
+    return { ...ended.right, path, ...facts };
+  });
+}
+
+/** How a spawned session ended without an error: what decide reports, before its record. */
+type SessionEnd =
+  | { readonly kind: "undecided" }
+  | { readonly kind: "declined" }
+  | {
+      readonly kind: "committed";
+      readonly paths: readonly string[];
+      readonly decided: readonly string[];
+      readonly commit: { readonly hash: string; readonly subject: string };
+    };
+
+// After the interactive session: the handback, the diff and its confirm, the
+// write and the commit. Nothing reaches the repository before the operator
+// accepts; the files are left written only when the commit itself fails.
+function concludeSession(
+  input: DecideArtifactInput,
+  run: {
+    readonly ctx: CheckContext;
+    readonly session: DecideSession;
+    readonly folder: string;
+    readonly decisionId: string;
+    readonly model: DecideModel;
+    readonly security: AgentRunOptions["security"];
+    readonly observed: ObservedDecide;
+  },
+): Effect.Effect<
+  SessionEnd,
+  Exclude<DecideArtifactError, DocumentMigrationRequiredError | ArtifactValidationError>,
+  FileSystem | Git | Backend | Prompt
+> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const git = yield* Git;
+    const { ctx, folder, model, observed } = run;
+    const { snapshot, scope, operator } = ctx;
+    const { kind, slug } = snapshot;
+    const { path } = input;
+
+    const accepted = yield* handBack(
+      input,
+      ctx,
+      run.session,
+      folder,
+      {
+        provider: "claude-code",
+        model: model.model,
+        effort: model.effort,
+        cwd: run.session.cwd,
+        security: run.security,
+        phaseFolderPath: folder,
+      },
+      observed,
+    );
+    observed.accepted = accepted;
     yield* fs.writeAtomic(join(folder, DECIDE_DOCUMENT_FILENAME), accepted.documentJson);
-    if (accepted.decided.length === 0) return { kind: "undecided", path, ...facts } as const;
+    if (accepted.decided.length === 0) return { kind: "undecided" } as const;
 
     // The body diff, accepted before anything is written.
     const beforePath = join(folder, DECIDE_BEFORE_FILENAME);
@@ -727,7 +888,7 @@ export function decideArtifact(
     const accept = yield* (yield* Prompt)
       .confirm({ message: "accept the body diff?", initialValue: false })
       .pipe(Effect.catchTag("PromptCancelled", () => Effect.succeed(false)));
-    if (!accept) return { kind: "declined", path, ...facts } as const;
+    if (!accept) return { kind: "declined" } as const;
 
     // Changed while the session ran: leave the change, write nothing.
     const sidecarPath = sidecarPathFor(path);
@@ -765,10 +926,10 @@ export function decideArtifact(
       slug,
       path,
       decided,
-      model: model.right.model,
-      effort: model.right.effort,
+      model: model.model,
+      effort: model.effort,
       operator: operator.name,
-      decisionId,
+      decisionId: run.decisionId,
     });
     const committed = yield* Effect.either(git.commitPaths(input.repoRoot, paths, subject, body));
     if (Either.isLeft(committed)) {
@@ -781,13 +942,6 @@ export function decideArtifact(
       );
     }
     const hash = yield* git.headCommit(input.repoRoot);
-    return {
-      kind: "committed",
-      path,
-      paths,
-      decided,
-      commit: { hash, subject },
-      ...facts,
-    } as const;
+    return { kind: "committed", paths, decided, commit: { hash, subject } } as const;
   });
 }

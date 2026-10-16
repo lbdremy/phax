@@ -7,6 +7,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseDecisionRecordManifest,
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
@@ -37,6 +38,10 @@ import {
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
+import {
+  decodeDecisionRecordManifestFile,
+  isDecisionRecordManifest,
+} from "../../../src/schemas/decisionRecord.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
@@ -253,6 +258,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeHandDecisionAnswerFile,
     wrongType: ["decisions", {}],
     required: "markdown",
+    excess: "error",
+  },
+  "decision-record-manifest": {
+    id: "decision-record-manifest",
+    parse: parseDecisionRecordManifest,
+    phax: decodeDecisionRecordManifestFile,
+    wrongType: ["arbitrated", "2"],
+    required: "commit",
     excess: "error",
   },
 };
@@ -521,9 +534,16 @@ describe("parity: nested rejects", () => {
 });
 
 const authoring = validDocuments["authoring-record-manifest"];
+const decision = validDocuments["decision-record-manifest"];
 
-// Every current-shape manifest, phase or authoring, and the rejects of both.
+// Every current-shape manifest, phase, authoring or decision, and the rejects of each.
 const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
+  ["a decision manifest", decision],
+  ["a failed decision without a commit", { ...decision, outcome: "failed", commit: null }],
+  ["a declined decision that names a commit", withKey(decision, "outcome", "declined")],
+  ["a committed decision without a commit", withKey(decision, "commit", null)],
+  ["a decision manifest with a session id", withKey(decision, "sessionId", "abc")],
+  ["a decision manifest without kind", withoutKey(decision, "kind")],
   ["a phase manifest", base],
   ...MANIFEST_CASES.map(([label, input]) => [label, input] as const),
   ["an authoring manifest", authoring],
@@ -542,18 +562,21 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     if (result.ok && Either.isRight(decoded)) {
       expect(result.value).toEqual(decoded.right);
       expect(result.format).toBe(
-        isAuthoringRecordManifest(decoded.right)
-          ? "authoring-record-manifest"
-          : "phase-record-manifest",
+        isDecisionRecordManifest(decoded.right)
+          ? "decision-record-manifest"
+          : isAuthoringRecordManifest(decoded.right)
+            ? "authoring-record-manifest"
+            : "phase-record-manifest",
       );
     }
   });
 
-  it("covers accepted phase and authoring manifests, and rejected ones", () => {
+  it("covers accepted phase, authoring and decision manifests, and rejected ones", () => {
     const results = RECORD_MANIFEST_CASES.map(([, input]) => parseRecordManifest(input));
     const formats = results.flatMap((result) => (result.ok ? [result.format] : []));
     expect(formats).toContain("phase-record-manifest");
     expect(formats).toContain("authoring-record-manifest");
+    expect(formats).toContain("decision-record-manifest");
     expect(results.some((result) => !result.ok)).toBe(true);
   });
 });

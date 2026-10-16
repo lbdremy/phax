@@ -518,6 +518,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/brief.ts",
   "src/schemas/briefReport.ts",
   "src/schemas/complianceReview.ts",
+  "src/schemas/decisionRecord.ts",
   "src/schemas/gateAttribution.ts",
   "src/schemas/gateReport.ts",
   "src/schemas/gateRequest.ts",
@@ -788,6 +789,7 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "gate-report": ["decodeGateReportFile"],
   "brief-report": ["decodeBriefReportFile"],
   "hand-decision-answer": ["decodeHandDecisionAnswerFile"],
+  "decision-record-manifest": ["decodeDecisionRecordManifestFile", "decodeRecordManifestFile"],
 };
 
 /** Whether `content` names `name` as a whole word. */

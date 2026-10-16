@@ -4,15 +4,19 @@ import { type DecideArtifactResult, decideArtifact } from "../../app/decideArtif
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
+import { recordsClonePath } from "../../app/recordsSync.js";
+import { decisionRecordPushWarning, decisionRecordWarning } from "../../app/writeDecisionRecord.js";
 import { DECIDE_SKILL_FOR_KIND } from "../../domain/decide/doctrine.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeClackPromptLayer } from "../../infra/prompt.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import type { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
+import type { GitHub } from "../../ports/github.js";
 import type { OutputPort } from "../../ports/output.js";
 import type { Prompt } from "../../ports/prompt.js";
 import type { Session } from "../../ports/session.js";
@@ -33,6 +37,7 @@ export interface DecideCommandDeps {
   readonly sessionLayer?: Layer.Layer<Session>;
   readonly promptLayer?: Layer.Layer<Prompt>;
   readonly terminalLayer?: Layer.Layer<Terminal>;
+  readonly githubLayer?: Layer.Layer<GitHub>;
 }
 
 // A path typed absolute or cwd-relative, as the repo-relative POSIX path the
@@ -55,8 +60,14 @@ function renderResult(result: DecideArtifactResult, out: OutputPort): void {
       return;
     case "committed":
       out.log(`commit     ${result.commit.hash.slice(0, 7)} — ${result.commit.subject}`);
-      return;
+      break;
   }
+  const { record, recordPush } = result;
+  if (record.kind === "written") out.log(`record     ${record.key}`);
+  else if (record.kind === "records-off") out.log("record     off");
+  else out.warn(decisionRecordWarning(record) ?? "decision record not written");
+  const pushWarning = decisionRecordPushWarning(recordPush);
+  if (pushWarning !== undefined) out.warn(pushWarning);
 }
 
 /**
@@ -94,6 +105,7 @@ export async function runArtifactDecide(
     deps.sessionLayer ?? makeNodeSessionLayer(),
     deps.promptLayer ?? makeClackPromptLayer(),
     deps.terminalLayer ?? NodeTerminalLayer,
+    deps.githubLayer ?? NodeGitHubLayer,
   );
 
   const effect = Effect.gen(function* () {
@@ -116,6 +128,11 @@ export async function runArtifactDecide(
       extractPlanModel: config.extractPlanModel,
       extractPlanEffort: config.extractPlanEffort,
       nowIso: new Date().toISOString(),
+      records: config.records,
+      publishRemote: config.publish.remote,
+      ...(config.records.destination.kind === "repo"
+        ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }
+        : {}),
       output: out,
     });
   }).pipe(Effect.provide(layer));

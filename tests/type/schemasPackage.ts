@@ -12,6 +12,8 @@ import type {
   BriefRequestShape,
   ComplianceReview,
   ComplianceReviewShape,
+  DecisionRecordManifest,
+  DecisionRecordManifestShape,
   DocumentFormatId,
   GateAttribution,
   GateAttributionShape,
@@ -26,6 +28,7 @@ import type {
   LatestBriefReport,
   LatestBriefRequest,
   LatestComplianceReview,
+  LatestDecisionRecordManifest,
   LatestGateAttribution,
   LatestGateReport,
   LatestGateRequest,
@@ -103,6 +106,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseDecisionRecordManifest,
   parseDocument,
   parseGateAttribution,
   parseGateReport,
@@ -126,6 +130,7 @@ import {
   toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
+  toLatestDecisionRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
@@ -178,6 +183,10 @@ import type {
   HandDecisionAnswer as PhaxHandDecisionAnswer,
   HandDecisionAnswerFile as PhaxHandDecisionAnswerFile,
 } from "../../src/schemas/handDecisionAnswer.js";
+import type {
+  DecisionRecordManifest as PhaxDecisionRecordManifest,
+  DecisionRecordManifestFile as PhaxDecisionRecordManifestFile,
+} from "../../src/schemas/decisionRecord.js";
 import type {
   BriefFinding as PhaxBriefFinding,
   BriefReport as PhaxBriefReport,
@@ -412,6 +421,7 @@ const formats: Equals<
   | "gate-report"
   | "brief-report"
   | "hand-decision-answer"
+  | "decision-record-manifest"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -493,7 +503,8 @@ const shapeIds: Equals<
   | BriefRecordShape
   | GateReportShape
   | BriefReportShape
-  | HandDecisionAnswerShape,
+  | HandDecisionAnswerShape
+  | DecisionRecordManifestShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -841,6 +852,26 @@ if (document.ok && document.format === "hand-decision-answer") {
   void exact;
   void answerShape;
 }
+// The decision record manifest is born with $schema too: phax's own types,
+// one current shape, and an in-memory value without $schema
+const decisionManifestTypes: [
+  Equals<DecisionRecordManifest, PhaxDecisionRecordManifestFile>,
+  Equals<DecisionRecordManifestShape, Current<"decision-record-manifest">>,
+  Equals<Value<typeof parseDecisionRecordManifest>, PhaxDecisionRecordManifestFile>,
+  Equals<LatestDecisionRecordManifest, PhaxDecisionRecordManifest>,
+  Equals<
+    Parameters<typeof toLatestDecisionRecordManifest>,
+    [value: PhaxDecisionRecordManifestFile]
+  >,
+] = [true, true, true, true, true];
+void decisionManifestTypes;
+declare const latestDecisionManifest: LatestDecisionRecordManifest;
+// @ts-expect-error: the in-memory decision record manifest carries no $schema
+void latestDecisionManifest.$schema;
+if (document.ok && document.format === "decision-record-manifest") {
+  const exact: Equals<typeof document.value, PhaxDecisionRecordManifestFile> = true;
+  void exact;
+}
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
   const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;
@@ -1104,7 +1135,7 @@ void authoringV0_17_0IsFrozen;
 // parseRecordManifest names the format and the shape, and narrows to the exact type
 const recordManifestFormats: Equals<
   RecordManifestFormat,
-  "phase-record-manifest" | "authoring-record-manifest"
+  "phase-record-manifest" | "authoring-record-manifest" | "decision-record-manifest"
 > = true;
 void recordManifestFormats;
 const anyManifest = parseRecordManifest({});
@@ -1114,6 +1145,7 @@ const anyManifestAsParsed: Parsed<
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
   | AuthoringRecordManifest
+  | DecisionRecordManifest
 > = anyManifest;
 void anyManifestAsParsed;
 if (anyManifest.ok) {
@@ -1124,10 +1156,14 @@ if (anyManifest.ok) {
     | "0.17.0"
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
+    | Current<"decision-record-manifest">
   > = true;
   void format;
   void shape;
-  if (anyManifest.format === "authoring-record-manifest") {
+  if (anyManifest.format === "decision-record-manifest") {
+    const exact: Equals<typeof anyManifest.value, PhaxDecisionRecordManifestFile> = true;
+    void exact;
+  } else if (anyManifest.format === "authoring-record-manifest") {
     const exact: Equals<
       typeof anyManifest.value,
       | FrozenAuthoringRecordManifest

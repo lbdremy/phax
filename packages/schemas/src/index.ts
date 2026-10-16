@@ -27,8 +27,10 @@ import {
 import { handDecisionAnswerFormat, type HandDecisionAnswerShapes } from "./formats/answers.js";
 import {
   authoringRecordManifestFormat,
+  decisionRecordManifestFormat,
   phaseRecordManifestFormat,
   type AuthoringRecordManifestShapes,
+  type DecisionRecordManifestShapes,
   type PhaseRecordManifestShapes,
 } from "./formats/recordManifests.js";
 import {
@@ -162,14 +164,22 @@ export {
   type RecordManifestFile as RecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
 export {
+  DecisionRecordManifestFileSchema as DecisionRecordManifestSchema,
+  type DecisionRecordManifestFile as DecisionRecordManifest,
+} from "../../../src/schemas/decisionRecord.js";
+export {
   PhaseRecordManifestSchema,
   parseAuthoringRecordManifest,
+  parseDecisionRecordManifest,
   parsePhaseRecordManifest,
   parseRecordManifest,
   toLatestAuthoringRecordManifest,
+  toLatestDecisionRecordManifest,
   toLatestPhaseRecordManifest,
   type AuthoringRecordManifestShape,
+  type DecisionRecordManifestShape,
   type LatestAuthoringRecordManifest,
+  type LatestDecisionRecordManifest,
   type LatestPhaseRecordManifest,
   type PhaseRecordManifest,
   type PhaseRecordManifestShape,
@@ -369,6 +379,7 @@ type EveryFormat<M extends { readonly [F in FormatId]: unknown }> = M;
 type DocumentShapes = EveryFormat<{
   "phase-record-manifest": PhaseRecordManifestShapes;
   "authoring-record-manifest": AuthoringRecordManifestShapes;
+  "decision-record-manifest": DecisionRecordManifestShapes;
   registry: RegistryShapes;
   "run-status": RunStatusShapes;
   "phase-status": PhaseStatusShapes;
@@ -405,6 +416,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
   makeDocumentParser<DocumentShapes>({
     "phase-record-manifest": phaseRecordManifestFormat,
     "authoring-record-manifest": authoringRecordManifestFormat,
+    "decision-record-manifest": decisionRecordManifestFormat,
     registry: registryFormat,
     "run-status": runStatusFormat,
     "phase-status": phaseStatusFormat,

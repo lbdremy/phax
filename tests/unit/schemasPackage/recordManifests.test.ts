@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
+  parseDecisionRecordManifest,
   parseDocument,
   parseRecordManifest,
   toLatestAuthoringRecordManifest,
+  toLatestDecisionRecordManifest,
 } from "../../../packages/schemas/src/index.js";
 import {
   malformedSchemaUrlMessage,
@@ -14,6 +16,7 @@ import {
   unknownFormatMessage,
 } from "../../../packages/schemas/src/shapes.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
+import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
   belowOwnReleaseMessage,
@@ -34,6 +37,8 @@ const phase = preSchemaDocuments["phase-record-manifest"];
 // As phax writes them now: `$schema` first, no `version`.
 const writtenAuthoring = validDocuments["authoring-record-manifest"];
 const writtenPhase = validDocuments["phase-record-manifest"];
+const writtenDecision = validDocuments["decision-record-manifest"];
+const DECISION_CURRENT = CURRENT_SHAPES["decision-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -106,7 +111,54 @@ describe("the authoring record manifest", () => {
   });
 });
 
+describe("the decision record manifest", () => {
+  it("parses a manifest phax writes as its current shape, with phax's value", () => {
+    expect(Object.keys(writtenDecision)[0]).toBe("$schema");
+    const phax = decodeDecisionRecordManifestFile(writtenDecision);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(parseDecisionRecordManifest(writtenDecision)).toEqual({
+      ok: true,
+      shape: DECISION_CURRENT,
+      value: phax.right,
+    });
+  });
+
+  it("upgrades by dropping $schema alone, keeping kind decision and every fact", () => {
+    const result = parseDecisionRecordManifest(writtenDecision);
+    if (!result.ok) throw new Error("document rejected");
+    const latest = toLatestDecisionRecordManifest(result.value);
+    expect(latest).toEqual(withoutKey(writtenDecision, "$schema"));
+    expect(latest.kind).toBe("decision");
+  });
+
+  it("is born with $schema: a manifest without one is unreadable", () => {
+    const result = parseDecisionRecordManifest(withoutKey(writtenDecision, "$schema"));
+    expect(result.ok).toBe(false);
+    expect(parseRecordManifest(withoutKey(writtenDecision, "$schema")).ok).toBe(false);
+  });
+
+  it("refuses a session id", () => {
+    expect(parseDecisionRecordManifest(withKey(writtenDecision, "sessionId", "abc")).ok).toBe(
+      false,
+    );
+  });
+});
+
 describe("parseRecordManifest", () => {
+  it("reads a decision manifest phax writes as a decision record manifest", () => {
+    expect(parseRecordManifest(writtenDecision)).toEqual({
+      ok: true,
+      format: "decision-record-manifest",
+      shape: DECISION_CURRENT,
+      value: writtenDecision,
+    });
+    expect(parseDocument(writtenDecision)).toMatchObject({
+      ok: true,
+      format: "decision-record-manifest",
+      shape: DECISION_CURRENT,
+    });
+  });
+
   it("reads an authoring manifest as an authoring record manifest", () => {
     expect(parseRecordManifest(authoring)).toEqual({
       ok: true,

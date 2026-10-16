@@ -77,6 +77,7 @@ describe("schemas package entry", () => {
       "BriefRequestSchema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
+      "DecisionRecordManifestSchema",
       "GateAttributionPreSchemaSchema",
       "GateAttributionSchema",
       "GateAttributionV0_17_0Schema",
@@ -120,6 +121,7 @@ describe("schemas package entry", () => {
       "parseBriefReport",
       "parseBriefRequest",
       "parseComplianceReview",
+      "parseDecisionRecordManifest",
       "parseDocument",
       "parseGateAttribution",
       "parseGateReport",
@@ -143,6 +145,7 @@ describe("schemas package entry", () => {
       "toLatestBriefReport",
       "toLatestBriefRequest",
       "toLatestComplianceReview",
+      "toLatestDecisionRecordManifest",
       "toLatestGateAttribution",
       "toLatestGateReport",
       "toLatestGateRequest",
@@ -217,7 +220,10 @@ describe("schemas package entry", () => {
     const { AuthoringRecordManifestFileSchema, RecordManifestFileSchema } =
       await import("../../../src/schemas/authoringRecord.js");
     const { RunRecordManifestFileSchema } = await import("../../../src/schemas/runRecord.js");
+    const { DecisionRecordManifestFileSchema } =
+      await import("../../../src/schemas/decisionRecord.js");
     expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestFileSchema);
+    expect(entry.DecisionRecordManifestSchema).toBe(DecisionRecordManifestFileSchema);
     expect(entry.RecordManifestSchema).toBe(RecordManifestFileSchema);
     expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestFileSchema);
   });

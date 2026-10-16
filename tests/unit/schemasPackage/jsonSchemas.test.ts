@@ -16,6 +16,7 @@ import {
 } from "../../../packages/schemas/src/formats/brief.js";
 import {
   authoringRecordManifestFormat,
+  decisionRecordManifestFormat,
   phaseRecordManifestFormat,
 } from "../../../packages/schemas/src/formats/recordManifests.js";
 import {
@@ -60,6 +61,7 @@ type JsonSchemaFormatId = FormatId | "record-manifest";
 
 const phaseManifest = validDocuments["phase-record-manifest"];
 const authoringManifest = validDocuments["authoring-record-manifest"];
+const decisionManifest = validDocuments["decision-record-manifest"];
 
 /** The test documents of each file, before phax's verdict. */
 function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
@@ -68,8 +70,10 @@ function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
       return [phaseManifest, withoutKey(phaseManifest, "sourceSha")];
     case "authoring-record-manifest":
       return [authoringManifest, withoutKey(authoringManifest, "sourceSha")];
+    case "decision-record-manifest":
+      return [decisionManifest, { ...decisionManifest, outcome: "failed", commit: null }];
     case "record-manifest":
-      return [phaseManifest, authoringManifest];
+      return [phaseManifest, authoringManifest, decisionManifest];
     default:
       return [validDocuments[format]];
   }
@@ -98,6 +102,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "gate-report": gateReportFormat.current.shape.decode,
   "brief-report": briefReportFormat.current.shape.decode,
   "hand-decision-answer": handDecisionAnswerFormat.current.shape.decode,
+  "decision-record-manifest": decisionRecordManifestFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -158,6 +163,7 @@ describe("the JSON Schema table", () => {
       gateReportFormat,
       briefReportFormat,
       handDecisionAnswerFormat,
+      decisionRecordManifestFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -180,10 +186,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 22 files and no failure", () => {
+  it("renders 23 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(22);
+    expect(rendered.files.size).toBe(23);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

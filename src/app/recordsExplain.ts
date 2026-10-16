@@ -4,12 +4,17 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { ORIGIN } from "./recordsSync.js";
 import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 import { authoringRecordKey } from "./writeAuthoringRecord.js";
+import { decisionRecordKey } from "./writeDecisionRecord.js";
 import type { RunRecordManifest } from "../schemas/runRecord.js";
 import {
   isAuthoringRecordManifest,
   type AuthoringRecordManifest,
   type RecordManifest,
 } from "../schemas/authoringRecord.js";
+import {
+  isDecisionRecordManifest,
+  type DecisionRecordManifest,
+} from "../schemas/decisionRecord.js";
 import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
@@ -58,13 +63,30 @@ export interface ExplainedAuthoringRecord {
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
 
+/** A decide session's record, resolved through a decide commit's `Decision-Id`. */
+export interface ExplainedDecisionRecord {
+  readonly decisionId: string;
+  readonly manifest: DecisionRecordManifest;
+  readonly recordCommitSha: string;
+  readonly foundVia: "local" | "remote-refresh";
+  /** Whether `manifest.sourceSha`, HEAD when the session started, still resolves. */
+  readonly sourceCommitReachable?: boolean;
+  /** The record's file names (`prompt.md`, `document.json`, …), sorted, without `record.json`. */
+  readonly files: readonly string[];
+  /** Artifact contents by file name, excluding `record.json`. */
+  readonly artifacts: ReadonlyMap<string, Uint8Array>;
+}
+
 export type ExplainOutcome =
   | { readonly kind: "records-disabled" }
   | { readonly kind: "commit-not-found"; readonly sha: string }
   | { readonly kind: "not-phax-commit"; readonly sha: string; readonly resolvedSha: string }
   | {
       readonly kind: "not-found";
-      /** The record key the commit's trailers name: `<runId>/<phaseId>` or `authoring/<id>`. */
+      /**
+       * The record key the commit's trailers name: `<runId>/<phaseId>`,
+       * `authoring/<id>` or `decision/<id>`.
+       */
       readonly key: string;
       readonly sourceSha: string;
       /** Whether the remote was consulted before reporting this outcome —
@@ -72,7 +94,8 @@ export type ExplainOutcome =
       readonly remoteConsulted: boolean;
     }
   | { readonly kind: "found"; readonly record: ExplainedRecord }
-  | { readonly kind: "found-authoring"; readonly record: ExplainedAuthoringRecord };
+  | { readonly kind: "found-authoring"; readonly record: ExplainedAuthoringRecord }
+  | { readonly kind: "found-decision"; readonly record: ExplainedDecisionRecord };
 
 export interface ExplainRecordInput {
   /** A commit sha (or short sha) in the source repository. */
@@ -192,12 +215,14 @@ function readCommitMessage(repo: string, sha: string): Effect.Effect<string, She
 
 /**
  * Which record a source commit's trailers name. `Run-Id`/`Phase-Id` (a phase
- * commit) wins over `Authoring-Id` (an artifact commit): a commit carrying the
- * phase pair is a phase commit whatever else it says.
+ * commit) wins over `Authoring-Id` (a headless artifact commit), which wins
+ * over `Decision-Id` (a decide commit): a commit carrying the phase pair is a
+ * phase commit whatever else it says.
  */
 type RecordAddress =
   | { readonly kind: "phase"; readonly runId: string; readonly phaseId: string }
-  | { readonly kind: "authoring"; readonly authoringId: string };
+  | { readonly kind: "authoring"; readonly authoringId: string }
+  | { readonly kind: "decision"; readonly decisionId: string };
 
 function addressFromTrailers(trailers: ReadonlyMap<string, string>): RecordAddress | null {
   const runId = trailers.get("Run-Id");
@@ -205,13 +230,35 @@ function addressFromTrailers(trailers: ReadonlyMap<string, string>): RecordAddre
   if (runId !== undefined && phaseId !== undefined) return { kind: "phase", runId, phaseId };
   const authoringId = trailers.get("Authoring-Id");
   if (authoringId !== undefined) return { kind: "authoring", authoringId };
+  const decisionId = trailers.get("Decision-Id");
+  if (decisionId !== undefined) return { kind: "decision", decisionId };
   return null;
 }
 
 function keyOf(address: RecordAddress): string {
-  return address.kind === "phase"
-    ? `${address.runId}/${address.phaseId}`
-    : authoringRecordKey(address.authoringId);
+  switch (address.kind) {
+    case "phase":
+      return `${address.runId}/${address.phaseId}`;
+    case "authoring":
+      return authoringRecordKey(address.authoringId);
+    case "decision":
+      return decisionRecordKey(address.decisionId);
+  }
+}
+
+/** The trailer a record commit carries for an authoring or decision address. */
+function trailerOf(
+  address: Extract<RecordAddress, { readonly kind: "authoring" | "decision" }>,
+): string {
+  return address.kind === "authoring"
+    ? `Authoring-Id: ${address.authoringId}`
+    : `Decision-Id: ${address.decisionId}`;
+}
+
+/** What a manifest under the wrong key is called in the malformed message. */
+function manifestKindLabel(manifest: RecordManifest): string {
+  if (isDecisionRecordManifest(manifest)) return "a decision manifest";
+  return isAuthoringRecordManifest(manifest) ? "an authoring manifest" : "a phase manifest";
 }
 
 /**
@@ -221,8 +268,9 @@ function keyOf(address: RecordAddress): string {
  * — so an older record is not present in the branch tip's tree; it has to be
  * located by the commit that wrote it. `--fixed-strings` makes the `--grep`s
  * literal substring matches, so an id containing regex metacharacters cannot
- * misbehave; a substring match on an `Authoring-Id` (one slug a prefix of
- * another) is ruled out by checking the candidate's tree holds the key.
+ * misbehave; a substring match on an `Authoring-Id` or a `Decision-Id` (one
+ * id a prefix of another) is ruled out by checking the candidate's tree holds
+ * the key.
  */
 function findRecordCommit(
   git: GitOps,
@@ -259,7 +307,7 @@ function findRecordCommit(
         ref,
         "--format=%H",
         "--fixed-strings",
-        `--grep=Authoring-Id: ${address.authoringId}`,
+        `--grep=${trailerOf(address)}`,
       ],
       cwd: repo,
     });
@@ -357,9 +405,9 @@ function explainPhaseRecord(
   prefix: string,
 ): Either.Either<ExplainedRecord, GitError> {
   const { manifest, artifacts } = loaded;
-  if (isAuthoringRecordManifest(manifest)) {
+  if (isAuthoringRecordManifest(manifest) || isDecisionRecordManifest(manifest)) {
     return Either.left(
-      malformed(prefix, recordCommitSha, "an authoring manifest under a phase key"),
+      malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a phase key`),
     );
   }
   const checksAttemptCount = [...artifacts.keys()].filter((name) =>
@@ -394,7 +442,7 @@ function explainAuthoringRecord(
   const { manifest, artifacts } = loaded;
   if (!isAuthoringRecordManifest(manifest)) {
     return Either.left(
-      malformed(prefix, recordCommitSha, "a phase manifest under an authoring key"),
+      malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under an authoring key`),
     );
   }
   const briefBytes = artifacts.get("brief.md");
@@ -414,13 +462,40 @@ function explainAuthoringRecord(
   });
 }
 
+function explainDecisionRecord(
+  loaded: LoadedRecord,
+  decisionId: string,
+  recordCommitSha: string,
+  foundVia: "local" | "remote-refresh",
+  prefix: string,
+): Either.Either<ExplainedDecisionRecord, GitError> {
+  const { manifest, artifacts } = loaded;
+  if (!isDecisionRecordManifest(manifest)) {
+    return Either.left(
+      malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a decision key`),
+    );
+  }
+  return Either.right({
+    decisionId,
+    manifest,
+    recordCommitSha,
+    foundVia,
+    ...(loaded.sourceCommitReachable !== undefined
+      ? { sourceCommitReachable: loaded.sourceCommitReachable }
+      : {}),
+    files: [...artifacts.keys()].toSorted((a, b) => a.localeCompare(b)),
+    artifacts,
+  });
+}
+
 /**
  * Resolve `phax records explain <sha>`: read `sha`'s trailers in the source
  * repo, locate the record they key (never the sha itself, spec §5.2), and load
  * it from the local records clone or, on a local miss, the remote-tracking ref
  * — never requiring a checked-out local records branch (spec §5.9). A phase
  * commit's `Run-Id`/`Phase-Id` key a phase record; a headless artifact
- * commit's `Authoring-Id` keys an authoring record.
+ * commit's `Authoring-Id` keys an authoring record; a decide commit's
+ * `Decision-Id` keys a decision record.
  */
 export function explainRecord(
   input: ExplainRecordInput,
@@ -481,6 +556,17 @@ export function explainRecord(
       const record = explainPhaseRecord(loaded, address, recordCommitSha, foundVia, prefix);
       if (Either.isLeft(record)) return yield* Effect.fail(record.left);
       return { kind: "found", record: record.right } as const;
+    }
+    if (address.kind === "decision") {
+      const record = explainDecisionRecord(
+        loaded,
+        address.decisionId,
+        recordCommitSha,
+        foundVia,
+        prefix,
+      );
+      if (Either.isLeft(record)) return yield* Effect.fail(record.left);
+      return { kind: "found-decision", record: record.right } as const;
     }
     const record = explainAuthoringRecord(
       loaded,
