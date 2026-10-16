@@ -343,6 +343,10 @@ deliberately leaves these open ("what, not how"); do not resolve them silently.
   and `Recommendation: <option id> — <rationale>`; an arbitrated one also carries its
   `Decision:` block. `phax plans lint` and extraction accept these sections and read the same
   phases and required commands with or without them.
+- **An arbitration you cannot settle stays an open question.** `phax artifact decide <plan>`
+  answers the open questions with the operator, then writes each one, with its Decision block,
+  into the arbitrated section. `phax artifact approve` refuses a plan while its open section is
+  not empty, so a plan reaches Approved only once every question it raised is decided.
 
 ## Spike and discovery plans
 
@@ -574,10 +578,13 @@ Top-level keys:
 - `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations, openQuestions,
   arbitratedQuestions }` — the prose under the title, the note after the required-commands
   list, and one string per arbitration (rendered as `## Technical arbitrations`, omitted when
-  empty). `openQuestions` and `arbitratedQuestions` are required and both `[]` for now: an
-  authoring session returns no arbitrated question (a non-empty `arbitratedQuestions` is
-  refused as an invalid document), and settled arbitrations stay prose in
-  `technicalArbitrations`.
+  empty). `openQuestions` and `arbitratedQuestions` are required. Leave each arbitration you
+  cannot settle in `openQuestions`, in the same shape as a spec's: `{ id, question, options:
+  [{ id, label, abandons }], recommendation, rationale }`, with `recommendation` naming one
+  option id. Settled arbitrations stay prose in `technicalArbitrations`. `arbitratedQuestions`
+  is always `[]`: an authoring session arbitrates no question, and a non-empty one is refused
+  as an invalid document. `phax artifact decide <plan>` answers the open questions, and
+  approval waits until none is open.
 - `phases`: a non-empty array, one object per phase.
 
 Each phase carries the **extracted fields** — exactly what `phax run` reads, and exactly

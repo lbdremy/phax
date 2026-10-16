@@ -133,6 +133,8 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   out.log(`Authored:          ${authoringText(authoring)}`);
   const questionsLine = questionsText(questions);
   if (questionsLine !== null) out.log(`Questions:         ${questionsLine}`);
+  const anyOpen = questions.kind === "summary" && questions.summary.open.length > 0;
+  if (anyOpen) out.log(`  decide with \`phax artifact decide ${repoRelPath}\``);
   if (approval.kind === "recorded") {
     out.log(
       `Approved:          ${approval.date} @ ${approval.baseline} ${approverText(approval.approvedBy)}`,
@@ -141,9 +143,11 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   } else if (approval.kind === "unrecorded") {
     out.log(`Approved:          (unrecorded — run phax artifact approve to record)`);
   }
-  out.log(
-    `Legal transitions: ${legalTargets.length > 0 ? legalTargets.join(", ") : "(none — terminal)"}`,
+  // Approval waits for no open question: the lock in transitionArtifact.
+  const targets = legalTargets.map((t) =>
+    t === "Approved" && anyOpen ? "Approved (once no question is open)" : t,
   );
+  out.log(`Legal transitions: ${targets.length > 0 ? targets.join(", ") : "(none — terminal)"}`);
   for (const orphan of orphanRecords) out.warn(renderOrphanRecordWarning(orphan));
   return 0;
 }

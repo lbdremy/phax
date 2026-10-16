@@ -52,7 +52,9 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
           "- Set `arbitratedQuestions` to `[]`: an authoring session leaves every question open, in `openQuestions`.",
         ]
       : [
-          "- Set `preamble.openQuestions` and `preamble.arbitratedQuestions` to `[]`: settled arbitrations stay prose in `preamble.technicalArbitrations`.",
+          "- Leave each technical arbitration you cannot settle as an open question in `preamble.openQuestions`, in the same shape as a spec's: `id`, `question`, `options` (each with `id`, `label` and `abandons`), `recommendation` naming one option id, and `rationale`. The operator answers them before the plan is approved.",
+          "- Settled arbitrations stay prose in `preamble.technicalArbitrations`.",
+          "- Set `preamble.arbitratedQuestions` to `[]`: an authoring session arbitrates no question.",
         ]),
     "",
     `## ${documentName} JSON Schema`,

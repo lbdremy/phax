@@ -294,15 +294,28 @@ describe("runArtifactStatus — questions rendering", () => {
     });
     const at = lines.findIndex((l) => l.startsWith("Authored:"));
     expect(lines[at + 1]).toBe("Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)");
-    expect(lines.join("\n")).not.toContain("decide");
   });
 
-  it("omits the parenthesized ids when nothing is open", async () => {
+  it("points at decide under the Questions line and annotates Approved while one is open", async () => {
+    const lines = await questionLines({
+      kind: "summary",
+      summary: { open: ["Q3", "Q4"], arbitrated: 2, lifted: 1 },
+    });
+    const at = lines.findIndex((l) => l.startsWith("Questions:"));
+    expect(lines[at + 1]).toBe(
+      "  decide with `phax artifact decide docs/specs/2609230835-plan-prune.md`",
+    );
+    expect(lines).toContain("Legal transitions: Approved (once no question is open), Abandoned");
+  });
+
+  it("omits the parenthesized ids, the decide pointer and the annotation when nothing is open", async () => {
     const lines = await questionLines({
       kind: "summary",
       summary: { open: [], arbitrated: 3, lifted: 3 },
     });
     expect(lines).toContain("Questions:         3 — open 0 · arbitrated 3 (3 lifted)");
+    expect(lines.join("\n")).not.toContain("decide");
+    expect(lines).toContain("Legal transitions: Approved, Abandoned");
   });
 
   it("names the departing line of a hand-authored §9", async () => {

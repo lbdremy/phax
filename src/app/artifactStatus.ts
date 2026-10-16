@@ -8,6 +8,8 @@ import {
   ArtifactArbiterRefusedError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
+  ArtifactOpenQuestionsError,
+  ArtifactQuestionsUnparsedError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
   type DocumentMigrationRequiredError,
@@ -381,6 +383,12 @@ export type TransitionArtifactError =
   | ArtifactCommitFailedError
   | GitError;
 
+/** What only approve or reopen can fail with, beyond any transition's errors. */
+export type ArbitratedTransitionError =
+  | DocumentMigrationRequiredError
+  | ArtifactOpenQuestionsError
+  | ArtifactQuestionsUnparsedError;
+
 /** The artifact as read, once its move to `target` is known legal. Writes nothing. */
 function readLegalTransition(
   repoRelPath: string,
@@ -415,7 +423,7 @@ export function transitionArtifact(
   opts: ArbitratedTransitionOptions,
 ): Effect.Effect<
   ArtifactTransitionResult,
-  TransitionArtifactError | DocumentMigrationRequiredError,
+  TransitionArtifactError | ArbitratedTransitionError,
   FileSystem | Git
 >;
 /** Stale, complete or abandon: carries an older sidecar as it is. */
@@ -424,13 +432,13 @@ export function transitionArtifact(
   target: Exclude<ArtifactStatus, ArbitratedTarget>,
   opts: TransitionArtifactOptions,
 ): Effect.Effect<ArtifactTransitionResult, TransitionArtifactError, FileSystem | Git>;
-/** Any target: refused while unmigrated when it is approve or reopen. */
+/** Any target: approve or reopen wait for migration, and approve for no open question. */
 export function transitionArtifact(
   repoRelPath: string,
   ...request: TransitionRequest
 ): Effect.Effect<
   ArtifactTransitionResult,
-  TransitionArtifactError | DocumentMigrationRequiredError,
+  TransitionArtifactError | ArbitratedTransitionError,
   FileSystem | Git
 >;
 export function transitionArtifact(
@@ -438,7 +446,7 @@ export function transitionArtifact(
   ...[target, opts]: TransitionRequest
 ): Effect.Effect<
   ArtifactTransitionResult,
-  TransitionArtifactError | DocumentMigrationRequiredError,
+  TransitionArtifactError | ArbitratedTransitionError,
   FileSystem | Git
 > {
   // Non-null exactly on an approval: the approver its record names.
@@ -476,6 +484,28 @@ export function transitionArtifact(
             : sidecarRemedy(kind, slug, sidecar.path),
         }),
       );
+    }
+
+    // The approval lock: an artifact is approved only once no question is
+    // open, read from its single source — the sidecar's arrays, or the
+    // hand-authored §9. An artifact with neither question section has
+    // nothing to lock.
+    if (target === "Approved") {
+      const questions = questionsOf(kind, md, sidecar);
+      if (questions.kind === "departs") {
+        return yield* Effect.fail(
+          new ArtifactQuestionsUnparsedError({
+            path: repoRelPath,
+            line: questions.line,
+            text: questions.text,
+          }),
+        );
+      }
+      if (questions.kind === "summary" && questions.summary.open.length > 0) {
+        return yield* Effect.fail(
+          new ArtifactOpenQuestionsError({ path: repoRelPath, open: questions.summary.open }),
+        );
+      }
     }
 
     const hasRecordFile =
@@ -716,7 +746,7 @@ export function transitionArtifactBy(
   opts: TransitionArtifactByOptions,
 ): Effect.Effect<
   ArtifactTransitionResult,
-  TransitionArtifactError | DocumentMigrationRequiredError | ArtifactArbiterRefusedError,
+  TransitionArtifactError | ArbitratedTransitionError | ArtifactArbiterRefusedError,
   FileSystem | Git | Terminal
 > {
   return Effect.gen(function* () {

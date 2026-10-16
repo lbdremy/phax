@@ -429,6 +429,29 @@ export class ArtifactSidecarDivergedError extends Data.TaggedError("ArtifactSide
   }
 }
 
+/** Approval refused: the artifact still has open questions. */
+export class ArtifactOpenQuestionsError extends Data.TaggedError("ArtifactOpenQuestionsError")<{
+  path: string;
+  open: readonly string[];
+}> {
+  override get message(): string {
+    return `Approval refused: ${this.path} has open questions — ${this.open.join(", ")}. Answer them with \`phax artifact decide ${this.path}\`.`;
+  }
+}
+
+/** Approval refused: a hand-authored question section departs from the §9 format. */
+export class ArtifactQuestionsUnparsedError extends Data.TaggedError(
+  "ArtifactQuestionsUnparsedError",
+)<{
+  path: string;
+  line: number;
+  text: string;
+}> {
+  override get message(): string {
+    return `Approval refused: ${this.path} has a question section that does not follow the §9 format, at line ${this.line}: ${this.text}`;
+  }
+}
+
 export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError")<{
   path: string;
   status: string;

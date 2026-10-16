@@ -174,14 +174,15 @@ describe("renderDocumentMigrationReport", () => {
       `  ${PRUNE.padEnd(PLAN.length)}  Approved  open 0 · arbitrated 2 (2 lifted)`,
       `    now edited since approval — re-approve with \`phax artifact approve ${PRUNE}\``,
       `  ${CACHE.padEnd(PLAN.length)}  Approved  open 1 (Q3) · arbitrated 1 (1 lifted)`,
-      `    now edited since approval, with open questions Q3 — reopen it with \`phax artifact reopen ${CACHE}\` before re-approving`,
+      "    now edited since approval, with open questions Q3 — reopen it and decide Q3 before re-approving",
       "plan-document written before $schema → 0.25.0",
       `  ${PLAN}  Approved  body unchanged`,
       "stale (spec-changed)",
       `  ${PLAN}  its spec ${PRUNE} was re-rendered`,
       "committed e5f6a7b chore(artifacts): migrate documents to their current shapes",
     ]);
-    expect(lines.join("\n")).not.toContain("decide");
+    // Only the Approved artifact left with an open question is told to decide.
+    expect(lines.filter((l) => l.includes("decide"))).toEqual([lines[5]]);
   });
 });
 

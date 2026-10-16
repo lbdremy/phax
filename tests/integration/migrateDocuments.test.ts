@@ -624,7 +624,7 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
       `    now edited since approval — re-approve with \`phax artifact approve ${PLAN_PRUNE}\``,
     );
     expect(report).toContain(
-      `    now edited since approval, with open questions Q3 — reopen it with \`phax artifact reopen ${CACHE_KEYS}\` before re-approving`,
+      "    now edited since approval, with open questions Q3 — reopen it and decide Q3 before re-approving",
     );
     expect(report).toMatch(/plan-document 0\.20\.0 → .*\n {2}\S+ +Approved {2}body unchanged/);
     expect(lines.slice(-3)).toEqual([
@@ -632,7 +632,8 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
       `  ${PLAN}  its spec ${PLAN_PRUNE} was re-rendered`,
       expect.stringMatching(new RegExp(`^committed [0-9a-f]{7} ${escape(COMMIT_SUBJECT)}$`)),
     ]);
-    expect(report).not.toContain("decide");
+    // Only the spec left with an open question is told to decide.
+    expect(lines.filter((l) => l.includes("decide"))).toHaveLength(1);
 
     // Exactly the two specs, their sidecars and the plan's sidecar.
     expect(headFiles()).toEqual(

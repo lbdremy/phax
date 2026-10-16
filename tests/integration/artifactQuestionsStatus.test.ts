@@ -91,6 +91,31 @@ const DECIDED_Q2: SpecArbitratedQuestion = {
 
 const OPEN_Q3_Q4 = [question("Q3", "Where do pruned runs go?"), question("Q4", "Is prune logged?")];
 
+// An open question decided by the operator for its recommendation: the
+// approval lock admits an Approved artifact only once none is open.
+function decidedFor(q: OpenQuestion): SpecArbitratedQuestion {
+  return {
+    ...q,
+    verdict: {
+      ...(DECIDED_Q2.verdict as Extract<SpecArbitratedQuestion["verdict"], { kind: "decided" }>),
+      chosen: q.recommendation,
+      abandoned: q.options.map((o) => o.id).filter((id) => id !== q.recommendation),
+    },
+    history: [],
+  };
+}
+
+const DECIDED_Q3_Q4 = OPEN_Q3_Q4.map(decidedFor);
+
+// A spec's arbitrated question as a plan's, its verdict naming the phase it bears on.
+function onPhase(q: SpecArbitratedQuestion): PlanArbitratedQuestion {
+  return {
+    ...q,
+    verdict: { ...q.verdict, phase: "phase-02" } as PlanArbitratedQuestion["verdict"],
+    history: [],
+  };
+}
+
 const SPEC_BASE: Omit<SpecDocument, "openQuestions" | "arbitratedQuestions"> = {
   kind: "spec",
   title: "Plan prune",
@@ -256,37 +281,48 @@ afterEach(() => {
 });
 
 describe("phax artifact status — questions by state and arbiter", () => {
-  it("an Approved headless spec prints its open ids, arbitrated and lifted counts, and the machine approver", async () => {
+  it("a headless spec prints its open ids, then once they are decided and it is approved, its counts and the machine approver", async () => {
     writeHeadlessSpec({
       ...SPEC_BASE,
       openQuestions: OPEN_Q3_Q4,
       arbitratedQuestions: [LIFTED_Q1, DECIDED_Q2],
     });
     commitAll();
+
+    const draft = await statusLines(SPEC);
+    expect(lineOf(draft, "Authored")).toBe(
+      `Authored:          headless — sidecar ${SPEC_SIDECAR} (in sync)`,
+    );
+    expect(lineOf(draft, "Questions")).toBe(
+      "Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)",
+    );
+    expect(draft).toContain(`  decide with \`phax artifact decide ${SPEC}\``);
+    expect(lineOf(draft, "Legal transitions")).toBe(
+      "Legal transitions: Approved (once no question is open), Abandoned",
+    );
+
+    writeHeadlessSpec({
+      ...SPEC_BASE,
+      openQuestions: [],
+      arbitratedQuestions: [LIFTED_Q1, DECIDED_Q2, ...DECIDED_Q3_Q4],
+    });
+    commitAll("decide Q3 Q4");
     await approveByMachine(SPEC);
 
     const lines = await statusLines(SPEC);
-    expect(lineOf(lines, "Authored")).toBe(
-      `Authored:          headless — sidecar ${SPEC_SIDECAR} (in sync)`,
-    );
     expect(lineOf(lines, "Questions")).toBe(
-      "Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)",
+      "Questions:         4 — open 0 · arbitrated 4 (1 lifted)",
     );
     expect(lineOf(lines, "Approved")).toMatch(/ by machine \(roadmap-loop\)$/);
     expect(lines.join("\n")).not.toContain("decide");
   });
 
-  it("an Approved headless plan in the same situation prints the same lines", async () => {
+  it("a headless plan in the same situation prints the same lines", async () => {
     const base = planBase();
-    // The spec's questions, with the decided verdict naming the phase it bears on.
+    // The spec's questions, with each decided verdict naming the phase it bears on.
     const lifted: PlanArbitratedQuestion = {
       ...LIFTED_Q1,
       verdict: LIFTED_Q1.verdict as LiftedVerdict,
-      history: [],
-    };
-    const decided: PlanArbitratedQuestion = {
-      ...DECIDED_Q2,
-      verdict: { ...DECIDED_Q2.verdict, phase: "phase-02" } as PlanArbitratedQuestion["verdict"],
       history: [],
     };
     writeHeadlessPlan({
@@ -294,18 +330,37 @@ describe("phax artifact status — questions by state and arbiter", () => {
       preamble: {
         ...base.preamble,
         openQuestions: OPEN_Q3_Q4,
-        arbitratedQuestions: [lifted, decided],
+        arbitratedQuestions: [lifted, onPhase(DECIDED_Q2)],
       },
     });
     commitAll();
+
+    const draft = await statusLines(PLAN);
+    expect(lineOf(draft, "Authored")).toBe(
+      `Authored:          headless — sidecar ${PLAN_SIDECAR} (in sync)`,
+    );
+    expect(lineOf(draft, "Questions")).toBe(
+      "Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)",
+    );
+    expect(draft).toContain(`  decide with \`phax artifact decide ${PLAN}\``);
+    expect(lineOf(draft, "Legal transitions")).toMatch(
+      /^Legal transitions: Approved \(once no question is open\)/,
+    );
+
+    writeHeadlessPlan({
+      ...base,
+      preamble: {
+        ...base.preamble,
+        openQuestions: [],
+        arbitratedQuestions: [lifted, ...[DECIDED_Q2, ...DECIDED_Q3_Q4].map(onPhase)],
+      },
+    });
+    commitAll("decide Q3 Q4");
     await approveByMachine(PLAN);
 
     const lines = await statusLines(PLAN);
-    expect(lineOf(lines, "Authored")).toBe(
-      `Authored:          headless — sidecar ${PLAN_SIDECAR} (in sync)`,
-    );
     expect(lineOf(lines, "Questions")).toBe(
-      "Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)",
+      "Questions:         4 — open 0 · arbitrated 4 (1 lifted)",
     );
     expect(lineOf(lines, "Approved")).toMatch(/ by machine \(roadmap-loop\)$/);
   });
