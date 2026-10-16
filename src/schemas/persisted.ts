@@ -615,6 +615,34 @@ export function olderDocumentStamp(kind: "spec" | "plan", input: unknown): strin
   return parseSchemaUrl(input["$schema"])?.release ?? null;
 }
 
+/** A spec or plan document at the current in-memory shape, tagged with its kind. */
+export type CurrentDocument =
+  | { readonly kind: "spec"; readonly document: SpecDocument }
+  | { readonly kind: "plan"; readonly document: PlanDocument };
+
+/**
+ * Decodes a parsed spec or plan sidecar with its kind's current file decoder
+ * only — never an older shape, never lifted — and drops `$schema`. For an
+ * answer whose stamp the caller has already checked: a decide session's
+ * revised document. Unknown keys are refused; the decoder's question,
+ * phase and traceability checks run.
+ */
+export function decodeCurrentDocumentSidecar(
+  kind: "spec" | "plan",
+  input: unknown,
+): Either.Either<CurrentDocument, ParseResult.ParseError> {
+  if (kind === "spec") {
+    return Either.map(decodeSpecDocumentFile(input), ({ $schema: _schema, ...document }) => ({
+      kind: "spec" as const,
+      document,
+    }));
+  }
+  return Either.map(decodePlanDocumentFile(input), ({ $schema: _schema, ...document }) => ({
+    kind: "plan" as const,
+    document,
+  }));
+}
+
 /** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
   Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);

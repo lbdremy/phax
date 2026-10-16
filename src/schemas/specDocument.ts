@@ -221,3 +221,8 @@ export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
 export function getSpecDocumentJsonSchema(): object {
   return JSONSchema.make(SpecDocumentSchema);
 }
+
+/** The JSON Schema of a spec sidecar: what a decide session returns as its revised document. */
+export function getSpecDocumentFileJsonSchema(): object {
+  return JSONSchema.make(SpecDocumentFileSchema);
+}
