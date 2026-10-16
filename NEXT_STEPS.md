@@ -11,7 +11,7 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Five approved specs are open:
-artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
+artifact-decide is done; headless-review is next and oracle-phases follows it; 23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
 three have landed. No plan is in flight.
 
@@ -115,23 +115,20 @@ that morning's decisions, and arbitrated and approved 2026-09-28/29. Their §9 a
 each sidecar. They run one after another, not in parallel, because each builds on the formats
 the previous one changes. The first in the chain, `schemas-package`, is Completed.
 
-- [ ] **`artifact-decide`** — `docs/specs/2610140742-artifact-decide.md`, re-authored and
+- [x] **`artifact-decide`** — `docs/specs/2610140742-artifact-decide.md`, re-authored and
       approved 2026-10-14 against per-file approval records and versioned document formats (the
-      2026-09-29 version is abandoned). **Next.** No plan yet: `phax artifact new plan
-      artifact-decide --spec docs/specs/2610140742-artifact-decide.md --last`. Decide is
-      interactive only and runs on Drafts; `artifact reopen` moves an Approved artifact back to
-      Draft; every artifact gets the approval lock; `--by` names who approved; an approval record
-      without `approvedBy` lifts to `unattributed`; `phax artifact migrate-documents` lifts the
-      live headless sidecars once, and approve, reopen and decide refuse until it has run.
-      Plan A (approver attribution and reopen) shipped: `--by`, `approvedBy` with the
-      `unattributed` lift, and reopen from Approved. Plan B shipped the question model (open and
-      arbitrated questions, lifted verdicts), rendering by id, the hand-authored §9 parser, the
-      status `Questions:` line, and `migrate-documents` with the approve and reopen refusal.
-      **Run `phax artifact migrate-documents` once in this repository** after plan B merges.
-      Plan C (`decide`, the doctrine skills, the approval lock, the plan-prompt invitation and
-      `docs/arbitration.md`) follows, authored after plan B merges.
-- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
-      approver form and skill (`docs/ideas/headless-code-review.md`). decide's re-authoring
+      2026-09-29 version is abandoned). (Done: all three plans shipped.) Plan A shipped
+      approver attribution (`--by`, `approvedBy` with the `unattributed` lift) and reopen from
+      Approved. Plan B shipped the question model (open and arbitrated questions, lifted
+      verdicts), rendering by id, the hand-authored §9 parser, the status `Questions:` line, and
+      `migrate-documents`. Plan C shipped `phax artifact decide` (interactive, Claude Code only,
+      framing F1–F5 first, the body diff accepted before writing), the three doctrine skills,
+      the decision record, the approval lock, the plan-prompt invitation to leave open
+      questions, and `docs/arbitration.md`.
+      **Run `phax artifact migrate-documents` once in this repository** if it has not run yet.
+- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. **Next.** It adopts
+      decide's machine/operator approval form (`--by`) and reuses decide's skill
+      (`docs/ideas/headless-code-review.md`). decide's re-authoring
       dropped the escalation block and changed the approver form to `--by`, so this spec's
       reliance on both is part of its rework.
       **Reopen before planning:** pr-description (2026-10-13) replaced the PR body it builds on.

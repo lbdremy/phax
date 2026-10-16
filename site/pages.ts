@@ -187,6 +187,13 @@ export default definePageMap({
         "Every phax command with its flags and arguments: artifacts, plans, runs, review and publishing, records, and the read-only commands.",
     },
     {
+      route: "/guide/arbitration",
+      title: "Deciding open questions",
+      source: "docs/arbitration.md",
+      description:
+        "Decide open questions with phax artifact decide: framing first, then each question under a doctrine, and the body diff accepted before writing.",
+    },
+    {
       route: "/reference/model-catalog",
       title: "Model catalog",
       source: "docs/model-catalog.md",

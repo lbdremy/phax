@@ -22,7 +22,7 @@ Install phax and its skills, then set up your repository:
 npm install -g @lbdremy/phax
 cd my-project
 phax init                               # writes phax.json: project name, gate commands
-phax skills install --target claude     # phax-spec, phax-planning and phax-cli, for your agent
+phax skills install --target claude     # phax-spec, phax-planning, phax-cli and the decide skills, for your agent
 ```
 
 Write a spec, then a plan, and approve each. `artifact new` creates the file with its name and status; you fill it in with your agent, which follows the `phax-spec` and `phax-planning` skills:
@@ -81,7 +81,7 @@ xattr -dr com.apple.quarantine /usr/local/bin/phax   # macOS: the binary is not 
 
 **An agent.** phax drives an agent CLI that must be on your `$PATH`: `claude` (Claude Code), and optionally `codex` (OpenAI Codex) or `vibe` (Mistral Vibe). Keep `claude` installed even if you prefer another provider: phax falls back to it when the preferred one is missing or cannot meet the run's security mode.
 
-**The skills.** phax ships the skills your agent uses to write its documents: `phax-spec`, `phax-planning` and `phax-cli`.
+**The skills.** phax ships the skills your agent uses to write its documents: `phax-spec`, `phax-planning` and `phax-cli`, plus the three doctrine skills `phax-decide-spec`, `phax-decide-plan` and `phax-decide-review`. `phax artifact decide` follows the first two when it decides a spec's or plan's open questions.
 
 ```bash
 phax skills install --target claude                 # or codex, or agent
@@ -247,6 +247,21 @@ phax plans lint docs/plans/2610041201-greet-plan.md
 
 A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
 
+### Decide open questions
+
+A spec or a plan can leave questions open, each with options, the loss each abandons, and a recommendation. `phax artifact decide` answers them with you, in an interactive Claude Code session:
+
+```bash
+phax artifact decide <path>                                  # framing F1–F5, then each open question
+phax artifact decide <path> --question Q1                    # one question alone, open or arbitrated
+phax artifact decide <path> --doctrine docs/doctrine.md      # add project rules after the skill
+phax artifact decide <path> --model claude-sonnet-5-5 --effort medium
+```
+
+The agent raises five framing questions first, then presents the questions, and you decide. When you exit, phax asks the session for the revised document, checks it, shows the body diff and writes only what you accept: the artifact and its sidecar, committed together. `--question` re-arbitrates one question and keeps its previous verdict in its history; reopen an Approved artifact first. The session follows `phax-decide-spec` or `phax-decide-plan`; a copy in `.claude/skills/` replaces the bundled one, and `--doctrine` appends a file after it. decide needs a terminal and a Draft artifact, runs on Claude Code only (default `claude-opus-5-5` at `high`), and is refused inside a phase worktree. Every session leaves a decision record when records are on. [Deciding open questions](docs/arbitration.md) covers the flow.
+
+**The approval lock.** `phax artifact approve` refuses, with exit 12, while a spec or plan has an open question, and names `phax artifact decide`. Hand-authored artifacts are locked too, and an artifact with no question section is approved as before.
+
 ### Move them through their lifecycle
 
 | Command                                         | From                                                           | To                                            |
@@ -365,7 +380,7 @@ phax prune <run>                # delete an archived run for good
 
 ## Records
 
-A record is what a phase leaves behind for later: on a `phax/records/v1` branch, one commit per phase, holding its manifest, its gate results and the surfaces they verified, its file reconciliation, its diff, its handoff and logs, and the agent's transcript if you keep it. A headless authoring session leaves one too. Worktrees come and go; the records stay, and they travel with a clone.
+A record is what a phase leaves behind for later: on a `phax/records/v1` branch, one commit per phase, holding its manifest, its gate results and the surfaces they verified, its file reconciliation, its diff, its handoff and logs, and the agent's transcript if you keep it. A headless authoring session leaves one too, and so does every `phax artifact decide` session. Worktrees come and go; the records stay, and they travel with a clone.
 
 ```bash
 phax records init               # choose: keep transcripts, where the branch lives, push automatically

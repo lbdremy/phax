@@ -15,6 +15,7 @@ const SOURCE_FILES = [
   "docs/security.md",
   "docs/release.md",
   "docs/model-catalog.md",
+  "docs/arbitration.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */
