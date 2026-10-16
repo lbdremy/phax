@@ -105,7 +105,12 @@ import { readPhaseBase, recordPhaseWorktreeAndBranch } from "./phaseStatusUpdate
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRun } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
-import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
+import {
+  createPhaseWorktree,
+  preparePhaseBranch,
+  prepareRunBranch,
+  writePhasePlanFile,
+} from "./worktree.js";
 import {
   writeAgentBinding,
   patchAgentBindingSession,
@@ -405,7 +410,7 @@ export function executePlan(
     );
 
     // A new check that does not need the run belongs in runPreflights, not inline here.
-    const { gateSteps } = yield* runPreflights({
+    const { gateSteps, planSections } = yield* runPreflights({
       plan,
       planMd,
       planPath: join(runPath, "plan.md"),
@@ -615,6 +620,11 @@ export function executePlan(
           );
         }
         worktreePath = worktreePathResult.right;
+        // Only these two re-entries run the agent again; a commit, cleanup or
+        // completion re-entry runs none, and its worktree may already be gone.
+        if (isResumeFromGate || isResumeFromHandoff) {
+          yield* writePhasePlanFile(worktreePath as string, planMd);
+        }
         // A resume asks no new brief (spec §5.6) but restores the request file.
         if (config.brief !== undefined) {
           phaseFacts = yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal);
@@ -732,6 +742,7 @@ export function executePlan(
         );
 
         yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
+        yield* writePhasePlanFile(worktreePath as string, planMd);
 
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
@@ -753,9 +764,17 @@ export function executePlan(
           });
         }
 
+        // The phase-sections preflight located every phase, so a miss is a defect.
+        const phaseSection = planSections.sections.get(phase.id);
+        if (phaseSection === undefined) {
+          return yield* Effect.dieMessage(
+            `Phase "${phase.id}" has no located plan.md section after the phase-sections preflight`,
+          );
+        }
         const promptText = buildPhasePrompt({
-          planMd,
-          planJson: plan,
+          planPreamble: planSections.preamble,
+          phaseSection,
+          plan,
           currentPhase: phase,
           previousHandoff,
           previousReconciliation,
