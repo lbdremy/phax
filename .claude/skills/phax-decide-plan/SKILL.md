@@ -15,6 +15,13 @@ what a phase may touch. The `phax-planning` skill says: *frame every option by i
 dominant loss, recommend the option whose loss is acceptable*. This doctrine says what
 to do when there is no human to ask.
 
+A plan's unsettled arbitrations are its **open questions**, in the same shape as a
+spec's: `{ id, question, options: [{ id, label, abandons }], recommendation, rationale }`,
+where `recommendation` is the `id` of one option. The plan keeps two sections, **open**
+(`preamble.openQuestions`) and **arbitrated** (`preamble.arbitratedQuestions`); a decided
+question moves from the first to the second with its verdict. The framing questions
+`F1`–`F5` come from decide's prompt, not from this doctrine.
+
 ## The headless clarify gate (`P1`)
 
 The planning skill stops and asks a human when two viable approaches sacrifice different
@@ -122,7 +129,30 @@ caller; an arbiter that escalates everything is visible.
 
 ## Output
 
-Same shape as the spec doctrine's output, with `principles` citing `P*` ids, plus
-`"phase": "<phase id>"` when the decision concerns one phase. A decision that escalates
-carries `"escalate": "<the spec question>"` and the plan is not approved until it is
-answered.
+The spec doctrine's verdict, with `principles` citing `P*` ids (and `E0`, `C1`–`C5`), and
+a required `phase`. A decided question keeps its `id`, `question`, `options`,
+`recommendation` and `rationale`, moves to `preamble.arbitratedQuestions`, and carries:
+
+```json
+{ "kind": "decided", "chosen": "split", "abandoned": ["merge"],
+  "why": "…", "advocate": "The strongest case for merge: …",
+  "principles": ["P2"],
+  "reversibility": "cheap" | "costly" | "irreversible",
+  "revised": [], "phase": "phase-02" }
+```
+
+- The choice: `chosen` is an option `id`; `abandoned` is exactly the other option ids.
+- The citations: `principles` lists ids that open list items in the loaded doctrine (this
+  skill and any `--doctrine` file).
+- The body: `revised` names the plan sections the verdict changed, empty when none; a
+  verdict that departs from the recommendation names at least one.
+- The phase: `phase` is the `phase-NN` id of a phase the plan has, the one the decision
+  concerns most.
+- The attribution: phax sets `by` (the operator, by the committing git identity) and
+  `at`, and keeps the plan's `sourceSpec` and `completesSpec` as they were.
+- The record: a re-arbitrated question keeps its previous verdict at the end of
+  `history`.
+
+The plan is not approved while an open question remains. The headless modes above record
+a proposal as `escalate` (a spec question goes to decide on the spec); the interactive
+verdict has no such field — the operator decides.

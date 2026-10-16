@@ -9,9 +9,14 @@ description: Default arbitration doctrine for `phax artifact decide` on a spec �
 
 # phax decide — spec doctrine
 
-You are arbitrating the **open questions of a spec** (§9: `id`, `question`, `options[]`,
-`recommendation`, `rationale`). You did not write the spec; do not defend it. Your output
-is JSON only (see *Output*); phax re-implants it and renders the Markdown.
+You are arbitrating the **open questions of a spec** (§9). Each question is
+`{ id, question, options: [{ id, label, abandons }], recommendation, rationale }`: every
+option names what it abandons, and `recommendation` is the `id` of one option. The spec
+keeps two sections, **open** (`openQuestions`) and **arbitrated** (`arbitratedQuestions`);
+a decided question moves from the first to the second with its verdict. You did not write
+the spec; do not defend it. Verdicts are data (see *Output*); phax validates them and
+renders the Markdown. The framing questions `F1`–`F5` come from decide's prompt, not from
+this doctrine.
 
 ## How to decide, in order
 
@@ -116,14 +121,35 @@ caller; an arbiter that escalates everything is visible.
 
 ## Output
 
+A decided question keeps its `id`, `question`, `options`, `recommendation` and
+`rationale`, moves to `arbitratedQuestions`, and carries a `decided` verdict:
+
 ```json
-{ "decisions": [
-  { "id": "Q1", "chosen": "A", "abandoned": ["B"],
-    "advocate": "The strongest case for B: …",
-    "why": "…", "principles": ["S1", "S5"],
+{ "id": "Q1", "question": "…", "options": [ … ], "recommendation": "keep",
+  "rationale": "…",
+  "verdict": { "kind": "decided", "chosen": "keep", "abandoned": ["drop"],
+    "why": "…", "advocate": "The strongest case for drop: …",
+    "principles": ["S1", "S5"],
     "reversibility": "cheap" | "costly" | "irreversible",
-    "escalate": null | "what a human must confirm" } ] }
+    "revised": [] },
+  "history": [] }
 ```
 
-Every field is required; an empty `why` or a decision without a cited principle is
-invalid. Never edit the spec's requirements to make a question disappear.
+- The choice: `chosen` is an option `id`; `abandoned` is exactly the other option ids.
+- The reasons: `why` says why; `advocate` is the strongest case for an abandoned option
+  (`S0`).
+- The citations: `principles` lists ids that open list items in the loaded doctrine (this
+  skill and any `--doctrine` file); an id named only in prose, like `S0`, is not citable.
+- The cost of going back: `reversibility` is `cheap`, `costly` or `irreversible`.
+- The body: `revised` names the body sections the verdict changed, empty when none. A
+  verdict whose `chosen` departs from the recommendation revises the body it implies
+  (requirements, surface, acceptance criteria) and names it here.
+- The attribution: phax sets `by` (the operator, by the committing git identity) and
+  `at`; a value given there is overwritten.
+- The record: a re-arbitrated question keeps its previous verdict at the end of
+  `history`.
+
+Every field is required; an empty `why` or a verdict without a cited principle is
+invalid. Never edit the spec's requirements to make a question disappear. The headless
+modes above record a proposal as `escalate` or `note`; the interactive verdict has no such
+field — the operator decides.

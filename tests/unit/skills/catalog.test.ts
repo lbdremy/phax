@@ -3,6 +3,9 @@ import {
   EXPOSED_SKILLS,
   EXPOSED_SKILL_NAMES,
   PHAX_CLI_SKILL,
+  PHAX_DECIDE_PLAN_SKILL,
+  PHAX_DECIDE_REVIEW_SKILL,
+  PHAX_DECIDE_SPEC_SKILL,
   PHAX_PLANNING_SKILL,
   PHAX_SPEC_SKILL,
   findExposedSkill,
@@ -15,9 +18,22 @@ import {
 } from "../../../src/domain/skills/types.js";
 
 describe("EXPOSED_SKILLS", () => {
-  it("contains phax-planning, phax-cli and phax-spec", () => {
-    expect(EXPOSED_SKILLS).toHaveLength(3);
-    expect(EXPOSED_SKILLS.map((s) => s.name)).toEqual(["phax-planning", "phax-cli", "phax-spec"]);
+  it("lists the six skills in order, the three doctrine skills after phax-spec", () => {
+    expect(EXPOSED_SKILLS).toHaveLength(6);
+    expect(EXPOSED_SKILLS.map((s) => s.name)).toEqual([
+      "phax-planning",
+      "phax-cli",
+      "phax-spec",
+      "phax-decide-spec",
+      "phax-decide-plan",
+      "phax-decide-review",
+    ]);
+  });
+
+  it("every skill's source directory is its name", () => {
+    for (const skill of EXPOSED_SKILLS) {
+      expect(skill.sourceDir).toBe(skill.name);
+    }
   });
 
   it("every exposed skill ships SKILL.md as its required file", () => {
@@ -31,7 +47,17 @@ describe("EXPOSED_SKILLS", () => {
     expect(PHAX_PLANNING_SKILL).toBe("phax-planning");
     expect(PHAX_CLI_SKILL).toBe("phax-cli");
     expect(PHAX_SPEC_SKILL).toBe("phax-spec");
-    expect(EXPOSED_SKILL_NAMES).toEqual([PHAX_PLANNING_SKILL, PHAX_CLI_SKILL, PHAX_SPEC_SKILL]);
+    expect(PHAX_DECIDE_SPEC_SKILL).toBe("phax-decide-spec");
+    expect(PHAX_DECIDE_PLAN_SKILL).toBe("phax-decide-plan");
+    expect(PHAX_DECIDE_REVIEW_SKILL).toBe("phax-decide-review");
+    expect(EXPOSED_SKILL_NAMES).toEqual([
+      PHAX_PLANNING_SKILL,
+      PHAX_CLI_SKILL,
+      PHAX_SPEC_SKILL,
+      PHAX_DECIDE_SPEC_SKILL,
+      PHAX_DECIDE_PLAN_SKILL,
+      PHAX_DECIDE_REVIEW_SKILL,
+    ]);
   });
 });
 

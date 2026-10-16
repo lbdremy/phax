@@ -368,6 +368,26 @@ export class ArtifactCreationError extends Data.TaggedError("ArtifactCreationErr
 }> {}
 
 /**
+ * `artifact decide` refused before writing anything: a precondition failed
+ * (`reason` names which) or the artifact changed during the session.
+ * `message` is the operator-facing refusal.
+ */
+export class DecideRefusedError extends Data.TaggedError("DecideRefusedError")<{
+  reason:
+    | "not-draft"
+    | "sidecar"
+    | "dirty"
+    | "no-terminal"
+    | "hand-format"
+    | "unknown-question"
+    | "doctrine"
+    | "model"
+    | "operator"
+    | "changed";
+  message: string;
+}> {}
+
+/**
  * A headless authoring session ended without a usable document: its final
  * message was not JSON, or the JSON failed the kind's document schema.
  * `message` carries the reason (the first violation's path for a schema
