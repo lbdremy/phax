@@ -55,7 +55,8 @@ function located(planMd: string, phases: readonly LocatablePhase[] = PHASES) {
 describe("locatePlanSections", () => {
   it("excludes the frontmatter and every phase from the preamble", () => {
     const { preamble } = located(PLAN);
-    expect(preamble).toBe(`${PREAMBLE}\n\n---`);
+    // The separator `---` before the first phase is not part of the preamble.
+    expect(preamble).toBe(PREAMBLE);
     expect(preamble).not.toContain("status: Approved");
     expect(preamble).not.toContain("phase-01");
     expect(preamble).not.toContain("phase-02");
@@ -63,7 +64,8 @@ describe("locatePlanSections", () => {
 
   it("slices each section verbatim, from its heading to the next", () => {
     const { sections } = located(PLAN);
-    expect(sections.get("phase-01")).toBe(`${PHASE_01}\n\n---`);
+    // Nor is the one between two phases part of the section before it.
+    expect(sections.get("phase-01")).toBe(PHASE_01);
     expect(sections.get("phase-02")).toBe(PHASE_02);
   });
 
@@ -112,8 +114,15 @@ describe("locatePlanSections", () => {
     const appendix = "## Appendix\n\nA note about widgets.";
     const plan = PLAN.replace(`${PHASE_01}\n`, `${PHASE_01}\n\n${appendix}\n`);
     const { sections } = located(plan);
-    expect(sections.get("phase-01")).toBe(`${PHASE_01}\n\n${appendix}\n\n---`);
+    expect(sections.get("phase-01")).toBe(`${PHASE_01}\n\n${appendix}`);
     expect(sections.get("phase-02")).toBe(PHASE_02);
+  });
+
+  it("keeps a --- inside a section that does not precede the next phase", () => {
+    const inner = "Before the rule.\n\n---\n\nAfter the rule.";
+    const plan = PLAN.replace(`${PHASE_01}\n`, `${PHASE_01}\n\n${inner}\n`);
+    const { sections } = located(plan);
+    expect(sections.get("phase-01")).toBe(`${PHASE_01}\n\n${inner}`);
   });
 
   it("does not take a heading already taken by an earlier phase", () => {
