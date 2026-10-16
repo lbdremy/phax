@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610160909-plan-estimate.md",
+  "specFingerprint": "123ea12f314add59927f5c7505d4ec6bb0c1441d201efeda37c75886d4602cce",
+  "approvedAt": "2026-10-16T10:26:31.518Z",
+  "baseline": "2058e569335510dacac02f66f4643653f50ede0a",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
