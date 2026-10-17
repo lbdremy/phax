@@ -621,7 +621,7 @@ export function executePlan(
         }
         worktreePath = worktreePathResult.right;
         // Only these two re-entries run the agent again; a commit, cleanup or
-        // completion re-entry runs none, and its worktree may already be gone.
+        // completion re-entry runs none, so it needs no fresh copy.
         if (isResumeFromGate || isResumeFromHandoff) {
           yield* writePhasePlanFile(worktreePath as string, planMd);
         }

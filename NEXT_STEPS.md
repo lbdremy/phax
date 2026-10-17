@@ -106,7 +106,7 @@ desktop — none is promised by the announcement.
 
 ## Next up — the cost specs, approved 2026-10-16, in run order
 
-- [x] **`phase-prompt-scope`** — `docs/specs/2610161001-phase-prompt-scope.md`. Each phase's
+- [x] **`phase-prompt-scope`** — `docs/specs/archive/2610161001-phase-prompt-scope.md`. Each phase's
       prompt carries the plan preamble, its own section and an outline; landing with this run.
 - [ ] **`cost-ledger`** — `docs/specs/2610160919-cost-ledger.md`. **Next.**
 - [ ] **`plan-estimate`** — `docs/specs/2610160909-plan-estimate.md`. After cost-ledger.
