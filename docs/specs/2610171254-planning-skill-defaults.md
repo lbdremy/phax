@@ -473,51 +473,55 @@ Given no `architecture` key in any config layer, when `phax artifact new plan in
 
 Given `architecture` declared in `phax.json` and a secure security profile, when headless plan authoring spawns its session, then the session's agent commands admit `phax architecture`, and with no `architecture` key they are the same as before this spec. (refs §5.29)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
 
 ### Q1 — How does the skill name the default phase assignment and the policy's models, so that a catalog change cannot leave them stale?
 
-- A generated block in the skill, rendered from one phax constant (default model and effort, stronger and lighter models), with the constant checked against the catalog by the existing `gen:model-catalog --check` step of `pnpm check:full` — abandons: Hand-editable prose: changing the default means changing code and regenerating, and the default becomes a phax constant that the later `phase-model-assignment` built-in default must reuse rather than restate.
-- Hand-written prose naming the ids, plus a test that every model id the prose names is in the catalog — abandons: Catching a stale default: when a newer Sonnet joins and the old one stays listed, the prose still passes while pointing at the older model.
-- Name families, not ids ("the newest active claude-sonnet entry") — abandons: A concrete id the planner can copy: each planner resolves the family to an id itself, two planners can pick differently, and a non-Claude catalog has no "sonnet".
+- generated — A generated block in the skill, rendered from one phax constant (default model and effort, stronger and lighter models), with the constant checked against the catalog by the existing `gen:model-catalog --check` step of `pnpm check:full` — abandons: Hand-editable prose: changing the default means changing code and regenerating, and the default becomes a phax constant that the later `phase-model-assignment` built-in default must reuse rather than restate.
+- hand-checked — Hand-written prose naming the ids, plus a test that every model id the prose names is in the catalog — abandons: Catching a stale default: when a newer Sonnet joins and the old one stays listed, the prose still passes while pointing at the older model.
+- family-names — Name families, not ids ("the newest active claude-sonnet entry") — abandons: A concrete id the planner can copy: each planner resolves the family to an id itself, two planners can pick differently, and a non-Claude catalog has no "sonnet".
 
-Recommendation: A generated block in the skill, rendered from one phax constant (default model and effort, stronger and lighter models), with the constant checked against the catalog by the existing `gen:model-catalog --check` step of `pnpm check:full` — The catalog table is already generated and drift-checked in `pnpm check:full`. Putting the policy's model names behind the same mechanism makes the catalog the single source of truth. A hand edit or a missing model then fails the check instead of shipping. The cost is a constant in code, which `phase-model-assignment` needs anyway for its built-in default.
+Recommendation: generated — The catalog table is already generated and drift-checked in `pnpm check:full`. Putting the policy's model names behind the same mechanism makes the catalog the single source of truth. A hand edit or a missing model then fails the check instead of shipping. The cost is a constant in code, which `phase-model-assignment` needs anyway for its built-in default.
 
 ### Q2 — Where does a headless phase that leaves the default state why?
 
-- In `preamble.technicalArbitrations`, one entry per departing phase naming its id, model and effort, and the reason — abandons: A checkable link: nothing mechanical tells a departure without a reason from one with, and the reason is written away from its phase.
-- A new required per-phase key `modelReason` (a string, or null on the default), placed before `model` — abandons: Shape stability ahead of `phase-model-assignment`, which will replace it with its `assignment` block: two plan-document shape changes in a row for one concern.
+- arbitrations — In `preamble.technicalArbitrations`, one entry per departing phase naming its id, model and effort, and the reason — abandons: A checkable link: nothing mechanical tells a departure without a reason from one with, and the reason is written away from its phase.
+- phase-field — A new required per-phase key `modelReason` (a string, or null on the default), placed before `model` — abandons: Shape stability ahead of `phase-model-assignment`, which will replace it with its `assignment` block: two plan-document shape changes in a row for one concern.
 
-Recommendation: In `preamble.technicalArbitrations`, one entry per departing phase naming its id, model and effort, and the reason — This spec steers the planner, and lint does not check the reason (that is `phase-model-assignment`'s job, with its own per-phase block). The preamble already holds cross-phase decisions and is required. Adding a field now that the next spec replaces would churn a persisted format for no check that reads it.
+Recommendation: arbitrations — This spec steers the planner, and lint does not check the reason (that is `phase-model-assignment`'s job, with its own per-phase block). The preamble already holds cross-phase decisions and is required. Adding a field now that the next spec replaces would churn a persisted format for no check that reads it.
 
 ### Q3 — How does the headless planner reach the architecture?
 
-- Pull: the prompt says whether a provider is configured, and the session may run `phax architecture` when one is — abandons: The authoring session's narrow jail: today it runs only `git`. It now runs a command that spawns a provider inside the session's read-only filesystem and provider-only network, which a provider that writes a cache or reaches the network will not survive.
-- Push: phax queries the provider once, for the whole repository, before spawning the session, and puts the body in the prompt — abandons: Asking for the parts the plan touches: the planner gets one whole-repository answer it cannot narrow. The prompt grows by that answer for every plan, and this departs from the author's stated design.
+- pull — Pull: the prompt says whether a provider is configured, and the session may run `phax architecture` when one is — abandons: The authoring session's narrow jail: today it runs only `git`. It now runs a command that spawns a provider inside the session's read-only filesystem and provider-only network, which a provider that writes a cache or reaches the network will not survive.
+- push — Push: phax queries the provider once, for the whole repository, before spawning the session, and puts the body in the prompt — abandons: Asking for the parts the plan touches: the planner gets one whole-repository answer it cannot narrow. The prompt grows by that answer for every plan, and this departs from the author's stated design.
 
-Recommendation: Pull: the prompt says whether a provider is configured, and the session may run `phax architecture` when one is — The author chose pull. It keeps one path to the architecture for interactive planners, headless planners and phases, and lets the planner ask about the parts it is cutting. The jail's limits are a constraint for the provider to meet, stated in the docs page. `phase-model-assignment` widens the same session for `phax brief` on the same terms.
+Recommendation: pull — The author chose pull. It keeps one path to the architecture for interactive planners, headless planners and phases, and lets the planner ask about the parts it is cutting. The jail's limits are a constraint for the provider to meet, stated in the docs page. `phase-model-assignment` widens the same session for `phax brief` on the same terms.
 
 ### Q4 — Do `phax brief` and `phax architecture` answer a missing provider the same way?
 
-- `phax architecture` exits 0 with one stdout line; `phax brief` keeps its exit 1 — abandons: Consistency between two sibling provider commands: the same situation answers 0 from one and 1 from the other.
-- Both exit 0 with one stdout line — abandons: `phax brief`'s shipped contract before the CLI freeze: a script, gate step or test that reads exit 1 as "no brief provider" starts reading success instead.
-- Both exit 1 — abandons: The author's rule for `phax architecture`: an agent reads exit 1 as a failure and retries or stops, although a missing architecture provider is an ordinary repository.
+- split — `phax architecture` exits 0 with one stdout line; `phax brief` keeps its exit 1 — abandons: Consistency between two sibling provider commands: the same situation answers 0 from one and 1 from the other.
+- both-zero — Both exit 0 with one stdout line — abandons: `phax brief`'s shipped contract before the CLI freeze: a script, gate step or test that reads exit 1 as "no brief provider" starts reading success instead.
+- both-one — Both exit 1 — abandons: The author's rule for `phax architecture`: an agent reads exit 1 as a failure and retries or stops, although a missing architecture provider is an ordinary repository.
 
-Recommendation: `phax architecture` exits 0 with one stdout line; `phax brief` keeps its exit 1 — The two commands' callers differ. The skill tells a planner to run `phax architecture` in every repository, so a missing provider there is ordinary and must read as information. A phase is told to run `phax brief` only when the project configures a brief provider, so a missing one there is a misconfiguration worth a non-zero exit. Changing brief's exit would also spend CLI-contract churn just before the freeze for no caller's benefit.
+Recommendation: split — The two commands' callers differ. The skill tells a planner to run `phax architecture` in every repository, so a missing provider there is ordinary and must read as information. A phase is told to run `phax brief` only when the project configures a brief provider, so a missing one there is a misconfiguration worth a non-zero exit. Changing brief's exit would also spend CLI-contract churn just before the freeze for no caller's benefit.
 
 ### Q5 — Is a `phax architecture` call inside a phase worktree recorded, as a pulled brief is?
 
-- Not recorded: nothing is written — abandons: The trace of which architecture a phase agent read, which a reviewer could otherwise replay from the phase folder.
-- Recorded as `architecture-NN.json` beside the brief records, with a new `architecture-record` format — abandons: Minimality of the seam: a third format to version and snapshot, and the brief's collect-and-close machinery duplicated, before any provider says more than a Markdown body.
+- no-record — Not recorded: nothing is written — abandons: The trace of which architecture a phase agent read, which a reviewer could otherwise replay from the phase folder.
+- record — Recorded as `architecture-NN.json` beside the brief records, with a new `architecture-record` format — abandons: Minimality of the seam: a third format to version and snapshot, and the brief's collect-and-close machinery duplicated, before any provider says more than a Markdown body.
 
-Recommendation: Not recorded: nothing is written — The brief asks for the minimal seam. An architecture report informs the plan rather than a phase's compliance, so nothing downstream reads it, and a record format can be added if a consumer appears.
+Recommendation: no-record — The brief asks for the minimal seam. An architecture report informs the plan rather than a phase's compliance, so nothing downstream reads it, and a record format can be added if a consumer appears.
 
 ### Q6 — What shape is the architecture report?
 
-- `{ $schema, body }`: one Markdown string phax prints and never parses — abandons: Anything phax could compute from the answer, such as the parts, their paths or their dependency order: a later consumer must parse prose or wait for a new shape.
-- `{ $schema, parts: [{ name, paths, guarantees }], order }` — abandons: A seam that exists before any provider says much: every provider must compute parts and an order up front, and phax freezes a structure no consumer reads yet.
+- body — `{ $schema, body }`: one Markdown string phax prints and never parses — abandons: Anything phax could compute from the answer, such as the parts, their paths or their dependency order: a later consumer must parse prose or wait for a new shape.
+- structured — `{ $schema, parts: [{ name, paths, guarantees }], order }` — abandons: A seam that exists before any provider says much: every provider must compute parts and an order up front, and phax freezes a structure no consumer reads yet.
 
-Recommendation: `{ $schema, body }`: one Markdown string phax prints and never parses — The only reader today is an agent, which reads Markdown best. Adding structure later is a new shape under the versioned-format rules. Requiring it now would force providers to compute what nobody consumes.
+Recommendation: body — The only reader today is an agent, which reads Markdown best. Adding structure later is a new shape under the versioned-format rules. Requiring it now would force providers to compute what nobody consumes.
+
+## 9b. Arbitrated questions
+
+None.
 
 ## 10. Implementation-planning note
 

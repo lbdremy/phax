@@ -492,37 +492,41 @@ Given a plan whose phase states `claude-sonnet-5-5` / `low`, outside its governi
 
 Given `phax.json` declaring a `brief` provider, when the headless plan authoring session runs `phax brief src/core/decide/refund.ts`, then the command is allowed and returns the provider's brief report for that path. (refs §5.28)
 
-## 9. Open questions for implementation planning
+## 9. Open questions
 
-### Q1 — How does phax rank models to find the most demanding assignment?
+### q-order — How does phax rank models to find the most demanding assignment?
 
-- By API list price (output per MTok, then input); a non-Claude model ranks as its Claude-hub anchor at the range's max — abandons: A generation-aware order: an older, pricier model (`claude-opus-4-8`, $25 output) outranks the newer `claude-opus-5-5` ($20), and a model with no price and no Claude anchor cannot be placed, so an entry naming it is refused.
-- By family tier (haiku < sonnet < opus < fable), then by price within a family — abandons: A single factual source: phax states and maintains its own ladder of families, a judgment about the models, and non-Claude families still need anchoring.
-- The planning file lists its own model ladder, lowest to highest — abandons: The catalog as the one order: each repository maintains a ladder beside its entries, and a catalog model missing from it is unusable there.
+- price — By API list price (output per MTok, then input); a non-Claude model ranks as its Claude-hub anchor at the range's max — abandons: A generation-aware order: an older, pricier model (`claude-opus-4-8`, $25 output) outranks the newer `claude-opus-5-5` ($20), and a model with no price and no Claude anchor cannot be placed, so an entry naming it is refused.
+- family — By family tier (haiku < sonnet < opus < fable), then by price within a family — abandons: A single factual source: phax states and maintains its own ladder of families, a judgment about the models, and non-Claude families still need anchoring.
+- ladder — The planning file lists its own model ladder, lowest to highest — abandons: The catalog as the one order: each repository maintains a ladder beside its entries, and a catalog model missing from it is unusable there.
 
-Recommendation: By API list price (output per MTok, then input); a non-Claude model ranks as its Claude-hub anchor at the range's max — Price is a fact phax already holds for every Claude catalog model, and the routing equivalence already places every other model next to a Claude one. Reading "most demanding" as "most costly to run" adds no judgment of phax's own, which fits the guiding rule. The ordering only decides between entries that conflict on the same phase. Each entry's assignment stays the person's, and a person mixing generations sees the governing entry named in every finding.
+Recommendation: price — Price is a fact phax already holds for every Claude catalog model, and the routing equivalence already places every other model next to a Claude one. Reading "most demanding" as "most costly to run" adds no judgment of phax's own, which fits the guiding rule. The ordering only decides between entries that conflict on the same phase. Each entry's assignment stays the person's, and a person mixing generations sees the governing entry named in every finding.
 
-### Q2 — Where does `phax planning sync` get a provider's entries?
+### q-source — Where does `phax planning sync` get a provider's entries?
 
-- A provider command declared in `phax.json` (`planning.providers`), like `brief` and `planAuditor` — abandons: Zero configuration: a provider must be declared before it can be synced, and phax takes on its spawn (time cap, failure handling).
-- A file or stdin: `acme-guard planning-entries | phax planning sync --source acme-guard -` — abandons: A trusted `source`: the caller asserts whose entries these are, so one mistyped pipe rewrites another provider's entries under the wrong name.
+- declared — A provider command declared in `phax.json` (`planning.providers`), like `brief` and `planAuditor` — abandons: Zero configuration: a provider must be declared before it can be synced, and phax takes on its spawn (time cap, failure handling).
+- stdin — A file or stdin: `acme-guard planning-entries | phax planning sync --source acme-guard -` — abandons: A trusted `source`: the caller asserts whose entries these are, so one mistyped pipe rewrites another provider's entries under the wrong name.
 
-Recommendation: A provider command declared in `phax.json` (`planning.providers`), like `brief` and `planAuditor` — `source` is what stops a merge from touching anyone else's entries, so it must come from configuration, not from the caller. Every other provider seam in phax is a declared command. The entries document stays a format of its own, so a provider can produce it without knowing `phax.json`.
+Recommendation: declared — `source` is what stops a merge from touching anyone else's entries, so it must come from configuration, not from the caller. Every other provider seam in phax is a declared command. The entries document stays a format of its own, so a provider can produce it without knowing `phax.json`.
 
-### Q3 — Within an entry's range, through which seam does the planner ask the provider for facts about a phase's files (for example, whether the code already holds instances of what the phase will write, or whether it is the first of its kind)?
+### q-facts — Within an entry's range, through which seam does the planner ask the provider for facts about a phase's files (for example, whether the code already holds instances of what the phase will write, or whether it is the first of its kind)?
 
-- `phax brief <paths>` and its brief report — abandons: A dedicated channel for facts: "first of its kind" has to be read from rules and their guides (a rule whose guide names an existing file shows an instance to follow), in a shape built for obligations rather than observations.
-- Extend the `planAuditor` seam (`{phases:[{id, files}]}` → advisory findings) — abandons: Timing: the auditor answers at lint, after the plan is written, so its facts arrive after the assignment. Its request and answer are not yet versioned either.
-- A new provider seat with its own request and answer formats — abandons: Economy: a third provider contract to version and implement before `phax brief` has been shown to be insufficient.
+- brief — `phax brief <paths>` and its brief report — abandons: A dedicated channel for facts: "first of its kind" has to be read from rules and their guides (a rule whose guide names an existing file shows an instance to follow), in a shape built for obligations rather than observations.
+- auditor — Extend the `planAuditor` seam (`{phases:[{id, files}]}` → advisory findings) — abandons: Timing: the auditor answers at lint, after the plan is written, so its facts arrive after the assignment. Its request and answer are not yet versioned either.
+- seat — A new provider seat with its own request and answer formats — abandons: Economy: a third provider contract to version and implement before `phax brief` has been shown to be insufficient.
 
-Recommendation: `phax brief <paths>` and its brief report — The brief already answers for any paths at the moment the planner needs it. It is versioned and carries no model name or score, so a provider stays one that knows no model. NEXT_STEPS already names the brief at plan authoring as the missing moment of the same verb. This spec adds no seat, and one can follow if the brief proves too indirect.
+Recommendation: brief — The brief already answers for any paths at the moment the planner needs it. It is versioned and carries no model name or score, so a provider stays one that knows no model. NEXT_STEPS already names the brief at plan authoring as the missing moment of the same verb. This spec adds no seat, and one can follow if the brief proves too indirect.
 
-### Q4 — While a planning file exists, is a phase missing its `**Planning entries:**` or `**Effort reason:**` line a lint error or a warning?
+### q-lines — While a planning file exists, is a phase missing its `**Planning entries:**` or `**Effort reason:**` line a lint error or a warning?
 
-- A models error — abandons: A smooth adoption: every plan drafted before the planning file appeared, or written by hand without the lines, fails lint until each phase gains them.
-- A models warning — abandons: The guarantee that the plan shows why: a reader can meet a phase with no stated reason and lint still passes.
+- error — A models error — abandons: A smooth adoption: every plan drafted before the planning file appeared, or written by hand without the lines, fails lint until each phase gains them.
+- warning — A models warning — abandons: The guarantee that the plan shows why: a reader can meet a phase with no stated reason and lint still passes.
 
-Recommendation: A models error — The file is optional. A repository that writes one has asked for plans that show why each phase got its model, and an unstated reason is exactly the judgment going unrecorded. Adding two lines fixes the finding, and headless authoring renders both lines itself.
+Recommendation: error — The file is optional. A repository that writes one has asked for plans that show why each phase got its model, and an unstated reason is exactly the judgment going unrecorded. Adding two lines fixes the finding, and headless authoring renders both lines itself.
+
+## 9b. Arbitrated questions
+
+None.
 
 ## 10. Implementation-planning note
 

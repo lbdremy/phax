@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/spec-document/0.17.0.json",
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
   "kind": "spec",
   "title": "Phase model assignment — an optional planning file that bounds each phase's model and effort",
   "ground": [
@@ -750,6 +750,7 @@
       "rationale": "The file is optional. A repository that writes one has asked for plans that show why each phase got its model, and an unstated reason is exactly the judgment going unrecorded. Adding two lines fixes the finding, and headless authoring renders both lines itself."
     }
   ],
+  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The planning file is optional. With no file, phax behaves exactly as without this spec: no prompt section, no planning lines, a catalog-only models check, and `{\"kind\": \"none\"}` in the plan document.",

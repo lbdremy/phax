@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/spec-document/0.17.0.json",
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
   "kind": "spec",
   "title": "Planning skill defaults — write phases first, assign their model last, and read the repository's own architecture",
   "ground": [
@@ -737,6 +737,7 @@
       "rationale": "The only reader today is an agent, which reads Markdown best. Adding structure later is a new shape under the versioned-format rules. Requiring it now would force providers to compute what nobody consumes."
     }
   ],
+  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The default phase assignment is `claude-sonnet-5-5` at `medium`. Stronger means a higher effort or `claude-opus-5-5` for a phase that designs what the code does not show yet. Lighter means `claude-haiku-5-5` for a phase that reproduces an existing pattern a gate checks. Every departure states its reason.",
