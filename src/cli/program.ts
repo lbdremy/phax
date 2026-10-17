@@ -32,6 +32,7 @@ import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
 import { registerArtifactCommand } from "./commands/artifact.js";
 import { registerRecordsCommand } from "./commands/records.js";
+import { registerCostCommand } from "./commands/cost.js";
 import { runInit } from "./commands/init.js";
 import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
@@ -201,6 +202,7 @@ export function buildProgram(): Command {
     });
 
   registerPruneCommand(program, runPrune, consoleOutput);
+  registerCostCommand(program, consoleOutput);
 
   program
     .command("run")

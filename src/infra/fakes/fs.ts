@@ -5,10 +5,24 @@ import { FileSystem, type FileSystemOps, FsError } from "../../ports/fs.js";
 export class FakeFileSystemImpl implements FileSystemOps {
   readonly files = new Map<string, string>();
   readonly dirs = new Set<string>();
+  readonly modified = new Map<string, string>();
+  private writes = 0;
 
   setFile(path: string, content: string): void {
     this.files.set(path, content);
+    this.touch(path);
     this.registerParentDirs(path);
+  }
+
+  /** Sets the instant `modifiedAt` reports for `path` until its next write. */
+  setModifiedAt(path: string, instant: string): void {
+    this.modified.set(path, instant);
+  }
+
+  // Every write stamps a distinct, ascending made-up instant.
+  private touch(path: string): void {
+    this.writes += 1;
+    this.modified.set(path, new Date(Date.UTC(2026, 0, 1) + this.writes * 1000).toISOString());
   }
 
   getFile(path: string): string | undefined {
@@ -38,12 +52,14 @@ export class FakeFileSystemImpl implements FileSystemOps {
   appendLine(path: string, line: string): Effect.Effect<void, FsError> {
     const existing = this.files.get(path) ?? "";
     this.files.set(path, existing + line + "\n");
+    this.touch(path);
     this.registerParentDirs(path);
     return Effect.void;
   }
 
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError> {
     this.files.set(path, content);
+    this.touch(path);
     this.registerParentDirs(path);
     return Effect.void;
   }
@@ -51,6 +67,7 @@ export class FakeFileSystemImpl implements FileSystemOps {
   createExclusive(path: string, content: string): Effect.Effect<boolean, FsError> {
     if (this.files.has(path) || this.dirs.has(path)) return Effect.succeed(false);
     this.files.set(path, content);
+    this.touch(path);
     this.registerParentDirs(path);
     return Effect.succeed(true);
   }
@@ -80,9 +97,13 @@ export class FakeFileSystemImpl implements FileSystemOps {
     }
     const prefix = path + "/";
     this.files.delete(path);
+    this.modified.delete(path);
     this.dirs.delete(path);
     for (const key of Array.from(this.files.keys())) {
-      if (key.startsWith(prefix)) this.files.delete(key);
+      if (key.startsWith(prefix)) {
+        this.files.delete(key);
+        this.modified.delete(key);
+      }
     }
     for (const dir of Array.from(this.dirs)) {
       if (dir.startsWith(prefix)) this.dirs.delete(dir);
@@ -98,6 +119,14 @@ export class FakeFileSystemImpl implements FileSystemOps {
       if (key === path || key.startsWith(prefix)) total += encoder.encode(content).byteLength;
     }
     return Effect.succeed(total);
+  }
+
+  modifiedAt(path: string): Effect.Effect<string, FsError> {
+    const instant = this.files.has(path) ? this.modified.get(path) : undefined;
+    if (instant === undefined) {
+      return Effect.fail(new FsError({ message: `ENOENT: no such file: ${path}` }));
+    }
+    return Effect.succeed(instant);
   }
 
   list(path: string): Effect.Effect<readonly string[], FsError> {
@@ -131,6 +160,7 @@ export class FakeFileSystemImpl implements FileSystemOps {
       const content = this.files.get(from)!;
       this.files.delete(from);
       this.files.set(to, content);
+      this.moveModified(from, to);
     }
 
     const filesToRename = Array.from(this.files.entries()).filter(([key]) =>
@@ -139,6 +169,7 @@ export class FakeFileSystemImpl implements FileSystemOps {
     for (const [key, val] of filesToRename) {
       this.files.delete(key);
       this.files.set(to + "/" + key.slice(fromPrefix.length), val);
+      this.moveModified(key, to + "/" + key.slice(fromPrefix.length));
     }
 
     if (this.dirs.has(from)) {
@@ -153,6 +184,12 @@ export class FakeFileSystemImpl implements FileSystemOps {
     }
 
     return Effect.void;
+  }
+
+  private moveModified(from: string, to: string): void {
+    const instant = this.modified.get(from);
+    this.modified.delete(from);
+    if (instant !== undefined) this.modified.set(to, instant);
   }
 
   rootedAt(root: string): FileSystemOps {
@@ -173,6 +210,7 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
     rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),
     list: (path) => base.list(resolveKey(path)),
     apparentSize: (path) => base.apparentSize(resolveKey(path)),
+    modifiedAt: (path) => base.modifiedAt(resolveKey(path)),
     rootedAt: (nestedRoot) => makeRootedFakeFileSystemOps(base, resolveKey(nestedRoot)),
   };
 }

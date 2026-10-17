@@ -257,3 +257,109 @@ export function ledgerEntryFor(input: LedgerEntryInput): CostLedgerEntry | null 
 export function appendEntry(ledger: CostLedger, entry: CostLedgerEntry): CostLedger {
   return { ...ledger, entries: [...ledger.entries, entry] };
 }
+
+/** A run folder's entry names, and the entry names of each of its phase folders. */
+export type RunFolderListing = {
+  readonly entries: readonly string[];
+  /** Keyed by phase folder name (`phase-01`, `phase-01.reset-<stamp>`). */
+  readonly phaseEntries: Readonly<Record<string, readonly string[]>>;
+};
+
+/** One kept invocation stream of a run, its path relative to the run folder. */
+export type RunStream = InvocationRole & { readonly relativePath: string };
+
+const PHASE_FOLDER = /^phase-(\d{2,})(?:\.reset-(.+))?$/;
+const FIX_STREAM = /^fix-attempt-(\d{2,})\.jsonl$/;
+const COMPLIANCE_STREAM = "compliance-review.session.jsonl";
+
+/** Whether a run folder entry is a phase folder, live (`phase-01`) or reset (`phase-01.reset-<stamp>`). */
+export function isPhaseFolderName(name: string): boolean {
+  return PHASE_FOLDER.test(name);
+}
+
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** A phase folder's streams in run order: its turn, its fix attempts ascending, its handoff. */
+function phaseFolderStreams(folder: string, phase: string, names: readonly string[]): RunStream[] {
+  const streams: RunStream[] = [];
+  if (names.includes("output.jsonl")) {
+    streams.push({ role: "phase", phase, relativePath: `${folder}/output.jsonl` });
+  }
+  const fixes = names
+    .flatMap((name) => {
+      const match = FIX_STREAM.exec(name);
+      return match?.[1] === undefined ? [] : [{ name, attempt: Number(match[1]) }];
+    })
+    .toSorted((a, b) => a.attempt - b.attempt);
+  for (const { name } of fixes) {
+    streams.push({ role: "fix", phase, relativePath: `${folder}/${name}` });
+  }
+  if (names.includes("handoff-generation.jsonl")) {
+    streams.push({ role: "handoff", phase, relativePath: `${folder}/handoff-generation.jsonl` });
+  }
+  return streams;
+}
+
+/**
+ * A run folder's kept Claude invocation streams in the order the run wrote
+ * them: phases by id, each phase's `.reset-<stamp>` folders in ascending stamp
+ * order before its live folder, and the compliance review last. Any other
+ * name is ignored.
+ */
+export function runStreamsInOrder(runFolder: RunFolderListing): RunStream[] {
+  const folders = runFolder.entries
+    .flatMap((name) => {
+      const match = PHASE_FOLDER.exec(name);
+      if (match?.[1] === undefined) return [];
+      return [{ name, number: Number(match[1]), phase: `phase-${match[1]}`, stamp: match[2] }];
+    })
+    .toSorted((a, b) => {
+      if (a.number !== b.number) return a.number - b.number;
+      if (a.stamp === undefined) return b.stamp === undefined ? 0 : 1;
+      if (b.stamp === undefined) return -1;
+      return compareText(a.stamp, b.stamp);
+    });
+  const streams = folders.flatMap((folder) =>
+    phaseFolderStreams(folder.name, folder.phase, runFolder.phaseEntries[folder.name] ?? []),
+  );
+  if (runFolder.entries.includes(COMPLIANCE_STREAM)) {
+    streams.push({ role: "compliance", phase: null, relativePath: COMPLIANCE_STREAM });
+  }
+  return streams;
+}
+
+/** One kept stream's decoded facts, in run order, with the instant it ended. */
+export type KeptStream = InvocationRole & {
+  readonly facts: ClaudeStreamFacts;
+  readonly endedAt: string;
+};
+
+/**
+ * The ledger the run would have written from its kept streams, folded in run
+ * order. A partial entry carries no duration (`agentMs` 0); a stream that
+ * never started (no Claude session id) adds nothing.
+ */
+export function ledgerFromStreams(
+  streams: ReadonlyArray<KeptStream>,
+  priceFor: (model: string) => ModelListPrice | undefined = listPriceFor,
+): CostLedger {
+  let ledger: CostLedger = { entries: [] };
+  for (const stream of streams) {
+    const role: InvocationRole =
+      stream.role === "compliance"
+        ? { role: stream.role, phase: null }
+        : { role: stream.role, phase: stream.phase };
+    const entry = ledgerEntryFor({
+      ...role,
+      facts: stream.facts,
+      earlier: ledger.entries,
+      partialAgentMs: 0,
+      endedAt: stream.endedAt,
+      priceFor,
+    });
+    if (entry !== null) ledger = appendEntry(ledger, entry);
+  }
+  return ledger;
+}

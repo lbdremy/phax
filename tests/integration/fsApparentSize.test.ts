@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -56,5 +56,23 @@ describe("FileSystem.apparentSize (Node adapter)", () => {
     await mkdir(join(tmpDir, "nested"));
     await writeFile(join(tmpDir, "nested", "f.txt"), "1234");
     await expect(withFs((fs) => fs.rootedAt(tmpDir).apparentSize("nested"))).resolves.toBe(4);
+  });
+});
+
+describe("FileSystem.modifiedAt (Node adapter)", () => {
+  it("returns the file's mtime as an ISO instant, through a rooted view too", async () => {
+    const path = join(tmpDir, "stream.jsonl");
+    await writeFile(path, "{}");
+    const mtime = new Date("2026-03-04T05:06:07.000Z");
+    await utimes(path, mtime, mtime);
+
+    await expect(withFs((fs) => fs.modifiedAt(path))).resolves.toBe("2026-03-04T05:06:07.000Z");
+    await expect(withFs((fs) => fs.rootedAt(tmpDir).modifiedAt("stream.jsonl"))).resolves.toBe(
+      "2026-03-04T05:06:07.000Z",
+    );
+  });
+
+  it("fails for an absent file", async () => {
+    await expect(withFs((fs) => fs.modifiedAt(join(tmpDir, "missing")))).rejects.toThrow();
   });
 });

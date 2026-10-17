@@ -10,6 +10,7 @@ import {
   appendFile,
   readdir,
   lstat,
+  stat,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -130,6 +131,12 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
     apparentSize: (path) =>
       Effect.tryPromise({
         try: () => apparentSizeOf(resolvePath(path)),
+        catch: wrapFsError,
+      }),
+
+    modifiedAt: (path) =>
+      Effect.tryPromise({
+        try: async () => (await stat(resolvePath(path))).mtime.toISOString(),
         catch: wrapFsError,
       }),
 
