@@ -6,14 +6,19 @@
 // Every run uses a temporary state root and a fake backend that writes
 // made-up streams to the invocation's outputJsonlPath; no real provider is
 // spawned and ~/.phax is never read.
-import { Effect, Either, Exit, Layer } from "effect";
+import { Effect, Either, Exit, Fiber, Layer } from "effect";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { archive } from "../../src/app/archive.js";
-import { COST_LEDGER_FILE, withInvocationCost } from "../../src/app/costLedger.js";
+import {
+  activeInvocationCost,
+  COST_LEDGER_FILE,
+  withInvocationCost,
+} from "../../src/app/costLedger.js";
+import { syncRecordInterruptedInvocation } from "../../src/cli/interruptHandler.js";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
@@ -617,5 +622,26 @@ describe("withInvocationCost", () => {
     expect(Exit.isInterrupted(outcome)).toBe(true);
     const entries = await readLedger(runPath);
     expect(entries.map((entry) => entry.completeness)).toEqual(["partial"]);
+  });
+
+  it("lets the signal handler, which exits before onExit runs, record the running invocation", async () => {
+    writeStream(streamPath(), [init("session-signal"), assistant("msg-01", 5)]);
+    const fiber = Effect.runFork(
+      wrapped(Effect.never).pipe(
+        Effect.provide(Layer.merge(NodeFileSystemLayer, NoopSystemTelemetryLayer)),
+      ),
+    );
+    while (activeInvocationCost() === undefined) await new Promise((r) => setTimeout(r, 1));
+    expect(activeInvocationCost()?.opts.streamPath).toBe(streamPath());
+
+    syncRecordInterruptedInvocation();
+
+    const entries = await readLedger(runPath);
+    expect(entries.map((entry) => [entry.sessionId, entry.completeness])).toEqual([
+      ["session-signal", "partial"],
+    ]);
+    expect(entries[0]?.models["example-model"]?.outputTokens).toBe(5);
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    expect(activeInvocationCost()).toBeUndefined();
   });
 });

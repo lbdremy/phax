@@ -3,7 +3,9 @@
 // the FileSystem port and decoded at the schema boundary; the domain computes
 // the entry. A ledger failure never changes the invocation's outcome: it is
 // reported to telemetry and as a warning on stderr, and a ledger phax cannot
-// read is never overwritten.
+// read is never overwritten. A signal exits the process before `onExit` runs,
+// so the invocation running now is also kept for the CLI's signal handler,
+// which records it with `nextLedger`.
 import { Cause, Clock, Effect, Either } from "effect";
 import { join } from "node:path";
 import type { RunId } from "../domain/branded.js";
@@ -54,6 +56,33 @@ function readLedger(path: string): Effect.Effect<CostLedger, unknown, FileSystem
   });
 }
 
+/**
+ * The ledger with the invocation's entry appended, ready to write, or null
+ * when its stream never started. Pure: `streamText` is the invocation's
+ * stream, `ledger` the run's ledger as read (empty when absent).
+ */
+export function nextLedger(
+  opts: InvocationCostOptions,
+  streamText: string,
+  ledger: CostLedger,
+  elapsedMs: number,
+  endedAt: string,
+): string | null {
+  const role: InvocationRole =
+    opts.role === "compliance"
+      ? { role: opts.role, phase: null }
+      : { role: opts.role, phase: opts.phase };
+  const entry = ledgerEntryFor({
+    ...role,
+    facts: parseClaudeStream(streamText.split("\n")),
+    earlier: ledger.entries,
+    partialAgentMs: elapsedMs,
+    endedAt,
+  });
+  if (entry === null) return null;
+  return JSON.stringify(withSchemaUrl("cost-ledger", appendEntry(ledger, entry)), null, 2);
+}
+
 function recordEntry(
   opts: InvocationCostOptions,
   elapsedMs: number,
@@ -61,27 +90,31 @@ function recordEntry(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     if (!(yield* fs.exists(opts.streamPath))) return;
-    const facts = parseClaudeStream((yield* fs.readText(opts.streamPath)).split("\n"));
+    const streamText = yield* fs.readText(opts.streamPath);
     const ledgerPath = join(opts.runPath, COST_LEDGER_FILE);
     const ledger = yield* readLedger(ledgerPath);
     const endedAt = new Date(yield* Clock.currentTimeMillis).toISOString();
-    const role: InvocationRole =
-      opts.role === "compliance"
-        ? { role: opts.role, phase: null }
-        : { role: opts.role, phase: opts.phase };
-    const entry = ledgerEntryFor({
-      ...role,
-      facts,
-      earlier: ledger.entries,
-      partialAgentMs: elapsedMs,
-      endedAt,
-    });
-    if (entry === null) return;
-    yield* fs.writeAtomic(
-      ledgerPath,
-      JSON.stringify(withSchemaUrl("cost-ledger", appendEntry(ledger, entry)), null, 2),
-    );
+    const next = nextLedger(opts, streamText, ledger, elapsedMs, endedAt);
+    if (next === null) return;
+    yield* fs.writeAtomic(ledgerPath, next);
   });
+}
+
+/** The Claude invocation running now, and when it started (epoch ms). */
+export interface ActiveInvocation {
+  readonly opts: InvocationCostOptions;
+  readonly startedAt: number;
+}
+
+let activeInvocation: ActiveInvocation | undefined;
+
+/**
+ * The Claude invocation running now, if any. The CLI's signal handler exits
+ * the process before `withInvocationCost`'s `onExit` can run, so it records
+ * this invocation's partial entry itself.
+ */
+export function activeInvocationCost(): ActiveInvocation | undefined {
+  return activeInvocation;
 }
 
 function describeInvocation(opts: InvocationCostOptions): string {
@@ -103,9 +136,15 @@ export function withInvocationCost<A, E, R>(
   if (opts.provider !== "claude-code") return invocation;
   return Effect.gen(function* () {
     const startedAt = yield* Clock.currentTimeMillis;
+    yield* Effect.sync(() => {
+      activeInvocation = { opts, startedAt };
+    });
     return yield* invocation.pipe(
       Effect.onExit(() =>
         Effect.gen(function* () {
+          yield* Effect.sync(() => {
+            activeInvocation = undefined;
+          });
           const elapsedMs = (yield* Clock.currentTimeMillis) - startedAt;
           yield* recordEntry(opts, elapsedMs);
         }).pipe(

@@ -114,7 +114,7 @@ describe("parseClaudeStream", () => {
     expect(facts.events.map((event) => event.kind)).toEqual(["message", "rate-limit", "message"]);
   });
 
-  it("reads the last result that carries modelUsage, and ignores one without it", () => {
+  it("reads the last result's modelUsage, sums every result's duration, and ignores a result without modelUsage", () => {
     const facts = parseClaudeStream([
       init(),
       line({
@@ -143,7 +143,7 @@ describe("parseClaudeStream", () => {
       line({ type: "result", subtype: "error", duration_ms: 5 }),
     ]);
     expect(facts.result).toEqual({
-      durationMs: 52000,
+      durationMs: 53000,
       modelUsage: {
         "claude-opus-5-5": {
           inputTokens: 40,
