@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2610160909-plan-estimate.md
 completes-spec: true
 ---
