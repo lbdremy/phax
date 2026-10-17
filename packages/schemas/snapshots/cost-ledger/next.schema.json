@@ -1,0 +1,334 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax cost ledger",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "NonNegativeInt": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int",
+      "minimum": 0
+    },
+    "NonNegative": {
+      "type": "number",
+      "description": "a non-negative number",
+      "title": "nonNegative",
+      "minimum": 0
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "entries"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The cost-ledger format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/cost-ledger/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/cost-ledger\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "role",
+              "phase",
+              "completeness",
+              "provider",
+              "sessionId",
+              "models",
+              "costUsd",
+              "agentMs",
+              "endedAt",
+              "rateLimitSamples"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "phase",
+                  "fix",
+                  "handoff"
+                ]
+              },
+              "phase": {
+                "type": "string",
+                "description": "The phase the invocation ran for.",
+                "pattern": "^phase-\\d{2}$"
+              },
+              "completeness": {
+                "type": "string",
+                "enum": [
+                  "complete",
+                  "partial"
+                ],
+                "description": "complete: read from the invocation's result event; partial: it ended without one, and its assistant messages were priced."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "claude-code"
+                ]
+              },
+              "sessionId": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "models": {
+                "type": "object",
+                "required": [],
+                "properties": {},
+                "patternProperties": {
+                  "": {
+                    "type": "object",
+                    "required": [
+                      "inputTokens",
+                      "outputTokens",
+                      "cacheReadTokens",
+                      "cacheWriteTokens",
+                      "costUsd"
+                    ],
+                    "properties": {
+                      "inputTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "outputTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "cacheReadTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "cacheWriteTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "costUsd": {
+                        "type": "number",
+                        "description": "USD at Anthropic's API list prices, rounded to 6 decimals.",
+                        "title": "nonNegative",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "propertyNames": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "description": "The invocation's own tokens and API-list cost, by model id."
+              },
+              "costUsd": {
+                "type": "number",
+                "description": "The sum of the models' costUsd.",
+                "title": "nonNegative",
+                "minimum": 0
+              },
+              "agentMs": {
+                "$ref": "#/$defs/NonNegative",
+                "description": "The agent's duration in milliseconds: the result's duration_ms, or the wall-clock time phax measured for a partial entry.",
+                "title": "int",
+                "type": "integer"
+              },
+              "endedAt": {
+                "type": "string",
+                "description": "When the invocation ended.",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+              },
+              "rateLimitSamples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "window",
+                    "utilization",
+                    "resetsAt",
+                    "runCostUsd"
+                  ],
+                  "properties": {
+                    "window": {
+                      "type": "string",
+                      "enum": [
+                        "five-hour",
+                        "seven-day"
+                      ]
+                    },
+                    "utilization": {
+                      "type": "number",
+                      "description": "The window's utilization, in percent.",
+                      "title": "between(0, 100)",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "resetsAt": {
+                      "type": "string",
+                      "description": "When the window resets.",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                    },
+                    "runCostUsd": {
+                      "type": "number",
+                      "description": "The run's cumulative API-list cost when the stream reported the window: the earlier entries plus this invocation's priced messages so far.",
+                      "title": "nonNegative",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "role",
+              "phase",
+              "completeness",
+              "provider",
+              "sessionId",
+              "models",
+              "costUsd",
+              "agentMs",
+              "endedAt",
+              "rateLimitSamples"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "compliance"
+                ]
+              },
+              "phase": {
+                "type": "null"
+              },
+              "completeness": {
+                "type": "string",
+                "enum": [
+                  "complete",
+                  "partial"
+                ],
+                "description": "complete: read from the invocation's result event; partial: it ended without one, and its assistant messages were priced."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "claude-code"
+                ]
+              },
+              "sessionId": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "models": {
+                "type": "object",
+                "required": [],
+                "properties": {},
+                "patternProperties": {
+                  "": {
+                    "type": "object",
+                    "required": [
+                      "inputTokens",
+                      "outputTokens",
+                      "cacheReadTokens",
+                      "cacheWriteTokens",
+                      "costUsd"
+                    ],
+                    "properties": {
+                      "inputTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "outputTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "cacheReadTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "cacheWriteTokens": {
+                        "$ref": "#/$defs/NonNegativeInt"
+                      },
+                      "costUsd": {
+                        "type": "number",
+                        "description": "USD at Anthropic's API list prices, rounded to 6 decimals.",
+                        "title": "nonNegative",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "propertyNames": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "description": "The invocation's own tokens and API-list cost, by model id."
+              },
+              "costUsd": {
+                "type": "number",
+                "description": "The sum of the models' costUsd.",
+                "title": "nonNegative",
+                "minimum": 0
+              },
+              "agentMs": {
+                "$ref": "#/$defs/NonNegative",
+                "description": "The agent's duration in milliseconds: the result's duration_ms, or the wall-clock time phax measured for a partial entry.",
+                "title": "int",
+                "type": "integer"
+              },
+              "endedAt": {
+                "type": "string",
+                "description": "When the invocation ended.",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+              },
+              "rateLimitSamples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "window",
+                    "utilization",
+                    "resetsAt",
+                    "runCostUsd"
+                  ],
+                  "properties": {
+                    "window": {
+                      "type": "string",
+                      "enum": [
+                        "five-hour",
+                        "seven-day"
+                      ]
+                    },
+                    "utilization": {
+                      "type": "number",
+                      "description": "The window's utilization, in percent.",
+                      "title": "between(0, 100)",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "resetsAt": {
+                      "type": "string",
+                      "description": "When the window resets.",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                    },
+                    "runCostUsd": {
+                      "type": "number",
+                      "description": "The run's cumulative API-list cost when the stream reported the window: the earlier entries plus this invocation's priced messages so far.",
+                      "title": "nonNegative",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

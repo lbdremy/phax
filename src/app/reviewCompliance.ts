@@ -22,6 +22,7 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
+import { withInvocationCost } from "./costLedger.js";
 import {
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -171,14 +172,24 @@ export function reviewCompliance(
     const outputJsonlPath = join(info.runPath, "compliance-review.session.jsonl");
 
     const agentResult = yield* Effect.either(
-      backend.runAgent(prompt, {
-        provider: resolution.selected.provider,
-        model: resolution.selected.concreteModel,
-        effort: resolution.selected.thinking ?? config.effort,
-        cwd: info.worktreePath,
-        security: policy,
-        outputJsonlPath,
-      }),
+      withInvocationCost(
+        backend.runAgent(prompt, {
+          provider: resolution.selected.provider,
+          model: resolution.selected.concreteModel,
+          effort: resolution.selected.thinking ?? config.effort,
+          cwd: info.worktreePath,
+          security: policy,
+          outputJsonlPath,
+        }),
+        {
+          role: "compliance",
+          phase: null,
+          runId,
+          runPath: info.runPath,
+          provider: resolution.selected.provider,
+          streamPath: outputJsonlPath,
+        },
+      ),
     );
 
     if (Either.isLeft(agentResult)) {

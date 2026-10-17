@@ -7,6 +7,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseCostLedger,
   parseDecisionRecordManifest,
   parseGateAttribution,
   parseGateReport,
@@ -38,6 +39,7 @@ import {
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
+import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import {
   decodeDecisionRecordManifestFile,
   isDecisionRecordManifest,
@@ -266,6 +268,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeDecisionRecordManifestFile,
     wrongType: ["arbitrated", "2"],
     required: "commit",
+    excess: "error",
+  },
+  "cost-ledger": {
+    id: "cost-ledger",
+    parse: parseCostLedger,
+    phax: decodeCostLedgerFile,
+    wrongType: ["entries", {}],
+    required: "entries",
     excess: "error",
   },
 };

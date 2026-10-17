@@ -1,7 +1,7 @@
 // ac-producer and ac-identify-alone: drive phax's writers through in-memory
 // ports — run creation, status transitions, approvals, headless authoring, a
 // gate run, a file reconciliation, a pushed brief, a phase record and a
-// compliance review —
+// compliance review with its cost ledger entry —
 // then check every persisted file they wrote. Each starts with `$schema`
 // naming its format at that format's current stamp, carries no `version`,
 // and is identified by `parseDocument` from its content alone. Every value
@@ -276,6 +276,7 @@ function formatAt(
   if (name === "status.json") return "phase-status";
   if (name === "phax-plan.json") return "phax-plan";
   if (name === "compliance-review.json") return "compliance-review";
+  if (name === "cost-ledger.json") return "cost-ledger";
   if (name === "gate-attribution.json") return "gate-attribution";
   // A gate attempt's step record holds the gate-attribution format.
   if (/^checks-attempt-\d{2,}\.attribution\.json$/.test(name)) return "gate-attribution";
@@ -594,6 +595,19 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     outputPath: `${RUN_PATH}/compliance-review.session.jsonl`,
     finalText: "Review complete.",
   });
+  // The review's stream, from which phax appends the run's cost ledger entry.
+  seed(
+    `${RUN_PATH}/compliance-review.session.jsonl`,
+    [
+      JSON.stringify({ type: "system", subtype: "init", session_id: "session-review" }),
+      JSON.stringify({
+        type: "result",
+        session_id: "session-review",
+        duration_ms: 1200,
+        modelUsage: { "example-model": { inputTokens: 10, outputTokens: 20, costUSD: 0.01 } },
+      }),
+    ].join("\n"),
+  );
   const info: RunReviewInfo = {
     namespace: NAMESPACE,
     shortName: SHORT_NAME,

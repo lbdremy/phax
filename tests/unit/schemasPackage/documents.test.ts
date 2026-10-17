@@ -11,6 +11,7 @@ import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authorin
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
+import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
@@ -84,6 +85,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "brief-report": decodeBriefReportFile,
   "hand-decision-answer": decodeHandDecisionAnswerFile,
   "decision-record-manifest": decodeDecisionRecordManifestFile,
+  "cost-ledger": decodeCostLedgerFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

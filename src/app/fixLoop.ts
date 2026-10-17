@@ -27,6 +27,7 @@ import {
 } from "../domain/telemetry/events.js";
 import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
+import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
@@ -368,25 +369,33 @@ export function runGatesWithFixLoop(
       const fixResult = yield* telemetry.withOperation(
         "phax.claude-code-cli.agent.resume",
         { "phax.phase.id": phaseId },
-        backend
-          .resumeAgentSession(currentSessionId, fixPrompt, {
+        withInvocationCost(
+          backend.resumeAgentSession(currentSessionId, fixPrompt, {
             ...agentOptions,
             outputJsonlPath: join(phaseFolderPath, fixTranscriptName(attempt)),
-          })
-          .pipe(
-            Effect.tapError((e) =>
-              e instanceof AgentInvocationError
-                ? telemetry.recordError(
-                    reportAgentFailure(e, {
-                      runId,
-                      operationId: phaseId,
-                      adapter: "claude-code-cli",
-                      operation: "agent.resume",
-                    }),
-                  )
-                : Effect.void,
-            ),
+          }),
+          {
+            role: "fix",
+            phase: phaseId,
+            runId,
+            runPath,
+            provider: agentOptions.provider,
+            streamPath: join(phaseFolderPath, fixTranscriptName(attempt)),
+          },
+        ).pipe(
+          Effect.tapError((e) =>
+            e instanceof AgentInvocationError
+              ? telemetry.recordError(
+                  reportAgentFailure(e, {
+                    runId,
+                    operationId: phaseId,
+                    adapter: "claude-code-cli",
+                    operation: "agent.resume",
+                  }),
+                )
+              : Effect.void,
           ),
+        ),
       );
 
       const fixCompletedEvent: PhaxEvent = {

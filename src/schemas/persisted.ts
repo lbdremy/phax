@@ -56,6 +56,7 @@ import {
 } from "./brief.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
+import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
@@ -824,6 +825,16 @@ export const readBriefRecordFile: Reader<BriefRecord> = (file, input) =>
     file,
     decodeCurrent: decodeBriefRecordFile,
     fromCurrent: ({ $schema: _schema, ...record }) => record,
+  });
+
+/** Reads a run's `cost-ledger.json`. Born with `$schema`. */
+export const readCostLedgerFile: Reader<CostLedger> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "cost-ledger",
+    label: "cost ledger",
+    file,
+    decodeCurrent: decodeCostLedgerFile,
+    fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
   });
 
 /**

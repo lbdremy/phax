@@ -28,6 +28,7 @@ import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import { handDecisionAnswerFormat } from "../src/formats/answers.js";
 import {
   complianceReviewFormat,
+  costLedgerFormat,
   phaseStatusFormat,
   phaxPlanFormat,
   registryFormat,
@@ -95,6 +96,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "brief-report": briefReportFormat,
   "hand-decision-answer": handDecisionAnswerFormat,
   "decision-record-manifest": decisionRecordManifestFormat,
+  "cost-ledger": costLedgerFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -123,6 +125,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "brief-report": "error",
   "hand-decision-answer": "error",
   "decision-record-manifest": "error",
+  "cost-ledger": "error",
   "record-manifest": "error",
 };
 

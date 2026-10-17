@@ -77,6 +77,7 @@ describe("schemas package entry", () => {
       "BriefRequestSchema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
+      "CostLedgerSchema",
       "DecisionRecordManifestSchema",
       "GateAttributionPreSchemaSchema",
       "GateAttributionSchema",
@@ -121,6 +122,7 @@ describe("schemas package entry", () => {
       "parseBriefReport",
       "parseBriefRequest",
       "parseComplianceReview",
+      "parseCostLedger",
       "parseDecisionRecordManifest",
       "parseDocument",
       "parseGateAttribution",
@@ -145,6 +147,7 @@ describe("schemas package entry", () => {
       "toLatestBriefReport",
       "toLatestBriefRequest",
       "toLatestComplianceReview",
+      "toLatestCostLedger",
       "toLatestDecisionRecordManifest",
       "toLatestGateAttribution",
       "toLatestGateReport",
@@ -190,11 +193,13 @@ describe("schemas package entry", () => {
 
   it("re-exports phax's own schemas, never a copy", async () => {
     const { ComplianceReviewFileSchema } = await import("../../../src/schemas/complianceReview.js");
+    const { CostLedgerFileSchema } = await import("../../../src/schemas/costLedger.js");
     const { PhaxPlanFileSchema } = await import("../../../src/schemas/phaxPlan.js");
     const { RegistryFileSchema } = await import("../../../src/schemas/registry.js");
     const { PhaseStatusFileSchema, RunStatusFileSchema } =
       await import("../../../src/schemas/status.js");
     expect(entry.ComplianceReviewSchema).toBe(ComplianceReviewFileSchema);
+    expect(entry.CostLedgerSchema).toBe(CostLedgerFileSchema);
     expect(entry.PhaxPlanSchema).toBe(PhaxPlanFileSchema);
     expect(entry.RegistrySchema).toBe(RegistryFileSchema);
     expect(entry.PhaseStatusSchema).toBe(PhaseStatusFileSchema);

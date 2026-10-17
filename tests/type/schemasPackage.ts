@@ -12,6 +12,8 @@ import type {
   BriefRequestShape,
   ComplianceReview,
   ComplianceReviewShape,
+  CostLedger,
+  CostLedgerShape,
   DecisionRecordManifest,
   DecisionRecordManifestShape,
   DocumentFormatId,
@@ -28,6 +30,7 @@ import type {
   LatestBriefReport,
   LatestBriefRequest,
   LatestComplianceReview,
+  LatestCostLedger,
   LatestDecisionRecordManifest,
   LatestGateAttribution,
   LatestGateReport,
@@ -106,6 +109,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseCostLedger,
   parseDecisionRecordManifest,
   parseDocument,
   parseGateAttribution,
@@ -130,6 +134,7 @@ import {
   toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
+  toLatestCostLedger,
   toLatestDecisionRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
@@ -165,6 +170,10 @@ import type {
   ComplianceReview as PhaxComplianceReview,
   ComplianceReviewFile as PhaxComplianceReviewFile,
 } from "../../src/schemas/complianceReview.js";
+import type {
+  CostLedger as PhaxCostLedger,
+  CostLedgerFile as PhaxCostLedgerFile,
+} from "../../src/schemas/costLedger.js";
 import type {
   GateAttribution as PhaxGateAttribution,
   GateAttributionFile as PhaxGateAttributionFile,
@@ -422,6 +431,7 @@ const formats: Equals<
   | "brief-report"
   | "hand-decision-answer"
   | "decision-record-manifest"
+  | "cost-ledger"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -504,7 +514,8 @@ const shapeIds: Equals<
   | GateReportShape
   | BriefReportShape
   | HandDecisionAnswerShape
-  | DecisionRecordManifestShape,
+  | DecisionRecordManifestShape
+  | CostLedgerShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -871,6 +882,25 @@ void latestDecisionManifest.$schema;
 if (document.ok && document.format === "decision-record-manifest") {
   const exact: Equals<typeof document.value, PhaxDecisionRecordManifestFile> = true;
   void exact;
+}
+// The cost ledger is born with $schema too: phax's own types, one current
+// shape, and an in-memory value without $schema
+const costLedgerTypes: [
+  Equals<CostLedger, PhaxCostLedgerFile>,
+  Equals<CostLedgerShape, Current<"cost-ledger">>,
+  Equals<Value<typeof parseCostLedger>, PhaxCostLedgerFile>,
+  Equals<LatestCostLedger, PhaxCostLedger>,
+  Equals<Parameters<typeof toLatestCostLedger>, [value: PhaxCostLedgerFile]>,
+] = [true, true, true, true, true];
+void costLedgerTypes;
+declare const latestCostLedger: LatestCostLedger;
+// @ts-expect-error: the in-memory cost ledger carries no $schema
+void latestCostLedger.$schema;
+if (document.ok && document.format === "cost-ledger") {
+  const exact: Equals<typeof document.value, PhaxCostLedgerFile> = true;
+  const ledgerShape: Equals<typeof document.shape, Current<"cost-ledger">> = true;
+  void exact;
+  void ledgerShape;
 }
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;

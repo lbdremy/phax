@@ -52,6 +52,7 @@ import {
   SOURCE_SPEC_OUTCOME_FILENAME,
   type RunCompletionReport,
 } from "./completeRunArtifacts.js";
+import { withInvocationCost } from "./costLedger.js";
 import { publishRun } from "./publishRun.js";
 import { reviewCompliance } from "./reviewCompliance.js";
 import {
@@ -949,7 +950,14 @@ export function executePlan(
         const agentResult = yield* telemetry.withOperation(
           `phax.${resolvedProvider}.agent.run`,
           { "phax.phase.id": phase.id },
-          backend.runAgent(promptText, agentOptions).pipe(
+          withInvocationCost(backend.runAgent(promptText, agentOptions), {
+            role: "phase",
+            phase: phase.id,
+            runId,
+            runPath,
+            provider: resolvedProvider,
+            streamPath: join(phaseFolderPath, "output.jsonl"),
+          }).pipe(
             Effect.tapError((e) =>
               e instanceof AgentInvocationError
                 ? telemetry.recordError(

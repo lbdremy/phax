@@ -26,6 +26,7 @@ import {
 } from "../../../src/schemas/brief.js";
 import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
+import { CostLedgerFileSchema, type CostLedger } from "../../../src/schemas/costLedger.js";
 import {
   DecisionRecordManifestFileSchema,
   type DecisionRecordManifest,
@@ -441,6 +442,50 @@ const decisionRecordManifest: DecisionRecordManifest = {
   usage: { available: false },
 };
 
+const costLedger: CostLedger = {
+  entries: [
+    {
+      role: "phase",
+      phase: "phase-01",
+      completeness: "complete",
+      provider: "claude-code",
+      sessionId: "00000000-0000-4000-8000-000000000001",
+      models: {
+        "example-model": {
+          inputTokens: 12,
+          outputTokens: 340,
+          cacheReadTokens: 5600,
+          cacheWriteTokens: 780,
+          costUsd: 0.125,
+        },
+      },
+      costUsd: 0.125,
+      agentMs: 4200,
+      endedAt: "2026-10-16T09:30:00Z",
+      rateLimitSamples: [
+        {
+          window: "five-hour",
+          utilization: 12.5,
+          resetsAt: "2026-10-16T12:00:00Z",
+          runCostUsd: 0.1,
+        },
+      ],
+    },
+    {
+      role: "compliance",
+      phase: null,
+      completeness: "partial",
+      provider: "claude-code",
+      sessionId: "00000000-0000-4000-8000-000000000002",
+      models: {},
+      costUsd: 0,
+      agentMs: 0,
+      endedAt: "2026-10-16T09:45:00Z",
+      rateLimitSamples: [],
+    },
+  ],
+};
+
 const briefRecord: BriefRecord = {
   moment: "pulled",
   request: withSchemaUrl("brief-request", briefRequest),
@@ -667,6 +712,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     DecisionRecordManifestFileSchema,
     withSchemaUrl("decision-record-manifest", decisionRecordManifest),
   ),
+  "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
 };
 
 /**
