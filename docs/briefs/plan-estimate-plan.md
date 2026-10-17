@@ -1,4 +1,4 @@
-Write the phax plan "Plan estimate" for the approved spec `docs/specs/2610160909-plan-estimate.md`. It is the only plan for that spec, so it carries `completes-spec: true`. Read the spec in full; its §9 is empty and its three arbitrations are settled: Q1 A (list prices maintained by phax), Q2 C (the OAuth usage endpoint by default, `--no-probe` for the last sample), Q3 A (exit 0 whatever the verdict). Do not reopen them.
+Write the phax plan "Plan estimate" for the approved spec `docs/specs/2610160909-plan-estimate.md`. It is the only plan for that spec, so it carries `completes-spec: true`. Read the spec in full; its §9 is empty and its three arbitrations are settled: Q1 A (list prices maintained by phax), Q2 A (re-decided 2026-10-17: a one-message Claude Code probe by default, `--no-probe` for the last sample; phax never reads Claude Code's credentials or its OAuth usage endpoint), Q3 A (exit 0 whatever the verdict). Do not reopen them.
 
 Decided with the author, binding on this plan:
 - **Prices (2026-10-17, cost-ledger plan).** The list prices already live in `src/domain/routing/prices.ts` (`CLAUDE_LIST_PRICES`, `listPriceFor`), keyed by Claude catalog id, with a test requiring one per shipped Claude entry. That is how §10's "catalog prices required on every Claude entry" is met: do not add a `price` field to providers.json entries as §6 sketches. A Claude model with no price (one a user added to providers.json) is never priced $0.
@@ -13,7 +13,7 @@ Ground to read:
 - **The plan read:** `src/app/lintPlan.ts` and `src/cli/commands/plans.ts` (`plans lint` reads with the deterministic parser, with no Backend in its layer so it cannot reach a model; artifact validation and exit 12). `phax plans estimate` belongs beside it.
 - **Routing (§5.6):** `src/app/loadRouting.ts` and the resolution `phax run` applies per phase; the estimate decides a phase's provider the same way, never by guessing from the model id.
 - **Run-level invocations (§5.5):** how `phax.json` enables the compliance review (`src/schemas/phaxConfig.ts`).
-- **Ports:** `src/ports/`. There is no HTTP port and no credential port today; the endpoint call and the credential read are new side effects behind ports, with infra adapters (`effect-services`, `infrastructure-adapters` skills). The endpoint's answer is decoded through a schema at the edge (`validation-boundaries`).
+- **The probe:** it runs through the `Backend` port (`src/ports/backend.ts`), like any Claude invocation, and never receives the plan. Its `rate_limit_event` is decoded by the stream decoder cost-ledger landed (`src/schemas/claudeStream.ts`, `parseClaudeStream`); reuse it, do not write a second one. The probe belongs to no run and writes no ledger entry.
 
 Points the spec leaves to planning. Settle each or raise it as a question in the plan's `## Technical arbitrations` (framed by what each option abandons, recommendation first):
 1. **A historical phase's features.** The ledger records cost per phase, not the phase's model, effort or planned files. Kept run folders hold `phax-plan.json` (active and archived); a pruned run keeps only its ledger copy. Planned-file bytes must be measured at the commit the run started from, and `run-status.json` records no base commit (the spike approximated it with `git rev-list --before=<first prompt mtime>` in the plan's own repository). Say where each feature comes from, which history is sized (this repository's runs only, as the spike did, or every repository the registry can reach), and what pruned runs contribute: calibration, burn rate and the run-level median only, or features too, which would need prune to keep more than the ledger.
@@ -21,16 +21,16 @@ Points the spec leaves to planning. Settle each or raise it as a question in the
 3. **A phase whose Claude model has no list price.** Never $0. Say whether that phase is listed as not estimated (and then whether the run estimate and verdict still print without it) or whether the whole estimate is refused.
 4. **The burn rate's window** (§10 leaves it open): the spike uses the last 30 days of entries, cost over `agentMs`. Say what happens when there are none.
 5. **Calibration with too few samples.** §5.10 calibrates from the last 28 days. Say how sample pairs are formed (same run and window, same `resetsAt`, consecutive), and what the verdict is when a window has no usable pair in 28 days; never a constant.
-6. **The OAuth credentials.** Where the token is read on each platform (macOS Keychain, `~/.claude/.credentials.json`; §10 leaves it open), how API-key authentication is told apart from an unreadable store (`no-subscription` vs `windows-unavailable`), and what an expired token gives — never refreshed (§5.14). The token never enters the domain, a log, telemetry, an error message or a record. Tests use fake adapters and never read a real credential store; do not read one while planning either.
+6. **The probe** (§10 leaves its model and prompt open). Its model (the cheapest Claude model of the catalog is the obvious choice) and effort, its prompt, the flags it runs with (no tools, no session kept, and no write to the repository), and how its stream tells API-key authentication (`no-subscription`) apart from a probe that failed or reported no window (`windows-unavailable`, §5.13). `phax plans estimate`'s layer now holds a Backend for the probe; say how the plan read stays model-free (§5.2) all the same.
 7. **The §10 yardstick.** "On recent runs the run-level median error must stay within ×1.35 against held-out runs." Tests never read `~/.phax`, so say how it is checked: a test on a made-up history with a known generating model, a script outside the gates, or the end-to-end review after the run. Do not add a flag §6 does not name.
 
 Constraints:
-- Layers as in CLAUDE.md: the estimate, the quantiles, the calibration and the forward play are pure domain functions, unit-tested on made-up ledgers and plans; reading the windows never invokes a model; `phax plans estimate`'s layer has no Backend, like `plans lint`.
+- Layers as in CLAUDE.md: the estimate, the quantiles, the calibration and the forward play are pure domain functions, unit-tested on made-up ledgers and plans; reading the windows invokes the probe and nothing else; phax reads no credential (§5.14).
 - New persisted formats, if any: every field required, a `$schema` stamp, registered and snapshotted like the others. Changing `cost-ledger`'s shape is a format change, not an optional field.
 - Explicit per-variant enums (`verdict`, `windows.source`).
 - The phases name only models in the installed phax's catalog: `claude-opus-5-5` (the default), or `claude-sonnet-5` for mechanical work.
 - Every phase is verified by the `standard` gate profile, and every command it runs must be allowed by `phax.json`.
-- Tests never spawn a real provider, never call the network, never read `~/.phax` or a real credential store.
+- Tests never spawn a real provider (the probe runs on a fake Backend), never call the network, never read `~/.phax`.
 - Fixtures and examples are made up. None is copied from this repository's own plans, specs or run folders, from `~/.phax`, or from another repository. The spec's §6 numbers are made up and may be reused.
 - It must pass `phax plans lint`.
 
@@ -38,7 +38,7 @@ Docs: the §11 page `docs/plan-estimate.md` (reader and example as §11 states),
 
 Phase shape: as few phases as the gates allow, from the core outwards, every commit green. A likely split:
 1. The pure domain: history rows from ledgers and plans, the fit, the quantiles, the repricing, the calibration, the burn rate and the forward play with the verdict, with unit tests.
-2. The edges and the surface: the history reader, the credential and endpoint ports with their adapters and schema, `phax plans estimate` and its rendering, the docs, README and NEXT_STEPS.
+2. The edges and the surface: the history reader, the probe, `phax plans estimate` and its rendering, the docs, README and NEXT_STEPS.
 
 Merge or split them as the gates allow.
 
