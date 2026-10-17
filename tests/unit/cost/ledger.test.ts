@@ -73,6 +73,8 @@ function facts(extra: Partial<ClaudeStreamFacts>): ClaudeStreamFacts {
   return {
     claudeCodeVersion: [2, 1, 280],
     sessionId: SESSION,
+    apiKeySource: null,
+    undecodedRateLimitEvents: 0,
     events: [],
     result: null,
     ...extra,
@@ -437,7 +439,14 @@ describe("ledgerEntryFor: no entry", () => {
       ledgerEntryFor({
         role: "phase",
         phase: "phase-01",
-        facts: { claudeCodeVersion: null, sessionId: null, events: [], result: null },
+        facts: {
+          claudeCodeVersion: null,
+          sessionId: null,
+          apiKeySource: null,
+          undecodedRateLimitEvents: 0,
+          events: [],
+          result: null,
+        },
         earlier: [],
         partialAgentMs: 10,
         endedAt: ENDED_AT,
