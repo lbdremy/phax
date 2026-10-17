@@ -1,9 +1,10 @@
 // The cost facts of one Claude Code stream-json output: the init event's
 // version and session, the assistant messages' usage, the rate-limit events'
-// window readings and the last result's per-model usage. Provider output, so
-// unknown keys are ignored; a line that is not JSON, or no event this module
-// reads, is skipped, as `findResultEvent` skips one. A missing token count is
-// 0. The cost ledger's domain receives only these facts, never raw lines.
+// window readings, the last result's per-model usage and every result's
+// duration. Provider output, so unknown keys are ignored; a line that is not
+// JSON, or no event this module reads, is skipped, as `findResultEvent` skips
+// one. A missing token count is 0. The cost ledger's domain receives only
+// these facts, never raw lines.
 import { Either, Schema } from "effect";
 
 const Tokens = Schema.optionalWith(Schema.NonNegativeInt, { default: () => 0 });
@@ -110,7 +111,13 @@ export interface ClaudeStreamFacts {
   readonly sessionId: string | null;
   /** Assistant messages and rate-limit readings, in stream order. */
   readonly events: ReadonlyArray<ClaudeStreamEvent>;
-  /** The last result event that carries `modelUsage`, or null. */
+  /**
+   * The result events that carry `modelUsage`, or null when there is none.
+   * One process reports a result per stretch of agent work (a background task
+   * that finishes wakes the agent again), each repeating the process's whole
+   * `modelUsage` but timing only its own stretch: `modelUsage` is the last
+   * result's, `durationMs` the sum of their `duration_ms`.
+   */
   readonly result: {
     readonly durationMs: number;
     readonly modelUsage: Readonly<Record<string, StreamModelUsage>>;
@@ -141,6 +148,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
     sessionId: string | undefined;
     facts: NonNullable<ClaudeStreamFacts["result"]>;
   } | null = null;
+  let resultDurationMs = 0;
   const events: ClaudeStreamEvent[] = [];
 
   for (const line of lines) {
@@ -208,9 +216,10 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
             costUsd: usage.costUSD,
           };
         }
+        resultDurationMs += decoded.right.duration_ms;
         result = {
           sessionId: decoded.right.session_id,
-          facts: { durationMs: decoded.right.duration_ms, modelUsage },
+          facts: { durationMs: resultDurationMs, modelUsage },
         };
       }
     }
