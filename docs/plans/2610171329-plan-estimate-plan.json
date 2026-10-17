@@ -1,0 +1,358 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.25.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610160909-plan-estimate.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "plan-estimate",
+    "title": "Plan estimate",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "Add `phax plans estimate <plan> [--json] [--no-probe]`. Before a run, it reports what a plan will cost in API-list dollars: P10/P50/P90 for each phase and for the run, calibrated from this machine's cost ledgers. It also says whether the plan fits the subscription windows left right now (`fits`, `risky`, `wait`), or why it cannot say. It reads the plan with the deterministic parser `phax plans lint` uses, and no model ever reads the plan. Without `--no-probe`, it reads both windows from the `rate_limit_event` of one minimal Claude Code probe. The probe runs through the `Backend` port, receives a fixed prompt and never the plan. With `--no-probe`, it uses the last rate-limit sample in the ledgers. phax never reads Claude Code's credentials or its OAuth usage endpoint. The command exits 0 whatever the verdict, and 12 when the plan fails artifact validation.\n\nThis plan depends on the `cost-ledger` work, which has landed. Kept runs have `<run folder>/cost-ledger.json` (`src/schemas/costLedger.ts`). Pruned runs leave copies at `<state root>/cost-ledgers/<namespace>.<short-name>.<run-id>.json` (`src/app/prune.ts`, `COST_LEDGERS_DIR`). `phax cost backfill` gives older kept runs a ledger. The reference behaviour is the spike `spikes/plan-estimate/phax_estimate.py` (`features`, `training_set`, `fit`, `solve`, `reprice`, `quantiles`, `calibrate`, `play`). Port its model, not its stream scan: the ledger already holds each invocation's own cost, its tokens per model, `agentMs`, `endedAt`, and rate-limit samples that carry `runCostUsd`. No reader re-derives cost from a stream. List prices come from `src/domain/routing/prices.ts` (`CLAUDE_LIST_PRICES`, `listPriceFor`). Add no `price` field to providers.json.\n\nThe report is one domain value, `EstimateReport`. `--json` prints it as it is, and the text view renders it. Its shape binds every phase:\n\n- `history`: `{ phases, required: 60, halfLifeDays: 30, unledgeredRuns }`. `phases` is the number of sized historical phases the fit used. `unledgeredRuns` is the number of kept runs with no `cost-ledger.json`, so the view can suggest `phax cost backfill`.\n- `phases`: one entry per plan phase, as a discriminated union. An estimated phase is `{ id, provider, model, effort, estimate: { p10, p50, p90 } }`. A phase that is not estimated is `{ id, provider, model, effort, estimate: null, notEstimated: \"other-provider\" | \"no-list-price\" }`. `model` is the concrete model routing selects for the phase. The list is empty when history is thin.\n- `run`: `{ p10, p50, p90, runLevel }`, or `null` when history is thin.\n- `notEstimated`: always `plan-extraction`, `plan-auditor` and `interactive-code-review`. It adds `compliance-review` when the compliance review is enabled but cannot be estimated, because it is routed to another provider or because history holds no compliance entry.\n- `windows`: `{ source: \"probe\" | \"last-sample\", observedAt, fiveHour: { utilization, resetsAt, capacityUsd }, sevenDay: { utilization, resetsAt, capacityUsd } }`, or `null`. `capacityUsd` is a number, or `null` when that window is uncalibrated.\n- `windowsUnavailable`: the reason string when the verdict is `windows-unavailable`, else `null`.\n- `burnRateUsdPerHour`: a number, or `null`.\n- `verdict`: `fits` | `risky` | `wait` | `no-subscription` | `windows-unavailable`, plus the variants Q1 decides (recommended: `thin-history` and `uncalibrated`).\n- `uncalibrated`: the list of `five-hour` | `seven-day` | `burn-rate` that could not be calibrated; empty otherwise.\n- `scenarios`: `{ p50: { pauses, endsAt }, p90: { pauses, endsAt } }`, or `null`. Each pause is `{ phase, window: \"five-hour\" | \"seven-day\", at, resumesAt }`.\n- `warnings`: an array of strings.\n\nDollar amounts are rounded to 2 decimals. Instants are ISO-8601 UTC.\n\nThe verdict is decided in this order:\n\n1. History under 60 sized phases gives `thin-history`, with no estimate. The windows are still read and shown.\n2. Otherwise there is an estimate. The verdict is then the first of `no-subscription`, `windows-unavailable` or `uncalibrated` that applies.\n3. Only when none applies are both scenarios played forward, giving `fits`, `risky` or `wait`.\n\nTest hygiene, for every phase:\n\n- Tests never spawn a provider: the probe runs on the fake Backend.\n- Tests never call the network and never read `~/.phax` or `~/.claude`.\n- They use fake FileSystem, Git and Backend adapters, temp directories and made-up ledgers.\n- A test that spawns the CLI sets `HOME` to a temp dir, runs in its own temp git repo, and always passes `--no-probe`, so no real `claude` process is started.\n- No fixture is copied from this repository's plans, specs or run folders, from `~/.phax`, or from another repository. The spec's §6 numbers are made up and may be reused.",
+    "requiredCommandsNote": "Phase-03 runs both commands to regenerate `phax.usage.kdl`, the CLI reference and the README's generated CLI section. Both are already in `security.agentCommands` in `phax.json`, so the plan requires no security configuration change.",
+    "technicalArbitrations": [
+      "Prices: the list prices come from `src/domain/routing/prices.ts` (`listPriceFor`), which holds one entry for every shipped Claude model. That is how §10's \"catalog prices on every Claude entry\" is met. No `price` field is added to providers.json (a binding brief decision, 2026-10-17). Loss accepted: §6's sketched catalog field does not ship.",
+      "Historical features: only this repository's kept runs are sized, meaning registry entries whose namespace equals `config.namespace`. Each phase's model, effort and planned files come from the run folder's `phax-plan.json`, active or archived. Planned-file bytes are git blob sizes at the last commit before the registry entry's `createdAt` (`git rev-list -1 --before`). There is no fallback to file counts. Every reachable ledger feeds the window calibration, the burn rate and the run-level median: kept runs of every namespace and pruned copies alike. Pruned runs contribute no features, and prune is not changed. Sizing every repository the registry reaches is not possible, because the registry records no repository path. Loss accepted: a new repository gets no estimate until it has 60 sized phases of its own, and the base commit is approximated from the run's creation instant.",
+      "Regression: the spike's model. The features are an intercept, effort indicators (medium, high, xhigh and max against a low baseline; `ultracode` and `ultra` count as max, while `none`, `off` and low are the baseline), log1p(edit KB), log1p(optional KB) and log1p(files to create). The fit is weighted least squares with a 1e-6 ridge, on log token volume priced at `claude-opus-5-5`. Weights halve every 30 days, counted back from now. The prediction is repriced at the phase's own model through the history's weighted token mix. The ledger keeps one `cacheWriteTokens` count per model, so the token volume prices cache writes at the 1-hour write price, as the spike's backtest did. Loss accepted: cache writes Claude Code made at 5 minutes are overpriced in the volume. The 1h/5m ratio is 1.6 for every catalog model, so the ratio between models does not change.",
+      "Quantiles: a phase's P10/P50/P90 are the exact weighted quantiles of the residuals applied to its base estimate, with no sampling. Two phases that differ only by model therefore differ exactly by their price ratio (§8). The run's quantiles come from 4,000 seeded draws (mulberry32, seed 7), with independent residuals per phase plus the run-level cost, so the output and the tests are reproducible. Loss accepted: the sum of the phase P50s is not the run P50.",
+      "A Claude model with no list price (one a user added to providers.json) is listed as not estimated (`no-list-price`). It is excluded from the run estimate and from the verdict, exactly as §5.6 treats other providers, and it is never priced $0. Loss accepted: the run total and the verdict leave out a phase, which the output names.",
+      "Routing (§5.6): each phase's provider and concrete model come from `resolveModel`, with the security filter `phax run` applies for `config.security.profile`. Phase-02 extracts that filter as `securityFilterFor(policy)` and makes `executePlan` use it, so both paths decide the same way. A phase is estimated only when the selected provider is `claude-code`. It is priced, and shown, at the selected concrete model.",
+      "Burn rate: API-list cost over agent hours, from the `complete` ledger entries with `agentMs > 0` that ended in the 30 days before now. Backfilled partial entries (`agentMs` 0) are excluded from both sums. With no such entry, the burn rate is `null` and `burn-rate` is uncalibrated (see Q1). Loss accepted: gate time is not agent time, so a pause is predicted slightly early.",
+      "Window calibration: within one ledger and one window, samples that share a `resetsAt` form a group, in entry order. A group needs at least two samples. It contributes Δcost (its last `runCostUsd` minus its first) and Δutilization (last minus first). It is dated by the `endedAt` of the entry that holds its last sample. Groups dated in the 28 days before now with Δcost > 0 are kept, and capacity = 100 × ΣΔcost / ΣΔutilization. Taking first and last within a group equals summing its consecutive pairs. A window with ΣΔutilization ≤ 0 is uncalibrated (see Q1), never a constant. Loss accepted: interactive use during a run inflates Δutilization, so capacity errs low, which leans towards predicting a pause.",
+      "Run-level cost (§5.5): applies when `config.complianceReview.enabled` is set and routing sends the review to Claude Code. `runLevel` is the median of the per-ledger compliance costs whose last compliance entry ended in the 60 days before now, taken as the sorted value at index ⌊n/2⌋. In the forward play it is added to the last estimated phase. Loss accepted: a pause the compliance review causes is attributed to the last phase.",
+      "The probe (§5.8, §10). It runs on model `claude-haiku-5-5`, the cheapest Claude list price, at effort `low`, with the fixed prompt `Reply with: ok`. It goes through a new `Backend.probe(prompt, { model, effort })`, which returns the stream's lines and the exit code without classifying rate limits. The Claude Code adapter runs it with the sealed completion flags (`--permission-mode default`, `--allowedTools \"\"`, `--disallowed-tools Bash,WebFetch,WebSearch`, `--strict-mcp-config`), plus `--no-session-persistence` and `--max-turns 1`. Its working directory is the OS temp directory, so it loads no project's CLAUDE.md or settings and writes nothing to the repository. It belongs to no run and writes no ledger entry. Its lines are decoded by the existing `parseClaudeStream`, which this plan extends with two facts: the init event's `apiKeySource` (string or null), and the count of `rate_limit_event` lines that fail its schema. The domain interprets the facts in this order. One or more undecodable rate-limit events give `windows-unavailable` (an unknown shape, never a partial read). Both windows read give `source: probe`. Otherwise, an `apiKeySource` present and not `none` gives `no-subscription`. Anything else is `windows-unavailable` with its reason: a failed start, a non-zero exit, a single window, or no event. Loss accepted: `apiKeySource` is a Claude Code stream field, not a documented contract. A future value that misnames OAuth only turns `windows-unavailable` into `no-subscription`, and both report the estimate alone.",
+      "Model-free plan read (§5.2): the plan is read by a function whose only requirement is `FileSystem`. The probe function takes no plan argument, so its type cannot carry plan text. The CLI layer holds a Backend only so that it can probe. A test asserts that the fake Backend sees exactly one `probe` call with the fixed prompt, and no `runAgent`, `resumeAgentSession` or `complete` call. With `--no-probe`, it sees no call at all.",
+      "No credential read (§5.14): phax reads no Keychain item, no `.credentials.json` and no OAuth variable. Claude Code authenticates the probe itself. No new port reads a secret.",
+      "No persisted format: the estimate writes nothing. `--json` is command output, so nothing is registered or snapshotted. `ClaudeStreamFacts` is an in-memory decode, not a persisted shape, so the cost-ledger format is unchanged.",
+      "Phase guard: `plans estimate` is classified `refused` inside a phase worktree. It writes nothing, but it spends a model request and reads machine-wide history, and a phase has no use for either. Loss accepted: an agent cannot estimate a plan from inside a phase.",
+      "The §10 yardstick (run-level median error within ×1.35 on held-out runs) is checked by a unit test. The test generates a made-up history from a known log-linear model with seeded noise, holds out the most recent runs, and asserts the median run-level error. On real history, it is checked at review with the spike's `--exclude-run` backtest against the new command's output. No flag is added. Loss accepted: the gates never see real history.",
+      "Three phases: the pure domain, then the edges and the use case, then the surface. Every commit stays green: knip treats `src/app`, `src/infra` and the tests as entry points."
+    ],
+    "openQuestions": [
+      {
+        "id": "Q1",
+        "question": "How does the report give a verdict when it cannot compute one for a reason §6 does not list? The two cases are fewer than 60 sized historical phases (§5.7), and a window or the burn rate that cannot be calibrated from the last 28 or 30 days (§5.10).",
+        "options": [
+          {
+            "id": "A",
+            "label": "Add two verdict values, `thin-history` and `uncalibrated`, each with its reason (`history.phases`, and `uncalibrated: [\"five-hour\"|\"seven-day\"|\"burn-rate\"]`); the windows are still read and shown",
+            "abandons": "§6's five verdict values as the complete normative list: a script matching on five values meets two more"
+          },
+          {
+            "id": "B",
+            "label": "Keep the five values; a report that cannot decide carries `verdict: null` and a `verdictUnavailable` reason",
+            "abandons": "a verdict string on every report: `jq .verdict` prints null, and a script must read a second field to learn why"
+          },
+          {
+            "id": "C",
+            "label": "Fold both cases into `windows-unavailable`, with the reason",
+            "abandons": "`windows-unavailable` meaning that the windows could not be read: a script cannot tell a failed probe from a history that is too thin"
+          }
+        ],
+        "recommendation": "A",
+        "rationale": "Explicit per-variant enums are the project rule. A names each case, and a script still reads a single field. B brings back a nullable catch-all, and C reports a calibration gap as a probe failure. The phases are written for A. If B or C is decided, the domain report's verdict union and its rendering follow the Decision block instead."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-estimate-domain",
+      "plannedFilesToCreate": [
+        "src/domain/cost/fit.ts",
+        "src/domain/cost/history.ts",
+        "src/domain/cost/forecast.ts",
+        "src/domain/cost/probe.ts",
+        "src/domain/cost/estimate.ts",
+        "tests/helpers/costHistory.ts",
+        "tests/unit/cost/fit.test.ts",
+        "tests/unit/cost/history.test.ts",
+        "tests/unit/cost/forecast.test.ts",
+        "tests/unit/cost/probe.test.ts",
+        "tests/unit/cost/estimate.test.ts",
+        "tests/unit/cost/backtest.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/claudeStream.ts",
+        "tests/unit/schemas/claudeStream.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/cost/ledger.test.ts",
+        "tests/unit/cost/backfill.test.ts",
+        "src/domain/cost/ledger.ts",
+        "src/domain/routing/prices.ts"
+      ],
+      "commit": {
+        "subject": "feat(cost): estimate a plan's cost and subscription fit from cost ledgers",
+        "body": "Add the pure domain behind phax plans estimate. It ports the spike's model, not its stream scan.\n\n- history.ts turns cost ledgers and sized run plans into training samples. It also computes the burn rate, the run-level compliance median, the window calibration from groups of rate-limit samples, and the last observed windows.\n- fit.ts fits weighted least squares on log token volume priced at claude-opus-5-5, with a half-life of 30 days. It reprices through the history's token mix, computes exact weighted residual quantiles per phase, and draws seeded run quantiles.\n- forecast.ts plays the phases forward through the five-hour and seven-day windows and gives fits, risky or wait.\n- probe.ts reads a probe's stream facts as windows, no-subscription or windows-unavailable, never as a partial read.\n- estimate.ts assembles the EstimateReport, including thin history, unpriced models, other providers and uncalibrated windows.\n\nparseClaudeStream also reports the init event's apiKeySource and the number of rate-limit events it could not decode.\n\nUnit tests on made-up ledgers cover each §8 criterion the domain owns. A synthetic backtest holds the run-level median error within ×1.35."
+      },
+      "title": "Estimate, calibration, probe reading and forward play in the domain",
+      "objective": "phax can compute a plan's cost estimate and its subscription verdict as pure functions. Their inputs are made-up ledgers, sized run plans, plan phases and a windows reading, and they can turn a probe's decoded stream into a windows reading. The estimate is P10/P50/P90 per phase and per run. This phase adds no I/O and no surface.",
+      "detailedInstructions": [
+        "Before writing code, read `spikes/plan-estimate/phax_estimate.py` (`features`, `training_set`, `fit`, `solve`, `reprice`, `quantiles`, `calibrate`, `play`), then the preamble's report shape and Technical arbitrations. Port the model, not the stream scan. The history input is `CostLedger` values (`src/schemas/costLedger.ts`), never streams.",
+        "`src/schemas/claudeStream.ts`: extend `ClaudeStreamFacts` with two required fields. `apiKeySource: string | null` is the first init event's `apiKeySource`: add `apiKeySource: Schema.optional(Schema.String)` to `InitEventSchema`, and use null when it is absent. `undecodedRateLimitEvents: number` counts the `type: \"rate_limit_event\"` lines that fail `RateLimitEventSchema`. A decoded event with no `unifiedWindows` is not counted, and is still skipped as today. The rest of the decoder and every existing fact are unchanged, so the ledger's results stay the same. Update every test fixture that builds a `ClaudeStreamFacts` literally.",
+        "`src/domain/cost/history.ts`, input types: `LedgerSource = { runKey: string; ledger: CostLedger }`; `HistoricalPhasePlan = { id: string; model: string; effort: string; editBytes: number; optionalBytes: number; createCount: number }`; `SizedRun = { runKey: string; startedAt: string /* ISO */; phases: readonly HistoricalPhasePlan[] }`.",
+        "history.ts: `trainingSamples(ledgers, sizedRuns)` joins each sized run with the ledger of the same `runKey`. For each plan phase, it sums the tokens per field (input, output, cacheRead, cacheWrite) across all models, and the `costUsd`, over the ledger entries whose `phase` equals the phase id. Roles phase, fix and handoff are all included. `y` is the log of that token volume priced at `REFERENCE_MODEL` (`claude-opus-5-5`, through `listPriceFor`) at the 1-hour cache-write price. Skip a phase whose reference-priced volume is under $0.01; this includes phases missing from the ledger, such as ones that ran on Codex. A sample is `{ x: features(...), y, atMs: Date.parse(startedAt), tokens: [in, out, cacheRead, cacheWrite], costUsd }`.",
+        "history.ts: `burnRate(ledgers, nowMs)` returns USD per agent hour, or `null`. It uses only `completeness: \"complete\"` entries with `agentMs > 0` whose `endedAt` lies in the 30 days before now, and returns Σ costUsd / (Σ agentMs / 3.6e6). `runLevelMedian(ledgers, nowMs)` returns USD, or `null`. It sums the `role: \"compliance\"` entries of each ledger that has at least one, and keeps the sums whose last compliance `endedAt` lies in the 60 days before now. It sorts them and takes the value at index ⌊n/2⌋.",
+        "history.ts: `calibrateWindows(ledgers, nowMs)` returns `{ fiveHour: { capacityUsd: number | null; groups: number }, sevenDay: { … } }`. For each ledger and each window (`five-hour`, `seven-day`), walk the samples in entry order and group them by `resetsAt`. A group with at least 2 samples contributes Δcost = last.runCostUsd − first.runCostUsd and Δutil = last.utilization − first.utilization. It is dated by the `endedAt` of the entry that holds its last sample. Keep the groups dated in the 28 days before now with Δcost > 0. capacityUsd = 100·ΣΔcost/ΣΔutil, or `null` when ΣΔutil ≤ 0. Never return a constant.",
+        "history.ts: `lastObservedWindows(ledgers, nowMs)` serves `--no-probe`. For each window, it takes that window's last sample in the entry with the greatest `endedAt` that holds one. A window whose `resetsAt` is not after now becomes `{ utilization: 0, resetsAt: now + 5 h | 7 d }` (§5.9). It returns `{ kind: \"windows\", source: \"last-sample\", observedAt /* the older of the two entries' endedAt */, fiveHour, sevenDay }`. When a window has no sample at all, it returns `{ kind: \"unavailable\", reason: \"no <window> sample in the cost ledgers\" }`.",
+        "`src/domain/cost/probe.ts`: the constants `PROBE_MODEL = \"claude-haiku-5-5\"`, `PROBE_EFFORT = \"low\"` and `PROBE_PROMPT = \"Reply with: ok\"`. `windowsFromProbe(outcome, nowMs)` takes `outcome` as either `{ kind: \"failed-to-start\"; reason: string }` or `{ kind: \"ended\"; facts: ClaudeStreamFacts; exitCode: number }`, and returns a `WindowsReading`. Apply these rules in order:",
+        "A failed start gives unavailable, \"the probe failed to start: <reason>\".",
+        "`facts.undecodedRateLimitEvents > 0` gives unavailable, \"the probe's rate-limit event has a shape phax does not decode\".",
+        "When both windows were read, take the last reading of each window across the rate-limit events. Utilization is the fraction × 100, clamped to 0–100 and rounded to 2 decimals. A reset at or before now becomes utilization 0, with a reset at now + the window's length. The result is `{ kind: \"windows\", source: \"probe\", observedAt: now, … }`.",
+        "`apiKeySource` not null and not `none` gives `{ kind: \"no-subscription\" }`.",
+        "`exitCode !== 0` gives unavailable, \"the probe exited with code <n> without a rate-limit event\".",
+        "Exactly one window read gives unavailable, \"the probe reported the <window> window only\".",
+        "Anything else gives unavailable, \"the probe ended without a rate-limit event\".",
+        "`src/domain/cost/fit.ts` holds the constants `REFERENCE_MODEL`, `HALF_LIFE_DAYS = 30`, `MIN_HISTORY_PHASES = 60`, `RUN_DRAWS = 4000` and `RUN_SEED = 7`.",
+        "fit.ts: `features(effort, editBytes, optionalBytes, createCount)` returns `[1, medium?, high?, xhigh?, max?, log1p(editBytes/1000), log1p(optionalBytes/1000), log1p(createCount)]`. `ultracode` and `ultra` map to max. Low, `none`, `off` and every other value are the baseline.",
+        "fit.ts: `fitCostModel(samples, nowMs)` weights each sample by 0.5^(max(0, nowMs − atMs)/86 400 000/30). It builds the weighted normal equations with +1e-6 on the diagonal and solves them by Gauss–Jordan with partial pivoting, as the spike's `solve` does. It returns `{ beta, residuals, weights, mix }`, where `mix` is the weighted sum of the four token fields.",
+        "fit.ts: `repriceRatio(price, mix)` divides Σ mix·[input, output, cacheRead, cacheWrite1h] at `price` by the same sum at the reference price.",
+        "fit.ts: `weightedQuantile(values, weights, q)` returns the smallest value, in sorted order, whose cumulative weight reaches q·Σw.",
+        "fit.ts: `phaseQuantiles(model, x, price)` returns `{ base, p10, p50, p90 }`, with base = exp(β·x)·repriceRatio and pq = base·exp(weightedQuantile(residuals, weights, q)).",
+        "fit.ts: `runQuantiles(model, bases, runLevelUsd)` uses a local mulberry32 PRNG seeded with `RUN_SEED`. Each of the `RUN_DRAWS` draws picks one residual for every phase independently, with probability proportional to its weight, and sums base·exp(r) plus `runLevelUsd`. Sort the draws and take v[min(n−1, ⌊q·n⌋)] for q = 0.1, 0.5 and 0.9. With no estimated phase, all three equal `runLevelUsd`.",
+        "`src/domain/cost/forecast.ts`: `playForward({ phaseCosts: [{ phase, usd }], burnUsdPerHour, fiveHour, sevenDay, capacity: { fiveHourUsd, sevenDayUsd }, nowMs })` returns `{ pauses: [{ phase, window, atMs, resumesAtMs }], endsAtMs }`. Port the spike's `play`:",
+        "When t reaches a window's reset, that window opens at utilization 0, with a new reset at t + its length.",
+        "Each window's room is max(0, 100 − u)·capacity/100.",
+        "Each step is the smallest of the cost left, both rooms, and the burn until the five-hour reset.",
+        "With zero room, the run pauses until that window's reset.",
+        "Callers guarantee that both capacities and the burn rate are positive, so the loop always progresses.",
+        "forecast.ts: `verdictOf(p50, p90)` returns `fits` when the P90 scenario has no pause, `risky` when only P90 pauses, and `wait` when P50 pauses.",
+        "`src/domain/cost/estimate.ts`, input types: `PlanPhaseInput = { id, provider: ProviderId, model /* selected concrete model */, effort, editBytes, optionalBytes, createCount }`. `WindowsReading` is one of `{ kind: \"windows\", source: \"probe\" | \"last-sample\", observedAt, fiveHour: { utilization, resetsAt }, sevenDay }`, `{ kind: \"no-subscription\" }` or `{ kind: \"unavailable\", reason }`; export it from here and use it in probe.ts and history.ts. `ComplianceInput` is one of `{ kind: \"disabled\" }`, `{ kind: \"claude-code\" }` or `{ kind: \"other-provider\" }`. Define `EstimateReport` exactly as the preamble describes, with the Q1 variants (recommended: `thin-history`, `uncalibrated`). Use explicit discriminated unions, not optional keys.",
+        "estimate.ts: `estimatePlan({ phases, ledgers, sizedRuns, unledgeredRuns, compliance, windows, nowMs })` builds the report:",
+        "Fewer than `MIN_HISTORY_PHASES` training samples gives the `thin-history` report: `history.phases` set, `phases: []`, `run: null` and `scenarios: null`. The windows pass through without capacity.",
+        "Otherwise, fit the model.",
+        "A phase whose provider is not `claude-code` gets `notEstimated: \"other-provider\"`.",
+        "A Claude phase for which `listPriceFor(model)` is undefined gets `no-list-price`, never $0.",
+        "An estimated phase gets its quantiles.",
+        "`runLevel` comes from `runLevelMedian`, but only when compliance is `claude-code` and the median is not null. When the compliance review is enabled but cannot be estimated, add `compliance-review` to `notEstimated` and set `runLevel` to 0.",
+        "estimate.ts, the verdict: after thin-history, check `no-subscription`, then `windows-unavailable` (set `windowsUnavailable` to the reason and `windows: null`), then `uncalibrated` (a window with a null capacity, or a null burn rate, each listed in `uncalibrated`).",
+        "When none of those applies, build the P50 and P90 scenarios with `playForward`. Use each estimated phase's P50 (or P90) in plan order, with `runLevel` added to the last one, and set the verdict with `verdictOf`.",
+        "Add a warning for each estimated phase whose effort indicator has fewer than 5 historical samples.",
+        "Round dollars to 2 decimals, and emit instants as ISO-8601 UTC.",
+        "`tests/helpers/costHistory.ts` holds the made-up builders that phase-02 reuses: a `CostLedger` entry (role, phase, model, tokens, cost, agentMs, endedAt, samples), a ledger, a `SizedRun`, a `ClaudeStreamFacts` value for probe tests, and a seeded history generator that produces N runs of k phases from a known log-linear model. Every value is invented.",
+        "Tests use made-up data only. No test reads a file outside the repository's test helpers."
+      ],
+      "boundaryContracts": "Producers: `src/domain/cost/estimate.ts` exports `estimatePlan`, the input types (`PlanPhaseInput`, `WindowsReading`, `ComplianceInput`) and `EstimateReport`. `src/domain/cost/history.ts` exports `LedgerSource`, `SizedRun`, `HistoricalPhasePlan` and `lastObservedWindows`. `src/domain/cost/probe.ts` exports `windowsFromProbe` and the `PROBE_*` constants. `src/schemas/claudeStream.ts` adds `apiKeySource` and `undecodedRateLimitEvents` to `ClaudeStreamFacts`.\n\nConsumers, in phase-02: the app use case gathers ledgers, sized runs, resolved phases and a `WindowsReading`, and passes them in unchanged. The probe use case decodes the probe's lines with `parseClaudeStream` and hands the facts to `windowsFromProbe`. In phase-03, the renderer and `--json` print `EstimateReport` as it is.\n\nThe domain never receives the plan's text from the probe path and never computes a time zone. `nowMs` comes in from outside.",
+      "testStrategy": "Write the unit tests first, against made-up data built with `tests/helpers/costHistory.ts`.\n\n`tests/unit/schemas/claudeStream.test.ts`:\n- `apiKeySource` is read from the init event, and is null when absent.\n- A `rate_limit_event` whose `unifiedWindows.five_hour.utilization` is a string counts as undecoded and adds no reading.\n- An event without `unifiedWindows` is neither counted nor read.\n- The ledger tests still pass unchanged.\n\n`fit.test.ts`:\n- WLS recovers known coefficients on noiseless data.\n- Weights halve every 30 days.\n- `weightedQuantile` is ordered, and correct on small hand-checked arrays.\n- Two phases identical but for the model have P50s in exactly the opus-5-5/sonnet-5-5 repricing ratio for the history's mix (§8 priced at its own model).\n- Larger edit bytes give a larger P50 (§8 bigger files).\n- A history whose recent phases cost twice the older ones gives a P50 closer to the recent cost (§8 recent runs).\n- Run quantiles are reproducible across calls and ordered P10 ≤ P50 ≤ P90.\n\n`history.test.ts`:\n- Phase aggregation works across the phase, fix and handoff roles and across models.\n- $40 per 100 % in the last 28 days against $18 in older samples gives capacityUsd 40 (§8 capacity).\n- A group needs two samples sharing a `resetsAt`.\n- A window with no usable group gives null.\n- The burn rate ignores partial entries with agentMs 0.\n- The run-level median covers both the recent window and the null case.\n- In `lastObservedWindows`, a reset that has passed gives utilization 0, and `observedAt` comes from `endedAt` (§8 --no-probe).\n\n`probe.test.ts`:\n- 15 % and 29 % give `source: probe` with both reset instants (§8 the probe reads both windows).\n- A non-`none` `apiKeySource` with no event gives no-subscription (§8 no subscription).\n- A failed start, no event, an undecodable event (even next to a valid one), one window only and a non-zero exit each give unavailable, with a reason naming the case (§8 an unusable probe never guesses).\n\n`forecast.test.ts`:\n- With $31 left in the five-hour window, P50 $27 and P90 $39 give risky, and the P90 pause names the phase, `five-hour` and the reset instant.\n- P90 under $31 gives fits, and P50 over $31 gives wait (§8 verdicts).\n- A seven-day exhaustion pauses until the seven-day reset.\n\n`estimate.test.ts`:\n- 400 phases and a four-phase plan give ordered ranges (§8 ranges).\n- 12 phases give thin-history, naming 12 (§8 thin history).\n- A codex-cli phase is listed and excluded from the run and the verdict (§8 other providers).\n- An unpriced Claude model is `no-list-price`.\n- With the compliance review enabled, `run.runLevel` equals the recent median and is included in the run (§8 run-level).\n- no-subscription and windows-unavailable keep the estimate, with `windows: null` where required.\n- A null capacity or burn rate gives `uncalibrated`.\n\n`backtest.test.ts` checks the §10 yardstick. Generate about 30 runs × 4 phases over 120 days from a known model with seeded log-normal noise (σ ≈ 0.35). Fit without the 6 most recent runs, then assert that the median over the held-out runs of max(P50/actual, actual/P50) is ≤ 1.35.",
+      "implementationOrder": [
+        "The `claudeStream.ts` extension and its tests; update the fixtures that build facts literally.",
+        "Test helpers and the made-up history generator.",
+        "`fit.ts`: features, WLS, repricing, the weighted quantile and the seeded run draws, test first.",
+        "`history.ts`: training samples, burn rate, run-level median, calibration and last observed windows, test first.",
+        "`probe.ts`: the probe reading, test first.",
+        "`forecast.ts`: the forward play and the verdict, test first.",
+        "`estimate.ts`: report assembly and verdict precedence, test first, then the backtest test."
+      ],
+      "excludedScope": [
+        "Reading registries, ledgers, `phax-plan.json` or git: phase-02.",
+        "The `Backend.probe` port method, its Claude Code adapter and its fake: phase-02.",
+        "Text rendering, the CLI command, docs, README and NEXT_STEPS: phase-03.",
+        "Any change to the cost-ledger format or to prune."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "List the exact exported names and signatures of `src/domain/cost/history.ts`, `fit.ts`, `forecast.ts`, `probe.ts` and `estimate.ts`. Give in particular `estimatePlan`'s input type, `WindowsReading`, `ComplianceInput`, `EstimateReport`, `lastObservedWindows`, `windowsFromProbe` with its outcome type, and the `PROBE_*` constants. Give the two new `ClaudeStreamFacts` fields. Name the verdict variants implemented, following Q1's decision, and the builders `tests/helpers/costHistory.ts` offers. Record the backtest's measured median error. Explain any deviation from the planned file lists, including which fact-building fixtures had to change."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-estimate-edges",
+      "plannedFilesToCreate": [
+        "src/app/estimateHistory.ts",
+        "src/app/probeWindows.ts",
+        "src/app/estimatePlan.ts",
+        "tests/integration/gitBlobSizes.test.ts",
+        "tests/integration/estimateHistory.test.ts",
+        "tests/integration/probeWindows.test.ts",
+        "tests/integration/estimatePlan.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/infra/providers/claudeCode.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/infra/fakes/backend.ts",
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "src/app/costBackfill.ts",
+        "src/app/prune.ts",
+        "src/domain/security/capabilities.ts",
+        "src/app/executePlan.ts",
+        "tests/unit/providers/claudeCode.test.ts",
+        "tests/unit/security/capabilities.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/index.ts",
+        "src/domain/errors.ts",
+        "src/domain/cost/estimate.ts",
+        "src/domain/cost/history.ts",
+        "src/domain/cost/probe.ts",
+        "tests/helpers/costHistory.ts",
+        "tests/helpers/tempGit.ts",
+        "tests/integration/costBackfill.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cost): read history, probe the windows and estimate a plan",
+        "body": "Add the edges of phax plans estimate.\n\nThe history reader collects every reachable cost ledger: registered runs of every namespace, plus the pruned copies under cost-ledgers/. It sizes this repository's kept runs from their phax-plan.json and from git blob sizes at the last commit before each run was created, through new Git.commitBefore and Git.blobSizes methods.\n\nBackend gains probe(prompt, { model, effort }). The Claude Code adapter runs one message on claude-haiku-5-5 with no tools, no MCP, no session persistence and a single turn, from the OS temp directory. It returns the stream's lines and the exit code. probeWindows decodes them with the existing parseClaudeStream and reads them as windows, no-subscription or windows-unavailable. The probe never receives the plan, belongs to no run and writes no ledger entry, and phax reads no Claude Code credential.\n\nestimatePlanCost reads the plan with the deterministic parser, applying artifact validation under docs/plans/. It sizes the planned files in the working tree and routes each phase as phax run does, through the extracted securityFilterFor, then returns the EstimateReport. With --no-probe, it reads the last rate-limit sample and calls no Backend method."
+      },
+      "title": "History, the probe and the estimate use case",
+      "objective": "An app use case, `estimatePlanCost`, produces the full `EstimateReport` for a plan on disk. It reads the cost ledgers and the sized history through FileSystem and Git. It reads the current windows from one Claude Code probe through a new `Backend.probe` method, or from the last ledger sample with `--no-probe`. The probe never sees the plan, and no credential is read. The use case is fully tested with fakes.",
+      "detailedInstructions": [
+        "Read the preamble's report shape and Technical arbitrations, and the phase-01 handoff for the domain's exact exports. Follow the `effect-services`, `infrastructure-adapters` and `validation-boundaries` skills. Nothing in `src/domain/` may call a port.",
+        "Backend port (`src/ports/backend.ts`): add `probe(prompt: string, options: ProbeOptions): Effect<ProbeResult, AgentInvocationError>`, where `ProbeOptions = { model: string; effort: string }` and `ProbeResult = { lines: readonly string[]; exitCode: number }`. Document it as a one-message Claude Code invocation with no tools, which returns its raw stream-json lines and its exit code, never classifies rate limits, and keeps no session. It has no provider option: it is Claude Code only.",
+        "`src/infra/providers/claudeCode.ts`: add `buildProbeArgs(options)`. It returns `buildCompletionArgs({ provider: \"claude-code\", model, effort, cwd })` followed by `--no-session-persistence` and `--max-turns 1`.",
+        "claudeCode.ts: add `runClaudeProbe(prompt, options)`. It calls `spawnClaude(args, prompt, undefined, tmpdir())` with `tmpdir()` from `node:os`, so no project's CLAUDE.md or settings load and nothing is written to the repository. It returns `{ lines, exitCode }` whatever the exit code, and applies no rate-limit classification. A spawn failure is an `AgentInvocationError`.",
+        "`src/infra/providers/dispatcher.ts`: wire `probe` to `runClaudeProbe`.",
+        "`src/infra/fakes/backend.ts`: add `probeCalls`, `addProbeResponse(result)` and `failNextProbe(message)`. With no queued response, fail with an `AgentInvocationError`.",
+        "Git port (`src/ports/git.ts`): add `commitBefore(repo, instant): Effect<string | null, GitError>` and `blobSizes(repo, commit, paths): Effect<Readonly<Record<string, number>>, GitError>`.",
+        "`src/infra/git.ts`: implement `commitBefore` as `git rev-list -1 --before=<instant> HEAD`, returning null when it prints nothing. Implement `blobSizes` as one `git cat-file --batch-check=%(objectsize)` fed one `<commit>:<path>` line per path, with arguments passed one by one; a missing path gives 0.",
+        "`src/infra/fakes/git.ts`: make both methods record their calls, and let tests seed the answers.",
+        "Extract the routing security filter into `securityFilterFor(policy: SecurityPolicy): SecurityFilter` in `src/domain/security/capabilities.ts`. It allows every provider when `policy.mode !== \"secure\"`. Otherwise it allows a provider only when `evaluateProviderSecurity(provider, policy).satisfiesStrict`, with today's refusal reason. Replace the two identical inline filters in `src/app/executePlan.ts` (phase routing and compliance-review routing) with calls to it, with no change in behaviour.",
+        "Export the existing `runFolderOf(stateRoot, entry)` from `src/app/costBackfill.ts` and `COST_LEDGERS_DIR` from `src/app/prune.ts`, with no change in behaviour.",
+        "`src/app/estimateHistory.ts`: `readEstimateHistory({ stateRoot, repoRoot, namespace })` returns `{ ledgers: LedgerSource[], sizedRuns: SizedRun[], unledgeredRuns: number, skipped: { path, reason }[] }`. It requires FileSystem and Git, and fails with `FsError | RegistryCorruptionError`.",
+        "estimateHistory.ts, registered runs: walk every registry entry (`readRegistry`), across all namespaces, and take its `runFolderOf`. Ignore a missing folder. A folder without `cost-ledger.json` counts as unledgered. Decode the ledger with `readCostLedgerFile`; an undecodable ledger goes to `skipped` and is not fatal. Its `runKey` is `runKey(namespace, shortName) + \".\" + runId`.",
+        "estimateHistory.ts, sizing: when `entry.namespace === namespace`, also read the folder's `phax-plan.json` with `readPhaxPlanFile`. Take `commitBefore(repoRoot, entry.createdAt)`, then `blobSizes` for each phase's edit and optional lists. Build a `SizedRun` with `startedAt = entry.createdAt` and `createCount = plannedFilesToCreate.length`. A missing or undecodable plan, a null base commit or a GitError leaves the run unsized: its ledger is still used, and the reason goes to `skipped`.",
+        "estimateHistory.ts, pruned copies: list `<stateRoot>/cost-ledgers/*.json` (an absent directory means none) and decode each as a ledger only, with `runKey` set to the file name without `.json`.",
+        "`src/app/probeWindows.ts`: `probeWindows(nowIso): Effect<WindowsReading, never, Backend>`. Its only parameter is the instant, so the plan cannot reach the probe. Call `backend.probe(PROBE_PROMPT, { model: PROBE_MODEL, effort: PROBE_EFFORT })`. On failure, pass `{ kind: \"failed-to-start\", reason: error.message }` to `windowsFromProbe`. On success, pass `{ kind: \"ended\", facts: parseClaudeStream(result.lines), exitCode }`. Do not wrap the call in `withInvocationCost`: the probe belongs to no run.",
+        "`src/app/estimatePlan.ts`: `readEstimatePlan({ planMdPath, repoRelPath, config })` requires `FileSystem` only. It reads the plan text. When `classifyArtifactPath(repoRelPath)` is not null, it runs `validateArtifact` and fails with its `ArtifactValidationError` (exit 12). Then it runs `extractPlanDeterministic` and `finalizeExtractedPlan`. If either fails, it fails with a typed error that `exitCodeForError` maps to 1 and whose message names `phax plans lint`: reuse an existing domain error if one fits, else add one to `src/domain/errors.ts`. Finally it sizes each phase's planned files with `fs.apparentSize(join(repoRoot, path))`, a missing file counting 0, which gives the edit bytes, the optional bytes and the create count.",
+        "estimatePlan.ts: `estimatePlanCost({ planMdPath, repoRelPath, config, nowIso, probe: boolean })` returns an `EstimateReport`. It requires `FileSystem | Git | Backend`, with no Shell. Call `readEstimatePlan`.",
+        "estimatePlanCost, routing: load `loadModelRouting()` and `loadProviderConfig()`, build `resolveSecurityPolicy({ mode: config.security.profile, worktreePath: config.repoRoot, config: config.security })`, and run `resolveModel({ model, effort }, routing, providerConfig, securityFilterFor(policy))` for each phase. That gives each phase's `provider` and its selected concrete `model`.",
+        "estimatePlanCost, the compliance review: `disabled` unless `config.complianceReview.enabled`. Otherwise, resolve its model and effort the way `executePlan` routes the review, which gives `claude-code` or `other-provider`.",
+        "estimatePlanCost, the history: `readEstimateHistory({ stateRoot: config.stateRoot, repoRoot: config.repoRoot, namespace: config.namespace })`.",
+        "estimatePlanCost, the windows: with `probe`, call `probeWindows(nowIso)`. Without it, call `lastObservedWindows(ledgers, nowMs)` and invoke no Backend method.",
+        "estimatePlanCost: call the domain's `estimatePlan`, and add the `skipped` entries to the report's warnings by path and reason, never with file content.",
+        "Tests use the fake FileSystem, Git and Backend, temp directories for the git adapter, and made-up data. Nothing reads `~/.phax` or `~/.claude`, nothing spawns `claude`, and nothing calls the network. `buildProbeArgs` is tested by its argument list only."
+      ],
+      "boundaryContracts": "Producer: `Backend.probe` in `src/ports/backend.ts`. Its only consumer is `src/app/probeWindows.ts`. The adapter returns raw lines, and only `parseClaudeStream` (schemas) decodes them before the domain reads them.\n\nProducer: `estimatePlanCost` in `src/app/estimatePlan.ts`. Its consumer is the phase-03 CLI command. The command provides `makeRepoRootedFileSystemLayer(config)`, `makeNodeGitLayer()` and `makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)`, then renders or prints the returned `EstimateReport`. The use case's errors are `FsError | ConfigValidationError | ArtifactValidationError | RegistryCorruptionError`, plus the unreadable-plan error, all mapped by `exitCodeForError`.\n\nConsumed from phase-01: `estimatePlan`, `lastObservedWindows`, `windowsFromProbe`, the `PROBE_*` constants and the input types in `src/domain/cost/`.\n\nShared with `phax run`: `securityFilterFor` in `src/domain/security/capabilities.ts`.",
+      "testStrategy": "Write the use-case integration tests first.\n\n`tests/unit/providers/claudeCode.test.ts`:\n- `buildProbeArgs` contains the sealed completion flags, `--no-session-persistence`, `--max-turns 1`, `--model claude-haiku-5-5` and `--effort low`.\n- It grants no tool and no `--add-dir`.\n\n`tests/integration/gitBlobSizes.test.ts`, with `tests/helpers/tempGit.ts`:\n- Blob sizes at an older commit.\n- 0 for a missing path.\n- `commitBefore` before the first commit gives null.\n\n`tests/integration/estimateHistory.test.ts`, with the fake fs and git:\n- Kept active and archived runs, and a pruned copy.\n- An unledgered run.\n- An undecodable ledger, skipped.\n- Another namespace's run, read for its ledger only.\n- A run left unsized because its base commit is null.\n\n`tests/integration/probeWindows.test.ts`, with the fake Backend and made-up stream lines:\n- Readings of 15 % and 29 % give `probe` with both instants, after exactly one `probe` call with `PROBE_PROMPT` (§8 the probe reads both windows).\n- `apiKeySource` set to an API-key value gives no-subscription (§8 no subscription).\n- A failed start, no event and an unknown event shape each give unavailable with its reason (§8 an unusable probe never guesses).\n\n`tests/integration/estimatePlan.test.ts`:\n- An Approved plan that was never extracted is estimated. The fake Backend records one `probe` call whose prompt contains no plan text, and zero `runAgent`, `resumeAgentSession` and `complete` calls (§8 no model reads the plan).\n- `--no-probe` (`probe: false`) makes zero Backend calls and reports `last-sample` with its `observedAt` (§8 --no-probe).\n- An off-grammar `docs/plans/` name fails with `ArtifactValidationError` (§8 exit codes).\n- A codex-routed phase is listed as `other-provider`.\n- A fake FileSystem trace shows that no path under `.claude` or named `.credentials.json` is ever opened, with or without the probe (§8 no credential is read).\n\nRegression: the existing executePlan and capabilities tests keep passing, and `securityFilterFor` gets a unit case in `tests/unit/security/capabilities.test.ts`.",
+      "implementationOrder": [
+        "Git `commitBefore` and `blobSizes` in the port, the adapter and the fake, with their integration test.",
+        "`Backend.probe` in the port, the Claude Code adapter (`buildProbeArgs`, `runClaudeProbe`), the dispatcher and the fake, with the args unit test.",
+        "`securityFilterFor`, then `executePlan` using it; the exports from costBackfill and prune.",
+        "`readEstimateHistory` and its test.",
+        "`probeWindows` and its test.",
+        "`readEstimatePlan`, `estimatePlanCost` and their test."
+      ],
+      "excludedScope": [
+        "The CLI command, text rendering, cliDocs, the phase guard, the generated usage and CLI reference files, docs, README and NEXT_STEPS: phase-03.",
+        "Reading Claude Code's credentials, the OAuth usage endpoint or any OAuth variable (§5.14, §7).",
+        "Recording the probe in a cost ledger.",
+        "Keeping more than the ledger through prune, and any change to the cost-ledger format."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give the exact signatures and module paths of:\n- `estimatePlanCost` and `readEstimatePlan` (`src/app/estimatePlan.ts`), the error union, and the exit code each error maps to;\n- `probeWindows` (`src/app/probeWindows.ts`);\n- `Backend.probe` with `ProbeOptions` and `ProbeResult`, and the fake's probe knobs;\n- the new Git methods;\n- `securityFilterFor`.\n\nName the typed error for an unparseable plan. Confirm that executePlan's routing behaviour is unchanged, and that no code path reads a Claude Code credential. Explain any deviation from the planned file lists."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-estimate-surface",
+      "plannedFilesToCreate": [
+        "src/domain/cost/estimateRender.ts",
+        "src/cli/commands/plansEstimate.ts",
+        "tests/unit/cost/estimateRender.test.ts",
+        "tests/integration/plansEstimateCommand.test.ts",
+        "docs/plan-estimate.md"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/plans.ts",
+        "src/cli/cliDocs.ts",
+        "src/domain/security/phaseGuard.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "site/pages.ts",
+        "README.md",
+        "NEXT_STEPS.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/security/phaseGuard.test.ts",
+        "tests/integration/phaseGuard.test.ts",
+        "tests/integration/completions.test.ts",
+        "tests/integration/usageSpecExamples.test.ts",
+        "tests/integration/usageSpecDrift.test.ts",
+        "tests/helpers/costHistory.ts"
+      ],
+      "commit": {
+        "subject": "feat(plans): add phax plans estimate",
+        "body": "phax plans estimate <plan> reports a plan's API-list cost, per phase and per run, as P10/P50/P90 from this machine's cost ledgers. It also says whether the plan fits the subscription windows left now (fits, risky or wait), or why it cannot say.\n\nThe windows come from one minimal Claude Code probe that never sees the plan. --no-probe uses the last rate-limit sample in the ledgers instead, and --json prints the report. The command exits 0 whatever the verdict, and 12 for a plan that fails artifact validation. It never reads Claude Code's credentials.\n\nThe phase guard refuses the command inside a phase worktree. The usage spec, the completions, the CLI reference and the README carry the command. docs/plan-estimate.md explains it for an operator on a Max subscription, the docs site lists the page, and NEXT_STEPS ticks plan-estimate."
+      },
+      "title": "phax plans estimate, its rendering and its docs",
+      "objective": "An operator runs `phax plans estimate <plan>`, with `--json` or `--no-probe`, and sees §6's report: the phase table, the run line, what is not estimated, the subscription windows with their calibrated capacity, the P50 and P90 scenarios, and the verdict. The command exits 0 whatever the verdict, and 12 on artifact validation. The docs page, the README, the generated CLI files and NEXT_STEPS describe it.",
+      "detailedInstructions": [
+        "Read the phase-02 handoff for `estimatePlanCost`, its errors and the layers it needs, and the preamble's report shape. Follow the `cli-view-layer` skill: the command file parses arguments, calls one use case and renders through the OutputPort. It holds no business logic.",
+        "`src/domain/cost/estimateRender.ts`: `renderEstimate(report, { timeZone, nowMs })` returns the §6 text; the layout is indicative. In order:",
+        "The first line is `History: <n> phases, sized by planned-file bytes, recent runs weighted (half-life 30d)`. When `unledgeredRuns > 0`, a hint to run `phax cost backfill` follows.",
+        "A table with the columns phase, model, effort, P10, P50 and P90, at 2 decimals.",
+        "A `run-level  compliance review` row when `runLevel > 0`, then a `run  API-list $` row.",
+        "One `Not estimated:` line, naming the phases not estimated with their reason, then the fixed invocations.",
+        "A `Subscription (probe):` block, or `Subscription (last sample, <N> min old — usage since then is not counted):`. Each window gets one line: `<n>% used, resets <Fri 16 Oct 14:50>   ≈ $<capacity>/window, $<left> left`, or `not calibrated`.",
+        "The `P50:` and `P90:` scenario lines: `fits — agent time ends ≈ HH:MM`, or one entry per pause, `<window> exhausted in <phase> ≈ HH:MM, resumes HH:MM`.",
+        "The last line is `Verdict: <verdict> — <one-line explanation>`.",
+        "Render the other cases as follows:",
+        "Thin history prints `History: <n> phases — an estimate needs 60; none printed`, the windows if read, and the verdict, with no table.",
+        "Windows unavailable prints `Subscription: windows unavailable — <reason>`, then `Verdict: windows-unavailable — estimate only`.",
+        "No subscription prints `Subscription: API-key authentication, no subscription window`, then `Verdict: no-subscription — estimate only`.",
+        "Uncalibrated names the windows, or the burn rate, that lacked samples.",
+        "Format instants with `Intl.DateTimeFormat` in the given `timeZone` (weekday, day, month, 24-hour time). The renderer is pure; it takes `nowMs` only to compute the sample's age.",
+        "`src/cli/commands/plansEstimate.ts`: `runPlansEstimate(plan, { json?: true, noProbe?: true }, out)`. Load the config with `loadConfig(process.cwd())`; a config error exits 1. Absolutize the path and compute `repoRelPath` exactly as `runPlansLint` does.",
+        "plansEstimate.ts: provide `Layer.mergeAll(makeRepoRootedFileSystemLayer(config), makeNodeGitLayer(), makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG))`, with no Shell. Run `estimatePlanCost({ …, nowIso: new Date().toISOString(), probe: noProbe !== true })`.",
+        "plansEstimate.ts: on error, print with `out.error` and exit with `exitCodeForError`, which gives 12 for artifact validation.",
+        "plansEstimate.ts: on success, `--json` writes `JSON.stringify(report, null, 2)` to stdout, and warnings go through `out.warn` so that stdout stays one document. Otherwise, write `renderEstimate(report, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, nowMs: Date.now() })`. Always exit 0 after a report (§5.15).",
+        "Register the command in `src/cli/commands/plans.ts`, next to `lint`, as `plansCmd.command(\"estimate\")`:",
+        "Argument `<plan>`: \"Path to the plan.md\".",
+        "`--json`: \"Emit the estimate as JSON\".",
+        "`--no-probe`: \"Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe\". Commander reports it as `opts.probe === false`.",
+        "The description: \"Estimate a plan's API-list cost and whether it fits the subscription windows now\".",
+        "Update the `plans` group description to mention estimating.",
+        "Add `plans estimate` to `src/cli/cliDocs.ts`, with the description above as its summary. The long help names:",
+        "the history: cost ledgers, at least 60 sized phases of this repository, weighted with a half-life of 30 days, and `phax cost backfill` first;",
+        "the windows: one minimal Claude Code probe on the cheapest Claude model, which never sees the plan and spends one small request, with `--no-probe` for the last sample; phax never reads Claude Code's credentials;",
+        "the verdict values and what is never estimated.",
+        "Its examples are the §11 commands, with made-up plan paths. Its exit codes are 0 (any verdict), 1 (a config error, or a plan the deterministic parser cannot read) and 12 (artifact validation).",
+        "Classify `\"plans estimate\": \"refused\"` in `src/domain/security/phaseGuard.ts`.",
+        "Run `pnpm gen:usage-spec` and `pnpm docs:cli`. Never hand-edit `phax.usage.kdl`, `docs/cli/reference.md` or the README's generated CLI section. If the completions or usage-spec tests need a fixture update for the new command, update the fixture.",
+        "`docs/plan-estimate.md` (§11). Its reader is an operator on a Claude Max subscription deciding whether to start a run now or after the next window reset, and what it will cost. Start with the §11 example block: `phax cost backfill`, then `phax plans estimate docs/plans/<stamp>-<slug>-plan.md`, then the `--no-probe --json | jq .verdict` form. Then explain, using only made-up numbers (§6's may be reused):",
+        "where the history comes from, and why `phax cost backfill` comes first;",
+        "the 60-phase minimum;",
+        "how to read the table: P10/P50/P90 in API-list dollars, not what the subscription bills;",
+        "how the windows are read: one minimal Claude Code probe that never sees the plan; phax reads no credential and no OAuth endpoint; API-key users get `no-subscription`;",
+        "`--no-probe` and its staleness;",
+        "the capacity, recalibrated from the last 28 days;",
+        "every verdict value, and what to do about it;",
+        "what is not estimated: plan extraction, the plan auditor, the interactive code review, and Codex and Vibe phases;",
+        "the exit codes.",
+        "Add a `files` entry to `site/pages.ts` for `docs/plan-estimate.md`: route `/guide/plan-estimate`, title `Estimating a plan`, and a one-sentence description. Place it with the other guide pages.",
+        "README, by hand: in the plans command list next to `phax plans lint`, add `phax plans estimate <plan>` with a one-line comment, and link `docs/plan-estimate.md` from that section.",
+        "NEXT_STEPS.md: tick `plan-estimate` and remove its `**Next.**`.",
+        "Tests never spawn a provider, never call the network, and never read `~/.phax` or `~/.claude`."
+      ],
+      "boundaryContracts": "Consumer: `src/cli/commands/plansEstimate.ts` consumes `estimatePlanCost` from `src/app/estimatePlan.ts`, the Backend layer from `src/infra/claudeCli.ts`, the Git layer from `src/infra/git.ts` and the repo-rooted FileSystem. It only chooses between `JSON.stringify(report)` and `renderEstimate(report, …)`, and maps errors to exit codes.\n\nProducer: `renderEstimate` in `src/domain/cost/estimateRender.ts`, which reads `EstimateReport` only.\n\nThe `--json` field names and verdict values are the ones §6 makes normative, plus the variants Q1 decided.",
+      "testStrategy": "Write `tests/unit/cost/estimateRender.test.ts` first. It renders made-up reports with `timeZone: \"UTC\"`:\n- the §6 risky layout: the table, the run-level row, the run row, the Not estimated line, both windows with capacity and dollars left, the P50 fits and P90 pause lines, and the Verdict line;\n- thin history: no table, and 12 phases named;\n- windows unavailable, with the probe's reason;\n- no-subscription;\n- uncalibrated;\n- the age line of a last sample;\n- an `other-provider` phase in the Not estimated line.\n\n`tests/integration/plansEstimateCommand.test.ts` spawns `tsx src/cli/main.ts`, as `tests/integration/phaseGuard.test.ts` does. It runs in its own temp git repo, with a `phax.json` whose `state.root` is inside the temp dir and with `HOME` set to a temp dir. Every invocation passes `--no-probe`, so no real `claude` process starts. Cases:\n- A `docs/plans/` plan with an off-grammar name exits 12.\n- A valid plan with no history exits 0, names 0 phases, and with `--json` gives a single JSON document whose verdict is `thin-history` (§5.15).\n\nThe phase guard's refusal of the command inside a phase worktree is covered by a unit classification test. The usage-spec drift, lint, examples and completions tests confirm that the generated files are in step.",
+      "implementationOrder": [
+        "`estimateRender.ts` and its unit test.",
+        "`plansEstimate.ts`, its registration in `plans.ts`, and its integration test.",
+        "cliDocs and the phase guard, then `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "`docs/plan-estimate.md` and the `site/pages.ts` entry.",
+        "README and NEXT_STEPS."
+      ],
+      "excludedScope": [
+        "Gating `phax run` on the verdict, or showing the estimate at run start (spec §7).",
+        "Scheduling or delaying a run until a reset.",
+        "Estimating plan extraction, the plan auditor, the interactive code review, or Codex and Vibe phases and their quotas.",
+        "Any change to the domain model, the adapters or the history reader beyond what rendering needs."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`, including its terminal `pnpm build`, `pnpm site:build` and smoke steps.",
+      "expectedHandoff": "Show the final text and JSON output for a made-up risky report and for thin history. Give the cliDocs entry and the phase-guard classification, and confirm that the generated files were regenerated, not hand-edited. Give the docs route and the README and NEXT_STEPS edits. Explain any deviation from the planned file lists, including any test fixtures touched for completions or usage-spec drift."
+    }
+  ]
+}
