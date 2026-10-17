@@ -2,12 +2,15 @@ import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream, realpathSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import type {
   AgentRunOptions,
   AgentRunResult,
   CompletionOptions,
   CompletionResult,
+  ProbeOptions,
+  ProbeResult,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
@@ -255,6 +258,43 @@ export function runClaudeCompletion(
 
     return { finalText: found.finalText };
   });
+}
+
+/**
+ * The sealed completion flags plus `--no-session-persistence`. With no tool
+ * granted the reply is a single turn; `--max-turns` is not passed because
+ * Claude Code's help does not list it.
+ */
+export function buildProbeArgs(options: ProbeOptions): string[] {
+  return [
+    ...buildCompletionArgs({
+      provider: "claude-code",
+      model: options.model,
+      effort: options.effort,
+      cwd: tmpdir(),
+    }),
+    "--no-session-persistence",
+  ];
+}
+
+/**
+ * Run the probe from the OS temp directory, so no project's CLAUDE.md or
+ * settings load and nothing is written to a repository. Returns the lines and
+ * the exit code whatever that code is: rate limits are not classified here.
+ */
+export function runClaudeProbe(
+  prompt: string,
+  options: ProbeOptions,
+): Effect.Effect<ProbeResult, AgentInvocationError> {
+  const args = buildProbeArgs(options);
+  return Effect.tryPromise({
+    try: () => spawnClaude(args, prompt, undefined, tmpdir()),
+    catch: (err): AgentInvocationError =>
+      new AgentInvocationError({
+        message: err instanceof Error ? err.message : String(err),
+        argv: ["claude", ...args],
+      }),
+  }).pipe(Effect.map(({ lines, exitCode }): ProbeResult => ({ lines, exitCode })));
 }
 
 export function runClaudeAgent(

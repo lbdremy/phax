@@ -73,9 +73,8 @@ import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
 import { resolveModel } from "../domain/routing/resolve.js";
-import type { SecurityFilter } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
-import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
+import { evaluateProviderSecurity, securityFilterFor } from "../domain/security/capabilities.js";
 import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
@@ -794,26 +793,11 @@ export function executePlan(
           worktreePath: worktreePath as string,
           config: config.security,
         });
-        const securityFilter: SecurityFilter = (provider) => {
-          if (securityMode !== "secure") {
-            return { allowed: true };
-          }
-          const evaluation = evaluateProviderSecurity(provider, securityPolicy);
-          return evaluation.satisfiesStrict
-            ? { allowed: true }
-            : {
-                allowed: false,
-                reason: evaluation.marks.length
-                  ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
-                  : "cannot satisfy strict secure mode",
-              };
-        };
-
         const resolution = resolveModel(
           { model: phase.model, effort: phase.effort },
           routing,
           providerConfig,
-          securityFilter,
+          securityFilterFor(securityPolicy),
         );
 
         yield* telemetry.recordEvent(
@@ -1354,25 +1338,11 @@ export function executePlan(
             worktreePath: infoResult.right.worktreePath,
             config: config.security,
           });
-          const reviewSecurityFilter: SecurityFilter = (provider) => {
-            if (securityMode !== "secure") {
-              return { allowed: true };
-            }
-            const evaluation = evaluateProviderSecurity(provider, reviewPolicy);
-            return evaluation.satisfiesStrict
-              ? { allowed: true }
-              : {
-                  allowed: false,
-                  reason: evaluation.marks.length
-                    ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
-                    : "cannot satisfy strict secure mode",
-                };
-          };
           const reviewResolution = resolveModel(
             { model: config.complianceReview.model, effort: config.complianceReview.effort },
             routing,
             providerConfig,
-            reviewSecurityFilter,
+            securityFilterFor(reviewPolicy),
           );
           yield* reviewCompliance(
             infoResult.right,

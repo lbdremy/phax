@@ -437,6 +437,34 @@ export const NodeGitLayer = Layer.succeed(Git, {
     gitRun(["worktree", "list", "--porcelain"], repo).pipe(
       Effect.map(({ stdout }) => parseWorktreeListPorcelain(stdout)),
     ),
+
+  // `--before` compares committer dates; with nothing older, rev-list prints
+  // nothing and exits 0.
+  commitBefore: (repo, instant) =>
+    gitRun(["rev-list", "-1", `--before=${instant}`, "HEAD"], repo).pipe(
+      Effect.map(({ stdout }) => parseHeadCommitOutput(stdout)),
+    ),
+
+  // One batch-check answers every path: git prints one line per input line, in
+  // order, either the size or `<object> missing`. A path holding a newline
+  // cannot be asked in this protocol, so it counts as missing.
+  blobSizes: (repo, commit, paths) => {
+    const asked = paths.filter((path) => !path.includes("\n"));
+    if (asked.length === 0) return Effect.succeed(Object.fromEntries(paths.map((p) => [p, 0])));
+    return gitRun(["cat-file", "--batch-check=%(objectsize)"], repo, {
+      input: `${asked.map((path) => `${commit}:${path}`).join("\n")}\n`,
+    }).pipe(
+      Effect.map(({ stdout }) => {
+        const answers = stdout.split("\n");
+        const sizes: Record<string, number> = Object.fromEntries(paths.map((p) => [p, 0]));
+        asked.forEach((path, i) => {
+          const answer = answers[i]?.trim() ?? "";
+          sizes[path] = /^\d+$/.test(answer) ? Number(answer) : 0;
+        });
+        return sizes;
+      }),
+    );
+  },
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {

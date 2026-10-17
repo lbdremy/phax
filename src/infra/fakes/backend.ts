@@ -10,6 +10,8 @@ import {
   type AgentRunResult,
   type CompletionOptions,
   type CompletionResult,
+  type ProbeOptions,
+  type ProbeResult,
 } from "../../ports/backend.js";
 
 interface RateLimitKnob {
@@ -25,6 +27,12 @@ export class FakeBackendImpl implements BackendOps {
     options: AgentRunOptions;
   }> = [];
   readonly completeCalls: Array<{ prompt: string; options: CompletionOptions }> = [];
+  readonly probeCalls: Array<{ prompt: string; options: ProbeOptions }> = [];
+
+  /** Queued probe answers: a result, or a spawn failure's message. */
+  private readonly probeResponses: Array<
+    { kind: "result"; result: ProbeResult } | { kind: "fail"; message: string }
+  > = [];
 
   readonly runResponses: AgentRunResult[] = [];
   readonly resumeResponses: AgentRunResult[] = [];
@@ -97,6 +105,15 @@ export class FakeBackendImpl implements BackendOps {
     this.completeResponses.push(result);
   }
 
+  addProbeResponse(result: ProbeResult): void {
+    this.probeResponses.push({ kind: "result", result });
+  }
+
+  /** Make the next queued `probe` call fail as a spawn failure would. */
+  failNextProbe(message: string): void {
+    this.probeResponses.push({ kind: "fail", message });
+  }
+
   /** Simulate a rate/usage-limit failure on the `runAgent` call for a chosen phase. */
   failRunWithRateLimit(runIndex: number, knob: RateLimitKnob): void {
     this.rateLimitAtRunIndex = runIndex;
@@ -148,6 +165,19 @@ export class FakeBackendImpl implements BackendOps {
       );
     }
     return Effect.succeed(result);
+  }
+
+  probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError> {
+    this.probeCalls.push({ prompt, options });
+    const next = this.probeResponses.shift();
+    if (next === undefined) {
+      return Effect.fail(
+        new AgentInvocationError({ message: "FakeBackend: no more probe responses queued" }),
+      );
+    }
+    return next.kind === "result"
+      ? Effect.succeed(next.result)
+      : Effect.fail(new AgentInvocationError({ message: next.message }));
   }
 
   runAgent(

@@ -126,6 +126,21 @@ export interface GitOps {
   ): Effect.Effect<number, GitError>;
   /** The worktrees `repo` knows about, main worktree included. */
   listWorktrees(repo: string): Effect.Effect<readonly GitWorktreeEntry[], GitError>;
+
+  /**
+   * The last commit reachable from HEAD whose committer date is before
+   * `instant` (ISO-8601), or `null` when there is none.
+   */
+  commitBefore(repo: string, instant: string): Effect.Effect<string | null, GitError>;
+  /**
+   * The byte size of each path's blob at `commit`, keyed by the path as given.
+   * A path absent at that commit counts 0.
+   */
+  blobSizes(
+    repo: string,
+    commit: string,
+    paths: readonly string[],
+  ): Effect.Effect<Readonly<Record<string, number>>, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

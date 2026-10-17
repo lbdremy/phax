@@ -22,6 +22,16 @@ export interface CompletionResult {
   readonly finalText: string;
 }
 
+export interface ProbeOptions {
+  readonly model: string;
+  readonly effort: string;
+}
+
+export interface ProbeResult {
+  readonly lines: readonly string[];
+  readonly exitCode: number;
+}
+
 export interface AgentRunOptions {
   readonly provider: ProviderId;
   readonly model: string;
@@ -90,6 +100,14 @@ export interface BackendOps {
     CompletionResult,
     AgentInvocationError | RateLimitError | UsageLimitError | FsError
   >;
+
+  /**
+   * A one-message Claude Code invocation with no tools. It returns the raw
+   * stream-json lines and the exit code whatever that code is, never
+   * classifies rate limits, and keeps no session. Claude Code only, so it
+   * takes no provider option. A spawn failure is an `AgentInvocationError`.
+   */
+  probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError>;
 }
 
 export class Backend extends Context.Tag("phax/Backend")<Backend, BackendOps>() {}

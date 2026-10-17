@@ -1,9 +1,15 @@
 // Made-up cost history for the plan-estimate tests: ledger entries, ledgers,
 // sized runs, probe stream facts, and a seeded generator of runs whose phases
-// follow a known log-linear cost model. Every value is invented.
+// follow a known log-linear cost model, and the state-root files that hold
+// them for the use-case tests. Every value is invented.
 import type { HistoricalPhasePlan, LedgerSource, SizedRun } from "../../src/domain/cost/history.js";
 import type { ClaudeStreamFacts, StreamWindowReading } from "../../src/schemas/claudeStream.js";
 import type { CostLedger, CostLedgerEntry, RateLimitSample } from "../../src/schemas/costLedger.js";
+import type { FakeFileSystemImpl } from "../../src/infra/fakes/fs.js";
+import type { FakeGitImpl } from "../../src/infra/fakes/git.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import type { Effort, PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import type { RegistryEntry } from "../../src/schemas/registry.js";
 
 export const DAY_MS = 86_400_000;
 export const HOUR_MS = 3_600_000;
@@ -264,4 +270,115 @@ export function generateHistory(input: {
     });
   }
   return out;
+}
+
+/** A made-up registry entry; defaults to a review-open run created now. */
+export function registryEntry(input: Partial<RegistryEntry> = {}): RegistryEntry {
+  return {
+    namespace: "demo",
+    shortName: "thing",
+    runId: "20261001-000000-aaaa",
+    state: "review_open",
+    branch: "phax/thing",
+    projectName: "demo",
+    phasesCount: 1,
+    createdAt: iso(NOW_MS),
+    updatedAt: iso(NOW_MS),
+    ...input,
+  };
+}
+
+export function registryJson(entries: readonly RegistryEntry[]): string {
+  return JSON.stringify(withSchemaUrl("registry", { runs: entries }), null, 2);
+}
+
+export function ledgerJson(entries: readonly CostLedgerEntry[]): string {
+  return JSON.stringify(withSchemaUrl("cost-ledger", ledger(entries)), null, 2);
+}
+
+/** A phase of a made-up `phax-plan.json`. */
+export interface PlanFilePhase {
+  readonly id: string;
+  readonly model?: string;
+  readonly effort?: Effort;
+  readonly create?: readonly string[];
+  readonly edit?: readonly string[];
+  readonly optional?: readonly string[];
+}
+
+function planFilePhase(phase: PlanFilePhase): PhaxPlan["phases"][number] {
+  return {
+    id: phase.id,
+    title: `Made-up ${phase.id}`,
+    model: phase.model ?? "claude-opus-5-5",
+    effort: phase.effort ?? "high",
+    planMarkdownAnchor: `#${phase.id}`,
+    plannedFilesToCreate: [...(phase.create ?? [])],
+    plannedFilesToEdit: [...(phase.edit ?? [])],
+    optionalFilesToEdit: [...(phase.optional ?? [])],
+    commit: { subject: `feat: ${phase.id}`, body: "Made up." },
+  };
+}
+
+export function phaxPlanJson(phases: readonly [PlanFilePhase, ...PlanFilePhase[]]): string {
+  const [first, ...rest] = phases;
+  const plan: PhaxPlan = {
+    run: { shortName: "thing", title: "Thing", branch: "phax/thing", requiredCommands: [] },
+    phases: [planFilePhase(first), ...rest.map(planFilePhase)],
+  };
+  return JSON.stringify(withSchemaUrl("phax-plan", plan), null, 2);
+}
+
+/**
+ * Seeds a fake state root and fake git with generated runs as kept runs of
+ * `namespace`: a registry entry, a cost ledger and a `phax-plan.json` per run,
+ * and a commit dated a minute before each run whose blobs carry the phases'
+ * planned-file sizes. Writes the registry with `extra` entries appended.
+ */
+export function seedGeneratedRuns(
+  fs: FakeFileSystemImpl,
+  git: FakeGitImpl,
+  input: {
+    readonly stateRoot: string;
+    readonly namespace: string;
+    readonly runs: readonly GeneratedRun[];
+    readonly extra?: readonly RegistryEntry[];
+  },
+): RegistryEntry[] {
+  const entries = input.runs.map((run, r) => {
+    const n = String(r).padStart(3, "0");
+    const entry = registryEntry({
+      namespace: input.namespace,
+      shortName: `gen-${n}`,
+      runId: `run-${n}`,
+      createdAt: run.sized.startedAt,
+      updatedAt: run.sized.startedAt,
+    });
+    const folder = `${input.stateRoot}/runs/${entry.namespace}.${entry.shortName}`;
+    fs.setFile(`${folder}/cost-ledger.json`, ledgerJson(run.source.ledger.entries));
+    const sizes: Record<string, number> = {};
+    const phases = run.sized.phases.map((phase): PlanFilePhase => {
+      const edit = `src/${n}/${phase.id}-edit.ts`;
+      const optional = `src/${n}/${phase.id}-optional.ts`;
+      sizes[edit] = phase.editBytes;
+      sizes[optional] = phase.optionalBytes;
+      return {
+        id: phase.id,
+        model: phase.model,
+        effort: phase.effort as Effort,
+        create: Array.from({ length: phase.createCount }, (_, i) => `src/${n}/new-${i}.ts`),
+        edit: [edit],
+        optional: [optional],
+      };
+    });
+    const [first, ...rest] = phases;
+    if (first !== undefined) fs.setFile(`${folder}/phax-plan.json`, phaxPlanJson([first, ...rest]));
+    git.addDatedCommit(n.padStart(40, "c"), iso(Date.parse(run.sized.startedAt) - 60_000), sizes);
+    return entry;
+  });
+  fs.setFile(
+    `${input.stateRoot}/registry.json`,
+    registryJson([...entries, ...(input.extra ?? [])]),
+  );
+  return entries;
 }
