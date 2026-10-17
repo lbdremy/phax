@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildArgs, buildCompletionArgs } from "../../../src/infra/providers/claudeCode.js";
+import {
+  buildArgs,
+  buildCompletionArgs,
+  buildProbeArgs,
+} from "../../../src/infra/providers/claudeCode.js";
+import { PROBE_EFFORT, PROBE_MODEL } from "../../../src/domain/cost/probe.js";
 import { gateCommandAllowRules } from "../../../src/domain/session/claudePermissionFlags.js";
 import { buildSkillEditGrantSettings } from "../../../src/infra/providers/claudeSkillEditSettings.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
@@ -368,6 +373,40 @@ describe("buildCompletionArgs — sealed completion", () => {
     expect(args).toContain("--output-format");
     expect(args[args.indexOf("--output-format") + 1]).toBe("stream-json");
     expect(args).toContain("--verbose");
+  });
+});
+
+describe("buildProbeArgs — the windows probe", () => {
+  const args = buildProbeArgs({ model: PROBE_MODEL, effort: PROBE_EFFORT });
+
+  it("is the sealed completion flag set plus --no-session-persistence", () => {
+    expect(args).toEqual([
+      ...buildCompletionArgs({
+        provider: "claude-code",
+        model: "claude-haiku-5-5",
+        effort: "low",
+        cwd: tmpdir(),
+      }),
+      "--no-session-persistence",
+    ]);
+    expect(args[args.indexOf("--permission-mode") + 1]).toBe("default");
+    expect(args[args.indexOf("--allowedTools") + 1]).toBe("");
+    expect(args[args.indexOf("--disallowed-tools") + 1]).toBe("Bash,WebFetch,WebSearch");
+    expect(args).toContain("--strict-mcp-config");
+  });
+
+  it("runs claude-haiku-5-5 at effort low", () => {
+    expect(args[args.indexOf("--model") + 1]).toBe("claude-haiku-5-5");
+    expect(args[args.indexOf("--effort") + 1]).toBe("low");
+  });
+
+  it("grants no tool, no writable path, no MCP config and no turn cap", () => {
+    expect(args).not.toContain("--add-dir");
+    expect(args).not.toContain("--mcp-config");
+    expect(args).not.toContain("--max-turns");
+    expect(args).not.toContain("bypassPermissions");
+    expect(args).not.toContain("acceptEdits");
+    expect(args).not.toContain("--resume");
   });
 });
 

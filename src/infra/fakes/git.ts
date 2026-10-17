@@ -73,7 +73,9 @@ export type GitCall =
       branch: string;
       deleting: readonly string[];
     }
-  | { method: "listWorktrees"; repo: string };
+  | { method: "listWorktrees"; repo: string }
+  | { method: "commitBefore"; repo: string; instant: string }
+  | { method: "blobSizes"; repo: string; commit: string; paths: readonly string[] };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -555,6 +557,49 @@ export class FakeGitImpl implements GitOps {
   listWorktrees(repo: string): Effect.Effect<readonly GitWorktreeEntry[], GitError> {
     this.calls.push({ method: "listWorktrees", repo });
     return Effect.succeed([...this.worktreeEntries]);
+  }
+
+  /** Commits `commitBefore` sees, with their committer instants (ISO-8601). */
+  private readonly datedCommits: { sha: string; instant: string }[] = [];
+  /** Blob sizes per commit, keyed by path; a path absent here counts 0. */
+  private readonly blobSizesByCommit = new Map<string, Record<string, number>>();
+  /** Commits whose `blobSizes` call fails with a GitError. */
+  private readonly failingBlobSizeCommits = new Set<string>();
+
+  addDatedCommit(sha: string, instant: string, sizes: Record<string, number> = {}): void {
+    this.datedCommits.push({ sha, instant });
+    this.blobSizesByCommit.set(sha, { ...sizes });
+  }
+
+  failBlobSizes(commit: string): void {
+    this.failingBlobSizeCommits.add(commit);
+  }
+
+  commitBefore(repo: string, instant: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "commitBefore", repo, instant });
+    const before = Date.parse(instant);
+    const older = this.datedCommits
+      .filter((c) => Date.parse(c.instant) < before)
+      .toSorted((a, b) => Date.parse(b.instant) - Date.parse(a.instant));
+    return Effect.succeed(older[0]?.sha ?? null);
+  }
+
+  blobSizes(
+    repo: string,
+    commit: string,
+    paths: readonly string[],
+  ): Effect.Effect<Readonly<Record<string, number>>, GitError> {
+    this.calls.push({ method: "blobSizes", repo, commit, paths: [...paths] });
+    if (this.failingBlobSizeCommits.has(commit)) {
+      return Effect.fail(
+        new GitError({
+          message: `FakeGit: cat-file failed at ${commit}`,
+          command: "git cat-file --batch-check=%(objectsize)",
+        }),
+      );
+    }
+    const known = this.blobSizesByCommit.get(commit) ?? {};
+    return Effect.succeed(Object.fromEntries(paths.map((p) => [p, known[p] ?? 0])));
   }
 }
 

@@ -39,7 +39,7 @@ export interface CostBackfillResult {
 }
 
 /** A registered run's folder: the archived `runs/` folder, or the active run folder. */
-function runFolderOf(stateRoot: string, entry: RegistryEntry): string {
+export function runFolderOf(stateRoot: string, entry: RegistryEntry): string {
   const key = runKey(entry.namespace, entry.shortName);
   if (entry.state !== "archived") return join(stateRoot, "runs", key);
   return join(entry.archivePath ?? join(stateRoot, "archive", key), "runs");

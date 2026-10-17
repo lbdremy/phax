@@ -8,6 +8,16 @@ export class PlanValidationError extends Data.TaggedError("PlanValidationError")
   path?: string | undefined;
 }> {}
 
+/**
+ * A plan the deterministic parser cannot read, so `phax plans estimate` has
+ * nothing to estimate. Its message points at `phax plans lint`, which names
+ * every structural problem. Exit code 1: the plan is not refused, only unread.
+ */
+export class PlanUnparseableError extends Data.TaggedError("PlanUnparseableError")<{
+  message: string;
+  path: string;
+}> {}
+
 export class ConfigValidationError extends Data.TaggedError("ConfigValidationError")<{
   message: string;
   path?: string | undefined;

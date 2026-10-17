@@ -1,4 +1,4 @@
-import type { ProviderId } from "../routing/types.js";
+import type { ProviderId, SecurityFilter } from "../routing/types.js";
 import type { SecurityPolicy } from "./types.js";
 
 export type JailStrength = "strong" | "partial" | "none";
@@ -70,4 +70,26 @@ export function evaluateProviderSecurity(
   const downgraded = !satisfiesStrict;
 
   return { provider, satisfiesStrict, downgraded, marks, notes };
+}
+
+/**
+ * The routing filter `phax run` applies for `policy`: every provider outside
+ * secure mode, and in secure mode only a provider that satisfies it strictly.
+ * Shared with `phax plans estimate` so both route a phase the same way.
+ */
+export function securityFilterFor(policy: SecurityPolicy): SecurityFilter {
+  return (provider) => {
+    if (policy.mode !== "secure") {
+      return { allowed: true };
+    }
+    const evaluation = evaluateProviderSecurity(provider, policy);
+    return evaluation.satisfiesStrict
+      ? { allowed: true }
+      : {
+          allowed: false,
+          reason: evaluation.marks.length
+            ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
+            : "cannot satisfy strict secure mode",
+        };
+  };
 }

@@ -191,6 +191,51 @@ describe("parseClaudeStream", () => {
       }),
       line({ type: "system", subtype: "compact_boundary" }),
     ]);
-    expect(facts).toEqual({ claudeCodeVersion: null, sessionId: null, events: [], result: null });
+    expect(facts).toEqual({
+      claudeCodeVersion: null,
+      sessionId: null,
+      apiKeySource: null,
+      undecodedRateLimitEvents: 1,
+      events: [],
+      result: null,
+    });
+  });
+
+  it("reads the first init event's apiKeySource, and null when it is absent", () => {
+    expect(parseClaudeStream([init({ apiKeySource: "none" })]).apiKeySource).toBe("none");
+    expect(
+      parseClaudeStream([
+        init({ apiKeySource: "ANTHROPIC_API_KEY" }),
+        init({ apiKeySource: "none" }),
+      ]).apiKeySource,
+    ).toBe("ANTHROPIC_API_KEY");
+    expect(parseClaudeStream([init()]).apiKeySource).toBeNull();
+    expect(parseClaudeStream([init({ apiKeySource: null })]).sessionId).toBe(
+      "aaaaaaaa-0000-4000-8000-000000000001",
+    );
+  });
+
+  it("counts a rate-limit event with a string utilization as undecoded, and reads nothing from it", () => {
+    const facts = parseClaudeStream([
+      line({
+        type: "rate_limit_event",
+        rate_limit_info: {
+          unifiedWindows: {
+            five_hour: { utilization: "0.15", resetsAt: 1792069800 },
+            seven_day: { utilization: 0.29, resetsAt: 1792335600 },
+          },
+        },
+      }),
+    ]);
+    expect(facts.undecodedRateLimitEvents).toBe(1);
+    expect(facts.events).toEqual([]);
+  });
+
+  it("neither counts nor reads a rate-limit event without unifiedWindows", () => {
+    const facts = parseClaudeStream([
+      line({ type: "rate_limit_event", rate_limit_info: { status: "allowed" } }),
+    ]);
+    expect(facts.undecodedRateLimitEvents).toBe(0);
+    expect(facts.events).toEqual([]);
   });
 });

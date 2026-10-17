@@ -63,7 +63,7 @@ import { COST_LEDGER_FILE } from "./costLedger.js";
 import { readRegistry, removeRun } from "./registry.js";
 
 /** Where prune keeps a pruned run's cost ledger, under the state root. */
-const COST_LEDGERS_DIR = "cost-ledgers";
+export const COST_LEDGERS_DIR = "cost-ledgers";
 
 export type { PruneResult } from "../domain/prune.js";
 

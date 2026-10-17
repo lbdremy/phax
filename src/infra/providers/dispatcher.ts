@@ -9,7 +9,7 @@ import {
 } from "../../domain/errors.js";
 import type { FsError } from "../../ports/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
-import { runClaudeAgent, runClaudeCompletion } from "./claudeCode.js";
+import { runClaudeAgent, runClaudeCompletion, runClaudeProbe } from "./claudeCode.js";
 import { runCodexAgent, runCodexCompletion } from "./codexCli.js";
 import { runVibeAgent } from "./mistralVibe.js";
 
@@ -98,6 +98,8 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
         }),
       );
     },
+
+    probe: (prompt, options) => runClaudeProbe(prompt, options),
 
     resumeAgentSession: (sessionId, prompt, options) => {
       if (options.provider === "claude-code") {
