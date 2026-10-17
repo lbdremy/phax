@@ -254,7 +254,7 @@ docs/plans/2610161201-greet-plan.md: 1 error, 0 warnings
 error    structure  phase-02  no section for phase-02 in plan.md (expected a "## phase-02 — …" heading)
 ```
 
-`phax run` and `phax resume` refuse a plan with a phase whose section they cannot find in plan.md. They look for the phase's `## phase-NN` heading or its `{#anchor}`, refuse before the run is named, exit 11, and name the phase and `phax plans lint`.
+`phax run` and `phax resume` refuse a plan with a phase whose section they cannot find in plan.md. They look for the phase's `## phase-NN` heading or its `{#anchor}`. `phax run` refuses before the run is named; both exit 11 and name the phase and `phax plans lint`.
 
 ### Decide open questions
 
