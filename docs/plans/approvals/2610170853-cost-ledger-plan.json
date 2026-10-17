@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610170853-cost-ledger-plan.md",
+  "planFingerprint": "6e7fb949a06d40554b792b8adf3e6bd1b02585bd3db958f4807015028434e04c",
+  "approvedAt": "2026-10-17T09:22:06.210Z",
+  "baseline": "0b9918c7f164d85f539b2dd6fe0d3c5cb974f0ee",
+  "sourceSpec": {
+    "path": "docs/specs/2610160919-cost-ledger.md",
+    "fingerprint": "4be7eb090078a7fde1b36d6ca19c9909311a45219bf15e3b86748ef5ebc4670d"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
