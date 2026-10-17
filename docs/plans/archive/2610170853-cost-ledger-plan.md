@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610160919-cost-ledger.md
 completes-spec: true
 approved:
