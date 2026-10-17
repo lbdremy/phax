@@ -1,0 +1,275 @@
+---
+status: Draft
+source-spec: docs/specs/2610160919-cost-ledger.md
+completes-spec: true
+---
+# Cost ledger
+
+The only plan of the approved spec `cost-ledger` (`docs/specs/2610160919-cost-ledger.md`), so its run completes the spec. It runs second of the three approved specs: after phase-prompt-scope (merged) and before plan-estimate, which reads this ledger for its history and calibration. Every Claude invocation of a run appends one entry to the run's cost ledger when it ends: a phase turn, a fix attempt, a handoff generation or a compliance review. This holds whether the invocation succeeds, fails, hits a rate limit or is interrupted. The entry records the invocation's own API-list cost and tokens per model, corrected when Claude Code reports a resumed session cumulatively. It also records the agent duration, the end time and the subscription-window samples the stream reported. Codex and Mistral Vibe invocations write nothing. The ledger moves with the run folder through `phax archive`. `phax prune` keeps a copy before it deletes the archive folder. `phax cost backfill` writes a ledger for every kept run that has none, derived from its kept streams. The spike `spikes/plan-estimate/phax_estimate.py` (`scan_streams`, `per_invocation`) is the reference for the correction and the sampling. Work runs core to surface in two phases. Phase-01 adds the format, the price table, the pure functions and the run-time recording, so every export has a caller and knip stays green. Phase-02 adds the prune copy, backfill, the CLI and the docs. Arbitrations Q1 B and Q2 A of the spec are settled and not reopened. Tests never spawn a real provider and never read `~/.phax`: they use fake backends that write made-up streams and a temporary state root. Every fixture, price included, is made up. No phase edits `.claude/`.
+
+## Required commands
+
+- (none)
+
+No new command. Every command the phases run is already allowed by `security.agentCommands` or the `standard` gate profile in phax.json: the pnpm scripts, `pnpm exec tsx scripts/schemas-check.ts --write`, `pnpm gen:usage-spec` and `pnpm docs:cli`.
+
+## Technical arbitrations
+
+- The ledger's place and name (spec §10): one run-level file, `<run folder>/cost-ledger.json`. Each invocation end reads it, appends one entry and writes it back atomically. Phases run one at a time, and the in-run compliance review runs after the last phase, so a run has one writer. A sample's `runCostUsd` is the sum of the earlier entries plus the cost seen so far in the stream, all read from the same file. Loss accepted: a standalone `phax review compliance` takes no run lock, so if it races a resumed run, one entry can be lost.
+- Where the stream is read: the app reads the stream's bytes through the existing FileSystem port. A new `src/schemas/claudeStream.ts`, beside `src/schemas/claudeOutput.ts` (which already decodes Claude's stream for the Claude adapter), decodes each line through an Effect Schema into stream facts. The domain receives only those decoded facts, never raw lines. Loss accepted: stream decoding sits at the schema boundary rather than inside `src/infra/`. A new port would be cleaner, but it would have to be added to the hand-built layers of some 35 test files.
+- The price table lives in the routing layer as `src/domain/routing/prices.ts`, keyed by Claude catalog id. It is not a field of the providers.json `CatalogEntry`, which users can override (a new required field would break their files) and which also lists non-Anthropic models. A unit test requires a price for every Claude-family entry of `DEFAULT_PROVIDER_CONFIG`. A complete entry takes Claude Code's own `costUSD`. A stream model with no price counts $0 toward a partial entry's cost and toward the `runCostUsd` of the samples that follow it. Loss accepted: an unpriced model under-counts those two values silently.
+- The shipped prices are the spike's table, which reproduced Claude Code's list-basis `costUSD` to the cent on this machine's history. The reviewer checks it against Anthropic's published pricing page. Loss accepted: the table is a copy that must follow Anthropic's price changes, and the catalog test catches a missing model, not a changed price.
+- The cumulative correction follows spec Q2 A. A complete entry's `modelUsage` is cumulative when the stream's `claude_code_version` is at least 2.1.268 and the ledger already holds an entry with the same session id. The previous total is the per-model sum of those earlier entries. Each field's delta is floored at 0, and a model whose delta is zero everywhere is dropped. Loss accepted: when a session's earlier invocations predate the ledger (a run started before this release and resumed after it), its first new entry over-counts.
+- Rate-limit samples: one per window (`five_hour` becomes `five-hour`, `seven_day` becomes `seven-day`) per `rate_limit_event`, with no deduplication. Utilization is the stream's fraction times 100, rounded to 2 decimals. `resetsAt` is the epoch converted to an ISO instant without milliseconds. Other windows are ignored. Loss accepted: a long invocation carries hundreds of samples. They are kept because plan-estimate calibrates on the first and last sample of each reset.
+- Each entry carries `endedAt`, the ISO instant the invocation ended, because plan-estimate weights recent runs and windows its calibration by time, which `resetsAt` gives only when samples exist. At run time it comes from the clock. At backfill it is the stream's modification time, read through a new `FileSystem.modifiedAt`. Loss accepted: the entry has one field that spec §6 does not list.
+- `agentMs` is the result event's `duration_ms`. For a partial entry it is the wall-clock time phax measured around the invocation at run time, and 0 at backfill. A stream with no session id (it never started) writes no entry. Costs are rounded to 6 decimals. Loss accepted: backfilled partial entries carry no duration.
+- A ledger failure never changes the invocation's outcome. It is reported through `SystemTelemetry.recordError`, and an unreadable ledger (damaged or newer) is never overwritten. Loss accepted: an entry can be lost unnoticed when telemetry is off, because a cost record must not turn a green phase red.
+- The backfill command is `phax cost backfill`, with no arguments. It covers every run in the registry, across namespaces, because the history is machine-wide as in the spike. It reads the active run folder or the archived `runs/` folder, and never a pruned run, which has left the registry. It leaves a run with a ledger untouched and writes with `createExclusive`. It skips and names locked runs and runs whose folder is missing. A run with no Claude stream gets an empty ledger, so a second pass has nothing to do. Streams are folded in run order: phases by id, a phase's `.reset-*` folders before the live folder, then `output.jsonl`, `fix-attempt-NN.jsonl` in ascending order, `handoff-generation.jsonl`, and finally `compliance-review.session.jsonl`. Loss accepted: a phase turn whose `output.jsonl` a later resume overwrote is gone, so backfill counts only the last one.
+- Two phases rather than three: the schema, prices and pure functions land with their run-time callers, so knip never sees an unused export. Loss accepted: phase-01 is large and cross-cutting, hence `high` effort.
+
+## Open questions
+
+### Q1 — How does a pruned run's cost ledger survive `phax prune` (§5.5), given that prune deletes the whole archive folder and keeps only `phax/records/v1`, remote refs and tags?
+
+- A — Prune copies `<archive>/runs/cost-ledger.json` byte for byte to `~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json` before it deletes the archive folder; a failed copy keeps the run — abandons: a single home for a run's ledger: there is a second place under ~/.phax that prune must leave alone and plan-estimate must also read. Only the ledger is kept, not phax-plan.json, so plan-estimate can use a pruned run for burn rate and window calibration but not for its effort and file-size regression.
+- B — The ledger rides into the run's records on `phax/records/v1`, which prune already keeps — abandons: survival for every project with records off (records are opt-in), plus a records-format change; it also puts cost data on a ref that `records.autoPush` publishes.
+
+Recommendation: A — A keeps every ledger whatever the records setting, at the cost of one folder prune skips; B loses the history exactly where records are off, which is the default. Phase-02 is written to A.
+
+---
+
+## phase-01 — Cost ledger entries at every Claude invocation of a run {#phase-01-ledger-at-run-time}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+When a Claude invocation of a run ends (the phase turn, each fix attempt, the handoff generation or the compliance review), phax appends one entry to `<run folder>/cost-ledger.json`. It does so on success, failure, rate limit or interruption. The entry carries the invocation's own API-list cost and tokens per model, its agent duration, its end time and the subscription-window samples its stream reported. Invocations on other providers write nothing, and the ledger follows the run folder into the archive.
+
+### Detailed instructions
+
+- Add `src/schemas/costLedger.ts`, the file schema of the new format `cost-ledger`. File: `{ $schema: schemaUrlField('cost-ledger'), entries: CostLedgerEntry[] }`. An entry is an explicit union on `role`. One variant is `{ role: 'phase' | 'fix' | 'handoff', phase: <a phase-NN id> }` and the other is `{ role: 'compliance', phase: null }`. Both share `completeness: 'complete' | 'partial'`, `provider: 'claude-code'` and `sessionId: NonEmptyString`. They also share `models: Record<NonEmptyString, { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens: non-negative integers, costUsd: non-negative number }>`, plus `costUsd` (non-negative), `agentMs` (non-negative integer) and `endedAt` (an ISO-8601 instant string). Last, `rateLimitSamples: Array<{ window: 'five-hour' | 'seven-day', utilization: number in 0..100, resetsAt: ISO-8601 instant, runCostUsd: non-negative }>`. Every key is required, and decode uses `onExcessProperty: 'error'`. Export the file schema, the decoder, and the types `CostLedger` (without `$schema`), `CostLedgerEntry`, `CostLedgerRole` and `RateLimitSample`.
+- Register the format. Append `cost-ledger` to `FORMAT_IDS` and `SCHEMA_BORN_FORMAT_IDS` in `src/schemas/schemaUrl.ts` and update their doc comments. In `src/schemas/persisted.ts`, add `readCostLedgerFile` through `readSchemaBornPersisted` (label `cost ledger`), dropping `$schema`, as `readBriefRecordFile` does. persisted.ts stays the only src module that names the file decoder.
+- In the schemas package, declare `costLedgerFormat` in `packages/schemas/src/formats/runDirectory.ts` with `defineFormat` (`preSchema: null`, `releases: []`, current shape from `CURRENT_SHAPES['cost-ledger']`), as `packages/schemas/src/formats/answers.ts` declares the hand decision answer. Export `parseCostLedger` and `toLatestCostLedger` from `packages/schemas/src/index.ts`. Add the format to both maps in `packages/schemas/build/jsonSchemas.ts`, with excess `error`.
+- Run `pnpm exec tsx scripts/schemas-check.ts --write`. It creates `packages/schemas/snapshots/cost-ledger/next.schema.json` and regenerates `packages/schemas/src/generated/index.ts` and `src/schemas/release.ts`. Never hand-edit those two files or `packages/schemas/history.lock.json`.
+- In the README's persisted-formats table, add the row `| Cost ledger | cost-ledger | <run folder>/cost-ledger.json | parseCostLedger | json/cost-ledger.schema.json |`, keeping the table aligned as oxfmt formats it.
+- Add `src/domain/routing/prices.ts` (pure). Export `ModelListPrice = { inputUsdPerMTok, outputUsdPerMTok, cacheReadUsdPerMTok, cacheWrite5mUsdPerMTok, cacheWrite1hUsdPerMTok }` and `CLAUDE_LIST_PRICES: Readonly<Record<string, ModelListPrice>>`. Values are USD per million tokens, in the order input, output, cache read, cache write 5m, cache write 1h. claude-opus-5-5: 4, 20, 0.2, 5, 8. claude-opus-5: 5, 25, 0.5, 6.25, 10. claude-opus-4-8, claude-opus-4-7 and claude-opus-4-6: 5, 25, 0.5, 6.25, 10. claude-sonnet-5-5 and claude-sonnet-5: 2, 10, 0.2, 2.5, 4. claude-sonnet-4-6: 3, 15, 0.3, 3.75, 6. claude-fable-5-1: 10, 50, 0.25, 12.5, 20. claude-fable-5: 10, 50, 1, 12.5, 20. claude-haiku-5-5: 0.1, 0.5, 0.01, 0.125, 0.2. claude-haiku-4-5-20251001: 1, 5, 0.1, 1.25, 2. A comment states that these are Anthropic's API list prices and that they reproduce Claude Code's list-basis `costUSD`.
+- In the same module, export `listPriceFor(model: string): ModelListPrice | undefined`. It strips a trailing bracketed suffix (such as `[1m]`) and tries an exact id. Otherwise it compares ids with a trailing `-YYYYMMDD` stripped on both sides. It returns undefined for anything else.
+- Add `src/schemas/claudeStream.ts` with `parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts`. Decode each line through an Effect Schema per event kind. Excess keys are ignored, since this is provider output. An unparsable or unknown line is skipped, as `findResultEvent` does. Missing token counts default to 0. Read four event kinds. (1) The init event: `type: 'system'`, `subtype: 'init'`, with `session_id` and `claude_code_version`, parsed as an X.Y.Z triple or else null. (2) Assistant events: `type: 'assistant'` with `message.id`, `message.model` and `message.usage`. Read `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` and the optional `cache_creation.ephemeral_1h_input_tokens`. (3) Rate-limit events: `type: 'rate_limit_event'`, with `rate_limit_info.unifiedWindows.five_hour` and `seven_day`, each `{ utilization, resetsAt }`. An event without `unifiedWindows` yields nothing. (4) The last `type: 'result'` event that carries `modelUsage` (`inputTokens`, `outputTokens`, `cacheReadInputTokens`, `cacheCreationInputTokens`, `costUSD` per model) and `duration_ms`. A result without `modelUsage` counts as no result.
+- Shape `ClaudeStreamFacts` as `{ claudeCodeVersion: readonly [number, number, number] | null, sessionId: string | null, events: ordered list of { kind: 'message', id, model, usage } | { kind: 'rate-limit', readings: [{ window: 'five-hour' | 'seven-day', fraction, resetsAtEpochSeconds }] }, result: { durationMs, modelUsage } | null }`. `sessionId` is the init event's, else the result's.
+- Add `src/domain/cost/ledger.ts` (pure). Export `CUMULATIVE_SINCE = [2, 1, 268]`, `reportsCumulative(version)` and `messageCostUsd(usage, price)`. `messageCostUsd` computes `(input*in + output*out + cacheRead*cr + (cacheWrite - write1h)*w5m + write1h*w1h) / 1e6`. Also export `ledgerEntryFor({ facts, role, phase, earlier, partialAgentMs, endedAt, priceFor })`, returning `CostLedgerEntry | null`, with `priceFor` defaulting to `listPriceFor`, plus `appendEntry(ledger, entry)`. Export nothing that phase-01's callers and tests do not use, or knip fails.
+- `ledgerEntryFor`, complete case. When `facts.result` is present, the entry is complete. For each model in `modelUsage`, map the stream's fields to `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens` and `costUsd`. When `reportsCumulative(facts.claudeCodeVersion)` is true and `earlier` holds entries with the same `sessionId`, subtract those entries' per-model sums, flooring each field at 0. Drop a model whose resulting fields are all 0. The entry's `costUsd` is the sum of its models' `costUsd`, and `agentMs` is `durationMs`.
+- `ledgerEntryFor`, partial case. When there is no result but `sessionId` is present, the entry is partial. Deduplicate assistant messages by `id`, with the last occurrence winning, and sum their tokens per model. Price each message with `priceFor(model)`, counting 0 when there is no price. `agentMs` is `partialAgentMs`. With neither a result nor a `sessionId`, return null.
+- `ledgerEntryFor`, samples. Walk `facts.events` in order and keep the running cost of the deduplicated, priced assistant messages seen so far. For each reading of each rate-limit event, emit a sample: `utilization` is `round2(fraction * 100)`, `resetsAt` is the ISO instant without milliseconds, and `runCostUsd` is the sum of `earlier` entries' `costUsd` plus the running stream cost. Round every USD value to 6 decimals.
+- Add `src/app/costLedger.ts`. Export `COST_LEDGER_FILE = 'cost-ledger.json'` and `withInvocationCost(invocation, { runPath, phase, role, provider, streamPath })`, which returns an `Effect<A, E, R | FileSystem | SystemTelemetry>`. It notes the start time and attaches `Effect.onExit`, so success, failure and interruption all record. When `provider` is not `claude-code`, it does nothing (§5.7). Otherwise it reads the stream through FileSystem (an absent file means nothing to record) and calls `parseClaudeStream`. It reads `<runPath>/cost-ledger.json` with `readCostLedgerFile`, treating an absent file as `{ entries: [] }`. It calls `ledgerEntryFor` with `partialAgentMs` = elapsed milliseconds and `endedAt` = now. When it gets an entry, it writes `withSchemaUrl('cost-ledger', appendEntry(...))` with `fs.writeAtomic`, formatted as the run folder's other JSON files are.
+- `withInvocationCost` never changes the wrapped effect's exit. Every failure inside it (unreadable stream, damaged or newer ledger, write error) is caught and reported through `SystemTelemetry.recordError`. Build the report as `reportAgentFailure` does, adding a builder in `src/app/telemetry/reportBuilders.ts` if none fits. A ledger that fails to decode is never overwritten.
+- Wire the four call sites. In `src/app/executePlan.ts`, wrap `backend.runAgent(promptText, agentOptions)` inside its `telemetry.withOperation`: role `phase`, `phase.id`, `join(phaseFolderPath, 'output.jsonl')`, `resolution.selected.provider`. In `src/app/fixLoop.ts`, wrap `resumeAgentSession`: role `fix`, `phaseId`, `join(phaseFolderPath, fixTranscriptName(attempt))`, `agentOptions.provider`.
+- Continue the wiring. In `src/app/handoffGeneration.ts`, wrap `resumeAgentSession`: role `handoff`, `phaseId`, the `handoff-generation.jsonl` path, `agentOptions.provider`. In `src/app/reviewCompliance.ts`, wrap `backend.runAgent` inside the existing `Effect.either`: role `compliance`, phase `null`, `info.runPath`, the `compliance-review.session.jsonl` path, `resolution.selected.provider`. With that placement, a failed review still records.
+- Do not record `backend.complete()`, `decideArtifact`, `authorArtifact` or the interactive code review (§7). Leave `src/domain/records/usage.ts` and the run records' `usage` exactly as they are (§10). Archival needs no code, because `phax archive` moves the run folder whole; the integration test proves it.
+- Every fixture is made up and written in the test files: streams, session ids, model usage, prices and windows. None is copied from this repository's run folders, from `~/.phax` or from another repository.
+
+### Planned files to create
+
+- `src/schemas/costLedger.ts`
+- `src/schemas/claudeStream.ts`
+- `src/domain/routing/prices.ts`
+- `src/domain/cost/ledger.ts`
+- `src/app/costLedger.ts`
+- `packages/schemas/snapshots/cost-ledger/next.schema.json`
+- `tests/unit/schemas/costLedger.test.ts`
+- `tests/unit/schemas/claudeStream.test.ts`
+- `tests/unit/routing/prices.test.ts`
+- `tests/unit/cost/ledger.test.ts`
+- `tests/integration/costLedger.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/schemaUrl.ts`
+- `src/schemas/release.ts`
+- `src/schemas/persisted.ts`
+- `packages/schemas/src/formats/runDirectory.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/build/jsonSchemas.ts`
+- `src/app/executePlan.ts`
+- `src/app/fixLoop.ts`
+- `src/app/handoffGeneration.ts`
+- `src/app/reviewCompliance.ts`
+- `README.md`
+
+### Optional files that may be edited
+
+- `src/app/telemetry/reportBuilders.ts`
+- `packages/schemas/history.lock.json`
+- `tests/unit/schemaUrl.test.ts`
+- `tests/unit/readmePersistedFormats.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/snapshots.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/site/schemas.test.ts`
+- `tests/type/schemasPackage.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/executePlan.test.ts`
+- `tests/integration/fixLoop.test.ts`
+- `tests/integration/reviewCompliance.test.ts`
+- `tests/integration/rateLimit.test.ts`
+
+### Boundary contracts
+
+Consumers are the four invocation sites and, in phase-02, the backfill and plan-estimate. The stream producer is the Claude CLI's stream-json output, decoded by `src/schemas/claudeStream.ts` into `ClaudeStreamFacts`. The domain (`ledgerEntryFor`) consumes only those facts and the earlier `CostLedgerEntry` values decoded by `readCostLedgerFile`, and it produces one entry or null. The app (`withInvocationCost`) owns reading and writing through FileSystem and never alters the wrapped invocation's result. The schemas package gains `parseCostLedger` as a parse-only consumer of `src/schemas/costLedger.ts`. The entry shape is the stable contract plan-estimate reads: role, phase, completeness, provider, sessionId, models, costUsd, agentMs, endedAt and rateLimitSamples.
+
+### Test strategy
+
+Write the unit tests before the implementation. `tests/unit/schemas/costLedger.test.ts` decodes a made-up ledger shaped like spec §6 plus `endedAt`. It refuses an unknown key, a `compliance` entry with a phase, a `fix` entry with a null phase, a utilization above 100 and a missing `$schema`. `tests/unit/schemas/claudeStream.test.ts` reads the init version and session id, assistant usage with 1h cache writes, both windows of a rate-limit event, the last result with `modelUsage`, and garbage lines. `tests/unit/routing/prices.test.ts` requires a price for every Claude-family entry of `DEFAULT_PROVIDER_CONFIG`. It also checks that `[1m]` and dated ids resolve and that an unknown id returns undefined.
+
+`tests/unit/cost/ledger.test.ts` covers the §8 criteria on made-up facts. (a) A phase turn reports `costUSD` 8.71 and a resumed handoff on the same session reports a cumulative 8.99 on Claude Code 2.1.280: the handoff's `costUsd` is 0.28 and the session's entries sum to 8.99. The same pair on 2.1.267 keeps the reported value, and the 2.1.268 boundary is cumulative. (b) The stream reports the five-hour window at 0.21 after $8.98 of run cost (earlier entries plus priced messages): the sample is `{ window: 'five-hour', utilization: 21, runCostUsd: 8.98 }` with its `resetsAt`. (c) A stream with no result and a duplicated message id gives a partial entry priced once per message, with `partialAgentMs`. (d) An empty stream gives null. (e) An unpriced model counts $0. (f) A model whose delta is all zero is dropped.
+
+`tests/integration/costLedger.test.ts` uses a temporary state root and a fake backend that writes made-up streams to `outputJsonlPath`. A completed run with one fix attempt per phase and the compliance review enabled holds one entry per phase turn, fix attempt, handoff and compliance review, each with `role`, `sessionId`, `models`, `costUsd` and `agentMs`. A run whose phase-02 routes to `codex-cli` has no phase-02 entry. A phase turn that writes assistant messages and then fails with `UsageLimitError` leaves a partial entry, and the run is `rate_limited`. Archiving the run leaves a byte-identical ledger in the archived run folder. The schemas-package tests cover the new format as they cover the other born formats.
+
+### Implementation order
+
+1. The ledger schema, its registration, schemas-check, the package format and the README row.
+2. The price table and its test.
+3. The stream decoder and its tests.
+4. The pure entry and sampling functions, test first.
+5. `withInvocationCost`, then the four call sites, then the integration test.
+
+### Excluded scope
+
+- `phax cost backfill`, the prune copy and the CLI (phase-02).
+- Showing cost in final-report.md, the pull request, `phax ls` or run records (spec §7).
+- Recording `backend.complete()`, authoring and decide sessions, and the interactive code review.
+- Any change to the run records' existing `usage`.
+- Estimating a plan's cost (the plan-estimate spec).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exact exports and signatures: `withInvocationCost` and `COST_LEDGER_FILE` (`src/app/costLedger.ts`); `ledgerEntryFor`, `appendEntry`, `reportsCumulative` and `messageCostUsd` (`src/domain/cost/ledger.ts`); `parseClaudeStream` and the `ClaudeStreamFacts` shape (`src/schemas/claudeStream.ts`); `listPriceFor` and `CLAUDE_LIST_PRICES` (`src/domain/routing/prices.ts`); `readCostLedgerFile` (`src/schemas/persisted.ts`) and `parseCostLedger` (schemas package). Also report the `cost-ledger` stamp that schemas-check wrote, and how a ledger failure is reported to telemetry. Explain every deviation phax flags against the planned file lists, including each optional test file touched and why.
+
+### Commit subject
+
+`feat(cost): record a cost ledger entry at every Claude invocation of a run`
+
+### Commit body
+
+Each phase turn, fix attempt, handoff generation and compliance review run on Claude Code now appends one entry to <run folder>/cost-ledger.json when it ends, whether it succeeds, fails, hits a rate limit or is interrupted. The entry holds the invocation's own API-list cost and tokens per model, its agent duration, its end time and the subscription-window samples its stream reported. A resumed session that Claude Code (2.1.268 and later) reports cumulatively is corrected against the earlier entries of the same session. An invocation that ends without a result event is priced from its assistant messages and marked partial. Codex and Mistral Vibe invocations write nothing.
+
+The ledger is a new persisted format, cost-ledger, born with $schema, with every field required. It is registered in the schemas package. A Claude list-price table joins the routing layer, and a test keeps it covering every Claude catalog model. The stream is read through the FileSystem port and decoded at the schema boundary, so the domain only computes. The ledger moves with the run folder through phax archive.
+
+---
+
+## phase-02 — The ledger survives prune, and phax cost backfill {#phase-02-prune-and-backfill}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+`phax prune` keeps each pruned run's cost ledger in `~/.phax/cost-ledgers/`. A new `phax cost backfill` gives every kept run without a ledger one derived from its kept streams. It never touches a run that already has a ledger, and a second pass reports nothing to backfill. The docs and the generated CLI reference name the command.
+
+### Detailed instructions
+
+- Add `modifiedAt(path): Effect<string, FsError>` to the FileSystem port (`src/ports/fs.ts`). It returns the ISO-8601 instant of the file's last modification. Implement it in `src/infra/fs.ts` with `stat().mtime`, and in any wrapper there or in `src/cli/commands/runLayers.ts` that delegates FileSystem methods one by one. In the fake (`src/infra/fakes/fs.ts`), record a modification instant on every write and let tests set it.
+- In `src/domain/cost/ledger.ts`, add the pure `runStreamsInOrder(runFolder)`. Its input is the run folder's entry names and, per phase folder, its entry names. It returns an ordered list of `{ relativePath, role, phase }`. Phase folders match a phase-NN id, optionally followed by `.reset-<stamp>`, and are taken by phase id, with reset folders in ascending stamp order before the live folder. Within a phase folder the order is `output.jsonl` (role phase), then `fix-attempt-NN.jsonl` ascending by number (role fix), then `handoff-generation.jsonl` (role handoff). `compliance-review.session.jsonl` comes last, with role compliance and phase null.
+- Also add the pure `ledgerFromStreams(streams: [{ role, phase, facts, endedAt }])`, which returns a `CostLedger`. It folds `ledgerEntryFor` over the streams with `earlier` = the entries built so far and `partialAgentMs` = 0. A stream whose facts yield null (for example a Codex or Vibe stream with no Claude session id) adds nothing.
+- Add `src/app/costBackfill.ts` with `backfillCostLedgers({ stateRoot })`. It returns `{ written: [{ qualifiedName, invocations, costUsd }], locked: string[], missing: string[] }`. It reads the registry with `readRegistry(stateRoot)`, across every namespace. Each entry's run folder is `<archivePath>/runs` when the entry is archived, else `<stateRoot>/runs/<namespace>.<short-name>`.
+- For each run, `backfillCostLedgers` proceeds in order. A missing folder goes to `missing`. A folder that already has `cost-ledger.json` is left untouched. A run whose lock (`Lock.status(runKey)`) is active goes to `locked`. Otherwise it lists the streams, reads each through FileSystem with `parseClaudeStream`, takes `endedAt` from `fs.modifiedAt`, builds the ledger with `ledgerFromStreams` and writes `withSchemaUrl('cost-ledger', ledger)` with `fs.createExclusive`. A false return means a ledger appeared meanwhile, and it is left alone. A run with no Claude stream gets `{ entries: [] }`. The backfill never rewrites an existing ledger and is idempotent.
+- Prune (`src/app/prune.ts`). In the apply loop, before step (a), when `<archivePath>/runs/cost-ledger.json` exists, read its text and write it unchanged to `<stateRoot>/cost-ledgers/<namespace>.<short-name>.<runId>.json` (`mkdirp`, then `writeAtomic`). The run id keeps a name reused after prune from colliding. Wrap the copy in `removing('cost ledger', …)`, so a failure keeps the run with reason `removal-failed`. Add `'cost ledger'` to `PrunePart` in `src/domain/prune.ts`. A dry run, a declined run and a kept run copy nothing. Update the prune module's doc comment to say what it now keeps.
+- CLI. Add `src/cli/commands/cost.ts` exporting `registerCostCommand(program, out)`: a `cost` group with a `backfill` subcommand that takes no arguments. It resolves the state root as `phax ls` does, calls `backfillCostLedgers` once with FileSystem and Lock layers, and renders through the OutputPort. It prints `wrote <N> cost ledgers (<M> invocations, $<X> API-list)`, with thousands separators and 2 decimals, or `nothing to backfill`. When runs were skipped, it adds `skipped <K> locked run(s): <names>`. Exit 0 on success, 1 on error. No business logic goes in the command file. Register it in `src/cli/program.ts`.
+- Add `cost` and `cost backfill` to `src/cli/cliDocs.ts`, with a summary, a long help that names the ledger, the run folders it reads and what it never touches, examples (`phax cost backfill`), and the exit codes 0 and 1. Update `prune`'s long help to say it keeps the run's cost ledger under `~/.phax/cost-ledgers/`. Classify `cost backfill` as `refused` in `src/domain/security/phaseGuard.ts`, because it writes state. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`. Never hand-edit `phax.usage.kdl`, the generated CLI section of the README, or `docs/cli/reference.md`.
+- README, by hand. In the run-management block next to `phax prune`, add `phax cost backfill` with a one-line comment. Add one sentence explaining that every run keeps `cost-ledger.json` (each Claude invocation's own API-list cost, tokens, duration and window samples), that archive moves it with the run, and that prune keeps a copy in `~/.phax/cost-ledgers/`. Extend the prune paragraph to match, and the cost-ledger row's 'Where it lives' cell with `~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json after prune`. Add no docs page (spec §11).
+- NEXT_STEPS.md: tick `cost-ledger` and drop its `**Next.**`. Mark `plan-estimate` `**Next.**`. Reword the intro sentence that says cost-ledger and plan-estimate run next, so that plan-estimate runs next, then headless-review, then oracle-phases.
+- Tests use a temporary state root with a made-up registry, run folders and streams, never `~/.phax`, and never spawn a provider.
+
+### Planned files to create
+
+- `src/app/costBackfill.ts`
+- `src/cli/commands/cost.ts`
+- `tests/unit/cost/backfill.test.ts`
+- `tests/integration/costBackfill.test.ts`
+- `tests/integration/pruneCostLedger.test.ts`
+
+### Planned files to edit
+
+- `src/domain/cost/ledger.ts`
+- `src/ports/fs.ts`
+- `src/infra/fs.ts`
+- `src/infra/fakes/fs.ts`
+- `src/domain/prune.ts`
+- `src/app/prune.ts`
+- `src/cli/program.ts`
+- `src/cli/cliDocs.ts`
+- `src/domain/security/phaseGuard.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `README.md`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `src/cli/commands/runLayers.ts`
+- `tests/integration/helpers/pruneRepo.ts`
+- `tests/unit/fakeRootedFileSystem.test.ts`
+- `tests/integration/fsApparentSize.test.ts`
+- `tests/integration/pruneCommand.test.ts`
+- `tests/integration/prune.test.ts`
+- `tests/unit/prune.test.ts`
+- `tests/unit/security/phaseGuard.test.ts`
+- `tests/integration/phaseGuard.test.ts`
+- `tests/integration/completions.test.ts`
+- `tests/integration/usageSpecExamples.test.ts`
+
+### Boundary contracts
+
+`backfillCostLedgers` (app) consumes the registry, the Lock port and FileSystem (including the new `modifiedAt`). It reuses phase-01's `parseClaudeStream` and the domain fold, so a backfilled entry matches what the run itself would have written, apart from a partial entry's `agentMs` (0). The CLI command consumes its result shape `{ written, locked, missing }` and only renders it. Prune's new contract with plan-estimate: a pruned run's ledger lives at `<stateRoot>/cost-ledgers/<namespace>.<short-name>.<runId>.json`, byte-identical to the archived one.
+
+### Test strategy
+
+Write `tests/unit/cost/backfill.test.ts` first. `runStreamsInOrder` covers reset folders before the live folder, `fix-attempt-02` before `fix-attempt-10`, the compliance review last, and unrelated files ignored. `ledgerFromStreams` covers a phase turn, two fix attempts and a handoff on one resumed session (Claude Code 2.1.280): each entry is per-invocation and they sum to the last cumulative report. Samples' `runCostUsd` chain across streams, and a Codex stream adds nothing.
+
+`tests/integration/costBackfill.test.ts` sets up one archived run with made-up kept streams and no ledger, one run with a ledger and one locked run. Exactly one ledger is written, its handoff entries carry per-invocation cost, the existing ledger is byte-identical, and the locked run is named. A second call writes nothing and the command prints `nothing to backfill`.
+
+`tests/integration/pruneCostLedger.test.ts`: pruning an archived run with a ledger leaves a byte-identical copy in `cost-ledgers/` and removes the archive folder. A dry run copies nothing. A copy failure keeps the run with part `cost ledger`. The FileSystem fakes' tests cover `modifiedAt`, and the usage-spec drift tests confirm the generated files are in step.
+
+### Implementation order
+
+1. `FileSystem.modifiedAt` in the port, the adapter and the fakes.
+2. `runStreamsInOrder` and `ledgerFromStreams`, test first.
+3. `backfillCostLedgers` and its integration test.
+4. The prune copy, `PrunePart` and its integration test.
+5. The CLI command, its registration, cliDocs, the phase guard, then `pnpm gen:usage-spec` and `pnpm docs:cli`.
+6. README and NEXT_STEPS.
+
+### Excluded scope
+
+- Reading the ledgers to estimate a plan, and `docs/plan-estimate.md` (the plan-estimate spec).
+- Keeping phax-plan.json or any other run file through prune.
+- Showing cost in final-report.md, the pull request, `phax ls` or run records.
+- Backfilling from `phax/records/v1` or from pruned runs.
+- Changing the run-time recording of phase-01, except to reuse its functions.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The signatures of `backfillCostLedgers`, `runStreamsInOrder`, `ledgerFromStreams` and `FileSystem.modifiedAt`. The exact pruned-ledger path pattern. The final command spelling and output lines. Confirmation that `pnpm gen:usage-spec` and `pnpm docs:cli` were run, with the generated files they changed. Explain every deviation phax flags against the planned file lists, including each FileSystem implementation that needed `modifiedAt`.
+
+### Commit subject
+
+`feat(cost): keep the cost ledger through prune and add phax cost backfill`
+
+### Commit body
+
+phax prune now copies an archived run's cost-ledger.json byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json before it deletes the archive folder, so the ledger survives pruning. A failed copy keeps the run.
+
+phax cost backfill writes a ledger for every registered run that has none. It derives the ledger from the run's kept streams in run order, with the same per-invocation correction and sampling as the run-time ledger, so a resumed handoff carries its own cost. Runs that already have a ledger are left byte-identical, locked runs are skipped and named, and a second pass reports nothing to backfill. A new FileSystem.modifiedAt supplies each backfilled entry's end time.
+
+The usage spec, the CLI reference, the README and NEXT_STEPS are updated: cost-ledger is ticked and plan-estimate is next.
