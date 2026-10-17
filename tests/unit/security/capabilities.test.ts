@@ -9,6 +9,7 @@ import {
   PROVIDER_SECURITY_CAPABILITIES,
   VIBE_PARTIAL_SECURED_MESSAGE,
   evaluateProviderSecurity,
+  securityFilterFor,
 } from "../../../src/domain/security/capabilities.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 
@@ -192,5 +193,24 @@ describe("evaluateProviderSecurity — commandEnforcement does not affect strict
     expect(result.satisfiesStrict).toBe(false);
     expect(result.marks).toContain("partial-filesystem");
     expect(result.marks).not.toContain("command-precision");
+  });
+});
+
+describe("securityFilterFor", () => {
+  it("allows every provider outside secure mode", () => {
+    const filter = securityFilterFor(unsafePolicy);
+    expect(filter("claude-code")).toEqual({ allowed: true });
+    expect(filter("codex-cli")).toEqual({ allowed: true });
+    expect(filter("mistral-vibe")).toEqual({ allowed: true });
+  });
+
+  it("in secure mode allows a strong jail and refuses a partial one, naming its marks", () => {
+    const filter = securityFilterFor(securePolicy);
+    expect(filter("claude-code")).toEqual({ allowed: true });
+    expect(filter("codex-cli")).toEqual({ allowed: true });
+    expect(filter("mistral-vibe")).toEqual({
+      allowed: false,
+      reason: "cannot satisfy strict secure mode (partial-filesystem)",
+    });
   });
 });
