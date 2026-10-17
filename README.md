@@ -243,9 +243,12 @@ If you edit the Markdown of a headless document, edit its sidecar too: `phax art
 
 ```bash
 phax plans lint docs/plans/2610041201-greet-plan.md
+phax plans estimate <plan>   # its API-list cost, and whether it fits your subscription windows now
 ```
 
 A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
+
+`plans estimate` gives each phase's and the run's cost as P10/P50/P90, calibrated from this machine's cost ledgers, and says whether the plan fits the Claude subscription windows left right now. See [Estimating a plan](docs/plan-estimate.md).
 
 The structure check also reports a phase missing from the phase numbering, for example a plan with phase-01 and phase-03 but no `## phase-02` heading:
 
@@ -859,10 +862,11 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax artifact schema <kind>` — Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.
 - `phax artifact migrate-approvals` — Reads docs/plans/approvals.json and docs/specs/approvals.json in any released shape, writes one record file per entry under docs/plans/approvals/ and docs/specs/approvals/, deletes the ledgers, and commits exactly those paths in one commit. Exits 0 when migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable ledger, an entry that is not a live artifact path, an uncommitted change to any path it would write, or an existing record file holding a different record.
 - `phax artifact migrate-documents` — Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. Archived artifacts, hand-authored artifacts and approval record files are never touched.
-- `phax plans <SUBCOMMAND>` — Parent command for reporting on plans: the mechanical defects of a single plan (lint), staleness of Approved plans against their recorded approval, and cross-plan file overlap.
+- `phax plans <SUBCOMMAND>` — Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap.
 - `phax plans status [--apply] [--json]` — Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.
 - `phax plans overlap [FLAGS] <plan>…` — Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.
 - `phax plans lint [--json] <plan>` — Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.
+- `phax plans estimate [--json] [--no-probe] <plan>` — Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.
 - `phax records <SUBCOMMAND>` — Manage phax run records
 - `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
 - `phax records sync` — Bring the local records clone in line with its configured remote
