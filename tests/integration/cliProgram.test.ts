@@ -14,6 +14,7 @@ const TOP_LEVEL_COMMANDS = [
   "ls",
   "archive",
   "prune",
+  "cost",
   "run",
   "review-handoff",
   "publish-pr",

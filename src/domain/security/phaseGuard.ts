@@ -38,6 +38,7 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   open: "refused",
   archive: "refused",
   prune: "refused",
+  "cost backfill": "refused",
   run: "refused",
   resume: "refused",
   "reset-phase": "refused",

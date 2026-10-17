@@ -25,6 +25,8 @@ export interface FileSystemOps {
    * symlinks not followed, or 0 when `path` does not exist.
    */
   apparentSize(path: string): Effect.Effect<number, FsError>;
+  /** The ISO-8601 instant of the last modification of the file at `path`. */
+  modifiedAt(path: string): Effect.Effect<string, FsError>;
   /**
    * Returns a view of the same filesystem whose relative paths resolve
    * against `root` instead of the process cwd. Absolute paths passed to the

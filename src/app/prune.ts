@@ -11,14 +11,20 @@
  * gathered once, each run is planned (prune, or keep), and the plan goes to
  * `onPreview` before any confirmation is asked.
  *
+ * Before deleting anything of a run, prune keeps its cost ledger: an archived
+ * `runs/cost-ledger.json` is copied byte for byte to
+ * `<stateRoot>/cost-ledgers/<namespace>.<short-name>.<run-id>.json`, and a
+ * failed copy keeps the run (part `cost ledger`).
+ *
  * Deletion order per run: the archive folder, then the worktree metadata, then
  * the local branches (`git branch -D`), and the registry entry last — so the
  * name stays held until every other part is gone. An absent part counts as
  * removed. The first part that cannot be removed stops that run, which is kept
  * with reason `removal-failed`; the next run proceeds. A re-run finishes it.
  *
- * Prune never touches remote refs, tags, `phax/records/v1` or any branch
- * outside the selected runs' expected branches, and never contacts a remote.
+ * Prune keeps the cost ledgers it copied, and never touches remote refs, tags,
+ * `phax/records/v1` or any branch outside the selected runs' expected
+ * branches, and never contacts a remote.
  */
 import { Data, Effect, Either } from "effect";
 import { join } from "node:path";
@@ -53,7 +59,11 @@ import {
   type UnpreservedBranch,
 } from "../domain/prune.js";
 import { runKey } from "../domain/runRef.js";
+import { COST_LEDGER_FILE } from "./costLedger.js";
 import { readRegistry, removeRun } from "./registry.js";
+
+/** Where prune keeps a pruned run's cost ledger, under the state root. */
+const COST_LEDGERS_DIR = "cost-ledgers";
 
 export type { PruneResult } from "../domain/prune.js";
 
@@ -248,6 +258,18 @@ export function prune(
       const branchesDeleted: BranchName[] = [];
       let bytesFreed = 0;
       const applied = yield* Effect.gen(function* () {
+        // Before anything is deleted, keep the run's cost ledger, byte for byte.
+        const ledgerPath = join(run.archivePath, "runs", COST_LEDGER_FILE);
+        if (yield* removing("cost ledger", fs.exists(ledgerPath))) {
+          const ledger = yield* removing("cost ledger", fs.readText(ledgerPath));
+          const keptDir = join(stateRoot, COST_LEDGERS_DIR);
+          yield* removing("cost ledger", fs.mkdirp(keptDir));
+          yield* removing(
+            "cost ledger",
+            fs.writeAtomic(join(keptDir, `${run.qualifiedName}.${run.runId}.json`), ledger),
+          );
+        }
+
         // (a) The archive folder.
         const folderExists = yield* removing("archive folder", fs.exists(run.archivePath));
         if (folderExists) {

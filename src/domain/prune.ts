@@ -197,6 +197,7 @@ export type PruneKeptReason = "unpreserved-commits" | "branch-checked-out" | "re
 
 /** The part of a run that a removal step addresses (`local branches`: listing them failed). */
 export type PrunePart =
+  | "cost ledger"
   | "archive folder"
   | "worktree metadata"
   | `branch ${string}`

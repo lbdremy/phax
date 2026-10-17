@@ -121,3 +121,31 @@ describe("FakeFileSystemImpl.rootedAt", () => {
     await expect(Effect.runPromise(base.apparentSize("/s/missing"))).resolves.toBe(0);
   });
 });
+
+describe("FakeFileSystemImpl.modifiedAt", () => {
+  it("stamps every write with a later instant, which a test can override", async () => {
+    const base = new FakeFileSystemImpl();
+    base.setFile("/s/a.txt", "a");
+    await Effect.runPromise(base.rootedAt("/s").writeAtomic("b.txt", "b"));
+    const a = await Effect.runPromise(base.modifiedAt("/s/a.txt"));
+    const b = await Effect.runPromise(base.rootedAt("/s").modifiedAt("b.txt"));
+    expect(Date.parse(b)).toBeGreaterThan(Date.parse(a));
+
+    base.setModifiedAt("/s/a.txt", "2026-05-06T07:08:09.000Z");
+    await expect(Effect.runPromise(base.modifiedAt("/s/a.txt"))).resolves.toBe(
+      "2026-05-06T07:08:09.000Z",
+    );
+  });
+
+  it("follows a rename and fails once the file is gone", async () => {
+    const base = new FakeFileSystemImpl();
+    base.setFile("/s/a.txt", "a");
+    base.setModifiedAt("/s/a.txt", "2026-05-06T07:08:09.000Z");
+    await Effect.runPromise(base.rename("/s/a.txt", "/s/c.txt"));
+    await expect(Effect.runPromise(base.modifiedAt("/s/c.txt"))).resolves.toBe(
+      "2026-05-06T07:08:09.000Z",
+    );
+    await Effect.runPromise(base.remove("/s/c.txt"));
+    await expect(Effect.runPromise(base.modifiedAt("/s/c.txt"))).rejects.toThrow();
+  });
+});
