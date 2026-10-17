@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-16
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-17
+  baseline: 93a5b84
 ---
 
 # Plan estimate — what a plan will cost, and whether it fits the subscription now
