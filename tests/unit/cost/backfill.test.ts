@@ -89,6 +89,8 @@ function resumed(outputTokens: number, costUsd: number, extra: Partial<ClaudeStr
   return {
     claudeCodeVersion: [2, 1, 280] as const,
     sessionId: SESSION,
+    apiKeySource: null,
+    undecodedRateLimitEvents: 0,
     events: [],
     result: { durationMs: 1000, modelUsage: { "example-model": usage(outputTokens, costUsd) } },
     ...extra,
@@ -141,12 +143,16 @@ describe("ledgerFromStreams", () => {
     const codex: ClaudeStreamFacts = {
       claudeCodeVersion: null,
       sessionId: null,
+      apiKeySource: null,
+      undecodedRateLimitEvents: 0,
       events: [],
       result: null,
     };
     const interrupted: ClaudeStreamFacts = {
       claudeCodeVersion: [2, 1, 280],
       sessionId: "ffffffff-0000-4000-8000-000000000006",
+      apiKeySource: null,
+      undecodedRateLimitEvents: 0,
       events: [
         {
           kind: "message",

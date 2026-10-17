@@ -1,7 +1,7 @@
 // The cost facts of one Claude Code stream-json output: the init event's
-// version and session, the assistant messages' usage, the rate-limit events'
-// window readings, the last result's per-model usage and every result's
-// duration. Provider output, so unknown keys are ignored; a line that is not
+// version, session and API key source, the assistant messages' usage, the
+// rate-limit events' window readings and how many failed to decode, the last
+// result's per-model usage and every result's duration. Provider output, so unknown keys are ignored; a line that is not
 // JSON, or no event this module reads, is skipped, as `findResultEvent` skips
 // one. A missing token count is 0. The cost ledger's domain receives only
 // these facts, never raw lines.
@@ -14,6 +14,7 @@ const InitEventSchema = Schema.Struct({
   subtype: Schema.Literal("init"),
   session_id: Schema.NonEmptyString,
   claude_code_version: Schema.optional(Schema.String),
+  apiKeySource: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
 const AssistantEventSchema = Schema.Struct({
@@ -109,6 +110,10 @@ export interface ClaudeStreamFacts {
   readonly claudeCodeVersion: readonly [number, number, number] | null;
   /** The init event's session id, else the result's, else null. */
   readonly sessionId: string | null;
+  /** The init event's `apiKeySource` (`none` under a subscription login), or null when absent. */
+  readonly apiKeySource: string | null;
+  /** The `rate_limit_event` lines that fail to decode; one without `unifiedWindows` decodes. */
+  readonly undecodedRateLimitEvents: number;
   /** Assistant messages and rate-limit readings, in stream order. */
   readonly events: ReadonlyArray<ClaudeStreamEvent>;
   /**
@@ -143,12 +148,17 @@ function parseLine(line: string): unknown {
 
 /** Reads the cost facts of a Claude stream's lines. Never throws. */
 export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
-  let init: { sessionId: string; version: readonly [number, number, number] | null } | null = null;
+  let init: {
+    sessionId: string;
+    version: readonly [number, number, number] | null;
+    apiKeySource: string | null;
+  } | null = null;
   let result: {
     sessionId: string | undefined;
     facts: NonNullable<ClaudeStreamFacts["result"]>;
   } | null = null;
   let resultDurationMs = 0;
+  let undecodedRateLimitEvents = 0;
   const events: ClaudeStreamEvent[] = [];
 
   for (const line of lines) {
@@ -162,6 +172,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
         init = {
           sessionId: decoded.right.session_id,
           version: parseVersion(decoded.right.claude_code_version),
+          apiKeySource: decoded.right.apiKeySource ?? null,
         };
       }
     } else if (type === "assistant") {
@@ -183,9 +194,11 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       }
     } else if (type === "rate_limit_event") {
       const decoded = decodeRateLimitEvent(parsed);
-      const windows = Either.isRight(decoded)
-        ? decoded.right.rate_limit_info.unifiedWindows
-        : undefined;
+      if (Either.isLeft(decoded)) {
+        undecodedRateLimitEvents += 1;
+        continue;
+      }
+      const windows = decoded.right.rate_limit_info.unifiedWindows;
       if (windows === undefined) continue;
       const readings: StreamWindowReading[] = [];
       if (windows.five_hour !== undefined) {
@@ -230,6 +243,8 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
   return {
     claudeCodeVersion: init?.version ?? null,
     sessionId: init?.sessionId ?? resultSessionId,
+    apiKeySource: init?.apiKeySource ?? null,
+    undecodedRateLimitEvents,
     events,
     result: result?.facts ?? null,
   };
