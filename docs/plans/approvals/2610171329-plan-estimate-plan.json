@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610171329-plan-estimate-plan.md",
+  "planFingerprint": "0b4c1b0fd83f833a18fe3df7709368f69e93d8431773909edb2b1701c51be523",
+  "approvedAt": "2026-10-17T13:44:48.052Z",
+  "baseline": "61904e6241ffbd0f573cb81bd8a4175b0a943ea7",
+  "sourceSpec": {
+    "path": "docs/specs/2610160909-plan-estimate.md",
+    "fingerprint": "e33b90847fde0a07a1778555e2728b1b199be2ae38274913363df6fd0bb417ba"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610160909-plan-estimate.md
 completes-spec: true
+approved:
+  date: 2026-10-17
+  baseline: "61904e6"
 ---
 # Plan estimate
 
