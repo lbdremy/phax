@@ -194,6 +194,13 @@ export default definePageMap({
         "Decide open questions with phax artifact decide: framing first, then each question under a doctrine, and the body diff accepted before writing.",
     },
     {
+      route: "/guide/plan-estimate",
+      title: "Estimating a plan",
+      source: "docs/plan-estimate.md",
+      description:
+        "Estimate a plan's API-list cost from your cost ledgers with phax plans estimate, and whether it fits your Claude subscription windows now.",
+    },
+    {
       route: "/reference/model-catalog",
       title: "Model catalog",
       source: "docs/model-catalog.md",

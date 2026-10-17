@@ -21,6 +21,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { runPlansOverlap, type PlansOverlapCommandOptions } from "./plansOverlap.js";
+import { runPlansEstimate, type PlansEstimateCommandOptions } from "./plansEstimate.js";
 
 export interface PlansStatusCommandOptions {
   readonly apply?: true;
@@ -153,7 +154,7 @@ export async function runPlansLint(
 export function registerPlansCommand(program: Command, out: OutputPort): void {
   const plansCmd = program
     .command("plans")
-    .description("Lint a plan and report plan staleness and cross-plan overlap");
+    .description("Lint and estimate a plan, and report plan staleness and cross-plan overlap");
 
   plansCmd
     .command("status")
@@ -202,6 +203,24 @@ export function registerPlansCommand(program: Command, out: OutputPort): void {
         opts.json === true ? { json: true as const } : {},
         out,
       );
+      process.exit(exitCode);
+    });
+
+  plansCmd
+    .command("estimate")
+    .description("Estimate a plan's API-list cost and whether it fits the subscription windows now")
+    .argument("<plan>", "Path to the plan.md")
+    .option("--json", "Emit the estimate as JSON")
+    .option(
+      "--no-probe",
+      "Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe",
+    )
+    .action(async (plan: string, opts: { json?: boolean; probe?: boolean }) => {
+      const estimateOpts: PlansEstimateCommandOptions = {
+        ...(opts.json === true ? { json: true as const } : {}),
+        ...(opts.probe === false ? { noProbe: true as const } : {}),
+      };
+      const exitCode = await runPlansEstimate(plan, estimateOpts, out);
       process.exit(exitCode);
     });
 }

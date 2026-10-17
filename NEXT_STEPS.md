@@ -109,7 +109,7 @@ desktop — none is promised by the announcement.
 - [x] **`phase-prompt-scope`** — `docs/specs/archive/2610161001-phase-prompt-scope.md`. Each phase's
       prompt carries the plan preamble, its own section and an outline; landing with this run.
 - [x] **`cost-ledger`** — `docs/specs/archive/2610160919-cost-ledger.md`.
-- [ ] **`plan-estimate`** — `docs/specs/2610160909-plan-estimate.md`. **Next.**
+- [x] **`plan-estimate`** — `docs/specs/2610160909-plan-estimate.md`.
 
 ## The steme experiment specs, in order
 

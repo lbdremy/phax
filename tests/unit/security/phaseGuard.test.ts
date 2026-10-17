@@ -60,6 +60,13 @@ describe("phase guard — classification", () => {
     );
   });
 
+  it("refuses plans estimate, which spends a model request and reads machine-wide history", () => {
+    expect(PHASE_GUARD_CLASSIFICATION["plans estimate"]).toBe("refused");
+    expect(phaseGuardRefusal("plans estimate", { probe: false })).toBe(
+      "✗ phax plans estimate is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)",
+    );
+  });
+
   it("refuses plans status --apply, which flips and commits plan statuses", () => {
     expect(phaseGuardRefusal("plans status", { apply: true })).toBeDefined();
     expect(phaseGuardRefusal("plans status", { json: true })).toBeUndefined();
