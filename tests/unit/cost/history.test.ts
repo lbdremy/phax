@@ -154,11 +154,8 @@ describe("calibrateWindows", () => {
             rateLimitSample("five-hour", 30, recentReset, 8),
             rateLimitSample("five-hour", 50, laterReset, 8),
             rateLimitSample("seven-day", 40, laterReset, 8),
+            rateLimitSample("five-hour", 60, laterReset, 12),
           ],
-        }),
-        ledgerEntry({
-          endedAt: daysAgo(2.5),
-          samples: [rateLimitSample("five-hour", 60, laterReset, 12)],
         }),
       ]),
       ledgerSource("demo.old", [
@@ -178,17 +175,39 @@ describe("calibrateWindows", () => {
     expect(calibration.sevenDay).toEqual({ capacityUsd: null, groups: 0 });
   });
 
-  it("needs two samples sharing a reset in one ledger", () => {
+  it("needs two samples sharing a reset in one entry", () => {
     const ledgers = [
       ledgerSource("demo.a", [
         ledgerEntry({ samples: [rateLimitSample("seven-day", 10, laterReset, 0)] }),
-        ledgerEntry({ samples: [rateLimitSample("seven-day", 20, recentReset, 5)] }),
+        ledgerEntry({ samples: [rateLimitSample("seven-day", 20, laterReset, 5)] }),
       ]),
       ledgerSource("demo.b", [
         ledgerEntry({ samples: [rateLimitSample("seven-day", 30, laterReset, 10)] }),
       ]),
     ];
     expect(calibrateWindows(ledgers, NOW_MS).sevenDay).toEqual({ capacityUsd: null, groups: 0 });
+  });
+
+  it("never pairs one entry's last sample with the next entry's first", () => {
+    // The first entry's cost after its last sample reaches the second entry's
+    // first runCostUsd, not the utilization it reads.
+    const ledgers = [
+      ledgerSource("demo.a", [
+        ledgerEntry({
+          samples: [
+            rateLimitSample("five-hour", 10, laterReset, 0),
+            rateLimitSample("five-hour", 20, laterReset, 4),
+          ],
+        }),
+        ledgerEntry({
+          samples: [
+            rateLimitSample("five-hour", 21, laterReset, 7),
+            rateLimitSample("five-hour", 31, laterReset, 11),
+          ],
+        }),
+      ]),
+    ];
+    expect(calibrateWindows(ledgers, NOW_MS).fiveHour).toEqual({ capacityUsd: 40, groups: 2 });
   });
 
   it("gives null when no group has a cost increase, or the utilization increases sum to 0 or less", () => {

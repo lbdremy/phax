@@ -32,7 +32,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
-import { readEstimateHistory } from "./estimateHistory.js";
+import { readEstimateHistory, type SkippedHistory } from "./estimateHistory.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { probeWindows } from "./probeWindows.js";
 
@@ -197,10 +197,29 @@ export function estimatePlanCost(
     if (history.skipped.length === 0) return report;
     return {
       ...report,
-      warnings: [
-        ...report.warnings,
-        ...history.skipped.map((skip) => `${skip.path}: ${skip.reason}`),
-      ],
+      warnings: [...report.warnings, ...skippedWarnings(history.skipped)],
     };
+  });
+}
+
+const SKIPPED_PATHS_SHOWN = 3;
+
+/**
+ * One warning per reason, naming its first paths: old runs whose
+ * phax-plan.json predates the current format would otherwise print a line
+ * each on every estimate.
+ */
+function skippedWarnings(skipped: readonly SkippedHistory[]): string[] {
+  const byReason = new Map<string, string[]>();
+  for (const { path, reason } of skipped) {
+    const paths = byReason.get(reason);
+    if (paths === undefined) byReason.set(reason, [path]);
+    else paths.push(path);
+  }
+  return [...byReason].map(([reason, paths]) => {
+    if (paths.length === 1) return `${paths[0]}: ${reason}`;
+    const shown = paths.slice(0, SKIPPED_PATHS_SHOWN).join(", ");
+    const more = paths.length - SKIPPED_PATHS_SHOWN;
+    return `${paths.length} files: ${reason} — ${shown}${more > 0 ? ` and ${more} more` : ""}`;
   });
 }

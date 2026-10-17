@@ -139,7 +139,13 @@ const probeLines = [
 
 const SAMPLE_ENDED_AT = daysAgo(1);
 
-function setup(options: { readonly plan?: string; readonly codexEnabled?: boolean } = {}) {
+function setup(
+  options: {
+    readonly plan?: string;
+    readonly codexEnabled?: boolean;
+    readonly undecodablePlans?: number;
+  } = {},
+) {
   const fs = makeFakeFileSystem();
   const git = makeFakeGit();
   const backend = makeFakeBackend();
@@ -171,11 +177,18 @@ function setup(options: { readonly plan?: string; readonly codexEnabled?: boolea
       }),
     ]),
   );
+  // Runs of this namespace whose phax-plan.json predates the current format.
+  const undecodable = Array.from({ length: options.undecodablePlans ?? 0 }, (_, index) => {
+    const entry = registryEntry({ shortName: `old-${index}`, runId: `run-old-${index}` });
+    fs.impl.setFile(`${STATE}/runs/demo.old-${index}/cost-ledger.json`, ledgerJson([]));
+    fs.impl.setFile(`${STATE}/runs/demo.old-${index}/phax-plan.json`, "{}");
+    return entry;
+  });
   seedGeneratedRuns(fs.impl, git.impl, {
     stateRoot: STATE,
     namespace: "demo",
     runs: generateHistory({ runs: 16, phasesPerRun: 4, seed: 3 }),
-    extra: [sampler],
+    extra: [sampler, ...undecodable],
   });
   const traced = tracedFileSystem(fs.impl);
   const layer = Layer.mergeAll(traced.layer, git.layer, backend.layer);
@@ -258,6 +271,17 @@ describe("estimatePlanCost", () => {
     expect(backend.runCalls).toHaveLength(0);
     expect(backend.resumeCalls).toHaveLength(0);
     expect(backend.completeCalls).toHaveLength(0);
+  });
+
+  it("gives one warning per skip reason, naming its first three paths", async () => {
+    const { layer } = setup({ undecodablePlans: 5 });
+
+    const exit = await estimate(layer, false);
+
+    if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
+    const skips = exit.value.warnings.filter((warning) => warning.includes("demo.old-"));
+    expect(skips).toHaveLength(1);
+    expect(skips[0]).toMatch(/^5 files: .* — .*demo\.old-0.*, .*, .* and 2 more$/);
   });
 
   it("fails with ArtifactValidationError on an off-grammar docs/plans/ name (§8 exit codes)", async () => {

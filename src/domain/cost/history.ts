@@ -152,35 +152,23 @@ function calibrateWindow(
   let utilization = 0;
   let groups = 0;
   for (const { ledger } of ledgers) {
-    const byReset = new Map<
-      string,
-      { first: RateLimitSample; last: RateLimitSample; endedAt: string; count: number }
-    >();
     for (const entry of ledger.entries) {
+      if (!within(entry.endedAt, CALIBRATION_DAYS, nowMs)) continue;
+      const byReset = new Map<string, { first: RateLimitSample; last: RateLimitSample }>();
       for (const sample of entry.rateLimitSamples) {
         if (sample.window !== window) continue;
         const group = byReset.get(sample.resetsAt);
-        if (group === undefined) {
-          byReset.set(sample.resetsAt, {
-            first: sample,
-            last: sample,
-            endedAt: entry.endedAt,
-            count: 1,
-          });
-        } else {
-          group.last = sample;
-          group.endedAt = entry.endedAt;
-          group.count += 1;
-        }
+        if (group === undefined) byReset.set(sample.resetsAt, { first: sample, last: sample });
+        else group.last = sample;
       }
-    }
-    for (const group of byReset.values()) {
-      if (group.count < 2 || !within(group.endedAt, CALIBRATION_DAYS, nowMs)) continue;
-      const deltaCost = group.last.runCostUsd - group.first.runCostUsd;
-      if (deltaCost <= 0) continue;
-      costUsd += deltaCost;
-      utilization += group.last.utilization - group.first.utilization;
-      groups += 1;
+      for (const { first, last } of byReset.values()) {
+        if (first === last) continue;
+        const deltaCost = last.runCostUsd - first.runCostUsd;
+        if (deltaCost <= 0) continue;
+        costUsd += deltaCost;
+        utilization += last.utilization - first.utilization;
+        groups += 1;
+      }
     }
   }
   return { capacityUsd: utilization > 0 ? (100 * costUsd) / utilization : null, groups };
@@ -188,10 +176,13 @@ function calibrateWindow(
 
 /**
  * Each window's capacity from the groups of samples that share a reset in
- * one ledger: a group of at least two samples, dated by the end of the entry
- * holding its last one in the last 28 days, with a cost increase, adds its
- * cost and utilization increases. Null when the utilization increases sum to
- * 0 or less.
+ * one invocation's entry: a group of at least two samples, in an entry that
+ * ended in the last 28 days, with a cost increase, adds its cost and
+ * utilization increases. Null when the utilization increases sum to 0 or
+ * less. A group never spans two entries: an invocation's cost after its last
+ * sample shows in the next entry's first `runCostUsd` but not in the
+ * utilization it reads, which would overstate the capacity (by about 1.7 times
+ * on real history).
  */
 export function calibrateWindows(
   ledgers: readonly LedgerSource[],

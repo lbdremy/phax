@@ -61,7 +61,7 @@ phax never reads Claude Code's credentials, its Keychain item or its OAuth usage
 
 ## Window capacity
 
-Claude Code reports a window as a percentage used, not in dollars. phax converts it: over the ledgers of the last 28 days, it compares how much API-list cost ran while a window's percentage rose, giving `≈ $37/window` in the example. `$31 left` is that capacity times what remains of the window.
+Claude Code reports a window as a percentage used, not in dollars. phax converts it: over the ledgers of the last 28 days, it compares how much API-list cost each Claude Code invocation ran while the window's percentage rose, giving `≈ $37/window` in the example. `$31 left` is that capacity times what remains of the window.
 
 The capacity is recalibrated on every estimate, so it follows your plan tier. A window with no usable samples in the last 28 days is shown as `not calibrated`. Interactive use during a run makes the percentage rise faster than the run's cost alone explains, so the capacity errs low and the forecast leans towards predicting a pause.
 
