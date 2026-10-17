@@ -13,7 +13,7 @@ The `cost-ledger` spec gives every run a ledger: one entry per Claude invocation
 
 A plan names, per phase, a model, an effort and its planned files (`### Planned files to create`, `### Planned files to edit`, `### Optional files that may be edited`). `phax plans lint` reads it with the deterministic parser, never the extraction model, and validates a plan under `docs/plans/` like any artifact (exit 12).
 
-When a run exhausts a subscription window, phax pauses it as `rate_limited` and waits for a manual `phax resume`. Three sources tell the current state of both windows without a run: a one-message `claude -p` call, whose stream carries a `rate_limit_event`; the `rate_limits.five_hour` / `.seven_day` fields Claude Code passes to a statusline script, inside an interactive session only; and `GET https://api.anthropic.com/api/oauth/usage` with header `anthropic-beta: oauth-2025-04-20` and the subscription's OAuth bearer token, which returns `five_hour` and `seven_day` with a utilization (0–100) and a `resets_at` instant. The last one is what community statusline and usage tools call, with the token Claude Code keeps in the macOS Keychain or `~/.claude/.credentials.json`; it is undocumented, and its response shape has already changed once (a structured `limits` array beside the flat keys).
+When a run exhausts a subscription window, phax pauses it as `rate_limited` and waits for a manual `phax resume`. Three sources tell the current state of both windows without a run: a one-message `claude -p` call, whose stream carries a `rate_limit_event`; the `rate_limits.five_hour` / `.seven_day` fields Claude Code passes to a statusline script, inside an interactive session only; and `GET https://api.anthropic.com/api/oauth/usage` with header `anthropic-beta: oauth-2025-04-20` and the subscription's OAuth bearer token, which returns `five_hour` and `seven_day` with a utilization (0–100) and a `resets_at` instant. The last one is what community statusline and usage tools call, with the token Claude Code keeps in the macOS Keychain or `~/.claude/.credentials.json`; it is undocumented, its response shape has already changed once (a structured `limits` array beside the flat keys), and reading it means reading another tool's secret from a store that differs per platform. The first one needs no credential: Claude Code authenticates itself, on every platform, and its stream carries the same `rate_limit_event` the cost ledger already records.
 
 The spike `spikes/plan-estimate/` (README and `phax_estimate.py`, standard library only) established on 533 historical phases: a run's cost is predictable within a median factor ×1.20–1.35 (phase level ×1.5) from each phase's model, effort and the byte size of its planned files, provided the prediction is made on token volume and then priced at the phase's model; on a Max 5x subscription one five-hour window holds ≈ $35–50 of API-list cost and a seven-day window ≈ $350–575; that capacity doubled in early September with no phax change; an Opus run burns ≈ $25–27 per agent hour, so the five-hour window is what usually stops a run. The routing catalog carries no prices.
 
@@ -33,7 +33,7 @@ Before a run, phax answers from this machine's own history: how much will this p
 - **Window rate** — API-list dollars per 1 % of a window, calibrated from rate-limit samples.
 - **Estimate** — per phase and per run, the P10, P50 and P90 of API-list cost.
 - **Burn rate** — API-list dollars per hour of agent time, from recent ledger entries.
-- **OAuth usage endpoint** — `GET https://api.anthropic.com/api/oauth/usage`, read with the subscription's OAuth token.
+- **Probe** — a one-message, non-interactive Claude Code invocation that phax runs only to read the `rate_limit_event` its stream carries; it never sees the plan.
 - **Verdict** — `fits` (fits at P90), `risky` (fits at P50, not at P90), `wait` (does not fit at P50), `no-subscription` or `windows-unavailable`.
 
 ## 5. Functional requirements
@@ -68,7 +68,7 @@ IF fewer than 60 historical phases are available THEN the system SHALL report no
 
 ### 5.8 Current windows
 
-WHEN `phax plans estimate` runs without `--no-probe` THE system SHALL read the current utilization and reset instant of both windows from the OAuth usage endpoint, without any model invocation.
+WHEN `phax plans estimate` runs without `--no-probe` THE system SHALL read the current utilization and reset instant of both windows from the `rate_limit_event` of one probe, and SHALL run no other model invocation.
 
 ### 5.9 Last observed windows
 
@@ -84,15 +84,15 @@ WHEN an estimate and both windows are available THE system SHALL play the phases
 
 ### 5.12 No subscription
 
-IF no subscription OAuth credentials are available (API-key authentication) THEN the system SHALL report the estimate alone with the verdict `no-subscription`.
+IF the probe reports API-key authentication, with no subscription window THEN the system SHALL report the estimate alone with the verdict `no-subscription`.
 
 ### 5.13 Windows unavailable
 
-IF the OAuth usage endpoint fails, refuses the token, or answers in a shape phax does not decode THEN the system SHALL report the estimate alone with the verdict `windows-unavailable` and the reason, and SHALL never guess a utilization.
+IF the probe fails, ends without a `rate_limit_event` for both windows, or reports one in a shape phax does not decode THEN the system SHALL report the estimate alone with the verdict `windows-unavailable` and the reason, and SHALL never guess a utilization.
 
-### 5.14 Credentials read, never written
+### 5.14 No credential read
 
-The system shall read the OAuth token only to call the OAuth usage endpoint, and shall never write, refresh, print or record it.
+The system shall never read Claude Code's credentials; the probe authenticates through Claude Code itself.
 
 ### 5.15 Report, not gate
 
@@ -115,7 +115,7 @@ run-level  compliance review              0.54     0.54     0.54
 run        API-list $                    19.38    26.94    39.47
 Not estimated: plan extraction, plan auditor, interactive code review.
 
-Subscription (OAuth usage):
+Subscription (probe):
   five-hour  15% used, resets Fri 16 Oct 14:50   ≈ $37/window, $31 left
   seven-day  29% used, resets Sun 18 Oct 17:00   ≈ $534/window, $379 left
 
@@ -134,7 +134,7 @@ Flags (normative): `--json`, `--no-probe`. `--json` (field names and `verdict` v
   "run": { "p10": 19.38, "p50": 26.94, "p90": 39.47, "runLevel": 0.54 },
   "notEstimated": ["plan-extraction", "plan-auditor", "interactive-code-review"],
   "windows": {
-    "source": "oauth-usage",
+    "source": "probe",
     "fiveHour": { "utilization": 15, "resetsAt": "2026-10-16T12:50:00Z", "capacityUsd": 37 },
     "sevenDay": { "utilization": 29, "resetsAt": "2026-10-18T15:00:00Z", "capacityUsd": 534 }
   },
@@ -147,12 +147,12 @@ Flags (normative): `--json`, `--no-probe`. `--json` (field names and `verdict` v
 }
 ```
 
-`verdict` is one of `fits`, `risky`, `wait`, `no-subscription`, `windows-unavailable`; `windows.source` is `oauth-usage` or `last-sample`. With `windows-unavailable`, `windows` is `null` and a `windowsUnavailable` string carries the reason (field spelling indicative).
+`verdict` is one of `fits`, `risky`, `wait`, `no-subscription`, `windows-unavailable`; `windows.source` is `probe` or `last-sample`. With `windows-unavailable`, `windows` is `null` and a `windowsUnavailable` string carries the reason (field spelling indicative).
 
-The endpoint unreachable (reason wording indicative):
+The probe unusable (reason wording indicative):
 
 ```
-Subscription: windows unavailable — OAuth usage endpoint answered 401
+Subscription: windows unavailable — the probe ended without a rate-limit event
 Verdict: windows-unavailable — estimate only
 $? = 0
 ```
@@ -176,6 +176,7 @@ Routing catalog, a model entry before → after (field spelling indicative; pres
 - Estimating Codex or Mistral Vibe phases, and their own quotas.
 - Converting API-list cost to what the operator pays (subscription, usage credits).
 - Sharing history across machines.
+- Reading Claude Code's credentials or its OAuth usage endpoint.
 
 ## 8. Acceptance criteria
 
@@ -211,9 +212,9 @@ Given a plan whose phase-02 is routed to `codex-cli`, when estimated, then phase
 
 Given 12 historical phases, when estimated, then no estimate is printed, the output names the 12 phases found, and `$?` is 0. (refs §5.7)
 
-### The OAuth usage endpoint reads both windows
+### The probe reads both windows
 
-Given an OAuth usage endpoint answering 15 % for the five-hour window and 29 % for the seven-day window, when estimated without `--no-probe`, then `windows.source` is `oauth-usage`, both utilizations and reset instants are reported, and no model invocation runs. (refs §5.8)
+Given a probe whose stream reports 15 % for the five-hour window and 29 % for the seven-day window, when estimated without `--no-probe`, then `windows.source` is `probe`, both utilizations and reset instants are reported, and the probe is the only model invocation. (refs §5.8)
 
 ### `--no-probe` states its age
 
@@ -229,15 +230,15 @@ Given $31 left in the five-hour window, when a plan estimates P50 $27 and P90 $3
 
 ### No subscription
 
-Given API-key authentication and no subscription OAuth credentials, when estimated, then the estimate is reported and `verdict` is `no-subscription`. (refs §5.12)
+Given a probe that reports API-key authentication, when estimated, then the estimate is reported and `verdict` is `no-subscription`. (refs §5.12)
 
-### An unreadable endpoint never guesses
+### An unusable probe never guesses
 
-Given an OAuth usage endpoint that answers 401, then one that answers a shape without `five_hour`, when estimated each time, then the estimate is reported, `verdict` is `windows-unavailable`, `windows` is `null`, the reason names the 401 or the unknown shape, and `$?` is 0. (refs §5.13)
+Given a probe that fails to start, then one whose stream holds no `rate_limit_event`, then one whose `rate_limit_event` has an unknown shape, when estimated each time, then the estimate is reported, `verdict` is `windows-unavailable`, `windows` is `null`, the reason names the failure, and `$?` is 0. (refs §5.13)
 
-### The token stays secret
+### No credential is read
 
-Given an estimate that reads the OAuth usage endpoint, when the output, `--json` and every file phax writes are searched for the token, then it appears in none of them, and the credentials store is byte-identical before and after. (refs §5.14)
+Given an estimate run with the probe, then with `--no-probe`, when its reads are traced, then neither opens the macOS Keychain nor `~/.claude/.credentials.json`. (refs §5.14)
 
 ### Exit codes
 
@@ -268,8 +269,11 @@ Why: as recommended. Revised: none.
 
 Recommendation: A — a verdict on stale windows is the failure this command exists to prevent.
 
-Decision: C — by operator (Rémy Loubradou), 2026-10-16
+Decision: C — by operator (Rémy Loubradou), 2026-10-16 — superseded 2026-10-17, below
 Why: against the recommendation (`A`). Reading the windows must not spend a model call; community usage tools read the same endpoint, and an unreadable answer degrades to an explicit `windows-unavailable` verdict rather than a guess. Revised: §1, §4 (OAuth usage endpoint, Verdict), §5.8, §5.12, §5.13, §5.14, §6 (sources, verdicts, unavailable block), §8, §10.
+
+Decision: A — by operator (Rémy Loubradou), 2026-10-17
+Why: as recommended, reversing C. C has phax read Claude Code's OAuth token from a store that differs per platform (the macOS Keychain, behind an access prompt, or `~/.claude/.credentials.json`), and depends on three undocumented things at once: the store, the endpoint and its shape. One minimal request per estimate is an acceptable price; on a subscription it costs no money. Revised: §1, §4 (Probe), §5.8, §5.12, §5.13, §5.14, §6 (source, unavailable block), §7, §8, §10.
 
 ### Q3 — Exit code on a `wait` verdict
 
@@ -283,7 +287,7 @@ Why: as recommended. Revised: none.
 
 ## 10. Implementation-planning note
 
-Settled: the estimate is a range from this machine's cost ledgers, predicted on token volume and priced per model from the catalog; window capacity is recalibrated from ledger samples on every call; the verdict is a report. Depends on the `cost-ledger` spec: its ledgers and backfill must land first. The spike in `spikes/plan-estimate/` is the reference behavior and its backtest the yardstick: on recent runs the run-level median error must stay within ×1.35 against held-out runs. Left open: the regression's exact features and weighting, the burn-rate window, where the OAuth token is read on each platform (macOS Keychain, `~/.claude/.credentials.json`). Constraints: catalog prices are required on every Claude entry, with no optional fallback; the plan is read by the deterministic parser, never the extraction model; reading the windows never invokes a model; the endpoint call and the credential read are side effects behind ports, and the endpoint's answer is decoded through a schema at the edge — a shape it does not decode is `windows-unavailable`, never a partial read; the token never enters the domain, a log, telemetry or a record.
+Settled: the estimate is a range from this machine's cost ledgers, predicted on token volume and priced per model from the catalog; window capacity is recalibrated from ledger samples on every call; the verdict is a report. Depends on the `cost-ledger` spec: its ledgers and backfill must land first. The spike in `spikes/plan-estimate/` is the reference behavior and its backtest the yardstick: on recent runs the run-level median error must stay within ×1.35 against held-out runs. Left open: the regression's exact features and weighting, the burn-rate window, the probe's model and prompt (the cheapest Claude model the catalog lists is the obvious choice). Constraints: catalog prices are required on every Claude entry, with no optional fallback; the plan is read by the deterministic parser, never the extraction model; reading the windows invokes the probe and nothing else, and the probe never receives the plan; the probe runs through the `Backend` port, and its `rate_limit_event` is decoded through the schema the cost ledger already uses — a shape it does not decode is `windows-unavailable`, never a partial read; phax reads no credential.
 
 ## 11. Docs page
 
@@ -303,3 +307,4 @@ phax plans estimate docs/plans/2610150921-artifact-decide-plan.md --no-probe --j
 - 2026-10-16 Q1 decided A — operator (Rémy Loubradou) — revised 0 sections
 - 2026-10-16 Q2 decided C — operator (Rémy Loubradou) — revised 9 sections
 - 2026-10-16 Q3 decided A — operator (Rémy Loubradou) — revised 0 sections
+- 2026-10-17 Q2 re-decided A — operator (Rémy Loubradou) — revised 10 sections
