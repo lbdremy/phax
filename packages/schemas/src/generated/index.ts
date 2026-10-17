@@ -31,4 +31,5 @@ export const CURRENT_SHAPES = {
   "brief-report": "0.21.0",
   "hand-decision-answer": "next",
   "decision-record-manifest": "next",
+  "cost-ledger": "next",
 } as const;

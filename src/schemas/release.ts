@@ -28,4 +28,5 @@ export const CURRENT_STAMPS = {
   "brief-report": "0.21.0",
   "hand-decision-answer": "0.25.0",
   "decision-record-manifest": "0.25.0",
+  "cost-ledger": "0.25.0",
 } as const;

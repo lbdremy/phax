@@ -41,6 +41,19 @@ export function reportGitFailure(e: GitError, ctx: ReportContext): SystemErrorRe
   });
 }
 
+/** A cost ledger entry phax could not record: the invocation's own outcome stands. */
+export function reportCostLedgerFailure(cause: unknown, ctx: ReportContext): SystemErrorReport {
+  return makeSystemErrorReport({
+    type: "cost_ledger.record_failed",
+    runId: ctx.runId,
+    ...(ctx.operationId !== undefined ? { operationId: ctx.operationId } : {}),
+    adapter: ctx.adapter,
+    operation: ctx.operation,
+    ...(ctx.expected !== undefined ? { expected: ctx.expected } : {}),
+    cause,
+  });
+}
+
 export function reportAgentFailure(e: AgentInvocationError, ctx: ReportContext): SystemErrorReport {
   const stderrExcerpt = e.stderrExcerpt ?? e.stderr;
   return makeSystemErrorReport({

@@ -19,6 +19,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
@@ -131,12 +132,23 @@ export function generatePhaseHandoff(
 
     const handoffPrompt = buildHandoffPrompt(reconciliation);
 
-    yield* backend.resumeAgentSession(sessionId, handoffPrompt, {
-      ...agentOptions,
-      cwd: worktreePath,
-      outputJsonlPath: join(phaseFolderPath, "handoff-generation.jsonl"),
-      phaseFolderPath,
-    });
+    const outputJsonlPath = join(phaseFolderPath, "handoff-generation.jsonl");
+    yield* withInvocationCost(
+      backend.resumeAgentSession(sessionId, handoffPrompt, {
+        ...agentOptions,
+        cwd: worktreePath,
+        outputJsonlPath,
+        phaseFolderPath,
+      }),
+      {
+        role: "handoff",
+        phase: phaseId,
+        runId: shortName as RunId,
+        runPath,
+        provider: agentOptions.provider,
+        streamPath: outputJsonlPath,
+      },
+    );
 
     const handoffPath = join(worktreePath, ".phax-context", "phase-handoff.md");
     const exists = yield* fs.exists(handoffPath);

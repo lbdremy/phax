@@ -43,11 +43,13 @@ import {
 } from "./formats/recordTimeline.js";
 import {
   complianceReviewFormat,
+  costLedgerFormat,
   phaseStatusFormat,
   phaxPlanFormat,
   registryFormat,
   runStatusFormat,
   type ComplianceReviewShapes,
+  type CostLedgerShapes,
   type PhaseStatusShapes,
   type PhaxPlanShapes,
   type RegistryShapes,
@@ -68,6 +70,10 @@ export {
   type ComplianceReviewFile as ComplianceReview,
 } from "../../../src/schemas/complianceReview.js";
 export {
+  CostLedgerFileSchema as CostLedgerSchema,
+  type CostLedgerFile as CostLedger,
+} from "../../../src/schemas/costLedger.js";
+export {
   PhaxPlanFileSchema as PhaxPlanSchema,
   type PhaxPlanFile as PhaxPlan,
 } from "../../../src/schemas/phaxPlan.js";
@@ -83,17 +89,21 @@ export {
 } from "../../../src/schemas/status.js";
 export {
   parseComplianceReview,
+  parseCostLedger,
   parsePhaseStatus,
   parsePhaxPlan,
   parseRegistry,
   parseRunStatus,
   toLatestComplianceReview,
+  toLatestCostLedger,
   toLatestPhaseStatus,
   toLatestPhaxPlan,
   toLatestRegistry,
   toLatestRunStatus,
   type ComplianceReviewShape,
+  type CostLedgerShape,
   type LatestComplianceReview,
+  type LatestCostLedger,
   type LatestPhaseStatus,
   type LatestPhaxPlan,
   type LatestRegistry,
@@ -399,6 +409,7 @@ type DocumentShapes = EveryFormat<{
   "gate-report": GateReportShapes;
   "brief-report": BriefReportShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
+  "cost-ledger": CostLedgerShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -436,4 +447,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "gate-report": gateReportFormat,
     "brief-report": briefReportFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
+    "cost-ledger": costLedgerFormat,
   });

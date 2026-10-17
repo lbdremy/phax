@@ -23,6 +23,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseCostLedger,
   parseDecisionRecordManifest,
   parseGateAttribution,
   parseGateReport,
@@ -45,6 +46,7 @@ import {
   toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
+  toLatestCostLedger,
   toLatestDecisionRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
@@ -67,6 +69,7 @@ import {
   readBriefRecordFile,
   readBriefRequestFile,
   readComplianceReviewFile,
+  readCostLedgerFile,
   readGateAttributionFile,
   readPhaseFileReconciliationFile,
   readPhaseStatusFile,
@@ -218,6 +221,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "brief-report": latest(parseBriefReport, toLatestBriefReport),
   "hand-decision-answer": latest(parseHandDecisionAnswer, toLatestHandDecisionAnswer),
   "decision-record-manifest": latest(parseDecisionRecordManifest, toLatestDecisionRecordManifest),
+  "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -249,6 +253,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "brief-report": undefined,
   "hand-decision-answer": undefined,
   "decision-record-manifest": readRecordManifestFile,
+  "cost-ledger": readCostLedgerFile,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

@@ -1,14 +1,20 @@
 // The files of a phax run directory: the run registry, run status, phase
-// status, phax-plan and compliance review. Each pre-schema shape is phax's
-// frozen module under src/schemas/history/; each current shape, named by
-// `CURRENT_SHAPES` (`next` until a release renames it), is phax's own schema
-// and decoder. The package declares none of its own.
+// status, phax-plan, compliance review and cost ledger. Each pre-schema shape
+// is phax's frozen module under src/schemas/history/; each current shape,
+// named by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own
+// schema and decoder. The package declares none of its own.
 import {
   ComplianceReviewFileSchema,
   decodeComplianceReviewFile,
   type ComplianceReview,
   type ComplianceReviewFile,
 } from "../../../../src/schemas/complianceReview.js";
+import {
+  CostLedgerFileSchema,
+  decodeCostLedgerFile,
+  type CostLedger,
+  type CostLedgerFile,
+} from "../../../../src/schemas/costLedger.js";
 import {
   ComplianceReviewPreSchemaSchema,
   decodeComplianceReviewPreSchema,
@@ -266,4 +272,40 @@ export function toLatestComplianceReview(
   }
   const { version: _version, ...recorded } = value;
   return recorded;
+}
+
+// ── cost ledger
+
+// Born with `$schema`: no pre-schema shape, and a document without `$schema`
+// is unreadable. It refuses a key it does not name, at any level.
+
+export type CostLedgerShapes = {
+  [K in CurrentShapeName<"cost-ledger">]: CostLedgerFile;
+};
+
+/** The id of every cost ledger shape the package reads. */
+export type CostLedgerShape = keyof CostLedgerShapes;
+
+export const costLedgerFormat = defineFormat<CostLedgerShapes>({
+  id: "cost-ledger",
+  label: "cost ledger",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["cost-ledger"],
+    shape: { schema: CostLedgerFileSchema, decode: decodeCostLedgerFile },
+  },
+});
+
+/** Reads a run's `cost-ledger.json`. Never throws. */
+export const parseCostLedger: (input: unknown) => ParsedShape<CostLedgerShapes> =
+  costLedgerFormat.parse;
+
+/** The latest cost ledger: phax's in-memory value, with no `$schema`. */
+export type LatestCostLedger = CostLedger;
+
+/** Upgrades a parsed cost ledger in memory: drops `$schema`, keeps every other fact. */
+export function toLatestCostLedger(value: CostLedgerFile): LatestCostLedger {
+  const { $schema: _schema, ...ledger } = value;
+  return ledger;
 }
