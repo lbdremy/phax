@@ -33,16 +33,10 @@ function calibration(fiveHourUsd: number, sevenDayUsd: number) {
   return ledgerSource("other.calibration.run", [
     ledgerEntry({
       agentMs: 0,
-      endedAt: daysAgo(3),
+      endedAt: daysAgo(2.9),
       samples: [
         rateLimitSample("five-hour", 0, reset5, 0),
         rateLimitSample("seven-day", 0, reset7, 0),
-      ],
-    }),
-    ledgerEntry({
-      agentMs: 0,
-      endedAt: daysAgo(2.9),
-      samples: [
         rateLimitSample("five-hour", 10, reset5, fiveHourUsd / 10),
         rateLimitSample("seven-day", 10, reset7, sevenDayUsd / 10),
       ],
