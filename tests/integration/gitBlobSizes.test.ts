@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -59,6 +59,16 @@ describe("NodeGitLayer.commitBefore and blobSizes", () => {
       git.blobSizes(repoDir, first, ["missing.ts", "a.ts", "src/also-missing.ts"]),
     );
     expect(sizes).toEqual({ "missing.ts": 0, "a.ts": 3, "src/also-missing.ts": 0 });
+  });
+
+  it("counts 0 for a directory, as the plan's own sizing does", async () => {
+    mkdirSync(join(repoDir, "src"));
+    writeFileSync(join(repoDir, "src", "a.ts"), "x".repeat(40));
+    writeFileSync(join(repoDir, "b.ts"), "abc");
+    const first = commitAt("2026-09-01T10:00:00Z", "first");
+
+    const sizes = await withGit((git) => git.blobSizes(repoDir, first, ["src", "b.ts"]));
+    expect(sizes).toEqual({ src: 0, "b.ts": 3 });
   });
 
   it("gives null for an instant before the first commit", async () => {

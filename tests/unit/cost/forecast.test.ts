@@ -81,4 +81,29 @@ describe("playForward", () => {
     expect(result.endsAtMs).toBeCloseTo(sevenDayReset + (20 / 30) * HOUR_MS, 3);
     expect(WINDOW_MS["seven-day"]).toBe(7 * DAY_MS);
   });
+
+  it("opens the seven-day window again at its reset within a step, counting only what is spent after it", () => {
+    const sevenDayReset = NOW_MS + HOUR_MS / 4;
+    const result = playForward({
+      phaseCosts: [{ phase: "phase-01", usd: 200 }],
+      burnUsdPerHour: 100,
+      fiveHour: { utilization: 0, resetsAtMs: NOW_MS + 5 * HOUR_MS },
+      sevenDay: { utilization: 50, resetsAtMs: sevenDayReset },
+      capacity: { fiveHourUsd: 10_000, sevenDayUsd: 100 },
+      nowMs: NOW_MS,
+    });
+    // $25 before the reset, then a fresh $100 window that runs out an hour later.
+    expect(result.pauses).toEqual([
+      {
+        phase: "phase-01",
+        window: "seven-day",
+        atMs: expect.closeTo(sevenDayReset + HOUR_MS, 3),
+        resumesAtMs: sevenDayReset + WINDOW_MS["seven-day"],
+      },
+    ]);
+    expect(result.endsAtMs).toBeCloseTo(
+      sevenDayReset + WINDOW_MS["seven-day"] + (75 / 100) * HOUR_MS,
+      3,
+    );
+  });
 });

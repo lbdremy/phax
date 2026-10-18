@@ -76,3 +76,24 @@ describe("FileSystem.modifiedAt (Node adapter)", () => {
     await expect(withFs((fs) => fs.modifiedAt(join(tmpDir, "missing")))).rejects.toThrow();
   });
 });
+
+describe("FileSystem.fileSize (Node adapter)", () => {
+  it("is a regular file's size", async () => {
+    await writeFile(join(tmpDir, "one.txt"), "hello");
+    await expect(withFs((fs) => fs.fileSize(join(tmpDir, "one.txt")))).resolves.toBe(5);
+  });
+
+  it("is 0 for a directory, however much it holds", async () => {
+    await mkdir(join(tmpDir, "src"));
+    await writeFile(join(tmpDir, "src", "a.ts"), "x".repeat(100));
+    await expect(withFs((fs) => fs.fileSize(join(tmpDir, "src")))).resolves.toBe(0);
+  });
+
+  it("is 0 for an absent path, a path under a file, and a symlink", async () => {
+    await writeFile(join(tmpDir, "file.txt"), "abc");
+    await symlink(join(tmpDir, "file.txt"), join(tmpDir, "link"));
+    await expect(withFs((fs) => fs.fileSize(join(tmpDir, "missing")))).resolves.toBe(0);
+    await expect(withFs((fs) => fs.fileSize(join(tmpDir, "file.txt", "under")))).resolves.toBe(0);
+    await expect(withFs((fs) => fs.fileSize(join(tmpDir, "link")))).resolves.toBe(0);
+  });
+});

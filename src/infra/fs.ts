@@ -42,6 +42,18 @@ async function apparentSizeOf(path: string): Promise<number> {
   return total;
 }
 
+// The lstat size of a regular file; anything else, or nothing, is 0.
+async function fileSizeOf(path: string): Promise<number> {
+  try {
+    const stats = await lstat(path);
+    return stats.isFile() ? stats.size : 0;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return 0;
+    throw err;
+  }
+}
+
 export function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
   return {
     readText: (path) =>
@@ -131,6 +143,12 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
     apparentSize: (path) =>
       Effect.tryPromise({
         try: () => apparentSizeOf(resolvePath(path)),
+        catch: wrapFsError,
+      }),
+
+    fileSize: (path) =>
+      Effect.tryPromise({
+        try: () => fileSizeOf(resolvePath(path)),
         catch: wrapFsError,
       }),
 

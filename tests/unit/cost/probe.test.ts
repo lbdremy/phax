@@ -36,7 +36,7 @@ describe("probe constants", () => {
 describe("windowsFromProbe", () => {
   it("reads 15 % and 29 % with both reset instants", () => {
     const facts = streamFacts({ rateLimits: [[fiveHour(0.15), sevenDay(0.29)]] });
-    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0 }, NOW_MS)).toEqual({
+    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0, stderr: "" }, NOW_MS)).toEqual({
       kind: "windows",
       source: "probe",
       observedAt: iso(NOW_MS),
@@ -50,7 +50,7 @@ describe("windowsFromProbe", () => {
     const facts = streamFacts({
       rateLimits: [[fiveHour(0.1), sevenDay(0.2)], [sevenDay(1.234567)], [fiveHour(0.5, passed)]],
     });
-    const reading = windowsFromProbe({ kind: "ended", facts, exitCode: 0 }, NOW_MS);
+    const reading = windowsFromProbe({ kind: "ended", facts, exitCode: 0, stderr: "" }, NOW_MS);
     expect(reading).toMatchObject({
       kind: "windows",
       fiveHour: { utilization: 0, resetsAt: iso(NOW_MS + 5 * HOUR_MS) },
@@ -61,6 +61,7 @@ describe("windowsFromProbe", () => {
         kind: "ended",
         facts: streamFacts({ rateLimits: [[fiveHour(0.123456), sevenDay(0.5)]] }),
         exitCode: 0,
+        stderr: "",
       },
       NOW_MS,
     );
@@ -69,7 +70,7 @@ describe("windowsFromProbe", () => {
 
   it("gives no-subscription for an API key source other than none and no event", () => {
     const facts = streamFacts({ apiKeySource: "ANTHROPIC_API_KEY" });
-    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0 }, NOW_MS)).toEqual({
+    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0, stderr: "" }, NOW_MS)).toEqual({
       kind: "no-subscription",
     });
   });
@@ -78,7 +79,8 @@ describe("windowsFromProbe", () => {
     expect(reason({ kind: "failed-to-start", reason: "claude: command not found" })).toBe(
       "the probe failed to start: claude: command not found",
     );
-    expect(reason({ kind: "ended", facts: streamFacts(), exitCode: 0 })).toBe(
+    expect(reason({ kind: "timed-out" })).toBe("the probe timed out after 60 s and was stopped");
+    expect(reason({ kind: "ended", facts: streamFacts(), exitCode: 0, stderr: "" })).toBe(
       "the probe ended without a rate-limit event",
     );
     expect(
@@ -89,6 +91,7 @@ describe("windowsFromProbe", () => {
           undecodedRateLimitEvents: 1,
         }),
         exitCode: 0,
+        stderr: "",
       }),
     ).toBe("the probe's rate-limit event has a shape phax does not decode");
     expect(
@@ -96,6 +99,7 @@ describe("windowsFromProbe", () => {
         kind: "ended",
         facts: streamFacts({ rateLimits: [[fiveHour(0.15)]] }),
         exitCode: 0,
+        stderr: "",
       }),
     ).toBe("the probe reported the five-hour window only");
     expect(
@@ -103,16 +107,24 @@ describe("windowsFromProbe", () => {
         kind: "ended",
         facts: streamFacts({ rateLimits: [[sevenDay(0.15)]] }),
         exitCode: 0,
+        stderr: "",
       }),
     ).toBe("the probe reported the seven-day window only");
-    expect(reason({ kind: "ended", facts: streamFacts(), exitCode: 1 })).toBe(
+    expect(reason({ kind: "ended", facts: streamFacts(), exitCode: 1, stderr: "" })).toBe(
       "the probe exited with code 1 without a rate-limit event",
     );
   });
 
+  it("quotes the first non-blank line of stderr on a non-zero exit, cut at 200 characters", () => {
+    const long = "x".repeat(250);
+    expect(
+      reason({ kind: "ended", facts: streamFacts(), exitCode: 2, stderr: `\n${long}\nnext` }),
+    ).toBe(`the probe exited with code 2 without a rate-limit event: ${"x".repeat(200)}…`);
+  });
+
   it("reads an undecodable event as unavailable even with an API key source", () => {
     const facts = streamFacts({ apiKeySource: "ANTHROPIC_API_KEY", undecodedRateLimitEvents: 2 });
-    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0 }, NOW_MS)).toEqual({
+    expect(windowsFromProbe({ kind: "ended", facts, exitCode: 0, stderr: "" }, NOW_MS)).toEqual({
       kind: "unavailable",
       reason: "the probe's rate-limit event has a shape phax does not decode",
     });

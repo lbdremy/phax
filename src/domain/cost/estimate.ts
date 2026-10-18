@@ -407,8 +407,14 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
     };
   }
 
-  const play = (pick: (quantiles: PhaseQuantiles) => number): Playthrough => {
-    const phaseCosts = estimated.map((phase) => ({ phase: phase.id, usd: pick(phase.quantiles) }));
+  // Each scenario spends the run's own P50 or P90, so the verdict agrees with
+  // the run line: the phases' quantiles do not add up to the run's, so they
+  // only share the run total out in proportion, the run-level cost on the last.
+  const play = (pick: (quantiles: PhaseQuantiles) => number, runTotalUsd: number): Playthrough => {
+    const picked = estimated.map((phase) => pick(phase.quantiles));
+    const pickedSum = picked.reduce((sum, usd) => sum + usd, 0);
+    const scale = pickedSum > 0 ? (runTotalUsd - runLevel) / pickedSum : 0;
+    const phaseCosts = estimated.map((phase, i) => ({ phase: phase.id, usd: picked[i]! * scale }));
     const last = phaseCosts.at(-1);
     if (last === undefined) {
       if (runLevel > 0) phaseCosts.push({ phase: "compliance-review", usd: runLevel });
@@ -430,8 +436,8 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
       nowMs,
     });
   };
-  const p50 = play((quantiles) => quantiles.p50);
-  const p90 = play((quantiles) => quantiles.p90);
+  const p50 = play((quantiles) => quantiles.p50, runRange.p50);
+  const p90 = play((quantiles) => quantiles.p90, runRange.p90);
   return {
     ...common,
     verdict: verdictOf(p50, p90),

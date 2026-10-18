@@ -9,6 +9,7 @@ import {
   PROBE_EFFORT,
   PROBE_MODEL,
   PROBE_PROMPT,
+  PROBE_TIMEOUT_MS,
   windowsFromProbe,
   type ProbeOutcome,
 } from "../domain/cost/probe.js";
@@ -19,14 +20,22 @@ export function probeWindows(nowIso: string): Effect.Effect<WindowsReading, neve
   return Effect.gen(function* () {
     const backend = yield* Backend;
     const outcome = yield* backend
-      .probe(PROBE_PROMPT, { model: PROBE_MODEL, effort: PROBE_EFFORT })
+      .probe(PROBE_PROMPT, {
+        model: PROBE_MODEL,
+        effort: PROBE_EFFORT,
+        timeoutMs: PROBE_TIMEOUT_MS,
+      })
       .pipe(
         Effect.map(
-          (result): ProbeOutcome => ({
-            kind: "ended",
-            facts: parseClaudeStream(result.lines),
-            exitCode: result.exitCode,
-          }),
+          (result): ProbeOutcome =>
+            result.kind === "timed-out"
+              ? result
+              : {
+                  kind: "ended",
+                  facts: parseClaudeStream(result.lines),
+                  exitCode: result.exitCode,
+                  stderr: result.stderr,
+                },
         ),
         Effect.catchAll((error) =>
           Effect.succeed<ProbeOutcome>({ kind: "failed-to-start", reason: error.message }),

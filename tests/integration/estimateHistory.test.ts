@@ -181,6 +181,30 @@ describe("readEstimateHistory", () => {
     ]);
   });
 
+  it("skips a ledger it cannot read by path and goes on with the rest", async () => {
+    const { fs, read } = setup();
+    writeRegistry(fs, [active]);
+    // A directory where a file is expected: it exists, but reading it fails.
+    fs.addDir(activeFolder);
+    fs.addDir(`${activeFolder}/cost-ledger.json`);
+    fs.setFile(`${STATE}/cost-ledgers/demo.delta.run-d.json/stray`, "");
+    fs.setFile(
+      `${STATE}/cost-ledgers/demo.gamma.run-c.json`,
+      ledgerJson([ledgerEntry({ costUsd: 7 })]),
+    );
+
+    const history = await read();
+
+    expect(history.ledgers.map((source) => source.runKey)).toEqual(["demo.gamma.run-c"]);
+    expect(history.skipped).toEqual([
+      { path: `${activeFolder}/cost-ledger.json`, reason: "the cost ledger could not be read" },
+      {
+        path: `${STATE}/cost-ledgers/demo.delta.run-d.json`,
+        reason: "the pruned cost ledger could not be read",
+      },
+    ]);
+  });
+
   it("reads another namespace's run for its ledger only", async () => {
     const { fs, git, read } = setup();
     const other = registryEntry({ namespace: "elsewhere", shortName: "omega", runId: "run-o" });

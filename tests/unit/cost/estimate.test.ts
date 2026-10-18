@@ -307,6 +307,21 @@ describe("estimatePlan: verdict precedence", () => {
   });
 });
 
+describe("estimatePlan: scenarios spend the run line", () => {
+  it("plays the run's own P50 and P90, not the sum of the phases' quantiles", () => {
+    const report = estimate();
+    const run = report.run!;
+    const burn = report.burnRateUsdPerHour!;
+    const spent = (endsAt: string) => ((Date.parse(endsAt) - NOW_MS) / HOUR_MS) * burn;
+    const phaseSum = (pick: "p50" | "p90") =>
+      report.phases.reduce((sum, phase) => sum + phase.estimate![pick], 0);
+    // The phases' quantiles do not add up to the run's, so the test tells them apart.
+    expect(Math.abs(phaseSum("p90") - run.p90)).toBeGreaterThan(1);
+    expect(spent(report.scenarios!.p50.endsAt)).toBeCloseTo(run.p50, 1);
+    expect(spent(report.scenarios!.p90.endsAt)).toBeCloseTo(run.p90, 1);
+  });
+});
+
 describe("estimatePlan: warnings", () => {
   it("warns about a phase whose effort has fewer than 5 historical phases", () => {
     const sparse = generateHistory({ runs: 20, phasesPerRun: 4, seed: 13 }).map((run, r) => ({
