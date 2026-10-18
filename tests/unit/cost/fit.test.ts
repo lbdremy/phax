@@ -94,6 +94,24 @@ describe("fitCostModel", () => {
     for (const residual of model.residuals) expect(Math.abs(residual)).toBeLessThan(1e-3);
   });
 
+  it("recovers the same coefficients from a history two years old: the ridge never takes over", () => {
+    const efforts = ["low", "medium", "high", "xhigh", "max"];
+    const samples: TrainingSample[] = [];
+    for (let i = 0; i < 80; i++) {
+      const x = features(
+        efforts[i % 5]!,
+        1000 * ((i * 7) % 23),
+        1000 * ((i * 3) % 11),
+        (i * 5) % 4,
+      );
+      const y = x.reduce((sum, value, k) => sum + value * TRUE_BETA[k]!, 0);
+      samples.push(sample(x, y, NOW_MS - (730 + (i % 9)) * DAY_MS));
+    }
+    const model = fitCostModel(samples, NOW_MS);
+    model.beta.forEach((coefficient, k) => expect(coefficient).toBeCloseTo(TRUE_BETA[k]!, 3));
+    expect(Math.max(...model.weights)).toBe(1);
+  });
+
   it("halves a sample's weight every 30 days back from now", () => {
     expect(HALF_LIFE_DAYS).toBe(30);
     expect(sampleWeight(NOW_MS, NOW_MS)).toBe(1);

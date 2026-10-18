@@ -388,6 +388,8 @@ describe("buildProbeArgs — the windows probe", () => {
         cwd: tmpdir(),
       }),
       "--no-session-persistence",
+      "--tools",
+      "",
     ]);
     expect(args[args.indexOf("--permission-mode") + 1]).toBe("default");
     expect(args[args.indexOf("--allowedTools") + 1]).toBe("");

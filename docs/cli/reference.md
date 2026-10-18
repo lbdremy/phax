@@ -1430,7 +1430,7 @@ Verdict: fits (no pause even at P90), risky (fits at P50, a pause is possible at
 
 The plan is read by the deterministic parser `phax plans lint` uses; no model reads it. A plan under docs/plans/ is first validated like any artifact. --json prints the report as one JSON document on stdout; warnings go to stderr.
 
-Exit codes: 0 for any verdict; 1 for a config error or a plan the deterministic parser cannot read; 12 when the plan fails artifact validation.
+Exit codes: 0 for any verdict; 1 for a plan the deterministic parser cannot read; 2 for an invalid phax.json, model-routing.json or providers.json; 10 for a corrupt run registry; 12 when the plan fails artifact validation.
 
 Side effects: none on disk; without --no-probe, one Claude Code request.
 

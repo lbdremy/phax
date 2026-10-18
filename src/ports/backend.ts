@@ -25,12 +25,19 @@ export interface CompletionResult {
 export interface ProbeOptions {
   readonly model: string;
   readonly effort: string;
+  /** The probe is stopped, and reported timed out, past this. */
+  readonly timeoutMs: number;
 }
 
-export interface ProbeResult {
-  readonly lines: readonly string[];
-  readonly exitCode: number;
-}
+/** How a probe that started went: it ended with an exit code, or was stopped at its timeout. */
+export type ProbeResult =
+  | {
+      readonly kind: "ended";
+      readonly lines: readonly string[];
+      readonly exitCode: number;
+      readonly stderr: string;
+    }
+  | { readonly kind: "timed-out" };
 
 export interface AgentRunOptions {
   readonly provider: ProviderId;
@@ -103,9 +110,10 @@ export interface BackendOps {
 
   /**
    * A one-message Claude Code invocation with no tools. It returns the raw
-   * stream-json lines and the exit code whatever that code is, never
-   * classifies rate limits, and keeps no session. Claude Code only, so it
-   * takes no provider option. A spawn failure is an `AgentInvocationError`.
+   * stream-json lines, the exit code whatever that code is, and stderr, or
+   * `timed-out` once it has been stopped at `timeoutMs`; it never classifies
+   * rate limits and keeps no session. Claude Code only, so it takes no
+   * provider option. A spawn failure is an `AgentInvocationError`.
    */
   probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError>;
 }

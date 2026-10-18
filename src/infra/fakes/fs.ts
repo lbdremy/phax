@@ -121,6 +121,11 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.succeed(total);
   }
 
+  fileSize(path: string): Effect.Effect<number, FsError> {
+    const content = this.files.get(path);
+    return Effect.succeed(content === undefined ? 0 : new TextEncoder().encode(content).byteLength);
+  }
+
   modifiedAt(path: string): Effect.Effect<string, FsError> {
     const instant = this.files.has(path) ? this.modified.get(path) : undefined;
     if (instant === undefined) {
@@ -210,6 +215,7 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
     rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),
     list: (path) => base.list(resolveKey(path)),
     apparentSize: (path) => base.apparentSize(resolveKey(path)),
+    fileSize: (path) => base.fileSize(resolveKey(path)),
     modifiedAt: (path) => base.modifiedAt(resolveKey(path)),
     rootedAt: (nestedRoot) => makeRootedFakeFileSystemOps(base, resolveKey(nestedRoot)),
   };

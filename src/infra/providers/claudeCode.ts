@@ -48,12 +48,31 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
+// Grace between asking a timed-out probe to stop and forcing it, so a process
+// that ignores SIGTERM never outlives the CLI.
+const SIGKILL_GRACE_MS = 5_000;
+
+/** `timed-out` only when `timeoutMs` is given and the process outlives it. */
 function spawnClaude(
   args: readonly string[],
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
-): Promise<SpawnResult> {
+): Promise<SpawnResult>;
+function spawnClaude(
+  args: readonly string[],
+  prompt: string,
+  outputJsonlPath: string | undefined,
+  cwd: string | undefined,
+  timeoutMs: number,
+): Promise<SpawnResult | "timed-out">;
+function spawnClaude(
+  args: readonly string[],
+  prompt: string,
+  outputJsonlPath: string | undefined,
+  cwd: string | undefined,
+  timeoutMs?: number,
+): Promise<SpawnResult | "timed-out"> {
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
     let stderrBuf = "";
@@ -88,13 +107,28 @@ function spawnClaude(
       stderrBuf += chunk.toString("utf8");
     });
 
+    // Resolving on the timer rather than waiting for `close` means a child
+    // that ignores SIGTERM still frees the caller; the later `close` lands on
+    // an already-settled promise and is a no-op.
+    const killTimer =
+      timeoutMs !== undefined
+        ? setTimeout(() => {
+            proc.kill("SIGTERM");
+            setTimeout(() => proc.kill("SIGKILL"), SIGKILL_GRACE_MS).unref();
+            writeStream?.end();
+            resolve("timed-out");
+          }, timeoutMs)
+        : undefined;
+
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
       writeStream?.end();
       resolve({ lines, exitCode: code ?? 1, stderr: stderrBuf });
     });
 
     proc.on("error", (err) => {
+      clearTimeout(killTimer);
       writeStream?.end();
       reject(err);
     });
@@ -261,11 +295,13 @@ export function runClaudeCompletion(
 }
 
 /**
- * The sealed completion flags plus `--no-session-persistence`. With no tool
- * granted the reply is a single turn; `--max-turns` is not passed because
- * Claude Code's help does not list it.
+ * The sealed completion flags plus `--no-session-persistence` and `--tools ""`,
+ * which leaves the probe no built-in tool at all, read-only ones included.
+ * With no tool the reply is a single turn; `--max-turns` is not passed because
+ * Claude Code's help does not list it. The user's settings still load: they
+ * can hold the authentication (`apiKeyHelper`) the verdict must see.
  */
-export function buildProbeArgs(options: ProbeOptions): string[] {
+export function buildProbeArgs(options: Pick<ProbeOptions, "model" | "effort">): string[] {
   return [
     ...buildCompletionArgs({
       provider: "claude-code",
@@ -274,13 +310,16 @@ export function buildProbeArgs(options: ProbeOptions): string[] {
       cwd: tmpdir(),
     }),
     "--no-session-persistence",
+    "--tools",
+    "",
   ];
 }
 
 /**
  * Run the probe from the OS temp directory, so no project's CLAUDE.md or
- * settings load and nothing is written to a repository. Returns the lines and
- * the exit code whatever that code is: rate limits are not classified here.
+ * settings load and nothing is written to a repository. Returns the lines,
+ * the exit code whatever that code is, and stderr, or `timed-out` once the
+ * probe is stopped at its timeout: rate limits are not classified here.
  */
 export function runClaudeProbe(
   prompt: string,
@@ -288,13 +327,25 @@ export function runClaudeProbe(
 ): Effect.Effect<ProbeResult, AgentInvocationError> {
   const args = buildProbeArgs(options);
   return Effect.tryPromise({
-    try: () => spawnClaude(args, prompt, undefined, tmpdir()),
+    try: () => spawnClaude(args, prompt, undefined, tmpdir(), options.timeoutMs),
     catch: (err): AgentInvocationError =>
       new AgentInvocationError({
         message: err instanceof Error ? err.message : String(err),
         argv: ["claude", ...args],
       }),
-  }).pipe(Effect.map(({ lines, exitCode }): ProbeResult => ({ lines, exitCode })));
+  }).pipe(
+    Effect.map(
+      (spawned): ProbeResult =>
+        spawned === "timed-out"
+          ? { kind: "timed-out" }
+          : {
+              kind: "ended",
+              lines: spawned.lines,
+              exitCode: spawned.exitCode,
+              stderr: spawned.stderr,
+            },
+    ),
+  );
 }
 
 export function runClaudeAgent(

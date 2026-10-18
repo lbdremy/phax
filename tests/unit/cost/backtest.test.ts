@@ -1,7 +1,7 @@
 // The §10 yardstick on a made-up history: 30 runs of 4 phases over 120 days
 // from a known log-linear model with log-normal noise (σ 0.35). Fitted
 // without the 6 most recent runs, the run P50 is within ×1.35 of the actual
-// cost at the median over those held-out runs.
+// cost at the median over those held-out runs, and over 10 such histories.
 import { describe, expect, it } from "vitest";
 import { estimatePlan } from "../../../src/domain/cost/estimate.js";
 import { generateHistory, NOW_MS } from "../../helpers/costHistory.js";
@@ -29,9 +29,14 @@ function heldOutMedianError(seed: number): number {
   return (errors[HELD_OUT / 2 - 1]! + errors[HELD_OUT / 2]!) / 2;
 }
 
+const SEEDS = 10;
+
 describe("backtest", () => {
-  it("holds the held-out run-level median error within ×1.35", () => {
-    // Measured 1.23 at seed 1.
-    expect(heldOutMedianError(1)).toBeLessThanOrEqual(1.35);
+  it("holds the held-out run-level median error within ×1.35, at the median over 10 histories", () => {
+    // One history can land past ×1.35 by chance (seeds 4 and 6 do); the median
+    // over seeds tests the model, not the draw. Measured 1.18 over seeds 1–10.
+    const errors = Array.from({ length: SEEDS }, (_, i) => heldOutMedianError(i + 1));
+    errors.sort((a, b) => a - b);
+    expect((errors[SEEDS / 2 - 1]! + errors[SEEDS / 2]!) / 2).toBeLessThanOrEqual(1.35);
   });
 });

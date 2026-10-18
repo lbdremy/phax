@@ -48,7 +48,7 @@ const HOUR_MS = 3_600_000;
 /**
  * Plays the phases forward from now. A window whose reset is reached opens
  * at utilization 0 for its length; each step spends the least of the phase's
- * cost left, both windows' room and the burn until the five-hour reset; a
+ * cost left, both windows' room and the burn until the nearer reset; a
  * window with no room pauses the run until its reset.
  */
 export function playForward(input: PlayInput): Playthrough {
@@ -83,13 +83,14 @@ export function playForward(input: PlayInput): Playthrough {
         t = reset5;
         continue;
       }
-      const untilReset = (burn * (reset5 - t)) / HOUR_MS;
+      const nextReset = Math.min(reset5, reset7);
+      const untilReset = (burn * (nextReset - t)) / HOUR_MS;
       const step = Math.min(left, room5, room7, untilReset);
       left -= step;
       u5 += (step * 100) / capacity.fiveHourUsd;
       u7 += (step * 100) / capacity.sevenDayUsd;
-      // Reaching the five-hour reset lands on it exactly, so rounding never leaves a sliver.
-      t = step === untilReset ? reset5 : t + (step / burn) * HOUR_MS;
+      // Reaching a reset lands on it exactly, so rounding never leaves a sliver.
+      t = step === untilReset ? nextReset : t + (step / burn) * HOUR_MS;
     }
   }
   return { pauses, endsAtMs: t };

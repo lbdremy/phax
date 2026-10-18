@@ -25,6 +25,12 @@ export interface FileSystemOps {
    * symlinks not followed, or 0 when `path` does not exist.
    */
   apparentSize(path: string): Effect.Effect<number, FsError>;
+  /**
+   * The lstat size of the regular file at `path`, or 0 when `path` does not
+   * exist or is not a regular file: a directory, a symlink, or a path under a
+   * file.
+   */
+  fileSize(path: string): Effect.Effect<number, FsError>;
   /** The ISO-8601 instant of the last modification of the file at `path`. */
   modifiedAt(path: string): Effect.Effect<string, FsError>;
   /**

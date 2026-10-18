@@ -134,7 +134,7 @@ export interface GitOps {
   commitBefore(repo: string, instant: string): Effect.Effect<string | null, GitError>;
   /**
    * The byte size of each path's blob at `commit`, keyed by the path as given.
-   * A path absent at that commit counts 0.
+   * A path absent at that commit, or naming a tree or a submodule, counts 0.
    */
   blobSizes(
     repo: string,

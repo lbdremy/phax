@@ -69,8 +69,9 @@ function sizeOf(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     let total = 0;
-    // A path absent from the working tree measures 0.
-    for (const path of paths) total += yield* fs.apparentSize(join(repoRoot, path));
+    // Only regular files count, as git blobs do for history: a directory, or
+    // a path absent from the working tree, measures 0.
+    for (const path of paths) total += yield* fs.fileSize(join(repoRoot, path));
     return total;
   });
 }

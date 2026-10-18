@@ -105,8 +105,18 @@ export class FakeBackendImpl implements BackendOps {
     this.completeResponses.push(result);
   }
 
-  addProbeResponse(result: ProbeResult): void {
-    this.probeResponses.push({ kind: "result", result });
+  /** Queue a probe that ended; stderr defaults to empty. */
+  addProbeResponse(ended: {
+    readonly lines: readonly string[];
+    readonly exitCode: number;
+    readonly stderr?: string;
+  }): void {
+    this.probeResponses.push({ kind: "result", result: { kind: "ended", stderr: "", ...ended } });
+  }
+
+  /** Make the next queued `probe` call end as one stopped at its timeout would. */
+  timeOutNextProbe(): void {
+    this.probeResponses.push({ kind: "result", result: { kind: "timed-out" } });
   }
 
   /** Make the next queued `probe` call fail as a spawn failure would. */

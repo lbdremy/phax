@@ -4,7 +4,12 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import { probeWindows } from "../../src/app/probeWindows.js";
-import { PROBE_EFFORT, PROBE_MODEL, PROBE_PROMPT } from "../../src/domain/cost/probe.js";
+import {
+  PROBE_EFFORT,
+  PROBE_MODEL,
+  PROBE_PROMPT,
+  PROBE_TIMEOUT_MS,
+} from "../../src/domain/cost/probe.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { HOUR_MS, NOW_MS, iso } from "../helpers/costHistory.js";
 
@@ -65,7 +70,10 @@ describe("probeWindows", () => {
       sevenDay: { utilization: 29, resetsAt: iso(SEVEN_DAY_RESET_S * 1000) },
     });
     expect(fake.impl.probeCalls).toEqual([
-      { prompt: PROBE_PROMPT, options: { model: PROBE_MODEL, effort: PROBE_EFFORT } },
+      {
+        prompt: PROBE_PROMPT,
+        options: { model: PROBE_MODEL, effort: PROBE_EFFORT, timeoutMs: PROBE_TIMEOUT_MS },
+      },
     ]);
     expect(fake.impl.runCalls).toHaveLength(0);
     expect(fake.impl.resumeCalls).toHaveLength(0);
@@ -128,6 +136,31 @@ describe("probeWindows", () => {
       expect(await run(fake)).toEqual({
         kind: "unavailable",
         reason: "the probe exited with code 1 without a rate-limit event",
+      });
+    });
+
+    it("a non-zero exit quotes the first line of Claude Code's stderr", async () => {
+      const fake = makeFakeBackend();
+      fake.impl.addProbeResponse({
+        lines: [],
+        exitCode: 1,
+        stderr: "\n  Invalid model name: claude-haiku-5-5  \nat line 2\n",
+      });
+
+      expect(await run(fake)).toEqual({
+        kind: "unavailable",
+        reason:
+          "the probe exited with code 1 without a rate-limit event: Invalid model name: claude-haiku-5-5",
+      });
+    });
+
+    it("a probe stopped at its timeout is unavailable, never waited on", async () => {
+      const fake = makeFakeBackend();
+      fake.impl.timeOutNextProbe();
+
+      expect(await run(fake)).toEqual({
+        kind: "unavailable",
+        reason: "the probe timed out after 60 s and was stopped",
       });
     });
   });

@@ -93,5 +93,7 @@ A phase left out is named in the `Not estimated:` line with its reason, and left
 ## Exit codes
 
 - `0` — a report, whatever the verdict;
-- `1` — a configuration error, or a plan the deterministic parser cannot read (run `phax plans lint` for every finding);
+- `1` — a plan the deterministic parser cannot read (run `phax plans lint` for every finding);
+- `2` — an invalid `phax.json`, `model-routing.json` or `providers.json`;
+- `10` — a corrupt run registry;
 - `12` — a plan under `docs/plans/` that fails artifact validation.

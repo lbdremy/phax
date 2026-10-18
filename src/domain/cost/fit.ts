@@ -122,9 +122,16 @@ export interface CostModel {
   readonly mix: TokenMix;
 }
 
-/** Weighted least squares with a 1e-6 ridge on the samples; callers pass at least one. */
+/**
+ * Weighted least squares with a 1e-6 ridge on the samples; callers pass at
+ * least one. The weights are scaled so the newest sample weighs 1: the fit
+ * and the residual draws only see their ratios, and the ridge then stays
+ * negligible however old the whole history is.
+ */
 export function fitCostModel(samples: readonly TrainingSample[], nowMs: number): CostModel {
-  const weights = samples.map((sample) => sampleWeight(sample.atMs, nowMs));
+  const decayed = samples.map((sample) => sampleWeight(sample.atMs, nowMs));
+  const heaviest = Math.max(...decayed);
+  const weights = decayed.map((weight) => weight / heaviest);
   const k = samples[0]!.x.length;
   const xtx = Array.from({ length: k }, (_row, i) =>
     Array.from({ length: k }, (_column, j) =>
