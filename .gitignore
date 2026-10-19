@@ -17,3 +17,9 @@ site/doc_build/
 
 # Written by scripts/prepare-npm.ts at release time from README.md
 npm/README.md
+
+# Local brag video renders (site/brag-output, site/brag-output-<timestamp>)
+site/brag-output*/
+
+# Python bytecode from running the spikes
+__pycache__/
