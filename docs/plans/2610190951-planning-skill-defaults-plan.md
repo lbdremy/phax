@@ -1,0 +1,245 @@
+---
+status: Draft
+source-spec: docs/specs/2610171254-planning-skill-defaults.md
+completes-spec: false
+---
+# Planning skill defaults
+
+Plan 1 of 2 for the spec `planning-skill-defaults` (§5.1–§5.16, with every `modelReason` requirement Q2 added). It has two phases, built core first. phase-01 changes the persisted plan-document format. Each phase gains a required `modelReason` (a non-empty string, or null at the default assignment), and `modelReason`, `model` and `effort` become its last three keys. Older sidecars lift with `modelReason: null`. A non-null reason renders as a `**Model reason:**` line and is never extracted. phase-02 adds the phase model policy as one pure domain constant. It renders that policy into a generated block of the phax-planning skill, which `pnpm gen:model-catalog --check` drift-checks against the catalog. It rewrites the skill: write each phase first and assign its model last, default to `claude-sonnet-5-5` at `medium`, give every departure a reason, keep the planning principle as doctrine, and present the layer chain as one example architecture. The skill's architecture paragraph tells the planner to read the code and its documentation. It does not mention `phax architecture`; plan 2 adds that command, its config key, its two formats, the prompt statements (§5.28–§5.30) and the docs page, and completes the spec. phase-02 writes `.claude/skills/phax-planning/SKILL.md`, so run this plan with `phax run --allow-skill-edits`.
+
+## Required commands
+
+- `pnpm exec tsx`
+- `pnpm gen:model-catalog`
+
+Both commands are already in `security.agentCommands` in `phax.json` (`pnpm exec tsx` regenerates the schema snapshots with `scripts/schemas-check.ts --write`; `pnpm gen:model-catalog` regenerates the skill's generated blocks), so no PHAX security configuration change is needed. phase-02 edits a `.claude/skills/` file, which it declares in its planned files: run the plan with `phax run --allow-skill-edits`.
+
+## Technical arbitrations
+
+- The `modelReason` change rides the current `next` snapshot of `plan-document`. The ledger `packages/schemas/releases.json` ends at 0.24.0 and the opened version is 0.25.0. `packages/schemas/snapshots/plan-document/next.schema.json` already exists, and `CURRENT_STAMPS["plan-document"]` is already the opened version. So the change gets no frozen copy and no new reader branch: the existing 0.20.0 and pre-schema lifts gain `modelReason: null`, which covers every sidecar a release ever wrote. Accepted loss: a sidecar written at the unreleased 0.25.0 shape by a dev build, without `modelReason`, is refused as invalid instead of being lifted. No release wrote that shape, and `docs/plans/` holds no live sidecar today.
+- `modelReason` is `Schema.NullOr(Schema.NonEmptyString)`: an empty string is not a reason. Accepted loss: an author cannot write an empty placeholder reason.
+- The reason line renders in the same paragraph as the model and effort lines, directly under `**Recommended effort:**`, and only when non-null. A null reason renders the body byte for byte as before, so lifted sidecars stay in sync with their plan.md. Accepted loss: none worth naming.
+- The policy constant lives in `src/domain/routing/phaseModelPolicy.ts`. It holds the default model and effort, the stronger model and the lighter model, because the spec names an effort only for the default. The existing `scripts/generate-model-catalog.ts` renders its block, which is already run by `pnpm check:full` and by the `standard` gate profile, rather than a sibling script. Accepted loss: one generator now owns two marker regions.
+- The marker is `<!-- BEGIN generated: phase-model-policy -->` / `<!-- END generated: phase-model-policy -->`, inside "Choosing a model and effort", above the hand-written bullets.
+- The skill has one copy. `.claude/skills/phax-planning/SKILL.md` is bundled as is (`package.json` `files`, `defaultBundleRoot()`), read verbatim by the headless prompt, and copied by `phax skills install`. No other copy exists to keep in step.
+- Phase order: the format first, then the skill. The skill rewrite can then name a `modelReason` that already exists, and it lands as one coherent text. Accepted loss: during phase-01 the headless prompt's JSON Schema already requires `modelReason` while the skill does not mention it yet.
+- Model assignment: this plan's document format has no `modelReason` yet (the installed phax predates it), so departures are reasoned here. phase-01 takes the default, `claude-sonnet-5-5` at `medium`: it reproduces the existing lift-and-snapshot pattern (the preamble-questions lift of this cycle), and `pnpm test:type` and the schemas snapshot test check it. phase-02 departs to `claude-opus-5-5` at `medium`. It rewrites the doctrine every planner reads against a dozen normative constraints, and no gate checks the meaning of that prose, only its generated block.
+
+---
+
+## phase-01 — Per-phase modelReason, last in the phase with model and effort {#phase-01-model-reason}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+A plan-document phase carries a required `modelReason` (a non-empty string or null), and `modelReason`, `model` and `effort` are its last three keys. Older sidecars lift with `modelReason: null`. A non-null reason renders as a `**Model reason:**` line and is never extracted (§5.2, §5.3, §5.9, §5.12).
+
+### Detailed instructions
+
+- `src/schemas/planDocument.ts`: rebuild `PlanDocumentPhaseSchema` with an explicit key order instead of spreading `ExtractedPhaseFields` first. Use this order: `id`, `title`, `objective`, `detailedInstructions`, `planMarkdownAnchor`, `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`, `boundaryContracts`, `testStrategy`, `implementationOrder`, `excludedScope`, `verification`, `expectedHandoff`, `commit`, `modelReason`, `model`, `effort`. Take each extracted field's schema by name from `ExtractedPhaseFields` (`ExtractedPhaseFields.id`, `.model`, `.effort`, `.planMarkdownAnchor`, the three file arrays, `.commit`), so the field schemas stay shared with `src/schemas/phaxPlan.ts`. Do not edit `phaxPlan.ts`.
+- Add `modelReason: Schema.NullOr(Schema.NonEmptyString)` with a description annotation saying: why this phase departs from the phax-planning skill's default phase assignment, null when it takes the default; rendered as a `**Model reason:**` line, never extracted. The authoring answer (`PlanDocumentSchema`) and the sidecar (`PlanDocumentFileSchema`) share the phase schema, so both change. Effect's `JSONSchema.make` emits `properties` and `required` in struct order. Check the printed schema (`getPlanDocumentJsonSchema()`) to confirm that `modelReason`, `model` and `effort` are the last three entries of both.
+- Leave `projectExtractedPlan` as it is. It builds the projection key by key, so `modelReason` never reaches `phax-plan.json` or the extraction cache seed. Update the module's header comment to name `modelReason` as informational (rendered, not extracted).
+- `src/schemas/persisted.ts`: `liftPlanDocument` adds `modelReason: null` to every phase and keeps every model and effort unchanged. Build each lifted phase in the current key order, so a migrated sidecar is written in the new order. Update the `readDocumentSidecar` doc comment: both older plan shapes lift with empty preamble question arrays and `modelReason: null` on every phase. Never edit anything under `src/schemas/history/`, because `packages/schemas/history.lock.json` pins those bytes.
+- Format version: `plan-document` already has `packages/schemas/snapshots/plan-document/next.schema.json` (the opened version is 0.25.0, and the release ledger ends at 0.24.0). The change rides that snapshot: no new history module, no new reader branch, and the current stamp stays the opened version. Regenerate the snapshots with `pnpm exec tsx scripts/schemas-check.ts --write`. Only the plan-document `next` snapshot should change. If the write also touches `src/schemas/release.ts` or `packages/schemas/src/generated/index.ts`, say why in the handoff.
+- `src/domain/authoring/renderPlan.ts`: in `renderPhase`, the model/effort block becomes `**Recommended model:** <model>\n**Recommended effort:** <effort>`, followed by `\n**Model reason:** <reason>` when `modelReason` is non-null and by nothing when it is null. All three stay in one paragraph, and the heading and every other block keep their position. Update the header comment: the reason is informational prose, emitted as given.
+- The deterministic parser (`src/domain/plan/parsePlanMarkdown.ts`) reads the model and effort with a regex over the raw paragraph source, so it should need no change. Prove it with the tests below. If it does need a change, the projection of a plan without the line must stay byte-identical.
+- Fixtures: give every test fixture that decodes as the current plan document or current sidecar a `modelReason` key, `null` unless the test is about a reason. Frozen-shape fixtures (0.20.0, 0.19.0, pre-schema; for example `olderPlan` in `migrateDocuments.test.ts`, `PLAN_0_20_0` in `documentMigration.test.ts`, and the pre-schema documents in `tests/unit/schemasPackage/documents.ts`) stay without it. In `tests/unit/schemasPackage/documents.ts`, the current-shape plan-document example gains `modelReason`, and the helper that lifts a pre-schema document to the current one adds `modelReason: null` to each phase. `pnpm test:type` and the decode tests will find any fixture you miss.
+- New fixtures are made up: the run `acme-billing`, phases such as `Invoice totals` planning `src/core/billing/totals.ts`, and an `Invoice state machine` phase whose reason reads `Designs the invoice state machine, which no code in the repository shows yet.` Copy nothing from this repository's own plans, specs or run folders.
+- Assert `$schema` URLs through `currentSchemaUrl(...)`/`schemaUrl(...)` or the release pattern, never through a literal running version.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/schemas/planDocument.ts`
+- `src/schemas/persisted.ts`
+- `src/domain/authoring/renderPlan.ts`
+- `packages/schemas/snapshots/plan-document/next.schema.json`
+- `tests/unit/planDocument.test.ts`
+- `tests/unit/persisted.test.ts`
+- `tests/unit/renderPlan.test.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/artifact/sidecar.test.ts`
+- `tests/integration/authorArtifact.test.ts`
+- `tests/integration/migrateDocuments.test.ts`
+- `tests/integration/lintPlan.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/json/plan-document.schema.json`
+- `tests/unit/artifact/documentMigration.test.ts`
+- `tests/unit/decide/revision.test.ts`
+- `tests/unit/authoringPrompt.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/approvalRecordMerge.test.ts`
+- `tests/integration/artifactQuestionsStatus.test.ts`
+- `tests/integration/approvalLock.test.ts`
+- `tests/integration/decideLifecycle.test.ts`
+- `tests/integration/decideArtifact.test.ts`
+- `tests/integration/__snapshots__/executePlan.test.ts.snap`
+- `tests/unit/__snapshots__/promptGeneration.test.ts.snap`
+
+### Boundary contracts
+
+Headless planner → plan document: the planner needs to know which keys it fills last. The JSON Schema (`phax artifact schema plan`, and the prompt's schema) provides `modelReason`, `model` and `effort` as the last three entries of a phase's `properties` and `required`. Sidecar reader → `migrate-documents`: `readDocumentSidecar` gives a lifted current-shape document. Its phases carry `modelReason: null`, its models and efforts are unchanged, and it renders to an unchanged body. Renderer → deterministic parser: a rendered plan, with or without the `**Model reason:**` line, parses to exactly `projectExtractedPlan(doc)`. `phax-plan.json` never carries `modelReason`.
+
+### Test strategy
+
+Write these tests before the implementation; they pin the contract. Unit tests in `tests/unit/planDocument.test.ts`: in the printed JSON Schema's phase object, the last three keys of `properties` and the last three entries of `required` are `modelReason`, `model`, `effort` in that order; `modelReason` admits a string and null; a phase without `modelReason` is refused, and so is one with an empty string. Unit tests in `tests/unit/persisted.test.ts`: a 0.20.0-stamped sidecar and a pre-schema one each read as lifted, with `modelReason: null` on every phase and the original model and effort kept. Unit tests in `tests/unit/renderPlan.test.ts`: phase-02 at `claude-haiku-5-5` / `low` with a reason renders the `**Model reason:**` line directly under its effort line; phase-03 at `claude-sonnet-5-5` / `medium` with `modelReason: null` renders no reason line; parsing the rendered plan with the deterministic parser yields exactly `projectExtractedPlan(doc)`, with the stated models and efforts and no `modelReason`. Unit test in `tests/unit/parsePlanMarkdown.test.ts`: two hand-written plans identical except for a `**Model reason:**` line under phase-02's effort line parse with no error to equal projections. Integration test in `tests/integration/lintPlan.test.ts`: `phax plans lint` reports no structure error on either plan. Integration test in `tests/integration/migrateDocuments.test.ts`: a 0.20.0 sidecar whose phase-01 is `claude-opus-5-5` / `high`, written in the old key order, is refused by the first read naming `phax artifact migrate-documents` (existing behaviour). After the migration, every phase carries `modelReason: null`, phase-01 keeps `claude-opus-5-5` / `high` in the seeded extraction, the body is unchanged, and the sidecar agrees with its plan.md. Check that the existing `tests/integration/authorArtifact.test.ts` cases still prove that the session spawns with `authoring.plan`'s model and effort, and with `--model`/`--effort` when given (§5.11); add a case if one is missing.
+
+### Implementation order
+
+1. Write the failing schema, lift, render and parse tests.
+2. Reorder `PlanDocumentPhaseSchema` and add `modelReason` in `src/schemas/planDocument.ts`.
+3. Add `modelReason: null` to `liftPlanDocument` in `src/schemas/persisted.ts`.
+4. Render the reason line in `src/domain/authoring/renderPlan.ts`.
+5. Regenerate the snapshots with `pnpm exec tsx scripts/schemas-check.ts --write`.
+6. Update the remaining fixtures until `pnpm typecheck`, `pnpm test:type` and `pnpm test` pass, then run the full `standard` profile.
+
+### Excluded scope
+
+- The phax-planning skill text, the model policy constant and its generated block (phase-02).
+- Any lint check of the default assignment or of departure reasons (the `phase-model-assignment` spec).
+- Moving the rendered `**Recommended model:**` / `**Recommended effort:**` lines, or rewriting the models of existing plans.
+- `phax architecture`, its config key and its two formats (plan 2).
+- Any edit under `src/schemas/history/` or to a release-named snapshot.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+State the exact phase key order of `PlanDocumentPhaseSchema` and the `modelReason` schema (`NullOr(NonEmptyString)`). Confirm that the change rode the plan-document `next` snapshot, and list every generated file `scripts/schemas-check.ts --write` touched. Give the exact rendered form of the reason line and where it sits. Say whether `parsePlanMarkdown.ts` needed a change. Name the fixtures updated and those left at a frozen shape on purpose. Explain any deviation from the planned file lists, especially optional fixture files touched and planned ones left untouched.
+
+### Commit subject
+
+`feat(plan-document): add per-phase modelReason, last with model and effort`
+
+### Commit body
+
+Give every plan-document phase a required modelReason: a non-empty
+string when the phase departs from the planning skill's default phase
+assignment, null when it takes it. modelReason, model and effort are now
+the phase's last three keys, in both properties and required, so a
+headless planner writes the phase before it assigns it.
+
+A non-null reason renders as a **Model reason:** line under the model and
+effort lines. A null one renders nothing, so lifted sidecars keep their
+body. The reason is never extracted: the projection and phax-plan.json
+are unchanged, and the deterministic parser reads a plan with or without
+the line to the same projection.
+
+The change rides the opened 0.25.0 next snapshot of plan-document. The
+0.20.0 and pre-schema lifts add modelReason: null to every phase, so
+phax artifact migrate-documents lifts every sidecar a release wrote.
+
+---
+
+## phase-02 — Generated model policy and the planning skill rewrite {#phase-02-model-policy-skill}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+The phax-planning skill tells the planner to write each phase first and assign its model last, from `claude-sonnet-5-5` at `medium`, with a reason on every departure. The policy's model names come from one domain constant, through a generated block that `pnpm check:full` drift-checks against the catalog. The doctrine names no layer, and the layer chain is one example architecture (§5.1, §5.4–§5.8, §5.10, §5.13–§5.16).
+
+### Detailed instructions
+
+- Create `src/domain/routing/phaseModelPolicy.ts`, pure (no Effect, no I/O). Export the interface `PhaseModelPolicy` = `{ defaultAssignment: { model: string; effort: ThinkingLevel }; stronger: { model: string }; lighter: { model: string } }`, with `ThinkingLevel` from `./types.js`. Export `PHASE_MODEL_POLICY`, set to `claude-sonnet-5-5` / `medium`, stronger `claude-opus-5-5` and lighter `claude-haiku-5-5`. Export `phaseModelPolicyFindings(policy, providerConfig): readonly string[]`, which returns one message per policy model id that `entryFor` (from `./catalog.js`) cannot find, naming the id and its role (default, stronger, lighter). It also returns one message when the default effort is not in the default model's `effortsFor` list, naming the effort and the model. Add a comment: this is guidance rendered into the phax-planning skill, phax never applies it to a phase, and the later `phase-model-assignment` built-in default must reuse this constant rather than restate it.
+- `scripts/generate-model-catalog.ts`: add a second marker pair, `<!-- BEGIN generated: phase-model-policy -->` / `<!-- END generated: phase-model-policy -->`. Also add an exported `renderPhaseModelPolicy(policy)` that returns exactly three bullets with the ids interpolated from the policy: `- Default: \`<default model>\` at \`<default effort>\`.`; `- Stronger (a higher effort, or \`<stronger model>\`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.`; `- Lighter (\`<lighter model>\`): the phase reproduces a pattern the code already holds, and a configured gate checks it.` Make the region helpers take their markers as a parameter. Keep the existing catalog exports (`BEGIN_MARKER`, `END_MARKER`, `rewriteMarkerRegion`, `hasStaleRegion`, `applyToContent`) behaving as today, so their tests keep passing.
+- In the generator's main: first compute `phaseModelPolicyFindings(PHASE_MODEL_POLICY, DEFAULT_PROVIDER_CONFIG)`. If there are any, print each as `✗ phase model policy: <finding>` on stderr and exit 1 in both modes, writing nothing. In `--check` mode, also report a stale or missing policy region as `Stale phase-model-policy block in .claude/skills/phax-planning/SKILL.md — run: pnpm gen:model-catalog` and exit 1, next to the existing catalog message. Write mode rewrites both regions. Update the file's header comment. Leave the legacy prose patches and the model-routing skill rewrite as they are.
+- Rewrite "Choosing a model and effort" in `.claude/skills/phax-planning/SKILL.md` to this shape. Open with the sentence: `Cut and write every phase first. Choose its model and effort last, from what the written phase asks for.` Then the generated block. Then these hand-written bullets: `Any other catalog model only for a stated reason.`; `Every phase that leaves the default says why, on the phase: its \`modelReason\` (headless), or a \`**Model reason:**\` line under its model and effort (by hand). A phase at the default has no reason: \`modelReason: null\`, and no line. A departure without a reason, or a default phase with one, is a defect.`; `A lighter model needs the detail: see "Comprehensive instructions".`; and keep the existing bullet that a plan changing the catalog itself must name only models already in the shipped catalog. Delete the bullets that called `claude-opus-5-5` the default phase model, kept Sonnet for mechanical phases, recorded Fable reasons in Technical arbitrations, and described Opus at `low`. Add the markers by hand, then run `pnpm gen:model-catalog` to fill the block, and check that `pnpm gen:model-catalog --check` passes.
+- Rewrite "Planning doctrine" with three bullets that name no layer. Plan outside-in: `Start from the need the consumer sees and trace the path it takes through the repository's parts. This is how you discover which files each phase touches.` Implement inside-out: `Order the work from the parts others depend on to the surface, so the surface never claims a behavior the core does not yet provide.` Verify outside-in: `End by checking the consumer-visible behavior end to end, then let the gates confirm it.` None of the three may contain the words view-model, port, adapter or domain. Then add `### The repository's architecture`: read it before cutting phases, from the code and its documentation (README, CLAUDE.md or equivalent), and plan against it. Do not mention `phax architecture`; plan 2 adds it. Then add `### One example architecture`: `A layered application: page → view-model → command → domain → port → adapter → storage, implemented domain → ports → command → adapter → view-model → view → route. Use it only where the repository is built this way.`
+- "Test strategy (informational)" should open: `Map tests to the parts of the repository's architecture and pick the cheapest reliable test for each. For the example architecture:` followed by the existing table, unchanged. "Boundary contracts (informational)" should say a phase crosses a boundary of the repository's architecture (in the example: page/cli/surface → view-model, view-model → application command, command → port, …). Keep the rest of both sections.
+- "Per-phase field set" table: add a row for the model reason, located at a `**Model reason:** <reason>` line under the effort line, only on a phase that departs from the default, and not extracted. "Phase section structure" template: add an optional `**Model reason:**` line under `**Recommended effort:**`, noting that a phase at the default omits it. "Example well-formed phase": change it to the default, `claude-sonnet-5-5` / `medium`, with no reason line.
+- "Planning constraints": keep the "Comprehensive instructions" bullet word for word.
+- "Headless authoring": list a phase's keys in the document's order. The content fields come first (`id`, `title`, `objective`, `detailedInstructions`, `planMarkdownAnchor`, the planned-file arrays, `boundaryContracts`, `testStrategy`, `implementationOrder`, `excludedScope`, `verification`, `expectedHandoff`, `commit`), then `modelReason`, `model`, `effort` last, which are written last because the phase is assigned after it is written. Keep the split between extracted fields and render-only fields, with `modelReason` among the render-only ones. Direct each departure's reason into that phase's `modelReason`, and `modelReason: null` onto every phase at the default. Never put a reason into `preamble.technicalArbitrations`.
+- `docs/model-catalog.md`: in section 3, reword the sentence near line 130 that calls the default phase model Claude-only. An Opus 5.5 phase never reaches codex, and the skill's default phase assignment (`claude-sonnet-5-5` at `medium`) reaches codex as `gpt-6-sol`, `equivalent`. In the section 4 defaults table, add a row for the planning skill's default phase assignment: where `PHASE_MODEL_POLICY`, `src/domain/routing/phaseModelPolicy.ts`; default `claude-sonnet-5-5`; effort `medium`. Its justification: guidance rendered into the skill that phax never applies, chosen after a strong planner's plan carried Sonnet 5.5 (half Opus 5.5's price) and Haiku 5.5. Its previous value: `claude-opus-5-5` (skill prose). Section 5, step 5: `pnpm gen:model-catalog` renders the catalog table and the policy block, and fails when the policy names a model or effort the catalog does not list. Append a 2026-10-19 refresh-log row, keeping the table's column layout.
+- `src/domain/routing/defaults.ts`: change only the comment near line 25 that says the default phase model has no Codex route, so that it says Opus 5.5 has none. No value changes.
+- `NEXT_STEPS.md`: add `planning-skill-defaults` (`docs/specs/2610171254-planning-skill-defaults.md`) as in flight, plan 1 of 2 (the skill and `modelReason`), with plan 2 adding `phax architecture` and completing the spec. Note that the Draft `phase-model-assignment` spec is to be reworked to build on `modelReason`. Correct the opening paragraph, which says headless-review runs next and no plan is in flight, and drop the `**Next.**` marker on the headless-review entry. Do not invent any other status.
+- Phases run inside a worktree: run no phax lifecycle command. Fixtures in new tests are made up.
+
+### Planned files to create
+
+- `src/domain/routing/phaseModelPolicy.ts`
+- `tests/unit/routing/phaseModelPolicy.test.ts`
+
+### Planned files to edit
+
+- `scripts/generate-model-catalog.ts`
+- `tests/unit/generateModelCatalog.test.ts`
+- `.claude/skills/phax-planning/SKILL.md`
+- `tests/unit/skills.test.ts`
+- `docs/model-catalog.md`
+- `src/domain/routing/defaults.ts`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `tests/unit/authoringPrompt.test.ts`
+- `docs/model-routing.md`
+
+### Boundary contracts
+
+Generator script → domain: the script needs the policy's model names and default effort, and their validity against the catalog. `src/domain/routing/phaseModelPolicy.ts` provides `PHASE_MODEL_POLICY` and `phaseModelPolicyFindings(policy, providerConfig)`. The script owns rendering and file I/O; the domain stays pure. Skill → headless prompt: `src/domain/authoring/prompt.ts` embeds the skill verbatim, so the rewritten text is exactly what every headless planner reads, ahead of the phase-01 JSON Schema whose phase ends with `modelReason`, `model`, `effort`.
+
+### Test strategy
+
+Write these tests before the implementation. Unit tests in `tests/unit/routing/phaseModelPolicy.test.ts`: `PHASE_MODEL_POLICY` yields no finding against `DEFAULT_PROVIDER_CONFIG`; a policy whose default is `claude-sonnet-9` yields one finding naming `claude-sonnet-9`; a default effort absent from its entry yields one naming the effort; an absent stronger or lighter model is named with its role. Unit tests in `tests/unit/generateModelCatalog.test.ts`: `renderPhaseModelPolicy(PHASE_MODEL_POLICY)` matches an inline snapshot naming the three ids and `medium`; a skill whose policy block is hand-edited to name `claude-sonnet-5` as the default is stale; rewriting the policy region is idempotent and leaves the catalog region alone; the existing catalog tests pass unchanged. Content tests in `tests/unit/skills.test.ts` cover the acceptance criteria. "Choosing a model and effort" says to write every phase first and assign last. The policy region equals `renderPhaseModelPolicy(PHASE_MODEL_POLICY)`. The text ``The default phase model is `claude-opus-5-5` `` is gone. The stronger case names a new state machine, an adapter to a system not yet reached, and a choice across several parts; the lighter case names `claude-haiku-5-5` and a configured gate. The departure-reason rule names both defects. The Headless authoring section names `modelReason`, `null` and `preamble.technicalArbitrations`. The Planning doctrine bullets (the section text up to its first `###`) contain none of view-model, port, adapter or domain, matched as whole words. The layer chain, the test table and the boundary list each sit under or beside an "example architecture" statement. The architecture paragraph names README and CLAUDE.md and does not contain `phax architecture`. "Comprehensive instructions" is present. Check the gate `pnpm gen:model-catalog --check` by hand after regenerating.
+
+### Implementation order
+
+1. Write the failing policy, generator and skill-content tests.
+2. Create `src/domain/routing/phaseModelPolicy.ts`.
+3. Extend `scripts/generate-model-catalog.ts` with the policy region, the findings check and the stale message.
+4. Rewrite the skill sections and add the policy markers by hand, then run `pnpm gen:model-catalog`.
+5. Update `docs/model-catalog.md`, the `defaults.ts` comment and `NEXT_STEPS.md`.
+6. Run the full `standard` profile, including `pnpm gen:model-catalog --check`.
+
+### Excluded scope
+
+- `phax architecture`, the `architecture` config key, the `architecture-request` and `architecture-report` formats, the headless prompt statements of §5.28–§5.30 and the docs page of §11 (plan 2).
+- Any change to the shipped model catalog, to `authoring.plan` or to any built-in default phax applies.
+- Any lint check of the default or of departure reasons, and `phax.planning.json` (the `phase-model-assignment` spec).
+- The phax-spec skill, the decide skills and the spec authoring prompt.
+- The plan-document schema, which phase-01 owns.
+
+### Verification
+
+The `standard` gate profile in `phax.json`, which includes `pnpm gen:model-catalog --check`.
+
+### Expected handoff content
+
+Give the exported names and signatures of `src/domain/routing/phaseModelPolicy.ts`, the exact marker strings, and the stale and finding messages the generator prints. List the skill sections rewritten, with their final headings, and confirm that the architecture paragraph does not mention `phax architecture`, so plan 2 knows where to add it. List the doc and NEXT_STEPS edits made. Explain any deviation from the planned file lists, such as touching `tests/unit/authoringPrompt.test.ts` because it reads the skill text.
+
+### Commit subject
+
+`feat(planning-skill): write phases first, assign last, default to Sonnet 5.5`
+
+### Commit body
+
+The phax-planning skill now has the planner cut and write every phase
+before choosing its model and effort, from what the written phase asks
+for. The default phase assignment is claude-sonnet-5-5 at medium. A
+phase goes stronger (a higher effort, or claude-opus-5-5) when it designs
+something no code shows yet, and lighter (claude-haiku-5-5) when it
+reproduces a pattern a configured gate checks. Every departure states
+its reason in the phase's modelReason, or in a **Model reason:** line.
+
+The policy is one pure constant, PHASE_MODEL_POLICY in
+src/domain/routing/phaseModelPolicy.ts, which phax never applies to a
+phase. gen:model-catalog renders it into a generated block of the skill.
+Its --check, already part of check:full and the standard gate, fails on
+a hand-edited block or on a policy model or effort the catalog does not
+list.
+
+The planning principle stays doctrine with no layer named. The layer
+chain, the test-strategy table and the boundary list become one example
+architecture. The planner reads the repository's own architecture from
+the code and its documentation.
