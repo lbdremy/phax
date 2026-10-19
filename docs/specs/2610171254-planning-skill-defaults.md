@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-17
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-19
+  baseline: d989900
 ---
 # Planning skill defaults — write phases first, assign their model last, and read the repository's own architecture
 

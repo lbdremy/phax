@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610171254-planning-skill-defaults.md",
+  "specFingerprint": "d5f85a706e7bec36d6c780d65019674a83aad6d1946900666daeba4af41ed531",
+  "approvedAt": "2026-10-19T09:51:47.769Z",
+  "baseline": "d98990081aeab79fb6e19d84b7442a8581c5a071",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
