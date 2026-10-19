@@ -1,0 +1,422 @@
+---
+status: Draft
+source-spec: docs/specs/2610191232-auto-migrate.md
+completes-spec: true
+---
+# Auto migrate
+
+After an upgrade, phax runs its own migrations when it is used. This plan implements the approved spec `auto-migrate` (§5.1–§5.24, the §6 surface, every §8 criterion and the docs page of §11). It does not reopen the spec's five settled arbitrations: q-trigger every-command, q-machine-when before, q-machine-where any, q-agent tty and q-concurrency idempotent. Release 0.25.0 waits on this plan, so it adds the smallest design that makes the three existing migrations (`approval-ledgers`, `document-shapes`, `cost-ledgers`) automatic, and it reuses their use cases `migrateApprovals`, `migrateDocuments` and `backfillCostLedgers` unchanged.
+
+The work goes from the core outwards, in three phases, each green on the `standard` gate profile:
+
+1. phase-01 registers the new persisted format `version-record`, following the `cost-ledger` pattern.
+2. phase-02 adds the domain catalogue, the decision logic, the refusal-point classification and the line rendering. It extends the Git and Terminal ports with the two facts they lack, and adds one app use case, `migrateAtCommandStart`, that detects, decides and runs the migrations.
+3. phase-03 wires that use case into the CLI's `preAction` hook and writes `docs/upgrading.md` and the other docs.
+
+Terms used throughout:
+
+- **Migrations on**: stderr is a terminal, the command has no `--json` (and no `--complete`, see q-complete), and the current directory is not inside a phase worktree.
+- **Refusal point**: a command that refuses today with exit 12 while a given repository migration is pending. The spec's §6 lists them.
+
+## Required commands
+
+- `pnpm exec tsx`
+- `pnpm gen:usage-spec`
+- `pnpm docs:cli`
+
+Every command above is already allowed: `pnpm exec tsx`, `pnpm gen:usage-spec` and `pnpm docs:cli` are in `security.agentCommands`, and `pnpm test`/`pnpm test:integration` are gate or allowed commands. The phases need no security configuration change. `pnpm exec tsx scripts/schemas-check.ts --write` regenerates the schema snapshots, stamps and generated index. `pnpm docs:cli` and `pnpm gen:usage-spec` regenerate the CLI reference and the usage spec after a help text changes.
+
+## Technical arbitrations
+
+- Layering: the CLI `preAction` hook calls one function in `src/cli/commands/autoMigrate.ts`. That function loads the config, builds the layers, calls the single app use case `migrateAtCommandStart` (`src/app/autoMigrate.ts`), renders the outcomes with pure domain functions and prints each line through `OutputPort.warn`, which writes to stderr. The decision of what runs, what is skipped and why is pure domain (`src/domain/migrations/`), applied to facts the app detects through ports. Accepted loss: every command loads the config one more time (a small file read).
+- Catalogue split: `src/domain/migrations/catalogue.ts` holds each entry's data: id, scope, the release that introduced it and its explicit command. `src/app/autoMigrate.ts` binds each id to its detection and runner in a `Record` keyed by the domain's id union, so the compiler refuses a catalogue entry without a runner. Accepted loss: an entry spans two files, one for data and one for the binding, held together by the type and the catalogue contract test.
+- One command string, by construction: the two existing refusals (`refuseOldApprovalLedgers` and `DocumentMigrationRequiredError`) take their command from the catalogue entry instead of a literal. A refusal and its catalogue entry therefore cannot drift (§5.3). Accepted loss: `src/domain/errors.ts` and `src/app/approvalRecordStore.ts` now import the catalogue.
+- Refusals stay where they are: the hook never exits and never refuses. At a refusal point where migrating is unsafe or the migration failed, it prints the reason on one stderr line and lets the command run. The command's existing refusal then fires with exit 12, naming the explicit command (§5.10, §5.12). Everywhere else the same outcome is a skip line, and the command keeps its exit (§5.11). Accepted loss: the reason line comes before the refusal, not after it as §6's indicative wording shows.
+- Detecting unsafe states: a new Git port operation `headState(repo)` reports a detached HEAD, or a rebase, merge, cherry-pick or revert in progress. It is read only when a repository migration is pending. Dirty or untracked write paths come from each runner's own existing `ArtifactDirtyWriteSetError`, which is the same check its explicit command makes, so no second write-set computation is needed. Accepted loss: the dirty check runs after the runner's read-only phase A, so a dirty migration costs the reads, as the explicit command already does.
+- Refusal-point classification: `src/domain/migrations/refusalPoints.ts` maps every registered command path to the repository migrations it refuses on (`[]` for most). A unit test holds its keys equal to the paths `buildProgram()` registers, as the phase guard's classification test does. Accepted loss: every new command must be classified, even as `[]`.
+- Version record: `<state root>/version.json`, with format id `version-record`. It is born with `$schema`, and its one field `version` is required. It is an X.Y.Z release, registered in `FORMAT_IDS` after `cost-ledger` with a `next.schema.json` snapshot. A record that cannot be decoded counts as absent. Accepted loss: the record says only that every machine migration of that release completed, not which ones ran.
+- Order and independence: machine migrations run first, then repository migrations in catalogue order. Each repository entry is attempted on its own. When `approval-ledgers` stays pending (for example, because it is unsafe), `document-shapes` fails with `migrateDocuments`' own old-ledger refusal and reports that as its reason. Accepted loss: an unsafe old ledger can produce two stderr lines instead of one.
+- State root for machine migrations: inside a phax project, the config's `stateRoot`. Outside a project, or when `phax.json` does not load, `PHAX_HOME_DIR` (~/.phax). Repository migrations run only when the config loads. Accepted loss: a project with an invalid `phax.json` and a custom `state.root` migrates ~/.phax instead, until its config is fixed.
+- Locked runs: a run the backfill skips because it is locked does not fail the migration. The record is written, and the machine line, when it prints, names the skipped runs and `phax cost backfill`. Accepted loss: a run that was locked at that moment gets its ledger only from the explicit command.
+- Agent sessions and the TTY rule (q-agent's known gap): phase agents of every provider run inside phase worktrees, where migrations are off. The sessions phax spawns in the main checkout (headless authoring, decide, review-code, adjust-plan) are Claude Code sessions. Their Bash tool captures output through pipes, so stderr is not a terminal and migrations are off. Accepted loss: this relies on Claude Code's Bash tool staying without a pseudo-terminal, which no test checks.
+- TTY tests: the Terminal port gains `stderrIsTerminal`. The use-case and hook tests fake it. Subprocess tests pipe stderr, so they cover only the off path. No test depends on the test runner's own terminal. Accepted loss: no test proves that the one-line Node adapter reads `process.stderr.isTTY` under a real pseudo-terminal.
+
+## Open questions
+
+### q-complete — Does `phax ls --complete`, which shell completion runs on a Tab press, run migrations like any other command?
+
+- off — Treat `--complete` as an off condition, like `--json`: no migration and no line — abandons: the letter of §5.6/§5.19: one off condition the spec does not list
+- on — Migrate on `--complete` like any command with stderr a terminal — abandons: side-effect-free completion: a Tab press can commit to the repository and print migration lines into the prompt being typed
+
+Recommendation: off — `--complete` is a machine-readable output mode, as `--json` is, and the spec already keeps those free of migrations. A commit triggered by a Tab press would surprise a person far more than waiting for their next real command. The plan is written to this recommendation. If `on` is chosen, phase-02 drops the `completion` off reason and phase-03 stops passing the flag.
+
+---
+
+## phase-01 — Version record format {#phase-01-version-record}
+
+**Recommended model:** claude-haiku-5-5
+**Recommended effort:** medium
+**Model reason:** This phase reproduces the cost-ledger format registration file for file, and the schemas-package tests, which are typed over FormatId, and schemas-check fail on any missing piece, so the lighter model suffices.
+
+Register the new persisted format `version-record`, the file `<state root>/version.json` that names the last release whose machine migrations completed. It is born with `$schema`, every field is required, it is snapshotted as `next` for 0.25.0, and it is served and parsed like every other format, so the later phases can read and write it through a schema.
+
+### Detailed instructions
+
+- Mirror the `cost-ledger` format end to end: it is the last format registered and also born with `$schema`. Search the repo for `cost-ledger`, `costLedger` and `CostLedger`, and add the `version-record` counterpart beside every hit in the files listed below.
+- Create `src/schemas/versionRecord.ts`, modelled on `src/schemas/costLedger.ts`. It has the in-memory `VersionRecord` = `{ version: string }`, where `version` must be an `X.Y.Z` release (use a `Schema.pattern` with the same triple as `isRelease` in `src/schemas/schemaUrl.ts`). It also has `VersionRecordFileSchema` = the same struct plus `$schema: schemaUrlField("version-record")`, every field required, and unknown keys refused at every level, with the same strictness `CostLedgerFileSchema` uses. Export `VersionRecordSchema`, `VersionRecordFileSchema`, `decodeVersionRecordFile`, the types `VersionRecord` and `VersionRecordFile`, and `VERSION_RECORD_FILE = "version.json"`.
+- In `src/schemas/schemaUrl.ts`, append `"version-record"` to `FORMAT_IDS` after `"cost-ledger"`, and to `SCHEMA_BORN_FORMAT_IDS` after `"cost-ledger"`. Extend both doc comments with one clause: the version record of spec auto-migrate.
+- In `src/schemas/persisted.ts`, add `readVersionRecordFile: Reader<VersionRecord>` next to `readCostLedgerFile`, with format `"version-record"` and `decodeCurrent: decodeVersionRecordFile`.
+- In `packages/schemas/src/formats/runDirectory.ts`, add a version record block after the cost ledger one: `VersionRecordShapes`, `VersionRecordShape`, `versionRecordFormat = defineFormat(...)` with `preSchema: null`, `releases: []` and `current.name: CURRENT_SHAPES["version-record"]`, then `parseVersionRecord`, `LatestVersionRecord` and `toLatestVersionRecord`, which drops `$schema`.
+- In `packages/schemas/src/index.ts`, export them as `cost-ledger`'s are: the format, the parse and toLatest functions, the shape types, `VersionRecordFileSchema as VersionRecordSchema` and `VersionRecordFile as VersionRecord`. Add the entries to the per-format type map and the format map.
+- In `packages/schemas/build/jsonSchemas.ts`, add `"version-record": versionRecordFormat` to the format map and `"version-record": "error"` to the excess-property map, as `cost-ledger` has.
+- Run `pnpm exec tsx scripts/schemas-check.ts --write`. It creates `packages/schemas/snapshots/version-record/next.schema.json` and regenerates `src/schemas/release.ts`, adding `"version-record": "0.25.0"` to `CURRENT_STAMPS`, and `packages/schemas/src/generated/index.ts`. Never hand-edit these generated files. Then run `pnpm exec tsx scripts/schemas-check.ts` and confirm it reports nothing.
+- Add the format to every per-format test map and fixture, beside `cost-ledger`: `tests/unit/schemaUrl.test.ts` (both id lists); `tests/unit/schemasPackage/documents.ts` (a made-up record `{ version: "0.25.0" }` encoded with `withSchemaUrl("version-record", ...)`); and `documents.test.ts`, `parity.test.ts`, `jsonSchemas.test.ts`, `exports.test.ts` (the new export names) and `currentShapes.test.ts` (parse/toLatest and `readVersionRecordFile`). Also add `tests/type/schemasPackage.ts`, mirroring the cost ledger's type assertions block, and `tests/unit/architecturalGuards.test.ts`: list `src/schemas/versionRecord.ts` with the schema modules and map `"version-record": ["decodeVersionRecordFile"]`.
+- Add a row to the README's persisted formats table, beside the cost ledger's: label `Version record`, id `version-record`, path `<state root>/version.json`, parse function `parseVersionRecord`, JSON schema `json/version-record.schema.json`. Use the columns as the other rows do.
+- Write `tests/unit/schemas/versionRecord.test.ts` before the module: a valid file decodes. It refuses a record missing `version`, a record missing `$schema`, a record with an extra key, a `version` that is not `X.Y.Z` (`"0.25"`, `"v0.25.0"`), and a `$schema` naming another format (`cost-ledger`).
+- Do not write the record anywhere and do not add a reader of `<state root>/version.json` in `app/`: phase-02 does that.
+
+### Planned files to create
+
+- `src/schemas/versionRecord.ts`
+- `packages/schemas/snapshots/version-record/next.schema.json`
+- `tests/unit/schemas/versionRecord.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/schemaUrl.ts`
+- `src/schemas/persisted.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/src/formats/runDirectory.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/build/jsonSchemas.ts`
+- `tests/unit/schemaUrl.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/type/schemasPackage.ts`
+- `README.md`
+
+### Optional files that may be edited
+
+- `packages/schemas/history.lock.json`
+- `packages/schemas/README.md`
+- `tests/integration/persistedProducer.test.ts`
+
+### Boundary contracts
+
+Producer: `src/schemas/versionRecord.ts` and `readVersionRecordFile` in `src/schemas/persisted.ts`. Consumer: phase-02's app use case, which decodes `<state root>/version.json` through `readVersionRecordFile` (a decode failure means absent) and writes `JSON.stringify(withSchemaUrl("version-record", { version }), null, 2)`. Stable shape: `{ $schema, version }`, both required, no other key. External consumers read it through `@lbdremy/phax-schemas` (`parseVersionRecord`).
+
+### Test strategy
+
+Write the unit test `tests/unit/schemas/versionRecord.test.ts` first: it pins the shape, the required fields and the refusals. The existing schemas-package suites (parity, documents, jsonSchemas, exports, currentShapes, snapshot checks) and `tests/type/schemasPackage.ts` must cover the new format through their per-format maps, which are typed over `FormatId`, so a missing entry fails typecheck or the test. `scripts/schemas-check.ts` (inside `pnpm test`) checks the snapshot and the stamps.
+
+### Implementation order
+
+1. Write `tests/unit/schemas/versionRecord.test.ts`.
+2. Create `src/schemas/versionRecord.ts` and register the id in `src/schemas/schemaUrl.ts`.
+3. Add `readVersionRecordFile` to `src/schemas/persisted.ts`.
+4. Add the package format, its exports and the jsonSchemas entries.
+5. Run `pnpm exec tsx scripts/schemas-check.ts --write`, then the check without `--write`.
+6. Fill every per-format test map, fixture and type test; add the README row.
+
+### Excluded scope
+
+- Reading or writing `<state root>/version.json` from `app/` (phase-02).
+- The migration catalogue, decisions and ports (phase-02).
+- Any CLI change (phase-03).
+- Cutting a release or renaming the `next` snapshot.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exact exports of `src/schemas/versionRecord.ts`, among them `VERSION_RECORD_FILE`, and the signature of `readVersionRecordFile` in `src/schemas/persisted.ts`.
+- Confirmation that `CURRENT_STAMPS["version-record"]` is `"0.25.0"` and that `packages/schemas/snapshots/version-record/next.schema.json` exists.
+- Any per-format map or fixture that had to be touched beyond the planned list, and any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(schemas): add the version-record format`
+
+### Commit body
+
+Register version-record, the file <state root>/version.json that names the
+last release whose machine migrations completed. It is born with $schema,
+its one field version (an X.Y.Z release) is required, and unknown keys are
+refused. It is appended to FORMAT_IDS after cost-ledger, snapshotted as next
+for 0.25.0, exported from @lbdremy/phax-schemas as parseVersionRecord, and
+read through readVersionRecordFile.
+
+Nothing writes it yet: the automatic migrations of spec auto-migrate do.
+
+---
+
+## phase-02 — Migration catalogue, decisions and the start-of-command use case {#phase-02-migrations-core}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Model reason:** This phase designs a new decision flow that composes three existing migrations, with re-detection on failure and a refusal-point split, across domain, ports, infra and app, and no code in the repository shows that pattern yet, so it takes a higher effort.
+
+Declare every migration once, decide purely what applies, and run it exactly as its explicit command does. phase-02 adds the domain catalogue (§5.1, §5.2), the refusal-point classification and the decision and rendering logic. It extends the Git port with `headState` and the Terminal port with `stderrIsTerminal`. It adds the app use case `migrateAtCommandStart`, which runs the machine migrations behind the version record and the repository migrations in catalogue order, returning one outcome per migration that did something, and never failing.
+
+### Detailed instructions
+
+- Create `src/domain/migrations/catalogue.ts`. It has `RepositoryMigrationId = "approval-ledgers" | "document-shapes"`, `MachineMigrationId = "cost-ledgers"` and `MigrationId` as their union. It has per-variant entries `RepositoryMigrationEntry { scope: "repository"; id: RepositoryMigrationId; since: string; command: string }` and `MachineMigrationEntry { scope: "machine"; id: MachineMigrationId; since; command }`. It also has `MIGRATION_CATALOGUE`, in this order: `approval-ledgers` (repository, `0.19.0`, `phax artifact migrate-approvals`), `document-shapes` (repository, `0.25.0`, `phax artifact migrate-documents`) and `cost-ledgers` (machine, `0.25.0`, `phax cost backfill`). Add `migrationEntry(id)` and `commandPathOf(entry)`, which drops the leading `phax `, so `artifact migrate-documents` matches commander's command path.
+- Use the catalogue as the single source of the command string. In `src/app/approvalRecordStore.ts`, build the `refuseOldApprovalLedgers` message from `migrationEntry("approval-ledgers").command`. Extract the ledger-presence check into an exported `presentOldApprovalLedger(): Effect<string | null, FsError, FileSystem>`, which returns the first old ledger path present, plan first. `refuseOldApprovalLedgers` and the detection both use it. In `src/domain/errors.ts`, build `DocumentMigrationRequiredError`'s remedy from `migrationEntry("document-shapes").command`. The wording of both messages stays byte-identical.
+- Create `src/domain/migrations/refusalPoints.ts` with `MIGRATION_REFUSAL_POINTS: Readonly<Record<string, readonly RepositoryMigrationId[]>>`, keyed by every command path registered in `src/cli/program.ts`, exactly the keys of `PHASE_GUARD_CLASSIFICATION` in `src/domain/security/phaseGuard.ts`. The refusal points: `artifact status`, `artifact abandon`, `artifact complete`, `artifact stale`, `plans status`, `artifact migrate-documents` and `run` are `["approval-ledgers"]`; `artifact approve` and `artifact reopen` are `["approval-ledgers", "document-shapes"]`; `artifact decide` is `["document-shapes"]`. Every other path is `[]`. Add `isRefusalPoint(commandPath, id)`, which returns false for an unknown path.
+- Create `src/domain/migrations/decide.ts` with pure functions and explicit per-variant unions. (1) `HeadState = { kind: "branch" } | { kind: "detached" } | { kind: "operation"; operation: "rebase" | "merge" | "cherry-pick" | "revert" }`. (2) `migrationsSwitch({ stderrIsTerminal, json, completion, inPhaseWorktree })` returns `{ kind: "on" }` or `{ kind: "off"; reason: "stderr-not-terminal" | "json" | "completion" | "phase-worktree" }`. The `completion` reason is `ls --complete`, per q-complete's recommendation. (3) `machineMigrationsDue(recorded: string | null, running: string)` returns `"due" | "current" | "newer"`, comparing with `compareReleases` from `src/schemas/schemaUrl.ts`; if importing it from domain breaks the layer audit, move the comparison into a small domain helper. (4) `repositoryAction({ entry, commandPath, pending, head })` returns `{ kind: "none" }` when not pending or when `commandPath === commandPathOf(entry)` (§5.20), `{ kind: "unsafe"; reason }` when HEAD is detached or an operation is in progress, else `{ kind: "run" }`. (5) `UnsafeReason = { kind: "dirty-write-path"; paths: readonly string[] } | { kind: "detached-head" } | { kind: "operation-in-progress"; operation }`. (6) `RepositoryOutcome = { entry; atRefusalPoint: boolean; result: { kind: "migrated"; commit: { hash; subject }; summary: string } | { kind: "unsafe"; reason: UnsafeReason } | { kind: "failed"; reason: string } }`. (7) `MachineOutcome = { kind: "not-due" } | { kind: "ran"; previous: string | null; running: string; written: number; locked: readonly string[] } | { kind: "failed"; previous: string | null; running: string; id: MachineMigrationId; reason: string }`.
+- Create `src/domain/migrations/render.ts` with pure line renderers. The wording is indicative (spec §6); keep the facts. In the templates below, <command> stands for the entry's explicit command, wrapped in backticks in the printed line. `renderRepositoryOutcome(o)`: when migrated, `phax: migrated <summary> — committed <7-char hash> "<subject>"`. When unsafe or failed at a refusal point, `phax: not migrated automatically: <reason>`; the command's own refusal follows it and names the command. When unsafe elsewhere, `phax: not migrated (<reason>) — run <command> when it is clean`. When failed elsewhere, `phax: not migrated (<reason>) — run <command>`. Reasons read: `<path> has uncommitted changes` (listing up to three paths), `HEAD is detached`, `a rebase is in progress` (merge/cherry-pick/revert likewise), or the migration's own message. `renderMachineOutcome(o)` returns `string | null`: null for `not-due` and for `ran` with `written === 0`. Otherwise `phax <previous> → <running>: wrote <n> cost ledger(s)`, or `phax → <running>: ...` when previous is null, followed by `; skipped <k> locked run(s) — run phax cost backfill later` (the command in backticks) when some were locked. On failure: `phax <previous> → <running>: <id> not run (<reason>) — will retry on the next command`.
+- Extend `src/ports/terminal.ts` with `readonly stderrIsTerminal: Effect.Effect<boolean>`. Implement it in `src/infra/terminal.ts` as `Effect.sync(() => Boolean(process.stderr.isTTY))`. In `src/infra/fakes/terminal.ts`, take the stderr fact as a second constructor or factory argument, defaulting to false: `makeFakeTerminal(stdinIsTerminal, stderrIsTerminal = false)`. Mirror the stdin assertion for stderr in `tests/type/terminal.ts`.
+- Extend `src/ports/git.ts` with `headState(repo: string): Effect.Effect<HeadState, GitError>`, importing `HeadState` from `src/domain/migrations/decide.ts`. In `src/infra/git.ts`, check the operations first, through `git rev-parse --git-path <name>` and existence: `rebase-merge` or `rebase-apply` means rebase, `MERGE_HEAD` merge, `CHERRY_PICK_HEAD` cherry-pick, `REVERT_HEAD` revert. Then `git symbolic-ref -q HEAD`: a non-zero exit with empty stderr means detached. Otherwise return branch. In `src/infra/fakes/git.ts`, add `headState`, which records the call and returns a settable value (`setHeadState`), defaulting to `{ kind: "branch" }`.
+- Create `src/app/autoMigrate.ts` with `migrateAtCommandStart(input)`. Its input is `{ commandPath, json, completion, inPhaseWorktree, runningRelease, stateRoot, project: { repoRoot, extractPlanModel, extractPlanEffort, nowIso } | null }`. It returns `Effect<AutoMigrationReport, never, FileSystem | Git | Lock | Terminal>`, where `AutoMigrationReport = { kind: "off"; reason } | { kind: "on"; machine: MachineOutcome; repository: readonly RepositoryOutcome[] }`. It must not require Prompt or any input-reading service (§5.22).
+- Step 1 of the use case: read `stderrIsTerminal` from Terminal and compute `migrationsSwitch`. When off, return at once, with no read and no write (§5.6, §5.19).
+- Step 2, machine: when `commandPath` is the command path of every machine entry due (today, `cost backfill`), skip them and leave the record alone (§5.20). Otherwise, read `<stateRoot>/version.json` through `readVersionRecordFile`. Absent, unparsable JSON or undecodable all mean `recorded = null` (§5.21). Apply `machineMigrationsDue`. When due, run `backfillCostLedgers({ stateRoot })`. On success, `fs.mkdirp(stateRoot)` and write the record atomically with `withSchemaUrl("version-record", { version: runningRelease })` (§5.15). On any failure, return the `failed` outcome with the error's message and leave the record unchanged (§5.17). `newer` writes nothing (§5.18).
+- Step 3, repository, only when `project` is not null, in catalogue order. Bind each repository id in a `Record<RepositoryMigrationId, { detect, run }>`. The `approval-ledgers` detect is `presentOldApprovalLedger() !== null`, and its run is `migrateApprovals({ repoRoot })`. The `document-shapes` detect is `scanLiveSidecars()` with `unmigrated.length > 0`, and its run is `migrateDocuments({ repoRoot, stateRoot, extractPlanModel, extractPlanEffort, nowIso })`. For each entry: detect; if pending, read `git.headState(repoRoot)` once (cache it for the call) and apply `repositoryAction`.
+- Step 3, mapping the results: `none` produces no outcome. `unsafe` is reported. `run` calls the runner, and its result maps as follows. `migrated` gives a migrated outcome with the use case's own commit and a summary: `approval ledgers to record files` for approvals, `<n> document(s) to their current shapes` for documents, where n is the number of migrated artifacts in the result's groups, followed by `, <k> plan(s) left stale` when `stalePlans` is not empty. `nothing-to-migrate` gives no outcome. `ArtifactDirtyWriteSetError` gives `unsafe` with `dirty-write-path` and the error's paths. Any other error, typed or a FsError/GitError, triggers a fresh detection: still pending gives `failed` with the error's message (§5.12); no longer pending gives no outcome (§5.13). `atRefusalPoint` comes from `isRefusalPoint(commandPath, id)`.
+- Catch every unexpected failure inside the use case (`Effect.catchAll` per step) so the error channel stays `never`. A detection that itself fails becomes a `failed` outcome for that entry. Nothing here ever changes a command's exit code.
+- Do not touch the CLI in this phase: no hook, no program.ts change. Phase-03 wires it.
+
+### Planned files to create
+
+- `src/domain/migrations/catalogue.ts`
+- `src/domain/migrations/refusalPoints.ts`
+- `src/domain/migrations/decide.ts`
+- `src/domain/migrations/render.ts`
+- `src/app/autoMigrate.ts`
+- `tests/unit/migrations/catalogue.test.ts`
+- `tests/unit/migrations/refusalPoints.test.ts`
+- `tests/unit/migrations/decide.test.ts`
+- `tests/unit/migrations/render.test.ts`
+- `tests/integration/gitHeadState.test.ts`
+- `tests/integration/autoMigrate.test.ts`
+
+### Planned files to edit
+
+- `src/domain/errors.ts`
+- `src/app/approvalRecordStore.ts`
+- `src/ports/git.ts`
+- `src/infra/git.ts`
+- `src/infra/fakes/git.ts`
+- `src/ports/terminal.ts`
+- `src/infra/terminal.ts`
+- `src/infra/fakes/terminal.ts`
+- `tests/type/terminal.ts`
+
+### Optional files that may be edited
+
+- `src/infra/fakes/index.ts`
+- `src/infra/fakes/fs.ts`
+- `tests/helpers/migrationFixtures.ts`
+- `tests/integration/migrateApprovals.test.ts`
+- `tests/integration/migrateDocuments.test.ts`
+
+### Boundary contracts
+
+- **Domain → ports:** `HeadState` is defined in `src/domain/migrations/decide.ts`; the Git port's `headState(repo)` returns it, and the Node and fake adapters produce it.
+- **Terminal port:** `stderrIsTerminal: Effect<boolean>`, which never fails and needs nothing.
+- **App → CLI (consumed in phase-03):** `migrateAtCommandStart(input)` from `src/app/autoMigrate.ts`, with `R = FileSystem | Git | Lock | Terminal`, `E = never`, returning `AutoMigrationReport`. phase-03 renders every outcome through `renderMachineOutcome` and `renderRepositoryOutcome` from `src/domain/migrations/render.ts`.
+- **Catalogue → refusals:** `migrationEntry(id).command` is the only source of the explicit command string in both refusals and in every line.
+
+### Test strategy
+
+Write these before the implementation:
+
+- **Domain unit tests** (`tests/unit/migrations/`):
+  - `catalogue.test.ts` is the §8 catalogue contract. It checks the three entries in order with their scopes, releases and commands, and that every `commandPathOf(entry)` is a path `buildProgram()` registers (walk the commands as `tests/unit/security/phaseGuard.test.ts` does). It checks that the old-ledger refusal from `refuseOldApprovalLedgers` (run on a fake FileSystem holding a ledger) and `new DocumentMigrationRequiredError(...).message` each contain their entry's command verbatim. A table case with an unregistered command fails the registration check.
+  - `refusalPoints.test.ts` checks that the keys equal the registered paths and that the §6 list maps exactly.
+  - `decide.test.ts` covers every branch of `migrationsSwitch`, `machineMigrationsDue` (absent, older, equal, newer) and `repositoryAction` (not pending, own command, detached, each operation, run).
+  - `render.test.ts` covers each line variant, and the null cases.
+- **Adapter integration test** (`tests/integration/gitHeadState.test.ts`), on temporary real git repositories: on a branch, detached (`git checkout --detach`), mid-merge with a conflict, mid-rebase with a conflict, and cherry-pick and revert with a conflict.
+- **Use-case integration test** (`tests/integration/autoMigrate.test.ts`): real Node FileSystem (rooted at the temp repo) and Git, a temp state root, the fake Terminal (stderr true unless stated) and the Node lock layer on the temp state root. Reuse the made-up fixture builders of `tests/integration/migrateApprovals.test.ts`, `migrateDocuments.test.ts` and `costBackfill.test.ts`. Never read ~/.phax. Cases, one per §8 criterion it can reach at this layer:
+  - commandPath `artifact approve` with one committed 0.20.0 plan sidecar: one commit with the documents subject, holding exactly the paths `migrateDocuments` writes in a copy of the same project, and then `transitionArtifact` approves.
+  - An old ledger plus an unstamped sidecar: two commits, ledgers first.
+  - `artifact status` with a ledger: the ledger is gone, the record files exist, and `inspectArtifact` succeeds.
+  - A dirty sidecar at `artifact approve`: an unsafe outcome at a refusal point, no commit, and `transitionArtifact` then fails with `DocumentMigrationRequiredError`.
+  - Detached HEAD, then a rebase in progress, at `artifact status`: an unsafe outcome each, and no commit.
+  - inPhaseWorktree true, and stderr false: off, no commit, no file written.
+  - `run` with a dirty sidecar: a non-refusal-point unsafe outcome.
+  - A body that is not its sidecar's rendering: failed with `migrateDocuments`' refusal message, with the working tree and git log unchanged.
+  - Fake Git whose `commitPaths` fails, on a fake FileSystem: the re-detection finds nothing pending, so there is no outcome.
+  - Record 0.24.0 with a run lacking a ledger: `ran`, written 1, the ledger exists and the record names 0.25.0. A second call is `not-due` and writes nothing.
+  - No record and no run lacking a ledger: `ran`, written 0, and the record is written.
+  - A corrupt registry with record 0.24.0: `failed`, with the record byte-identical.
+  - Record 0.26.0: `not-due`, no ledger, the record byte-identical.
+  - Off conditions: no ledger and no record written.
+  - commandPath `cost backfill`: machine `not-due` and the record untouched.
+  - A record missing `version` counts as absent and is rewritten.
+  - json true: off.
+
+### Implementation order
+
+1. Write the domain unit tests, then `catalogue.ts`, `refusalPoints.ts`, `decide.ts` and `render.ts`.
+2. Point both refusals at the catalogue, and extract `presentOldApprovalLedger`.
+3. Extend the Terminal port, the adapter, the fake and the type test.
+4. Extend the Git port with `headState`, the Node adapter and the fake; write `gitHeadState.test.ts`.
+5. Write `tests/integration/autoMigrate.test.ts`, then `src/app/autoMigrate.ts`.
+
+### Excluded scope
+
+- The CLI `preAction` wiring, any stderr printing, and `src/cli/` changes (phase-03).
+- `docs/upgrading.md`, the README, cliDocs and NEXT_STEPS (phase-03).
+- Any change to what `migrateApprovals`, `migrateDocuments` or `backfillCostLedgers` detect, write, refuse or commit (§5.4).
+- A lock for machine migrations (q-concurrency: idempotent).
+- Changing the phase guard's classification.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exact signature of `migrateAtCommandStart` and of `AutoMigrationReport`, `MachineOutcome` and `RepositoryOutcome`.
+- The renderer names and the exact wording they produce.
+- The `MIGRATION_REFUSAL_POINTS` and `isRefusalPoint` exports.
+- The new `makeFakeTerminal` signature.
+- The Git port's `headState` and the fake's `setHeadState`.
+- Which §8 criteria the use-case test covers, and which are left to phase-03's hook and subprocess tests.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(migrations): decide and run pending migrations at command start`
+
+### Commit body
+
+Add the migration catalogue (approval-ledgers, document-shapes, cost-ledgers)
+as domain data, the refusal-point classification of every registered
+command, and pure decisions and line renderers: whether migrations are on,
+whether the machine migrations are due against the version record, and per
+repository migration whether to run it or why it is unsafe.
+
+migrateAtCommandStart runs the machine migrations behind <state root>/version.json,
+then the repository migrations in catalogue order, through the explicit
+commands' own use cases, so each detects, writes, refuses and commits
+exactly as its command does. A failure re-detects before it is reported, and
+nothing it does can fail the command.
+
+The Git port gains headState (detached HEAD, rebase/merge/cherry-pick/revert
+in progress) and the Terminal port gains stderrIsTerminal. Both existing
+refusals now take their command from the catalogue.
+
+---
+
+## phase-03 — Run migrations before every command, and document it {#phase-03-cli-hook-and-docs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Make the migrations automatic for a person at a terminal: every phax subcommand runs `migrateAtCommandStart` in the CLI `preAction` hook before its own work and prints at most one stderr line per migration, leaving stdout and exit codes untouched. Write the upgrading page and point the README, the plan-estimate guide and the three explicit commands' help at it.
+
+### Detailed instructions
+
+- Create `src/cli/commands/autoMigrate.ts` with `runAutoMigrate(input)`. Its input is `{ commandPath: string; options: Readonly<Record<string, unknown>>; inPhaseWorktree: boolean; cwd: string; out: OutputPort; terminalLayer: Layer.Layer<Terminal> }`, and it returns `Promise<void>`. It calls `loadConfig(cwd)`. When the config loads, `project` is `{ repoRoot, extractPlanModel, extractPlanEffort, nowIso: new Date().toISOString() }` and `stateRoot` is `config.stateRoot`. Otherwise `project` is null and `stateRoot` is `PHAX_HOME_DIR` (from `src/app/loadTelemetryConfig.ts`). `json` is `options.json === true`, `completion` is `options.complete === true` (q-complete) and `runningRelease` is `PHAX_RELEASE` (from `src/schemas/release.ts`).
+- In the same file, provide the layers: the repo-rooted FileSystem layer (`makeRepoRootedFileSystemLayer`) when there is a project. Otherwise, a new helper in `src/cli/commands/runLayers.ts` that encapsulates the identity filesystem for state-root-only work, as `makeGlobalTelemetryJournalLayerOrNoop` does, because the architecture guard forbids a command from reaching for `NodeFileSystemLayer` directly. Add `NodeGitLayer`, `makeNodeLockLayer(stateRoot)` and `input.terminalLayer`.
+- Still in `runAutoMigrate`: run the use case, then print `renderMachineOutcome` (when not null) and then each `renderRepositoryOutcome`, in order, through `out.warn`, which writes to stderr. Never print to stdout and never call `process.exit`. Wrap the whole call in a try/catch: an unexpected defect prints one line, `phax: automatic migrations not run (<message>)`, and returns. The command always proceeds.
+- In `src/cli/program.ts` `preAction`: compute `isInPhaseWorktree(process.cwd())` once, and reuse it for the existing phase-guard block. After the guard, `await runAutoMigrate({ commandPath: commandPath(actionCommand), options: actionCommand.opts(), inPhaseWorktree, cwd: process.cwd(), out: consoleOutput, terminalLayer: NodeTerminalLayer })`. The `--usage` branch stays first. Leave `PHASE_GUARD_CLASSIFICATION` unchanged.
+- Write `tests/integration/migrationHook.test.ts`. It calls `runAutoMigrate` in-process with `makeFakeTerminal(false, true)` and a capturing OutputPort, on made-up temp repos whose `phax.json` sets `state.root` to a temp directory. Set `HOME` to a temp directory for the test, so the global overlay is never read from the real ~/.phax. Cases: (a) The §8 "phax ls on a terminal migrates and commits" case: commandPath `ls`, a committed `docs/plans/approvals.json`, one committed live plan sidecar stamped 0.20.0, a state-root record naming 0.24.0 and a registered run lacking a cost ledger. It produces two commits (approvals subject, then documents subject), the cost ledger written, the record naming 0.25.0, and three stderr lines (machine first). Then `runLs` on the migrated project prints the same stdout and exit as on a copy migrated by hand. (b) `ls` with `{ json: true }`: no commit, no ledger, no record, no line. (c) `ls` with `{ complete: true }`: the same. (d) A dirty 0.20.0 sidecar at `ls`: one line naming `phax artifact migrate-documents` and the dirty path, and no commit. (e) The same at `artifact approve`: one refusal-point line; then `runArtifactTransition` (or the `transitionArtifact` use case) exits 12, naming `phax artifact migrate-documents`. (f) A failed migration (a body not its sidecar's rendering) at `plans lint`: one line naming `phax artifact migrate-documents` and the refusal, with the tree and log unchanged, and lint's own exit. (g) `run` with a 0.20.0 sidecar: the migration commit is on the current branch before the run starts. If the existing run integration harness with a fake provider is easy to reuse, assert that the run branch contains it. (h) Stdin closed, at `artifact approve --by operator`: completes without reading input.
+- Write `tests/integration/autoMigrateCli.test.ts` with the off paths end to end. Spawn the CLI as `tests/integration/phaseGuard.test.ts` does (`spawnSync("tsx", [main.ts, ...])`), with stderr piped (not a terminal) and `HOME` set to a temp directory. Cases: `phax ls` in a project with an old ledger and a 0.20.0 sidecar makes no commit, writes no ledger or record, prints no migration line and exits 0. `phax artifact status <plan>` with an old ledger exits 12 naming `phax artifact migrate-approvals`, and makes no commit. In a phase worktree (a linked worktree with `.phax-context/`), `phax artifact status` exits 12 naming `phax artifact migrate-approvals`, with no commit. `phax artifact status --json` stdout is one JSON document.
+- Write `docs/upgrading.md` (§11, §5.24), starting from the spec's §11 example. It says that you do not run migration commands. It describes the machine line and the repository line. It names the off conditions: stderr not a terminal (a script, CI or an agent), `--json` or shell completion, and a phase worktree. Its "When phax does not migrate" section covers the unsafe states, the refusal points that still refuse, and the skip line elsewhere. Its "Migrations by release" table has columns Release | Migration | Scope | Run by hand, one row per catalogue entry, newest release first.
+- Write `tests/unit/migrations/upgradingPage.test.ts`: it parses the table in `docs/upgrading.md` and checks that every `MIGRATION_CATALOGUE` entry has a row with its release, id, scope and command in backticks. A catalogue entry missing from the page fails.
+- Add the page to the docs site: a `files` entry in `site/pages.ts` (route `/guide/upgrading`, title `Upgrading phax`, source `docs/upgrading.md`, a one-sentence description), and `"docs/upgrading.md"` in `SOURCE_FILES` in `site/build/sources.ts`. Run the site's unit tests if a page map test covers them.
+- Update the README. Link the upgrading page from the "Check and upgrade" block. In the Artifacts passage on `phax artifact migrate-documents`, the Cost block on `phax cost backfill`, and the Troubleshooting entry on approval records (the old ledger refusal), say that phax runs these by itself on the first command at a terminal after an upgrade. Each still names its command: for scripts, CI and agents, and for when phax says it did not migrate. Update `docs/plan-estimate.md` in the same way, where it tells the reader to run `phax cost backfill` first and in the `thin-history` row.
+- In `src/cli/cliDocs.ts`, add one sentence to the long help of `artifact migrate-approvals`, `artifact migrate-documents` and `cost backfill`: phax runs it by itself on a terminal after an upgrade (see docs/upgrading.md); run it by hand in scripts, in CI, or when phax says it did not migrate. Keep the one-line `.description`s unless they need it. Then run `pnpm docs:cli` and `pnpm gen:usage-spec`, and commit what they regenerate.
+- In `NEXT_STEPS.md`, tick the `auto-migrate` item (`- [x]`). Leave the release items as they are.
+
+### Planned files to create
+
+- `src/cli/commands/autoMigrate.ts`
+- `tests/integration/migrationHook.test.ts`
+- `tests/integration/autoMigrateCli.test.ts`
+- `docs/upgrading.md`
+- `tests/unit/migrations/upgradingPage.test.ts`
+
+### Planned files to edit
+
+- `src/cli/program.ts`
+- `src/cli/commands/runLayers.ts`
+- `src/cli/cliDocs.ts`
+- `site/pages.ts`
+- `site/build/sources.ts`
+- `README.md`
+- `docs/plan-estimate.md`
+- `docs/cli/reference.md`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `phax.usage.kdl`
+- `src/cli/commands/artifact.ts`
+- `src/cli/commands/cost.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/helpers/migrationFixtures.ts`
+
+### Boundary contracts
+
+- **CLI → app:** the hook calls exactly one use case, `migrateAtCommandStart` from `src/app/autoMigrate.ts`, and renders its report only through `renderMachineOutcome`/`renderRepositoryOutcome` from `src/domain/migrations/render.ts`. It holds no decision of its own.
+- **CLI → ports:** the Terminal fact comes through the injected `terminalLayer` (`NodeTerminalLayer` in production, `makeFakeTerminal` in tests); `process` is touched only in `src/cli/`.
+- **Docs → catalogue:** `docs/upgrading.md`'s table is held to `MIGRATION_CATALOGUE` by `tests/unit/migrations/upgradingPage.test.ts`.
+
+### Test strategy
+
+Write the tests below before wiring the hook.
+
+- **Hook integration test** (`tests/integration/migrationHook.test.ts`): `runAutoMigrate` with a faked stderr terminal on made-up temp repos and temp state roots, covering the §8 command-level criteria the phase-02 use-case test does not.
+- **Subprocess test** (`tests/integration/autoMigrateCli.test.ts`) for the off path end to end, stderr piped: the non-terminal refusal, the phase-worktree refusal, `--json` stdout, and no writes.
+- **Docs unit test** (`tests/unit/migrations/upgradingPage.test.ts`) for §5.24.
+
+No test depends on the runner's own terminal, and none reads ~/.phax: `HOME` and `state.root` both point at temp directories. Run `pnpm test:integration` locally on the new files while iterating.
+
+### Implementation order
+
+1. Write `tests/integration/migrationHook.test.ts` and `src/cli/commands/autoMigrate.ts`, with the `runLayers.ts` helper.
+2. Wire `src/cli/program.ts`, and write `tests/integration/autoMigrateCli.test.ts`.
+3. Write `docs/upgrading.md` and its unit test; add it to the site.
+4. Update the README, `docs/plan-estimate.md` and cliDocs; regenerate the CLI reference and the usage spec.
+5. Tick NEXT_STEPS.
+
+### Excluded scope
+
+- Any change to the catalogue, the decisions, the ports or the use case beyond a bug fix the hook tests reveal (phase-02 owns them; record any fix in the handoff).
+- A new command, a switch to turn migrations off, hint lines or a new environment variable.
+- Changing `PHASE_GUARD_CLASSIFICATION` or the explicit commands' behaviour.
+- Cutting 0.25.0 or editing `docs/release.md`.
+
+### Verification
+
+The `standard` gate profile in `phax.json`. This is the last phase, so its terminal steps run too: build, site:build and the Deno smoke tests.
+
+### Expected handoff content
+
+- Where the hook sits in `preAction`, and its exact call.
+- The `runLayers.ts` helper added for the no-project case.
+- The route of the upgrading page.
+- Which §8 criteria each new test covers, and any criterion covered only at the use-case layer in phase-02.
+- Whether `pnpm gen:usage-spec` changed `phax.usage.kdl`.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(cli): run pending migrations before every command on a terminal`
+
+### Commit body
+
+Every subcommand now runs migrateAtCommandStart in the preAction hook, after
+the phase guard. With stderr a terminal, no --json or --complete, and outside
+a phase worktree, phax runs the machine migrations once per upgrade and the
+pending repository migrations in catalogue order, each committed on its
+own, and prints one stderr line per migration. Where migrating is unsafe or
+fails, a refusal point still refuses as today with exit 12, and any other
+command skips with one line, keeping its stdout and exit code.
+
+docs/upgrading.md lists every migration by release with its scope and
+explicit command, held to the catalogue by a test, and is linked from the
+site and the README. The README, the plan-estimate guide and the help of
+migrate-approvals, migrate-documents and cost backfill say that phax runs
+them by itself.
