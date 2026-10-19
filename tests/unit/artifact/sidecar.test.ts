@@ -104,11 +104,13 @@ scope: functional behavior and consumption surface
 `;
 
 // SPEC_DOCUMENT and PLAN_DOCUMENT are the shapes 0.16.0 wrote, before
-// questions were arbitrated; the current shape adds the question arrays.
+// questions were arbitrated; the current shape adds the question arrays and,
+// on each plan phase, a `modelReason`.
 const CURRENT_SPEC_DOCUMENT = { ...SPEC_DOCUMENT, arbitratedQuestions: [] };
 const CURRENT_PLAN_DOCUMENT = {
   ...PLAN_DOCUMENT,
   preamble: { ...PLAN_DOCUMENT.preamble, openQuestions: [], arbitratedQuestions: [] },
+  phases: PLAN_DOCUMENT.phases.map((phase) => ({ ...phase, modelReason: null })),
 };
 
 function specBody(): string {

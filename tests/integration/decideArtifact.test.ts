@@ -232,8 +232,6 @@ function planPhase(id: string): PlanDocument["phases"][number] {
   return {
     id,
     title: `Step ${id}`,
-    model: "claude-sonnet-5-5",
-    effort: "medium",
     planMarkdownAnchor: `#${id}-step`,
     plannedFilesToCreate: [],
     plannedFilesToEdit: [`src/${id}.ts`],
@@ -247,6 +245,9 @@ function planPhase(id: string): PlanDocument["phases"][number] {
     excludedScope: [],
     verification: "The `standard` gate profile.",
     expectedHandoff: "Nothing.",
+    modelReason: null,
+    model: "claude-sonnet-5-5",
+    effort: "medium",
   };
 }
 

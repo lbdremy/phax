@@ -93,11 +93,15 @@ function left<A>(result: Either.Either<A, PersistedReadError>): PersistedReadErr
   return result.left;
 }
 
-/** A plan document whose preamble gains the empty question arrays an older shape lifts to. */
+/**
+ * A plan document with what an older shape lifts to: the preamble's empty
+ * question arrays, and a null `modelReason` on every phase.
+ */
 function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
   return {
     ...doc,
     preamble: { ...(doc["preamble"] as object), openQuestions: [], arbitratedQuestions: [] },
+    phases: (doc["phases"] as object[]).map((phase) => ({ ...phase, modelReason: null })),
   };
 }
 

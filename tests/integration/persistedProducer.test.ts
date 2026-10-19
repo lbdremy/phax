@@ -199,6 +199,7 @@ const PLAN_DOCUMENT = {
       excludedScope: ["Everything else."],
       verification: "The standard gate.",
       expectedHandoff: "The module's exports.",
+      modelReason: null,
     },
   ],
 };

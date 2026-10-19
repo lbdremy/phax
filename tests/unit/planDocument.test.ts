@@ -8,12 +8,14 @@ import {
 } from "../../src/schemas/planDocument.js";
 import { ExtractedPhaxPlanSchema } from "../../src/schemas/phaxPlan.js";
 import { formatFirstViolation } from "../../src/schemas/formatError.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 function validPhase(n: number) {
   const id = `phase-0${n}`;
   return {
     id,
     title: `Phase ${n}`,
+    modelReason: null as string | null,
     model: "claude-opus-5-5",
     effort: "high",
     planMarkdownAnchor: `#${id}-work`,
@@ -370,5 +372,60 @@ describe("getPlanDocumentJsonSchema", () => {
     });
     expect(schema.description).toMatch(/^Checked by phax's parser, not by this JSON Schema/);
     expect(schema.description).toContain("`phase`");
+  });
+});
+
+describe("a phase's modelReason", () => {
+  type JsonSchemaNode = {
+    $ref?: string;
+    items?: JsonSchemaNode;
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+
+  // The printed schema's phase object, with a `$ref` followed into `$defs`.
+  function phaseObject(): { properties: string[]; required: string[] } {
+    const schema = getPlanDocumentJsonSchema() as {
+      $defs?: Record<string, JsonSchemaNode>;
+      properties: { phases: JsonSchemaNode };
+    };
+    let node: JsonSchemaNode = schema.properties.phases.items ?? {};
+    if (node.$ref !== undefined) node = schema.$defs?.[node.$ref.split("/").at(-1) ?? ""] ?? {};
+    return { properties: Object.keys(node.properties ?? {}), required: node.required ?? [] };
+  }
+
+  it("is the last of the phase's three trailing keys, in properties and required", () => {
+    const { properties, required } = phaseObject();
+    expect(properties.slice(-3)).toEqual(["modelReason", "model", "effort"]);
+    expect(required.slice(-3)).toEqual(["modelReason", "model", "effort"]);
+  });
+
+  it("admits a reason and null, in the authoring answer and the sidecar", () => {
+    const reasoned = {
+      ...validPlanDocument(),
+      phases: [{ ...validPhase(1), modelReason: "Designs a state machine." }],
+    };
+    expect(Either.isRight(decodePlanDocument(reasoned))).toBe(true);
+    expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
+    const { version: _version, ...rest } = reasoned;
+    const sidecar = { $schema: currentSchemaUrl("plan-document"), ...rest };
+    expect(Either.isRight(decodePlanDocumentFile(sidecar))).toBe(true);
+  });
+
+  it("is required, and an empty string is not a reason", () => {
+    const { modelReason: _reason, ...withoutReason } = validPhase(1);
+    const missing = { ...validPlanDocument(), phases: [withoutReason] };
+    expect(Either.isLeft(decodePlanDocument(missing))).toBe(true);
+    const empty = { ...validPlanDocument(), phases: [{ ...validPhase(1), modelReason: "" }] };
+    expect(Either.isLeft(decodePlanDocument(empty))).toBe(true);
+  });
+
+  it("never reaches the projection", () => {
+    const reasoned = {
+      ...validPlanDocument(),
+      phases: [{ ...validPhase(1), modelReason: "Designs a state machine." }],
+    };
+    const projected = projectExtractedPlan(Either.getOrThrow(decodePlanDocument(reasoned)));
+    expect(JSON.stringify(projected)).not.toContain("modelReason");
   });
 });

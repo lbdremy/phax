@@ -118,8 +118,6 @@ function phase(id: string) {
   return {
     id,
     title: `Step ${id}`,
-    model: "claude-sonnet-5",
-    effort: "medium",
     planMarkdownAnchor: `#${id}-step`,
     plannedFilesToCreate: [],
     plannedFilesToEdit: [],
@@ -133,6 +131,9 @@ function phase(id: string) {
     excludedScope: [],
     verification: "standard",
     expectedHandoff: "Nothing.",
+    modelReason: null,
+    model: "claude-sonnet-5",
+    effort: "medium",
   };
 }
 

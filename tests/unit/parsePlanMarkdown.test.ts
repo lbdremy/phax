@@ -12,6 +12,7 @@ function makePhase(
     title?: string;
     model?: string;
     effort?: string;
+    reason?: string;
     create?: string;
     edit?: string;
     optional?: string;
@@ -33,7 +34,8 @@ function makePhase(
     `## ${id} — ${title} {#${anchor}}`,
     ``,
     `**Recommended model:** ${model}`,
-    `**Recommended effort:** ${effort}`,
+    `**Recommended effort:** ${effort}` +
+      (overrides.reason === undefined ? "" : `\n**Model reason:** ${overrides.reason}`),
     ``,
     `### Planned files to create`,
     ``,
@@ -584,5 +586,37 @@ describe("preamble question sections", () => {
 
   it("adds no structure error", () => {
     expect(collectPlanStructureErrors(withQuestions(makePlan()))).toEqual([]);
+  });
+});
+
+describe("a `**Model reason:**` line under the effort line", () => {
+  const plan = (reason?: string) =>
+    makePlan({
+      phases: [
+        makePhase(),
+        makePhase({
+          id: "phase-02",
+          title: "Beta",
+          model: "claude-haiku-5-5",
+          effort: "low",
+          ...(reason === undefined ? {} : { reason }),
+        }),
+      ],
+    });
+
+  it("parses with no error to the same projection as the plan without it", () => {
+    const reasoned = plan("Renames files only, so the lightest model is enough.");
+    const plain = plan();
+    expect(reasoned).toContain("\n**Model reason:** ");
+    expect(collectPlanStructureErrors(reasoned)).toEqual([]);
+    const withReason = extractPlanDeterministic(reasoned);
+    expect(Either.isRight(withReason)).toBe(true);
+    expect(withReason).toEqual(extractPlanDeterministic(plain));
+    if (Either.isRight(withReason)) {
+      expect(withReason.right.phases[1]).toMatchObject({
+        model: "claude-haiku-5-5",
+        effort: "low",
+      });
+    }
   });
 });

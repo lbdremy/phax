@@ -222,8 +222,8 @@ function olderPlan(sourceSpec: string | null) {
     phases: ["phase-01", "phase-02"].map((id) => ({
       id,
       title: `Step ${id}`,
-      model: "claude-sonnet-5",
-      effort: "medium",
+      model: id === "phase-01" ? "claude-opus-5-5" : "claude-sonnet-5",
+      effort: id === "phase-01" ? "high" : "medium",
       planMarkdownAnchor: `#${id}-step`,
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
@@ -397,8 +397,15 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       sourceSpec: unknown;
       completesSpec: unknown;
       preamble: Record<string, unknown>;
+      phases: Array<Record<string, unknown>>;
     };
     expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.phases.map((phase) => phase["modelReason"])).toEqual([null, null]);
+    expect(Object.keys(sidecar.phases[0] ?? {}).slice(-3)).toEqual([
+      "modelReason",
+      "model",
+      "effort",
+    ]);
     expect(sidecar.preamble["openQuestions"]).toEqual([]);
     expect(sidecar.preamble["arbitratedQuestions"]).toEqual([]);
     expect([sidecar.sourceSpec, sidecar.completesSpec]).toEqual([null, null]);
@@ -416,6 +423,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       ),
     );
     expect(Option.getOrNull(cached)).toEqual(projectExtractedPlan({ version: 1, ...lifted.right }));
+    expect(Option.getOrNull(cached)?.phases.map((phase) => [phase.model, phase.effort])).toEqual([
+      ["claude-opus-5-5", "high"],
+      ["claude-sonnet-5", "medium"],
+    ]);
 
     expect(renderDocumentMigrationReport(result)).toContain(
       `plan-document 0.20.0 → ${CURRENT_STAMPS["plan-document"]}`,

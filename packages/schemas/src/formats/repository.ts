@@ -9,6 +9,7 @@
 // releases, and lift them as phax's reader does. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
+import { Array as Arr } from "effect";
 import {
   ApprovalRecordFileSchema,
   PlanRecordFileSchema,
@@ -372,7 +373,8 @@ export type LatestPlanDocument =
  * invents one: an older shape's `completesSpec` is null beside `sourceSpec:
  * null`, the only value that variant allows, and `Unknown` beside a spec path;
  * an older shape carried no questions, so its preamble's `openQuestions` and
- * `arbitratedQuestions` are empty.
+ * `arbitratedQuestions` are empty, and no phase reason, so each phase's
+ * `modelReason` is null.
  */
 export function toLatestPlanDocument(
   value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentV0_20_0 | PlanDocumentFile,
@@ -382,16 +384,17 @@ export function toLatestPlanDocument(
     return recorded;
   }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
+  const phases = Arr.map(value.phases, (phase) => ({ ...phase, modelReason: null }));
   if ("completesSpec" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, preamble };
+    return { ...recorded, preamble, phases };
   }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return withUnrecordedCompletesSpec({ ...recorded, preamble });
+    return withUnrecordedCompletesSpec({ ...recorded, preamble, phases });
   }
   const { version: _version, ...recorded } = value;
-  return withUnrecordedCompletesSpec({ ...recorded, preamble });
+  return withUnrecordedCompletesSpec({ ...recorded, preamble, phases });
 }
 
 /** Whether a parsed plan document is the current shape: only it carries preamble questions. */
