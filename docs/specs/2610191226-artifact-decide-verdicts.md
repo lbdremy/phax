@@ -66,9 +66,9 @@ The person decides; the writer only writes it down. A mistake is undone by decid
 ## 4. Terminology
 
 - **Verdicts file** — The input of verdicts mode, in the versioned format phax owns (format id indicative: `decide-verdicts`). It holds `$schema`, the artifact path, and a non-empty list of verdicts, each `{ question, chosen, note }`. It is given as `--verdicts <file|->`.
-- **Given verdict** — One entry of the verdicts file. `question` is an id of the artifact's open or arbitrated questions; `chosen` is one of that question's option ids; `note` is the person's text or null.
+- **Given verdict** — One entry of the verdicts file. `question` is an id of the artifact's open or arbitrated questions; `chosen` is one of that question's option ids, or `other`; `note` is the person's text or null.
 - **Note** — The person's own words about a given verdict: their reason, or a precision on how to apply the chosen option. It is a required key whose value is a non-empty string or null.
-- **Other** — The option with id `other` that every question of a spec or plan lists, written in its options with the label and loss phax fixes. Choosing it means the choice is the one the verdict's note describes. It is never a question's recommendation, so a verdict choosing it always departs and always carries a note. It never becomes a new option.
+- **Other** — The reserved id `other`, implicit on every question of a spec or plan. It never appears among a question's options and is never its recommendation, and no option may use the id. Choosing it means the choice is the one the verdict's note describes, so a verdict choosing it always departs and always carries a note. It never becomes a new option.
 - **Departing verdict** — A given verdict whose `chosen` differs from its question's `recommendation`.
 - **Verdicts mode** — `phax artifact decide <artifact> --verdicts <file|->`: a headless decide that needs no terminal, raises no framing questions and asks for no confirmation. The person decided before the command ran.
 - **Writer session** — The one headless provider session that verdicts mode runs, under the doctrine skill for the artifact kind and any `--doctrine` file. It returns the whole revised document. It decides nothing: for each given verdict it writes the advocate, principles and reversibility, plus the body revisions and `revised` of a departing verdict.
@@ -92,7 +92,7 @@ IF the verdicts file cannot be read, is not JSON, carries no `$schema`, carries 
 
 ### 5.4 The file must fit the artifact
 
-IF the verdicts file names an artifact other than the one given, names a question the artifact does not have, names the same question twice, or chooses an option its question does not list THEN the system SHALL refuse with exit 12 before any session, naming the offending verdict with the artifact's question ids or the question's option ids, and write nothing.
+IF the verdicts file names an artifact other than the one given, names a question the artifact does not have, names the same question twice, or chooses an id that is neither one of its question's options nor `other` THEN the system SHALL refuse with exit 12 before any session, naming the offending verdict with the artifact's question ids or the question's option ids and `other`, and write nothing.
 
 ### 5.5 A departure carries the person's note
 
@@ -138,13 +138,13 @@ WHEN a given verdict lands THE system SHALL set its `why` to the note verbatim, 
 
 IF the writer's answer fails any check interactive decide applies to a revised document or hand decision answer, chooses for a given question an option other than the one given (`other` included), adds, removes or changes an option of any question, moves or changes a question the file does not name, or changes the body outside the question sections and decision log while no given verdict departs THEN the system SHALL refuse it. After one corrective resume of the same session, the system SHALL fail with exit 5 naming the first violation by path, with the working tree and HEAD unchanged.
 
-### 5.16 Every question lists `other`
+### 5.16 `other` is a valid choice
 
-IF a question of a spec or plan, in a document an authoring or decide session returns, in a sidecar phax reads, or in a hand-authored §9, does not list the option `other` exactly once with the label and loss phax fixes, or recommends `other` THEN the system SHALL refuse it, naming the question: exit 5 for a session's document, and exit 12 for an artifact.
+The system SHALL accept `other` as the `chosen` of a decided verdict on any question, in verdicts mode and in interactive mode, with `abandoned` holding every option the question lists, and SHALL render it as `Decision: other` followed by its why.
 
-### 5.17 Older documents gain `other`
+### 5.17 `other` is reserved
 
-WHEN `phax artifact migrate-documents` lifts a live spec or plan sidecar stamped below the shape that introduces `other` THE system SHALL append the fixed `other` option to every question, append `other` to the `abandoned` of every verdict, current and in history, write the sidecar at the current shape, and re-render its body.
+IF a question of a spec or plan, in a document an authoring or decide session returns, in a sidecar phax reads, or in a hand-authored §9, lists an option with the id `other` or recommends `other` THEN the system SHALL refuse it, naming the question: exit 5 for a session's document, and exit 12 for an artifact.
 
 ### 5.18 Written and committed without a prompt
 
@@ -240,7 +240,7 @@ after:
     status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610201015-log-rotation.md`
     $? = 0
 
-    ✗ decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20, other
+    ✗ decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20, or other
     $? = 12
     ✗ decide refused: verdicts.json departs from q-keep's recommendation (keep-10) with a null note — write the reason in "note"
     $? = 12
@@ -277,52 +277,45 @@ after:
       ]
     }
 
-    # normative: the keys artifact, verdicts, question, chosen, note; every key required; chosen is one of the question's listed option ids,
-    # `other` included; note a non-empty string or null (null refused on a departing verdict, and so always on `other`, §9 q-note);
+    # normative: the keys artifact, verdicts, question, chosen, note; every key required; chosen is one of the question's option ids, or the
+    # reserved `other`; note a non-empty string or null (null refused on a departing verdict, and so always on `other`, §9 q-note);
     # verdicts non-empty, one entry per question; unknown keys rejected at any level; born with $schema.
     # The same file decides a plan's questions; the writer names a plan verdict's phase and phax checks it.
     # indicative: the format id `decide-verdicts`; 0.26.0 stands for the release that ships this spec.
 
-### file: docs/specs/<stamp>-<slug>.json question options, and the rendered §9 — normative
+### file: docs/specs/<stamp>-<slug>.json a verdict choosing `other`, and the rendered §9 — normative
 
 before:
 
-    "options": [
-      { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
-      { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
-    "recommendation": "by-date"
-
-    ### q-names — How are run logs named?
-
-    - by-date — Name each log by its date — abandons: …
-    - by-run — Name each log by its run id — abandons: …
-
-    Recommendation: by-date — …
+    { "id": "q-names", "question": "How are run logs named?",
+      "options": [ { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
+                   { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
+      "recommendation": "by-date", "rationale": "…",
+      "verdict": { "kind": "decided", "chosen": "by-run", "abandoned": ["by-date"], … }, "history": [] }
 
 after:
 
-    "options": [
-      { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
-      { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" },
-      { "id": "other",   "label": "Another choice, described in the note",
-        "abandons": "an argued option: the choice exists only in the note, with no loss named in advance" } ],
-    "recommendation": "by-date"
+    { "id": "q-names", "question": "How are run logs named?",
+      "options": [ { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
+                   { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
+      "recommendation": "by-date", "rationale": "…",
+      "verdict": { "kind": "decided", "chosen": "other", "abandoned": ["by-date", "by-run"],
+                   "why": "Name each log by run id and phase, never by date.", …, "revised": ["§5.3"] }, "history": [] }
 
     ### q-names — How are run logs named?
 
     - by-date — Name each log by its date — abandons: …
     - by-run — Name each log by its run id — abandons: …
-    - other — Another choice, described in the note — abandons: an argued option: the choice exists only in the note, with no loss named in advance
 
     Recommendation: by-date — …
 
     Decision: other — by operator (Ada Lovelace), 2026-10-20
     Why: Name each log by run id and phase, never by date. …
 
-    # normative: every question of a spec or plan (open or arbitrated, sidecar or hand-authored §9, plans in their preamble) lists `other`
-    # exactly once, as its last option, with the label and loss phax fixes, the same text for every question and checked verbatim; `other` is
-    # never the recommendation; a verdict choosing it abandons every other listed option, and its why is the note. The fixed English wording is
-    # indicative until the plan pins it. A new spec-document and plan-document shape: older live sidecars are lifted by migrate-documents.
+    # normative: `other` is reserved and implicit on every question of a spec or plan (sidecar or hand-authored §9, plans in their
+    # preamble): it is never listed among the options and never recommended, and an option with the id `other` is refused; a verdict
+    # choosing it abandons every listed option, and its why is the note; a hand-authored §9 Decision line may name `other`. The document
+    # formats keep their shape and nothing is migrated. Rendered wording indicative.
 
 ### cli: phax artifact schema verdicts — indicative
 
@@ -409,7 +402,7 @@ after:
 - Approving as part of deciding. There is no `--approve`, and verdicts mode never touches approval records.
 - Changing interactive decide: its framing questions, its diff confirmation, its Claude Code-only model and its operator attribution stay as shipped.
 - Recording a relaying machine in a verdict: a verdict always comes from the operator, a loop relaying a person's instruction runs with `--by operator`, and a verdict's `by` keeps its shape.
-- Turning an `other` verdict into a new option of its question, or editing a question's wording or options from a verdicts file: `other` stays `other`, and its note is the only description of the choice.
+- Turning an `other` verdict into a new option of its question, listing `other` among a question's options, or editing a question's wording or options from a verdicts file: `other` stays implicit, and its note is the only description of the choice.
 - A shorthand such as "every other question as recommended": each decided question is written out (subject to §9 q-unnamed).
 - Turning steering text (`rouvre q-keep`, a chat message) into a verdicts file. That is the caller's job.
 - Deciding several artifacts in one call.
@@ -429,15 +422,11 @@ Given a Draft spec whose q-keep recommends keep-10, with a requirement and an ac
 
 ### Choosing other applies the note, and nothing else is written
 
-Given a Draft spec whose q-names lists by-date, by-run and other, recommends by-date, and has a requirement written for by-date; and verdicts files choosing, respectively, other for q-names with the note "Name each log by run id and phase, never by date.", and other for q-names with a null note; and a writer answer that adds an option run-phase to q-names and chooses it, when verdicts mode runs with each file, then The first lands q-names with `chosen: other`, `abandoned` holding by-date and by-run, `why` equal to the note verbatim, a non-empty `revised`, and the requirement rewritten for naming by run id and phase; q-names' options are unchanged. The null-note file exits 12 naming q-names before any session. The run whose writer adds run-phase resumes the session once, then exits 5 naming q-names' options, writing nothing. (refs §5.5, §5.13, §5.14, §5.15)
+Given a Draft spec whose q-names lists by-date and by-run, recommends by-date, and has a requirement written for by-date; verdicts files choosing, respectively, other for q-names with the note "Name each log by run id and phase, never by date.", and other for q-names with a null note; a writer answer that adds an option run-phase to q-names and chooses it; and an interactive decide in which the operator chooses other for q-names, when verdicts mode runs with each file, and the interactive decide runs and its diff is accepted, then The first file lands q-names with `chosen: other`, `abandoned` holding by-date and by-run, `why` equal to the note verbatim, a non-empty `revised`, and the requirement rewritten for naming by run id and phase; q-names' options are unchanged and list no `other`, and the rendered §9 reads `Decision: other`. The null-note file exits 12 naming q-names before any session. The run whose writer adds run-phase resumes the session once, then exits 5 naming q-names' options, writing nothing. The interactive decide lands the same verdict shape. (refs §5.5, §5.13, §5.14, §5.15, §5.16)
 
-### Every question must list other
+### The id other is reserved
 
-Given an authoring session returning a spec whose question q-a lists no `other`; one returning a question that recommends `other`; one returning an `other` option with a label other than the fixed one; and a hand-authored Draft spec whose §9 question Q1 has no `- other —` bullet, when each authoring session ends, and `phax artifact approve` and `phax artifact decide --verdicts` run on the hand-authored spec, then Each authoring run exits 5 naming the question and writes nothing. Approve and decide on the hand-authored spec exit 12 naming Q1's lines as departing from the §9 format, with no session spawned. (refs §5.16)
-
-### Older documents gain other once
-
-Given a live Draft spec whose sidecar is stamped at the spec-document shape before `other`, with open q-a (options a1, a2) and arbitrated q-b whose verdict chose b1 and whose history holds one earlier verdict, and a live Draft plan stamped at the plan-document shape before `other` with one open question, when `phax artifact migrate-documents` runs, then Both sidecars are written at the current shape. Every question lists the fixed `other` as its last option. q-b's verdict and its history verdict each end their `abandoned` with `other`. Both bodies are re-rendered with the `- other —` bullets, and the commit holds exactly the rewritten paths. `phax artifact status` then reads both in sync. (refs §5.17)
+Given an authoring session returning a spec whose question q-a lists an option with the id `other`; one returning a question that recommends `other`; a hand-authored Draft spec whose §9 question Q1 lists a `- other —` bullet; and a live headless spec written before this change, with no `other` anywhere, when each authoring session ends, `phax artifact approve` and `phax artifact decide --verdicts` run on the hand-authored spec, and `phax artifact status` runs on the older spec, then Each authoring run exits 5 naming the question and writes nothing. Approve and decide on the hand-authored spec exit 12 naming Q1, with no session spawned. The older spec reads in sync with no migration. (refs §5.17)
 
 ### A wrong transcription lands nothing
 
@@ -449,7 +438,7 @@ Given verdicts files that, respectively: are not JSON, have no `$schema`, are st
 
 ### A file that does not fit the artifact is refused
 
-Given a Draft spec with q-keep (options keep-10, keep-20, other; recommends keep-10), and verdicts files that, respectively: name another spec's path, name q-nine, name q-keep twice, choose keep-30, and choose keep-20 with a null note, when verdicts mode runs with each, then Each exits 12 before any session. The messages name, in turn: both paths; the artifact's question ids; the duplicate; q-keep's option ids; and q-keep with its recommendation. Nothing is written. (refs §5.4, §5.5)
+Given a Draft spec with q-keep (options keep-10, keep-20; recommends keep-10), and verdicts files that, respectively: name another spec's path, name q-nine, name q-keep twice, choose keep-30, and choose keep-20 with a null note, when verdicts mode runs with each, then Each exits 12 before any session. The messages name, in turn: both paths; the artifact's question ids; the duplicate; q-keep's option ids and `other`; and q-keep with its recommendation. Nothing is written. (refs §5.4, §5.5)
 
 ### Today's refusals apply and no terminal is needed
 
@@ -535,8 +524,9 @@ Why: Adopted as recommended. Leaving unnamed questions as they are matches `--qu
 Recommendation: refuse — The check that `chosen` is a listed option is what makes the transcription verifiable without a checker (C4). Interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict. A precision on applying a listed option fits in the note.
 
 Decision: own-option — by operator (Rémy Loubradou), 2026-10-19
-Why: Not own-option as the spec formulated it: no option is written by the agent. Every question lists, written in its options, an option `other` whose label and loss phax fixes, and whose required note describes the choice. On output the check is: the choice is the given option, or `other`. Simpler, and verifiable. Advocate: The strongest case for refuse: with `other`, the writer applies to the body a choice nobody wrote as an option, with no loss named and no comparison with the others; only the caller's reading of the diff can check that the rewritten requirements, surface and criteria say what the note describes. Principles: C4, E0, C3. Reversibility: costly. Revised: §4 Terminology: Other added, §5 r-note: a verdict choosing other always departs, §5 r-writer: other applies the note's choice, §5 r-checks: chosen is the given option, other included; no option added, removed or changed, §5 r-other-required added, §5 r-other-lift added, §6 cli: phax artifact decide --verdicts refusals, §6 verdicts file: chosen may be other, §6 question options and rendered §9: the fixed other option, added, §7 Non-goals: other never becomes a new option, AC ac-other added, AC ac-other-required added, AC ac-other-lift added, AC ac-binding, AC ac-attribution, §10 settled, constraints: other, document shapes and migration.
+Why: Not own-option as the spec formulated it: no option is written by the agent. `other` is a reserved id, implicit on every question and never listed among its options. Its required note describes the choice. On output the check is: the choice is the given option, or `other`. The document format does not change. Advocate: The strongest case for refuse, and for the written `other` this verdict replaces: a reader sees no `other` under a question, so only someone who knows the rule can tell the question stayed open to another choice, and only the caller's reading of the diff checks that the body says what the note describes. Principles: C4, E0, C1. Reversibility: cheap. Revised: §4 Terminology: Given verdict, Other (implicit, reserved), §5 r-binding: an id neither listed nor other is refused, §5 r-other-required replaced by r-other-reserved, §5 r-other-verdict added, §5 r-other-lift removed, §6 cli: phax artifact decide --verdicts refusal, §6 verdicts file: chosen may be the reserved other, §6 written other option replaced by a verdict choosing other, §7 Non-goals: other stays implicit, AC ac-other, AC ac-other-required replaced by ac-other-reserved, AC ac-other-lift removed, AC ac-binding, §10 settled, constraints: no document shape change, no migration.
 Earlier decision: refuse — by operator (Rémy Loubradou), 2026-10-19
+Earlier decision: own-option — by operator (Rémy Loubradou), 2026-10-19
 
 ### q-why — Who writes a given verdict's `why`?
 
@@ -601,7 +591,7 @@ Settled:
 - The writer prompt carries the given verdicts and no framing questions. A plan verdict's `phase` is written by the writer and checked against the plan's phases, as today.
 - Exit families follow interactive decide: 0 committed, 1 phase guard, 5 refused answer after the corrective resume, 8 limits, 12 refusals. The only files left written on failure are those of a failed commit, as today.
 - The requirements are written for the §9 recommendations. Where the author decides otherwise, the plan follows the decision: r-note follows q-note, r-unnamed q-unnamed, r-why q-why, r-by-* q-by, r-session and r-model q-provider and q-model, r-hand q-hand.
-- q-off-menu (decided 2026-10-19): every question of a spec or plan lists a written `other` option whose label and loss phax fixes, never recommended. A verdict choosing `other` carries the required note that describes the choice, and its why is that note. The output check is that `chosen` is the given option, `other` included. No session ever writes a new option.
+- q-off-menu (decided 2026-10-19, implicit): `other` is a reserved id, implicit on every question, never listed and never recommended. A verdict choosing it carries the required note that describes the choice; its why is that note, and its `abandoned` holds every listed option. The output check is that `chosen` is the given option, `other` included. No session ever writes a new option, no document changes shape, and nothing is migrated.
 
 Left open:
 
@@ -612,10 +602,10 @@ Constraints:
 
 - No back-compat shims in persisted schemas. The verdicts format is born with `$schema` and every key required. New record variants are required fields of their variant, never optional fields.
 - Use explicit per-variant enums. The decision record's `mode` is interactive | verdicts, and each mode carries its own outcome set (interactive: committed | declined | undecided | failed; verdicts: committed | failed).
-- Each changed format (the verdicts format is new; decision-record-manifest; spec-document and plan-document, whose questions now list the fixed `other` option) is recorded as a `next` snapshot and released by the cut. A verdict's `by` stays { kind: operator, name } (q-by), and hand-decision-answer does not change. Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
-- The `other` rule is a new document shape, never read leniently. Older live sidecars are lifted once by `phax artifact migrate-documents` (run at use under the auto-migrate decision of 2026-10-19): `other` is appended to every question and to every verdict's `abandoned`, history included. Hand-authored §9 sections are converted once by hand. The authoring answer's JSON Schema and prompt carry the fixed `other` option, and the phax-spec and phax-planning skills state it.
+- Each changed format (the verdicts format is new, and decision-record-manifest) is recorded as a `next` snapshot and released by the cut. A verdict's `by` stays { kind: operator, name } (q-by), and hand-decision-answer does not change. spec-document and plan-document keep their shape: only their question checks change, accepting `other` as a chosen id and reserving the id. Whether that check change moves their stamp follows `docs/release.md`; either way nothing is migrated, since every existing document stays valid. Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
+- The question checks shared by both document formats, the hand-authored §9 parser and both decide modes accept `other` as `chosen` and refuse an option or recommendation named `other`. The authoring prompt and the phax-spec, phax-planning and decide doctrine skills state the reserved id.
 - Respect the layers. Reading the verdicts file and stdin goes through ports, and decoding happens at the boundary through an Effect Schema. Matching verdicts to questions and every transcription check are pure domain functions. The CLI command parses, calls one use case and renders.
-- Interactive decide's behavior, prompt, model rule and attribution are unchanged, apart from presenting `other` as one of each question's listed options.
+- Interactive decide's behavior, prompt, model rule and attribution are unchanged, apart from accepting a verdict choosing `other`.
 - Verdicts mode never writes approval records or the `approved` stamp.
 - `artifact decide` stays classified `refused` by the phase guard in both modes.
 - Every example and test fixture is made up.
@@ -642,6 +632,7 @@ phax artifact approve docs/specs/2610201015-log-rotation.md --by operator
 - 2026-10-19 q-unnamed decided stay-open — operator (Rémy Loubradou)
 - 2026-10-19 q-off-menu decided refuse — operator (Rémy Loubradou)
 - 2026-10-19 q-off-menu decided own-option — operator (Rémy Loubradou) — revised 16 sections
+- 2026-10-19 q-off-menu decided own-option — operator (Rémy Loubradou) — revised 14 sections
 - 2026-10-19 q-why decided phax-sets-why — operator (Rémy Loubradou)
 - 2026-10-19 q-by decided relayed — operator (Rémy Loubradou)
 - 2026-10-19 q-by decided operator-declared — operator (Rémy Loubradou) — revised 9 sections
