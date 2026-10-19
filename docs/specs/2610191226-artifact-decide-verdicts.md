@@ -68,6 +68,7 @@ The person decides; the writer only writes it down. A mistake is undone by decid
 - **Verdicts file** — The input of verdicts mode, in the versioned format phax owns (format id indicative: `decide-verdicts`). It holds `$schema`, the artifact path, and a non-empty list of verdicts, each `{ question, chosen, note }`. It is given as `--verdicts <file|->`.
 - **Given verdict** — One entry of the verdicts file. `question` is an id of the artifact's open or arbitrated questions; `chosen` is one of that question's option ids; `note` is the person's text or null.
 - **Note** — The person's own words about a given verdict: their reason, or a precision on how to apply the chosen option. It is a required key whose value is a non-empty string or null.
+- **Other** — The option with id `other` that every question of a spec or plan lists, written in its options with the label and loss phax fixes. Choosing it means the choice is the one the verdict's note describes. It is never a question's recommendation, so a verdict choosing it always departs and always carries a note. It never becomes a new option.
 - **Departing verdict** — A given verdict whose `chosen` differs from its question's `recommendation`.
 - **Verdicts mode** — `phax artifact decide <artifact> --verdicts <file|->`: a headless decide that needs no terminal, raises no framing questions and asks for no confirmation. The person decided before the command ran.
 - **Writer session** — The one headless provider session that verdicts mode runs, under the doctrine skill for the artifact kind and any `--doctrine` file. It returns the whole revised document. It decides nothing: for each given verdict it writes the advocate, principles and reversibility, plus the body revisions and `revised` of a departing verdict.
@@ -95,7 +96,7 @@ IF the verdicts file names an artifact other than the one given, names a questio
 
 ### 5.5 A departure carries the person's note
 
-IF a departing verdict has a null note THEN the system SHALL refuse with exit 12 before any session, naming the question and its recommendation, and write nothing.
+IF a departing verdict, which includes every verdict choosing `other`, has a null note THEN the system SHALL refuse with exit 12 before any session, naming the question and its recommendation, and write nothing.
 
 ### 5.6 Today's refusals still apply
 
@@ -127,7 +128,7 @@ The system SHALL resolve the writer session's model and effort from `--model` an
 
 ### 5.13 The writer returns the whole revised document
 
-The writer session SHALL return the artifact's whole revised document. For each given verdict it SHALL write the advocate, principles and reversibility, and, for a departing verdict, the body revisions the verdict implies, named in `revised`.
+The writer session SHALL return the artifact's whole revised document. For each given verdict it SHALL write the advocate, principles and reversibility, and, for a departing verdict, the body revisions the verdict implies, named in `revised`; for a verdict choosing `other`, those are the revisions that apply the choice its note describes.
 
 ### 5.14 The person's words are the why
 
@@ -135,17 +136,25 @@ WHEN a given verdict lands THE system SHALL set its `why` to the note verbatim, 
 
 ### 5.15 The transcription is checked against the file
 
-IF the writer's answer fails any check interactive decide applies to a revised document or hand decision answer, chooses for a given question an option other than the one given, moves or changes a question the file does not name, or changes the body outside the question sections and decision log while no given verdict departs THEN the system SHALL refuse it. After one corrective resume of the same session, the system SHALL fail with exit 5 naming the first violation by path, with the working tree and HEAD unchanged.
+IF the writer's answer fails any check interactive decide applies to a revised document or hand decision answer, chooses for a given question an option other than the one given (`other` included), adds, removes or changes an option of any question, moves or changes a question the file does not name, or changes the body outside the question sections and decision log while no given verdict departs THEN the system SHALL refuse it. After one corrective resume of the same session, the system SHALL fail with exit 5 naming the first violation by path, with the working tree and HEAD unchanged.
 
-### 5.16 Written and committed without a prompt
+### 5.16 Every question lists `other`
+
+IF a question of a spec or plan, in a document an authoring or decide session returns, in a sidecar phax reads, or in a hand-authored §9, does not list the option `other` exactly once with the label and loss phax fixes, or recommends `other` THEN the system SHALL refuse it, naming the question: exit 5 for a session's document, and exit 12 for an artifact.
+
+### 5.17 Older documents gain `other`
+
+WHEN `phax artifact migrate-documents` lifts a live spec or plan sidecar stamped below the shape that introduces `other` THE system SHALL append the fixed `other` option to every question, append `other` to the `abandoned` of every verdict, current and in history, write the sidecar at the current shape, and re-render its body.
+
+### 5.18 Written and committed without a prompt
 
 WHEN the writer's answer passes every check THE system SHALL write the sidecar, re-render the artifact, and re-seed a plan's extraction cache, keeping its lineage. It SHALL then commit exactly the paths it wrote in one commit, without asking for confirmation.
 
-### 5.17 Deciding never approves
+### 5.19 Deciding never approves
 
 The system SHALL leave the artifact Draft after verdicts mode, whatever the file says, and SHALL never approve it as part of a decide.
 
-### 5.18 A report to read before approving
+### 5.20 A report to read before approving
 
 WHEN verdicts mode commits THE system SHALL print the following, then the commit and the artifact's Draft status with the approve command:
 - each given verdict's question id;
@@ -156,43 +165,43 @@ WHEN verdicts mode commits THE system SHALL print the following, then the commit
 - each question left open;
 - the rendered body diff.
 
-### 5.19 Machine-readable report
+### 5.21 Machine-readable report
 
 WHERE `--json` is given THE system SHALL print the report as one JSON object on stdout and nothing else there, sending progress and warnings to stderr.
 
-### 5.20 The commit says where the verdicts came from
+### 5.22 The commit says where the verdicts came from
 
 The system SHALL give the verdicts-mode commit trailers naming the verdicts' arbiter, the verdicts-file channel, and the decision id.
 
-### 5.21 Operator verdicts
+### 5.23 Operator verdicts
 
 WHEN `--by operator` is given, or no `--by` is given and the command runs from a terminal, THE system SHALL attribute each given verdict to the operator, named by the committing git identity.
 
-### 5.22 A machine is refused
+### 5.24 A machine is refused
 
 IF `--by machine:<grant>` is given in verdicts mode THEN the system SHALL refuse with exit 12 before any session, stating that a verdict always comes from the operator and naming `--by operator`, and write nothing.
 
-### 5.23 No terminal, no guessed arbiter
+### 5.25 No terminal, no guessed arbiter
 
 IF verdicts mode runs without `--by` and not from a terminal THEN the system SHALL refuse with exit 12 before any session, naming `--by operator`.
 
-### 5.24 Hand-authored artifacts
+### 5.26 Hand-authored artifacts
 
 WHEN verdicts mode runs on a hand-authored artifact whose §9 parses THE system SHALL have the writer return a hand decision answer, and SHALL write the decided question blocks, their Decision blocks and the decision-log entries in place, as interactive decide does.
 
-### 5.25 Rate and usage limits
+### 5.27 Rate and usage limits
 
 IF the writer session ends on a provider rate or usage limit THEN the system SHALL fail in the rate-limit exit family (8) with nothing written.
 
-### 5.26 Artifact changed during the session
+### 5.28 Artifact changed during the session
 
 IF the artifact or its sidecar changed while the writer session ran THEN the system SHALL refuse with exit 12 to write the verdicts, leaving the change in place and committing nothing.
 
-### 5.27 Commit failure
+### 5.29 Commit failure
 
 IF the verdicts-mode commit fails THEN the system SHALL report an artifact error with exit 12 and leave the written files uncommitted.
 
-### 5.28 Decision record
+### 5.30 Decision record
 
 WHEN a writer session ends after spawning and records are enabled THE system SHALL write a decision record. Its manifest SHALL be stamped with its format's shape and say mode `verdicts`. The record SHALL carry: the verdicts file as given, the prompt, the doctrine sources, the landed document, the body diff, the counts arbitrated and departed, provider, model, effort and usage, the outcome (committed or failed), and the commit when there is one.
 
@@ -231,9 +240,11 @@ after:
     status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610201015-log-rotation.md`
     $? = 0
 
-    ✗ decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20
+    ✗ decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20, other
     $? = 12
     ✗ decide refused: verdicts.json departs from q-keep's recommendation (keep-10) with a null note — write the reason in "note"
+    $? = 12
+    ✗ decide refused: verdicts.json chooses other for q-names with a null note — describe the choice in "note"
     $? = 12
     ✗ decide refused: verdicts.json is for docs/specs/2610190900-cache-keys.md, not docs/specs/2610201015-log-rotation.md
     $? = 12
@@ -261,14 +272,57 @@ after:
       "artifact": "docs/specs/2610201015-log-rotation.md",
       "verdicts": [
         { "question": "q-keep",  "chosen": "keep-20", "note": "Twenty runs cover one release cycle; ten dropped the previous release's runs." },
-        { "question": "q-scope", "chosen": "per-run", "note": null }
+        { "question": "q-scope", "chosen": "per-run", "note": null },
+        { "question": "q-names", "chosen": "other",   "note": "Name each log by run id and phase, never by date." }
       ]
     }
 
-    # normative: the keys artifact, verdicts, question, chosen, note; every key required; note a non-empty string or null (null refused on a
-    # departing verdict, §9 q-note); verdicts non-empty, one entry per question; unknown keys rejected at any level; born with $schema.
+    # normative: the keys artifact, verdicts, question, chosen, note; every key required; chosen is one of the question's listed option ids,
+    # `other` included; note a non-empty string or null (null refused on a departing verdict, and so always on `other`, §9 q-note);
+    # verdicts non-empty, one entry per question; unknown keys rejected at any level; born with $schema.
     # The same file decides a plan's questions; the writer names a plan verdict's phase and phax checks it.
     # indicative: the format id `decide-verdicts`; 0.26.0 stands for the release that ships this spec.
+
+### file: docs/specs/<stamp>-<slug>.json question options, and the rendered §9 — normative
+
+before:
+
+    "options": [
+      { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
+      { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
+    "recommendation": "by-date"
+
+    ### q-names — How are run logs named?
+
+    - by-date — Name each log by its date — abandons: …
+    - by-run — Name each log by its run id — abandons: …
+
+    Recommendation: by-date — …
+
+after:
+
+    "options": [
+      { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
+      { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" },
+      { "id": "other",   "label": "Another choice, described in the note",
+        "abandons": "an argued option: the choice exists only in the note, with no loss named in advance" } ],
+    "recommendation": "by-date"
+
+    ### q-names — How are run logs named?
+
+    - by-date — Name each log by its date — abandons: …
+    - by-run — Name each log by its run id — abandons: …
+    - other — Another choice, described in the note — abandons: an argued option: the choice exists only in the note, with no loss named in advance
+
+    Recommendation: by-date — …
+
+    Decision: other — by operator (Ada Lovelace), 2026-10-20
+    Why: Name each log by run id and phase, never by date. …
+
+    # normative: every question of a spec or plan (open or arbitrated, sidecar or hand-authored §9, plans in their preamble) lists `other`
+    # exactly once, as its last option, with the label and loss phax fixes, the same text for every question and checked verbatim; `other` is
+    # never the recommendation; a verdict choosing it abandons every other listed option, and its why is the note. The fixed English wording is
+    # indicative until the plan pins it. A new spec-document and plan-document shape: older live sidecars are lifted by migrate-documents.
 
 ### cli: phax artifact schema verdicts — indicative
 
@@ -354,8 +408,8 @@ after:
 - A checker session run by phax to judge the transcription. The caller reads the report and the diff; a mistake is undone with `phax artifact reopen` and decide `--question` (interactive) or another verdicts file.
 - Approving as part of deciding. There is no `--approve`, and verdicts mode never touches approval records.
 - Changing interactive decide: its framing questions, its diff confirmation, its Claude Code-only model and its operator attribution stay as shipped.
-- Recording a relaying machine in a verdict: a verdict always comes from the operator, a loop relaying a person's instruction runs with `--by operator`, and the spec-document, plan-document and hand-decision-answer formats do not change.
-- Off-menu answers, and editing a question's wording or options from a verdicts file (subject to §9 q-off-menu).
+- Recording a relaying machine in a verdict: a verdict always comes from the operator, a loop relaying a person's instruction runs with `--by operator`, and a verdict's `by` keeps its shape.
+- Turning an `other` verdict into a new option of its question, or editing a question's wording or options from a verdicts file: `other` stays `other`, and its note is the only description of the choice.
 - A shorthand such as "every other question as recommended": each decided question is written out (subject to §9 q-unnamed).
 - Turning steering text (`rouvre q-keep`, a chat message) into a verdicts file. That is the caller's job.
 - Deciding several artifacts in one call.
@@ -367,15 +421,27 @@ after:
 
 ### Verdicts land headless and the artifact stays Draft
 
-Given a headless-authored Draft spec with open questions q-keep (recommends keep-10), q-scope (recommends per-run) and q-names, and a verdicts file naming q-keep → keep-10 with note null and q-scope → per-run with a note, when `phax artifact decide <spec> --verdicts verdicts.json --by operator` runs with stdin not a terminal, then It exits 0 without prompting. q-keep and q-scope are in `arbitratedQuestions` with the chosen options given. q-keep's `why` is its rationale verbatim and q-scope's is the note verbatim; both are attributed to the operator by the git user.name. q-names is still open, and the spec is still Draft. The new HEAD commit holds exactly the spec and its sidecar, with the arbiter, `verdicts` channel and Decision-Id trailers. The output lists both verdicts as recommended with their why, lists q-names as open, and prints the body diff and the commit. (refs §5.1, §5.2, §5.9, §5.14, §5.16, §5.17, §5.18, §5.20, §5.21)
+Given a headless-authored Draft spec with open questions q-keep (recommends keep-10), q-scope (recommends per-run) and q-names, and a verdicts file naming q-keep → keep-10 with note null and q-scope → per-run with a note, when `phax artifact decide <spec> --verdicts verdicts.json --by operator` runs with stdin not a terminal, then It exits 0 without prompting. q-keep and q-scope are in `arbitratedQuestions` with the chosen options given. q-keep's `why` is its rationale verbatim and q-scope's is the note verbatim; both are attributed to the operator by the git user.name. q-names is still open, and the spec is still Draft. The new HEAD commit holds exactly the spec and its sidecar, with the arbiter, `verdicts` channel and Decision-Id trailers. The output lists both verdicts as recommended with their why, lists q-names as open, and prints the body diff and the commit. (refs §5.1, §5.2, §5.9, §5.14, §5.18, §5.19, §5.20, §5.22, §5.23)
 
 ### A departing verdict revises the body
 
-Given a Draft spec whose q-keep recommends keep-10, with a requirement and an acceptance criterion written for keep-10, and a verdicts file choosing keep-20 with a note, when verdicts mode runs, then The committed sidecar holds q-keep with `chosen: keep-20`, `why` equal to the note, a non-empty `revised` naming the requirement and the criterion, and both rewritten for keep-20 with traceability intact. The report marks q-keep as departing from keep-10 and the diff shows the rewritten requirement. (refs §5.13, §5.14, §5.18)
+Given a Draft spec whose q-keep recommends keep-10, with a requirement and an acceptance criterion written for keep-10, and a verdicts file choosing keep-20 with a note, when verdicts mode runs, then The committed sidecar holds q-keep with `chosen: keep-20`, `why` equal to the note, a non-empty `revised` naming the requirement and the criterion, and both rewritten for keep-20 with traceability intact. The report marks q-keep as departing from keep-10 and the diff shows the rewritten requirement. (refs §5.13, §5.14, §5.20)
+
+### Choosing other applies the note, and nothing else is written
+
+Given a Draft spec whose q-names lists by-date, by-run and other, recommends by-date, and has a requirement written for by-date; and verdicts files choosing, respectively, other for q-names with the note "Name each log by run id and phase, never by date.", and other for q-names with a null note; and a writer answer that adds an option run-phase to q-names and chooses it, when verdicts mode runs with each file, then The first lands q-names with `chosen: other`, `abandoned` holding by-date and by-run, `why` equal to the note verbatim, a non-empty `revised`, and the requirement rewritten for naming by run id and phase; q-names' options are unchanged. The null-note file exits 12 naming q-names before any session. The run whose writer adds run-phase resumes the session once, then exits 5 naming q-names' options, writing nothing. (refs §5.5, §5.13, §5.14, §5.15)
+
+### Every question must list other
+
+Given an authoring session returning a spec whose question q-a lists no `other`; one returning a question that recommends `other`; one returning an `other` option with a label other than the fixed one; and a hand-authored Draft spec whose §9 question Q1 has no `- other —` bullet, when each authoring session ends, and `phax artifact approve` and `phax artifact decide --verdicts` run on the hand-authored spec, then Each authoring run exits 5 naming the question and writes nothing. Approve and decide on the hand-authored spec exit 12 naming Q1's lines as departing from the §9 format, with no session spawned. (refs §5.16)
+
+### Older documents gain other once
+
+Given a live Draft spec whose sidecar is stamped at the spec-document shape before `other`, with open q-a (options a1, a2) and arbitrated q-b whose verdict chose b1 and whose history holds one earlier verdict, and a live Draft plan stamped at the plan-document shape before `other` with one open question, when `phax artifact migrate-documents` runs, then Both sidecars are written at the current shape. Every question lists the fixed `other` as its last option. q-b's verdict and its history verdict each end their `abandoned` with `other`. Both bodies are re-rendered with the `- other —` bullets, and the commit holds exactly the rewritten paths. `phax artifact status` then reads both in sync. (refs §5.17)
 
 ### A wrong transcription lands nothing
 
-Given records enabled, and writer sessions that answer, respectively: q-keep with keep-10 when the file gave keep-20; a document that also moves q-names, which the file does not name; a document that edits §5 while every given verdict follows its recommendation; and a verdict citing `S12`, when each session ends and its corrective resume returns the same violation, then Each run resumes the session once, then exits 5 naming the violating path. The working tree and HEAD are unchanged, and a decision record with mode `verdicts` and outcome `failed` exists. (refs §5.15, §5.28)
+Given records enabled, and writer sessions that answer, respectively: q-keep with keep-10 when the file gave keep-20; a document that also moves q-names, which the file does not name; a document that edits §5 while every given verdict follows its recommendation; and a verdict citing `S12`, when each session ends and its corrective resume returns the same violation, then Each run resumes the session once, then exits 5 naming the violating path. The working tree and HEAD are unchanged, and a decision record with mode `verdicts` and outcome `failed` exists. (refs §5.15, §5.30)
 
 ### A malformed verdicts file is refused before any session
 
@@ -383,7 +449,7 @@ Given verdicts files that, respectively: are not JSON, have no `$schema`, are st
 
 ### A file that does not fit the artifact is refused
 
-Given a Draft spec with q-keep (options keep-10, keep-20; recommends keep-10), and verdicts files that, respectively: name another spec's path, name q-nine, name q-keep twice, choose keep-30, and choose keep-20 with a null note, when verdicts mode runs with each, then Each exits 12 before any session. The messages name, in turn: both paths; the artifact's question ids; the duplicate; q-keep's option ids; and q-keep with its recommendation. Nothing is written. (refs §5.4, §5.5)
+Given a Draft spec with q-keep (options keep-10, keep-20, other; recommends keep-10), and verdicts files that, respectively: name another spec's path, name q-nine, name q-keep twice, choose keep-30, and choose keep-20 with a null note, when verdicts mode runs with each, then Each exits 12 before any session. The messages name, in turn: both paths; the artifact's question ids; the duplicate; q-keep's option ids; and q-keep with its recommendation. Nothing is written. (refs §5.4, §5.5)
 
 ### Today's refusals apply and no terminal is needed
 
@@ -399,7 +465,7 @@ Given a Draft spec whose q-keep is arbitrated with keep-10 by an operator verdic
 
 ### A verdict always comes from the operator
 
-Given a Draft spec and a valid verdicts file, when verdicts mode runs with `--by machine:roadmap-loop` and no terminal; separately, with `--by operator` and no terminal; separately, from a terminal with no `--by`; separately, with no `--by` and no terminal, then The first exits 12, stating that a verdict always comes from the operator and naming `--by operator`, with no session spawned and nothing written. The second and third record each verdict with `by: { kind: operator, name: <git user.name> }`, and the sidecar keeps its current format. The fourth exits 12 naming `--by operator`, with no session spawned. (refs §5.22, §5.21, §5.23)
+Given a Draft spec and a valid verdicts file, when verdicts mode runs with `--by machine:roadmap-loop` and no terminal; separately, with `--by operator` and no terminal; separately, from a terminal with no `--by`; separately, with no `--by` and no terminal, then The first exits 12, stating that a verdict always comes from the operator and naming `--by operator`, with no session spawned and nothing written. The second and third record each verdict with `by: { kind: operator, name: <git user.name> }`, and `by` keeps its current shape. The fourth exits 12 naming `--by operator`, with no session spawned. (refs §5.24, §5.23, §5.25)
 
 ### The kept session is resumed only on its own provider
 
@@ -407,31 +473,31 @@ Given a headless-authored Draft spec whose kept authoring session ran on claude-
 
 ### A plan is decided and stays executable
 
-Given a headless Draft plan whose preamble holds open questions Q1 and Q2, and a verdicts file naming Q1, when verdicts mode runs, then The session loads `phax-decide-plan`. Q1 lands with a `phase` that names one of the plan's phases, and Q2 stays open. The plan passes `phax plans lint`, `phax run` finds its projection without an extraction session, and its lineage in sidecar and frontmatter is unchanged. (refs §5.16, §5.11)
+Given a headless Draft plan whose preamble holds open questions Q1 and Q2, and a verdicts file naming Q1, when verdicts mode runs, then The session loads `phax-decide-plan`. Q1 lands with a `phase` that names one of the plan's phases, and Q2 stays open. The plan passes `phax plans lint`, `phax run` finds its projection without an extraction session, and its lineage in sidecar and frontmatter is unchanged. (refs §5.18, §5.11)
 
 ### Hand-authored artifacts are decided in place
 
-Given a Draft spec with no sidecar whose §9 format holds open Q1 and Q2, and a verdicts file naming Q1, when verdicts mode runs, then Q1's block moves to the arbitrated section with its Decision block, one decision-log entry is added, Q2 stays open, and the new HEAD commit holds that file alone. (refs §5.24)
+Given a Draft spec with no sidecar whose §9 format holds open Q1 and Q2, and a verdicts file naming Q1, when verdicts mode runs, then Q1's block moves to the arbitrated section with its Decision block, one decision-log entry is added, Q2 stays open, and the new HEAD commit holds that file alone. (refs §5.26)
 
 ### The JSON report
 
-Given a Draft spec and a valid verdicts file read from stdin, when `phax artifact decide <spec> --verdicts - --by operator --json` runs, then stdout parses as one JSON object holding the artifact, status Draft, each verdict's question, chosen, recommendation, departs, why, revised and by, the questions left open, the body diff, the commit and the decision id. Nothing else is on stdout. (refs §5.19, §5.18)
+Given a Draft spec and a valid verdicts file read from stdin, when `phax artifact decide <spec> --verdicts - --by operator --json` runs, then stdout parses as one JSON object holding the artifact, status Draft, each verdict's question, chosen, recommendation, departs, why, revised and by, the questions left open, the body diff, the commit and the decision id. Nothing else is on stdout. (refs §5.21, §5.20)
 
 ### A limit lands nothing
 
-Given a writer session that ends on a provider usage limit, when verdicts mode runs, then It exits 8, and nothing is written or committed. (refs §5.25)
+Given a writer session that ends on a provider usage limit, when verdicts mode runs, then It exits 8, and nothing is written or committed. (refs §5.27)
 
 ### A concurrent edit is left in place
 
-Given a writer session during which the spec file is modified, when the session returns a valid answer, then The run exits 12, the modification is left in place, and no commit is made. (refs §5.26)
+Given a writer session during which the spec file is modified, when the session returns a valid answer, then The run exits 12, the modification is left in place, and no commit is made. (refs §5.28)
 
 ### A failed commit leaves the files
 
-Given a valid writer answer and a commit that fails, when verdicts mode writes the artifact and its sidecar, then It exits 12, and both files are written but uncommitted. (refs §5.27)
+Given a valid writer answer and a commit that fails, when verdicts mode writes the artifact and its sidecar, then It exits 12, and both files are written but uncommitted. (refs §5.29)
 
 ### The record explains the transcription
 
-Given records enabled and a verdicts-mode commit at `<sha>` that arbitrated two questions, one departing, when `phax records explain <sha>` runs, then It shows mode `verdicts`, the verdicts file as given, the prompt, the doctrine sources, the landed document, the body diff, `arbitrated: 2`, `departed: 1`, provider, model, effort, usage and outcome `committed`. (refs §5.28)
+Given records enabled and a verdicts-mode commit at `<sha>` that arbitrated two questions, one departing, when `phax records explain <sha>` runs, then It shows mode `verdicts`, the verdicts file as given, the prompt, the doctrine sources, the landed document, the body diff, `arbitrated: 2`, `departed: 1`, provider, model, effort, usage and outcome `committed`. (refs §5.30)
 
 ## 9. Open questions
 
@@ -468,8 +534,9 @@ Why: Adopted as recommended. Leaving unnamed questions as they are matches `--qu
 
 Recommendation: refuse — The check that `chosen` is a listed option is what makes the transcription verifiable without a checker (C4). Interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict. A precision on applying a listed option fits in the note.
 
-Decision: refuse — by operator (Rémy Loubradou), 2026-10-19
-Why: Adopted as recommended. The check that `chosen` names a listed option is what makes the transcription verifiable without a checker (C4), and interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict; a precision on a listed option fits in the note. Advocate: The strongest case for own-option: the right answer is sometimes not on the menu, and re-authoring the question only to add it is a heavy detour for a person who already knows what they want. Principles: S1, C1, C4. Reversibility: cheap. Revised: none.
+Decision: own-option — by operator (Rémy Loubradou), 2026-10-19
+Why: Not own-option as the spec formulated it: no option is written by the agent. Every question lists, written in its options, an option `other` whose label and loss phax fixes, and whose required note describes the choice. On output the check is: the choice is the given option, or `other`. Simpler, and verifiable. Advocate: The strongest case for refuse: with `other`, the writer applies to the body a choice nobody wrote as an option, with no loss named and no comparison with the others; only the caller's reading of the diff can check that the rewritten requirements, surface and criteria say what the note describes. Principles: C4, E0, C3. Reversibility: costly. Revised: §4 Terminology: Other added, §5 r-note: a verdict choosing other always departs, §5 r-writer: other applies the note's choice, §5 r-checks: chosen is the given option, other included; no option added, removed or changed, §5 r-other-required added, §5 r-other-lift added, §6 cli: phax artifact decide --verdicts refusals, §6 verdicts file: chosen may be other, §6 question options and rendered §9: the fixed other option, added, §7 Non-goals: other never becomes a new option, AC ac-other added, AC ac-other-required added, AC ac-other-lift added, AC ac-binding, AC ac-attribution, §10 settled, constraints: other, document shapes and migration.
+Earlier decision: refuse — by operator (Rémy Loubradou), 2026-10-19
 
 ### q-why — Who writes a given verdict's `why`?
 
@@ -534,6 +601,7 @@ Settled:
 - The writer prompt carries the given verdicts and no framing questions. A plan verdict's `phase` is written by the writer and checked against the plan's phases, as today.
 - Exit families follow interactive decide: 0 committed, 1 phase guard, 5 refused answer after the corrective resume, 8 limits, 12 refusals. The only files left written on failure are those of a failed commit, as today.
 - The requirements are written for the §9 recommendations. Where the author decides otherwise, the plan follows the decision: r-note follows q-note, r-unnamed q-unnamed, r-why q-why, r-by-* q-by, r-session and r-model q-provider and q-model, r-hand q-hand.
+- q-off-menu (decided 2026-10-19): every question of a spec or plan lists a written `other` option whose label and loss phax fixes, never recommended. A verdict choosing `other` carries the required note that describes the choice, and its why is that note. The output check is that `chosen` is the given option, `other` included. No session ever writes a new option.
 
 Left open:
 
@@ -544,9 +612,10 @@ Constraints:
 
 - No back-compat shims in persisted schemas. The verdicts format is born with `$schema` and every key required. New record variants are required fields of their variant, never optional fields.
 - Use explicit per-variant enums. The decision record's `mode` is interactive | verdicts, and each mode carries its own outcome set (interactive: committed | declined | undecided | failed; verdicts: committed | failed).
-- Each changed format (the verdicts format is new, and decision-record-manifest) is recorded as a `next` snapshot and released by the cut. The spec-document, plan-document and hand-decision-answer formats do not change: a verdict's `by` stays { kind: operator, name } (q-by). Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
+- Each changed format (the verdicts format is new; decision-record-manifest; spec-document and plan-document, whose questions now list the fixed `other` option) is recorded as a `next` snapshot and released by the cut. A verdict's `by` stays { kind: operator, name } (q-by), and hand-decision-answer does not change. Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
+- The `other` rule is a new document shape, never read leniently. Older live sidecars are lifted once by `phax artifact migrate-documents` (run at use under the auto-migrate decision of 2026-10-19): `other` is appended to every question and to every verdict's `abandoned`, history included. Hand-authored §9 sections are converted once by hand. The authoring answer's JSON Schema and prompt carry the fixed `other` option, and the phax-spec and phax-planning skills state it.
 - Respect the layers. Reading the verdicts file and stdin goes through ports, and decoding happens at the boundary through an Effect Schema. Matching verdicts to questions and every transcription check are pure domain functions. The CLI command parses, calls one use case and renders.
-- Interactive decide's behavior, prompt, model rule and attribution are unchanged.
+- Interactive decide's behavior, prompt, model rule and attribution are unchanged, apart from presenting `other` as one of each question's listed options.
 - Verdicts mode never writes approval records or the `approved` stamp.
 - `artifact decide` stays classified `refused` by the phase guard in both modes.
 - Every example and test fixture is made up.
@@ -572,6 +641,7 @@ phax artifact approve docs/specs/2610201015-log-rotation.md --by operator
 - 2026-10-19 q-note decided note-on-departure — operator (Rémy Loubradou)
 - 2026-10-19 q-unnamed decided stay-open — operator (Rémy Loubradou)
 - 2026-10-19 q-off-menu decided refuse — operator (Rémy Loubradou)
+- 2026-10-19 q-off-menu decided own-option — operator (Rémy Loubradou) — revised 16 sections
 - 2026-10-19 q-why decided phax-sets-why — operator (Rémy Loubradou)
 - 2026-10-19 q-by decided relayed — operator (Rémy Loubradou)
 - 2026-10-19 q-by decided operator-declared — operator (Rémy Loubradou) — revised 9 sections
