@@ -518,22 +518,23 @@
         "type": "object",
         "required": [
           "id",
-          "model",
-          "effort",
+          "title",
+          "objective",
+          "detailedInstructions",
           "planMarkdownAnchor",
           "plannedFilesToCreate",
           "plannedFilesToEdit",
           "optionalFilesToEdit",
-          "commit",
-          "title",
-          "objective",
-          "detailedInstructions",
           "boundaryContracts",
           "testStrategy",
           "implementationOrder",
           "excludedScope",
           "verification",
-          "expectedHandoff"
+          "expectedHandoff",
+          "commit",
+          "modelReason",
+          "model",
+          "effort"
         ],
         "properties": {
           "id": {
@@ -541,22 +542,17 @@
             "description": "a string matching the pattern ^phase-\\d{2}$",
             "pattern": "^phase-\\d{2}$"
           },
-          "model": {
+          "title": {
             "$ref": "#/$defs/NonEmptyString"
           },
-          "effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "off",
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max",
-              "ultracode",
-              "ultra"
-            ]
+          "objective": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "detailedInstructions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
           },
           "planMarkdownAnchor": {
             "$ref": "#/$defs/NonEmptyString"
@@ -577,34 +573,6 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
-          },
-          "commit": {
-            "type": "object",
-            "required": [
-              "subject",
-              "body"
-            ],
-            "properties": {
-              "subject": {
-                "$ref": "#/$defs/NonEmptyString"
-              },
-              "body": {
-                "$ref": "#/$defs/NonEmptyString"
-              }
-            },
-            "additionalProperties": false
-          },
-          "title": {
-            "$ref": "#/$defs/NonEmptyString"
-          },
-          "objective": {
-            "$ref": "#/$defs/NonEmptyString"
-          },
-          "detailedInstructions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/NonEmptyString"
             }
           },
           "boundaryContracts": {
@@ -637,6 +605,50 @@
           },
           "expectedHandoff": {
             "$ref": "#/$defs/NonEmptyString"
+          },
+          "commit": {
+            "type": "object",
+            "required": [
+              "subject",
+              "body"
+            ],
+            "properties": {
+              "subject": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "body": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "additionalProperties": false
+          },
+          "modelReason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why this phase departs from the phax-planning skill's default phase assignment; null when it takes the default. Rendered as a **Model reason:** line, never extracted."
+          },
+          "model": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "off",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultracode",
+              "ultra"
+            ]
           }
         },
         "additionalProperties": false

@@ -45,6 +45,7 @@ function fixture(): PlanDocument {
       {
         id: "phase-01",
         title: "Spec and plan document schemas, `artifact schema`",
+        modelReason: null,
         model: "claude-opus-5-5",
         effort: "high",
         planMarkdownAnchor: "#phase-01-document-schemas",
@@ -70,6 +71,7 @@ function fixture(): PlanDocument {
       {
         id: "phase-02",
         title: "Renderers",
+        modelReason: null,
         model: "claude-sonnet-5",
         effort: "medium",
         planMarkdownAnchor: "#phase-02-renderers",
@@ -579,5 +581,63 @@ describe("renderPlanBody shape", () => {
     });
     expect(md).not.toContain("\r");
     expect(md).toContain("Line one.\nLine two.");
+  });
+});
+
+describe("renderPlanBody with a model reason", () => {
+  const REASON = "Designs the invoice state machine, which no code in the repository shows yet.";
+
+  // phase-02 departs to haiku / low with a reason; phase-03 takes the default, with none.
+  function reasoned(): PlanDocument {
+    const base = fixture();
+    const [first, second] = base.phases;
+    if (second === undefined) throw new Error("the fixture has two phases");
+    return {
+      ...base,
+      phases: [
+        first,
+        { ...second, model: "claude-haiku-5-5", effort: "low", modelReason: REASON },
+        {
+          ...second,
+          id: "phase-03",
+          title: "Defaults",
+          planMarkdownAnchor: "#phase-03-defaults",
+          model: "claude-sonnet-5-5",
+          effort: "medium",
+          modelReason: null,
+        },
+      ],
+    };
+  }
+
+  it("renders the reason line directly under the effort line, in the same paragraph", () => {
+    const md = renderPlanBody(reasoned());
+    expect(md).toContain(
+      `**Recommended model:** claude-haiku-5-5\n**Recommended effort:** low\n**Model reason:** ${REASON}\n\n`,
+    );
+  });
+
+  it("renders no reason line for a null reason, leaving the paragraph as before", () => {
+    const md = renderPlanBody(reasoned());
+    const phase03 = md.slice(md.indexOf("## phase-03"));
+    expect(phase03).toContain(
+      "**Recommended model:** claude-sonnet-5-5\n**Recommended effort:** medium\n\n",
+    );
+    expect(phase03).not.toContain("Model reason");
+    expect(renderPlanBody(fixture())).not.toContain("Model reason");
+  });
+
+  it("parses to exactly the projection, with the stated models and efforts and no reason", () => {
+    const doc = reasoned();
+    const md = renderPlanBody(doc);
+    const { parsed, fromMarkdown, fromDocument } = roundTrip(doc, md);
+    expect(fromMarkdown.plan).toEqual(fromDocument.plan);
+    expect(parsed.phases).toEqual(projectExtractedPlan(doc).phases);
+    expect(parsed.phases.map((phase) => [phase.model, phase.effort])).toEqual([
+      ["claude-opus-5-5", "high"],
+      ["claude-haiku-5-5", "low"],
+      ["claude-sonnet-5-5", "medium"],
+    ]);
+    expect(JSON.stringify(parsed)).not.toContain("modelReason");
   });
 });

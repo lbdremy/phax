@@ -17,13 +17,20 @@ import { schemaUrlField } from "./schemaUrl.js";
 // the informational content a rendered plan.md needs. Experimental — outside the
 // `version: 1` stability promise. Every field is required. The lineage
 // (`sourceSpec`, `completesSpec`) mirrors the rendered frontmatter and stays
-// out of the projection: `phax-plan.json` carries no lineage.
+// out of the projection: `phax-plan.json` carries no lineage. A phase's
+// `modelReason` is informational too: rendered, never extracted.
 
+// `modelReason`, `model` and `effort` come last, so a headless planner writes
+// the phase before it assigns its model.
 const PlanDocumentPhaseSchema = Schema.Struct({
-  ...ExtractedPhaseFields,
+  id: ExtractedPhaseFields.id,
   title: Schema.NonEmptyString,
   objective: Schema.NonEmptyString,
   detailedInstructions: Schema.Array(Schema.NonEmptyString),
+  planMarkdownAnchor: ExtractedPhaseFields.planMarkdownAnchor,
+  plannedFilesToCreate: ExtractedPhaseFields.plannedFilesToCreate,
+  plannedFilesToEdit: ExtractedPhaseFields.plannedFilesToEdit,
+  optionalFilesToEdit: ExtractedPhaseFields.optionalFilesToEdit,
   // Null for a phase that crosses no boundary: the phax-planning skill omits the
   // section rather than filling it.
   boundaryContracts: Schema.NullOr(Schema.NonEmptyString),
@@ -32,6 +39,13 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   excludedScope: Schema.Array(Schema.NonEmptyString),
   verification: Schema.NonEmptyString,
   expectedHandoff: Schema.NonEmptyString,
+  commit: ExtractedPhaseFields.commit,
+  modelReason: Schema.NullOr(Schema.NonEmptyString).annotations({
+    description:
+      "Why this phase departs from the phax-planning skill's default phase assignment; null when it takes the default. Rendered as a **Model reason:** line, never extracted.",
+  }),
+  model: ExtractedPhaseFields.model,
+  effort: ExtractedPhaseFields.effort,
 });
 
 const preambleFields = {

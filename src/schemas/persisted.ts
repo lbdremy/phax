@@ -25,7 +25,7 @@
 // written before `$schema` by the pre-schema decoder, then lifted by the
 // author's rationale marker (`liftMarkedQuestions`); a plan document stamped
 // below its current stamp is read by the frozen 0.20.0 decoder and lifted
-// with empty preamble questions. `readDocumentSidecar` also reports the shape
+// with empty preamble questions and `modelReason: null`.`readDocumentSidecar` also reports the shape
 // a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
@@ -36,7 +36,7 @@
 // (`readBriefReport`). Each reads only stamps from its format's current stamp
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
-import { Either, type ParseResult } from "effect";
+import { Array as Arr, Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -485,9 +485,42 @@ function liftSpecDocument(older: SpecDocumentV0_17_0Value): SpecDocument {
   return { ...older, ...liftMarkedQuestions(older.openQuestions) };
 }
 
+/**
+ * Lifts the phases of a plan document older than `modelReason`: each gains
+ * `modelReason: null`, rebuilt in the current key order.
+ */
+function liftPlanDocumentPhases(
+  phases: PlanDocumentV0_20_0Value["phases"],
+): PlanDocument["phases"] {
+  return Arr.map(phases, (phase) => ({
+    id: phase.id,
+    title: phase.title,
+    objective: phase.objective,
+    detailedInstructions: phase.detailedInstructions,
+    planMarkdownAnchor: phase.planMarkdownAnchor,
+    plannedFilesToCreate: phase.plannedFilesToCreate,
+    plannedFilesToEdit: phase.plannedFilesToEdit,
+    optionalFilesToEdit: phase.optionalFilesToEdit,
+    boundaryContracts: phase.boundaryContracts,
+    testStrategy: phase.testStrategy,
+    implementationOrder: phase.implementationOrder,
+    excludedScope: phase.excludedScope,
+    verification: phase.verification,
+    expectedHandoff: phase.expectedHandoff,
+    commit: phase.commit,
+    modelReason: null,
+    model: phase.model,
+    effort: phase.effort,
+  }));
+}
+
 // A plan written before questions carried none: both arrays lift empty.
 function liftPlanDocument(older: PlanDocumentV0_20_0Value): PlanDocument {
-  return { ...older, preamble: { ...older.preamble, openQuestions: [], arbitratedQuestions: [] } };
+  return {
+    ...older,
+    preamble: { ...older.preamble, openQuestions: [], arbitratedQuestions: [] },
+    phases: liftPlanDocumentPhases(older.phases),
+  };
 }
 
 function readSpecDocumentSidecar(
@@ -580,7 +613,7 @@ function readPlanDocumentSidecar(
  *   refused naming it; a plan written before `$schema` steps to
  *   `completesSpec: null` beside `sourceSpec: null` and is refused, naming
  *   `completesSpec`, beside a spec path; either lifts with empty preamble
- *   question arrays;
+ *   question arrays and `modelReason: null` on every phase;
  * - any other sidecar is read by the current file decoder, shape `current`.
  */
 export function readDocumentSidecar(

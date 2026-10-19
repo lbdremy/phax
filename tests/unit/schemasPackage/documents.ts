@@ -604,20 +604,32 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
   return rest;
 }
 
-/** A plan document without the preamble's question arrays, as every shape before them. */
+/**
+ * A plan document as every shape before the preamble's question arrays and
+ * each phase's `modelReason` (the frozen 0.20.0 shape): without both.
+ */
 export function withoutPreambleQuestions(doc: Doc): Doc {
   const {
     openQuestions: _open,
     arbitratedQuestions: _arbitrated,
     ...preamble
   } = doc["preamble"] as Doc;
-  return { ...doc, preamble };
+  const phases = (doc["phases"] as Doc[]).map(({ modelReason: _reason, ...phase }) => phase);
+  return { ...doc, preamble, phases };
 }
 
-/** A plan document's preamble with the question arrays an older shape lifts to: both empty. */
+/**
+ * A plan document with what an older shape lifts to: the preamble's question
+ * arrays both empty, and a null `modelReason` on every phase.
+ */
 function withEmptyQuestions(doc: Doc): Doc {
   const preamble = doc["preamble"] as Doc;
-  return { ...doc, preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] } };
+  const phases = (doc["phases"] as Doc[]).map((phase) => ({ ...phase, modelReason: null }));
+  return {
+    ...doc,
+    preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
+    phases,
+  };
 }
 
 /**
@@ -689,6 +701,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       sourceSpec: null,
       completesSpec: null,
       preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
+      phases: [
+        { ...planDocument.phases[0], modelReason: null },
+        ...planDocument.phases.slice(1).map((phase) => ({ ...phase, modelReason: null })),
+      ],
     }),
   ),
   "plan-approval-record": encoded(

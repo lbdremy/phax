@@ -434,12 +434,18 @@ describe("phax artifact status — unmigrated sidecars", () => {
 
   it("a Draft plan stamped 0.20.0 prints no Questions line and names migrate-documents", async () => {
     const base = planBase();
-    const { preamble, ...rest } = base;
+    const { preamble, phases, ...rest } = base;
     const { openQuestions: _o, arbitratedQuestions: _a, ...olderPreamble } = preamble;
+    const olderPhases = phases.map(({ modelReason: _r, ...phase }) => phase);
     writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(base));
     writeRepoFile(
       PLAN_SIDECAR,
-      json({ $schema: schemaUrl("plan-document", "0.20.0"), ...rest, preamble: olderPreamble }),
+      json({
+        $schema: schemaUrl("plan-document", "0.20.0"),
+        ...rest,
+        preamble: olderPreamble,
+        phases: olderPhases,
+      }),
     );
     commitAll();
 

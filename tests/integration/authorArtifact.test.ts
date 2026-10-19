@@ -137,6 +137,7 @@ const PLAN_DOCUMENT = {
     {
       id: "phase-01",
       title: "Prune command",
+      modelReason: null,
       model: "claude-sonnet-5",
       effort: "high",
       planMarkdownAnchor: "#phase-01-prune-command",

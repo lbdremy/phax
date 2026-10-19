@@ -366,6 +366,7 @@ describe("Plan approval writes its own record file", () => {
         {
           id: "phase-01",
           title: "Alpha command",
+          modelReason: null,
           model: "claude-sonnet-5",
           effort: "high",
           planMarkdownAnchor: "#phase-01-alpha-command",
