@@ -384,7 +384,13 @@ export function toLatestPlanDocument(
     return recorded;
   }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
-  const phases = Arr.map(value.phases, (phase) => ({ ...phase, modelReason: null }));
+  // modelReason, model and effort close the phase, as in the current shape.
+  const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
+    ...phase,
+    modelReason: null,
+    model,
+    effort,
+  }));
   if ("completesSpec" in value) {
     const { $schema: _schema, ...recorded } = value;
     return { ...recorded, preamble, phases };
