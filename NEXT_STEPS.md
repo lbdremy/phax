@@ -9,8 +9,7 @@ Last pruned 2026-10-19. Since the previous prune (2026-10-05, v0.18.0), releases
 shipped, and these specs landed and were completed: `approval-record-files` (with the
 `own-approval-ground` plan), `completes-spec`, `drop-orient`, `drop-gate-scopes`, `gate-request`,
 `brief-provider`, `open-next-release`, `guarantee-reports`, `gate-attempt-records`,
-`pr-description`, `small-fixes-0-23` and `artifact-decide` (three plans); then, on main and not yet
-released, the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`.
+`pr-description`, `small-fixes-0-23` and `artifact-decide` (three plans); then the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`.
 
 ## The queue, as of 2026-10-19
 
@@ -19,15 +18,6 @@ released, the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`
 - [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2 adds
       `phax architecture` and completes the spec.
-
-### Release 0.25.0
-
-- [ ] **Cut 0.25.0** (everything it waited on has landed). After the cut, paste the 0.25.0 section of
-      `docs/upgrading.md` at the top of the GitHub release notes (`gh release edit v0.25.0`).
-  - [ ] **`artifact-decide-verdicts`, if it is to ship in 0.25.0.** It changes persisted formats
-        (the fixed `other` option on every spec and plan question, the decision record's mode, a
-        new `decide-verdicts` input). Landing it before the cut lets those changes ride the open
-        `next` snapshots; after it, each needs a frozen copy and a lift.
 
 ### Approved, not yet planned
 
@@ -54,7 +44,9 @@ released, the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`
       replace it.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
       on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
-      without a terminal. See *Release 0.25.0* for its format changes.
+      without a terminal. Its format changes (the `other` option, the decision record's mode, a new
+      `decide-verdicts` input) now land after 0.25.0, so each changed format needs a frozen copy and
+      a lift.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -101,7 +93,7 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
       sign, or make npm the only documented install path for 1.0.
 - [ ] **Provider coverage on record.** Claude is the tested path;
       `tests/e2e/semanticTrace.providers.test.ts` is the only real exercise of Codex and Vibe
-      (and the real e2e does not reach them, see *Release 0.25.0*). One full `phax run` per
+      (and the real e2e does not reach them, see *Small follow-ups*). One full `phax run` per
       provider on a real plan, with the result noted here, is the minimum to keep the
       provider-independence claim.
 - [ ] **A second user.** The registry shows one operator across three repos (phax, steme-lab,
