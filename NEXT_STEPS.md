@@ -19,26 +19,16 @@ released, the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`
 - [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2 adds
       `phax architecture` and completes the spec.
-- [ ] **`auto-migrate`** — `docs/specs/2610191232-auto-migrate.md`, approved 2026-10-19. After an
-      upgrade phax runs its own migrations at use: machine ones on the first command after the
-      version changes, repository ones on any command run in a terminal, committing them. Planned
-      next (its plan carries `modelReason`, now that #145 has merged).
+- [ ] **Cost ledgers backfilled by `plans estimate`, and `docs/upgrading.md`** — PR #146. The
+      smallest answer to "tell people what to run after an upgrade": `phax plans estimate` writes
+      the missing ledgers itself, and the upgrading page lists the one-time steps by release. It
+      replaced the `upgrade-hints` and `auto-migrate` specs, both abandoned on 2026-10-19 as too
+      much machinery.
 
 ### Release 0.25.0
 
-- [ ] **Cut 0.25.0 once `auto-migrate` has landed.** Before cutting it:
-  - [ ] **Fix the real e2e's Codex and Vibe flows, which run on Claude.** Found 2026-10-06:
-        `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
-        provider" for `[codex-cli] (secure)` and `[mistral-vibe] (unsafe)`: both phases ran on
-        `claude-code`. The fixture plan (`tests/e2e/fixtures/minimal-repo/plan.md`) asks for
-        `claude-haiku-4-5-20251001` at `none`, which has no Codex anchor; Vibe's `off` alias does
-        anchor to it, but Vibe was not chosen either, and why is not checked yet. Routing falls
-        back to the terminal Claude Code (not a regression). Fix the fixture: give its phases a
-        model and effort both providers anchor, or assert the routing reason instead. Until then
-        the real e2e exercises neither Codex nor Vibe.
-  - [ ] **Run `pnpm test:e2e:real` once on the three providers.** 0.25.0 changes what every run
-        does (the scoped phase prompt, a cost-ledger entry per invocation, the plan document's
-        `modelReason`).
+- [ ] **Cut 0.25.0 once PR #146 has landed.** After the cut, paste the 0.25.0 section of
+      `docs/upgrading.md` at the top of the GitHub release notes (`gh release edit v0.25.0`).
   - [ ] **`artifact-decide-verdicts`, if it is to ship in 0.25.0.** It changes persisted formats
         (the fixed `other` option on every spec and plan question, the decision record's mode, a
         new `decide-verdicts` input). Landing it before the cut lets those changes ride the open
@@ -125,6 +115,18 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
 
 Not blockers, on purpose: specs 23/24, records consumers, the durable context layer, the
 desktop — none is promised by the announcement.
+
+## Small follow-ups
+
+- [ ] **The real e2e's Codex and Vibe flows run on Claude.** Found 2026-10-06:
+      `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
+      provider" for `[codex-cli] (secure)` and `[mistral-vibe] (unsafe)`: both phases ran on
+      `claude-code`. The fixture plan (`tests/e2e/fixtures/minimal-repo/plan.md`) asks for
+      `claude-haiku-4-5-20251001` at `none`, which has no Codex anchor; Vibe's `off` alias does
+      anchor to it, but Vibe was not chosen either, and why is not checked yet. Routing falls
+      back to the terminal Claude Code (not a regression). Fix the fixture: give its phases a
+      model and effort both providers anchor, or assert the routing reason instead. Until then
+      the real e2e exercises neither Codex nor Vibe. Left out of 0.25.0 on 2026-10-19.
 
 ## steme coordination — still open
 
