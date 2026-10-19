@@ -384,7 +384,8 @@ export function toLatestPlanDocument(
     return recorded;
   }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
-  // modelReason, model and effort close the phase, as in the current shape.
+  // modelReason joins model and effort at the end of each phase; the other
+  // keys keep their recorded order (the lift is built in memory, never written).
   const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
     ...phase,
     modelReason: null,
