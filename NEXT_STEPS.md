@@ -19,15 +19,10 @@ released, the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`
 - [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2 adds
       `phax architecture` and completes the spec.
-- [ ] **Cost ledgers backfilled by `plans estimate`, and `docs/upgrading.md`** — PR #146. The
-      smallest answer to "tell people what to run after an upgrade": `phax plans estimate` writes
-      the missing ledgers itself, and the upgrading page lists the one-time steps by release. It
-      replaced the `upgrade-hints` and `auto-migrate` specs, both abandoned on 2026-10-19 as too
-      much machinery.
 
 ### Release 0.25.0
 
-- [ ] **Cut 0.25.0 once PR #146 has landed.** After the cut, paste the 0.25.0 section of
+- [ ] **Cut 0.25.0** (everything it waited on has landed). After the cut, paste the 0.25.0 section of
       `docs/upgrading.md` at the top of the GitHub release notes (`gh release edit v0.25.0`).
   - [ ] **`artifact-decide-verdicts`, if it is to ship in 0.25.0.** It changes persisted formats
         (the fixed `other` option on every spec and plan question, the decision record's mode, a
