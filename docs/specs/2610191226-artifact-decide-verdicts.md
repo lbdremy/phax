@@ -73,7 +73,6 @@ The person decides; the writer only writes it down. A mistake is undone by decid
 - **Writer session** — The one headless provider session that verdicts mode runs, under the doctrine skill for the artifact kind and any `--doctrine` file. It returns the whole revised document. It decides nothing: for each given verdict it writes the advocate, principles and reversibility, plus the body revisions and `revised` of a departing verdict.
 - **Interactive mode** — `phax artifact decide` as shipped by `artifact-decide`. Unchanged by this spec.
 - **Caller** — Whoever ran verdicts mode: the person, an agent session acting for them, or a loop relaying their instruction. The caller reads the result before approving.
-- **Relayed verdict** — A verdict carried by a machine on a person's behalf, recorded with `by: { kind: relayed, grant }`. It names the machine's grant and no person (subject to §9 q-by).
 - **Agent-decides modes** — The doctrine's `headless` and `headless total` modes, in which an agent chooses. They are not specified here, and verdicts mode is not one of them.
 
 ## 5. Functional requirements
@@ -169,13 +168,13 @@ The system SHALL give the verdicts-mode commit trailers naming the verdicts' arb
 
 WHEN `--by operator` is given, or no `--by` is given and the command runs from a terminal, THE system SHALL attribute each given verdict to the operator, named by the committing git identity.
 
-### 5.22 Relayed verdicts
+### 5.22 A machine is refused
 
-WHERE `--by machine:<grant>` is given THE system SHALL attribute each given verdict as relayed by that machine, naming the grant and no person.
+IF `--by machine:<grant>` is given in verdicts mode THEN the system SHALL refuse with exit 12 before any session, stating that a verdict always comes from the operator and naming `--by operator`, and write nothing.
 
 ### 5.23 No terminal, no guessed arbiter
 
-IF verdicts mode runs without `--by` and not from a terminal THEN the system SHALL refuse with exit 12 before any session, naming `--by operator` and `--by machine:<grant>`.
+IF verdicts mode runs without `--by` and not from a terminal THEN the system SHALL refuse with exit 12 before any session, naming `--by operator`.
 
 ### 5.24 Hand-authored artifacts
 
@@ -211,10 +210,10 @@ before:
 after:
 
     phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]          # interactive, unchanged
-    phax artifact decide <artifact> --verdicts <file|-> [--by operator | --by machine:<grant>]
+    phax artifact decide <artifact> --verdicts <file|-> [--by operator]
                          [--doctrine <file>] [--model <model>] [--effort <effort>] [--json]
 
-    $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts verdicts.json --by machine:roadmap-loop
+    $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts verdicts.json --by operator
     decide spec log-rotation — verdicts from verdicts.json: q-keep, q-scope — headless, resumed authoring session
     model      claude-sonnet-5-5 / medium (built-in default) on claude-code
     q-keep     keep-20   departs from keep-10 — revised: §5.2, §6 rotate output, AC keep bound
@@ -238,7 +237,9 @@ after:
     $? = 12
     ✗ decide refused: verdicts.json is for docs/specs/2610190900-cache-keys.md, not docs/specs/2610201015-log-rotation.md
     $? = 12
-    ✗ decide refused: no terminal and no --by — pass `--by operator` or `--by machine:<grant>`
+    ✗ decide refused: no terminal and no --by — pass `--by operator`: a verdict always comes from the operator
+    $? = 12
+    ✗ decide refused: --by machine:roadmap-loop — a verdict always comes from the operator; pass `--by operator`
     $? = 12
     ✗ decide refused: --question and --verdicts are exclusive — the verdicts file names the questions
     $? = 12
@@ -249,9 +250,9 @@ after:
           8  provider rate or usage limit
           12 refusal before the session (verdicts file, artifact, flags, --by, doctrine, model), artifact changed during the session, commit failed
 
-    # normative: `--verdicts <file|->` (- reads stdin), the `--by` values and the no-terminal refusal, `--json`, no prompt in this mode,
-    # the exit families, the artifact left Draft, and a report that lists each verdict (chosen, follows/departs, why, revised), the questions
-    # left open and the body diff. Layout, wording and the commit subject are indicative.
+    # normative: `--verdicts <file|->` (- reads stdin), `--by operator` as the only `--by` value, the refusal of `--by machine:<grant>`, the
+    # no-terminal refusal, `--json`, no prompt in this mode, the exit families, the artifact left Draft, and a report that lists each verdict
+    # (chosen, follows/departs, why, revised), the questions left open and the body diff. Layout, wording and the commit subject are indicative.
 
 ### file: verdicts file (given as --verdicts <file|->) — normative
 
@@ -303,27 +304,6 @@ after:
 
     # one object on stdout, nothing else there; key spelling indicative; its content is the human report's (normative per r-report)
 
-### file: docs/specs/<stamp>-<slug>.json decided verdict `by`, and its rendered Decision line — normative
-
-before:
-
-    "verdict": { "kind": "decided", "chosen": "keep-20", …, "by": { "kind": "operator", "name": "Ada Lovelace" }, "at": "2026-10-20T08:02:11Z", "revised": [ … ] }
-
-    Decision: keep-20 — by operator (Ada Lovelace), 2026-10-20
-    - 2026-10-20 q-keep decided keep-20 — operator (Ada Lovelace) — revised 3 sections
-
-after:
-
-    "by": { "kind": "operator", "name": "Ada Lovelace" }          # --by operator, or a terminal without --by
-    "by": { "kind": "relayed", "grant": "roadmap-loop" }          # --by machine:roadmap-loop
-
-    Decision: keep-20 — relayed by machine (roadmap-loop), 2026-10-20
-    - 2026-10-20 q-keep decided keep-20 — relayed (roadmap-loop) — revised 3 sections
-
-    # normative: `by.kind` is operator | relayed, each with exactly its keys; the grant is kebab-case, as approve's; a relayed verdict names
-    # no person. The plan document's decided verdict, the hand-decision-answer and the hand-authored §9 Decision line take the same variant.
-    # Key spelling and the rendered wording are indicative. This element stands or falls with §9 q-by.
-
 ### cli: the decide commit (git log) — indicative
 
 before:
@@ -343,11 +323,11 @@ after:
     Decided from a verdicts file, transcribed in a headless session (claude-sonnet-5-5 / medium on claude-code).
 
     Artifact: docs/specs/2610201015-log-rotation.md
-    Decided-By: relayed (machine roadmap-loop)
+    Decided-By: operator (Ada Lovelace)
     Decided-Via: verdicts
     Decision-Id: 2610201015-log-rotation/03
 
-    # normative per r-commit-trailer: trailers naming the arbiter, the verdicts channel and the decision id; spelling indicative
+    # normative per r-commit-trailer: trailers naming the operator, the verdicts channel and the decision id; spelling indicative
 
 ### file: decision record on phax/records/v1 — indicative
 
@@ -374,6 +354,7 @@ after:
 - A checker session run by phax to judge the transcription. The caller reads the report and the diff; a mistake is undone with `phax artifact reopen` and decide `--question` (interactive) or another verdicts file.
 - Approving as part of deciding. There is no `--approve`, and verdicts mode never touches approval records.
 - Changing interactive decide: its framing questions, its diff confirmation, its Claude Code-only model and its operator attribution stay as shipped.
+- Recording a relaying machine in a verdict: a verdict always comes from the operator, a loop relaying a person's instruction runs with `--by operator`, and the spec-document, plan-document and hand-decision-answer formats do not change.
 - Off-menu answers, and editing a question's wording or options from a verdicts file (subject to §9 q-off-menu).
 - A shorthand such as "every other question as recommended": each decided question is written out (subject to §9 q-unnamed).
 - Turning steering text (`rouvre q-keep`, a chat message) into a verdicts file. That is the caller's job.
@@ -416,9 +397,9 @@ Given a Draft spec with open questions, when decide runs with `--verdicts verdic
 
 Given a Draft spec whose q-keep is arbitrated with keep-10 by an operator verdict, and a verdicts file choosing keep-20 for q-keep with a note, when verdicts mode runs, then q-keep's verdict chooses keep-20, and its history ends with the previous keep-10 verdict unchanged. The other questions are byte-identical in the sidecar. (refs §5.10, §5.9)
 
-### Attribution is declared, never guessed
+### A verdict always comes from the operator
 
-Given a Draft spec and a valid verdicts file, when verdicts mode runs with `--by machine:roadmap-loop` and no terminal; separately, from a terminal with no `--by`; separately, with no `--by` and no terminal, then The first records each verdict with `by: { kind: relayed, grant: roadmap-loop }`, renders `relayed by machine (roadmap-loop)` on its Decision line, and names no person. The second records the operator by git user.name. The third exits 12 naming `--by operator` and `--by machine:<grant>`, with no session spawned. (refs §5.22, §5.21, §5.23)
+Given a Draft spec and a valid verdicts file, when verdicts mode runs with `--by machine:roadmap-loop` and no terminal; separately, with `--by operator` and no terminal; separately, from a terminal with no `--by`; separately, with no `--by` and no terminal, then The first exits 12, stating that a verdict always comes from the operator and naming `--by operator`, with no session spawned and nothing written. The second and third record each verdict with `by: { kind: operator, name: <git user.name> }`, and the sidecar keeps its current format. The fourth exits 12 naming `--by operator`, with no session spawned. (refs §5.22, §5.21, §5.23)
 
 ### The kept session is resumed only on its own provider
 
@@ -508,8 +489,9 @@ Why: Adopted as recommended. The why states the person's decision, so phax copyi
 
 Recommendation: relayed — Choosing `relayed` keeps attribution explicit (E0) and consistent with how approve and reopen take `--by` (C1). A loop never records itself as a person, and a person is never named by a guess. `relayed` is not the doctrine's machine-decides mode: it says a machine carried a decision, not that a machine made it. The shape change is the accepted loss: a union widening that the release cut records, costing at most one known migrate gesture.
 
-Decision: relayed — by operator (Rémy Loubradou), 2026-10-19
-Why: Adopted as recommended. `relayed` keeps attribution explicit (E0) and takes `--by` as approve and reopen do (C1): a loop never records itself as a person, and no person is named by a guess (S6). It records that a machine carried a decision, not that a machine made it. The document shape change is the accepted loss. Advocate: The strongest case for operator-declared: it changes no document format and forces no migrate-documents run, while the relaying machine's grant can still be kept in the commit trailer and the decision record. Principles: S1, E0, C1, S6. Reversibility: costly. Revised: none.
+Decision: operator-declared — by operator (Rémy Loubradou), 2026-10-19
+Why: A verdict always comes from the operator. Without a terminal, `--by operator` is required and `--by machine:…` is refused. The sidecar format does not change. Advocate: The strongest case for relayed: a loop like the steme conductor must now declare itself the operator, so nothing in the document, the commit or the record says a machine carried the verdict, while with auto-migrate the shape change would have cost almost nothing. Principles: E0, C1, C2, S3. Reversibility: cheap. Revised: §4 Terminology: Relayed verdict removed, §5 r-by-machine: a machine is refused, §5 r-by-required: names --by operator only, §6 cli: phax artifact decide --verdicts, §6 decided verdict `by` element removed, §6 the decide commit, §7 Non-goals: no relaying machine in a verdict, AC ac-attribution, §10 constraints: enums and changed formats.
+Earlier decision: relayed — by operator (Rémy Loubradou), 2026-10-19
 
 ### q-provider — Does the writer session go through model routing, or run on Claude Code only like interactive decide?
 
@@ -560,9 +542,9 @@ Left open:
 
 Constraints:
 
-- No back-compat shims in persisted schemas. The verdicts format is born with `$schema` and every key required. New verdict and record variants are required fields of their variant, never optional fields.
-- Use explicit per-variant enums. `by.kind` is operator | relayed (under q-by). The decision record's `mode` is interactive | verdicts, and each mode carries its own outcome set (interactive: committed | declined | undecided | failed; verdicts: committed | failed).
-- Each changed format (the verdicts format is new; decision-record-manifest, and under q-by spec-document, plan-document and hand-decision-answer) is recorded as a `next` snapshot and released by the cut. Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
+- No back-compat shims in persisted schemas. The verdicts format is born with `$schema` and every key required. New record variants are required fields of their variant, never optional fields.
+- Use explicit per-variant enums. The decision record's `mode` is interactive | verdicts, and each mode carries its own outcome set (interactive: committed | declined | undecided | failed; verdicts: committed | failed).
+- Each changed format (the verdicts format is new, and decision-record-manifest) is recorded as a `next` snapshot and released by the cut. The spec-document, plan-document and hand-decision-answer formats do not change: a verdict's `by` stays { kind: operator, name } (q-by). Tests must hold across a release cut, so they name current-shape URLs through the release table, never a hard-coded release.
 - Respect the layers. Reading the verdicts file and stdin goes through ports, and decoding happens at the boundary through an Effect Schema. Matching verdicts to questions and every transcription check are pure domain functions. The CLI command parses, calls one use case and renders.
 - Interactive decide's behavior, prompt, model rule and attribution are unchanged.
 - Verdicts mode never writes approval records or the `approved` stamp.
@@ -592,6 +574,7 @@ phax artifact approve docs/specs/2610201015-log-rotation.md --by operator
 - 2026-10-19 q-off-menu decided refuse — operator (Rémy Loubradou)
 - 2026-10-19 q-why decided phax-sets-why — operator (Rémy Loubradou)
 - 2026-10-19 q-by decided relayed — operator (Rémy Loubradou)
+- 2026-10-19 q-by decided operator-declared — operator (Rémy Loubradou) — revised 9 sections
 - 2026-10-19 q-provider decided routed — operator (Rémy Loubradou)
 - 2026-10-19 q-model decided own-default — operator (Rémy Loubradou)
 - 2026-10-19 q-hand decided both — operator (Rémy Loubradou)
