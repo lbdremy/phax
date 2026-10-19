@@ -5,11 +5,12 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-10-19. Since the previous prune (2026-10-05, v0.18.0), releases 0.19.0–0.24.0
+Last pruned 2026-10-19. Since the previous prune (2026-10-05, v0.18.0), releases 0.19.0–0.25.0
 shipped, and these specs landed and were completed: `approval-record-files` (with the
 `own-approval-ground` plan), `completes-spec`, `drop-orient`, `drop-gate-scopes`, `gate-request`,
 `brief-provider`, `open-next-release`, `guarantee-reports`, `gate-attempt-records`,
-`pr-description`, `small-fixes-0-23` and `artifact-decide` (three plans); then the cost specs `phase-prompt-scope`, `cost-ledger` and `plan-estimate`.
+`pr-description`, `small-fixes-0-23` and `artifact-decide` (three plans); then the cost specs
+`phase-prompt-scope`, `cost-ledger` and `plan-estimate`, shipped in 0.25.0.
 
 ## The queue, as of 2026-10-19
 
