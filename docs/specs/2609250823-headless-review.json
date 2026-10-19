@@ -100,10 +100,10 @@
       "note": "Every persisted format carries a `$schema` URL `<base>/<format-id>/<X.Y.Z>.json`. `code-review` is expected to join with this spec's plan."
     }
   ],
-  "context": "`phax review-code <run>` opens an interactive, pre-prompted session in a `review_open` run's worktree. It resumes the session recorded in `code-review-session.json` unless `--new-session` is given, and the developer then takes over.\n\n`phax review-compliance <run>` is its non-mutating, structured sibling. The review agent answers `{ version: 1, verdict: conformant | conformant-with-deviations | divergent, summary, perPhase[{ phaseId, verdict, findings[{ dimension, severity: info | deviation | concern, message }] }], attentionPoints, pointers }`, decoded strictly. phax persists it as `compliance-review.json`, `$schema` first and with no `version`, as it persists every format.\n\n`phax.json` has `review.compliance.{enabled, model, effort}`. Under `review.code` it has only `{model, effort}`. `publish.auto` is required: when true, the run pushes its final branch and opens its PR once it is `review_open`.\n\nA run lives in the local registry (`~/.phax/runs/`), outside Git. Its committed trace is the records branch `phax/records/v1`. `phax run [short-name] --plan <path>` gives each phase its own worktree on `phax/<slug>--phase-NN`. The last phase stays open in `review_open`, where manual fixes land as ordinary commits. The run states allow `running → review_open` and `review_open → archived`. Nothing returns a run to `running`.\n\nThe end of a run is, in order:\n1. The final phase commits.\n2. The run applies its run completion on the run branch (spec 27). Its plan goes Approved → Completed. Its source spec goes too, when the plan says `completes-spec: true` and the chain gate allows.\n3. The run becomes `review_open`.\n4. The compliance review runs, when enabled.\n5. `publish.auto` publishes, when set.\n\nPlan approval refuses a plan whose source spec is not Approved.\n\nRuns stay autonomous (2026-10-10). A run never stops to wait for a person, and phase decision requests are parked unbuilt. Human input goes to the review notes.\n\nInside a phase worktree, the phase guard refuses `phax run`, `phax artifact approve`, `phax artifact abandon` and `phax artifact new plan`. Nothing an agent runs there moves a run or approves a plan.\n\nToday's exit families:\n- 2: plan or config validation\n- 3: unsafe Git state\n- 4: gate failure\n- 5: agent error or rejected document\n- 6: archive blocked by a dirty worktree\n- 7: lock conflict\n- 8: rate or usage limit\n- 9: phase produced no changes\n- 10: registry corruption\n- 11: security or preflight refusal\n- 12: artifact or approval refusal\n- 1: anything else\n\n`phax publish-pr` builds the short PR body of `src/domain/publish/prBody.ts` from the run's facts. It holds, in order:\n- a summary: run, plan, gate profile, the source spec's outcome, phases passed, verified surfaces and compliance verdict;\n- `## Phases`, one line per phase;\n- `## Needs your review`: `### Compliance attention points` when the run was reviewed, then `### Unexplained deviations`;\n- `## Review notes`, when there are notes;\n- `## Full detail`, which points to `review-handoff.md`.\n\nThe handoff itself is not in the body. Over 60,000 bytes, the body cuts unexplained deviations, then attention points, then review notes; each cut run becomes one `- …and N more` line. The summary, the phase lines and Full detail are never cut. The body is built only when the PR is created: an existing PR for the branch is reused, not updated.\n\nHeadless authoring set the pattern reused here. `phax artifact new plan <slug> --headless --brief <file> --spec <spec>` runs a session that returns only a schema-validated plan document. phax then:\n- renders the Markdown deterministically;\n- writes the document as the plan's JSON sidecar (`$schema` `plan-document`);\n- seeds the extraction cache with the plan projection;\n- commits with an `Authoring-Id` trailer;\n- records the session.\n\n`phax artifact approve`, `artifact status` and `artifact migrate-documents` decode that sidecar. They refuse a plan whose body diverges from its rendering.\n\nThe review doctrine landed by hand on 2026-09-25 as the skill `phax-decide-review`, now registered in the skill catalog. It holds principles `R1`–`R7` under the pairs `C1`–`C5` and the ground `E0`. Its headless sections still describe the earlier design: the agent decides within the menu, escalates the rest, and outputs `decisions[]` for the findings it escalates. Reversal is a cost: at equal value, the change that is cheaper to reverse is preferred, and a destructive change stops.\n\nThe `artifact-decide` spec (Completed, `docs/specs/archive/2610140742-artifact-decide.md`) shipped `phax artifact decide`, interactive only and Claude Code only. When the operator exits, phax resumes the session headless for the revised document and checks it. It then shows the body diff, and writes nothing unless the operator accepts it. It fixes three shapes this spec reuses:\n- the decided verdict `{ kind: decided, chosen, abandoned[], why, advocate, principles[], reversibility: cheap | costly | irreversible, by: { kind: operator, name }, at, revised[] }`, stamped with the committing git identity and the time;\n- principle ids, the backticked ids that open a doctrine's list items; a doctrine file that defines none, or redefines a skill id, is refused;\n- the approver of `phax artifact approve --by operator | --by machine:<grant>`. The grant is a kebab-case slug, and the approver is recorded as `approvedBy` in the plan's approval record file, `docs/plans/approvals/<plan file stem>.json`. Without a terminal, approve refuses with exit 12 unless `--by` is given.\n\nThe first consumer is the steme roadmap-1.0 conductor. It is a loop with no developer at the terminal, and it allows at most two review passes.",
+  "context": "`phax review-code <run>` opens an interactive, pre-prompted session in a `review_open` run's worktree. It resumes the session recorded in `code-review-session.json` unless `--new-session` is given, and the developer then takes over.\n\n`phax review-compliance <run>` is its non-mutating, structured sibling. The review agent answers `{ version: 1, verdict: conformant | conformant-with-deviations | divergent, summary, perPhase[{ phaseId, verdict, findings[{ dimension, severity: info | deviation | concern, message }] }], attentionPoints, pointers }`, decoded strictly. phax persists it as `compliance-review.json`, `$schema` first and with no `version`, as it persists every format.\n\n`phax.json` has `review.compliance.{enabled, model, effort}`. Under `review.code` it has only `{model, effort}`. `publish.auto` is required: when true, the run pushes its final branch and opens its PR once it is `review_open`.\n\nA run lives in the local registry (`~/.phax/runs/`), outside Git. Its committed trace is the records branch `phax/records/v1`. `phax run [short-name] --plan <path>` gives each phase its own worktree on `phax/<slug>--phase-NN`. The last phase stays open in `review_open`, where manual fixes land as ordinary commits. The run states allow `running → review_open` and `review_open → archived`. Nothing returns a run to `running`.\n\nThe end of a run is, in order:\n1. The final phase commits.\n2. The run applies its run completion on the run branch (spec 27). Its plan goes Approved → Completed. Its source spec goes too, when the plan says `completes-spec: true` and the chain gate allows.\n3. The run becomes `review_open`.\n4. The compliance review runs, when enabled.\n5. `publish.auto` publishes, when set.\n\nPlan approval refuses a plan whose source spec is not Approved.\n\nRuns stay autonomous (2026-10-10). A run never stops to wait for a person, and phase decision requests are parked unbuilt. Human input goes to the review notes.\n\nInside a phase worktree, the phase guard refuses `phax run`, `phax artifact approve`, `phax artifact abandon` and `phax artifact new plan`. Nothing an agent runs there moves a run or approves a plan.\n\nToday's exit families:\n- 2: plan or config validation\n- 3: unsafe Git state\n- 4: gate failure\n- 5: agent error or rejected document\n- 6: archive blocked by a dirty worktree\n- 7: lock conflict\n- 8: rate or usage limit\n- 9: phase produced no changes\n- 10: registry corruption\n- 11: security or preflight refusal\n- 12: artifact or approval refusal\n- 1: anything else\n\n`phax publish-pr` builds the short PR body of `src/domain/publish/prBody.ts` from the run's facts. It holds, in order:\n- a summary: run, plan, gate profile, the source spec's outcome, phases passed, verified surfaces and compliance verdict;\n- `## Phases`, one line per phase;\n- `## Needs your review`: `### Compliance attention points` when the run was reviewed, then `### Unexplained deviations`;\n- `## Review notes`, when there are notes;\n- `## Full detail`, which points to `review-handoff.md`.\n\nThe handoff itself is not in the body. Over 60,000 bytes, the body cuts unexplained deviations, then attention points, then review notes; each cut run becomes one `- …and N more` line. The summary, the phase lines and Full detail are never cut. The body is built only when the PR is created: an existing PR for the branch is reused, not updated. Through `gh`, phax today only creates a PR ready for review. It never opens a draft, never marks a PR ready, and never edits a body. This spec adds those three GitHub operations: create a draft PR, mark a PR ready for review, and edit a PR's body.\n\nHeadless authoring set the pattern reused here. `phax artifact new plan <slug> --headless --brief <file> --spec <spec>` runs a session that returns only a schema-validated plan document. phax then:\n- renders the Markdown deterministically;\n- writes the document as the plan's JSON sidecar (`$schema` `plan-document`);\n- seeds the extraction cache with the plan projection;\n- commits with an `Authoring-Id` trailer;\n- records the session.\n\n`phax artifact approve`, `artifact status` and `artifact migrate-documents` decode that sidecar. They refuse a plan whose body diverges from its rendering.\n\nThe review doctrine landed by hand on 2026-09-25 as the skill `phax-decide-review`, now registered in the skill catalog. It holds principles `R1`–`R7` under the pairs `C1`–`C5` and the ground `E0`. Its headless sections still describe the earlier design: the agent decides within the menu, escalates the rest, and outputs `decisions[]` for the findings it escalates. Reversal is a cost: at equal value, the change that is cheaper to reverse is preferred, and a destructive change stops.\n\nThe `artifact-decide` spec (Completed, `docs/specs/archive/2610140742-artifact-decide.md`) shipped `phax artifact decide`, interactive only and Claude Code only. When the operator exits, phax resumes the session headless for the revised document and checks it. It then shows the body diff, and writes nothing unless the operator accepts it. It fixes three shapes this spec reuses:\n- the decided verdict `{ kind: decided, chosen, abandoned[], why, advocate, principles[], reversibility: cheap | costly | irreversible, by: { kind: operator, name }, at, revised[] }`, stamped with the committing git identity and the time;\n- principle ids, the backticked ids that open a doctrine's list items; a doctrine file that defines none, or redefines a skill id, is refused;\n- the approver of `phax artifact approve --by operator | --by machine:<grant>`. The grant is a kebab-case slug, and the approver is recorded as `approvedBy` in the plan's approval record file, `docs/plans/approvals/<plan file stem>.json`. Without a terminal, approve refuses with exit 12 unless `--by` is given.\n\nThe first consumer is the steme roadmap-1.0 conductor. It is a loop with no developer at the terminal, and it allows at most two review passes.",
   "problem": "A loop has no developer, so it cannot run the only code review phax offers. Two shortcuts both fail:\n- Printing the prompt for an outside agent takes the review out of phax. There is no run directory, no records and no resumable session, and the findings come back as prose.\n- Resuming the review session with \"fix everything\" puts changes into the run without phases. Those changes get no gate of their own, no handoff and no reconciliation, and the session is free to edit the test that judges it.\n\nFixes that follow a review must go through the same machinery as the implementation, but a run cannot grow. Once a run is `review_open` it runs no further phase, and a second run means a second PR and a second records lineage.\n\nA finding the reviewer got wrong has no home either. It is either fixed anyway, which is a wrong change, or left open forever. Nothing records that someone judged it wrong, or why.\n\nNothing bounds or reports the review–fix loop. The PR body says what needs a person's review. It does not say whether the run converged under review, or what was deliberately left unfixed.\n\nThe run also completes its plan and its spec at its final phase, before any review. A plan of fixes written after that has no Approved spec to belong to.",
   "productGoal": {
-    "statement": "Make the code review a phax artifact, and make its consequence a phax plan.\n\nA headless review writes structured findings and stops. `phax review-plan` turns them into a review plan in the phax-plan shape, following a doctrine and a threshold that the caller owns. Each finding under consideration is either fixed by a phase or decided by the operator: dismissed or left open; one a headless plan does not fix waits, `awaiting`, for that decision. `phax run --append` then executes the plan as more phases of the same run, with the same records and the same PR.\n\nA config setting runs this as a bounded loop at the end of a run, before the run completes its plan and spec and before it publishes. The PR's `## Needs your review` then opens on the trajectory: the review passes, and the findings that wait for the operator or that the operator dismissed. Every change is additive to the CLI and to `phax.json`, and the interactive review is unchanged.",
+    "statement": "Make the code review a phax artifact, and make its consequence a phax plan.\n\nA headless review writes structured findings and stops. `phax review-plan` turns them into a review plan in the phax-plan shape, following a doctrine and a threshold that the caller owns. Each finding under consideration is either fixed by a phase or decided by the operator: dismissed or left open; one a headless plan does not fix waits, `awaiting`, for that decision. `phax run --append` then executes the plan as more phases of the same run, with the same records and the same PR.\n\nA config setting runs this as a bounded loop at the end of a run, before the run completes its plan and spec and before its PR is ready for review. While a review plan or a finding waits for the operator, the run's PR is a GitHub draft. The PR's `## Needs your review` then opens on the trajectory: the review passes, and the findings that wait for the operator or that the operator dismissed. Every change is additive to the CLI and to `phax.json`, and the interactive review is unchanged.",
     "guidingRule": "A review changes code only through phases of the same run. A machine may fix a finding but never settles one it does not fix. Every finding ends fixed, open, dismissed or awaiting, and none is dropped."
   },
   "terminology": [
@@ -173,11 +173,19 @@
     },
     {
       "term": "Run completion",
-      "definition": "The step of spec 27 that moves the run's plan, and its source spec when the plan completes it, to Completed on the run branch. With `review.code.enabled` it runs when the run publishes, after its last review pass, instead of at its final phase."
+      "definition": "The step of spec 27 that moves the run's plan, and its source spec when the plan completes it, to Completed on the run branch. With `review.code.enabled`, it runs when the run's PR becomes ready for review, after the last review pass, instead of at the final phase."
     },
     {
       "term": "Run target",
       "definition": "`--run <run>` on `phax artifact approve`, `artifact status` and `plans lint`. The command reads and writes the plan in that run's final-phase worktree and commits on the run branch, from the checkout. `phax run <run> --append` targets its run by the positional name."
+    },
+    {
+      "term": "Draft PR",
+      "definition": "A run's pull request opened as a GitHub draft, because a review plan is pending (Draft, or Approved and not appended) or a finding is `awaiting`. It accepts appends, and phax pushes the branch after each one so that the PR follows it. `phax publish-pr` marks it ready for review once nothing is pending. A PR ready for review is final: it refuses appends."
+    },
+    {
+      "term": "Pending review item",
+      "definition": "A review plan that is Draft, or Approved and not appended, or a finding that is `awaiting`. Any pending item keeps the run's PR a draft."
     }
   ],
   "requirements": [
@@ -441,9 +449,15 @@
     },
     {
       "id": "ap-refuse-published",
-      "title": "Refuse a published run",
+      "title": "Refuse a run whose PR is ready for review",
       "pattern": "unwanted",
-      "statement": "IF the run already has a recorded pull request THEN `phax run --append` SHALL refuse before any phase starts, creating nothing and leaving the run's state unchanged."
+      "statement": "IF the run's pull request is ready for review THEN `phax run --append` SHALL refuse before any phase starts, creating nothing and leaving the run's state unchanged. A draft PR SHALL NOT refuse the append."
+    },
+    {
+      "id": "ap-draft-follows",
+      "title": "A draft PR follows the append",
+      "pattern": "event",
+      "statement": "WHEN an append ends on a run whose pull request is a draft THE system SHALL push the run's final branch, so the draft PR shows the appended phases."
     },
     {
       "id": "ap-refuse-stale",
@@ -533,31 +547,55 @@
       "id": "pass-order",
       "title": "End-of-run order",
       "pattern": "ubiquitous",
-      "statement": "WHERE `review.code.enabled` is true THE system SHALL end a run in this order:\n1. the compliance review, when it is enabled;\n2. the review passes;\n3. the run completion;\n4. `publish.auto`, when it is set.\n\nEach pass SHALL run the compliance review over the whole run when it is enabled (the first pass reuses the run's), then the headless code review, then the review plan, then, under `review.code.append`, its approval and append."
+      "statement": "WHERE `review.code.enabled` is true THE system SHALL end a run in this order:\n1. the compliance review, when it is enabled;\n2. the review passes;\n3. the run completion, when nothing is pending;\n4. `publish.auto`, when it is set: a ready PR when nothing is pending, a draft PR otherwise.\n\nEach pass SHALL run the compliance review over the whole run when it is enabled (the first pass reuses the run's), then the headless code review, then the review plan, then, under `review.code.append`, its approval and append."
     },
     {
       "id": "cfg-completion",
       "title": "Run completion waits for the review",
       "pattern": "optional",
-      "statement": "WHERE `review.code.enabled` is true THE system SHALL defer the run completion from the final phase to the run's publication, so that the plan and its source spec stay Approved while a pass can append. Either `publish.auto` after the loop's last pass, or `phax publish-pr`, SHALL apply the completion on the run branch before pushing and before building the body. A run that is never published, or one stopped mid-loop, keeps its plan and spec Approved."
+      "statement": "WHERE `review.code.enabled` is true THE system SHALL defer the run completion from the final phase to the moment the run's PR becomes ready for review, so the plan and its source spec stay Approved while a pass can append. The completion SHALL be applied on the run branch before the push and before the body is built, either by `publish.auto` when the loop leaves nothing pending, or by `phax publish-pr`. A run whose PR is never ready for review keeps its plan and spec Approved, and so does a run stopped mid-loop."
     },
     {
-      "id": "cfg-hold",
-      "title": "A pending review plan holds the publication",
+      "id": "cfg-draft",
+      "title": "A pending review item opens a draft PR",
       "pattern": "unwanted",
-      "statement": "IF the loop leaves a review plan Draft and unappended, or a finding `awaiting`, THEN the system SHALL apply neither the run completion nor `publish.auto`, leave the run `review_open` for the operator, and say why."
+      "statement": "IF the loop leaves a pending review item and `publish.auto` is set THEN the system SHALL open the run's PR as a GitHub draft without applying the run completion. The run SHALL stay `review_open`, and the body's `### Review passes` SHALL name each pending item."
+    },
+    {
+      "id": "cfg-ready",
+      "title": "Nothing pending, a ready PR",
+      "pattern": "event",
+      "statement": "WHEN the loop ends with no pending review item and `publish.auto` is set THE system SHALL apply the run completion and then open the PR ready for review, as before this change."
+    },
+    {
+      "id": "pub-new-draft",
+      "title": "publish-pr opens a draft while an item is pending",
+      "pattern": "event",
+      "statement": "WHEN `phax publish-pr <run>` runs on a run with no pull request and a pending review item THE system SHALL open the PR as a draft without applying the run completion, as `publish.auto` does. With nothing pending, it SHALL apply the completion when it is deferred, and otherwise behave as today."
+    },
+    {
+      "id": "pub-draft-refuse",
+      "title": "publish-pr keeps a draft while an item is pending",
+      "pattern": "unwanted",
+      "statement": "IF `phax publish-pr <run>` runs on a run whose pull request is a draft while a review item is pending THEN it SHALL refuse with exit 12, naming each pending item, and change nothing."
+    },
+    {
+      "id": "pub-ready",
+      "title": "publish-pr marks a draft ready",
+      "pattern": "event",
+      "statement": "WHEN `phax publish-pr <run>` runs on a run whose pull request is a draft and no review item is pending THE system SHALL, in order:\n1. apply the run completion on the run branch;\n2. push the final branch;\n3. rewrite the PR body, so the review passes are current;\n4. mark the PR ready for review."
     },
     {
       "id": "report-ls",
       "title": "phax ls reports passes",
       "pattern": "event",
-      "statement": "WHEN `phax ls` lists a run with review passes THE system SHALL show:\n- its pass count;\n- its latest pass's outcome and compliance verdict;\n- its findings' fixed, awaiting, dismissed and open counts."
+      "statement": "WHEN `phax ls` lists a run with review passes THE system SHALL show:\n- its pass count;\n- its latest pass's outcome and compliance verdict;\n- its findings' fixed, awaiting, dismissed and open counts.\n- when its PR is a draft, that it is a draft and the pending review items that keep it so."
     },
     {
       "id": "report-status",
       "title": "artifact status reports a review plan",
       "pattern": "event",
-      "statement": "WHEN `phax artifact status <review plan> --run <run>` inspects a review plan THE system SHALL report its run, pass, status, approver kind and identity, appended phases, and the outcome counts of the findings it considered."
+      "statement": "WHEN `phax artifact status <review plan> --run <run>` inspects a review plan THE system SHALL report its run, pass, status, approver kind and identity, appended phases, and the outcome counts of the findings it considered. When the run's PR is a draft, it SHALL say so and name the pending review items that keep it so."
     },
     {
       "id": "pr-order",
@@ -569,7 +607,7 @@
       "id": "pr-passes",
       "title": "Review-passes subsection content",
       "pattern": "ubiquitous",
-      "statement": "The `### Review passes` subsection SHALL hold one table row per pass, then one line per finding that is `awaiting` or `dismissed`. A row gives the pass's findings by severity, its fixed, awaiting, dismissed and open counts, and its compliance verdict. A finding line gives the finding's id, severity, location and message, and for a dismissed finding its arbiter and why."
+      "statement": "The `### Review passes` subsection SHALL hold one table row per pass, then one line per finding that is `awaiting` or `dismissed`. A row gives the pass's findings by severity, its fixed, awaiting, dismissed and open counts, and its compliance verdict. A finding line gives the finding's id, severity, location and message, and for a dismissed finding its arbiter and why. While the PR is a draft, the subsection SHALL open with one line saying that it is a draft and naming each pending review item."
     },
     {
       "id": "pr-truncate",
@@ -631,13 +669,13 @@
       "surface": "cli: phax run <run> --append --plan <review plan>",
       "binding": "normative",
       "before": "phax run [short-name] --plan <path> [--allow-dirty] [--security <mode>] [--refresh] …\n  (always creates a new run; a run ends review_open and no command returns it to running)",
-      "after": "phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md\n\n# run from the checkout; the plan path is read in the run's final-phase worktree, and nothing is committed on the checkout\n# normative: the flag, the argument form (the existing run grammar), the state transition and the exit families.\n# indicative: output layout and wording.\nappend usage-cli — review pass 1 — phase-04..phase-05 after phase-03\nphase-04  from review pass 1 (F1, C1)  phax/usage-cli--phase-04 ← phax/usage-cli--phase-03\nphase-05  from review pass 1 (F3)      phax/usage-cli--phase-05 ← phax/usage-cli--phase-04\nfixed     F1, C1, F3\nusage-cli review_open — handoff and reconciliation regenerated over phase-01..phase-05\n$? = 0\n\nState: review_open → running → review_open (failed / rate_limited / interrupted exactly as for any phase)\n\nRefusals happen before any phase starts. Nothing is created and the run state is unchanged. (wording indicative)\n✗ append refused: review plan is Draft, not Approved                                     $? = 12\n✗ append refused: run usage-cli is failed, not review_open                                $? = 1\n✗ append refused: run usage-cli already has pull request https://github.com/o/r/pull/12    $? = 1\n✗ append refused: the plan is pass 1's, but the run's latest pass is 2                    $? = 2\n✗ append refused: plan starts at phase-04 but the run's last phase is phase-05             $? = 2\n✗ append refused: phase-04 plans src/app/other.ts, outside the run footprint (R2)          $? = 2\nOther exits are as for `phax run`: 3 unsafe git state · 4 gate failure · 5 agent error · 7 lock conflict · 8 rate/usage limit"
+      "after": "phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md\n\n# run from the checkout; the plan path is read in the run's final-phase worktree, and nothing is committed on the checkout\n# normative: the flag, the argument form (the existing run grammar), the state transition and the exit families.\n# indicative: output layout and wording.\nappend usage-cli — review pass 1 — phase-04..phase-05 after phase-03\nphase-04  from review pass 1 (F1, C1)  phax/usage-cli--phase-04 ← phax/usage-cli--phase-03\nphase-05  from review pass 1 (F3)      phax/usage-cli--phase-05 ← phax/usage-cli--phase-04\nfixed     F1, C1, F3\nusage-cli review_open — handoff and reconciliation regenerated over phase-01..phase-05\n$? = 0\n\nState: review_open → running → review_open (failed / rate_limited / interrupted exactly as for any phase)\n\nA draft PR accepts the append; at its end phax pushes phax/usage-cli--phase-05 and the draft PR follows it:\npushed    phax/usage-cli--phase-05 → draft PR https://github.com/o/r/pull/12\n\nRefusals happen before any phase starts. Nothing is created and the run state is unchanged. (wording indicative)\n✗ append refused: review plan is Draft, not Approved                                     $? = 12\n✗ append refused: run usage-cli is failed, not review_open                                $? = 1\n✗ append refused: pull request https://github.com/o/r/pull/12 of run usage-cli is ready for review    $? = 1\n✗ append refused: the plan is pass 1's, but the run's latest pass is 2                    $? = 2\n✗ append refused: plan starts at phase-04 but the run's last phase is phase-05             $? = 2\n✗ append refused: phase-04 plans src/app/other.ts, outside the run footprint (R2)          $? = 2\nOther exits are as for `phax run`: 3 unsafe git state · 4 gate failure · 5 agent error · 7 lock conflict · 8 rate/usage limit"
     },
     {
       "surface": "config: phax.json review.code.{enabled,append,maxPasses}",
       "binding": "normative",
       "before": "\"review\": {\n  \"compliance\": { \"enabled\": true },\n  \"code\": { \"model\": \"claude-opus-5-5\", \"effort\": \"high\" }\n}",
-      "after": "\"review\": {\n  \"compliance\": { \"enabled\": true },\n  \"code\": {\n    \"enabled\": true,     // one headless pass when the run reaches review_open; the run stays review_open\n    \"append\": true,      // machine-approve (grant review-code-append) and append each pass's review plan…\n    \"maxPasses\": 2,      // …at most this many times, re-reviewing after each (1–5, default 1)\n    \"model\": \"claude-opus-5-5\", \"effort\": \"high\"\n  }\n}\n// all keys optional; enabled and append default to false; append requires enabled (else exit 2)\n// with enabled: the passes run before publish.auto, and the run completes its plan and spec when it publishes;\n// a review plan left Draft, or a finding left awaiting, holds both for the operator"
+      "after": "\"review\": {\n  \"compliance\": { \"enabled\": true },\n  \"code\": {\n    \"enabled\": true,     // one headless pass when the run reaches review_open; the run stays review_open\n    \"append\": true,      // machine-approve (grant review-code-append) and append each pass's review plan…\n    \"maxPasses\": 2,      // …at most this many times, re-reviewing after each (1–5, default 1)\n    \"model\": \"claude-opus-5-5\", \"effort\": \"high\"\n  }\n}\n// all keys optional; enabled and append default to false; append requires enabled (else exit 2)\n// with enabled: the passes run before publish.auto, and the run completes its plan and spec when its PR becomes ready;\n// a pending review plan or an awaiting finding makes publish.auto open a draft PR, with no completion"
     },
     {
       "surface": "config: phax.json review.code.{doctrine,minSeverity}",
@@ -649,19 +687,25 @@
       "surface": "cli: phax artifact approve|status on a review plan",
       "binding": "indicative",
       "before": "phax artifact status docs/plans/2609240900-usage-cli-plan.md\nPath:              docs/plans/2609240900-usage-cli-plan.md\nKind:              plan\nStatus:            Approved",
-      "after": "phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator | --by machine:<grant>\nStatus:   Approved\nApprover: operator (Ada Lovelace)\nRecord:   docs/plans/approvals/2609251010-usage-cli-review-01-plan.json (run branch phax/usage-cli--phase-03)\n\nphax artifact status docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli\nPath:     docs/plans/2609251010-usage-cli-review-01-plan.md (run usage-cli, phax/usage-cli--phase-03)\nKind:     review-plan (run usage-cli, pass 1)\nAuthored: headless — sidecar …-review-01-plan.json (in sync)\nStatus:   Approved\nApproved: 2026-09-25 by machine (review-code-append)      # or: by operator (Ada Lovelace)\nAppended: phase-04..phase-05                               # or: not appended\nFindings: 4 considered — fixed 3 · awaiting 1 (F2) · dismissed 0 · open 0\n\n✗ approve refused: docs/plans/2609251010-usage-cli-review-01-plan.md is a review plan — name its run with --run usage-cli   $? = 12\n\n# normative: --run, that approve accepts a review plan, the `--by` values (per artifact-decide), and the approver kind and identity in status\n# indicative: layout and wording"
+      "after": "phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator | --by machine:<grant>\nStatus:   Approved\nApprover: operator (Ada Lovelace)\nRecord:   docs/plans/approvals/2609251010-usage-cli-review-01-plan.json (run branch phax/usage-cli--phase-03)\n\nphax artifact status docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli\nPath:     docs/plans/2609251010-usage-cli-review-01-plan.md (run usage-cli, phax/usage-cli--phase-03)\nKind:     review-plan (run usage-cli, pass 1)\nAuthored: headless — sidecar …-review-01-plan.json (in sync)\nStatus:   Approved\nApproved: 2026-09-25 by machine (review-code-append)      # or: by operator (Ada Lovelace)\nAppended: phase-04..phase-05                               # or: not appended\nFindings: 4 considered — fixed 3 · awaiting 1 (F2) · dismissed 0 · open 0\nPR:       draft https://github.com/o/r/pull/12 — pending: F2 awaiting   # or: ready for review, or: none\n\n✗ approve refused: docs/plans/2609251010-usage-cli-review-01-plan.md is a review plan — name its run with --run usage-cli   $? = 12\n\n# normative: --run, that approve accepts a review plan, the `--by` values (per artifact-decide), and the approver kind and identity in status\n# indicative: layout and wording"
     },
     {
       "surface": "cli: phax ls review-pass report",
       "binding": "indicative",
       "before": "phax ls --review-open\nusage-cli   review_open   …today's columns…",
-      "after": "phax ls --review-open\nusage-cli   review_open   5 phases   passes 2 (last: clean, conformant) · fixed 3 · awaiting 0 · dismissed 1 · open 0\n\nphax ls --json   # each run gains:\n\"reviewPasses\": [\n  { \"pass\": 1, \"outcome\": \"planned\", \"complianceVerdict\": \"conformant-with-deviations\",\n    \"findings\": { \"bug\": 1, \"deviation\": 2, \"concern\": 1, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 3, \"awaiting\": 0, \"dismissed\": 1, \"open\": 0 } },\n  { \"pass\": 2, \"outcome\": \"clean\", \"complianceVerdict\": \"conformant\",\n    \"findings\": { \"bug\": 0, \"deviation\": 0, \"concern\": 0, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 0, \"awaiting\": 0, \"dismissed\": 0, \"open\": 0 } }\n]\n# open counts only non-info findings"
+      "after": "phax ls --review-open\nusage-cli   review_open   5 phases   passes 2 (last: clean, conformant) · fixed 3 · awaiting 0 · dismissed 1 · open 0\nlint-fix    review_open   4 phases   passes 1 (last: planned, conformant) · fixed 0 · awaiting 1 · dismissed 0 · open 0 · PR draft: F7 awaiting\n\nphax ls --json   # each run gains:\n\"reviewPasses\": [\n  { \"pass\": 1, \"outcome\": \"planned\", \"complianceVerdict\": \"conformant-with-deviations\",\n    \"findings\": { \"bug\": 1, \"deviation\": 2, \"concern\": 1, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 3, \"awaiting\": 0, \"dismissed\": 1, \"open\": 0 } },\n  { \"pass\": 2, \"outcome\": \"clean\", \"complianceVerdict\": \"conformant\",\n    \"findings\": { \"bug\": 0, \"deviation\": 0, \"concern\": 0, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 0, \"awaiting\": 0, \"dismissed\": 0, \"open\": 0 } }\n]\n#   and, for a run whose PR is a draft: \"pullRequest\": { \"url\": \"…\", \"draft\": true, \"pending\": [\"F7\"] }\n# open counts only non-info findings"
     },
     {
       "surface": "file: pr-body.md (the pull request description)",
       "binding": "normative",
       "before": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Phases** 3/3 passed · **Verified surfaces** local, structural\n**Compliance** conformant-with-deviations\n\n## Phases\n…\n\n## Needs your review\n\n### Compliance attention points\n…\n\n### Unexplained deviations\n…\n\n## Full detail\n…",
-      "after": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Spec** `docs/specs/2609240900-usage-cli.md` completed\n**Phases** 5/5 passed · **Verified surfaces** local, structural\n**Compliance** conformant\n\n## Phases\n…\n\n## Needs your review\n\n### Review passes\n\n| Pass | bug | deviation | concern | info | Fixed | Awaiting | Dismissed | Open | Compliance |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | 1 | 2 | 1 | 1 | 3 | 0 | 1 | 0 | conformant-with-deviations |\n| 2 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | conformant |\n\n- F2 (deviation) src/app/prune.ts:88 — a registry entry without a worktree is kept — dismissed by operator (Ada Lovelace): spec §5.3 allows it\n\n### Compliance attention points\n…\n\n### Unexplained deviations\n…\n\n## Full detail\n…\n\n# normative: `### Review passes` heads `## Needs your review` for a run with a pass; the column set and order;\n# one line per awaiting or dismissed finding; open counts only non-info findings; the subsection is never cut\n# and the cut order of the other lists is today's; no decisions table\n# indicative: cell and line wording\n# a run with no pass gets a body identical to today's"
+      "after": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Spec** `docs/specs/2609240900-usage-cli.md` completed\n**Phases** 5/5 passed · **Verified surfaces** local, structural\n**Compliance** conformant\n\n## Phases\n…\n\n## Needs your review\n\n### Review passes\n\n(while the PR is a draft:)\n**Draft** — waiting for the operator: review plan `docs/plans/2609251010-usage-cli-review-03-plan.md` (Draft) · F9 awaiting\n\n| Pass | bug | deviation | concern | info | Fixed | Awaiting | Dismissed | Open | Compliance |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | 1 | 2 | 1 | 1 | 3 | 0 | 1 | 0 | conformant-with-deviations |\n| 2 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | conformant |\n\n- F2 (deviation) src/app/prune.ts:88 — a registry entry without a worktree is kept — dismissed by operator (Ada Lovelace): spec §5.3 allows it\n\n### Compliance attention points\n…\n\n### Unexplained deviations\n…\n\n## Full detail\n…\n\n# normative: `### Review passes` heads `## Needs your review` for a run with a pass; the column set and order;\n# one line per awaiting or dismissed finding; open counts only non-info findings; the subsection is never cut\n# and the cut order of the other lists is today's; no decisions table\n# indicative: cell and line wording\n# the draft line, while the PR is a draft; `phax publish-pr` rewrites the body when it marks the PR ready\n# a run with no pass gets a body identical to today's"
+    },
+    {
+      "surface": "cli: phax publish-pr <run> with review passes",
+      "binding": "normative",
+      "before": "phax publish-pr usage-cli\n  (pushes the final branch and creates a PR ready for review, or reuses an existing PR without touching it)",
+      "after": "phax publish-pr usage-cli\n\n# a run with no PR and a pending review item: a draft PR, no completion\ndraft     https://github.com/o/r/pull/12 — pending: review plan …-review-02-plan.md (Draft) · F7 awaiting\n$? = 0\n\n# a run whose PR is a draft, with an item still pending: refused, nothing changed\n✗ publish-pr refused: pull request https://github.com/o/r/pull/12 stays a draft — pending: F7 awaiting; decide it with `phax review-plan usage-cli`\n$? = 12\n\n# a run whose PR is a draft, nothing pending: completion, push, body rewritten, marked ready\ncompleted docs/plans/2609240900-usage-cli-plan.md · docs/specs/2609240900-usage-cli.md (run branch)\npushed    phax/usage-cli--phase-05\nready     https://github.com/o/r/pull/12 (body rewritten)\n$? = 0\n\n# normative: the draft/refuse/ready behavior and exit 12. Indicative: layout and wording.\n# GitHub operations this adds, through `gh`: create a draft PR, mark a PR ready for review, edit a PR's body"
     }
   ],
   "nonGoals": [
@@ -670,7 +714,7 @@
     "The cockpit UI or any trajectory screen. This spec supplies the data a UI would render (pass records, finding outcomes, the review-passes subsection), and nothing more.",
     "Headless total mode. A machine never dismisses or leaves open a finding on its own: a finding it does not fix waits, `awaiting`, for an operator. The doctrines defer this mode.",
     "Appending an arbitrary plan. `--append` accepts only the current review plan of the run's latest pass.",
-    "Appending to a published run, and updating an existing pull request's body.",
+    "Appending to a run whose PR is ready for review, and editing the body of a PR that is ready. A draft PR accepts appends, and its body is rewritten when `phax publish-pr` marks it ready.",
     "The oracle-separation `plans lint` rule and a per-phase diff budget. Until that lint exists, `--append` refuses no oracle file and the compliance review alone checks R4 (§9 Q5).",
     "Changing the `phax-decide-spec` and `phax-decide-plan` skills, the skill catalog, or `phax artifact decide`. Of the doctrine skills, only the headless sections of `phax-decide-review` change here.",
     "Re-reviewing inside `review-plan`. The report is the judge, and the plan is its consequence.",
@@ -948,7 +992,7 @@
     {
       "id": "ac-append-refusals",
       "name": "Append refusals",
-      "given": "In turn: a review plan in Draft; a run in state `failed`; a run with a recorded pull request; the pass-1 plan when pass 2 exists; and a plan starting at `phase-04` on a run whose last phase is `phase-05`.",
+      "given": "In turn: a review plan in Draft; a run in state `failed`; a run whose pull request is ready for review; the pass-1 plan when pass 2 exists; and a plan starting at `phase-04` on a run whose last phase is `phase-05`.",
       "when": "`phax run <run> --append --plan <plan>` runs on each.",
       "then": "The runs exit 12, 1, 1, 2 and 2 respectively, each naming the condition. No worktree or branch is created, and the run's state is unchanged.",
       "refs": [
@@ -995,11 +1039,11 @@
       "name": "Enabled review leaves the pass for a human",
       "given": "`review.code.enabled: true` with `review.code.append` absent, compliance enabled, `publish.auto: true`, and a plan with `completes-spec: true` whose run produces a `bug` finding.",
       "when": "`phax run <plan>` completes its phases.",
-      "then": "The run is `review_open`. Pass 1 has `code-review.json` and `pass.json`, and a Draft review plan with its sidecar sits on the run branch. No phase was appended. The recorded timestamps show the compliance review before the code review, and the code review before the review plan. The run's plan and source spec are still Approved on the run branch, and no pull request was opened.",
+      "then": "The run is `review_open`. Pass 1 has `code-review.json` and `pass.json`, and a Draft review plan with its sidecar sits on the run branch. No phase was appended. The recorded timestamps show the compliance review before the code review, and the code review before the review plan. The run's plan and source spec are still Approved on the run branch. The run's pull request was opened as a draft, and its `### Review passes` names the pending review plan.",
       "refs": [
         "cfg-enabled",
         "pass-order",
-        "cfg-hold"
+        "cfg-draft"
       ]
     },
     {
@@ -1007,12 +1051,11 @@
       "name": "Bounded automatic passes",
       "given": "`review.code.enabled: true`, `append: true`, `maxPasses: 2`, and a review that reports a `bug` on every pass.",
       "when": "`phax run <plan>` runs.",
-      "then": "The plans of passes 1 and 2 are appended. Pass 3 is reviewed, and its plan is left Draft and unappended. The run ends `review_open`, its plan and source spec Approved, and unpublished: the plan of pass 3 holds the publication. Each pass ran the compliance review, then the code review, then the review plan. The approvals of passes 1 and 2 are recorded as `{ kind: machine, grant: review-code-append }`.",
+      "then": "The plans of passes 1 and 2 are appended. Pass 3 is reviewed, and its plan is left Draft and unappended. The run ends `review_open`, with its plan and source spec Approved. No pull request was opened, because `publish.auto` is not set. Each pass ran the compliance review, then the code review, then the review plan. The approvals of passes 1 and 2 are recorded as `{ kind: machine, grant: review-code-append }`.",
       "refs": [
         "cfg-append",
         "cfg-bound",
-        "pass-order",
-        "cfg-hold"
+        "pass-order"
       ]
     },
     {
@@ -1112,12 +1155,13 @@
     },
     {
       "id": "ac-completion-deferred",
-      "name": "Completion waits for the review, then publication",
+      "name": "Completion waits for the review, then a ready PR",
       "given": "`review.code.enabled: true`, `append: true`, `maxPasses: 1`, `publish.auto: true`, compliance enabled, and a plan with `completes-spec: true`. Pass 1 reports a `bug` that an appended phase fixes, and pass 2 is clean.",
       "when": "`phax run <plan>` runs.",
-      "then": "The end of the run went, in order: compliance; pass 1 (code review, review plan, machine approval, append); pass 2; run completion; publication. During the passes, the plan and its source spec were Approved on the run branch, and the review plan's approval was accepted against that spec. The run-completion commit follows the appended phase's commits, and the PR was opened afterwards. With `review.code.enabled` false, the completion lands at the final phase as before.",
+      "then": "The end of the run went, in order: compliance; pass 1 (code review, review plan, machine approval, append); pass 2; run completion; a PR ready for review. During the passes, the plan and its source spec were Approved on the run branch, and the review plan's approval was accepted against that spec. The run-completion commit follows the appended phase's commits, and the PR was opened afterwards, ready for review. With `review.code.enabled` false, the completion lands at the final phase as before.",
       "refs": [
         "cfg-completion",
+        "cfg-ready",
         "pass-order",
         "cfg-enabled"
       ]
@@ -1131,6 +1175,55 @@
       "refs": [
         "apv-frontmatter",
         "apv-lint"
+      ]
+    },
+    {
+      "id": "ac-auto-draft",
+      "name": "An awaiting finding opens a draft PR",
+      "given": "`review.code.enabled: true`, `append: true`, `maxPasses: 2`, `publish.auto: true`, and a plan with `completes-spec: true`. Pass 1's headless review plan fixes `F1` and leaves `F2` awaiting.",
+      "when": "`phax run <plan>` runs.",
+      "then": "No further pass runs, and the pass-1 plan stays Draft and unappended. The run ends `review_open`, with its PR opened as a GitHub draft. The run's plan and source spec are still Approved on the run branch, and no completion commit exists. The body's `### Review passes` opens with the draft line naming the pending plan and `F2`. `phax ls` and `phax artifact status <plan> --run <run>` show the draft PR and name `F2`.",
+      "refs": [
+        "cfg-draft",
+        "cfg-stop",
+        "pr-passes",
+        "report-ls",
+        "report-status"
+      ]
+    },
+    {
+      "id": "ac-append-on-draft",
+      "name": "A draft PR accepts an append and follows it",
+      "given": "The run above, after an interactive `phax review-plan <run>` dismisses `F2` and an operator approves the plan with `--run`.",
+      "when": "`phax run <run> --append --plan <plan>` runs from the checkout.",
+      "then": "The append runs, and the run returns to `review_open`. phax pushes the final branch, and the draft PR's head is that branch's tip. The PR is still a draft.",
+      "refs": [
+        "ap-refuse-published",
+        "ap-draft-follows",
+        "ap-run-target"
+      ]
+    },
+    {
+      "id": "ac-publish-ready",
+      "name": "publish-pr keeps a draft until nothing is pending, then marks it ready",
+      "given": "A run whose PR is a draft and whose `F2` is awaiting.",
+      "when": "`phax publish-pr <run>` runs. Then an interactive `phax review-plan <run>` decides `F2`, and `phax publish-pr <run>` runs again.",
+      "then": "The first run exits 12 naming `F2` and changes nothing: no commit, no push, and the PR is still a draft. The second applies the run completion on the run branch: the plan is Completed, and so is the spec, which the plan completes. It then pushes, rewrites the body with the review passes current and no draft line, marks the PR ready for review, and exits 0. An append on the run is then refused.",
+      "refs": [
+        "pub-draft-refuse",
+        "pub-ready",
+        "cfg-completion",
+        "ap-refuse-published"
+      ]
+    },
+    {
+      "id": "ac-publish-new-draft",
+      "name": "publish-pr opens a draft while an item is pending",
+      "given": "A run with no PR, `publish.auto` not set, and a Draft review plan for its latest pass.",
+      "when": "`phax publish-pr <run>` runs.",
+      "then": "The PR is opened as a draft, and the body names the pending plan. No completion commit exists, and the exit code is 0.",
+      "refs": [
+        "pub-new-draft"
       ]
     }
   ],
@@ -1423,10 +1516,10 @@
         "at": "2026-10-19T09:16:31Z",
         "revised": [
           "§1",
-          "§5.64",
-          "§5.65",
-          "§5.66",
-          "§5.67",
+          "§5.69",
+          "§5.70",
+          "§5.71",
+          "§5.72",
           "§6",
           "§8"
         ]
@@ -1468,7 +1561,7 @@
         "revised": [
           "§3",
           "§4",
-          "§5.65",
+          "§5.70",
           "§6",
           "§7",
           "§8"
@@ -1482,8 +1575,8 @@
       "options": [
         {
           "id": "defer-completion",
-          "label": "Complete after the review: with `review.code.enabled`, the run applies its completion when it publishes, after its last pass, so the spec stays Approved during the passes",
-          "abandons": "Completion at the final phase: a run stopped mid-loop, or never published, leaves its plan and spec Approved"
+          "label": "Complete after the review: with `review.code.enabled`, the run applies its completion when its PR becomes ready for review, after its last pass, so the spec stays Approved during the passes",
+          "abandons": "Completion at the final phase: a run stopped mid-loop, or whose PR never becomes ready for review, leaves its plan and spec Approved"
         },
         {
           "id": "spec-less",
@@ -1497,7 +1590,7 @@
         }
       ],
       "recommendation": "defer-completion",
-      "rationale": "A review plan is a plan of the run's spec, and the approval check wants that spec Approved. Deferring the completion keeps both true. Publication is the point after which no pass can append (§5.44), so it is where the run is done.",
+      "rationale": "A review plan is a plan of the run's spec, and the approval check wants that spec Approved. Deferring the completion keeps both true. A PR ready for review is the point after which no pass can append (§5.44), so that is where the run is done.",
       "verdict": {
         "kind": "decided",
         "chosen": "defer-completion",
@@ -1505,7 +1598,7 @@
           "spec-less",
           "completed-spec"
         ],
-        "why": "Decided by the operator on 2026-10-19, as recommended. Completion waits for the review. It is applied when the run publishes (`publish.auto` after the loop, or `phax publish-pr`), and a pending review plan holds both. A run with `review.code.enabled` false completes at its final phase as before, and takes no pass.",
+        "why": "Decided by the operator on 2026-10-19, as recommended, with the moment confirmed: the run's PR becoming ready for review, not merely opened. The completion is applied then, by `publish.auto` when nothing is pending or by `phax publish-pr` when it marks a draft ready. A run with `review.code.enabled` false completes at its final phase as before, and takes no pass.",
         "advocate": "Completing at the final phase keeps spec 27's single moment, and a branch merged by hand still carries its completion.",
         "principles": [],
         "reversibility": "costly",
@@ -1520,10 +1613,11 @@
           "§4",
           "§5.9",
           "§5.10",
-          "§5.48",
-          "§5.59",
+          "§5.49",
           "§5.60",
           "§5.61",
+          "§5.63",
+          "§5.66",
           "§6",
           "§8",
           "§11"
@@ -1572,13 +1666,75 @@
         "revised": [
           "§4",
           "§5.34",
-          "§5.50",
           "§5.51",
           "§5.52",
-          "§5.63",
+          "§5.53",
+          "§5.68",
           "§6",
           "§7",
           "§8",
+          "§11"
+        ]
+      },
+      "history": []
+    },
+    {
+      "id": "Q13",
+      "question": "When the loop leaves a review plan pending or a finding awaiting, what happens to the run's publication?",
+      "options": [
+        {
+          "id": "hold",
+          "label": "Hold: no PR until the operator resolves every pending item",
+          "abandons": "A PR that always exists at the end of an auto-published run"
+        },
+        {
+          "id": "draft",
+          "label": "Open the PR as a GitHub draft, naming the pending plan and the awaiting findings under `### Review passes`; it accepts appends, and `phax publish-pr` marks it ready once nothing is pending",
+          "abandons": "A run's PR that is either absent or final: a draft can still change under its reader as appended phases are pushed, and readers must check its state"
+        },
+        {
+          "id": "ready",
+          "label": "Open the PR ready for review regardless",
+          "abandons": "Appending that plan: a run whose PR is ready refuses `--append`, so the pending fixes can never land in it"
+        }
+      ],
+      "recommendation": "hold",
+      "rationale": "A reviewer should never read a PR that may still change under them. Holding keeps the PR absent until the operator has decided every pending item, and then the run publishes once.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "draft",
+        "abandoned": [
+          "hold",
+          "ready"
+        ],
+        "why": "Decided by the operator on 2026-10-19, against the recommendation (hold). An auto-published run always ends with a PR, which shows where the run stands, and GitHub's draft state says it is not final. A draft accepts appends, and phax pushes after each so the PR follows. `phax publish-pr` refuses (exit 12) while an item is pending on a draft, and otherwise completes, pushes, rewrites the body and marks it ready. On a run with no PR, `phax publish-pr` also opens a draft under the same pending conditions rather than refusing, for symmetry with `publish.auto`: the same state yields the same PR whichever path publishes it.",
+        "advocate": "Holding keeps a run's PR either absent or final, so no reviewer spends attention on a PR whose content can still change, and phax needs no draft, mark-ready or body-edit operation.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:23:19Z",
+        "revised": [
+          "§1",
+          "§3",
+          "§4",
+          "§5.44",
+          "§5.45",
+          "§5.60",
+          "§5.62",
+          "§5.63",
+          "§5.64",
+          "§5.65",
+          "§5.66",
+          "§5.67",
+          "§5.68",
+          "§5.70",
+          "§6",
+          "§7",
+          "§8",
+          "§10",
           "§11"
         ]
       },
@@ -1587,6 +1743,7 @@
   ],
   "planningNote": {
     "settled": [
+      "The end of a run with `review.code.enabled` is: compliance, then the passes (each: compliance, code review, review plan, then approval and append under `append`). With nothing pending, the run completion then a PR ready for review follow. With a pending review item, `publish.auto` opens a draft PR and the completion waits for `phax publish-pr` to mark it ready (Q11, Q13).",
       "Two modes only, interactive and headless. Headless total is out.",
       "`review-code --headless` writes findings and stops. It is the same session as the interactive command, and the interactive `review-code` is untouched.",
       "`review-plan` (headless or interactive) turns a pass's findings into a review plan under `phax-decide-review` plus the caller's doctrine file.",
@@ -1600,10 +1757,9 @@
       "`--append` is a flag on the existing `phax run [short-name] --plan <path>` grammar, not the brief's positional sketch. It is the new transition `review_open → running`: appended phases are numbered after the run, worktrees chain from the previous tip, the run id and records lineage stay the same, the previous final phase is closed, the whole run is regenerated, and there is one PR.",
       "`--append` has six pre-start refusals with named exit families.",
       "`review.code.enabled` / `append` / `maxPasses` default to false / false / 1. `maxPasses` is 1–5 and `append` requires `enabled`. The loop stops on `clean`, `no-fix`, `blocked-divergent`, a failed append, or the bound.",
-      "The end of a run with `review.code.enabled` is: compliance, the passes (each compliance, code review, review plan, then approval and append under `append`), run completion, then `publish.auto`. A review plan left Draft, or a finding left awaiting, holds the completion and the publication for the operator.",
       "The PR body's `## Needs your review` opens with `### Review passes` for a run with a pass: the table, then the awaiting and dismissed findings. It is never cut, and a run with no pass gets today's body. There is no decisions table (Q9, Q10).",
       "§9 decided by the author on 2026-09-28: one deduplicated info list over the run (Q1); interactive review-plan resumes the headless session (Q3); review plans under `docs/plans/` on the run branch, approved like any plan and named `<stamp>-<slug>-review-NN-plan.md` (Q4); no oracle refusal in `--append`, compliance checks R4 (Q5); a finding left awaiting blocks approval, append and the loop (Q6, Q8); `fixed` at `committed` (Q7). Q2 is dropped with the decision class.",
-      "Decided by the operator on 2026-10-19: the review passes head `## Needs your review` (Q9); no decisions table (Q10); run completion waits for the review (Q11); approval, status, lint and append reach the run with `--run` from the checkout (Q12).",
+      "Decided by the operator on 2026-10-19: the review passes head `## Needs your review` (Q9); no decisions table (Q10); run completion waits until the PR is ready for review (Q11); approval, status, lint and append reach the run with `--run` from the checkout (Q12); a pending review item opens the PR as a draft, against the recommendation to hold it, and `phax publish-pr` opens a draft too under the same conditions (Q13).",
       "Revised on 2026-10-19 to match main. Approvals are one record file per plan under `docs/plans/approvals/`. The loop's grant is `review-code-append` (kebab-case). Persisted documents carry `$schema` (`code-review`, `review-pass`), and session answers carry `version: 1`. Finding decisions use decide's verdict shape. Interactive review-plan is Claude Code only and hands its document back as decide does. The headless sections of `phax-decide-review` are rewritten. Q2 is dropped, and Q6 is reworded without escalation.",
       "The review plan's sidecar is a variant of the plan document (`kind: review-plan`), not a format of its own. It sits in the sidecar slot, beside a Markdown under `docs/plans/`. approve, status, the sync check and `migrate-documents` already decode that slot through the one plan-document decoder, so a union on `kind` keeps them working. A separate format there would be refused as an invalid sidecar."
     ],
@@ -1621,14 +1777,15 @@
       "artifact-decide has landed. Adopt its verdict shape, principle-id collection, doctrine-file refusals, project-skill override and approver form unchanged. Rewrite the headless sections of `phax-decide-review` in the same plan that changes the decision checks, so the checks accept exactly what the revised skill instructs.",
       "When the oracle-separation lint lands, it adds the oracle refusal to the append (Q5).",
       "The review-passes subsection is rendered from the pass documents only, with no model call. This spec amends pr-description §5.1: the short body keeps its five sections, and `## Needs your review` gains `### Review passes` at its head for a run with a pass.",
-      "Run completion moves only for a run with `review.code.enabled`. Spec 27's completion, its chain gate and `source-spec-outcome.md` are otherwise unchanged, and the body's summary reads the outcome once the completion has been applied.",
-      "The docs page `docs/review-as-plan.md` gets its entry in `site/pages.ts`."
+      "Run completion moves only for a run with `review.code.enabled`, to the moment its PR becomes ready for review. Spec 27's completion, its chain gate and `source-spec-outcome.md` are otherwise unchanged, and the body's summary reads the outcome once the completion has been applied.",
+      "The docs page `docs/review-as-plan.md` gets its entry in `site/pages.ts`.",
+      "The GitHub edge gains three operations, driven through `gh`: create a draft PR, mark a PR ready for review, and edit a PR's body. The plan designs how they reach the GitHub port, and where a run records that its PR is a draft."
     ]
   },
   "docsPage": {
     "kind": "page",
     "page": "docs/review-as-plan.md",
     "reader": "An operator or loop author who wants phax to review its own run and fix what the review finds, through phases, before the run completes its spec and opens its PR. They also need to see what a machine declined to fix, and why.",
-    "example": "Automatic: in `phax.json`, set \"review\": { \"compliance\": { \"enabled\": true }, \"code\": { \"enabled\": true, \"append\": true, \"maxPasses\": 2 } }. `phax run --plan <plan>` then runs at most two fix passes before it completes its plan and spec and publishes. `phax ls` shows fixed / awaiting / dismissed / open counts, and the PR's `## Needs your review` opens on the review passes.\n\nBy hand, with \"code\": { \"enabled\": true }, pass 1 runs and its plan is left Draft on the run branch:\n1. Read the plan on the run branch, then `phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator`.\n2. `phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md`.\n3. For the next pass: `phax review-code usage-cli --headless`, then `phax review-plan usage-cli --headless --min-severity concern`.\n4. `phax review-plan usage-cli` (interactive, Claude Code) to decide awaiting findings.\n5. `phax publish-pr usage-cli`, which completes the plan and spec on the run branch and opens the PR."
+    "example": "Automatic: in `phax.json`, set \"review\": { \"compliance\": { \"enabled\": true }, \"code\": { \"enabled\": true, \"append\": true, \"maxPasses\": 2 } }. `phax run --plan <plan>` then runs at most two fix passes before it completes its plan and spec and opens its PR ready for review. A pending review plan or an awaiting finding opens the PR as a draft instead. `phax ls` shows fixed / awaiting / dismissed / open counts, and the PR's `## Needs your review` opens on the review passes.\n\nBy hand, with \"code\": { \"enabled\": true }, pass 1 runs and its plan is left Draft on the run branch:\n1. Read the plan on the run branch, then `phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator`.\n2. `phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md`.\n3. For the next pass: `phax review-code usage-cli --headless`, then `phax review-plan usage-cli --headless --min-severity concern`.\n4. `phax review-plan usage-cli` (interactive, Claude Code) to decide awaiting findings.\n5. `phax publish-pr usage-cli`. While something is pending, it opens a draft PR, or refuses on an existing draft. Once nothing is pending, it completes the plan and spec on the run branch, pushes, rewrites the body and marks the PR ready for review."
   }
 }
