@@ -10,8 +10,8 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 (PRs #104–#110; `@lbdremy/phax-schemas` first published in 0.17.0 on 2026-10-03),
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
-and the global install bumped on 2026-10-05). Four approved specs are open: headless-review
-and oracle-phases;
+and the global install bumped on 2026-10-05). Five approved specs are open:
+planning-skill-defaults (plan 1 of 2 landed), headless-review and oracle-phases;
 23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
 three have landed. In flight: `planning-skill-defaults` (see *In flight* below).
@@ -19,7 +19,7 @@ three have landed. In flight: `planning-skill-defaults` (see *In flight* below).
 ## In flight
 
 - [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1
-      of 2 (the phax-planning skill and the per-phase `modelReason`) is running. Plan 2 adds
+      of 2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2 adds
       `phax architecture` and completes the spec.
       The Draft `phase-model-assignment` spec
       (`docs/specs/2610171257-phase-model-assignment.md`) is to be reworked to build on

@@ -25,8 +25,8 @@
 // written before `$schema` by the pre-schema decoder, then lifted by the
 // author's rationale marker (`liftMarkedQuestions`); a plan document stamped
 // below its current stamp is read by the frozen 0.20.0 decoder and lifted
-// with empty preamble questions and `modelReason: null`.`readDocumentSidecar` also reports the shape
-// a spec or plan sidecar is stamped at. A format born with `$schema`
+// with empty preamble questions and `modelReason: null`. `readDocumentSidecar`
+// also reports the shape a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
 // format's current stamp (`currentSchemaUrl`, from `CURRENT_STAMPS`).
