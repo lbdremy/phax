@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610191226-artifact-decide-verdicts.md",
+  "specFingerprint": "8331c51185627e668b71efac118709d6c2a287461c3d22d87fac683094a89b1c",
+  "approvedAt": "2026-10-19T13:29:21.868Z",
+  "baseline": "4e6ed613a556d8f25ca2e36c6168a4d730a2655a",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
