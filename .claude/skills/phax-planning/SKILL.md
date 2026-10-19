@@ -130,6 +130,7 @@ informational for the executing agent.
 | `title`                  | Section heading after the dash                          | yes        |
 | `model`                  | `**Recommended model:** <model-id>` line                | yes        |
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
+| Model reason             | `**Model reason:** <reason>` line under the effort line, only on a phase that departs from the default | no         |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
 | `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
 | `plannedFilesToEdit`     | `### Planned files to edit` list                        | yes        |
@@ -161,6 +162,7 @@ reconciliation.
 
 **Recommended model:** <model-id>
 **Recommended effort:** low | medium | high
+**Model reason:** <why this phase leaves the default — omit the line at the default>
 
 <Objective — one short paragraph: the user- or system-visible capability this
 phase adds.>
@@ -270,16 +272,17 @@ files must be run with `phax run --allow-skill-edits`, or the preflight refuses 
 
 ## Boundary contracts (informational)
 
-When a phase crosses an architectural boundary (page/cli/surface → view-model,
-view-model → application command, command → port, …), describe the contract in
+When a phase crosses a boundary of the repository's architecture (in the example
+architecture: page/cli/surface → view-model, view-model → application command,
+command → port, …), describe the contract in
 consumer/producer terms: who needs something, who provides it, and the stable
 shape between them. Be strict on the semantic need, adaptable on the exact
 interface shape. These are not extracted (human-readable only). Omit the section for a phase that crosses no boundary.
 
 ## Test strategy (informational)
 
-Map tests to the layer they exercise and pick the cheapest reliable test for
-that layer:
+Map tests to the parts of the repository's architecture and pick the cheapest
+reliable test for each. For the example architecture:
 
 | Layer                     | Preferred test type                       |
 | ------------------------- | ----------------------------------------- |
@@ -297,19 +300,32 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
 
 ## Planning doctrine
 
-- **Plan outside-in.** Start from the user-visible need and trace the path it
-  must take through the system (page → view-model → command → domain → port →
-  adapter → storage). This is how you discover which files each phase touches.
-- **Implement inside-out.** Order the work core-to-surface (domain → ports →
-  command → adapter → view-model → view → route) so the surface never claims a
-  behavior the core does not yet provide.
-- **Verify outside-in.** End by checking the user-visible behavior works end to
+- **Plan outside-in.** Start from the need the consumer sees and trace the path
+  it takes through the repository's parts. This is how you discover which files
+  each phase touches.
+- **Implement inside-out.** Order the work from the parts others depend on to
+  the surface, so the surface never claims a behavior the core does not yet
+  provide.
+- **Verify outside-in.** End by checking the consumer-visible behavior end to
   end, then let the gates confirm it.
+
+### The repository's architecture
+
+Read the repository's architecture before cutting phases, from the code and its
+documentation (README, CLAUDE.md or equivalent), and plan against it: its parts,
+the direction of their dependencies, and the boundaries its own checks enforce.
+
+### One example architecture
+
+A layered application: page → view-model → command → domain → port → adapter →
+storage, implemented domain → ports → command → adapter → view-model → view →
+route. Use it only where the repository is built this way.
 
 ## Technical arbitrations
 
 Planning is where technical trade-offs get decided — contract shapes, phase
-decomposition, which layer owns a behavior, model/effort per phase. The spec
+decomposition, which part owns a behavior. A phase's model and effort are not
+an arbitration: see "Choosing a model and effort". The spec
 deliberately leaves these open ("what, not how"); do not resolve them silently.
 
 - **Surface real arbitrations as questions.** When two viable approaches differ
@@ -384,10 +400,17 @@ Each entry below is a versioned model id from the provider catalog with its effo
 
 ### Choosing a model and effort
 
-- The default phase model is `claude-opus-5-5`: it is the cheapest Opus-tier entry and matches or beats `claude-fable-5-1` from `medium` effort up.
-- Use `claude-sonnet-5-5` for mechanical phases (catalog/table edits, renames, doc sweeps).
-- Use `claude-fable-5-1` only for a stated reason that Opus 5.5 cannot serve, and record that reason in Technical arbitrations.
-- Use the lowest effort that succeeds. Opus 5.5 is weakest at `low` (below Fable 5.1), so use `medium` or above for phases that need real reasoning.
+Cut and write every phase first. Choose its model and effort last, from what the written phase asks for.
+
+<!-- BEGIN generated: phase-model-policy -->
+- Default: `claude-sonnet-5-5` at `medium`.
+- Stronger (a higher effort, or `claude-opus-5-5`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.
+- Lighter (`claude-haiku-5-5`): the phase reproduces a pattern the code already holds, and a configured gate checks it.
+<!-- END generated: phase-model-policy -->
+
+- Any other catalog model only for a stated reason.
+- Every phase that leaves the default says why, on the phase: its `modelReason` (headless), or a `**Model reason:**` line under its model and effort (by hand). A phase at the default has no reason: `modelReason: null`, and no line. A departure without a reason, or a default phase with one, is a defect.
+- A lighter model needs the detail: see "Comprehensive instructions".
 - A plan that changes the catalog itself must name only models already in the shipped catalog: the run-start preflight uses the running binary's catalog, not the one the plan adds.
 
 <!-- BEGIN generated: model-catalog -->
@@ -600,13 +623,21 @@ Top-level keys:
   approval waits until none is open.
 - `phases`: a non-empty array, one object per phase.
 
+A phase's keys, in the document's order: `id`, `title`, `objective`,
+`detailedInstructions`, `planMarkdownAnchor`, `plannedFilesToCreate`, `plannedFilesToEdit`,
+`optionalFilesToEdit`, `boundaryContracts`, `testStrategy`, `implementationOrder`,
+`excludedScope`, `verification`, `expectedHandoff`, `commit`, then `modelReason`, `model`,
+`effort` last. Write them in that order: the phase's content first, its assignment last,
+because you assign a phase only once it is written (see "Choosing a model and effort").
+
 Each phase carries the **extracted fields** — exactly what `phax run` reads, and exactly
 the cache seed:
 
-- `id` (`phase-NN`), `model`, `effort` (see the model catalog), `planMarkdownAnchor`
-  (`#phase-NN-<slug>`, rendered as the heading's `{#phase-NN-<slug>}`).
+- `id` (`phase-NN`), `planMarkdownAnchor` (`#phase-NN-<slug>`, rendered as the heading's
+  `{#phase-NN-<slug>}`).
 - `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
 - `commit`: `{ subject, body }`.
+- `model`, `effort` (see the model catalog).
 
 and the fields that only render the phase:
 
@@ -618,14 +649,18 @@ and the fields that only render the phase:
 - `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
   section is then omitted rather than filled.
 - `testStrategy`, `verification`, `expectedHandoff`: strings.
+- `modelReason` — why the phase leaves the default assignment, rendered as a
+  `**Model reason:**` line under its effort line. Put each departure's reason in that
+  phase's `modelReason`, and `modelReason: null` on every phase at the default. Never put a
+  reason in `preamble.technicalArbitrations`.
 
 ## Example well-formed phase
 
 ```markdown
 ## phase-03 — Run folder model and atomic writes {#phase-03-run-folder}
 
-**Recommended model:** claude-sonnet-4-6
-**Recommended effort:** low
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
 
 Introduce the run-folder model and atomic file writes so later phases have a
 durable place to persist run state.

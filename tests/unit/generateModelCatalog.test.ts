@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   BEGIN_MARKER,
+  BEGIN_POLICY_MARKER,
   END_MARKER,
+  END_POLICY_MARKER,
+  POLICY_MARKERS,
   applyToContent,
   hasStaleRegion,
   renderCatalogTable,
+  renderPhaseModelPolicy,
   rewriteMarkerRegion,
 } from "../../scripts/generate-model-catalog.js";
+import { PHASE_MODEL_POLICY } from "../../src/domain/routing/phaseModelPolicy.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 
 const smallCatalog: ProviderConfig = {
@@ -180,5 +185,51 @@ describe("hasStaleRegion", () => {
 
   it("returns true when END_MARKER is absent", () => {
     expect(hasStaleRegion(`${BEGIN_MARKER}\nsome content`, "some content")).toBe(true);
+  });
+});
+
+describe("renderPhaseModelPolicy", () => {
+  it("renders the three policy bullets from the shipped policy", () => {
+    expect(renderPhaseModelPolicy(PHASE_MODEL_POLICY)).toMatchInlineSnapshot(`
+      "- Default: \`claude-sonnet-5-5\` at \`medium\`.
+      - Stronger (a higher effort, or \`claude-opus-5-5\`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.
+      - Lighter (\`claude-haiku-5-5\`): the phase reproduces a pattern the code already holds, and a configured gate checks it."
+    `);
+  });
+});
+
+describe("phase model policy region", () => {
+  const policy = renderPhaseModelPolicy(PHASE_MODEL_POLICY);
+  const skill =
+    `# Skill\n\n${BEGIN_POLICY_MARKER}\n${policy}\n${END_POLICY_MARKER}\n\n` +
+    `${BEGIN_MARKER}\ncatalog table\n${END_MARKER}\n`;
+
+  it("is fresh when the region matches the rendered policy", () => {
+    expect(hasStaleRegion(skill, policy, POLICY_MARKERS)).toBe(false);
+  });
+
+  it("is stale when the block is hand-edited to another default", () => {
+    const edited = skill.replace("`claude-sonnet-5-5`", "`claude-sonnet-5`");
+    expect(edited).not.toBe(skill);
+    expect(hasStaleRegion(edited, policy, POLICY_MARKERS)).toBe(true);
+  });
+
+  it("is stale when the policy markers are missing", () => {
+    const catalogOnly = `${BEGIN_MARKER}\nx\n${END_MARKER}\n`;
+    expect(hasStaleRegion(catalogOnly, policy, POLICY_MARKERS)).toBe(true);
+  });
+
+  it("rewrites idempotently and leaves the catalog region alone", () => {
+    const stale = skill.replace(policy, "old bullets");
+    const once = rewriteMarkerRegion(stale, policy, POLICY_MARKERS);
+    expect(once).toBe(skill);
+    expect(rewriteMarkerRegion(once, policy, POLICY_MARKERS)).toBe(once);
+    expect(hasStaleRegion(once, "catalog table")).toBe(false);
+  });
+
+  it("names the phase model policy when its markers are absent", () => {
+    expect(() => rewriteMarkerRegion("no markers", policy, POLICY_MARKERS)).toThrow(
+      "Phase model policy markers not found",
+    );
   });
 });

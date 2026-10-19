@@ -127,9 +127,10 @@ deprecated: `claude-fable-5` (its only codex anchor was `gpt-5.6-sol`) and
 `claude-opus-4-8` at `low`/`high`/`xhigh`/`max` (anchored only by
 `gpt-5.6-terra`). Opus 4.8 keeps `medium`, via `gpt-5.5` at `xhigh`.
 `claude-opus-5-5` lost its only codex route when Sol re-anchored to Sonnet
-5.5 (2026-10-05). The default phase model is therefore Claude-only: an Opus
-5.5 phase never reaches codex, whatever the priority or `allowDowngrade`
-says. In `claude-opus`, only Opus 4.8 at `medium` keeps a codex route, via
+5.5 (2026-10-05). An Opus 5.5 phase therefore never reaches codex, whatever
+the priority or `allowDowngrade` says. The planning skill's default phase
+assignment, `claude-sonnet-5-5` at `medium`, does: it reaches codex as
+`gpt-6-sol`, `equivalent`. In `claude-opus`, only Opus 4.8 at `medium` keeps a codex route, via
 `gpt-5.5` at `xhigh`.
 
 Consequence of the `downgrade` edges — Sol at every effort except `medium`,
@@ -225,6 +226,7 @@ data says so.
 | Decide             | `DEFAULT_DECIDE_MODEL`, `src/schemas/phaxConfig.ts`        | `claude-opus-5-5`              | `high`   | Same reasoning as plan adjustment, the other interactive judgment session. Claude Code only: decide has no interactive launch for Codex or Vibe. `--model` and `--effort` override it; no `phax.json` key. Accepted loss: about twice Sonnet 5.5's per-token price (4/20 vs 2/10) on every decide session. | —                   |
 | Compliance review  | `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts` | `claude-sonnet-5-5`        | `medium` | Same $2/$10 per token as Sonnet 5, and 41 vs 28 at `medium` on the 2026-10-05 index. Accepted loss: about 13% more output tokens on the max-effort index run (420M vs 370M); no per-effort figure exists. Opus 5.5 is still 2× per token. Re-checked 2026-10-13, unchanged: Haiku 5.5 reaches the same 41 only at `xhigh`. That is about 4× cheaper per task ($0.12 vs $0.48), but it generates about 6× the tokens (180M vs 31M), the energy proxy, and Anthropic ranks Haiku below Sonnet for agentic work. | `claude-sonnet-5`   |
 | Plan extraction    | `DEFAULT_EXTRACT_MODEL`, `src/schemas/phaxConfig.ts`       | `claude-haiku-5-5`             | `low`    | A tenth of Haiku 4.5's per-token price (0.10/0.50 vs 1/5 for prompts up to 100k; still half above 100k) for a newer model. It is the cheapest scored entry: 29 at `low` on the 2026-10-13 index, with 32M tokens and $0.02/task. Accepted loss: slightly more tokens per task from the new tokenizer (a vendor figure). Haiku 4.5 has no score on this scale. | `claude-haiku-4-5-20251001` |
+| Planning skill default phase assignment | `PHASE_MODEL_POLICY`, `src/domain/routing/phaseModelPolicy.ts` | `claude-sonnet-5-5` | `medium` | Guidance rendered into the phax-planning skill by `pnpm gen:model-catalog`; phax never applies it to a phase. Chosen after a strong planner's plan carried Sonnet 5.5 (half Opus 5.5's per-token price, 2/10 vs 4/20) and Haiku 5.5. The policy also names `claude-opus-5-5` as the stronger model and `claude-haiku-5-5` as the lighter one. | `claude-opus-5-5` (skill prose) |
 
 Explicit `review.code`, `review.compliance` and `agent.extractPlan` settings
 in `phax.json` always win over these defaults. Decide has no `phax.json`
@@ -244,7 +246,9 @@ Run through this each time a provider ships or retires a model:
    Keep `ultracode` unanchored.
 4. Rebuild the cost table in section 4 and re-apply the default rule to each
    job; record the pick, the previous value and the justification.
-5. `pnpm gen:model-catalog` (planner table), and if a help string changed
+5. `pnpm gen:model-catalog` renders the planner's catalog table and the
+   phase model policy block, and fails when the policy names a model or effort
+   the catalog does not list. If a help string changed, also run
    `pnpm gen:usage-spec` + `pnpm docs:cli`.
 6. Update `docs/model-routing.md` if a family or effort value was added, and
    append a row to the refresh log below.
@@ -258,3 +262,4 @@ Run through this each time a provider ships or retires a model:
 | 2026-09-23 | Claude Opus 5.5; Claude families newest-first (aliases → current model); GPT-6 Sol → Opus 5.5 (downgrade), GPT-6 Luna → Sonnet 5; GPT-5.6 deprecated; Astra ↔ Fable 5.1 equivalent; review/adjust-plan defaults → Opus 5.5; planning skill recommends Opus 5.5 | `phax/catalog-opus-5-5-gpt-6-sol-and-luna` |
 | 2026-10-05 | Claude Sonnet 5.5 (`sonnet` alias → Sonnet 5.5; Sonnet 5 kept active); GPT-6 Sol re-anchored Opus 5.5 → Sonnet 5.5 (`equivalent` at medium, else `downgrade`), Opus 5.5 left with no codex route; compliance default → Sonnet 5.5; planning skill recommends Sonnet 5.5 for mechanical phases | `phax/catalog-sonnet-5-5` |
 | 2026-10-13 | Claude Haiku 5.5 (`haiku` alias → Haiku 5.5, `none` clamps to `low`; Haiku 4.5 kept active, still anchors Vibe `off`); no Codex or Vibe anchor moved (Haiku 5.5 considered for GPT-6 Luna, not closer); plan-extraction default → Haiku 5.5 `low`; compliance, code review and plan adjustment re-checked, unchanged | `phax/catalog-haiku-5-5` |
+| 2026-10-19 | No catalog change; the planning skill's default phase assignment → Sonnet 5.5 `medium` (was Opus 5.5), stronger Opus 5.5, lighter Haiku 5.5, from `PHASE_MODEL_POLICY`, rendered and drift-checked by `pnpm gen:model-catalog` | `phax/planning-skill-defaults` |

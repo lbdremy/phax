@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  BEGIN_POLICY_MARKER,
+  END_POLICY_MARKER,
+  renderPhaseModelPolicy,
+} from "../../scripts/generate-model-catalog.js";
+import { PHASE_MODEL_POLICY } from "../../src/domain/routing/phaseModelPolicy.js";
 
 const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
 
@@ -62,4 +68,91 @@ describe("phax-planning skill", () => {
     expect(content).toContain("off");
     expect(content).toContain("openai-gpt");
   });
+
+  describe("choosing a model and effort", () => {
+    const section = sectionOf(content, "### Choosing a model and effort");
+
+    it("writes every phase first and assigns its model last", () => {
+      expect(section).toContain(
+        "Cut and write every phase first. Choose its model and effort last, from what the written phase asks for.",
+      );
+    });
+
+    it("carries the generated policy block", () => {
+      const begin = section.indexOf(BEGIN_POLICY_MARKER);
+      const end = section.indexOf(END_POLICY_MARKER);
+      expect(begin).toBeGreaterThan(-1);
+      expect(section.slice(begin + BEGIN_POLICY_MARKER.length, end)).toBe(
+        `\n${renderPhaseModelPolicy(PHASE_MODEL_POLICY)}\n`,
+      );
+    });
+
+    it("no longer makes Opus 5.5 the default phase model", () => {
+      expect(content).not.toContain("The default phase model is `claude-opus-5-5`");
+    });
+
+    it("names when to go stronger and when to go lighter", () => {
+      expect(section).toContain("a new state machine");
+      expect(section).toContain("an adapter to a system the code does not reach yet");
+      expect(section).toContain("a choice that crosses several parts of the architecture");
+      expect(section).toMatch(/Lighter \(`claude-haiku-5-5`\).*a configured gate checks it/);
+    });
+
+    it("names both departure-reason defects", () => {
+      expect(section).toContain("A departure without a reason");
+      expect(section).toContain("a default phase with one");
+      expect(section).toContain("is a defect");
+    });
+  });
+
+  it("directs headless reasons into modelReason, never the arbitrations", () => {
+    const section = sectionOf(content, "## Headless authoring");
+    expect(section).toContain("modelReason");
+    expect(section).toContain("`modelReason: null`");
+    expect(section).toContain("preamble.technicalArbitrations");
+  });
+
+  it("names no layer in the planning doctrine bullets", () => {
+    const doctrine = sectionOf(content, "## Planning doctrine");
+    const bullets = doctrine.slice(0, doctrine.indexOf("\n### "));
+    expect(bullets).toContain("Plan outside-in");
+    for (const word of ["view-model", "port", "adapter", "domain"]) {
+      expect(bullets).not.toMatch(new RegExp(`\\b${word}\\b`, "i"));
+    }
+  });
+
+  it("presents the layer chain, test table and boundary list as the example architecture", () => {
+    const example = sectionOf(content, "### One example architecture");
+    expect(example).toContain("page → view-model → command → domain → port → adapter");
+    expect(example).toContain("Use it only where the repository is built this way.");
+
+    const tests = sectionOf(content, "## Test strategy (informational)");
+    expect(tests).toMatch(/For the example architecture:\n\n\| Layer/);
+
+    const boundaries = sectionOf(content, "## Boundary contracts (informational)");
+    expect(boundaries).toMatch(/in the example\s+architecture: page\/cli\/surface → view-model/);
+  });
+
+  it("reads the repository's architecture from its code and documentation", () => {
+    const section = sectionOf(content, "### The repository's architecture");
+    expect(section).toContain("README");
+    expect(section).toContain("CLAUDE.md");
+    expect(content).not.toContain("phax architecture");
+  });
+
+  it("keeps the comprehensive-instructions constraint", () => {
+    expect(content).toContain(
+      "**Comprehensive instructions.** Make sure each phase has enough detail for the\n  model and effort you picked to execute it successfully.",
+    );
+  });
 });
+
+// The text from `heading` up to the next heading of the same or a higher level.
+function sectionOf(content: string, heading: string): string {
+  const start = content.indexOf(`\n${heading}\n`);
+  if (start === -1) throw new Error(`SKILL.md has no ${heading} section`);
+  const level = heading.indexOf(" ");
+  const rest = content.slice(start + heading.length + 2);
+  const next = rest.search(new RegExp(`\\n#{1,${level}} `));
+  return next === -1 ? rest : rest.slice(0, next);
+}
