@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-19
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-19
+  baseline: cd1c744
 ---
 # Automatic migrations after an upgrade
 
