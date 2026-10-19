@@ -22,7 +22,7 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
     // 5.5 (42/51/54/56/58); Sonnet 5.5 is closer at every effort. `medium` is
     // within a point, hence `equivalent`; elsewhere `downgrade`. `ultra`
     // anchors to `max` so `ultracode` stays Claude-only. No edge targets Opus
-    // 5.5 any more, so the default phase model has no Codex route.
+    // 5.5 any more, so Opus 5.5 has no Codex route.
     "gpt-6-sol": {
       low: { claude: "claude-sonnet-5-5", effort: "low", relation: "downgrade" },
       medium: { claude: "claude-sonnet-5-5", effort: "medium", relation: "equivalent" },

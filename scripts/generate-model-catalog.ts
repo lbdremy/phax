@@ -1,15 +1,43 @@
-// Generates the model-catalog Markdown table from DEFAULT_PROVIDER_CONFIG and
-// rewrites the marker-delimited region in the phax-planning skill files.
+// Generates two marker-delimited regions of the phax-planning skill: the
+// model-catalog table from DEFAULT_PROVIDER_CONFIG, and the phase model policy
+// bullets from PHASE_MODEL_POLICY. Both modes first refuse a policy that names
+// a model or effort the catalog does not list, and write nothing.
 // Run with: pnpm gen:model-catalog
 // Check for drift: pnpm gen:model-catalog -- --check
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { DEFAULT_PROVIDER_CONFIG } from "../src/domain/routing/defaults.js";
+import {
+  PHASE_MODEL_POLICY,
+  phaseModelPolicyFindings,
+  type PhaseModelPolicy,
+} from "../src/domain/routing/phaseModelPolicy.js";
 import type { ProviderConfig } from "../src/schemas/providerConfig.js";
 
 export const BEGIN_MARKER = "<!-- BEGIN generated: model-catalog -->";
 export const END_MARKER = "<!-- END generated: model-catalog -->";
+export const BEGIN_POLICY_MARKER = "<!-- BEGIN generated: phase-model-policy -->";
+export const END_POLICY_MARKER = "<!-- END generated: phase-model-policy -->";
+
+/** A marker pair delimiting one generated region, labelled for errors. */
+interface RegionMarkers {
+  readonly begin: string;
+  readonly end: string;
+  readonly label: string;
+}
+
+const CATALOG_MARKERS: RegionMarkers = {
+  begin: BEGIN_MARKER,
+  end: END_MARKER,
+  label: "Model catalog",
+};
+
+export const POLICY_MARKERS: RegionMarkers = {
+  begin: BEGIN_POLICY_MARKER,
+  end: END_POLICY_MARKER,
+  label: "Phase model policy",
+};
 
 const SKILL_FILES = [".claude/skills/phax-planning/SKILL.md"];
 
@@ -36,31 +64,53 @@ export function renderCatalogTable(providerConfig: ProviderConfig): string {
 }
 
 /**
- * Rewrite the region between BEGIN_MARKER and END_MARKER in `content` with
- * `tableContent`. Throws when either marker is absent.
+ * Render the phase model policy as the three bullets of the skill's
+ * "Choosing a model and effort" section, ids interpolated from the policy.
  */
-export function rewriteMarkerRegion(content: string, tableContent: string): string {
-  const beginIdx = content.indexOf(BEGIN_MARKER);
-  const endIdx = content.indexOf(END_MARKER);
+export function renderPhaseModelPolicy(policy: PhaseModelPolicy): string {
+  const { defaultAssignment, stronger, lighter } = policy;
+  return [
+    `- Default: \`${defaultAssignment.model}\` at \`${defaultAssignment.effort}\`.`,
+    `- Stronger (a higher effort, or \`${stronger.model}\`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.`,
+    `- Lighter (\`${lighter.model}\`): the phase reproduces a pattern the code already holds, and a configured gate checks it.`,
+  ].join("\n");
+}
+
+/**
+ * Rewrite the region between `markers` (the catalog markers by default) in
+ * `content` with `tableContent`. Throws when either marker is absent.
+ */
+export function rewriteMarkerRegion(
+  content: string,
+  tableContent: string,
+  markers: RegionMarkers = CATALOG_MARKERS,
+): string {
+  const beginIdx = content.indexOf(markers.begin);
+  const endIdx = content.indexOf(markers.end);
   if (beginIdx === -1 || endIdx === -1) {
     throw new Error(
-      `Model catalog markers not found — add ${BEGIN_MARKER} / ${END_MARKER} to the file first`,
+      `${markers.label} markers not found — add ${markers.begin} / ${markers.end} to the file first`,
     );
   }
-  const before = content.slice(0, beginIdx + BEGIN_MARKER.length);
+  const before = content.slice(0, beginIdx + markers.begin.length);
   const after = content.slice(endIdx);
   return `${before}\n${tableContent}\n${after}`;
 }
 
 /**
- * Returns true when the committed region between markers does not match
- * `tableContent` (i.e. the file is stale and needs regenerating).
+ * Returns true when the committed region between `markers` (the catalog
+ * markers by default) does not match `tableContent` (i.e. the file is stale
+ * and needs regenerating).
  */
-export function hasStaleRegion(content: string, tableContent: string): boolean {
-  const beginIdx = content.indexOf(BEGIN_MARKER);
-  const endIdx = content.indexOf(END_MARKER);
+export function hasStaleRegion(
+  content: string,
+  tableContent: string,
+  markers: RegionMarkers = CATALOG_MARKERS,
+): boolean {
+  const beginIdx = content.indexOf(markers.begin);
+  const endIdx = content.indexOf(markers.end);
   if (beginIdx === -1 || endIdx === -1) return true;
-  const current = content.slice(beginIdx + BEGIN_MARKER.length, endIdx);
+  const current = content.slice(beginIdx + markers.begin.length, endIdx);
   return current !== `\n${tableContent}\n`;
 }
 
@@ -242,7 +292,15 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const checkMode = process.argv.includes("--check");
   const repoRoot = join(fileURLToPath(import.meta.url), "../..");
+
+  const findings = phaseModelPolicyFindings(PHASE_MODEL_POLICY, DEFAULT_PROVIDER_CONFIG);
+  if (findings.length > 0) {
+    for (const finding of findings) console.error(`✗ phase model policy: ${finding}`);
+    process.exit(1);
+  }
+
   const tableContent = renderCatalogTable(DEFAULT_PROVIDER_CONFIG);
+  const policyContent = renderPhaseModelPolicy(PHASE_MODEL_POLICY);
 
   let stale = false;
   for (const relPath of SKILL_FILES) {
@@ -254,10 +312,16 @@ if (isMain) {
         console.error(`Stale model catalog in ${relPath} — run: pnpm gen:model-catalog`);
         stale = true;
       }
+      if (hasStaleRegion(content, policyContent, POLICY_MARKERS)) {
+        console.error(`Stale phase-model-policy block in ${relPath} — run: pnpm gen:model-catalog`);
+        stale = true;
+      }
     } else {
-      // Apply prose patches first (idempotent), then the catalog table.
+      // Apply prose patches first (idempotent), then the catalog table and the
+      // phase model policy.
       const withProse = applyPlanningSkillProse(content);
-      const updated = applyToContent(withProse, tableContent);
+      const withCatalog = applyToContent(withProse, tableContent);
+      const updated = rewriteMarkerRegion(withCatalog, policyContent, POLICY_MARKERS);
       if (updated !== content) {
         writeFileSync(filePath, updated, "utf8");
         console.log(`Updated: ${relPath}`);

@@ -11,10 +11,19 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Four approved specs are open: headless-review
-runs next, then oracle-phases;
+and oracle-phases;
 23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
-three have landed. No plan is in flight.
+three have landed. In flight: `planning-skill-defaults` (see *In flight* below).
+
+## In flight
+
+- [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1
+      of 2 (the phax-planning skill and the per-phase `modelReason`) is running. Plan 2 adds
+      `phax architecture` and completes the spec.
+      The Draft `phase-model-assignment` spec
+      (`docs/specs/2610171257-phase-model-assignment.md`) is to be reworked to build on
+      `modelReason`.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -134,7 +143,7 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
       the decision record, the approval lock, the plan-prompt invitation to leave open
       questions, and `docs/arbitration.md`.
       **Run `phax artifact migrate-documents` once in this repository** if it has not run yet.
-- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. **Next.** It adopts
+- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It adopts
       decide's machine/operator approval form (`--by`) and reuses decide's skill
       (`docs/ideas/headless-code-review.md`). decide's re-authoring
       dropped the escalation block and changed the approver form to `--by`, so this spec's
