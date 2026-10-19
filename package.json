@@ -1,6 +1,6 @@
 {
   "name": "phax",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
   "license": "Apache-2.0",
   "bin": {
