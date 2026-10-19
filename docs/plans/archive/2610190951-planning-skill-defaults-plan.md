@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610171254-planning-skill-defaults.md
 completes-spec: false
 approved:
