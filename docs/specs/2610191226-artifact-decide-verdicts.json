@@ -531,7 +531,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-note",
       "question": "Is the person's note required on every verdict?",
@@ -553,7 +554,30 @@
         }
       ],
       "recommendation": "note-on-departure",
-      "rationale": "A recommended choice already carries its reason: the question's rationale. A departure has no written reason except the person's, and E0 forbids the writer inventing one. The key stays required on every verdict, with null as the explicit \"nothing to add\", so the format has no optional key."
+      "rationale": "A recommended choice already carries its reason: the question's rationale. A departure has no written reason except the person's, and E0 forbids the writer inventing one. The key stays required on every verdict, with null as the explicit \"nothing to add\", so the format has no optional key.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "note-on-departure",
+        "abandoned": [
+          "note-always",
+          "note-free"
+        ],
+        "why": "Adopted as recommended. A recommended choice already carries its reason: the question's rationale. A departure has no written reason except the person's, and E0 forbids the writer inventing one. Refusing a null note on a departure is a condition phax checks before any session.",
+        "advocate": "The strongest case for note-free: a note is often an agent's paraphrase of what the person said, so forcing one on a departure can produce a confident-looking reason that is not the person's, where an honest null would say that nothing was recorded.",
+        "principles": [
+          "S1",
+          "E0",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-unnamed",
@@ -576,7 +600,31 @@
         }
       ],
       "recommendation": "stay-open",
-      "rationale": "This matches `--question`, which presents one question alone (C1). The safety stays a condition phax verifies (C4): approve refuses while a question is open. The report and `--json` list the questions left open, so the caller sees them before approving."
+      "rationale": "This matches `--question`, which presents one question alone (C1). The safety stays a condition phax verifies (C4): approve refuses while a question is open. The report and `--json` list the questions left open, so the caller sees them before approving.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "stay-open",
+        "abandoned": [
+          "all-required",
+          "rest-recommended"
+        ],
+        "why": "Adopted as recommended. Leaving unnamed questions as they are matches `--question` (C1); approve still refuses while a question is open (C4), and the report lists the questions left open. Every decided question is written out, so none is recorded as decided without being named (E0).",
+        "advocate": "The strongest case for rest-recommended: \"the recommendations, except one\" is the most common case, and a file-level switch would state it in one line instead of listing every question.",
+        "principles": [
+          "S1",
+          "C1",
+          "C4",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-off-menu",
@@ -594,7 +642,29 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "The check that `chosen` is a listed option is what makes the transcription verifiable without a checker (C4). Interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict. A precision on applying a listed option fits in the note."
+      "rationale": "The check that `chosen` is a listed option is what makes the transcription verifiable without a checker (C4). Interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict. A precision on applying a listed option fits in the note.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse",
+        "abandoned": [
+          "own-option"
+        ],
+        "why": "Adopted as recommended. The check that `chosen` names a listed option is what makes the transcription verifiable without a checker (C4), and interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict; a precision on a listed option fits in the note.",
+        "advocate": "The strongest case for own-option: the right answer is sometimes not on the menu, and re-authoring the question only to add it is a heavy detour for a person who already knows what they want.",
+        "principles": [
+          "S1",
+          "C1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-why",
@@ -612,7 +682,29 @@
         }
       ],
       "recommendation": "phax-sets-why",
-      "rationale": "The why is the one field that states the person's decision, so making it the person's words verbatim is a condition phax guarantees (C4), not something the caller must check by reading. phax already sets `by` and `at` the same way. What the writer still writes (advocate, principles, reversibility, body revisions) is what the report and diff put in front of the caller."
+      "rationale": "The why is the one field that states the person's decision, so making it the person's words verbatim is a condition phax guarantees (C4), not something the caller must check by reading. phax already sets `by` and `at` the same way. What the writer still writes (advocate, principles, reversibility, body revisions) is what the report and diff put in front of the caller.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "phax-sets-why",
+        "abandoned": [
+          "writer-writes-why"
+        ],
+        "why": "Adopted as recommended. The why states the person's decision, so phax copying the note verbatim (or the rationale when the note is null) is a condition it guarantees (C4), as it already sets `by` and `at`, rather than something the caller must check by reading (E0).",
+        "advocate": "The strongest case for writer-writes-why: a terse note becomes the permanent recorded reason exactly as typed, where the writer could turn it into a why that reads in context.",
+        "principles": [
+          "S1",
+          "C4",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-by",
@@ -635,7 +727,31 @@
         }
       ],
       "recommendation": "relayed",
-      "rationale": "Choosing `relayed` keeps attribution explicit (E0) and consistent with how approve and reopen take `--by` (C1). A loop never records itself as a person, and a person is never named by a guess. `relayed` is not the doctrine's machine-decides mode: it says a machine carried a decision, not that a machine made it. The shape change is the accepted loss: a union widening that the release cut records, costing at most one known migrate gesture."
+      "rationale": "Choosing `relayed` keeps attribution explicit (E0) and consistent with how approve and reopen take `--by` (C1). A loop never records itself as a person, and a person is never named by a guess. `relayed` is not the doctrine's machine-decides mode: it says a machine carried a decision, not that a machine made it. The shape change is the accepted loss: a union widening that the release cut records, costing at most one known migrate gesture.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "relayed",
+        "abandoned": [
+          "operator-only",
+          "operator-declared"
+        ],
+        "why": "Adopted as recommended. `relayed` keeps attribution explicit (E0) and takes `--by` as approve and reopen do (C1): a loop never records itself as a person, and no person is named by a guess (S6). It records that a machine carried a decision, not that a machine made it. The document shape change is the accepted loss.",
+        "advocate": "The strongest case for operator-declared: it changes no document format and forces no migrate-documents run, while the relaying machine's grant can still be kept in the commit trailer and the decision record.",
+        "principles": [
+          "S1",
+          "E0",
+          "C1",
+          "S6"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-provider",
@@ -653,7 +769,28 @@
         }
       ],
       "recommendation": "routed",
-      "rationale": "The writer is a headless JSON-answer session, the kind authoring already routes (C1 with the session it most resembles). Interactive decide is Claude-only because of its terminal session, which verdicts mode does not have. `session.json` already records the authoring provider, so resuming on the same provider is a check, not a guess."
+      "rationale": "The writer is a headless JSON-answer session, the kind authoring already routes (C1 with the session it most resembles). Interactive decide is Claude-only because of its terminal session, which verdicts mode does not have. `session.json` already records the authoring provider, so resuming on the same provider is a check, not a guess.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "routed",
+        "abandoned": [
+          "claude-only"
+        ],
+        "why": "Adopted as recommended. The writer is a headless JSON-answer session, the kind authoring already routes (C1). Interactive decide is Claude-only because of its terminal session, which verdicts mode does not have, and `session.json` records the authoring provider, so resuming on the same provider is a check.",
+        "advocate": "The strongest case for claude-only: one command keeps one provider rule, the same as interactive decide.",
+        "principles": [
+          "S1",
+          "C1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-model",
@@ -676,7 +813,30 @@
         }
       ],
       "recommendation": "own-default",
-      "rationale": "Transcribing given verdicts and revising the body they imply needs less judgment than authoring or interactive facilitation. Following the catalog on cost, it takes the tier compliance review already defaults to: claude-sonnet-5-5, at medium effort. No key matches interactive decide (C1). A loop scripts its flags once, and a key can be added later without breaking anything."
+      "rationale": "Transcribing given verdicts and revising the body they imply needs less judgment than authoring or interactive facilitation. Following the catalog on cost, it takes the tier compliance review already defaults to: claude-sonnet-5-5, at medium effort. No key matches interactive decide (C1). A loop scripts its flags once, and a key can be added later without breaking anything.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "own-default",
+        "abandoned": [
+          "follow-authoring",
+          "own-key"
+        ],
+        "why": "Adopted as recommended. Transcription needs less judgment than authoring, so the default follows the catalog on cost: claude-sonnet-5-5 / medium, the tier compliance review uses. No phax.json key, as interactive decide has none (C1); an output or config surface is added only for a named reader (S5), and a key can be added later without breaking anything.",
+        "advocate": "The strongest case for own-key: a project on Codex or Vibe would set its writer model once in phax.json instead of passing --model on every call.",
+        "principles": [
+          "S1",
+          "C1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-hand",
@@ -694,10 +854,31 @@
         }
       ],
       "recommendation": "both",
-      "rationale": "Interactive decide already reads both forms, and approve's open-question lock covers both (C1). The mode should be total on the artifacts decide accepts (S5). The hand-answer checks and the in-place writer exist, so the mode reuses them."
+      "rationale": "Interactive decide already reads both forms, and approve's open-question lock covers both (C1). The mode should be total on the artifacts decide accepts (S5). The hand-answer checks and the in-place writer exist, so the mode reuses them.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "both",
+        "abandoned": [
+          "sidecar-only"
+        ],
+        "why": "Adopted as recommended. Interactive decide already reads both forms, and approve's open-question lock covers both (C1). The mode stays total on the artifacts decide accepts (S5), reusing the existing hand-answer checks and in-place writer.",
+        "advocate": "The strongest case for sidecar-only: the new mode stays smaller, with one answer form to prompt for and check.",
+        "principles": [
+          "S1",
+          "C1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T12:42:12.427Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Decided by the author on 2026-10-19: the mode lives in phax as a mode of `phax artifact decide`; the person decides and the writer only transcribes (it is not the doctrine's headless mode); a departing verdict still revises the body, so a writer session is needed; phax runs no checker session; deciding never approves, so the artifact stays Draft.",

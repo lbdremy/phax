@@ -454,6 +454,10 @@ Given records enabled and a verdicts-mode commit at `<sha>` that arbitrated two 
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-note — Is the person's note required on every verdict?
 
 - note-on-departure — `note` is a required key holding a string or null, and null is refused on a departing verdict — abandons: a bare file for departures: a person who departs must write one sentence, even when the reason seems obvious to them
@@ -461,6 +465,9 @@ Given records enabled and a verdicts-mode commit at `<sha>` that arbitrated two 
 - note-free — `note` is a string or null on every verdict — abandons: the person's reason for a departure: the writer must invent the why of a choice the recommendation argued against
 
 Recommendation: note-on-departure — A recommended choice already carries its reason: the question's rationale. A departure has no written reason except the person's, and E0 forbids the writer inventing one. The key stays required on every verdict, with null as the explicit "nothing to add", so the format has no optional key.
+
+Decision: note-on-departure — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. A recommended choice already carries its reason: the question's rationale. A departure has no written reason except the person's, and E0 forbids the writer inventing one. Refusing a null note on a departure is a condition phax checks before any session. Advocate: The strongest case for note-free: a note is often an agent's paraphrase of what the person said, so forcing one on a departure can produce a confident-looking reason that is not the person's, where an honest null would say that nothing was recorded. Principles: S1, E0, C4. Reversibility: cheap. Revised: none.
 
 ### q-unnamed — What becomes of questions the verdicts file does not name?
 
@@ -470,6 +477,9 @@ Recommendation: note-on-departure — A recommended choice already carries its r
 
 Recommendation: stay-open — This matches `--question`, which presents one question alone (C1). The safety stays a condition phax verifies (C4): approve refuses while a question is open. The report and `--json` list the questions left open, so the caller sees them before approving.
 
+Decision: stay-open — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. Leaving unnamed questions as they are matches `--question` (C1); approve still refuses while a question is open (C4), and the report lists the questions left open. Every decided question is written out, so none is recorded as decided without being named (E0). Advocate: The strongest case for rest-recommended: "the recommendations, except one" is the most common case, and a file-level switch would state it in one line instead of listing every question. Principles: S1, C1, C4, E0. Reversibility: cheap. Revised: none.
+
 ### q-off-menu — May a verdict choose an option the question does not list, described in the note?
 
 - refuse — `chosen` must name a listed option; the note can only refine how a listed option applies — abandons: a person's own answer: an option outside the menu has no path through decide, and the question itself must be re-authored
@@ -477,12 +487,18 @@ Recommendation: stay-open — This matches `--question`, which presents one ques
 
 Recommendation: refuse — The check that `chosen` is a listed option is what makes the transcription verifiable without a checker (C4). Interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict. A precision on applying a listed option fits in the note.
 
+Decision: refuse — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. The check that `chosen` names a listed option is what makes the transcription verifiable without a checker (C4), and interactive decide refuses unlisted options too (C1). An option outside the menu rewrites the question, which is a spec change, not a verdict; a precision on a listed option fits in the note. Advocate: The strongest case for own-option: the right answer is sometimes not on the menu, and re-authoring the question only to add it is a heavy detour for a person who already knows what they want. Principles: S1, C1, C4. Reversibility: cheap. Revised: none.
+
 ### q-why — Who writes a given verdict's `why`?
 
 - phax-sets-why — phax sets `why`: the note verbatim, or the question's rationale when the note is null — abandons: a why that reads as prose in context: a terse note becomes the recorded reason exactly as typed
 - writer-writes-why — The writer writes `why` from the note or the rationale — abandons: a why guaranteed to be the person's: a paraphrase can shift the reason, and only the caller's reading would catch it
 
 Recommendation: phax-sets-why — The why is the one field that states the person's decision, so making it the person's words verbatim is a condition phax guarantees (C4), not something the caller must check by reading. phax already sets `by` and `at` the same way. What the writer still writes (advocate, principles, reversibility, body revisions) is what the report and diff put in front of the caller.
+
+Decision: phax-sets-why — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. The why states the person's decision, so phax copying the note verbatim (or the rationale when the note is null) is a condition it guarantees (C4), as it already sets `by` and `at`, rather than something the caller must check by reading (E0). Advocate: The strongest case for writer-writes-why: a terse note becomes the permanent recorded reason exactly as typed, where the writer could turn it into a why that reads in context. Principles: S1, C4, E0. Reversibility: cheap. Revised: none.
 
 ### q-by — How is a verdict given through a file attributed?
 
@@ -492,12 +508,18 @@ Recommendation: phax-sets-why — The why is the one field that states the perso
 
 Recommendation: relayed — Choosing `relayed` keeps attribution explicit (E0) and consistent with how approve and reopen take `--by` (C1). A loop never records itself as a person, and a person is never named by a guess. `relayed` is not the doctrine's machine-decides mode: it says a machine carried a decision, not that a machine made it. The shape change is the accepted loss: a union widening that the release cut records, costing at most one known migrate gesture.
 
+Decision: relayed — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. `relayed` keeps attribution explicit (E0) and takes `--by` as approve and reopen do (C1): a loop never records itself as a person, and no person is named by a guess (S6). It records that a machine carried a decision, not that a machine made it. The document shape change is the accepted loss. Advocate: The strongest case for operator-declared: it changes no document format and forces no migrate-documents run, while the relaying machine's grant can still be kept in the commit trailer and the decision record. Principles: S1, E0, C1, S6. Reversibility: costly. Revised: none.
+
 ### q-provider — Does the writer session go through model routing, or run on Claude Code only like interactive decide?
 
 - routed — Routed like headless authoring: any provider the catalog maps; the kept session is resumed only on its own provider — abandons: one provider rule for one command: interactive decide stays Claude Code only while its verdicts mode runs anywhere
 - claude-only — Claude Code only, like interactive decide — abandons: callers on Codex or Vibe: a loop on another provider cannot apply verdicts at all
 
 Recommendation: routed — The writer is a headless JSON-answer session, the kind authoring already routes (C1 with the session it most resembles). Interactive decide is Claude-only because of its terminal session, which verdicts mode does not have. `session.json` already records the authoring provider, so resuming on the same provider is a check, not a guess.
+
+Decision: routed — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. The writer is a headless JSON-answer session, the kind authoring already routes (C1). Interactive decide is Claude-only because of its terminal session, which verdicts mode does not have, and `session.json` records the authoring provider, so resuming on the same provider is a check. Advocate: The strongest case for claude-only: one command keeps one provider rule, the same as interactive decide. Principles: S1, C1. Reversibility: cheap. Revised: none.
 
 ### q-model — What are the writer's default model and effort, and is there a phax.json key?
 
@@ -507,6 +529,9 @@ Recommendation: routed — The writer is a headless JSON-answer session, the kin
 
 Recommendation: own-default — Transcribing given verdicts and revising the body they imply needs less judgment than authoring or interactive facilitation. Following the catalog on cost, it takes the tier compliance review already defaults to: claude-sonnet-5-5, at medium effort. No key matches interactive decide (C1). A loop scripts its flags once, and a key can be added later without breaking anything.
 
+Decision: own-default — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. Transcription needs less judgment than authoring, so the default follows the catalog on cost: claude-sonnet-5-5 / medium, the tier compliance review uses. No phax.json key, as interactive decide has none (C1); an output or config surface is added only for a named reader (S5), and a key can be added later without breaking anything. Advocate: The strongest case for own-key: a project on Codex or Vibe would set its writer model once in phax.json instead of passing --model on every call. Principles: S1, C1, S5. Reversibility: cheap. Revised: none.
+
 ### q-hand — Does verdicts mode decide hand-authored artifacts (no sidecar)?
 
 - both — Yes: the writer returns a hand decision answer and phax writes the blocks in place, as interactive decide does — abandons: a single answer form for the new mode: its checks and writer prompt cover the hand decision answer too
@@ -514,9 +539,8 @@ Recommendation: own-default — Transcribing given verdicts and revising the bod
 
 Recommendation: both — Interactive decide already reads both forms, and approve's open-question lock covers both (C1). The mode should be total on the artifacts decide accepts (S5). The hand-answer checks and the in-place writer exist, so the mode reuses them.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: both — by operator (Rémy Loubradou), 2026-10-19
+Why: Adopted as recommended. Interactive decide already reads both forms, and approve's open-question lock covers both (C1). The mode stays total on the artifacts decide accepts (S5), reusing the existing hand-answer checks and in-place writer. Advocate: The strongest case for sidecar-only: the new mode stays smaller, with one answer form to prompt for and check. Principles: S1, C1, S5. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -560,3 +584,14 @@ EOF
 phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts verdicts.json --by operator
 # read the verdicts and the body diff it prints, then:
 phax artifact approve docs/specs/2610201015-log-rotation.md --by operator
+
+## 12. Decision log
+
+- 2026-10-19 q-note decided note-on-departure — operator (Rémy Loubradou)
+- 2026-10-19 q-unnamed decided stay-open — operator (Rémy Loubradou)
+- 2026-10-19 q-off-menu decided refuse — operator (Rémy Loubradou)
+- 2026-10-19 q-why decided phax-sets-why — operator (Rémy Loubradou)
+- 2026-10-19 q-by decided relayed — operator (Rémy Loubradou)
+- 2026-10-19 q-provider decided routed — operator (Rémy Loubradou)
+- 2026-10-19 q-model decided own-default — operator (Rémy Loubradou)
+- 2026-10-19 q-hand decided both — operator (Rémy Loubradou)
