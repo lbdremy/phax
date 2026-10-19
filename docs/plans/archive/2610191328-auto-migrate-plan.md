@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2610191232-auto-migrate.md
 completes-spec: true
 ---
