@@ -64,8 +64,8 @@
       "note": "Each format's current shape is snapshotted as `next.schema.json` and renamed to the release at the cut. The manifests name the opened version (0.25.0 today)."
     },
     {
-      "path": "docs/specs/2610171238-phase-model-assignment.md",
-      "note": "Draft. Adds the optional `phax.planning.json` and its lint, and also reorders the plan document and sets the Sonnet default. It is to be reworked to build on this spec."
+      "path": "docs/specs/2610171257-phase-model-assignment.md",
+      "note": "Draft. Adds the optional `phax.planning.json` and its lint, and also reorders the plan document and sets the Sonnet default. It is to be reworked to build on this spec and on its `modelReason`."
     },
     {
       "path": "NEXT_STEPS.md",
@@ -75,7 +75,7 @@
   "context": "The phax-planning skill is what both an interactive planner and a headless plan authoring session read: phax ships it, `phax skills install` copies it, and the headless prompt opens with it verbatim. Its \"Choosing a model and effort\" section starts from the strongest tier: \"The default phase model is `claude-opus-5-5`: it is the cheapest Opus-tier entry and matches or beats `claude-fable-5-1` from `medium` effort up\". It keeps `claude-sonnet-5-5` for mechanical phases. The section sits above the generated model-catalog table, but its own prose is hand-written. So a catalog change regenerates the table and can leave the prose naming a model the table no longer lists.\n\nThe skill also has the planner pick each phase's model before writing the phase. The plan document a headless planner returns lists `id`, `model` and `effort` first among a phase's keys, before `title`, `objective` and the instructions. A model writes JSON in key order, so it commits to a model before it has written what the model must do. The planner's own model is separate: it comes from `authoring.plan` (default `claude-opus-5-5` at `high`) or from `--model`/`--effort`.\n\nThe skill states one architecture as doctrine. \"Planning doctrine\" traces every need through page → view-model → command → domain → port → adapter → storage and orders the work domain → ports → command → adapter → view-model → view → route. \"Test strategy\" maps test types to those layers, and \"Boundary contracts\" names their boundaries.\n\nProviders reach phax as commands declared in `phax.json`. `phax brief [path…]` is the model for a pull. It reads `brief` from the config layers (`phax.json`, `phax.local.json`, `~/.phax/config.json`) of the main checkout. It writes a `$schema`-stamped request on the provider's stdin, has a fixed 60 s limit, and reads a `$schema`-stamped answer. The phase guard allows it inside a phase worktree. With no provider it exits 1. The headless authoring session runs under the review security policy: it may write only `.phax-context/`, has provider-only network, and may run `git` and nothing else.\n\nAn experiment outside phax took one ticket and a two-phase plan written once by the headless planner. It executed that plan 24 times with `phax run`, choosing every phase's model itself. On the plan as written, every run at Sonnet 5.5 (half Opus 5.5's cost) and at Haiku 5.5 (a sixth) delivered the ticket and kept the codebase's rules. The one run that broke a rule ran at Opus. With the plan's detailed instructions removed, Haiku broke a rule in two runs of three without a guarantee gate and in none with one. The strong planner's plan carried most of the work, as the planner/executor and architect/editor splits of published practice predict. The author decided the three changes below on 2026-10-17.",
   "problem": "phax spends the strongest tier on every phase by default, although a plan written by a strong planner carried lighter executors at a half or a sixth of the cost. The planner also chooses in the wrong order: it picks a model, then writes instructions for it, instead of choosing from what the written phase asks for. In headless authoring, the document's key order forces that wrong order. The default is named in hand-written prose beside a generated catalog, so the next catalog change can leave it pointing at a stale model.\n\nThe skill hands every repository one architecture as if it were the planner's doctrine. A repository built otherwise (no view-model, no ports, a different test pyramid) gets phases traced through layers it does not have, with tests mapped to layers that do not exist. The repository's own architecture is the one that should shape the plan. phax has no seam through which a provider that knows that architecture can say so, and the planner is never told where to look for it.",
   "productGoal": {
-    "statement": "The planner writes each phase first. It then gives the phase a model and effort from what the written phase asks for, starting from `claude-sonnet-5-5` at `medium`. It goes stronger only where the phase must design what the code does not show yet, and lighter where it reproduces a pattern a gate checks, and every departure says why. The skill keeps its planning principle as doctrine and treats its layer chain as one example. The planner reads the repository's own architecture from a provider through `phax architecture` when one is configured, and from the code and its documentation otherwise. A missing provider is information, not a failure.",
+    "statement": "The planner writes each phase first. It then gives the phase a model and effort from what the written phase asks for, starting from `claude-sonnet-5-5` at `medium`. It goes stronger only where the phase must design what the code does not show yet, and lighter where it reproduces a pattern a gate checks, and every departure says why on the phase itself. The skill keeps its planning principle as doctrine and treats its layer chain as one example. The planner reads the repository's own architecture from a provider through `phax architecture` when one is configured, and from the code and its documentation otherwise. A missing provider is not a failure of the repository: the command exits 1 with one line telling the agent to read the code and its documentation instead, and the agent carries on.",
     "guidingRule": "The plan is written by a strong planner against the repository's own architecture; the executor's model is chosen last, from the written phase, and phax never chooses or rewrites it."
   },
   "terminology": [
@@ -85,11 +85,15 @@
     },
     {
       "term": "Departure",
-      "definition": "A phase whose model or effort differs from the default phase assignment. Every departure carries its reason."
+      "definition": "A phase whose model or effort differs from the default phase assignment. Every departure carries its reason in the phase's `modelReason`."
     },
     {
       "term": "Model policy",
       "definition": "The skill's rules for choosing a phase's model and effort: the default phase assignment, when to go stronger, when to go lighter, and the reason a departure must carry."
+    },
+    {
+      "term": "Model reason",
+      "definition": "`modelReason`, a required key of every plan-document phase, placed just before `model`: why the phase departs from the default phase assignment, or null when it takes the default. A hand-written plan states it as a `**Model reason:**` line."
     },
     {
       "term": "Example architecture",
@@ -121,15 +125,15 @@
     },
     {
       "id": "doc-order",
-      "title": "The plan document puts the assignment last",
+      "title": "The plan document puts the reason and the assignment last",
       "pattern": "ubiquitous",
-      "statement": "The plan document JSON Schema shall place each phase's `model` and `effort` after every other key of the phase."
+      "statement": "The plan document JSON Schema shall give each phase a required `modelReason` key, a string or null, and shall place `modelReason`, `model` and `effort` after every other key of the phase, in that order."
     },
     {
       "id": "doc-old-sidecars",
-      "title": "Existing sidecars still read",
+      "title": "Earlier sidecars are lifted",
       "pattern": "event",
-      "statement": "WHEN phax reads a plan sidecar written before the reordering THE system SHALL decode it with the same phases, models and efforts as before."
+      "statement": "WHEN `phax artifact migrate-documents` meets a plan sidecar stamped before `modelReason` THE system SHALL lift it to the current shape by adding `modelReason: null` to every phase, keeping its phases, models and efforts, and leaving its rendered body unchanged. Until it is lifted, every reader SHALL refuse it as it refuses any sidecar below its format's current shape, naming `phax artifact migrate-documents`."
     },
     {
       "id": "default",
@@ -153,13 +157,19 @@
       "id": "reason",
       "title": "Every departure says why",
       "pattern": "ubiquitous",
-      "statement": "The skill's model policy shall require every departure to state its reason, on the phase or in Technical arbitrations."
+      "statement": "The skill's model policy shall require every departure to state its reason on the phase: its `modelReason` in a plan document, or a `**Model reason:**` line in a hand-written plan. It shall forbid, as defects, a departure whose reason is null and a phase at the default assignment whose reason is not null."
     },
     {
       "id": "reason-headless",
-      "title": "Headless departures are reasoned in the preamble",
+      "title": "Headless departures are reasoned on the phase",
       "pattern": "ubiquitous",
-      "statement": "The skill's Headless authoring section shall direct the reason of each departure into `preamble.technicalArbitrations`, as one entry naming the phase id, its model and effort, and why."
+      "statement": "The skill's Headless authoring section shall direct the reason of each departure into that phase's `modelReason`, and `modelReason: null` onto every phase at the default assignment, never into `preamble.technicalArbitrations`."
+    },
+    {
+      "id": "reason-render",
+      "title": "The reason is rendered, not extracted",
+      "pattern": "ubiquitous",
+      "statement": "The system shall render a non-null `modelReason` as a `**Model reason:**` line under the phase's `**Recommended model:**` and `**Recommended effort:**` lines, render no line for a null one, and never extract it into `phax-plan.json`. The deterministic plan parser shall read a plan with or without the line to the same projection."
     },
     {
       "id": "comprehensive",
@@ -207,7 +217,7 @@
       "id": "source",
       "title": "Where the repository's architecture comes from",
       "pattern": "ubiquitous",
-      "statement": "The skill shall tell the planner to read the repository's architecture before cutting phases: from `phax architecture` when an architecture provider is configured, and otherwise from the code and its documentation (README, CLAUDE.md or equivalent)."
+      "statement": "The skill shall tell the planner to read the repository's architecture before cutting phases, by running `phax architecture`. When that command exits 1 with its no-provider line, the planner reads the architecture from the code and its documentation (README, CLAUDE.md or equivalent) instead and carries on: that exit is not a failure of the repository."
     },
     {
       "id": "config",
@@ -247,15 +257,15 @@
     },
     {
       "id": "no-provider",
-      "title": "No provider is information",
+      "title": "No provider: exit 1 with an explanation",
       "pattern": "unwanted",
-      "statement": "IF no architecture provider is configured THEN `phax architecture` SHALL print, on stdout, one line saying none is configured and to read the architecture from the code and its documentation (README, CLAUDE.md or equivalent), and exit 0."
+      "statement": "IF no architecture provider is configured THEN `phax architecture` SHALL print, on stdout, one line meant for the agent, and exit 1. The line says that none is configured, that the agent should read the architecture from the code and its documentation (README, CLAUDE.md or equivalent), and that this is not a failure of the repository."
     },
     {
       "id": "brief-unchanged",
       "title": "phax brief keeps its exit",
       "pattern": "unwanted",
-      "statement": "IF no brief provider is configured THEN `phax brief` SHALL keep its current message and exit 1."
+      "statement": "IF no brief provider is configured THEN `phax brief` SHALL keep its current message and exit 1, the same exit as `phax architecture` without a provider."
     },
     {
       "id": "in-phase",
@@ -293,19 +303,19 @@
       "surface": "file: .claude/skills/phax-planning/SKILL.md — Choosing a model and effort",
       "binding": "indicative",
       "before": "### Choosing a model and effort\n\n- The default phase model is `claude-opus-5-5`: it is the cheapest Opus-tier entry and matches or beats `claude-fable-5-1` from `medium` effort up.\n- Use `claude-sonnet-5-5` for mechanical phases (catalog/table edits, renames, doc sweeps).\n- Use `claude-fable-5-1` only for a stated reason that Opus 5.5 cannot serve, and record that reason in Technical arbitrations.\n- Use the lowest effort that succeeds. Opus 5.5 is weakest at `low` (below Fable 5.1), so use `medium` or above for phases that need real reasoning.\n- A plan that changes the catalog itself must name only models already in the shipped catalog: …",
-      "after": "### Choosing a model and effort\n\nCut and write every phase first. Choose its model and effort last, from what the written phase asks for.\n\n<!-- BEGIN generated: phase-model-policy -->\n- Default: `claude-sonnet-5-5` at `medium`.\n- Stronger (a higher effort, or `claude-opus-5-5`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.\n- Lighter (`claude-haiku-5-5`): the phase reproduces a pattern the code already holds, and a configured gate checks it.\n<!-- END generated: phase-model-policy -->\n\n- Any other catalog model only for a stated reason.\n- Every phase that leaves the default says why: on the phase, or in Technical arbitrations (headless: one `technicalArbitrations` entry naming the phase).\n- A lighter model needs the detail: see \"Comprehensive instructions\".\n- A plan that changes the catalog itself must name only models already in the shipped catalog: …\n\nNormative: the order (write, then assign); the default `claude-sonnet-5-5` at `medium`; the stronger and lighter cases and their models; a reason for every departure; the model names generated, not hand-written (per Q1). Indicative: the wording, the marker name, and the placement of the generated block."
+      "after": "### Choosing a model and effort\n\nCut and write every phase first. Choose its model and effort last, from what the written phase asks for.\n\n<!-- BEGIN generated: phase-model-policy -->\n- Default: `claude-sonnet-5-5` at `medium`.\n- Stronger (a higher effort, or `claude-opus-5-5`): the phase must design something no code in the repository shows yet — a new state machine, an adapter to a system the code does not reach yet, a choice that crosses several parts of the architecture.\n- Lighter (`claude-haiku-5-5`): the phase reproduces a pattern the code already holds, and a configured gate checks it.\n<!-- END generated: phase-model-policy -->\n\n- Any other catalog model only for a stated reason.\n- Every phase that leaves the default says why, on the phase: its `modelReason` (headless), or a `**Model reason:**` line under its model and effort (by hand). A phase at the default has no reason: `modelReason: null`, and no line. A departure without a reason, or a default phase with one, is a defect.\n- A lighter model needs the detail: see \"Comprehensive instructions\".\n- A plan that changes the catalog itself must name only models already in the shipped catalog: …\n\nNormative: the order (write, then assign); the default `claude-sonnet-5-5` at `medium`; the stronger and lighter cases and their models; a reason on every departing phase and none on a default phase; the model names generated, not hand-written (per Q1). Indicative: the wording, the marker name, and the placement of the generated block."
     },
     {
       "surface": "file: .claude/skills/phax-planning/SKILL.md — Planning doctrine, Test strategy, Boundary contracts",
       "binding": "indicative",
       "before": "## Planning doctrine\n\n- **Plan outside-in.** Start from the user-visible need and trace the path it must take through the system (page → view-model → command → domain → port → adapter → storage). …\n- **Implement inside-out.** Order the work core-to-surface (domain → ports → command → adapter → view-model → view → route) …\n- **Verify outside-in.** …\n\n## Test strategy (informational)\n\nMap tests to the layer they exercise …\n| Layer | Preferred test type |\n| Domain | Unit tests | …",
-      "after": "## Planning doctrine\n\n- **Plan outside-in.** Start from the need the consumer sees and trace the path it takes through the repository's parts. This is how you discover which files each phase touches.\n- **Implement inside-out.** Order the work from the parts others depend on to the surface, so the surface never claims a behavior the core does not yet provide.\n- **Verify outside-in.** End by checking the consumer-visible behavior end to end, then let the gates confirm it.\n\n### The repository's architecture\n\nRead it before cutting phases. Run `phax architecture` (or `phax architecture <path>...`): with a provider configured it prints the architecture, and without one it says so in one line. Otherwise read the code and its documentation (README, CLAUDE.md or equivalent).\n\n### One example architecture\n\nA layered application: page → view-model → command → domain → port → adapter → storage, implemented domain → ports → command → adapter → view-model → view → route. Use it only where the repository is built this way.\n\n## Test strategy (informational)\n\nMap tests to the parts of the repository's architecture and pick the cheapest reliable test for each. For the example architecture:\n| Layer | Preferred test type | …   (table unchanged)\n\n## Boundary contracts (informational)\n\nWhen a phase crosses a boundary of the repository's architecture (in the example: page/cli/surface → view-model, …), …\n\nNormative: no layer named in the doctrine bullets; the chain, the table and the boundary list marked as the example; the two sources of the repository's architecture. Indicative: headings and wording."
+      "after": "## Planning doctrine\n\n- **Plan outside-in.** Start from the need the consumer sees and trace the path it takes through the repository's parts. This is how you discover which files each phase touches.\n- **Implement inside-out.** Order the work from the parts others depend on to the surface, so the surface never claims a behavior the core does not yet provide.\n- **Verify outside-in.** End by checking the consumer-visible behavior end to end, then let the gates confirm it.\n\n### The repository's architecture\n\nRead it before cutting phases. Run `phax architecture` (or `phax architecture <path>...`): with a provider configured it prints the architecture. Without one it exits 1 with one line saying so. That exit means: read the code and its documentation (README, CLAUDE.md or equivalent) instead, and carry on. It is not a failure of the repository.\n\n### One example architecture\n\nA layered application: page → view-model → command → domain → port → adapter → storage, implemented domain → ports → command → adapter → view-model → view → route. Use it only where the repository is built this way.\n\n## Test strategy (informational)\n\nMap tests to the parts of the repository's architecture and pick the cheapest reliable test for each. For the example architecture:\n| Layer | Preferred test type | …   (table unchanged)\n\n## Boundary contracts (informational)\n\nWhen a phase crosses a boundary of the repository's architecture (in the example: page/cli/surface → view-model, …), …\n\nNormative: no layer named in the doctrine bullets; the chain, the table and the boundary list marked as the example; the two sources of the repository's architecture, and that the no-provider exit 1 means read the code and docs and carry on. Indicative: headings and wording."
     },
     {
       "surface": "file: plan document phase (`phax artifact schema plan`)",
       "binding": "normative",
       "before": "{ \"id\": \"phase-02\", \"model\": \"claude-opus-5-5\", \"effort\": \"high\",\n  \"planMarkdownAnchor\": \"#phase-02-invoice-totals\",\n  \"plannedFilesToCreate\": [\"src/billing/totals.ts\"], \"plannedFilesToEdit\": [], \"optionalFilesToEdit\": [],\n  \"commit\": { \"subject\": \"…\", \"body\": \"…\" },\n  \"title\": \"Invoice totals\", \"objective\": \"…\", \"detailedInstructions\": [\"…\"], …, \"expectedHandoff\": \"…\" }",
-      "after": "{ \"id\": \"phase-02\", \"title\": \"Invoice totals\", \"objective\": \"…\", \"detailedInstructions\": [\"…\"],\n  \"planMarkdownAnchor\": \"#phase-02-invoice-totals\",\n  \"plannedFilesToCreate\": [\"src/billing/totals.ts\"], \"plannedFilesToEdit\": [], \"optionalFilesToEdit\": [],\n  …, \"expectedHandoff\": \"…\", \"commit\": { \"subject\": \"…\", \"body\": \"…\" },\n  \"model\": \"claude-sonnet-5-5\",\n  \"effort\": \"medium\" }\n\nNormative: `model` and `effort` are the last two keys of a phase in the JSON Schema's `properties` and `required`. The set of keys, the extracted projection, `phax-plan.json` and the rendered `**Recommended model:**` / `**Recommended effort:**` lines under each heading are unchanged. Indicative: the order of the other keys."
+      "after": "{ \"id\": \"phase-02\", \"title\": \"Invoice totals\", \"objective\": \"…\", \"detailedInstructions\": [\"…\"],\n  \"planMarkdownAnchor\": \"#phase-02-invoice-totals\",\n  \"plannedFilesToCreate\": [\"src/billing/totals.ts\"], \"plannedFilesToEdit\": [], \"optionalFilesToEdit\": [],\n  …, \"expectedHandoff\": \"…\", \"commit\": { \"subject\": \"…\", \"body\": \"…\" },\n  \"modelReason\": null,\n  \"model\": \"claude-sonnet-5-5\",\n  \"effort\": \"medium\" }\n\n{ \"id\": \"phase-03\", \"title\": \"Invoice state machine\", …,\n  \"modelReason\": \"Designs the invoice state machine, which no code in the repository shows yet.\",\n  \"model\": \"claude-opus-5-5\",\n  \"effort\": \"high\" }\n\nrendered under phase-03's heading:\n\n    **Recommended model:** claude-opus-5-5\n    **Recommended effort:** high\n    **Model reason:** Designs the invoice state machine, which no code in the repository shows yet.\n\nNormative: `modelReason` is required, a string or null; `modelReason`, `model` and `effort` are the last three keys of a phase, in that order, in the JSON Schema's `properties` and `required`. A non-null reason renders as a `**Model reason:**` line under the model and effort lines, and a null one renders nothing. `modelReason` is not extracted: the projection and `phax-plan.json` are unchanged. A sidecar stamped earlier is lifted by `phax artifact migrate-documents` with `modelReason: null`. Indicative: the order of the other keys."
     },
     {
       "surface": "config: architecture",
@@ -317,7 +327,7 @@
       "surface": "cli: phax architecture [path]...",
       "binding": "normative",
       "before": null,
-      "after": "$ phax architecture\n# Architecture — acme-billing\n\nThree parts. `src/core` decides; it imports nothing outside itself. `src/http` decodes requests and calls `src/core`. `src/store` persists what `src/core` returns. …\n$? = 0\n\n$ phax architecture src/core/billing/totals.ts\n## src/core\n\nPure functions over invoices. …\n$? = 0\n\n$ phax architecture            # no provider configured\nNo architecture provider is configured (\"architecture\" in phax.json): read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).\n$? = 0\n\n$ phax architecture\n✗ architecture provider exited 3: acme-guard: no standard found\n$? = 1\n\n$ phax architecture\n✗ architecture provider: not an architecture report (https://docs.phax.run/schemas/architecture-report/0.25.0.json): body is missing\n$? = 1\n\n$ phax architecture ../elsewhere\n✗ phax architecture: ../elsewhere is outside the working tree\n$? = 1\n\nNormative: the invocation, with paths optional and relative to the current directory; the report body printed as is on stdout; exit 0 with one stdout line when no provider is configured; exit 1 on a failed provider, an unreadable answer or a path outside the tree; exit 2 on a config error, as `phax brief`; allowed inside a phase worktree. Indicative: the wording of each line. `phax --usage` gains `cmd \"architecture\"`, whose long help carries the request and report contract."
+      "after": "$ phax architecture\n# Architecture — acme-billing\n\nThree parts. `src/core` decides; it imports nothing outside itself. `src/http` decodes requests and calls `src/core`. `src/store` persists what `src/core` returns. …\n$? = 0\n\n$ phax architecture src/core/billing/totals.ts\n## src/core\n\nPure functions over invoices. …\n$? = 0\n\n$ phax architecture            # no provider configured\nNo architecture provider is configured (\"architecture\" in phax.json): read the architecture from the code and its documentation (README, CLAUDE.md or equivalent) instead and carry on — this is not a failure of the repository.\n$? = 1\n\n$ phax architecture\n✗ architecture provider exited 3: acme-guard: no standard found\n$? = 1\n\n$ phax architecture\n✗ architecture provider: not an architecture report (https://docs.phax.run/schemas/architecture-report/0.25.0.json): body is missing\n$? = 1\n\n$ phax architecture ../elsewhere\n✗ phax architecture: ../elsewhere is outside the working tree\n$? = 1\n\nNormative: the invocation, with paths optional and relative to the current directory; the report body printed as is on stdout; exit 1 with one stdout line meant for the agent when no provider is configured, as `phax brief` exits 1; exit 1 on a failed provider, an unreadable answer or a path outside the tree; exit 2 on a config error, as `phax brief`; allowed inside a phase worktree. Indicative: the wording of each line. `phax --usage` gains `cmd \"architecture\"`, whose long help carries the request and report contract."
     },
     {
       "surface": "file: architecture-request (the provider's stdin)",
@@ -339,7 +349,7 @@
     }
   ],
   "nonGoals": [
-    "The optional planning file `phax.planning.json`, its sync and its lint, and any lint check of the default or of departure reasons: the `phase-model-assignment` spec.",
+    "The optional planning file `phax.planning.json`, its sync and its lint, and any lint check of the default or of departure reasons: the `phase-model-assignment` spec, which builds on `modelReason` rather than replacing it.",
     "Raising a phase's model after a failed gate (a cascade).",
     "What a provider puts in an architecture report beyond a Markdown body: parts, guarantees, dependency order, or any structure phax would read.",
     "Pushing the architecture into a phase's prompt or into the authoring prompt. The planner and phases pull it.",
@@ -363,20 +373,20 @@
     },
     {
       "id": "ac-doc-order",
-      "name": "The plan document puts model and effort last",
+      "name": "The plan document puts the reason and the assignment last",
       "given": "the plan document JSON Schema",
       "when": "`phax artifact schema plan` prints it",
-      "then": "in the phase object, `model` and `effort` are the last two entries of both `properties` and `required`, and the phase's key set is the same as before this spec",
+      "then": "in the phase object, `modelReason`, `model` and `effort` are the last three entries of both `properties` and `required`, in that order, and `modelReason` admits a string or null",
       "refs": [
         "doc-order"
       ]
     },
     {
       "id": "ac-old-sidecar",
-      "name": "A sidecar from before the reordering still reads",
+      "name": "A sidecar from before `modelReason` is lifted",
       "given": "a plan sidecar written before this spec, with phase-01 at `claude-opus-5-5` / `high` and model and effort listed first",
-      "when": "`phax plans lint` and `phax run`'s extraction read it",
-      "then": "it decodes, and phase-01 carries `claude-opus-5-5` / `high` in `phax-plan.json`",
+      "when": "`phax plans lint` reads it, then `phax artifact migrate-documents` runs, then `phax plans lint` and `phax run`'s extraction read it",
+      "then": "the first read refuses it, naming `phax artifact migrate-documents`. After the migration, every phase carries `modelReason: null`, phase-01 keeps `claude-opus-5-5` / `high` in `phax-plan.json`, and the rendered body is unchanged, so `artifact status` reports the sidecar in sync",
       "refs": [
         "doc-old-sidecars"
       ]
@@ -407,10 +417,20 @@
       "name": "Departures carry a reason",
       "given": "the shipped skill",
       "when": "its model policy and Headless authoring section are read",
-      "then": "the policy requires a reason for every departure, on the phase or in Technical arbitrations, and the Headless authoring section directs each departure's reason into `preamble.technicalArbitrations` as an entry naming the phase id, its model and effort",
+      "then": "the policy requires a reason on every departing phase and none on a default phase, and names both mismatches as defects. The Headless authoring section directs each departure's reason into the phase's `modelReason`, `null` on a default phase, and nothing into `preamble.technicalArbitrations`",
       "refs": [
         "reason",
         "reason-headless"
+      ]
+    },
+    {
+      "id": "ac-reason-parse",
+      "name": "A model-reason line does not change the projection",
+      "given": "two hand-written plans identical except that one carries a `**Model reason:**` line under phase-02's model and effort lines",
+      "when": "`phax plans lint` reads both and `phax run`'s extraction parses both on the deterministic path",
+      "then": "both lint with no structure error and project to the same `phax-plan.json`",
+      "refs": [
+        "reason-render"
       ]
     },
     {
@@ -436,11 +456,12 @@
     {
       "id": "ac-no-rewrite",
       "name": "A stated model survives render and extraction",
-      "given": "a headless plan document whose phase-02 states `claude-haiku-5-5` / `low` and whose phase-03 states `claude-opus-5-5` / `high`",
+      "given": "a headless plan document whose phase-02 states `claude-haiku-5-5` / `low` with a `modelReason`, and whose phase-03 states `claude-sonnet-5-5` / `medium` with `modelReason: null`",
       "when": "phax renders the plan and `phax run` extracts it",
-      "then": "plan.md shows `claude-haiku-5-5` / `low` and `claude-opus-5-5` / `high` under those headings, and `phax-plan.json` carries the same models and efforts",
+      "then": "plan.md shows `claude-haiku-5-5` / `low` and a `**Model reason:**` line under phase-02's heading, and `claude-sonnet-5-5` / `medium` with no reason line under phase-03's. `phax-plan.json` carries the same models and efforts, and no `modelReason`",
       "refs": [
-        "no-rewrite"
+        "no-rewrite",
+        "reason-render"
       ]
     },
     {
@@ -488,7 +509,7 @@
       "name": "The skill says where the architecture comes from",
       "given": "the shipped skill",
       "when": "it is read",
-      "then": "it tells the planner to read the repository's architecture before cutting phases, from `phax architecture` when a provider is configured, and otherwise from the code and its documentation (README, CLAUDE.md or equivalent)",
+      "then": "it tells the planner to read the repository's architecture before cutting phases by running `phax architecture`, and that an exit 1 with the no-provider line means read the code and its documentation (README, CLAUDE.md or equivalent) instead and carry on, not a failure",
       "refs": [
         "source"
       ]
@@ -557,10 +578,10 @@
     },
     {
       "id": "ac-no-provider",
-      "name": "No provider is information",
+      "name": "No provider: exit 1 with an explanation",
       "given": "no `architecture` key in any config layer",
       "when": "`phax architecture` runs",
-      "then": "stdout holds exactly one line saying no architecture provider is configured and naming the code and its documentation (README, CLAUDE.md) as where to read the architecture, stderr is empty, and the exit is 0",
+      "then": "stdout holds exactly one line saying no architecture provider is configured, naming the code and its documentation (README, CLAUDE.md) as where to read the architecture, and saying this is not a failure of the repository. stderr is empty, and the exit is 1",
       "refs": [
         "no-provider"
       ]
@@ -617,7 +638,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "Q1",
       "question": "How does the skill name the default phase assignment and the policy's models, so that a catalog change cannot leave them stale?",
@@ -639,7 +661,26 @@
         }
       ],
       "recommendation": "generated",
-      "rationale": "The catalog table is already generated and drift-checked in `pnpm check:full`. Putting the policy's model names behind the same mechanism makes the catalog the single source of truth. A hand edit or a missing model then fails the check instead of shipping. The cost is a constant in code, which `phase-model-assignment` needs anyway for its built-in default."
+      "rationale": "The catalog table is already generated and drift-checked in `pnpm check:full`. Putting the policy's model names behind the same mechanism makes the catalog the single source of truth. A hand edit or a missing model then fails the check instead of shipping. The cost is a constant in code, which `phase-model-assignment` needs anyway for its built-in default.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "generated",
+        "abandoned": [
+          "hand-checked",
+          "family-names"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: the policy's model names are generated from one phax constant and drift-checked with the catalog in `pnpm check:full`.",
+        "advocate": "Hand-written prose stays editable by anyone, with no generator to change, and a test can still catch an id missing from the catalog.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "Q2",
@@ -657,7 +698,37 @@
         }
       ],
       "recommendation": "arbitrations",
-      "rationale": "This spec steers the planner, and lint does not check the reason (that is `phase-model-assignment`'s job, with its own per-phase block). The preamble already holds cross-phase decisions and is required. Adding a field now that the next spec replaces would churn a persisted format for no check that reads it."
+      "rationale": "This spec steers the planner, and lint does not check the reason (that is `phase-model-assignment`'s job, with its own per-phase block). The preamble already holds cross-phase decisions and is required. Adding a field now that the next spec replaces would churn a persisted format for no check that reads it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "phase-field",
+        "abandoned": [
+          "arbitrations"
+        ],
+        "why": "Decided by the operator on 2026-10-19, against the recommendation (arbitrations). The reason belongs on the phase it explains, where a reader and a later lint find it beside the model it justifies. `modelReason` is required, a string or null, just before `model`. It is rendered as a `**Model reason:**` line and not extracted. `phase-model-assignment` builds on it rather than replacing it, so there is one shape change, and earlier sidecars are lifted by `migrate-documents` with `modelReason: null`.",
+        "advocate": "Technical arbitrations already hold cross-phase decisions and need no format change: no persisted shape moves now, ahead of a spec that may restructure the phase again.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": [
+          "§3",
+          "§4",
+          "§5.2",
+          "§5.3",
+          "§5.7",
+          "§5.8",
+          "§5.9",
+          "§6",
+          "§7",
+          "§8",
+          "§10"
+        ]
+      },
+      "history": []
     },
     {
       "id": "Q3",
@@ -675,7 +746,25 @@
         }
       ],
       "recommendation": "pull",
-      "rationale": "The author chose pull. It keeps one path to the architecture for interactive planners, headless planners and phases, and lets the planner ask about the parts it is cutting. The jail's limits are a constraint for the provider to meet, stated in the docs page. `phase-model-assignment` widens the same session for `phax brief` on the same terms."
+      "rationale": "The author chose pull. It keeps one path to the architecture for interactive planners, headless planners and phases, and lets the planner ask about the parts it is cutting. The jail's limits are a constraint for the provider to meet, stated in the docs page. `phase-model-assignment` widens the same session for `phax brief` on the same terms.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "pull",
+        "abandoned": [
+          "push"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: the prompt says whether a provider is configured, and the headless planner pulls with `phax architecture` when one is.",
+        "advocate": "A push keeps the authoring session's jail as narrow as today, since phax queries the provider before the session and the session runs only `git`.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "Q4",
@@ -695,10 +784,44 @@
           "id": "both-one",
           "label": "Both exit 1",
           "abandons": "The author's rule for `phax architecture`: an agent reads exit 1 as a failure and retries or stops, although a missing architecture provider is an ordinary repository."
+        },
+        {
+          "id": "both-one-explained",
+          "label": "Both exit 1. `phax architecture` prints one stdout line meant for the agent: none is configured, read the architecture from the code and its documentation instead, and this is not a failure of the repository. The skill reads that exit as \"read the code and docs, and carry on\"",
+          "abandons": "A zero exit for an ordinary repository: an agent or script that reads any exit 1 as a failure must learn this command's line, and the skill must say it"
         }
       ],
       "recommendation": "split",
-      "rationale": "The two commands' callers differ. The skill tells a planner to run `phax architecture` in every repository, so a missing provider there is ordinary and must read as information. A phase is told to run `phax brief` only when the project configures a brief provider, so a missing one there is a misconfiguration worth a non-zero exit. Changing brief's exit would also spend CLI-contract churn just before the freeze for no caller's benefit."
+      "rationale": "The two commands' callers differ. The skill tells a planner to run `phax architecture` in every repository, so a missing provider there is ordinary and must read as information. A phase is told to run `phax brief` only when the project configures a brief provider, so a missing one there is a misconfiguration worth a non-zero exit. Changing brief's exit would also spend CLI-contract churn just before the freeze for no caller's benefit.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "both-one-explained",
+        "abandoned": [
+          "split",
+          "both-zero",
+          "both-one"
+        ],
+        "why": "Decided by the operator on 2026-10-19, off the previous menu (against the recommendation, split). Both commands exit 1 without a provider, so the two siblings agree and `phax brief` keeps its shipped contract. `phax architecture` prints one stdout line meant for the agent: none is configured, read the code and its documentation instead, and this is not a failure of the repository. The skill tells the planner that this exit with that line means \"read the code and docs, and carry on\". The headless prompt still says when none is configured, so a headless planner without a provider is not told to run the command (§5.29).",
+        "advocate": "An exit 0 lets every agent and script treat a repository with no provider as the ordinary case it is, with nothing to learn about one command's line.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": [
+          "§3",
+          "§5.17",
+          "§5.24",
+          "§5.25",
+          "§6",
+          "§8",
+          "§10",
+          "§11"
+        ]
+      },
+      "history": []
     },
     {
       "id": "Q5",
@@ -716,7 +839,25 @@
         }
       ],
       "recommendation": "no-record",
-      "rationale": "The brief asks for the minimal seam. An architecture report informs the plan rather than a phase's compliance, so nothing downstream reads it, and a record format can be added if a consumer appears."
+      "rationale": "The brief asks for the minimal seam. An architecture report informs the plan rather than a phase's compliance, so nothing downstream reads it, and a record format can be added if a consumer appears.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "no-record",
+        "abandoned": [
+          "record"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: a `phax architecture` call writes nothing, inside a phase or outside it.",
+        "advocate": "A record beside the brief records would let a reviewer replay which architecture a phase agent read.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "Q6",
@@ -734,22 +875,39 @@
         }
       ],
       "recommendation": "body",
-      "rationale": "The only reader today is an agent, which reads Markdown best. Adding structure later is a new shape under the versioned-format rules. Requiring it now would force providers to compute what nobody consumes."
+      "rationale": "The only reader today is an agent, which reads Markdown best. Adding structure later is a new shape under the versioned-format rules. Requiring it now would force providers to compute what nobody consumes.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "body",
+        "abandoned": [
+          "structured"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: the report is `{ $schema, body }`, one Markdown string phax prints and never parses.",
+        "advocate": "A structured report lets phax and later consumers compute parts and an order without parsing prose, and avoids a second shape later.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T09:51:16Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
-      "The default phase assignment is `claude-sonnet-5-5` at `medium`. Stronger means a higher effort or `claude-opus-5-5` for a phase that designs what the code does not show yet. Lighter means `claude-haiku-5-5` for a phase that reproduces an existing pattern a gate checks. Every departure states its reason.",
+      "The default phase assignment is `claude-sonnet-5-5` at `medium`. Stronger means a higher effort or `claude-opus-5-5` for a phase that designs what the code does not show yet. Lighter means `claude-haiku-5-5` for a phase that reproduces an existing pattern a gate checks. Every departure states its reason in the phase's `modelReason`, and a default phase has `modelReason: null`.",
       "The planner's own model and `authoring.plan` are untouched. The spec changes what the planner assigns, not the planner.",
-      "The plan document's phase keeps its key set. Only `model` and `effort` move to the end. The extracted projection, `phax-plan.json` and the rendered Markdown position of the model lines are unchanged.",
+      "The plan document's phase gains a required `modelReason` (a string, or null on the default), and `modelReason`, `model` and `effort` become its last three keys. This is a plan-document format change: the shape is snapshotted, the earlier shape frozen, and earlier sidecars lifted by `phax artifact migrate-documents` with `modelReason: null`. The extracted projection and `phax-plan.json` are unchanged. The rendered Markdown keeps the model lines where they are and gains a `**Model reason:**` line for a non-null reason.",
       "The planning principle stays doctrine. The layer chain, the test table and the boundary list become one example architecture.",
-      "`phax architecture [path]...` follows `phax brief`: config from the main checkout's layers, stdin request, `$schema`-read answer, no shell, allowed by the phase guard, exit 2 on a config error.",
+      "`phax architecture [path]...` follows `phax brief`: config from the main checkout's layers, stdin request, `$schema`-read answer, no shell, allowed by the phase guard, exit 2 on a config error. Without a provider, both exit 1; `phax architecture` prints one stdout line telling the agent to read the code and its documentation, which is not a failure of the repository.",
       "Two new schema-born formats, `architecture-request` (`$schema`, `files`) and `architecture-report` (`$schema`, `body`), are snapshotted and published like every format.",
-      "Resolved recommendations: Q1 generated block, Q2 Technical arbitrations, Q3 pull with a grant, Q4 split exits, Q5 no record, Q6 body only."
+      "Decided by the operator on 2026-10-19: Q1 generated block; Q2 a per-phase `modelReason`, against the recommendation; Q3 pull with a grant; Q4 both exit 1, `phax architecture` with an explanatory line for the agent, off the previous menu; Q5 no record; Q6 body only.",
+      "The spec ships in two plans. Plan 1 is the skill and plan-document part (§5.1–§5.16, `modelReason` included), without `phax architecture`. In plan 1, the skill's architecture paragraph says to read the code and its documentation. Plan 2 is `phax architecture` (§5.17–§5.30, the two formats and the docs page). It adds the command to that paragraph and carries `completes-spec`."
     ],
     "open": [
-      "Whether moving `model` and `effort` to the end changes the plan-document snapshot. If it does, decide whether the change rides the format's current `next` snapshot (plan-document was already changed this cycle) or needs a frozen copy and a lift for sidecars stamped earlier.",
       "The architecture provider's time limit: reuse the brief's fixed 60 s, or another fixed value (not a config key).",
       "How the headless session's grant is expressed (a narrow `phax architecture` allowance), and what the session's read jail must admit for phax to read `~/.phax/config.json` and `phax.local.json` and run the provider.",
       "The exact wording of the no-provider line, the failure lines, the prompt statements and the skill's new text.",
@@ -761,16 +919,17 @@
       "Respect the layers: the provider is spawned through the Shell port and its config read through the existing loader. Building the request and choosing the prompt statement are pure domain. The report is decoded through a schema at the boundary. The CLI command holds no logic.",
       "phax stays autonomous: a missing or failing architecture provider never stops authoring or a phase, and nothing waits on a person.",
       "phax never chooses or rewrites a model silently: the default is guidance in the skill, and no step substitutes it for a stated model.",
-      "`phase-model-assignment` overlaps this spec on the reorder and the default (its §5.1, §5.3). Plan this spec first, and rework that spec to build on it rather than restate it.",
+      "`phase-model-assignment` overlaps this spec on the reorder and the default (its §5.1, §5.3). Plan this spec first, and rework that spec to build on it, and on `modelReason`, rather than restate or replace it.",
       "The new command must be classified in the phase guard, or the guard's own test refuses it.",
       "Fixtures and examples are made up (`acme-guard`, `acme-billing`, `src/core/billing/totals.ts`).",
-      "Tests hold across a release cut: assert `$schema` URLs by format id and the release pattern, never by the running version."
+      "Tests hold across a release cut: assert `$schema` URLs by format id and the release pattern, never by the running version.",
+      "No back-compat shims for `modelReason`: it is required in the current shape, and an earlier sidecar is lifted, never read with the key missing."
     ]
   },
   "docsPage": {
     "kind": "page",
     "page": "Architecture provider — `phax architecture`",
     "reader": "A repository owner who wants phax planners to plan against their repository's own architecture, and the author of a provider (such as steme) who wants to supply it.",
-    "example": "Declare `\"architecture\": { \"command\": \"acme-guard architecture\" }` in `phax.json`. Run `phax architecture` and `phax architecture src/core` and see the provider's Markdown body. Read the architecture-request on the provider's stdin and the minimal architecture-report it must print. Remove the key and see the one-line \"none configured\" answer with exit 0. Note the limits a provider runs under inside a headless planning session (read-only filesystem, provider-only network)."
+    "example": "Declare `\"architecture\": { \"command\": \"acme-guard architecture\" }` in `phax.json`. Run `phax architecture` and `phax architecture src/core` and see the provider's Markdown body. Read the architecture-request on the provider's stdin and the minimal architecture-report it must print. Remove the key and see the one-line \"none configured\" answer with exit 1, which tells the agent to read the code and its documentation instead and carry on. Note the limits a provider runs under inside a headless planning session (read-only filesystem, provider-only network)."
   }
 }
