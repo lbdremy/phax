@@ -79,8 +79,8 @@
   "context": "Some phax upgrades change a format phax has already written. Three one-time steps exist today. `phax artifact migrate-approvals` (since 0.19.0) splits the old ledgers docs/plans/approvals.json and docs/specs/approvals.json into one record file per artifact, in one commit. `phax artifact migrate-documents` (0.25.0) rewrites the live spec and plan sidecars stamped below their format's current shape, in one commit, and refuses while an old ledger exists. `phax cost backfill` (0.25.0) writes a cost ledger under the state root for every registered run that has none; only `phax plans estimate` reads those ledgers.\n\nToday the only signal is a refusal, exit 12, in the middle of the work the person asked for:\n\n    ✗ Approval refused: docs/plans/2610150900-x-plan.json is stamped 0.20.0 — run `phax artifact migrate-documents` first\n    ✗ docs/plans/approvals.json is an approval ledger from an older phax — run `phax artifact migrate-approvals` first\n\nThe document refusal comes from approve, reopen and decide. The ledger refusal comes from every command that reads or writes approval records: artifact status, the artifact transitions (approve, reopen, abandon, complete, stale), plans status, migrate-documents, and `phax run` (before it starts, and at completion when it marks the plan Completed). Nothing ever mentions `phax cost backfill`.\n\nEvery subcommand passes through one hook before it runs, where the phase guard refuses acting commands inside a phase worktree. phax knows its own release. The state root has no version record and no lock of its own; the Lock port locks run keys. Headless authoring and decide sessions run their agent in the main checkout. The `upgrade-hints` spec, which would have printed the command to run, was abandoned on 2026-10-19 in favour of this one.",
   "problem": "A person who upgrades phax has to learn a migration command from a refusal, then run it, then run their command again. For an optional step such as the cost backfill, no refusal ever comes, so they never learn of it. Telling them the command (the abandoned `upgrade-hints` spec) still leaves the chore with them, and every later release that changes a format would add another command to learn. Release 0.25.0 adds two such steps and waits on this spec. Install hooks are no way out: npm `preinstall`/`postinstall` run in the package's directory rather than in the person's repositories, pnpm 10 and `--ignore-scripts` skip them, and the standalone release binaries run none.",
   "productGoal": {
-    "statement": "After an upgrade, phax brings what it has already written up to date by itself, when it is used, as git, Terraform and VS Code upgrade their formats. A machine migration runs once, on the first acting command after the installed release changes. A repository migration runs, and commits as its own commit, at the point where phax refuses today. phax still refuses, naming the command as today, only where migrating is unsafe. One catalogue declares every migration, so adding one in a later release is one entry, and a test keeps the catalogue, the refusals and the explicit commands in step.",
-    "guidingRule": "phax migrates what it owns by itself, exactly as the explicit command would, and refuses only where migrating is unsafe."
+    "statement": "After an upgrade, phax brings what it has already written up to date by itself, when it is used, as git, Terraform and VS Code upgrade their formats. It does so on any command a person runs at a terminal: never when stderr is not a terminal, never with `--json`, and never inside a phase worktree.\n- A machine migration runs once, on the first such command after the installed release changes.\n- A repository migration runs on any such command inside a phax project, and commits as its own commit.\n\nWhere migrating is unsafe, a command that refuses today still refuses, naming the command as today. Any other command skips the migration, says so on one stderr line, and keeps its exit. One catalogue declares every migration, so adding one in a later release is one entry, and a test keeps the catalogue, the refusals and the explicit commands in step.",
+    "guidingRule": "phax migrates what it owns by itself, exactly as the explicit command would, for a person at a terminal; it refuses only where it refuses today and migrating is unsafe, and never changes another command's exit."
   },
   "terminology": [
     {
@@ -105,23 +105,23 @@
     },
     {
       "term": "migration point",
-      "definition": "A command listed in §6 that runs the listed repository migrations before its own work."
+      "definition": "A command that runs the pending repository migrations before its own work: every command run inside a phax project, read-only ones included, while migrations are on (§5.5). An entry's own explicit command is not a migration point for that entry."
     },
     {
       "term": "unsafe to migrate",
-      "definition": "A path the migration writes has uncommitted changes or is untracked; HEAD is detached; a rebase, merge, cherry-pick or revert is in progress; the current directory is inside a phase worktree; or the command runs under an agent session."
-    },
-    {
-      "term": "agent session",
-      "definition": "A process started by an agent that phax spawned (a phase, authoring, decide, review or adjust session), recognised as decided in q-agent."
-    },
-    {
-      "term": "acting command",
-      "definition": "A command the phase guard refuses inside a phase worktree, as opposed to a read-only one it allows."
+      "definition": "A path the migration writes has uncommitted changes or is untracked; HEAD is detached; or a rebase, merge, cherry-pick or revert is in progress."
     },
     {
       "term": "version record",
       "definition": "A file under the state root naming the last release whose machine migrations completed there."
+    },
+    {
+      "term": "migrations on",
+      "definition": "stderr is a terminal, the command has no `--json`, and the current directory is not inside a phase worktree. Both scopes run automatically only then (q-agent). An agent's shell is recognised by its stderr not being a terminal."
+    },
+    {
+      "term": "refusal point",
+      "definition": "A command that refuses today while a given repository migration is pending, for that migration (the §6 \"before\" list). `phax run` is one for `approval-ledgers` but not for `document-shapes`."
     }
   ],
   "requirements": [
@@ -141,7 +141,7 @@
       "id": "r-in-step",
       "title": "Catalogue, refusals and commands in step",
       "pattern": "ubiquitous",
-      "statement": "The system shall name, as each entry's explicit command, a command registered in the phax CLI, and shall name that same command in every refusal for a pending repository migration of that entry."
+      "statement": "The system shall name, as each entry's explicit command, a command registered in the phax CLI, and shall name that same command in every refusal and every skip line for a pending repository migration of that entry."
     },
     {
       "id": "r-same-work",
@@ -151,9 +151,15 @@
     },
     {
       "id": "r-points",
-      "title": "Repository migrations at the migration points",
+      "title": "Repository migrations on every command",
       "pattern": "event",
-      "statement": "WHEN a migration-point command starts inside a phax project and a repository migration listed for it in §6 is pending THE system SHALL run that migration before the command's own work."
+      "statement": "WHEN a command starts inside a phax project with migrations on, and a repository migration is pending, THE system SHALL run that migration before the command's own work. Read-only commands such as `phax ls`, `phax validate`, `phax plans lint` and `phax artifact status` are included. `phax run`, `--dry-run` included, migrates before extraction."
+    },
+    {
+      "id": "r-repo-off",
+      "title": "Where repository migrations stay off",
+      "pattern": "state",
+      "statement": "WHILE stderr is not a terminal, the command has `--json`, or the current directory is inside a phase worktree, THE system SHALL run no repository migration and print no migration line. A refusal point SHALL refuse as today, naming the explicit command, and any other command SHALL run as it does today."
     },
     {
       "id": "r-order",
@@ -177,19 +183,19 @@
       "id": "r-unsafe-refuse",
       "title": "Refuse where migrating is unsafe",
       "pattern": "unwanted",
-      "statement": "IF a repository migration is pending at a command that refuses for it today and migrating is unsafe THEN the system SHALL refuse as today, with exit 12, naming the explicit command and why it did not migrate."
+      "statement": "IF a repository migration is pending at one of its refusal points with migrations on, and migrating is unsafe, THEN the system SHALL refuse as today, with exit 12, naming the explicit command and why it did not migrate."
     },
     {
       "id": "r-unsafe-carry",
-      "title": "No new refusal at `phax run`",
+      "title": "Skip, with no new refusal, elsewhere",
       "pattern": "unwanted",
-      "statement": "IF `document-shapes` is pending when `phax run` starts and migrating is unsafe THEN the system SHALL start the run without migrating and without refusing for it."
+      "statement": "IF a repository migration is pending at a command that is not one of its refusal points with migrations on, and migrating is unsafe, THEN the system SHALL skip it, print one stderr line naming the explicit command and why it did not migrate, and run the command with the stdout and exit code it has today. For example, `phax ls` with a dirty sidecar, or `phax run` with `document-shapes` pending."
     },
     {
       "id": "r-repo-fail",
       "title": "A failed repository migration",
       "pattern": "unwanted",
-      "statement": "IF an automatic repository migration fails THEN the system SHALL refuse the command with exit 12, naming the explicit command and the migration's own reason, and leave the repository as the explicit command leaves it on that failure."
+      "statement": "IF an automatic repository migration fails at one of its refusal points THEN the system SHALL refuse the command with exit 12, naming the explicit command and the migration's own reason. At any other command, it SHALL print one stderr line naming them and run the command with the stdout and exit code it has today. In both cases it SHALL leave the repository as the explicit command leaves it on that failure."
     },
     {
       "id": "r-repo-race",
@@ -201,7 +207,7 @@
       "id": "r-machine-run",
       "title": "Machine migrations after a version change",
       "pattern": "event",
-      "statement": "WHEN an acting command starts and the version record is absent, unreadable, or names a release older than the running phax THE system SHALL run every machine migration in the catalogue before the command's own work."
+      "statement": "WHEN a command starts with migrations on, and the version record is absent, unreadable, or names a release older than the running phax, THE system SHALL run every machine migration in the catalogue before the command's own work. Read-only commands, and commands run outside a phax project, are included."
     },
     {
       "id": "r-machine-record",
@@ -231,13 +237,13 @@
       "id": "r-machine-off",
       "title": "Where machine migrations stay off",
       "pattern": "state",
-      "statement": "WHILE stderr is not a terminal, the command has `--json`, the current directory is inside a phase worktree, or the command is read-only THE system SHALL run no machine migration and leave the version record unchanged."
+      "statement": "WHILE stderr is not a terminal, the command has `--json`, or the current directory is inside a phase worktree, THE system SHALL run no machine migration and leave the version record unchanged."
     },
     {
       "id": "r-own",
       "title": "An explicit command does not trigger itself",
       "pattern": "event",
-      "statement": "WHEN an entry's explicit command runs THE system SHALL not run that entry automatically before it."
+      "statement": "WHEN an entry's explicit command runs THE system SHALL not run that entry automatically before it: `phax artifact migrate-approvals`, `phax artifact migrate-documents` and `phax cost backfill` do not trigger their own migration."
     },
     {
       "id": "r-record-format",
@@ -266,10 +272,10 @@
   ],
   "surface": [
     {
-      "surface": "cli: migration points",
+      "surface": "cli: where migrations run",
       "binding": "normative",
       "before": "Each command below refuses with exit 12 while its migration is pending:\n\n    phax artifact status <path>                       refuses on an old ledger\n    phax artifact approve | reopen <path>             refuses on an old ledger or an unmigrated sidecar\n    phax artifact decide <path>                       refuses on an unmigrated sidecar\n    phax artifact abandon | complete | stale <path>   refuses on an old ledger\n    phax plans status [--apply]                       refuses on an old ledger\n    phax artifact migrate-documents                   refuses on an old ledger\n    phax run --plan <plan>                            refuses on an old ledger",
-      "after": "command                                           repository migrations run first, in catalogue order\n    phax artifact status <path>                       approval-ledgers\n    phax artifact approve | reopen | decide <path>    approval-ledgers, document-shapes\n    phax artifact abandon | complete | stale <path>   approval-ledgers\n    phax plans status [--apply]                       approval-ledgers\n    phax artifact migrate-documents                   approval-ledgers\n    phax run --plan <plan>                            approval-ledgers, document-shapes (before extraction)\n\n`phax run --dry-run` is not a migration point: it performs no run actions. The list itself is normative, and assumes q-trigger is decided `refusal-points-and-run`."
+      "after": "Every command run inside a phax project, read-only ones included, runs the pending repository migrations first,\nin catalogue order, when migrations are on: stderr a terminal, no --json, not inside a phase worktree.\nEvery command, inside a project or not, runs the machine migrations first under the same condition.\n`phax run` (--dry-run included) migrates before extraction. An entry's own explicit command does not trigger that entry.\n\n    $ phax ls                       # on a terminal, an old ledger and a 0.20.0 sidecar pending\n    phax: migrated approval ledgers to record files — committed 9b1e2d0\n    phax: migrated 3 documents to their current shapes — committed 4f2a9c1\n    <ls's own output, unchanged>\n\n    $ phax ls --json                # no migration, no line, stdout as today\n    $ phax ls | cat                 # stderr still a terminal: migrates; `phax ls 2>log` does not\n\nWhere migrating is unsafe (dirty or untracked write path, detached HEAD, rebase/merge/cherry-pick/revert in progress):\n\n    refusal points (they refuse today, and still do):\n        phax artifact status <path>                       approval-ledgers\n        phax artifact approve | reopen <path>             approval-ledgers, document-shapes\n        phax artifact decide <path>                       document-shapes\n        phax artifact abandon | complete | stale <path>   approval-ledgers\n        phax plans status [--apply]                       approval-ledgers\n        phax artifact migrate-documents                   approval-ledgers\n        phax run --plan <plan>                            approval-ledgers\n\n    any other command, or a refusal point for another entry: skips, with one stderr line, and keeps its exit\n        $ phax ls\n        phax: not migrated (docs/plans/2610150900-x-plan.json has uncommitted changes) — run `phax artifact migrate-documents` when it is clean\n        <ls's own output, unchanged>\n        $? = 0\n\nWith migrations off, a refusal point refuses as today and any other command runs as today, with no line.\n\nNormative: every command as a migration point, and the three off conditions; the refusal-point list and their exit 12; the skip with one stderr line and an unchanged exit everywhere else. Wording is indicative."
     },
     {
       "surface": "cli: repository migration line",
@@ -281,13 +287,13 @@
       "surface": "cli: refusal where migrating is unsafe",
       "binding": "indicative",
       "before": "✗ Approval refused: docs/plans/2610150900-x-plan.json is stamped 0.20.0 — run `phax artifact migrate-documents` first\n$? = 12",
-      "after": "✗ Approval refused: docs/plans/2610150900-x-plan.json is stamped 0.20.0 — run `phax artifact migrate-documents` first\n  not migrated automatically: docs/plans/2610150900-x-plan.json has uncommitted changes\n$? = 12\n\nNormative: exit 12, the explicit command named verbatim, and a reason that is one of: uncommitted or untracked write path, detached HEAD, rebase/merge/cherry-pick/revert in progress, phase worktree, agent session. Wording is indicative."
+      "after": "✗ Approval refused: docs/plans/2610150900-x-plan.json is stamped 0.20.0 — run `phax artifact migrate-documents` first\n  not migrated automatically: docs/plans/2610150900-x-plan.json has uncommitted changes\n$? = 12\n\nNormative: at a refusal point only, exit 12, the explicit command named verbatim, and a reason that is one of: uncommitted or untracked write path, detached HEAD, rebase/merge/cherry-pick/revert in progress. With migrations off (stderr not a terminal, `--json`, phase worktree), a refusal point prints today's refusal alone. Wording is indicative."
     },
     {
       "surface": "cli: machine migration line",
       "binding": "indicative",
       "before": null,
-      "after": "$ phax plans estimate docs/plans/2610200900-y-plan.md      # first acting command after upgrading\nphax 0.24.0 → 0.25.0: wrote 12 cost ledgers\n<estimate output, on stdout, unchanged>\n\nWith no version record:   phax → 0.25.0: wrote 12 cost ledgers\nNothing to write:         (no line)\nOn failure:               phax 0.24.0 → 0.25.0: cost-ledgers not run (registry.json is corrupt) — will retry on the next command\n\nNormative: at most one line, on stderr, naming both releases when the record names one; no line when nothing was written. Wording is indicative."
+      "after": "$ phax plans estimate docs/plans/2610200900-y-plan.md      # first command on a terminal after upgrading\nphax 0.24.0 → 0.25.0: wrote 12 cost ledgers\n<estimate output, on stdout, unchanged>\n\nWith no version record:   phax → 0.25.0: wrote 12 cost ledgers\nNothing to write:         (no line)\nOn failure:               phax 0.24.0 → 0.25.0: cost-ledgers not run (registry.json is corrupt) — will retry on the next command\n\nNormative: at most one line, on stderr, naming both releases when the record names one; no line when nothing was written. Wording is indicative."
     },
     {
       "surface": "file: <state root>/version.json",
@@ -304,7 +310,8 @@
     "Migrating inside a run's worktrees: a run started before the upgrade and resumed after may still meet today's ledger refusal when it completes.",
     "Migrating `phax.schema.json` or the installed skills (`phax schema upgrade`, `phax skills install`): those files carry no version stamp.",
     "A switch to turn automatic migrations off.",
-    "Checking the network for a newer phax, and telemetry on migrations."
+    "Checking the network for a newer phax, and telemetry on migrations.",
+    "Migrating for a script, CI or an agent: with stderr not a terminal, under `--json` or inside a phase worktree, phax migrates nothing, and the explicit commands remain the way to migrate there."
   ],
   "acceptanceCriteria": [
     {
@@ -396,12 +403,12 @@
     },
     {
       "id": "ac-unsafe-agent",
-      "name": "Agent session keeps the refusal",
-      "given": "a project with an old ledger and a command run as an agent session recognises it (per q-agent)",
-      "when": "`phax artifact status` runs",
-      "then": "it exits 12 naming `phax artifact migrate-approvals`, and no commit is created",
+      "name": "A non-terminal stderr keeps the refusal",
+      "given": "a project with a committed old ledger, and stderr redirected to a file",
+      "when": "`phax artifact status <a plan>` runs",
+      "then": "it exits 12 with today's refusal naming `phax artifact migrate-approvals`, and no commit is created",
       "refs": [
-        "r-unsafe-refuse"
+        "r-repo-off"
       ]
     },
     {
@@ -409,7 +416,7 @@
       "name": "No new refusal at run",
       "given": "a project whose plan sidecar is stamped 0.20.0 with uncommitted edits, no old ledger, and `--allow-dirty`",
       "when": "`phax run --plan <that plan>` starts",
-      "then": "no migration commit is made and the run starts as it does today",
+      "then": "stderr has one line naming `phax artifact migrate-documents` and the dirty path, no migration commit is made, and the run starts as it does today",
       "refs": [
         "r-unsafe-carry"
       ]
@@ -450,7 +457,7 @@
       "id": "ac-machine-absent",
       "name": "No record, nothing to write",
       "given": "a temporary state root with no version record and no run lacking a ledger, stderr on a pseudo-terminal",
-      "when": "an acting command runs",
+      "when": "`phax ls` runs",
       "then": "no migration line is printed and the record's `version` is 0.25.0",
       "refs": [
         "r-machine-run",
@@ -462,8 +469,8 @@
       "id": "ac-machine-fail",
       "name": "Failure never fails the command",
       "given": "a temporary state root whose registry is corrupt and whose record names 0.24.0, stderr on a pseudo-terminal",
-      "when": "an acting command runs",
-      "then": "stderr has one line naming `cost-ledgers` and its reason, the record still names 0.24.0, and stdout and the exit code equal those of the same command with stderr redirected",
+      "when": "`phax ls` runs",
+      "then": "stderr has one line naming `cost-ledgers` and its reason, the record still names 0.24.0, and stdout and the exit code equal those of `phax ls` with stderr redirected",
       "refs": [
         "r-machine-fail"
       ]
@@ -472,7 +479,7 @@
       "id": "ac-downgrade",
       "name": "A newer record is left alone",
       "given": "a temporary state root whose record names 0.26.0 and a run without a cost ledger",
-      "when": "an acting command runs on a terminal",
+      "when": "`phax ls` runs on a terminal",
       "then": "no ledger is written and the record is byte-identical",
       "refs": [
         "r-downgrade"
@@ -482,7 +489,7 @@
       "id": "ac-machine-off",
       "name": "Machine migrations stay off",
       "given": "a temporary state root with no record and a run without a cost ledger",
-      "when": "an acting command runs with stderr redirected, then `phax plans estimate --json` on a terminal, then `phax ls` on a terminal, then an acting command inside a phase worktree",
+      "when": "`phax ls` runs with stderr redirected, then `phax ls --json` on a terminal, then `phax ls` inside a phase worktree",
       "then": "none writes a cost ledger or a version record",
       "refs": [
         "r-machine-off"
@@ -502,7 +509,7 @@
       "id": "ac-record-format",
       "name": "Version record format",
       "given": "a record written by the machine migrations, and one missing `version`",
-      "when": "the format's snapshot test runs and the next acting command reads the second",
+      "when": "the format's snapshot test runs and the next command on a terminal reads the second",
       "then": "the first carries a `$schema` naming the registered format at its current stamp with every field required in the snapshot, and the second counts as absent: the migrations run and rewrite it",
       "refs": [
         "r-record-format"
@@ -528,9 +535,69 @@
       "refs": [
         "r-docs"
       ]
+    },
+    {
+      "id": "ac-ls-migrates",
+      "name": "phax ls on a terminal migrates and commits",
+      "given": "a made-up phax project on a branch with a clean tree, a committed docs/plans/approvals.json and one committed live plan sidecar stamped 0.20.0; a temporary state root whose record names 0.24.0, with a registered run lacking a cost ledger; stderr on a pseudo-terminal",
+      "when": "`phax ls` runs",
+      "then": "two commits are made, `chore(approvals): migrate approval ledgers to record files` then `chore(artifacts): migrate documents to their current shapes`. The cost ledger is written, and the record names 0.25.0. stderr has one line per migration, and stdout and the exit code equal those of `phax ls` on the migrated project",
+      "refs": [
+        "r-points",
+        "r-order",
+        "r-commit",
+        "r-repo-line",
+        "r-machine-run",
+        "r-stdout"
+      ]
+    },
+    {
+      "id": "ac-ls-json",
+      "name": "phax ls --json migrates nothing",
+      "given": "the same project and state root, stderr on a pseudo-terminal",
+      "when": "`phax ls --json` runs",
+      "then": "no commit is made, no ledger or record is written, stderr has no migration line, and stdout is the one JSON document `phax ls --json` prints today",
+      "refs": [
+        "r-repo-off",
+        "r-machine-off",
+        "r-stdout"
+      ]
+    },
+    {
+      "id": "ac-ls-no-tty",
+      "name": "A non-terminal phax ls migrates nothing",
+      "given": "the same project and state root, stderr redirected to a file",
+      "when": "`phax ls` runs",
+      "then": "no commit is made, no ledger or record is written, no migration line is printed, and stdout and the exit code are today's",
+      "refs": [
+        "r-repo-off",
+        "r-machine-off"
+      ]
+    },
+    {
+      "id": "ac-ls-dirty",
+      "name": "A dirty sidecar makes phax ls skip with no exit change",
+      "given": "a project whose stamped-0.20.0 plan sidecar has uncommitted edits, stderr on a pseudo-terminal",
+      "when": "`phax ls` runs",
+      "then": "no commit is created. stderr has one line naming `phax artifact migrate-documents` and the dirty path. stdout and the exit code equal those of `phax ls` today",
+      "refs": [
+        "r-unsafe-carry",
+        "r-in-step"
+      ]
+    },
+    {
+      "id": "ac-ls-fail",
+      "name": "A failed migration at a non-refusal command keeps its exit",
+      "given": "a project with a live sidecar whose body is not its sidecar's own rendering, stderr on a pseudo-terminal",
+      "when": "`phax plans lint <that plan>` runs",
+      "then": "stderr has one line naming `phax artifact migrate-documents` and the migration's refusal, the working tree and git log are unchanged, and the exit code is lint's own",
+      "refs": [
+        "r-repo-fail"
+      ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-trigger",
       "question": "Which commands run the repository migrations?",
@@ -552,7 +619,41 @@
         }
       ],
       "recommendation": "refusal-points-and-run",
-      "rationale": "Migrating where phax refuses today replaces each refusal with the commit the person would have made, and touches no command that works today. `phax run` is the one place where a missing migration costs something without a refusal: a paid extraction and an archived sidecar left in the old shape. A commit from `artifact status` is the same path-scoped commit its refusal asked for, so accepting it is the smaller loss."
+      "rationale": "Migrating where phax refuses today replaces each refusal with the commit the person would have made, and touches no command that works today. `phax run` is the one place where a missing migration costs something without a refusal: a paid extraction and an archived sidecar left in the old shape. A commit from `artifact status` is the same path-scoped commit its refusal asked for, so accepting it is the smaller loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "every-command",
+        "abandoned": [
+          "refusal-points-and-run",
+          "refusal-points"
+        ],
+        "why": "Decided by the operator on 2026-10-19, against the recommendation (refusal-points-and-run). A person who upgrades should have nothing to learn: whatever command they run first in a project brings it up to date, read-only commands included. The limits follow from the other answers: only with stderr a terminal (q-agent), never with `--json`, never inside a phase worktree. Where migrating is unsafe, a command that refuses today still refuses, and any other command skips with one stderr line naming the explicit command and why. phax picks the line over silence, because a silent skip would leave the person as uninformed as before; there is no new refusal and no exit change. An entry's own explicit command does not trigger it, and `phax run` migrates before extraction.",
+        "advocate": "Migrating only where phax refuses today replaces each refusal with the commit the person would have made, and keeps every command that works today, read-only ones above all, free of writes and commits.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T13:14:31Z",
+        "revised": [
+          "§3",
+          "§4",
+          "§5.3",
+          "§5.5",
+          "§5.6",
+          "§5.10",
+          "§5.11",
+          "§5.12",
+          "§5.20",
+          "§6",
+          "§7",
+          "§8",
+          "§10",
+          "§11"
+        ]
+      },
+      "history": []
     },
     {
       "id": "q-machine-when",
@@ -570,7 +671,25 @@
         }
       ],
       "recommendation": "before",
-      "rationale": "The only reader of the backfilled ledgers is an acting command, and its first answer after an upgrade should be right. A delay of seconds, once per upgrade, on a person's terminal is the cheaper loss."
+      "rationale": "The only reader of the backfilled ledgers is an acting command, and its first answer after an upgrade should be right. A delay of seconds, once per upgrade, on a person's terminal is the cheaper loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "before",
+        "abandoned": [
+          "after"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: machine migrations run before the command's own work, so the first answer after an upgrade is right.",
+        "advocate": "Running them after the command keeps the first command after an upgrade as prompt as any other.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T13:14:31Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-machine-where",
@@ -593,7 +712,35 @@
         }
       ],
       "recommendation": "acting",
-      "rationale": "The phase guard already classifies every command as read-only or acting, and a unit test keeps that classification complete, so the rule costs no new list. The backfill skips locked runs, so it is safe before a run starts; seconds once is the smaller loss."
+      "rationale": "The phase guard already classifies every command as read-only or acting, and a unit test keeps that classification complete, so the rule costs no new list. The backfill skips locked runs, so it is safe before a run starts; seconds once is the smaller loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "any",
+        "abandoned": [
+          "acting",
+          "acting-except-run"
+        ],
+        "why": "Decided by the operator on 2026-10-19, against the recommendation (acting). Machine migrations run on any command, read-only included, under the same limits as repository migrations: stderr a terminal, never with `--json`, never inside a phase worktree. The first command a person types after an upgrade does the work, whatever it is, and one rule covers both scopes.",
+        "advocate": "Acting commands only would keep read-only commands write-free and reuse the phase guard's existing classification, at the cost of waiting for the first acting command.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T13:14:31Z",
+        "revised": [
+          "§3",
+          "§4",
+          "§5.14",
+          "§5.19",
+          "§6",
+          "§8",
+          "§10",
+          "§11"
+        ]
+      },
+      "history": []
     },
     {
       "id": "q-agent",
@@ -616,7 +763,26 @@
         }
       ],
       "recommendation": "tty",
-      "rationale": "One rule covers both scopes and reuses what machine migrations already need. A refused script loses nothing it has today, and the phase-worktree rule stays the hard guard where an agent writes code. A provider pseudo-terminal is a known gap the planner should check for the three providers before relying on the rule."
+      "rationale": "One rule covers both scopes and reuses what machine migrations already need. A refused script loses nothing it has today, and the phase-worktree rule stays the hard guard where an agent writes code. A provider pseudo-terminal is a known gap the planner should check for the three providers before relying on the rule.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "tty",
+        "abandoned": [
+          "session-marker",
+          "ancestry"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: automatic migrations of both scopes run only when stderr is a terminal. Otherwise, refusal points refuse as today, and the other commands skip silently. The known gap stays a §10 note for the planner: a provider whose shell gives commands a pseudo-terminal is read as a person.",
+        "advocate": "A session marker names exactly the processes phax spawned, so a provider's pseudo-terminal cannot pass for a person.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T13:14:31Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-concurrency",
@@ -634,22 +800,39 @@
         }
       ],
       "recommendation": "idempotent",
-      "rationale": "The backfill already creates each ledger exclusively and never rewrites one, and the record names the same release whoever writes it. A lock would guard a race whose worst outcome is a second stderr line."
+      "rationale": "The backfill already creates each ledger exclusively and never rewrites one, and the record names the same release whoever writes it. A lock would guard a race whose worst outcome is a second stderr line.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "idempotent",
+        "abandoned": [
+          "lock"
+        ],
+        "why": "Decided by the operator on 2026-10-19, as recommended: no lock. Each ledger is created exclusively, the record is written atomically, and a repository migration whose commit fails re-detects before refusing.",
+        "advocate": "A lock gives one reporter and one writer of the record, with no reliance on each migration's own idempotence.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-19T13:14:31Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "No install hooks: npm `preinstall`/`postinstall` run in the package's directory, pnpm 10 and `--ignore-scripts` skip them, and the release binaries run none.",
-      "Migrations run at use. Machine migrations run on the first acting command after the installed release changes, then the version record is updated; repository migrations run, and commit as their own commit, where phax refuses today.",
-      "phax still refuses, exit 12, naming the explicit command, only where migrating is unsafe: a dirty or untracked write path, detached HEAD, a rebase/merge/cherry-pick/revert in progress, a phase worktree, or an agent session.",
+      "Migrations run at use, on any command run with migrations on: stderr a terminal, no `--json`, not inside a phase worktree. Machine migrations run on the first such command after the installed release changes, then the version record is updated. Repository migrations run on any such command inside a phax project, and commit as their own commit. `phax run` migrates before extraction, and an entry's own explicit command does not trigger it.",
+      "Where migrating is unsafe (a dirty or untracked write path, detached HEAD, a rebase/merge/cherry-pick/revert in progress), a refusal point still refuses, exit 12, naming the explicit command and why. Any other command skips with one stderr line and keeps its exit: no new refusal. With migrations off, a refusal point refuses as today and any other command runs as today, silently.",
       "When the version record is absent, unreadable or older, every machine migration in the catalogue runs; a newer record means no migration and no rewrite. A failed machine migration prints one line, keeps the record and never fails the command.",
       "One catalogue lists every migration with id, scope (`repository` | `machine`), release, explicit command, detection and runner; adding one later is one entry.",
       "No hint lines, no listing command, no new environment variable. The explicit commands stay as they are.",
-      "Docs: docs/upgrading.md, linked from site/pages.ts and the README; the README's Artifacts, Cost and Troubleshooting passages and docs/plan-estimate.md say that phax runs the explicit commands by itself."
+      "Docs: docs/upgrading.md, linked from site/pages.ts and the README; the README's Artifacts, Cost and Troubleshooting passages and docs/plan-estimate.md say that phax runs the explicit commands by itself.",
+      "Decided by the operator on 2026-10-19: q-trigger every-command and q-machine-where any, both against the recommendation; q-machine-when before, q-agent tty and q-concurrency idempotent, as recommended."
     ],
     "open": [
-      "q-trigger, q-machine-when, q-machine-where, q-agent and q-concurrency (above); the §5 requirements and §6 migration-point list are written for the recommended options.",
       "Line wording, the version record's file name and format id, and the docs route."
     ],
     "constraints": [
@@ -657,17 +840,18 @@
       "Reuse the explicit commands' own use cases (migrateApprovals, migrateDocuments, backfillCostLedgers) and detections (the old ledger paths, scanLiveSidecars, the backfill's run selection) rather than a second definition; a test holds the catalogue, the refusals and the registered commands in step.",
       "Detached HEAD and an in-progress rebase/merge/cherry-pick/revert need a read through the Git port; the dirty-path check is the existing one.",
       "The version record is a new persisted format: `$schema`, every field required, appended to FORMAT_IDS with a next.schema.json snapshot, served like the other formats. No back-compat shims.",
-      "Do not add a command: the phase-guard classification is unchanged, and the read-only/acting split it holds is the one machine migrations use.",
+      "Do not add a command, and leave the phase-guard classification unchanged. Migrations no longer follow its read-only/acting split: they run on every command with migrations on, and the guard's phase-worktree test is one of the off conditions.",
       "phax stays autonomous: no prompt, no input read, no wait; a failed machine migration never changes a command's exit code.",
       "Fixtures are made up and tests use temporary state roots; no test reads ~/.phax. Tests that need a terminal give stderr a pseudo-terminal.",
-      "Check whether Claude Code, Codex and Mistral Vibe give their shell tool a pseudo-terminal before relying on the q-agent rule.",
-      "The 0.25.0 release waits on this plan: prefer the smallest design that makes these three migrations automatic."
+      "Known gap (q-agent): a provider whose shell tool gives commands a pseudo-terminal is read as a person, so its agent's commands would migrate and commit. Check whether Claude Code, Codex and Mistral Vibe do, before relying on the rule.",
+      "The 0.25.0 release waits on this plan: prefer the smallest design that makes these three migrations automatic.",
+      "Every command now pays the detections on start. Keep them to cheap reads (two ledger paths, the sidecar scan, the version record) so read-only commands stay fast when nothing is pending."
     ]
   },
   "docsPage": {
     "kind": "page",
     "page": "docs/upgrading.md",
     "reader": "A person who has just upgraded phax, or is about to, and wants to know what phax will change by itself and what they may still have to do",
-    "example": "## Upgrading phax\n\nYou don't run migration commands. After an upgrade, phax brings what it wrote earlier up to date the first time it needs to:\n\n- **On your machine** — on the first acting command in a terminal (`phax run`, `phax plans estimate`, …), phax updates what it keeps under `~/.phax` and says so on one line:\n\n      phax 0.24.0 → 0.25.0: wrote 12 cost ledgers\n\n- **In a repository** — where an older phax would have refused (`phax artifact approve`, `status`, `decide`, `phax plans status`, `phax run`), phax migrates the files, commits them as their own commit, and carries on:\n\n      phax: migrated 3 documents to their current shapes — committed 4f2a9c1\n\n### When phax still refuses\n\nphax will not commit for you when a file it would rewrite has uncommitted changes, HEAD is detached, a rebase or merge is in progress, you are inside a phase worktree, or stderr is not a terminal (a script or an agent). It refuses as before and names the command. Commit or stash your changes, finish the rebase, or run the command by hand.\n\n### Migrations by release\n\n| Release | Migration | Scope | Run by hand |\n| --- | --- | --- | --- |\n| 0.25.0 | document-shapes | repository | `phax artifact migrate-documents` |\n| 0.25.0 | cost-ledgers | machine | `phax cost backfill` |\n| 0.19.0 | approval-ledgers | repository | `phax artifact migrate-approvals` |"
+    "example": "## Upgrading phax\n\nYou don't run migration commands. After an upgrade, phax brings what it wrote earlier up to date the first time you run any command in a terminal:\n\n- **On your machine** — on the first command (`phax ls`, `phax run`, `phax plans estimate`, …), phax updates what it keeps under `~/.phax` and says so on one line:\n\n      phax 0.24.0 → 0.25.0: wrote 12 cost ledgers\n\n- **In a repository** — on any command run inside it, phax migrates the files, commits them as their own commit, and carries on:\n\n      phax: migrated 3 documents to their current shapes — committed 4f2a9c1\n\nphax migrates nothing when stderr is not a terminal (a script, CI or an agent), with `--json`, or inside a phase worktree. Run the commands by hand there.\n\n### When phax does not migrate\n\nphax will not commit for you when a file it would rewrite has uncommitted changes, HEAD is detached, or a rebase or merge is in progress. A command that refused before (`phax artifact approve`, `status`, `decide`, `phax plans status`, `phax run`) still refuses and names the command. Any other command says on one line why it did not migrate, and carries on. Commit or stash your changes, finish the rebase, or run the command by hand.\n\n### Migrations by release\n\n| Release | Migration | Scope | Run by hand |\n| --- | --- | --- | --- |\n| 0.25.0 | document-shapes | repository | `phax artifact migrate-documents` |\n| 0.25.0 | cost-ledgers | machine | `phax cost backfill` |\n| 0.19.0 | approval-ledgers | repository | `phax artifact migrate-approvals` |"
   }
 }
