@@ -1,5 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { Paragraph } from "mdast";
 import { describe, expect, it } from "vitest";
 import { generateSite, summaryLine, type SiteJson } from "../../../site/build/generate.js";
@@ -298,17 +299,18 @@ describe("the committed site", () => {
         .filter((paragraph) => paragraph.length >= 60),
     );
     expect(paragraphs.length).toBeGreaterThan(0);
-    const committed: Array<string> = [];
-    const walk = (directory: string): void => {
-      for (const entry of readdirSync(directory, { withFileTypes: true })) {
-        const path = join(directory, entry.name);
-        const name = relative(ROOT, path).split("\\").join("/");
-        if (name === "site/generated" || name === "site/doc_build") continue;
-        if (entry.isDirectory()) walk(path);
-        else committed.push(readFileSync(path, "utf8").replace(/\s+/g, " "));
-      }
-    };
-    walk(join(ROOT, "site"));
+    // The files git tracks under site/, so local renders and the ignored
+    // generated directories are never read.
+    const tracked = execFileSync("git", ["ls-files", "-z", "--", "site"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    })
+      .split("\0")
+      .filter((name) => name !== "");
+    expect(tracked.length).toBeGreaterThan(0);
+    const committed = tracked.map((name) =>
+      readFileSync(join(ROOT, name), "utf8").replace(/\s+/g, " "),
+    );
     for (const content of committed) {
       for (const paragraph of paragraphs) expect(content).not.toContain(paragraph);
     }
