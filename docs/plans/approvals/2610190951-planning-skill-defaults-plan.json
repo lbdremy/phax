@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610190951-planning-skill-defaults-plan.md",
+  "planFingerprint": "092963a980cd78fa933dbe3fa23d1071938fa7b44e78339dbee021420a1a1bc2",
+  "approvedAt": "2026-10-19T10:06:25.067Z",
+  "baseline": "8328c76633bdb6a934bf556e37067fb5a7c579fc",
+  "sourceSpec": {
+    "path": "docs/specs/2610171254-planning-skill-defaults.md",
+    "fingerprint": "d5f85a706e7bec36d6c780d65019674a83aad6d1946900666daeba4af41ed531"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

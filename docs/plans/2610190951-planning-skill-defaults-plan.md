@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610171254-planning-skill-defaults.md
 completes-spec: false
+approved:
+  date: 2026-10-19
+  baseline: 8328c76
 ---
 # Planning skill defaults
 
