@@ -1422,7 +1422,7 @@ phax plans lint docs/plans/2609101200-foo-plan.md --json
 
 Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.
 
-History: the estimate is calibrated from this machine's cost ledgers. Only this repository's kept runs are sized (each phase by its planned-file bytes), and recent runs weigh more, with a half-life of 30 days. An estimate needs at least 60 sized phases; below that the verdict is thin-history and no estimate is printed. Run `phax cost backfill` first so older kept runs get a ledger; the report counts the kept runs that still have none.
+History: the estimate is calibrated from this machine's cost ledgers. Only this repository's kept runs are sized (each phase by its planned-file bytes), and recent runs weigh more, with a half-life of 30 days. An estimate needs at least 60 sized phases; below that the verdict is thin-history and no estimate is printed. Every kept run with no ledger first gets one, as `phax cost backfill` writes it, and a line on stderr says how many were written; the report counts the kept runs still without one (a locked run is skipped).
 
 Windows: by default, one minimal Claude Code probe on the cheapest Claude model reads the five-hour and seven-day windows from its rate-limit event. The probe gets a fixed prompt and never sees the plan; it spends one small request. --no-probe uses the last rate-limit sample in the cost ledgers instead, with no request; usage since that sample is not counted. phax never reads Claude Code's credentials or its OAuth usage endpoint. Each window's dollar capacity is recalibrated from the ledgers of the last 28 days.
 
@@ -1432,7 +1432,7 @@ The plan is read by the deterministic parser `phax plans lint` uses; no model re
 
 Exit codes: 0 for any verdict; 1 for a plan the deterministic parser cannot read; 2 for an invalid phax.json, model-routing.json or providers.json; 10 for a corrupt run registry; 12 when the plan fails artifact validation.
 
-Side effects: none on disk; without --no-probe, one Claude Code request.
+Side effects: writes cost-ledger.json in each kept run folder that has none, as `phax cost backfill` does; without --no-probe, one Claude Code request.
 
 ### Arguments
 
@@ -1451,10 +1451,6 @@ Emit the estimate as JSON
 Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe
 
 ### Examples
-
-```
-phax cost backfill
-```
 
 ```
 phax plans estimate docs/plans/2609101200-foo-plan.md

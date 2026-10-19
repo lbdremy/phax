@@ -12,6 +12,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem, type FakeFileSystemImpl } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { FileSystem, type FileSystemOps } from "../../src/ports/fs.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import {
@@ -144,6 +145,7 @@ function setup(
     readonly plan?: string;
     readonly codexEnabled?: boolean;
     readonly undecodablePlans?: number;
+    readonly unledgeredRuns?: readonly string[];
   } = {},
 ) {
   const fs = makeFakeFileSystem();
@@ -184,15 +186,21 @@ function setup(
     fs.impl.setFile(`${STATE}/runs/demo.old-${index}/phax-plan.json`, "{}");
     return entry;
   });
+  // Kept runs with no cost ledger yet: a folder holding no Claude stream.
+  const unledgered = (options.unledgeredRuns ?? []).map((shortName) => {
+    fs.impl.setFile(`${STATE}/runs/demo.${shortName}/run-status.json`, "{}");
+    return registryEntry({ shortName, runId: `run-${shortName}` });
+  });
   seedGeneratedRuns(fs.impl, git.impl, {
     stateRoot: STATE,
     namespace: "demo",
     runs: generateHistory({ runs: 16, phasesPerRun: 4, seed: 3 }),
-    extra: [sampler, ...undecodable],
+    extra: [sampler, ...undecodable, ...unledgered],
   });
   const traced = tracedFileSystem(fs.impl);
-  const layer = Layer.mergeAll(traced.layer, git.layer, backend.layer);
-  return { fs: fs.impl, backend: backend.impl, paths: traced.paths, layer };
+  const lock = makeFakeLock();
+  const layer = Layer.mergeAll(traced.layer, git.layer, backend.layer, lock.layer);
+  return { fs: fs.impl, backend: backend.impl, lock: lock.impl, paths: traced.paths, layer };
 }
 
 function estimate(layer: ReturnType<typeof setup>["layer"], probe: boolean, planRel = PLAN_REL) {
@@ -227,7 +235,7 @@ describe("estimatePlanCost", () => {
     const exit = await estimate(layer, true);
 
     if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
-    const report = exit.value;
+    const { report } = exit.value;
     expect(report.verdict).not.toBe("thin-history");
     expect(report.history.phases).toBeGreaterThanOrEqual(60);
     expect(report.phases.map((phase) => phase.id)).toEqual(["phase-01", "phase-02"]);
@@ -251,8 +259,21 @@ describe("estimatePlanCost", () => {
     expect(backend.runCalls).toHaveLength(0);
     expect(backend.resumeCalls).toHaveLength(0);
     expect(backend.completeCalls).toHaveLength(0);
-    // The estimate writes nothing.
+    // Every run has a ledger, so the estimate writes nothing.
     expect(fs.files).toEqual(filesBefore);
+  });
+
+  it("backfills a kept run with no cost ledger before reading the history, skipping a locked one", async () => {
+    const { fs, lock, layer } = setup({ unledgeredRuns: ["fresh", "busy"] });
+    lock.setStatus("demo.busy", { kind: "active", pid: 4242, updatedAt: iso(NOW_MS) });
+
+    const exit = await estimate(layer, false);
+
+    if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
+    expect(exit.value.backfilledLedgers).toBe(1);
+    expect(fs.files.has(`${STATE}/runs/demo.fresh/cost-ledger.json`)).toBe(true);
+    expect(fs.files.has(`${STATE}/runs/demo.busy/cost-ledger.json`)).toBe(false);
+    expect(exit.value.report.history.unledgeredRuns).toBe(1);
   });
 
   it("with --no-probe calls no Backend method and reads the last sample (§8 --no-probe)", async () => {
@@ -261,7 +282,7 @@ describe("estimatePlanCost", () => {
     const exit = await estimate(layer, false);
 
     if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
-    expect(exit.value.windows).toMatchObject({
+    expect(exit.value.report.windows).toMatchObject({
       source: "last-sample",
       observedAt: SAMPLE_ENDED_AT,
       fiveHour: { utilization: 40 },
@@ -279,7 +300,7 @@ describe("estimatePlanCost", () => {
     const exit = await estimate(layer, false);
 
     if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
-    const skips = exit.value.warnings.filter((warning) => warning.includes("demo.old-"));
+    const skips = exit.value.report.warnings.filter((warning) => warning.includes("demo.old-"));
     expect(skips).toHaveLength(1);
     expect(skips[0]).toMatch(/^5 files: .* — .*demo\.old-0.*, .*, .* and 2 more$/);
   });
@@ -314,7 +335,7 @@ describe("estimatePlanCost", () => {
     const exit = await estimate(layer, true);
 
     if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
-    expect(exit.value.phases[1]).toEqual({
+    expect(exit.value.report.phases[1]).toEqual({
       id: "phase-02",
       provider: "codex-cli",
       model: "gpt-6-sol",
