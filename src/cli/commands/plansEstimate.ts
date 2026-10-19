@@ -6,6 +6,7 @@ import { estimatePlanCost } from "../../app/estimatePlan.js";
 import { renderEstimate } from "../../domain/cost/estimateRender.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { makeNodeLockLayer } from "../../infra/lock.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 
@@ -45,6 +46,7 @@ export async function runPlansEstimate(
           makeRepoRootedFileSystemLayer(config),
           makeNodeGitLayer(),
           makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
+          makeNodeLockLayer(config.stateRoot),
         ),
       ),
     ),
@@ -53,9 +55,14 @@ export async function runPlansEstimate(
     out.error(reportResult.left.message);
     return exitCodeForError(reportResult.left);
   }
-  const report = reportResult.right;
+  const { report, backfilledLedgers } = reportResult.right;
 
   // stderr in both modes, so a --json stdout stays one document.
+  if (backfilledLedgers > 0) {
+    out.warn(
+      `Wrote ${backfilledLedgers} cost ledger${backfilledLedgers === 1 ? "" : "s"} for kept runs that had none.`,
+    );
+  }
   for (const warning of report.warnings) out.warn(`Warning: ${warning}`);
   if (opts.json === true) {
     out.log(JSON.stringify(report, null, 2));

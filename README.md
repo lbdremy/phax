@@ -79,6 +79,8 @@ chmod +x phax-darwin-arm64 && sudo mv phax-darwin-arm64 /usr/local/bin/phax
 xattr -dr com.apple.quarantine /usr/local/bin/phax   # macOS: the binary is not notarized yet
 ```
 
+**Upgrading.** See [Upgrading phax](docs/upgrading.md) for what to run after an upgrade, release by release.
+
 **An agent.** phax drives an agent CLI that must be on your `$PATH`: `claude` (Claude Code), and optionally `codex` (OpenAI Codex) or `vibe` (Mistral Vibe). Keep `claude` installed even if you prefer another provider: phax falls back to it when the preferred one is missing or cannot meet the run's security mode.
 
 **The skills.** phax ships the skills your agent uses to write its documents: `phax-spec`, `phax-planning` and `phax-cli`, plus the three doctrine skills `phax-decide-spec`, `phax-decide-plan` and `phax-decide-review`. `phax artifact decide` follows the first two when it decides a spec's or plan's open questions.

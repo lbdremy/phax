@@ -194,6 +194,13 @@ export default definePageMap({
         "Decide open questions with phax artifact decide: framing first, then each question under a doctrine, and the body diff accepted before writing.",
     },
     {
+      route: "/guide/upgrading",
+      title: "Upgrading phax",
+      source: "docs/upgrading.md",
+      description:
+        "Upgrade phax, refresh the skills and phax.schema.json it copied into your repository, and the one-time steps each release asks for.",
+    },
+    {
       route: "/guide/plan-estimate",
       title: "Estimating a plan",
       source: "docs/plan-estimate.md",

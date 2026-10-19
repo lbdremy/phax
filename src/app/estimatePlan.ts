@@ -30,8 +30,10 @@ import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import type { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
+import type { Lock } from "../ports/lock.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import { backfillCostLedgers } from "./costBackfill.js";
 import { readEstimateHistory, type SkippedHistory } from "./estimateHistory.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { probeWindows } from "./probeWindows.js";
@@ -121,15 +123,24 @@ export function readEstimatePlan(
   });
 }
 
+/** The report, and how many cost ledgers the estimate backfilled first. */
+export interface EstimatePlanResult {
+  readonly report: EstimateReport;
+  readonly backfilledLedgers: number;
+}
+
 /**
- * The plan's `EstimateReport`. With `probe`, the windows come from one Claude
- * Code probe; without it, from the ledgers' last rate-limit sample, and no
- * Backend method is called. Skipped history files become warnings, named by
- * path and reason.
+ * The plan's `EstimateReport`. Every kept run with no cost ledger first gets
+ * one, as `phax cost backfill` writes it: the estimate is the ledgers' only
+ * reader, so a person never has to run the backfill by hand. A backfill that
+ * fails becomes a warning, never a failed estimate. With `probe`, the windows
+ * come from one Claude Code probe; without it, from the ledgers' last
+ * rate-limit sample, and no Backend method is called. Skipped history files
+ * become warnings, named by path and reason.
  */
 export function estimatePlanCost(
   opts: EstimatePlanOptions & { readonly nowIso: string; readonly probe: boolean },
-): Effect.Effect<EstimateReport, EstimatePlanError, FileSystem | Git | Backend> {
+): Effect.Effect<EstimatePlanResult, EstimatePlanError, FileSystem | Git | Backend | Lock> {
   const { config, nowIso } = opts;
   return Effect.gen(function* () {
     const planned = yield* readEstimatePlan(opts);
@@ -175,6 +186,11 @@ export function estimatePlanCost(
         ? { kind: "claude-code" }
         : { kind: "other-provider" };
 
+    const backfill = yield* backfillCostLedgers({ stateRoot: config.stateRoot }).pipe(
+      Effect.map((result) => ({ written: result.written.length, failure: null })),
+      Effect.catchTag("FsError", (error) => Effect.succeed({ written: 0, failure: error.message })),
+    );
+
     const history = yield* readEstimateHistory({
       stateRoot: config.stateRoot,
       repoRoot: config.repoRoot,
@@ -195,11 +211,14 @@ export function estimatePlanCost(
       windows,
       nowMs,
     });
-    if (history.skipped.length === 0) return report;
-    return {
-      ...report,
-      warnings: [...report.warnings, ...skippedWarnings(history.skipped)],
-    };
+    const warnings = [
+      ...report.warnings,
+      ...(backfill.failure === null
+        ? []
+        : [`the cost backfill failed (${backfill.failure}); run \`phax cost backfill\``]),
+      ...skippedWarnings(history.skipped),
+    ];
+    return { report: { ...report, warnings }, backfilledLedgers: backfill.written };
   });
 }
 

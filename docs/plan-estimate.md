@@ -3,7 +3,6 @@
 Before you start a run on a Claude Max subscription, two questions matter: what will it cost, and will it stop halfway because a window ran out? `phax plans estimate` answers both from what this machine already knows. No model reads the plan.
 
 ```bash
-phax cost backfill
 phax plans estimate docs/plans/2610201000-greet-plan.md
 phax plans estimate docs/plans/2610201000-greet-plan.md --no-probe --json | jq .verdict
 ```
@@ -35,7 +34,7 @@ Verdict: risky — fits at P50, a pause is possible at P90
 
 Every run keeps a cost ledger, `cost-ledger.json` in its run folder: one entry per Claude invocation, with its own API-list cost, its tokens per model, how long the agent worked, when it ended, and the subscription-window samples Claude Code reported. `phax prune` keeps a copy of each pruned run's ledger under `~/.phax/cost-ledgers/`.
 
-Runs made before phax kept ledgers have none. `phax cost backfill` writes one for every kept run that still has its Claude streams, so run it first. The report counts the kept runs still without a ledger and suggests the backfill when there are any.
+Runs made before phax kept ledgers have none. `phax plans estimate` first writes one for every kept run that has none, from the Claude streams the run kept, exactly as `phax cost backfill` does, and says on stderr how many it wrote. A run locked by a live `phax run` is skipped and counted among the kept runs still without a ledger. `phax cost backfill` stays available to do the same by hand.
 
 The estimate is a regression fitted on this repository's own kept runs: each historical phase is sized by the bytes of the files it planned to edit, the bytes of its optional files and the number of files it planned to create, at its effort. Recent runs weigh more; a run's weight halves every 30 days. Every reachable ledger, from every repository and from pruned runs, still feeds the window capacity and the burn rate.
 
@@ -74,7 +73,7 @@ The forecast plays both the P50 and the P90 run forward from now, at your recent
 | `fits` | No pause, even at P90. | Start the run. |
 | `risky` | Fits at P50; at P90 a window may run out. | Start now and accept a possible pause, or start after the named reset. |
 | `wait` | A window runs out even at P50. | Start after the reset the P50 line names. |
-| `thin-history` | Fewer than 60 sized phases from this repository. | Run `phax cost backfill`; otherwise keep running plans until the history grows. |
+| `thin-history` | Fewer than 60 sized phases from this repository. | Keep running plans until the history grows. |
 | `no-subscription` | Claude Code uses an API key: no windows to fit. | Read the estimate; there is no window to wait for. |
 | `windows-unavailable` | The windows could not be read; the reason is given. | Retry, or use `--no-probe` to read the last sample. |
 | `uncalibrated` | A window's capacity or the burn rate had no recent samples. | Read the estimate; the verdict returns once recent runs have ledgers. |
