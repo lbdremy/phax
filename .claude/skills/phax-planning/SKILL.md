@@ -340,6 +340,22 @@ deliberately leaves these open ("what, not how"); do not resolve them silently.
   Bundle the questions in one pass; don't drip them one at a time. An arbitration
   is real when both options would pass the gates; a choice with only one viable
   option is not a question, just make it.
+- **Never accept a security loss silently.** When an option's loss weakens a security
+  boundary, the arbitration is always a question for the human, even when only one option
+  seems viable and even when you would recommend it. It never appears as a "loss accepted" in
+  `## Technical arbitrations`. A security loss is anything that lets an agent, or a process it
+  starts, do more than it could before:
+  - a command granted to a session;
+  - a wider write scope, sandbox or network path;
+  - a process that runs outside the sandbox;
+  - a file an agent can edit that decides what another command runs, such as a config key
+    naming a command;
+  - a credential or token within reach.
+
+  In the option's `abandons`, say what an agent could do with the loss, not only which
+  mechanism changes. For example: "the session can edit `phax.local.json` and then run any
+  command through the granted one", not "the granted command is not sandboxed". Headless, put
+  the question in `openQuestions`: approval then waits for the operator's decision.
 - **Frame every option by its dominant loss.** Do not weigh symmetric pros/cons
   lists — both columns fill endlessly and everything appears to weigh the same.
   Name, per option, the strongest thing you abandon by choosing it, and recommend

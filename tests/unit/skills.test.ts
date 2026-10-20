@@ -112,6 +112,13 @@ describe("phax-planning skill", () => {
     expect(section).toContain("preamble.technicalArbitrations");
   });
 
+  it("never lets a security loss be accepted silently", () => {
+    const section = sectionOf(content, "## Technical arbitrations");
+    expect(section).toContain("Never accept a security loss silently");
+    expect(section).toContain("always a question for the human");
+    expect(section).toContain("`openQuestions`");
+  });
+
   it("names no layer in the planning doctrine bullets", () => {
     const doctrine = sectionOf(content, "## Planning doctrine");
     const bullets = doctrine.slice(0, doctrine.indexOf("\n### "));
