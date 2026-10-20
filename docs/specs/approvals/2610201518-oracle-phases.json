@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610201518-oracle-phases.md",
+  "specFingerprint": "0f81e32b5dd1cce34791ca5bbd9c86fe4e25cce43bccb53c4d722466f25e19e6",
+  "approvedAt": "2026-10-20T15:34:54.850Z",
+  "baseline": "423cc1513e5a5a683428cd9dadbd1275502f4e62",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
