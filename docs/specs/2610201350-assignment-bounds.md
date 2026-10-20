@@ -31,6 +31,7 @@ Ground read:
 - `src/domain/routing/phaseModelPolicy.ts` — PHASE_MODEL_POLICY: default `claude-sonnet-5-5` at `medium`, stronger `claude-opus-5-5`, lighter `claude-haiku-5-5`. It is guidance rendered into the skill and never applied to a phase.
 - `src/app/lintPlan.ts` — Read-only, model-free lint over the deterministic parse of plan.md. The `models` check is `modelFindings` against the routing catalog only, like the run preflight. The plan auditor is the one provider lint already spawns. A failing auditor becomes a finding, never an effect error.
 - `src/domain/plan/lint.ts` — LintCheck is structure | files | commands | models | advisory. A `models` finding names the phase and the reason, and today it is always an error.
+- `src/app/runPreflight.ts` — The shared run preflight set. `phax run` runs it before it names the run, and executePlan runs it again as the resume re-check, so `phax resume` runs it too. Its `phase-models` check calls `preflightPhaseModels`, the function lint's `models` check calls, and refuses with `Model preflight failed: …` and exit 11. Its inputs are `phax-plan.json` and the plan.md the run reads (the run folder's copy on resume), whose phase sections `phase-sections` locates. `phax run --dry-run` returns before it.
 - `src/schemas/phaxConfig.ts` — Every top-level key is optional. `brief` and `planAuditor` are provider seats whose command is split on whitespace with no shell. The phax.json effort literal is low | medium | high. The user overlay schema (phax.local.json, ~/.phax/config.json) omits `records`.
 - `src/domain/config/mergeLayers.ts` — Merges project < global user < local user per key. `records` is project-only and never overlaid: the precedent for a project-layer-only key.
 - `src/schemas/persisted.ts` — A plan sidecar stamped below its current stamp is read by the frozen 0.20.0 decoder and lifted with empty preamble questions and `modelReason: null`. A pre-schema sidecar is lifted the same way. Readers refuse an older shape and name `phax artifact migrate-documents`.
@@ -49,7 +50,7 @@ The architecture provider knows the parts of the code but hands them over only a
 
 ## 3. Product goal
 
-The repository's owner writes in phax.json an ordered list of bounds. Each bound gives the model and effort range for one part of the code: a part the architecture report names, or a set of globs. The first bound that matches a phase's planned files governs the phase. The architecture report names the parts as data, beside its prose. The planner sees the bounds before it assigns. It gives each phase its governing bound's model at an effort inside the range, or says why on the phase in `assignmentReason`. `phax plans lint` holds every plan to the bounds: a departure with no reason is an error, and a stated departure is a warning that quotes the reason. phax applies the owner's choice and checks plans against it. It never decides, guesses, ranks or rewrites a model.
+The repository's owner writes in phax.json an ordered list of bounds. Each bound gives the model and effort range for one part of the code: a part the architecture report names, or a set of globs. The first bound that matches a phase's planned files governs the phase. The architecture report names the parts as data, beside its prose. The planner reads the bounds in `phax architecture` before it assigns. It gives each phase its governing bound's model at an effort inside the range, or says why on the phase in `assignmentReason`. `phax plans lint` holds every plan to the bounds: a departure with no reason is an error, and a stated departure is a warning that quotes the reason. The run's preflight runs the same check, so `phax run` and `phax resume` refuse to start on exactly the errors lint reports, before any phase runs. phax applies the owner's choice and checks plans against it. It never decides, guesses, ranks or rewrites a model.
 
 > The repository's owner decides which code gets which model; phax applies that decision, checks plans against it, and never decides, ranks or rewrites a model.
 
@@ -107,7 +108,7 @@ The system shall hold a phase conforming to its governing bound when the phase's
 
 ### 5.10 An unstated departure is an error
 
-IF a phase departs from its governing bound and carries no `**Assignment reason:**` line THEN `phax plans lint` SHALL report a `models` error for the phase naming the bound.
+IF a phase departs from its governing bound and carries no `**Assignment reason:**` line THEN `phax plans lint` SHALL report a `models` error for the phase naming the bound, and the run preflight SHALL refuse with the same error.
 
 ### 5.11 A stated departure is a warning
 
@@ -117,21 +118,21 @@ WHEN a phase departs from its governing bound and carries an `**Assignment reaso
 
 IF a phase conforms to its governing bound and carries an `**Assignment reason:**` line THEN `phax plans lint` SHALL report a `models` warning for the phase naming the bound.
 
-### 5.13 Lint asks the provider for the parts
+### 5.13 Lint and the run preflight ask the provider for the parts
 
-WHEN `phax plans lint` runs on a plan that parses and at least one bound is a part bound THE system SHALL run the architecture provider once, with an architecture request whose `files` is null, and resolve each part bound to the globs of the part its report gives that `id`.
+WHEN `phax plans lint` runs on a plan that parses, or the run preflight runs, and at least one bound is a part bound THE system SHALL run the architecture provider once, with an architecture request whose `files` is null, and resolve each part bound to the globs of the part its report gives that `id`.
 
 ### 5.14 An unresolved part bound is an error
 
-IF a part bound cannot be resolved, because no architecture provider is configured, the provider fails or prints an unreadable report, or its report carries no part with the bound's `part` id, THEN `phax plans lint` SHALL report one `models` error for each such bound, naming the bound and the cause, and compare no phase with the bounds or with the policy default.
+IF a part bound cannot be resolved, because no architecture provider is configured, the provider fails or prints an unreadable report, or its report carries no part with the bound's `part` id, THEN `phax plans lint` SHALL report one `models` error for each such bound, naming the bound and the cause, the run preflight SHALL refuse with the same errors, and neither SHALL compare any phase with the bounds or with the policy default.
 
-### 5.15 An invalid bound is an error in lint
+### 5.15 An invalid bound is an error in lint and in the run preflight
 
-IF a bound names a model the routing catalog does not list, an effort that model does not offer, or a `min` after its `max` THEN `phax plans lint` SHALL report one `models` error naming the bound and the field, and compare no phase with the bounds or with the policy default.
+IF a bound names a model the routing catalog does not list, an effort that model does not offer, or a `min` after its `max` THEN `phax plans lint` SHALL report one `models` error naming the bound and the field, the run preflight SHALL refuse with the same error, and neither SHALL compare any phase with the bounds or with the policy default.
 
 ### 5.16 Globs bounds need no provider
 
-WHILE every declared bound is a globs bound THE system SHALL check plans against the bounds in `phax plans lint` without running the architecture provider, whether or not one is configured.
+WHILE every declared bound is a globs bound THE system SHALL check plans against the bounds in `phax plans lint` and in the run preflight without running the architecture provider, whether or not one is configured.
 
 ### 5.17 An unstated departure from the policy default warns
 
@@ -141,67 +142,87 @@ IF no bound governs a phase, the phase departs from the policy default, and it c
 
 IF no bound governs a phase, the phase takes the policy default, and it carries an `**Assignment reason:**` line THEN `phax plans lint` SHALL report a `models` warning for the phase naming the policy default.
 
-### 5.19 The model-reason line is removed
+### 5.19 The model-reason line is refused
 
-IF a phase in plan.md carries a `**Model reason:**` line THEN `phax plans lint` SHALL report a `models` error for the phase that names `**Assignment reason:**` as the line to write.
+IF a phase in plan.md carries a `**Model reason:**` line THEN `phax plans lint` SHALL report a `models` error for the phase that names `**Assignment reason:**` as the line to write, and the run preflight SHALL refuse with the same error.
 
-### 5.20 The plan document carries assignmentReason
+### 5.20 One bounds check
+
+The system shall compute the bounds findings (the resolution of part bounds, the catalog check of every bound, and each phase's governing bound and conformity) in one domain check that `phax plans lint` and the run preflight both call, as lint's `models` check and the run's `phase-models` preflight both call `preflightPhaseModels`.
+
+### 5.21 A run refuses to start on a bounds error
+
+WHEN `phax run` or `phax resume` runs its preflight and the bounds check reports an error THE system SHALL refuse before any phase starts (for `phax run`, before the run is named), print every error of the check, each naming its phase (or none) and its bound as `assignments[N]`, and exit 11, as the `phase-models` preflight refuses.
+
+### 5.22 Warnings never refuse a run
+
+WHILE the bounds check reports no error THE system SHALL let the run preflight pass, whatever warnings the check reports, and WHILE `phax.json` declares no bounds the run preflight SHALL run no architecture provider.
+
+### 5.23 The run preflight reads the reason from plan.md
+
+The run preflight shall read each phase's planned files from `phax-plan.json` and its reason from the `**Assignment reason:**` line in the plan.md the run reads (the run folder's copy on resume), so `phax-plan.json` carries no reason.
+
+### 5.24 The plan document carries assignmentReason
 
 The plan document shall require on every phase an `assignmentReason` key, a non-empty string or null, shall carry no `modelReason` key, and shall keep `assignmentReason`, `model` and `effort` as the phase's last three keys, in that order.
 
-### 5.21 The reason is rendered
+### 5.25 The reason is rendered
 
 The system shall render a non-null `assignmentReason` as an `**Assignment reason:**` line directly under the phase's `**Recommended model:**` and `**Recommended effort:**` lines, and shall render no line for a null one.
 
-### 5.22 The reason is not extracted
+### 5.26 The reason is not extracted
 
 The system shall extract neither `assignmentReason` nor the `**Assignment reason:**` line into `phax-plan.json`, and shall project a plan with or without the line to the same extracted plan.
 
-### 5.23 0.25.0 sidecars are lifted
+### 5.27 0.25.0 sidecars are lifted
 
 WHEN `phax artifact migrate-documents` meets a live plan sidecar stamped at the 0.25.0 plan-document shape THE system SHALL rewrite it at the current shape, carrying each phase's `modelReason` value over as its `assignmentReason`, re-render each `**Model reason:**` line of its plan.md as `**Assignment reason:**`, and commit both files.
 
-### 5.24 Older sidecars lift straight to the current shape
+### 5.28 Older sidecars lift straight to the current shape
 
 WHEN `phax artifact migrate-documents` meets a live plan sidecar stamped below 0.25.0 or written before `$schema` THE system SHALL lift it to the current shape with `assignmentReason: null` on every phase.
 
-### 5.25 Readers refuse an unlifted sidecar
+### 5.29 Readers refuse an unlifted sidecar
 
 IF a reader other than `phax artifact migrate-documents` meets a plan sidecar below the current plan-document shape THEN it SHALL refuse the sidecar, naming `phax artifact migrate-documents`.
 
-### 5.26 The headless planner is given the bounds
+### 5.30 The headless planner is sent to `phax architecture`
 
-WHERE `phax.json` declares bounds THE system SHALL state in the headless plan authoring prompt every bound in list order, with its part id or its globs, its model and its range, together with the first-match and conformity rules.
+WHERE an architecture provider is configured or `phax.json` declares bounds THE system SHALL state in the headless plan authoring prompt that the planner runs `phax architecture` before cutting phases and assigning models, and that the command prints the bounds when bounds are declared, after the parts or after its no-provider line. The prompt shall list no bound itself.
 
-### 5.27 The headless planner is told none exist
+### 5.31 Neither a provider nor bounds: the prompt is unchanged
 
-WHERE `phax.json` declares no bounds THE system SHALL state in the headless plan authoring prompt that no bound is declared and that the policy default guides each phase's assignment.
+WHERE no architecture provider is configured and `phax.json` declares no bounds THE system SHALL state in the headless plan authoring prompt, as planning-skill-defaults §5.29 does, that no provider is configured and that the planner reads the architecture from the code and its documentation instead.
 
-### 5.28 phax architecture shows the bounds beside the map
+### 5.32 The session is granted `phax architecture` with bounds too
 
-WHEN `phax architecture` prints a report and `phax.json` declares bounds THE system SHALL print every bound in list order after the parts, showing each part bound with its part's name and globs when the report carries that part.
+WHERE an architecture provider is configured or `phax.json` declares bounds THE system SHALL allow the headless plan authoring session to run `phax architecture`. This revises planning-skill-defaults §5.30, which allowed it only with a provider. With neither, the session is not granted the command, as before.
 
-### 5.29 Bounds are shown without a provider
+### 5.33 phax architecture shows the bounds beside the map
 
-IF no architecture provider is configured and `phax.json` declares bounds THEN `phax architecture` SHALL print its no-provider line, then every bound in list order with each part bound marked unresolved, and exit 1.
+WHEN `phax architecture` prints a report and `phax.json` declares bounds THE system SHALL print every bound in list order after the parts, showing each part bound with its part's name and globs when the report carries that part. No other output of phax lists the bounds.
 
-### 5.30 The skill teaches the conformity rule
+### 5.34 Bounds are shown without a provider
+
+IF no architecture provider is configured and `phax.json` declares bounds THEN `phax architecture` SHALL print its no-provider line, then every bound in list order with each part bound marked unresolved, and exit 1. This revises planning-skill-defaults §5.24, the single no-provider line, for that case only.
+
+### 5.35 The skill teaches the conformity rule
 
 The phax-planning skill shall teach the governing bound, the conformity rule, the policy default as what stands in when no bound governs, and that `assignmentReason` (or the `**Assignment reason:**` line) is null exactly when the phase conforms, and shall no longer name `modelReason` or `**Model reason:**`.
 
-### 5.31 The skill says where the bounds are read
+### 5.36 The skill says where the bounds are read
 
-The phax-planning skill shall tell the planner to read the bounds from `phax architecture` before assigning, including when the command exits 1 with its no-provider line.
+The phax-planning skill shall tell the planner, headless or interactive, to read the bounds from `phax architecture` before assigning, including when the command exits 1 with its no-provider line, and shall name no other place where the bounds are listed.
 
-### 5.32 Only lint checks the bounds
+### 5.37 Lint and the run preflight check the bounds
 
-The system shall check plans against the bounds only in `phax plans lint`, and shall author, approve, extract and run a plan whatever its conformity, the bounds, or the state of the architecture provider.
+The system shall check plans against the bounds only in `phax plans lint` and in the run preflight, shall author, approve and extract a plan whatever its conformity, the bounds, or the state of the architecture provider, and shall never stop a phase that has started on account of the bounds.
 
-### 5.33 phax never rewrites a model
+### 5.38 phax never rewrites a model
 
 The system shall never write, replace or adjust a model or effort that a plan states, nor a bound's model or effort, in lint, validation, rendering, migration, extraction or a run.
 
-### 5.34 The upgrade guide names the step
+### 5.39 The upgrade guide names the step
 
 The upgrading guide shall carry, under the release that ships the change, a step naming `phax artifact migrate-documents` for plan sidecars, and the renaming of a hand-written plan's `**Model reason:**` lines to `**Assignment reason:**`.
 
@@ -298,7 +319,7 @@ after:
     ✗ architecture provider: not an architecture report (https://docs.phax.run/schemas/architecture-report/0.26.0.json): parts is missing
     $? = 1
 
-    Normative: the report rendered to Markdown, body first and then the parts; the bounds after the parts, in list order, each named `assignments[N]`, only when bounds are declared; without a provider and with no bounds, the single no-provider line, exit 1, as today; with bounds, that line followed by the bounds, exit 1. Indicative: headings, layout and wording; how a part bound whose part a path-scoped report does not carry is shown.
+    Normative: the report rendered to Markdown, body first and then the parts; the bounds after the parts, in list order, each named `assignments[N]`, only when bounds are declared; without a provider and with no bounds, the single no-provider line, exit 1, as today; with bounds, that line followed by the bounds, exit 1; no other phax output lists the bounds. Indicative: headings, layout and wording; how a part bound whose part a path-scoped report does not carry is shown.
 
 ### cli: phax validate — indicative
 
@@ -397,6 +418,37 @@ after:
 
     Normative in the criteria: each finding's severity, the `models` check, the phase (or none), the bound as `assignments[N]`, and the quoted reason on a stated departure. Indicative: the wording and the layout.
 
+### cli: phax run / phax resume — assignment preflight — indicative
+
+before:
+
+    $ phax run --plan docs/plans/2611020930-refunds-plan.md
+    phax run failed: Model preflight failed: 1 phase(s) have invalid model configuration.
+
+      phase-02 (claude-sonnet-9/high):
+        - model id "claude-sonnet-9" not found in catalog
+    $? = 11
+
+after:
+
+    $ phax run --plan docs/plans/2611020930-refunds-plan.md
+    phax run failed: Assignment preflight failed: 1 error from the assignment bounds.
+
+      phase-02 (claude-sonnet-5-5/medium):
+        - outside assignments[0] (part core-decide: claude-opus-5-5, medium–high) with no **Assignment reason:** line
+    Check the plan with `phax plans lint docs/plans/2611020930-refunds-plan.md`.
+    $? = 11
+
+    $ phax run --plan docs/plans/2611020930-refunds-plan.md     # provider exits 3
+    phax run failed: Assignment preflight failed: 2 errors from the assignment bounds.
+
+      assignments[0] (part core-decide): unresolved: architecture provider exited 3; no phase was compared with the bounds
+      assignments[2] (part docs): unresolved: architecture provider exited 3; no phase was compared with the bounds
+    Check the plan with `phax plans lint docs/plans/2611020930-refunds-plan.md`.
+    $? = 11
+
+    Normative in the criteria: exit 11, the refusal before the run is named (`phax run`) or before any phase resumes (`phax resume`), and exactly the errors `phax plans lint` reports for the same plan, config and catalog, each naming its phase (or none) and its bound as `assignments[N]`; warnings are neither printed nor refusing. Indicative: the wording, the layout and the lint hint.
+
 ### file: ~/.phax/authoring/<id>/prompt.md (headless plan authoring) — indicative
 
 before:
@@ -414,17 +466,16 @@ after:
 
     You are authoring the plan `refunds` in a headless session spawned by `phax artifact new plan --headless`.
 
-    - An architecture provider is configured: before cutting phases, run `phax architecture` …
-    - Assignment bounds (phax.json `assignments`). The first bound that matches any file a phase plans to create, edit or optionally edit governs it; with none, the policy default (claude-sonnet-5-5 at medium) stands in. A phase conforms when it uses that model at an effort inside the range: set `assignmentReason` to null then, and to why otherwise. A part's globs come from `phax architecture`.
-      - assignments[0] part core-decide: claude-opus-5-5, medium–high
-      - assignments[1] globs src/*/schemas/**: claude-sonnet-5-5, medium–high
-      - assignments[2] part docs: claude-haiku-5-5, low–medium
+    - Assignment bounds are declared (phax.json `assignments`), and no architecture provider is configured: before cutting phases and assigning models, run `phax architecture`. It exits 1 with its no-provider line, then lists the bounds; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).
     - Return ONLY a JSON object …
 
-    With no bounds declared, the bounds bullet reads instead:
-    - No assignment bounds are declared: the policy default guides each phase's assignment.
+    With a provider configured, bounds declared or not, the first bullet reads as today, and the command prints the bounds after the parts when they are declared:
+    - An architecture provider is configured: before cutting phases, run `phax architecture` …
 
-    Normative: one of the two statements in every plan authoring prompt, matching phax.json; the bounds are stated as declared, with no provider run before the session. Indicative: wording and position. Spec authoring prompts are unchanged.
+    With neither, the first bullet reads as today:
+    - No architecture provider is configured: do not run `phax architecture`; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).
+
+    Normative: the prompt sends the planner to `phax architecture` whenever a provider is configured or bounds are declared, and the session is then granted `phax architecture`; with neither, the prompt and the grant are planning-skill-defaults'; the prompt lists no bound, and no provider runs before the session. Indicative: wording and position. Spec authoring prompts are unchanged.
 
 ### file: .claude/skills/phax-planning/SKILL.md — Choosing a model and effort — indicative
 
@@ -474,7 +525,7 @@ after:
 - Escalating a phase's model after a failed gate.
 - Changing the planner's own model, `authoring.plan` or its default.
 - Changing the architecture request's shape.
-- Enforcing bounds in `phax run`, its preflight, extraction, plan approval or authoring: lint is the only check.
+- Enforcing bounds while a run runs, or in extraction, plan approval or authoring: `phax plans lint` and the run's start preflight are the only checks, and nothing stops a phase that has started.
 - Bounds per workstation: `phax.local.json` and `~/.phax/config.json` refuse `assignments`.
 - A name or id on a bound: lint and `phax architecture` name a bound by its position.
 - Detecting shadowed or redundant bounds, or reordering bounds for the owner.
@@ -556,55 +607,83 @@ Given no `assignments` in phax.json, then the §6 bounds and report with a phase
 
 Given a hand-written plan whose phase-02 carries `**Model reason:** Renames the decider's inputs only.` and no `**Assignment reason:**` line, when `phax plans lint` runs, then it reports a `models` error for phase-02 naming `**Assignment reason:**`, and exits 1. (refs §5.19)
 
+### A run refuses to start on the error lint reports
+
+Given the §6 bounds, a fake provider printing the §6 report, and an Approved plan whose phase-02 creates `src/core/decide/refund.ts` at `claude-sonnet-5-5` / `medium` with no `**Assignment reason:**` line, when `phax plans lint` runs, then `phax run --plan <plan>`, then lint reports a `models` error for phase-02 naming `assignments[0]` and exits 1; `phax run` prints the same error, exits 11, and leaves no run folder, registry entry or branch. (refs §5.10, §5.20, §5.21, §5.13)
+
+### An unresolved or invalid bound refuses the run
+
+Given the §6 bounds and an Approved plan whose phases all conform, with no `architecture` key in any layer, then with the provider restored and `assignments[0]` naming `claude-opus-9`, when `phax run --plan <plan>` runs against each, then the first refuses naming `assignments[0]` and `assignments[2]` unresolved, the second naming `assignments[0]` and `model`; neither compares a phase with the bounds; each exits 11 before the run is named. (refs §5.14, §5.15, §5.21)
+
+### Warnings and a repository without bounds let the run start
+
+Given the §6 bounds and report and an Approved plan whose phase-02 departs from `assignments[0]` with an `**Assignment reason:**` line and whose phase-03, governed by no bound, departs from the policy default with no reason line; then the same plan with no `assignments` and no `architecture` key, when `phax run --plan <plan>` runs against each, then both pass the preflight and start phase-01; the second run never ran an architecture provider. (refs §5.22, §5.11, §5.17)
+
+### A resume refuses on a bounds error
+
+Given a run of the §6 example stopped after phase-01, whose phase-02 creates `src/core/decide/refund.ts` at `claude-sonnet-5-5` / `medium` with no reason line, and phax.json gaining the §6 bounds after the stop, when `phax resume` runs, then it prints the error naming phase-02 and `assignments[0]`, read from the run folder's plan.md, exits 11, and phase-02 does not start. (refs §5.21, §5.23)
+
+### The run reads the reason from plan.md
+
+Given the §6 bounds and report and two Approved copies of a plan whose phase-02 creates `src/core/decide/refund.ts` at `claude-sonnet-5-5` / `medium`, identical except that one carries an `**Assignment reason:**` line under phase-02's model lines, when `phax run --plan <plan>` runs against each, then both extract to the same `phax-plan.json`, which carries no reason; the copy without the line is refused with exit 11 naming phase-02 and `assignments[0]`, and the copy with it starts phase-01. (refs §5.23, §5.26, §5.21, §5.22)
+
 ### The plan document carries assignmentReason last
 
-Given the plan document JSON Schema, when `phax artifact schema plan` prints it, then in the phase object, `assignmentReason`, `model` and `effort` are the last three entries of both `properties` and `required`, in that order, `assignmentReason` admits a non-empty string or null, and no `modelReason` appears. (refs §5.20)
+Given the plan document JSON Schema, when `phax artifact schema plan` prints it, then in the phase object, `assignmentReason`, `model` and `effort` are the last three entries of both `properties` and `required`, in that order, `assignmentReason` admits a non-empty string or null, and no `modelReason` appears. (refs §5.24)
 
 ### The reason is rendered and not extracted
 
-Given a headless plan document whose phase-02 has `assignmentReason` set and whose phase-03 has `assignmentReason: null`, when phax renders the plan, then `phax run` extracts it on the deterministic path, then phase-02 shows `**Assignment reason:**` with the reason directly under its model and effort lines, phase-03 shows no reason line, and `phax-plan.json` carries both phases' models and efforts and no reason; a copy of the plan with the line removed extracts to the same `phax-plan.json`. (refs §5.21, §5.22)
+Given a headless plan document whose phase-02 has `assignmentReason` set and whose phase-03 has `assignmentReason: null`, when phax renders the plan, then `phax run` extracts it on the deterministic path, then phase-02 shows `**Assignment reason:**` with the reason directly under its model and effort lines, phase-03 shows no reason line, and `phax-plan.json` carries both phases' models and efforts and no reason; a copy of the plan with the line removed extracts to the same `phax-plan.json`. (refs §5.25, §5.26)
 
 ### A 0.25.0 sidecar is lifted with its reasons
 
-Given a live Draft plan whose sidecar is stamped at the 0.25.0 plan-document shape, with phase-02 carrying `modelReason: "Designs the refund state machine."`, and whose plan.md shows the matching `**Model reason:**` line, when `phax plans lint` reads its sidecar through `phax artifact status`, then `phax artifact migrate-documents` runs, then `phax artifact status` runs, then the first read refuses, naming `phax artifact migrate-documents`; the migration commits the sidecar with phase-02 `assignmentReason: "Designs the refund state machine."` and no `modelReason`, together with plan.md showing `**Assignment reason:** Designs the refund state machine.`; and the final status reports the sidecar in sync. (refs §5.23, §5.25)
+Given a live Draft plan whose sidecar is stamped at the 0.25.0 plan-document shape, with phase-02 carrying `modelReason: "Designs the refund state machine."`, and whose plan.md shows the matching `**Model reason:**` line, when `phax plans lint` reads its sidecar through `phax artifact status`, then `phax artifact migrate-documents` runs, then `phax artifact status` runs, then the first read refuses, naming `phax artifact migrate-documents`; the migration commits the sidecar with phase-02 `assignmentReason: "Designs the refund state machine."` and no `modelReason`, together with plan.md showing `**Assignment reason:** Designs the refund state machine.`; and the final status reports the sidecar in sync. (refs §5.27, §5.29)
 
 ### An older sidecar lifts to a null reason
 
-Given a live plan sidecar stamped at the 0.20.0 shape, when `phax artifact migrate-documents` runs, then the rewritten sidecar is at the current shape with `assignmentReason: null` on every phase, and its models and efforts are unchanged. (refs §5.24)
+Given a live plan sidecar stamped at the 0.20.0 shape, when `phax artifact migrate-documents` runs, then the rewritten sidecar is at the current shape with `assignmentReason: null` on every phase, and its models and efforts are unchanged. (refs §5.28)
 
-### The prompt carries the bounds
+### The prompt sends the planner to `phax architecture`
 
-Given the §6 `assignments` in phax.json, then no `assignments`, when `phax artifact new plan refunds --headless --brief brief.md` writes the session's `prompt.md`, then the first prompt lists `assignments[0]` part core-decide `claude-opus-5-5` medium–high, `assignments[1]` globs `src/*/schemas/**` `claude-sonnet-5-5` medium–high and `assignments[2]` part docs `claude-haiku-5-5` low–medium in that order, with the first-match and conformity rules; the second states that no bound is declared and that the policy default guides; and in neither case did phax run the architecture provider before the session. (refs §5.26, §5.27)
+Given the §6 `assignments` in phax.json and no `architecture` key in any layer, then a configured provider and no `assignments`, then neither, when `phax artifact new plan refunds --headless --brief brief.md` writes the session's `prompt.md`, then the first two prompts tell the planner to run `phax architecture` before cutting phases and assigning, list no bound, and the session's command grant includes `phax architecture`; the third states that no provider is configured and to read the code and its documentation, and the session is not granted `phax architecture`; and in no case did phax run the architecture provider before the session. (refs §5.30, §5.31, §5.32)
 
 ### phax architecture shows the bounds after the parts
 
-Given the §6 `assignments` and a configured fake provider printing the §6 report, when `phax architecture` runs, then after the parts, stdout lists `assignments[0]`, `assignments[1]` and `assignments[2]` in that order, the part bounds showing `core · decide` with `src/core/decide/**` and `docs` with `docs/**` and `*.md`, and the exit is 0. (refs §5.28)
+Given the §6 `assignments` and a configured fake provider printing the §6 report, when `phax architecture` runs, then after the parts, stdout lists `assignments[0]`, `assignments[1]` and `assignments[2]` in that order, the part bounds showing `core · decide` with `src/core/decide/**` and `docs` with `docs/**` and `*.md`, and the exit is 0. (refs §5.33)
 
 ### Without a provider the bounds still show
 
-Given the §6 `assignments` and no `architecture` key in any layer, then no `assignments` either, when `phax architecture` runs, then the first prints the no-provider line, then the three bounds with `assignments[0]` and `assignments[2]` marked unresolved, and exits 1; the second prints exactly the one no-provider line and exits 1. (refs §5.29)
+Given the §6 `assignments` and no `architecture` key in any layer, then no `assignments` either, when `phax architecture` runs, then the first prints the no-provider line, then the three bounds with `assignments[0]` and `assignments[2]` marked unresolved, and exits 1; the second prints exactly the one no-provider line and exits 1. (refs §5.34)
 
 ### The skill teaches the bounds
 
-Given the shipped phax-planning skill, when its "Choosing a model and effort" and Headless authoring sections are read, then they state the first-match governing bound, the conformity rule, the policy default as the fallback, `assignmentReason` null exactly on a conforming phase, and reading the bounds through `phax architecture` even when it exits 1 with the no-provider line; and the skill contains neither `modelReason` nor `**Model reason:**`. (refs §5.30, §5.31)
+Given the shipped phax-planning skill, when its "Choosing a model and effort" and Headless authoring sections are read, then they state the first-match governing bound, the conformity rule, the policy default as the fallback, `assignmentReason` null exactly on a conforming phase, and reading the bounds through `phax architecture` even when it exits 1 with the no-provider line; and the skill contains neither `modelReason` nor `**Model reason:**`. (refs §5.35, §5.36)
 
-### Nothing but lint reads the bounds, and no model is rewritten
+### Authoring, approval and extraction ignore the bounds, and no model is rewritten
 
-Given the §6 `assignments`, an architecture provider that exits 3, and an Approved plan whose phase-02 creates `src/core/decide/refund.ts` at `claude-sonnet-5-5` / `low` with no reason line, when `phax artifact new plan refunds --headless --brief brief.md` runs, `phax run --plan <plan> --dry-run` extracts the Approved plan, and `phax plans lint` and `phax validate` run, then authoring spawns its session and the extraction completes, neither reporting the bounds; plan.md still states `claude-sonnet-5-5` / `low`; `phax-plan.json` carries `claude-sonnet-5-5` / `low` for phase-02; and phax.json's bounds are byte-identical. (refs §5.32, §5.33)
+Given the §6 `assignments`, an architecture provider that exits 3, and an Approved plan whose phase-02 creates `src/core/decide/refund.ts` at `claude-sonnet-5-5` / `low` with no reason line, when `phax artifact new plan refunds --headless --brief brief.md` runs, `phax run --plan <plan> --dry-run` extracts the Approved plan, and `phax plans lint` and `phax validate` run, then authoring spawns its session and the extraction completes, neither reporting the bounds; plan.md still states `claude-sonnet-5-5` / `low`; `phax-plan.json` carries `claude-sonnet-5-5` / `low` for phase-02; and phax.json's bounds are byte-identical. (refs §5.37, §5.38)
 
 ### The upgrade guide names the step
 
-Given docs/upgrading.md in the release that ships the plan-document change, when its entry for that release is read, then it names `phax artifact migrate-documents` for plan sidecars and the rename of `**Model reason:**` lines to `**Assignment reason:**` in hand-written plans. (refs §5.34)
+Given docs/upgrading.md in the release that ships the plan-document change, when its entry for that release is read, then it names `phax artifact migrate-documents` for plan sidecars and the rename of `**Model reason:**` lines to `**Assignment reason:**` in hand-written plans. (refs §5.39)
 
 ## 9. Open questions
+
+None.
+
+## 9b. Arbitrated questions
 
 ### q-learn — How does the planner learn the bounds, and what does `phax architecture` show when no provider is configured but bounds are declared?
 
 - architecture — Only `phax architecture` shows them: each part with its bound, then the globs bounds; with no provider, the no-provider line followed by the bounds — abandons: The headless planner without a provider: its prompt tells it not to run `phax architecture` (planning-skill-defaults §5.29), so it never sees the globs bounds that apply to it.
 - prompt — Only the headless prompt carries the bounds as declared; the skill points an interactive planner at `assignments` in phax.json — abandons: One place where the map and the bounds read together: an interactive planner joins part ids in phax.json to globs in `phax architecture` by hand.
 - both — The prompt carries the bounds as declared, and `phax architecture` prints them after the parts, also after its no-provider line — abandons: A single rendering and the one-line no-provider answer: two outputs show the bounds, and `phax architecture` with no provider prints more than its line when bounds are declared, revising planning-skill-defaults §5.24 for that case.
+- architecture-widened — Only `phax architecture` shows the bounds, after the parts. The headless plan prompt tells the planner to run it whenever an architecture provider or bounds are configured, and the session is granted `phax architecture` in both cases. With bounds but no provider, the command prints its no-provider line, then the bounds, and still exits 1 — abandons: The single no-provider line when bounds are declared: the command prints more than its line in that case.
 
 Recommendation: both — Each planner gets the bounds where it already looks. The headless planner reads them in its prompt, as declared, so no provider runs before the session (Q3 of planning-skill-defaults stays pull) and globs bounds reach it with no provider at all. An interactive planner runs `phax architecture` before cutting phases, as the skill already says, and sees each part's globs next to its bound. The no-provider line stays first and the exit stays 1, so an agent still reads it as "carry on". The extra lines appear only in a repository that declared bounds, which is exactly where they are needed.
+
+Decision: architecture-widened — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, off the previous menu (against the recommendation, both). The prompt could carry only a part bound's id, not its globs, which only the provider knows, so the planner must run `phax architecture` anyway. One place shows the bounds, and the planner still pulls (planning-skill-defaults Q3). The headless prompt sends the planner to `phax architecture` whenever a provider or bounds are configured, and the session is granted the command in both cases, revising planning-skill-defaults §5.30 (here §5.32). With bounds but no provider, the command prints its no-provider line, then the bounds, and exits 1, revising planning-skill-defaults §5.24 for that case. With neither, the prompt and the grant are as before. Advocate: The headless planner sees the bounds without running a command, and no second command reaches its read-only session. Principles: none. Reversibility: cheap. Revised: §3, §5.30, §5.31, §5.32, §5.33, §5.34, §5.36, §6, §8, §10.
 
 ### q-part — How does `phax plans lint` resolve a part bound, whose globs only the architecture provider knows, and what does it report when the provider is missing, fails, or no longer emits the part?
 
@@ -614,6 +693,9 @@ Recommendation: both — Each planner gets the bounds where it already looks. Th
 
 Recommendation: spawn-error — Lint is the only place bounds are enforced, and failing it stops nothing else: authoring, approval and runs never read the bounds, so autonomy holds. Lint already runs a provider (the plan auditor), and a provider is not a model, so lint stays model-free. Bound order decides which bound governs, so one unresolved bound changes the verdict of every bound below it. That is why lint compares nothing rather than guessing. A teammate without the provider has a local fix: configure it, or ask the owner for a globs bound.
 
+Decision: spawn-error — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: lint runs the architecture provider once when a part bound exists, and an unresolved part bound is a `models` error under which no phase is compared. Under q-validate the run preflight runs the same check, so an unresolved part bound also refuses `phax run` at its start; a teammate without the provider has the same local fix. Advocate: A teammate without the provider, or a provider that is down, still gets a usable verdict: a warning names the unresolved bound and lint passes, so the rest of the plan's findings are not held hostage to one tool. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-default — When no bound governs a phase, is a departure from the policy default without a reason enforced?
 
 - error — A `models` error, as for a bound — abandons: The owner as the only source of binding choices: phax's own constant fails plans in repositories that declared nothing, and live plans written at the old Opus default fail lint until every phase gains a reason.
@@ -622,6 +704,9 @@ Recommendation: spawn-error — Lint is the only place bounds are enforced, and 
 
 Recommendation: warning — The policy default is phax's guidance, not the owner's choice, so under the guiding rule it may inform but not fail a plan. A warning still makes an unstated departure visible in every repository. An owner who wants the default binding writes a last catch-all globs bound (`["**"]` at `claude-sonnet-5-5`, medium–medium). That turns the warning into an error, and the choice is the owner's.
 
+Decision: warning — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: an unstated departure from the policy default is a `models` warning. phax's own default may inform but not fail a plan; an owner who wants it binding writes a catch-all globs bound. A warning never refuses a run, so a repository with no bounds runs as before. Advocate: A departure with no reason is the same defect wherever it appears: an error would make every repository say why an Opus phase is Opus. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-render — Does the plan show a phase's governing bound?
 
 - rendered-line — phax renders a `**Governing bound:**` line beside the model lines in a headless plan — abandons: A plan body that stays true: the line is computed at render time from phax.json and the provider's parts, so it goes stale when either changes. It needs the provider at authoring time, a push planning-skill-defaults Q3 rejected, and hand-written plans lack it.
@@ -629,28 +714,33 @@ Recommendation: warning — The policy default is phax's guidance, not the owner
 
 Recommendation: lint-only — Lint computes the governing bound from the current phax.json and parts every time it runs, so its answer cannot be stale. The reason on the phase is the planner's judgment, and it stays meaningful when a bound moves. A rendered line would need its own staleness check (the abandoned spec's §5.18) and a provider run at authoring time.
 
+Decision: lint-only — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: only lint names the governing bound, in each finding, so the plan body never goes stale. The warning on a stated departure quotes the reason the phase gives in `assignmentReason`, read from its `**Assignment reason:**` line, as §5.11 says. Advocate: A reviewer reading the plan sees what each departure departs from, without running lint. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-validate — Where is a bound's `model` (and its efforts) checked against the routing catalog?
 
 - decode — When phax.json is decoded, on every command (exit 2) — abandons: A phax.json that is valid on every workstation: the catalog is read from ~/.phax/model-routing.json, so a bound naming a model one workstation's catalog lacks makes every phax command exit 2 there, `phax run` included.
 - validate-and-lint — `phax validate` refuses it (exit 2), and `phax plans lint` reports it as a `models` error; other commands decode only the bound's shape — abandons: A check on every command: `phax run`, `phax architecture` and authoring load a bound naming `claude-opus-9` without a word, until validate or lint runs.
 - lint — Only `phax plans lint` checks it — abandons: Catching a typo before any plan is linted: `phax validate` passes a phax.json whose bound names a model no catalog lists.
+- validate-lint-preflight — `phax validate` refuses a bound whose model or effort the catalog lacks (exit 2); `phax plans lint` and the `phax run` start preflight run the same bounds check, so the run refuses to start on exactly the errors lint reports; other commands decode only the bound's shape — abandons: A run that starts whatever the bounds say: a phase departing from its bound without a reason, a bound naming a model this workstation's catalog lacks, or an unresolved part bound (provider missing or failing) now refuses `phax run` before any phase starts.
 
 Recommendation: validate-and-lint — Only lint consumes the bounds, so only lint and the command that exists to check config need the catalog. That keeps the catalog's per-workstation contents from breaking runs, which must stay autonomous. The bound's shape (variant, keys, effort vocabulary) is still refused at decode on every command, so a malformed bound never loads silently.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: validate-lint-preflight — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, off the previous menu (against the recommendation, validate-and-lint). An error lint reports must be the same error at the run's preflight, as the phase models check already is: lint's `models` check and the run's `phase-models` preflight share `preflightPhaseModels`. One domain check computes the bounds findings for both (§5.20), and `phax run` and `phax resume` refuse on its errors with exit 11 before any phase starts (§5.21). A refusal at start stops no running phase, so runs stay autonomous. The preflight reads each phase's reason from the plan.md the run reads, so `phax-plan.json` is unchanged. `phax validate` still refuses a bound the catalog lacks, and other commands decode only the bound's shape. Advocate: Runs never read the bounds, so a workstation whose catalog or provider differs can still run a plan. Principles: none. Reversibility: cheap. Revised: §1, §3, §5.10, §5.13, §5.14, §5.15, §5.16, §5.19, §5.20, §5.21, §5.22, §5.23, §5.37, §6, §7, §8, §10, §11.
 
 ## 10. Implementation-planning note
 
 Settled:
 
 - Decided by the operator on 2026-10-20, not to reopen: (1) the architecture report is `{ $schema, body, parts: [{ id, name, description, globs }] }`, and phax renders it to Markdown on the stdout of `phax architecture`, while the request is unchanged; (2) bounds live in phax.json only, in an ordered `assignments` list of two explicit variants, `part` and `globs`, with no planning file, no sync, no second provider, and no provider that proposes bounds; (3) one conformity rule with no model ranking: the first bound in list order that matches any planned file governs; (4) `modelReason` is renamed `assignmentReason`, rendered `**Assignment reason:**`, still among the phase's last three keys, with the 0.25.0 shape frozen and sidecars lifted by `phax artifact migrate-documents`; (5) in lint's `models` check, an unstated departure is an error and a stated one a warning that quotes the reason.
-- This spec revises spec `planning-skill-defaults` Q6 (decided body only on 2026-10-19): the report gains `parts`. It also revises §5.19/§5.20 (the body printed as is becomes the report rendered) and, under q-learn, §5.24's single line when bounds are declared. The headless spec document renders no decision log, so record the Q6 revision in `## 12. Decision log` when this spec's questions are decided.
-- The §5 requirements are written under the §9 recommendations: q-learn `both` (prompt-bounds, prompt-no-bounds, arch-shows-bounds, arch-no-provider-bounds, skill-where); q-part `spawn-error` (part-resolve, part-unresolved); q-default `warning` (default-unreasoned, default-reason-on-default); q-render `lint-only` (no governing-bound line); q-validate `validate-and-lint` (validate-catalog, invalid-bound-lint, and shape-only decode in bounds-shape). A different decision revises those requirements, their §6 blocks and their criteria.
+- This spec revises spec `planning-skill-defaults`: Q6 (decided body only on 2026-10-19), since the report gains `parts`; §5.19/§5.20, since the body printed as is becomes the report rendered; and, under q-learn, §5.24 (with bounds declared, the no-provider line is followed by the bounds, still exit 1), §5.28/§5.29 (the prompt sends the planner to `phax architecture` when bounds are declared, even without a provider) and §5.30 (the session is granted `phax architecture` when a provider or bounds are configured, not only with a provider). The rendered `## 12. Decision log` names only the verdicts, so these revisions are recorded here.
+- Decided by the operator on 2026-10-20 (§9b): q-learn `architecture-widened`, off the previous menu (prompt-bounds, prompt-no-bounds, grant-bounds, arch-shows-bounds, arch-no-provider-bounds, skill-where); q-part `spawn-error` (part-resolve, part-unresolved); q-default `warning` (default-unreasoned, default-reason-on-default); q-render `lint-only` (no governing-bound line; the stated-departure warning quotes the `**Assignment reason:**` line); q-validate `validate-lint-preflight`, off the previous menu (validate-catalog, invalid-bound-lint, bounds-check-shared, run-refuses, run-passes, run-reads-plan, and shape-only decode in bounds-shape).
 - `assignments` is optional at the top level, as every phax.json key is: absent means no bounds. When present it is non-empty, and every key of a bound is required. Bounds effort values use the plan's effort vocabulary, not phax.json's low | medium | high literal.
-- Lint reads a phase's reason from its `**Assignment reason:**` line in plan.md, so headless and hand-written plans are checked the same way. Matching covers the create, edit and optional lists. A phase with no planned files (an interactive phase, for example) has no governing bound and falls under the policy default.
-- `phax-plan.json`, its schema and runs are unchanged by this spec. Only the plan document and plan.md change.
+- Lint and the run preflight read a phase's reason from its `**Assignment reason:**` line in plan.md, so headless and hand-written plans are checked the same way. Matching covers the create, edit and optional lists. A phase with no planned files (an interactive phase, for example) has no governing bound and falls under the policy default.
+- `phax-plan.json` and its schema are unchanged by this spec: the run preflight reads each phase's planned files from `phax-plan.json` and its reason from the plan.md the run reads (the run folder's copy on resume), which the `phase-sections` preflight already locates. Runs change only at their start: the preflight reads phax.json's bounds and, when a part bound is declared, runs the architecture provider. Only the plan document and plan.md change shape.
+- The `**Model reason:**` label error stays lint's: it is a plan-format finding, not a bounds finding, and the run preflight reads only the `**Assignment reason:**` line. A phase whose only reason line carries the old label departs without a reason in both.
+- The headless plan authoring session on Claude Code is read-only: its reading tools plus the granted command, as PR #148 made it. Granting `phax architecture` when only bounds are configured adds one read-only command to it.
 
 Left open:
 
@@ -660,6 +750,9 @@ Left open:
 - The exact wording of the lint findings, the validate lines, the rendered report and bounds, the prompt bullet and the skill text.
 - The position of `mode` (interactive-phases) and `oracle` (oracle-phases) among the phase's keys: the joint phase-shape session arbitrates it.
 - Which release carries the joint plan-document change. If it is not 0.26.0, the upgrading step moves with it.
+- Where the bounds check sits in `RUN_PREFLIGHT_CHECKS`: it reads the phase sections `phase-sections` locates, so after it.
+- How often a `phax run` invocation runs the architecture provider: `freshRunPreflight` and executePlan's resume re-check both run the shared set, and the spec asks only that their findings agree with lint's.
+- Whether `phax run --dry-run`, which returns before the preflight, reports the bounds errors as a "Preflight will fail" line, as it does for uncovered commands.
 
 Constraints:
 
@@ -668,7 +761,7 @@ Constraints:
 - No back-compat shims: `modelReason` is removed and refused as an unknown key in the current shape, an older sidecar is lifted and never read with the key missing, and `**Model reason:**` is a lint error, not an alias.
 - Explicit per-variant enums: `kind: "part" | "globs"`, each variant with exactly its keys.
 - Respect the layers. Bounds and the report are decoded through schemas at the boundary. Matching, conformity and the choice of the governing bound are pure domain. The provider runs through the Shell port, and the catalog loads through the existing loader. The CLI holds no logic. `assignments` is project-only, like `records`: absent from the user overlay schema and never merged.
-- phax stays autonomous: a missing or failing provider never stops a run or authoring, and only lint reports bounds.
+- phax stays autonomous: the bounds can refuse a run only at its start (`phax run` or `phax resume`), before any phase runs, as the `phase-models` preflight does, and never stop a phase that has started. A missing or failing provider never stops authoring, and refuses a run's start only when a part bound is declared.
 - phax never chooses, ranks or rewrites a model: only the planner and the owner write one.
 - Fixtures and examples are made up (`acme-guard`, `acme-billing`, `src/core/decide/**`, `refunds`).
 - Tests hold across a release cut: assert `$schema` URLs by format id and the release pattern, never by the running version.
@@ -677,6 +770,14 @@ Constraints:
 
 Page: Assignment bounds — `assignments` in phax.json
 
-Reader: A repository owner who wants phax plans to spend strong models only where their code needs them, and wants lint to hold planners to that choice, together with the author of an architecture provider (such as acme-guard) who supplies the parts.
+Reader: A repository owner who wants phax plans to spend strong models only where their code needs them, and wants lint and the run's preflight to hold planners to that choice, together with the author of an architecture provider (such as acme-guard) who supplies the parts.
 
-Example: Declare the §6 `assignments`: a part bound on `core-decide` at `claude-opus-5-5` medium–high, a globs bound on `src/*/schemas/**`, and a part bound on `docs`. Run `phax architecture` and see the parts, then the bounds. Remove the provider and see the bounds still listed after the no-provider line. Lint a plan: a phase at `claude-sonnet-5-5` under `src/core/decide/**` fails with an error naming `assignments[0]`, and adding an `**Assignment reason:**` line turns it into a warning that quotes the reason. A last catch-all `["**"]` bound makes the policy default binding. A provider prints an architecture report with `parts` beside its `body`.
+Example: Declare the §6 `assignments`: a part bound on `core-decide` at `claude-opus-5-5` medium–high, a globs bound on `src/*/schemas/**`, and a part bound on `docs`. Run `phax architecture` and see the parts, then the bounds. Remove the provider and see the bounds still listed after the no-provider line. Lint a plan: a phase at `claude-sonnet-5-5` under `src/core/decide/**` fails with an error naming `assignments[0]`, and `phax run` refuses to start on the same error with exit 11; adding an `**Assignment reason:**` line turns it into a warning that quotes the reason, and the run starts. A last catch-all `["**"]` bound makes the policy default binding. A provider prints an architecture report with `parts` beside its `body`.
+
+## 12. Decision log
+
+- 2026-10-20 q-learn decided architecture-widened — operator (Rémy Loubradou) — revised 10 sections
+- 2026-10-20 q-part decided spawn-error — operator (Rémy Loubradou)
+- 2026-10-20 q-default decided warning — operator (Rémy Loubradou)
+- 2026-10-20 q-render decided lint-only — operator (Rémy Loubradou)
+- 2026-10-20 q-validate decided validate-lint-preflight — operator (Rémy Loubradou) — revised 18 sections
