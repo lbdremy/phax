@@ -22,6 +22,17 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Approved, not yet planned
 
+- [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
+      2026-10-20; the 2026-09-28 spec is abandoned.
+      - Any `oracles` provider will do, not only steme. The provider gets a new `oracle-request`
+        and answers a `gate-report`, both with `$schema`.
+      - An example Vitest provider lives in the repository only. It is built on tree-sitter and
+        compares syntax trees, so reformatting a file never changes a verdict. phax's own plans use
+        it.
+      - The planner declares oracle phases only when a provider is configured.
+      - The `oracle` key sits right after `mode`. Lint and the run preflight share one check,
+        which refuses with exit 11. An interactive phase takes no oracle role.
+      - It rides the plan-document lift with `assignment-bounds` and `interactive-phases`.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Reworked and re-approved
       2026-10-19: the review passes go under `## Needs your review` in the short PR body, the PR
       opens as a draft while a review plan or a finding is pending, run completion happens when
@@ -47,12 +58,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         interactive check, refusing with exit 11; J5 `oracle-phases` comes later, with its own lift.
       - It ships in one release with `interactive-phases`, so the plan document is lifted once.
       - The 0.26.0 cut waits for the report change, or that change costs a lift.
-- [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases behind a
-      pluggable `oracles` provider; nothing needs it before steme item 1.1. Reopened 2026-10-20. To
-      be re-authored on `gate-report` (provider request and answer with `$schema`,
-      `gate-attribution`'s current enums) once `steme oracles` exists, with its own plan-document
-      lift. It carries the rule against an interactive phase between an oracle phase and its
-      discharging phase, moved out of `interactive-phases`.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
       on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
       without a terminal. Its format changes (the `other` option, the decision record's mode, a new
@@ -72,6 +77,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | Date | Run (PR) | Phases (model / effort) | Phase cost | Review defects (plan / execution) | Notes |
 | --- | --- | --- | --- | --- | --- |
 | 2026-10-20 | `architecture-provider` (#148) | 2 × sonnet-5-5 / medium | $2.66 | 2 / 3 | The plan accepted an unsandboxed grant to a session that could edit `phax.local.json`, and it dictated two wrong lines of the docs page. Execution missed three tests and a/an, and wrote a test that held only until the release cut. For scale, recent all-Opus runs of 2–3 phases cost $11–13. |
+| 2026-10-20 | `architecture-report-parts` (#150) | 1 × sonnet-5-5 / medium | $0.96 | 1 / 2 | The plan's glob rules missed backticks and control characters, which break the rendered code span. Execution wrote a duplicate-id test that could not fail and left one stale docs line. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
