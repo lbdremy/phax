@@ -40,14 +40,34 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 - [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. A plan-declared
       phase where the run stops for a person to correct the pattern it sets, before later phases
       copy it. 9 open questions.
-- [ ] **`phase-model-assignment`** — `docs/specs/2610171257-phase-model-assignment.md`. 4 open
-      questions; to be reworked to build on `planning-skill-defaults`' `modelReason` rather than
-      replace it.
+- [ ] **`assignment-bounds`** — replaces `phase-model-assignment`, abandoned 2026-10-20 (brief:
+      `docs/briefs/assignment-bounds.md`).
+      - The architecture report gains `parts` (id, name, description, globs).
+      - The owner writes ordered bounds in `phax.json`, each one a `part` or `globs` bound with a
+        model and an effort range. The first matching bound governs a phase.
+      - `modelReason` becomes `assignmentReason`, and lint errors on a departure without one.
+      - It ships in one release with `interactive-phases` and `oracle-phases`, after a joint session
+        on the phase shape, so the plan document is lifted once.
+      - The 0.26.0 cut waits for the report change, or that change costs a lift.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
       on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
       without a terminal. Its format changes (the `other` option, the decision record's mode, a new
       `decide-verdicts` input) now land after 0.25.0, so each changed format needs a frozen copy and
       a lift.
+
+## Model policy tracking
+
+Since `planning-skill-defaults`, phases default to `claude-sonnet-5-5` at `medium`, where they used
+to default to `claude-opus-5-5`. One row per run, to judge whether the policy holds. Classify each
+review defect by origin:
+- **plan** — the plan prescribed it, or a planning arbitration accepted it;
+- **execution** — the phase agent got it wrong against a correct plan.
+
+A rise in execution defects on default phases is the signal to tighten the policy.
+
+| Date | Run (PR) | Phases (model / effort) | Phase cost | Review defects (plan / execution) | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-20 | `architecture-provider` (#148) | 2 × sonnet-5-5 / medium | $2.66 | 2 / 2 | The plan accepted an unsandboxed grant to a session that could edit `phax.local.json`, and it dictated two wrong lines of the docs page. Execution missed three tests and a/an. For scale, recent all-Opus runs of 2–3 phases cost $11–13. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
