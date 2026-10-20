@@ -67,7 +67,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 
 | Date | Run (PR) | Phases (model / effort) | Phase cost | Review defects (plan / execution) | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 2026-10-20 | `architecture-provider` (#148) | 2 × sonnet-5-5 / medium | $2.66 | 2 / 2 | The plan accepted an unsandboxed grant to a session that could edit `phax.local.json`, and it dictated two wrong lines of the docs page. Execution missed three tests and a/an. For scale, recent all-Opus runs of 2–3 phases cost $11–13. |
+| 2026-10-20 | `architecture-provider` (#148) | 2 × sonnet-5-5 / medium | $2.66 | 2 / 3 | The plan accepted an unsandboxed grant to a session that could edit `phax.local.json`, and it dictated two wrong lines of the docs page. Execution missed three tests and a/an, and wrote a test that held only until the release cut. For scale, recent all-Opus runs of 2–3 phases cost $11–13. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
