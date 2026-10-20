@@ -1,32 +1,51 @@
-Write the phax spec `oracle-phases`: test-first ("oracle-first") phases, where one phase authors the oracles and a later phase must make them pass, with phax staying agnostic of test frameworks and delegating the detection to a pluggable provider.
+Write the phax spec `oracle-phases`. It re-authors the spec of the same name (`docs/specs/archive/2609281159-oracle-phases.md`, reopened to Draft and abandoned on 2026-10-20), against the codebase as it is now. Read the old spec in full: its problem, product goal and most of its arbitrations stand. What changes is stated below.
 
-Decided with the author on 2026-09-28 — the spec must reflect these, not reopen them:
-- **The problem.** An oracle-first plan writes the tests before the code (steme-corpus `roadmap-1.0-arbitration-reflexes.md`, P3, decided 2026-09-24: "oracle d'abord" as a preference). The gate runs the test suite at every phase, so the oracle phase can never be green: its new tests are red by construction. Old tests edited to state new behaviour are red too, and some tests are legitimately deleted. All three are valid in an oracle phase; that set of changes *is* the arbitration the oracle phase exists for, read like a spec before the code exists.
-- **The mechanism is the test framework's own expected-failure marker** (Vitest `test.fails`, pytest `xfail(strict=True)`, …). In the oracle phase every added or modified test carries the marker, so the ordinary test command stays green (a marked test that fails passes; a marked test that passes is red — the runner itself catches a vacuous oracle). In the discharging phase every marker must be gone, and the only change allowed to those test files is the removal of the markers.
-- **phax does not know what a test or a marker is.** It never parses test files and never runs a test command specially. It knows the plan's structure (which phase authors oracles, which phase discharges them, their files and commits) and asks a registered provider for a verdict, the same way it already asks the `scopes`, `orient` and `planAuditor` providers.
-- **The provider's answer is the existing gate diagnostics document** (`{"diagnostics": [{rule, class, scopes?, location, message, repair}]}`, see README §`output: diagnostics` and `src/schemas/gateDiagnostics.ts`); exit 0 with an empty list is a pass. Its failing diagnostics drive the fix prompt like any other diagnostics step.
-- **The first provider is steme** (`steme oracles`, a separate steme-lab spec), which is **not built yet**. This spec makes the mechanism pluggable in phax now; nothing in phax's own plans or in steme-lab's plans uses oracle phases until steme ships its provider. Until then, plans keep test and code in the same phase as today.
-- **Why the discharge phase can edit the oracle files at all:** removing the marker is an edit. Read-only oracles in the discharge phase are replaced by a *proved-minimal* edit: the provider proves the only difference from the oracle phase's commit is marker removal (no assertion changed, no test deleted, no `skip`/`todo` substituted). An oracle that was red for the wrong reason (a typo, a `TypeError`) cannot be discharged — the runner keeps it red if the marker goes, the provider refuses any other edit — so the fix loop exhausts, the run pauses, and the question surfaces. That is the intended behaviour (P3, P1): a spec disagreement, not a bug.
+The idea, unchanged: a plan can declare an oracle phase, which writes the tests first, each with its framework's expected-failure marker, and the later phase that discharges it, which writes the code and removes the markers. The agent that writes the code is not the one that writes what judges it. phax never checks this itself. At the gate of those two phases, it asks a configured `oracles` provider for a verdict. phax keeps no knowledge of test frameworks, markers or test-file conventions.
 
-Ground to read first, in this order:
-- /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md §P3 (oracle separation; the 2026-09-24 decision and the 2026-09-28 complement below it).
-- docs/ideas/change-gates-from-the-harness.md — the oracle-separation lint idea (an agent never edits what judges its work); this spec is its first mechanical piece for the oracle-first case.
-- README §gate profiles (`surface`, `firing`, `output: diagnostics`, the `completion`/`invariant` classes, the `scopes` provider) and `src/app/gates.ts`, `src/domain/gate/scheduleDiagnostics.ts`, `src/schemas/phaxConfig.ts`.
-- The existing provider contracts to mirror (command string split on whitespace, no shell, JSON request on stdin, JSON on stdout, provider error on anything else): `scopes` (README §Scope provider), `orient` (`phax --usage`, cmd orient), `planAuditor` (`phax --usage`, cmd plans lint).
-- The plan shapes: `phax artifact schema plan`, `src/schemas/phaxPlan.ts`, the phax-planning skill (phase fields), and `phax plans lint` (`src/app/lintPlan.ts`).
-- `src/app/commit.ts` / `executePlan.ts`: each phase is committed on its own branch, so the oracle phase's commit and the discharging phase's base are known exactly.
-- docs/specs/2609250823-headless-review.md Q5 (how `--append` identifies oracle files before the lint exists) — say how the two relate; do not change that spec.
-- NEXT_STEPS.md §"Road to 1.0.0": additive only, CLI and config contract about to freeze.
+What the operator decided on 2026-10-20 (do not reopen):
+1. **Any provider will do, not only steme.** The old non-goal "no oracle phase in phax's or steme-lab's plans before steme ships its provider" is dropped. The contract is a provider command declared as `"oracles": { "command": … }`, merged across the config layers as `brief` and `architecture` are.
+2. **The phax repository ships an example Vitest provider as repo tooling**, under `scripts/` or `examples/`. It is not part of the CLI, and phax's own `phax.json` declares it, so phax's own plans can use oracle phases. It reads test files with tree-sitter (for instance `web-tree-sitter` with the TypeScript grammar as WebAssembly, so nothing is built natively). It compares syntax trees, not lines, so reformatting a file never changes a verdict. It answers:
+   - **authored:** every test added or modified since `base` in the oracle files carries `.fails` (`test.fails`, `it.fails`). Deleting a test is allowed.
+   - **discharged:** no `.fails` is left in the oracle files, and the oracle files' syntax trees at the oracle commit, with each `.fails` member access removed, equal their trees now. Removing the markers is then provably the only change.
+   The spec states what the example must answer and what it is for. How it is written is left to planning.
+3. **The planner may declare an oracle phase only when an `oracles` provider is configured.**
+   - The headless plan authoring prompt says whether one is configured, as it does for the architecture provider.
+   - The phax-planning skill states the rule.
+   - Lint and the run preflight refuse an oracle phase with no provider. This keeps the old Q3 (error-and-refuse), with the exit decided under 6.
+4. **The provider's request and answer are versioned phax formats, each with a required `$schema`.** The answer is the existing `gate-report` (`src/schemas/gateReport.ts`: `{ $schema, outcome: checked | refused, findings, review }`), not the old bare `{ diagnostics }`. Settle the request in §9: a new `oracle-request` format (`$schema`, `mode: authored | discharged`, `oraclePhase`, `base`, `oracleCommit`, `files`, …), or the existing `gate-request` (`src/schemas/gateRequest.ts`) extended. Frame each option by what it abandons. Avoid the key name `mode`, which the phase already uses for `headless | interactive`; for instance, use `verdict: "authored" | "discharged"`.
+5. **The phase shape** follows the joint session held with `assignment-bounds` and `interactive-phases`:
+   - a separate required key `oracle` on every phase, `{ dischargedBy, files }` or null (decision J1);
+   - in the plan document and in `phax-plan.json`, `oracle` sits right after `mode`, which sits right after `optionalFilesToEdit`; `assignmentReason`, `model` and `effort` stay the phase's last three keys (decision J2);
+   - in plan.md, the oracle lines come after the `**Mode:**` line, and only on an oracle phase (the old Q1, `oracle-side-line`).
+6. **Lint and the run preflight share one oracle check** (decision J4). A misplaced declaration, a discharging phase that does not come after its oracle phase, an oracle file planned by a phase in between, or a missing provider is a lint error. The same error refuses `phax run` and `phax resume` in the start preflight, with exit 11, not the old exit 2. The rule interactive-phases handed over moves into this check: no interactive phase strictly between an oracle phase and its discharging phase.
+7. **It ships in the same release as `assignment-bounds` and `interactive-phases`** if it is approved before their joint plan-document plan is cut (decision J5, revised). Then there is one frozen copy of the 0.25.0 plan-document shape and one lift by `phax artifact migrate-documents`, which writes `oracle: null` on every lifted phase. The same goes for `phax-plan.json` and the extraction cache, which `mode` already changes. Otherwise this spec takes its own lift. State both cases in §10.
 
-What the spec must cover:
-- The plan-side declaration: a phase marked as an oracle phase, and which later phase discharges it (default: the next phase). Where it lives in plan.md (phax-planning shape) and in `phax-plan.json` / the plan document schema.
-- `phax plans lint`: an oracle phase without a discharging phase, a discharging phase that is not after it, oracle files planned in a phase between the two, and an oracle phase in a project with no provider registered — say which are errors.
-- The config: a new provider key in `phax.json` (name it; `oracles.command` is the working name), its schema, and `phax schema upgrade` output.
-- The provider contract, in full: when phax calls it (the oracle phase's gate; the discharging phase's gate; every fix-loop attempt of those phases), the request on stdin (mode `authored` | `discharged`, the oracle phase id, the base commit before the oracle phase, the oracle phase's commit when discharging, the oracle files), the response (the diagnostics document), and how a provider error, a timeout and a missing provider are reported (exit families).
-- How the provider's verdict sits among the gate steps: an implicit step appended to the phase's gate, recorded in `gate-attribution.json` with a surface (which one?), visible in the handoff, the records and `phax records explain`.
-- Resume, `reset-phase` and `--append` interplay: what happens when the oracle phase or the discharging phase is reset or re-run.
-- Open questions in §9 with options, losses and a recommended default; at least: the plan syntax for the declaration; whether a discharge may span several phases (several discharging phases, or one designated); whether an oracle phase with no provider registered is a lint error or runs without the check; the surface under which the verdict is recorded.
+Re-check against the current code, and update:
+- **The gate machinery:**
+  - `gate-attribution` (`src/schemas/gateAttribution.ts`): a step result is `pass | fail | refused`;
+  - the surface enum (`surface.ts`): the old Q4 adds an `oracle` surface. Say which snapshots that changes.
+  - how a `refused` gate report ends the fix loop.
+- **The config:** `src/schemas/phaxConfig.ts`, the gate steps' `input` and `output`, and `phax schema upgrade`.
+- **Model ids:** every one in an example is a current catalog entry.
+- **Old Q1–Q5:** keep each as a lifted verdict unless it is stale. Re-ask a stale one in §9.
 
-Constraints: additive; nothing changes for a plan with no oracle phase; phax gains no knowledge of any test framework; keep to what the first consumer (steme's `oracles` provider and the steme conductor) needs and name what is out of scope (a generic oracle concept for non-test oracles such as matrices, read-only enforcement at the file-system level, the full change-gates lint).
+Settle in §9, framing each option by what it abandons:
+- the request format (point 4);
+- whether the example provider ships in the npm package or stays repository-only;
+- anything the re-check finds that the old arbitrations no longer settle.
+
+Out of scope:
+- steme's own `oracles` provider;
+- non-test oracles (golden files, fixtures);
+- read-only enforcement of oracle files at the file-system level;
+- several discharging phases for one oracle phase;
+- changes to `headless-review`.
+
+Constraints:
+- No back-compat shims: new keys are required, with explicit per-variant enums.
+- Every provider request and answer carries `$schema`.
+- phax stays autonomous: a missing or failing provider never stops a running phase. It refuses at the start preflight or fails the gate step.
+- Fixtures and examples are made up (`acme-billing`, `tests/prune.test.ts`, `refunds`).
+- Tests hold across a release cut.
 
 Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
