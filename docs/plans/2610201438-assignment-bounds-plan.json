@@ -22,7 +22,8 @@
       "Rendered layout: the body with its trailing newlines stripped, then nothing more when `parts` is empty. Otherwise a blank line, `## Parts`, and per part a blank line, `### <name> (`<id>`)`, the description on the next line and one `- `<glob>`` bullet per glob, in the report's order. Name and description are folded onto one line. With path arguments, the provider answers for those paths and phax renders whatever parts it returns. Loss accepted: the body is no longer the whole stdout. An agent that parsed the old output as the body alone now also reads a `## Parts` section.",
       "Report flow: `pullArchitecture` answers the decoded report without `$schema`, `{ body, parts }`, not printable text. The later lint and run-preflight plans resolve part bounds from that same call with `files: null`. A pure domain function renders it, and the CLI prints the rendered string. Loss accepted: the CLI makes one render call instead of printing the result field as is."
     ],
-    "openQuestions": [
+    "openQuestions": [],
+    "arbitratedQuestions": [
       {
         "id": "q-skill-edit",
         "question": "The phax-cli skill describes the `architecture` provider as answering \"with the repository's architecture as a Markdown body\" (`.claude/skills/phax-cli/SKILL.md`, the `architecture` config bullet). Does this plan's phase update that line, which means the run needs `--allow-skill-edits`, or does the update ride a later plan of this spec?",
@@ -39,10 +40,28 @@
           }
         ],
         "recommendation": "defer-to-bounds-plan",
-        "rationale": "The edit widens the phase session's write scope to a skill file, which is a security loss, so it is the operator's decision. The bounds plan has to run with `--allow-skill-edits` anyway, to document `assignments` and to teach the bounds in the phax-planning skill. Folding the one-line report update into it widens no session that would not be widened already. In the meantime the stale wording is incomplete, not wrong: the report still carries a Markdown body. The phase below is written for this recommendation. If `edit-in-phase` is chosen, add `.claude/skills/phax-cli/SKILL.md` to phase-01's planned files to edit, update the bullet to name `{ body, parts }`, and run with `--allow-skill-edits`."
+        "rationale": "The edit widens the phase session's write scope to a skill file, which is a security loss, so it is the operator's decision. The bounds plan has to run with `--allow-skill-edits` anyway, to document `assignments` and to teach the bounds in the phax-planning skill. Folding the one-line report update into it widens no session that would not be widened already. In the meantime the stale wording is incomplete, not wrong: the report still carries a Markdown body. The phase below is written for this recommendation. If `edit-in-phase` is chosen, add `.claude/skills/phax-cli/SKILL.md` to phase-01's planned files to edit, update the bullet to name `{ body, parts }`, and run with `--allow-skill-edits`.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "defer-to-bounds-plan",
+          "abandoned": [
+            "edit-in-phase"
+          ],
+          "why": "Decided by the operator on 2026-10-20, as recommended: this plan leaves the phax-cli skill untouched and runs without --allow-skill-edits. The bounds plan, which edits the skills anyway, updates the report line.",
+          "advocate": "An up-to-date phax-cli skill from this plan's merge on, with no window where it names the body but not the parts.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-10-20T14:57:24Z",
+          "revised": [],
+          "phase": "phase-01"
+        },
+        "history": []
       }
-    ],
-    "arbitratedQuestions": []
+    ]
   },
   "phases": [
     {

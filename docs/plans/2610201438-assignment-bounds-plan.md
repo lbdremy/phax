@@ -25,7 +25,7 @@ All three are already allowed by `security.agentCommands` in phax.json (`pnpm ex
 - Rendered layout: the body with its trailing newlines stripped, then nothing more when `parts` is empty. Otherwise a blank line, `## Parts`, and per part a blank line, `### <name> (`<id>`)`, the description on the next line and one `- `<glob>`` bullet per glob, in the report's order. Name and description are folded onto one line. With path arguments, the provider answers for those paths and phax renders whatever parts it returns. Loss accepted: the body is no longer the whole stdout. An agent that parsed the old output as the body alone now also reads a `## Parts` section.
 - Report flow: `pullArchitecture` answers the decoded report without `$schema`, `{ body, parts }`, not printable text. The later lint and run-preflight plans resolve part bounds from that same call with `files: null`. A pure domain function renders it, and the CLI prints the rendered string. Loss accepted: the CLI makes one render call instead of printing the result field as is.
 
-## Open questions
+## Arbitrated questions
 
 ### q-skill-edit — The phax-cli skill describes the `architecture` provider as answering "with the repository's architecture as a Markdown body" (`.claude/skills/phax-cli/SKILL.md`, the `architecture` config bullet). Does this plan's phase update that line, which means the run needs `--allow-skill-edits`, or does the update ride a later plan of this spec?
 
@@ -33,6 +33,13 @@ All three are already allowed by `security.agentCommands` in phax.json (`pnpm ex
 - edit-in-phase — List `.claude/skills/phax-cli/SKILL.md` in phase-01's planned edits, and run the plan with `phax run --allow-skill-edits`. — abandons: A phase session with no write access under `.claude/`. With the flag, the phase agent can rewrite the phax-cli skill, which Claude Code loads as instructions in every later session of this repository and which ships in the npm package. A wrong or injected instruction there steers later agents until a reviewer catches it in the PR.
 
 Recommendation: defer-to-bounds-plan — The edit widens the phase session's write scope to a skill file, which is a security loss, so it is the operator's decision. The bounds plan has to run with `--allow-skill-edits` anyway, to document `assignments` and to teach the bounds in the phax-planning skill. Folding the one-line report update into it widens no session that would not be widened already. In the meantime the stale wording is incomplete, not wrong: the report still carries a Markdown body. The phase below is written for this recommendation. If `edit-in-phase` is chosen, add `.claude/skills/phax-cli/SKILL.md` to phase-01's planned files to edit, update the bullet to name `{ body, parts }`, and run with `--allow-skill-edits`.
+
+Decision: defer-to-bounds-plan — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: this plan leaves the phax-cli skill untouched and runs without --allow-skill-edits. The bounds plan, which edits the skills anyway, updates the report line. Advocate: An up-to-date phax-cli skill from this plan's merge on, with no window where it names the body but not the parts. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-01.
+
+## Decision log
+
+- 2026-10-20 q-skill-edit decided defer-to-bounds-plan — operator (Rémy Loubradou)
 
 ---
 
