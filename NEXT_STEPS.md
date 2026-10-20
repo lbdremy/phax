@@ -22,6 +22,15 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Approved, not yet planned
 
+- [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. Approved 2026-10-20,
+      with every question decided. It adds a plan-declared stop where a person corrects the pattern
+      a phase set.
+      - `mode` sits right after `optionalFilesToEdit`. A phase is review-only, and lint and the run
+        preflight share one check that refuses with exit 11.
+      - The stop exits 13. A handoff the person wrote wins over the closing turn.
+      - An unchanged review leaves an empty commit. The transcript goes into the records under
+        `records.transcript`, and the person's turns are not costed.
+      - It rides one plan-document lift with `assignment-bounds` and `oracle-phases`.
 - [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
       2026-10-20; the 2026-09-28 spec is abandoned.
       - Any `oracles` provider will do, not only steme. The provider gets a new `oracle-request`
@@ -41,11 +50,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Drafts
 
-- [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. A plan-declared
-      phase where the run stops for a person to correct the pattern it sets, before later phases
-      copy it. 7 open questions: `q-mode-line` and `q-planned-work` were decided as recommended in
-      the joint phase-shape session (2026-10-20). It ships with `assignment-bounds`, in one
-      plan-document lift.
 - [ ] **`assignment-bounds`** — replaces `phase-model-assignment`, abandoned 2026-10-20 (brief:
       `docs/briefs/assignment-bounds.md`).
       - The architecture report gains `parts` (id, name, description, globs).
