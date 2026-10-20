@@ -3,6 +3,7 @@ import { architectureRequest } from "../domain/architecture/request.js";
 import { onOneLine } from "../domain/reportText.js";
 import { resolveTreePaths } from "../domain/treePaths.js";
 import type { Shell } from "../ports/shell.js";
+import type { ArchitectureReport } from "../schemas/architecture.js";
 import {
   describeReportError,
   readArchitectureReport,
@@ -20,11 +21,12 @@ export const ARCHITECTURE_TIMEOUT_MS = 60_000;
 
 /**
  * What one `phax architecture` call comes to. `reason` and `message` are one
- * line; `body` is the report's Markdown, untouched.
+ * line; `report` is the decoded architecture report without `$schema`, its body
+ * and its text untouched.
  */
 export type PullArchitectureResult =
   | { readonly kind: "refused"; readonly message: string }
-  | { readonly kind: "answered"; readonly body: string }
+  | { readonly kind: "answered"; readonly report: ArchitectureReport }
   | { readonly kind: "failed"; readonly reason: string };
 
 function failureReason(failure: ProviderQueryFailure): string {
@@ -85,6 +87,7 @@ export function pullArchitecture(input: {
         reason: onOneLine(`architecture provider: ${describeReportError(report.left)}`),
       } as const;
     }
-    return { kind: "answered", body: report.right.body } as const;
+    const { body, parts } = report.right;
+    return { kind: "answered", report: { body, parts } } as const;
   });
 }

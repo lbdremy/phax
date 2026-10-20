@@ -75,11 +75,15 @@ const projectConfig = (extra: object = {}) => ({
 });
 
 /** A provider that saves its stdin and prints an architecture report with `body`. */
-function providerCommand(body: string = BODY): string {
+function providerCommand(
+  body: string = BODY,
+  extra: Record<string, unknown> = { parts: [] },
+): string {
   const script = join(scripts, "acme-guard.mjs");
   const report = {
     $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
     body,
+    ...extra,
   };
   writeFileSync(
     script,
@@ -125,6 +129,93 @@ describe("phax architecture", () => {
     writeConfig("phax.json", projectConfig({ architecture: { command: providerCommand() } }));
     const result = await architecture(mainRoot);
     expect(result).toEqual({ code: 0, stdout: [BODY], stderr: [] });
+  });
+
+  it("The report's parts are rendered", async () => {
+    const parts = [
+      {
+        id: "core-decide",
+        name: "core · decide",
+        description: "The pure decision logic.",
+        globs: ["src/core/decide/**"],
+      },
+      {
+        id: "http-requests",
+        name: "http · requests",
+        description: "Request handlers.",
+        globs: ["src/http/**", "src/*/schemas/**"],
+      },
+      { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**"] },
+    ];
+    writeConfig(
+      "phax.json",
+      projectConfig({ architecture: { command: providerCommand(BODY, { parts }) } }),
+    );
+    const result = await architecture(mainRoot);
+    expect(result).toEqual({
+      code: 0,
+      stdout: [
+        [
+          BODY,
+          "",
+          "## Parts",
+          "",
+          "### core · decide (`core-decide`)",
+          "The pure decision logic.",
+          "- `src/core/decide/**`",
+          "",
+          "### http · requests (`http-requests`)",
+          "Request handlers.",
+          "- `src/http/**`",
+          "- `src/*/schemas/**`",
+          "",
+          "### docs (`docs`)",
+          "The docs.",
+          "- `docs/**`",
+        ].join("\n"),
+      ],
+      stderr: [],
+    });
+  });
+
+  it.each([
+    ["a body-only report", {}, "parts"],
+    [
+      "a repeated part id",
+      {
+        parts: [
+          { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**"] },
+          { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**"] },
+        ],
+      },
+      "docs",
+    ],
+    [
+      "a part carrying model",
+      {
+        parts: [
+          {
+            id: "docs",
+            name: "docs",
+            description: "The docs.",
+            globs: ["docs/**"],
+            model: "claude-sonnet-5-5",
+          },
+        ],
+      },
+      "model",
+    ],
+  ])("A body-only or malformed report is unreadable: %s", async (_name, extra, reason) => {
+    writeConfig(
+      "phax.json",
+      projectConfig({ architecture: { command: providerCommand(BODY, extra) } }),
+    );
+    const result = await architecture(mainRoot);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toEqual([]);
+    expect(result.stderr).toHaveLength(1);
+    expect(result.stderr[0]).toMatch(/^✗ architecture provider/);
+    expect(result.stderr[0]).toContain(reason);
   });
 
   it("uses a provider declared only in phax.local.json", async () => {

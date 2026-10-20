@@ -22,7 +22,7 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         range). The first matching bound governs a phase.
       - Lint and the run preflight share one bounds check (exit 11), and `modelReason` becomes
         `assignmentReason`.
-      - Plan 1, the architecture report gaining `parts`, is PR #150. It unblocks the 0.26.0 cut.
+      - Plan 1, the architecture report gaining `parts`, landed (PR #150).
       - Next: one joint plan-document plan with `interactive-phases` and `oracle-phases` (a frozen
         0.25.0 copy and one lift), then the bounds plan.
 - [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
