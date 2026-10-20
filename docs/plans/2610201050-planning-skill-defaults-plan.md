@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610171254-planning-skill-defaults.md
 completes-spec: true
+approved:
+  date: 2026-10-20
+  baseline: 760888e
 ---
 # Architecture provider
 
