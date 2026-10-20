@@ -954,12 +954,19 @@ Given in turn, a request with no `$schema`, and one whose `verdict` is `approved
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-request — Which request does phax write on the oracle step's stdin: a new `oracle-request` format, or the existing `gate-request` extended?
 
 - oracle-request — A new versioned `oracle-request` format: `$schema`, `verdict` (`authored` | `discharged`), `phase`, `oraclePhase`, `base`, `files`, and `oracleCommit` on `discharged` only — two variants, each with exactly its keys — abandons: One request reader for every provider phax spawns at a gate. A provider that is both an oracles provider and a configured gate-report step reads two formats, and phax versions, snapshots and publishes one more format.
 - gate-request-extended — The existing `gate-request` gains a required `oracle` key: null for configured steps, and `{ verdict, oraclePhase, oracleBase, oracleCommit, files }` for the oracle step — abandons: gate-request's single meaning and its stable shape. Every declaring step's request changes shape for a key only one step reads. Its `base` (the gated phase's) is not the oracle base the verdict needs, so the block repeats a second base. A nullable block also admits combinations, such as a discharged verdict with no oracle commit, that two explicit variants exclude.
 
 Recommendation: oracle-request — The lost shared reader costs little. phax already gives each provider its own request format (brief-request, architecture-request), and a provider that is also a configured report step is the rare case. Extending gate-request would change a published shape (0.20.0) for every report step in every repository, to carry a block one step reads, and would need a second `base` beside the gated phase's. A separate format keeps both shapes explicit per variant, with no null-filled keys.
+
+Decision: oracle-request — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: a new versioned oracle-request format with two explicit variants, authored and discharged. Advocate: Extending gate-request keeps one request reader for every provider phax spawns at a gate. Principles: none. Reversibility: cheap. Revised: none.
 
 ### q-example-ships — Where does the example Vitest provider ship?
 
@@ -969,6 +976,9 @@ Recommendation: oracle-request — The lost shared reader costs little. phax alr
 
 Recommendation: repo-only — The operator decided the example is repository tooling, there so that phax's own plans can be oracle-first and provider authors have a reference. Shipping it under phax's name would contradict the guiding rule that only the provider knows what an oracle is. A separate package can be cut later, at no cost to this spec, if a second consumer appears.
 
+Decision: repo-only — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: the example Vitest provider is repository tooling, used by phax's own plans and shipped in no npm package. Advocate: Shipping it lets other repositories install a ready Vitest provider instead of copying the example. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-interactive-role — May an interactive phase be the discharging phase of an oracle phase? (It can never be an oracle phase: oracle files must be planned files to create or edit, and an interactive phase plans none.)
 
 - refuse — No: an interactive phase takes no oracle role. It is a lint error and an exit-11 preflight refusal on the `oracles` check — abandons: A person writing the implementation against oracles an agent wrote, during the stop, with the oracles provider judging the closing gate.
@@ -976,9 +986,8 @@ Recommendation: repo-only — The operator decided the example is repository too
 
 Recommendation: refuse — Discharge is foreseeable work, and interactive-phases decided that foreseeable work belongs to an agent phase under the gate and the fix loop. Refusing also keeps every oracle verdict on a headless phase, where a finding has a fix loop to drive. A person who wants to review the oracles places an interactive phase before the oracle phase, or after the discharge.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: refuse — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: an interactive phase takes no oracle role, refused by the shared oracles check in lint and the run preflight. Advocate: A person could write the implementation against the oracles during the stop, with the provider judging the closing gate. Principles: none. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -1070,3 +1079,9 @@ In plan.md, phase-02 carries `**Oracle phase:** yes` and `**Oracle files:** test
 phase-03 removes `.fails` and writes the refund cap. Its gate sends verdict "discharged", with phase-02's commit as oracleCommit. Had phase-03 changed toBe(120) to toBe(100), the provider's finding would drive the fix loop, and an oracle that cannot pass unchanged pauses the run with exit 4.
 
 Without an oracles block, `phax plans lint` reports an error on the oracles check, and `phax run` refuses with exit 11.
+
+## 12. Decision log
+
+- 2026-10-20 q-request decided oracle-request — operator (Rémy Loubradou)
+- 2026-10-20 q-example-ships decided repo-only — operator (Rémy Loubradou)
+- 2026-10-20 q-interactive-role decided refuse — operator (Rémy Loubradou)

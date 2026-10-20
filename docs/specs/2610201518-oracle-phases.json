@@ -1058,7 +1058,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-request",
       "question": "Which request does phax write on the oracle step's stdin: a new `oracle-request` format, or the existing `gate-request` extended?",
@@ -1075,7 +1076,25 @@
         }
       ],
       "recommendation": "oracle-request",
-      "rationale": "The lost shared reader costs little. phax already gives each provider its own request format (brief-request, architecture-request), and a provider that is also a configured report step is the rare case. Extending gate-request would change a published shape (0.20.0) for every report step in every repository, to carry a block one step reads, and would need a second `base` beside the gated phase's. A separate format keeps both shapes explicit per variant, with no null-filled keys."
+      "rationale": "The lost shared reader costs little. phax already gives each provider its own request format (brief-request, architecture-request), and a provider that is also a configured report step is the rare case. Extending gate-request would change a published shape (0.20.0) for every report step in every repository, to carry a block one step reads, and would need a second `base` beside the gated phase's. A separate format keeps both shapes explicit per variant, with no null-filled keys.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "oracle-request",
+        "abandoned": [
+          "gate-request-extended"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: a new versioned oracle-request format with two explicit variants, authored and discharged.",
+        "advocate": "Extending gate-request keeps one request reader for every provider phax spawns at a gate.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:34:48Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-example-ships",
@@ -1098,7 +1117,26 @@
         }
       ],
       "recommendation": "repo-only",
-      "rationale": "The operator decided the example is repository tooling, there so that phax's own plans can be oracle-first and provider authors have a reference. Shipping it under phax's name would contradict the guiding rule that only the provider knows what an oracle is. A separate package can be cut later, at no cost to this spec, if a second consumer appears."
+      "rationale": "The operator decided the example is repository tooling, there so that phax's own plans can be oracle-first and provider authors have a reference. Shipping it under phax's name would contradict the guiding rule that only the provider knows what an oracle is. A separate package can be cut later, at no cost to this spec, if a second consumer appears.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "repo-only",
+        "abandoned": [
+          "launcher-bin",
+          "own-package"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: the example Vitest provider is repository tooling, used by phax's own plans and shipped in no npm package.",
+        "advocate": "Shipping it lets other repositories install a ready Vitest provider instead of copying the example.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:34:48Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-interactive-role",
@@ -1116,10 +1154,27 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "Discharge is foreseeable work, and interactive-phases decided that foreseeable work belongs to an agent phase under the gate and the fix loop. Refusing also keeps every oracle verdict on a headless phase, where a finding has a fix loop to drive. A person who wants to review the oracles places an interactive phase before the oracle phase, or after the discharge."
+      "rationale": "Discharge is foreseeable work, and interactive-phases decided that foreseeable work belongs to an agent phase under the gate and the fix loop. Refusing also keeps every oracle verdict on a headless phase, where a finding has a fix loop to drive. A person who wants to review the oracles places an interactive phase before the oracle phase, or after the discharge.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse",
+        "abandoned": [
+          "allow-discharge"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: an interactive phase takes no oracle role, refused by the shared oracles check in lint and the run preflight.",
+        "advocate": "A person could write the implementation against the oracles during the stop, with the provider judging the closing gate.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:34:48Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Decided by the operator on 2026-10-20, not to reopen:\n- any provider will do: the `oracles` block, merged across layers like `brief` and `architecture`;\n- the phax repository carries an example Vitest provider that compares syntax trees, and phax's own phax.json declares it;\n- the planner declares an oracle phase only when a provider is configured, and the prompt, the skill, lint and the preflight all say so;\n- the request and the answer are versioned phax formats with a required `$schema`, and the answer is the existing `gate-report`;\n- the phase shape of the joint session: J1, a separate `oracle` key; J2, the key directly after `mode`, with `assignmentReason`, `model` and `effort` last, and the oracle lines after the Mode line;\n- one shared `oracles` check refusing `phax run` and `phax resume` with exit 11 (J4), which also carries the rule handed over by interactive-phases.",
