@@ -35,7 +35,7 @@ function makePhase(
     ``,
     `**Recommended model:** ${model}`,
     `**Recommended effort:** ${effort}` +
-      (overrides.reason === undefined ? "" : `\n**Model reason:** ${overrides.reason}`),
+      (overrides.reason === undefined ? "" : `\n**Assignment reason:** ${overrides.reason}`),
     ``,
     `### Planned files to create`,
     ``,
@@ -589,7 +589,7 @@ describe("preamble question sections", () => {
   });
 });
 
-describe("a `**Model reason:**` line under the effort line", () => {
+describe("an `**Assignment reason:**` line under the effort line", () => {
   const plan = (reason?: string) =>
     makePlan({
       phases: [
@@ -607,7 +607,7 @@ describe("a `**Model reason:**` line under the effort line", () => {
   it("parses with no error to the same projection as the plan without it", () => {
     const reasoned = plan("Renames files only, so the lightest model is enough.");
     const plain = plan();
-    expect(reasoned).toContain("\n**Model reason:** ");
+    expect(reasoned).toContain("\n**Assignment reason:** ");
     expect(collectPlanStructureErrors(reasoned)).toEqual([]);
     const withReason = extractPlanDeterministic(reasoned);
     expect(Either.isRight(withReason)).toBe(true);

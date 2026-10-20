@@ -11,7 +11,7 @@ import {
 // yields the document's projection. Extracted values are therefore emitted in
 // forms whose flattened text is exactly the value — file paths, required
 // commands and the commit subject as code spans, the run title with its inline
-// markup escaped — while informational prose (a phase's model reason
+// markup escaped — while informational prose (a phase's assignment reason
 // included) is emitted as given. The body only: the caller prepends the
 // frontmatter.
 
@@ -52,7 +52,7 @@ function renderPhase(phase: PlanDocumentPhase): string {
     "---",
     `## ${phase.id} — ${headingText(phase.title)} {${anchorOf(phase.planMarkdownAnchor)}}`,
     `**Recommended model:** ${phase.model}\n**Recommended effort:** ${phase.effort}${
-      phase.modelReason === null ? "" : `\n**Model reason:** ${phase.modelReason}`
+      phase.assignmentReason === null ? "" : `\n**Assignment reason:** ${phase.assignmentReason}`
     }`,
     phase.objective,
     section("Detailed instructions", proseList(phase.detailedInstructions)),

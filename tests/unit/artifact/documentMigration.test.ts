@@ -8,9 +8,11 @@ import {
   groupMigratedArtifacts,
 } from "../../../src/domain/artifact/documentMigration.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
+import { renderPlanBodyV0_25_0 } from "../../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../../src/domain/authoring/renderSpecV0_17_0.js";
 import {
+  type PlanDocumentV0_25_0Value,
   type SpecDocumentV0_17_0Value,
   currentSchemaUrl,
   readPlanDocumentFile,
@@ -123,6 +125,21 @@ const PLAN_0_20_0 = {
   })),
 };
 const PLAN_0_20_0_JSON = json({ $schema: schemaUrl("plan-document", "0.20.0"), ...PLAN_0_20_0 });
+
+const REASON = "Designs the prune store, which no code in the repository shows yet.";
+
+// The 0.25.0 shape: questions in the preamble, a `modelReason` on each phase.
+const PLAN_0_25_0 = {
+  ...PLAN_0_20_0,
+  preamble: { ...PLAN_0_20_0.preamble, openQuestions: [], arbitratedQuestions: [] },
+  phases: PLAN_0_20_0.phases.map(({ model, effort, ...phase }, i) => ({
+    ...phase,
+    modelReason: i === 1 ? REASON : null,
+    model,
+    effort,
+  })),
+} as unknown as PlanDocumentV0_25_0Value;
+const PLAN_0_25_0_JSON = json({ $schema: schemaUrl("plan-document", "0.25.0"), ...PLAN_0_25_0 });
 
 function liftedPlan(): PlanDocument {
   const read = readPlanDocumentFile(PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
@@ -266,6 +283,51 @@ describe("decideDocumentMigration — plans", () => {
     );
     expect(m.md).toBe(md);
     expect(m.bodyChanged).toBe(false);
+  });
+
+  it("rewrites a 0.25.0 plan whose body is its 0.25.0 rendering, its Model reason line becoming an Assignment reason line", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_25_0(PLAN_0_25_0);
+    expect(md).toContain(`**Model reason:** ${REASON}`);
+    const m = migrated(
+      decideDocumentMigration({
+        kind: "plan",
+        path: PLAN,
+        sidecarPath: PLAN_SIDECAR,
+        md,
+        sidecarJson: PLAN_0_25_0_JSON,
+      }),
+    );
+
+    expect(m.fromShape).toBe("0.25.0");
+    expect(m.bodyChanged).toBe(true);
+    expect(m.md).toContain(`**Assignment reason:** ${REASON}`);
+    expect(m.md).not.toContain("Model reason");
+    expect(m.md.startsWith(PLAN_FRONTMATTER)).toBe(true);
+    const sidecar = JSON.parse(m.sidecarText) as {
+      $schema: string;
+      phases: Array<Record<string, unknown>>;
+    };
+    expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, REASON]);
+    expect(m.sidecarText).not.toContain("modelReason");
+  });
+
+  it("refuses a 0.25.0 plan whose body was edited by hand", () => {
+    const md =
+      PLAN_FRONTMATTER + renderPlanBodyV0_25_0(PLAN_0_25_0).replace("Unit.", "Unit, by hand.");
+    const decision = decideDocumentMigration({
+      kind: "plan",
+      path: PLAN,
+      sidecarPath: PLAN_SIDECAR,
+      md,
+      sidecarJson: PLAN_0_25_0_JSON,
+    });
+    expect(decision.kind).toBe("refuse");
+    if (decision.kind === "refuse") {
+      expect(decision.refusal.problem).toBe(
+        "is not its sidecar's plan-document 0.25.0 rendering — a hand edit would be overwritten",
+      );
+    }
   });
 
   it("refuses a 0.19.0 plan beside a spec as an invalid sidecar naming completesSpec", () => {

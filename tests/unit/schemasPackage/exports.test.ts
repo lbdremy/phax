@@ -8,6 +8,7 @@ import * as authoringRecordManifestV0_17_0 from "../../../src/schemas/history/au
 import * as briefRecordV0_20_0 from "../../../src/schemas/history/brief-record/0.20.0.js";
 import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document/0.17.0.js";
 import * as planDocumentV0_20_0 from "../../../src/schemas/history/plan-document/0.20.0.js";
+import * as planDocumentV0_25_0 from "../../../src/schemas/history/plan-document/0.25.0.js";
 import * as specDocumentV0_17_0 from "../../../src/schemas/history/spec-document/0.17.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
@@ -105,6 +106,7 @@ describe("schemas package entry", () => {
       "PlanDocumentSchema",
       "PlanDocumentV0_17_0Schema",
       "PlanDocumentV0_20_0Schema",
+      "PlanDocumentV0_25_0Schema",
       "RecordManifestSchema",
       "RegistryPreSchemaSchema",
       "RegistrySchema",
@@ -320,13 +322,16 @@ describe("schemas package entry", () => {
     expect(Object.keys(entry)).not.toContain("decodeSpecApprovalRecordV0_19_0");
   });
 
-  it("re-exports the spec-document 0.17.0 and plan-document 0.20.0 frozen modules' schemas, never a copy, and never their decoders", () => {
+  it("re-exports the spec-document 0.17.0 and plan-document 0.20.0 and 0.25.0 frozen modules' schemas, never a copy, and never their decoders", () => {
     expect(entry.SpecDocumentV0_17_0Schema).toBe(specDocumentV0_17_0.SpecDocumentV0_17_0Schema);
     expect(entry.PlanDocumentV0_20_0Schema).toBe(planDocumentV0_20_0.PlanDocumentV0_20_0Schema);
     expect(specDocumentV0_17_0.decodeSpecDocumentV0_17_0).toBeDefined();
+    expect(entry.PlanDocumentV0_25_0Schema).toBe(planDocumentV0_25_0.PlanDocumentV0_25_0Schema);
     expect(planDocumentV0_20_0.decodePlanDocumentV0_20_0).toBeDefined();
+    expect(planDocumentV0_25_0.decodePlanDocumentV0_25_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodeSpecDocumentV0_17_0");
     expect(Object.keys(entry)).not.toContain("decodePlanDocumentV0_20_0");
+    expect(Object.keys(entry)).not.toContain("decodePlanDocumentV0_25_0");
   });
 
   it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {

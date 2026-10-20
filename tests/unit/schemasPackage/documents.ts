@@ -610,7 +610,8 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 
 /**
  * A plan document as every shape before the preamble's question arrays and
- * each phase's `modelReason` (the frozen 0.20.0 shape): without both.
+ * each phase's reason (the frozen 0.20.0 shape): without both. The reason is
+ * `assignmentReason` in the current shape.
  */
 export function withoutPreambleQuestions(doc: Doc): Doc {
   const {
@@ -618,17 +619,31 @@ export function withoutPreambleQuestions(doc: Doc): Doc {
     arbitratedQuestions: _arbitrated,
     ...preamble
   } = doc["preamble"] as Doc;
-  const phases = (doc["phases"] as Doc[]).map(({ modelReason: _reason, ...phase }) => phase);
+  const phases = (doc["phases"] as Doc[]).map(({ assignmentReason: _reason, ...phase }) => phase);
   return { ...doc, preamble, phases };
 }
 
 /**
+ * A current plan document as the frozen 0.25.0 shape wrote it: each phase's
+ * `assignmentReason` is a `modelReason`, in the same place before model and effort.
+ */
+export function withModelReasons(doc: Doc): Doc {
+  const phases = (doc["phases"] as Doc[]).map(({ assignmentReason, model, effort, ...phase }) => ({
+    ...phase,
+    modelReason: assignmentReason,
+    model,
+    effort,
+  }));
+  return { ...doc, phases };
+}
+
+/**
  * A plan document with what an older shape lifts to: the preamble's question
- * arrays both empty, and a null `modelReason` on every phase.
+ * arrays both empty, and a null `assignmentReason` on every phase.
  */
 function withEmptyQuestions(doc: Doc): Doc {
   const preamble = doc["preamble"] as Doc;
-  const phases = (doc["phases"] as Doc[]).map((phase) => ({ ...phase, modelReason: null }));
+  const phases = (doc["phases"] as Doc[]).map((phase) => ({ ...phase, assignmentReason: null }));
   return {
     ...doc,
     preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
@@ -706,8 +721,8 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       completesSpec: null,
       preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
       phases: [
-        { ...planDocument.phases[0], modelReason: null },
-        ...planDocument.phases.slice(1).map((phase) => ({ ...phase, modelReason: null })),
+        { ...planDocument.phases[0], assignmentReason: null },
+        ...planDocument.phases.slice(1).map((phase) => ({ ...phase, assignmentReason: null })),
       ],
     }),
   ),

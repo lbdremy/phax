@@ -132,7 +132,7 @@ function planPhase(id: string): PlanDocument["phases"][number] {
     excludedScope: [],
     verification: "The `standard` gate profile.",
     expectedHandoff: "Nothing.",
-    modelReason: null,
+    assignmentReason: null,
     model: "claude-sonnet-5-5",
     effort: "medium",
   };

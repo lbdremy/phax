@@ -3,6 +3,7 @@ import type { DocumentSidecar } from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
 import { renderPlanBody } from "../authoring/renderPlan.js";
+import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
 import { validateArtifact } from "./document.js";
 import { parseArtifactName } from "./name.js";
@@ -75,12 +76,14 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
   return kind === "spec" ? "spec-document" : "plan-document";
 }
 
-// The body the sidecar's own shape renders: today's rendering frozen at
-// spec-document 0.17.0, or the plan renderer, whose output for a plan without
-// questions did not change.
+// The body the sidecar's own shape renders: the rendering frozen at
+// spec-document 0.17.0, the one frozen at plan-document 0.25.0 (its
+// `**Model reason:**` lines), or the plan renderer for the older plan shapes,
+// whose lifted reason is null and whose output did not change.
 function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>): string {
-  return sidecar.kind === "spec"
-    ? renderSpecBodyV0_17_0(sidecar.older)
+  if (sidecar.kind === "spec") return renderSpecBodyV0_17_0(sidecar.older);
+  return sidecar.shape === "0.25.0"
+    ? renderPlanBodyV0_25_0(sidecar.older)
     : renderPlanBody(sidecar.document);
 }
 

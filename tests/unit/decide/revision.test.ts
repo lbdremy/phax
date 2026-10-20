@@ -131,7 +131,7 @@ function phase(id: string) {
     excludedScope: [],
     verification: "standard",
     expectedHandoff: "Nothing.",
-    modelReason: null,
+    assignmentReason: null,
     model: "claude-sonnet-5",
     effort: "medium",
   };

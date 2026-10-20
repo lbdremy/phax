@@ -18,7 +18,7 @@ export const CURRENT_STAMPS = {
   "gate-attribution": "0.21.0",
   "phase-file-reconciliation": "0.17.0",
   "spec-document": "0.25.0",
-  "plan-document": "0.25.0",
+  "plan-document": "0.26.0",
   "plan-approval-record": "0.25.0",
   "spec-approval-record": "0.25.0",
   "gate-request": "0.20.0",
