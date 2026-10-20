@@ -27,28 +27,32 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       opens as a draft while a review plan or a finding is pending, run completion happens when
       the PR becomes ready, and `--run` lets approve, status, lint and `run --append` reach the
       run's branch from the checkout.
-- [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases behind a
-      pluggable `oracles` provider; nothing needs it before steme item 1.1. **It needs
-      re-authoring, not a wording sweep** (rechecked 2026-10-14): its oracle provider answers with
-      the diagnostics document, which `guarantee-reports` replaced with `gate-report` in 0.21
-      with no shim, and a provider answer now needs a `$schema`. Its ground (§1) still lists
-      `orient`, the `scopes` provider and `src/schemas/gateDiagnostics.ts`, all gone. Reopen it
-      and re-author it against `gate-report` before planning.
 
 ### Drafts
 
 - [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. A plan-declared
       phase where the run stops for a person to correct the pattern it sets, before later phases
-      copy it. 9 open questions.
+      copy it. 7 open questions: `q-mode-line` and `q-planned-work` were decided as recommended in
+      the joint phase-shape session (2026-10-20). It ships with `assignment-bounds`, in one
+      plan-document lift.
 - [ ] **`assignment-bounds`** — replaces `phase-model-assignment`, abandoned 2026-10-20 (brief:
       `docs/briefs/assignment-bounds.md`).
       - The architecture report gains `parts` (id, name, description, globs).
       - The owner writes ordered bounds in `phax.json`, each one a `part` or `globs` bound with a
         model and an effort range. The first matching bound governs a phase.
       - `modelReason` becomes `assignmentReason`, and lint errors on a departure without one.
-      - It ships in one release with `interactive-phases` and `oracle-phases`, after a joint session
-        on the phase shape, so the plan document is lifted once.
+      - Joint phase-shape session done (2026-10-20): J1 separate keys (`mode`, later `oracle`),
+        not one `role`; J2 `mode` sits right after `optionalFilesToEdit`; J3 interactive phases are
+        governed by bounds through their optional files; J4 lint and the run preflight share one
+        interactive check, refusing with exit 11; J5 `oracle-phases` comes later, with its own lift.
+      - It ships in one release with `interactive-phases`, so the plan document is lifted once.
       - The 0.26.0 cut waits for the report change, or that change costs a lift.
+- [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases behind a
+      pluggable `oracles` provider; nothing needs it before steme item 1.1. Reopened 2026-10-20. To
+      be re-authored on `gate-report` (provider request and answer with `$schema`,
+      `gate-attribution`'s current enums) once `steme oracles` exists, with its own plan-document
+      lift. It carries the rule against an interactive phase between an oracle phase and its
+      discharging phase, moved out of `interactive-phases`.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
       on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
       without a terminal. Its format changes (the `other` option, the decision record's mode, a new

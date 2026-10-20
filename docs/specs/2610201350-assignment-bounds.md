@@ -39,8 +39,8 @@ Ground read:
 - `packages/schemas/snapshots/plan-document/` — 0.25.0.schema.json is cut, so the shape that carries `modelReason` is released and renaming it needs a frozen copy and a lift.
 - `docs/release.md` — A format's shape lives in `next.schema.json` until the cut renames it to the release. A stamp names the release that last changed the format's shape.
 - `docs/upgrading.md` — Lists, per release, the steps that release asks for. 0.25.0 asks for `phax artifact migrate-documents`. 0.26.0 has no entry yet.
-- `docs/specs/2610190947-interactive-phases.md` — Draft. Adds a required per-phase `mode` (`headless` | `interactive`) to `phax-plan.json` and the plan document. An interactive phase plans no file.
-- `docs/specs/2609281159-oracle-phases.md` — Approved. Adds a required per-phase `oracle` (`{ dischargedBy, files }` or null) to `phax-plan.json` and the plan document.
+- `docs/specs/2610190947-interactive-phases.md` — Draft. Adds a required per-phase `mode` (`headless` | `interactive`) to `phax-plan.json` and the plan document, directly after `optionalFilesToEdit`. An interactive phase plans no file to create or edit; its optional files may name what the person is expected to touch. It ships with this spec, in one plan-document lift.
+- `docs/specs/2609281159-oracle-phases.md` — Reopened to Draft on 2026-10-20. It is to be re-authored later, and will then add a required per-phase `oracle` to `phax-plan.json` and the plan document with its own plan-document lift.
 
 ## 2. Problem
 
@@ -373,7 +373,7 @@ after:
 
     { "id": "phase-03", …, "assignmentReason": null, "model": "claude-opus-5-5", "effort": "medium" }
 
-    Normative: `assignmentReason` is required, a non-empty string or null; `modelReason` is gone and refused as an unknown key; `assignmentReason`, `model` and `effort` are the last three keys, in that order, in both `properties` and `required`; not extracted, so `phax-plan.json` is unchanged by this spec. Indicative: the order of the other keys, including where `mode` (interactive-phases) and `oracle` (oracle-phases) sit, which the joint phase-shape session arbitrates.
+    Normative: `assignmentReason` is required, a non-empty string or null; `modelReason` is gone and refused as an unknown key; `assignmentReason`, `model` and `effort` are the last three keys, in that order, in both `properties` and `required`; not extracted, so `phax-plan.json` is unchanged by this spec. Indicative: the order of the other keys. interactive-phases, which ships in the same lift, places its `mode` directly after `optionalFilesToEdit`.
 
 ### file: plan.md phase header lines — normative
 
@@ -516,7 +516,7 @@ after:
     ### 0.25.0
     …
 
-    Normative: the step lives under the release that ships the plan-document change. Indicative: the wording, and whether the joint change with interactive-phases and oracle-phases adds its own bullets to the same entry.
+    Normative: the step lives under the release that ships the plan-document change. Indicative: the wording, and whether interactive-phases, which ships in the same lift, adds its own bullets to the same entry.
 
 ## 7. Non-goals
 
@@ -737,7 +737,8 @@ Settled:
 - This spec revises spec `planning-skill-defaults`: Q6 (decided body only on 2026-10-19), since the report gains `parts`; §5.19/§5.20, since the body printed as is becomes the report rendered; and, under q-learn, §5.24 (with bounds declared, the no-provider line is followed by the bounds, still exit 1), §5.28/§5.29 (the prompt sends the planner to `phax architecture` when bounds are declared, even without a provider) and §5.30 (the session is granted `phax architecture` when a provider or bounds are configured, not only with a provider). The rendered `## 12. Decision log` names only the verdicts, so these revisions are recorded here.
 - Decided by the operator on 2026-10-20 (§9b): q-learn `architecture-widened`, off the previous menu (prompt-bounds, prompt-no-bounds, grant-bounds, arch-shows-bounds, arch-no-provider-bounds, skill-where); q-part `spawn-error` (part-resolve, part-unresolved); q-default `warning` (default-unreasoned, default-reason-on-default); q-render `lint-only` (no governing-bound line; the stated-departure warning quotes the `**Assignment reason:**` line); q-validate `validate-lint-preflight`, off the previous menu (validate-catalog, invalid-bound-lint, bounds-check-shared, run-refuses, run-passes, run-reads-plan, and shape-only decode in bounds-shape).
 - `assignments` is optional at the top level, as every phax.json key is: absent means no bounds. When present it is non-empty, and every key of a bound is required. Bounds effort values use the plan's effort vocabulary, not phax.json's low | medium | high literal.
-- Lint and the run preflight read a phase's reason from its `**Assignment reason:**` line in plan.md, so headless and hand-written plans are checked the same way. Matching covers the create, edit and optional lists. A phase with no planned files (an interactive phase, for example) has no governing bound and falls under the policy default.
+- Lint and the run preflight read a phase's reason from its `**Assignment reason:**` line in plan.md, so headless and hand-written plans are checked the same way. Matching covers the create, edit and optional lists. An interactive phase (interactive-phases) plans no file to create or edit, but its optional files match bounds as any phase's do, so a bound governs it like any phase: its model and effort, which run its headless first turn and its closing turn, are held to that bound, and `assignmentReason` applies as for any phase. Only a phase with no planned file at all has no governing bound and falls under the policy default.
+- Decided by the operator on 2026-10-20 in the joint phase-shape session with interactive-phases and oracle-phases: (J1) separate keys, never a single `role`: interactive-phases keeps its `mode` (`headless` | `interactive`), and oracle-phases will add its own `oracle`; (J2) `mode` sits directly after `optionalFilesToEdit` in the plan document and in `phax-plan.json`, and plan.md's `**Mode:** interactive` line follows the Recommended model, Recommended effort and `**Assignment reason:**` lines, while `assignmentReason`, `model` and `effort` stay the last three keys; `oracle`'s place is set when oracle-phases is re-authored; (J3) a bound governs an interactive phase through its optional files, as above; (J4) interactive-phases' placement refusals are one domain check that `phax plans lint` and the run preflight both call, the preflight refusing with exit 11, as this spec's bounds check does; (J5) oracle-phases does not ride this release's lift.
 - `phax-plan.json` and its schema are unchanged by this spec: the run preflight reads each phase's planned files from `phax-plan.json` and its reason from the plan.md the run reads (the run folder's copy on resume), which the `phase-sections` preflight already locates. Runs change only at their start: the preflight reads phax.json's bounds and, when a part bound is declared, runs the architecture provider. Only the plan document and plan.md change shape.
 - The `**Model reason:**` label error stays lint's: it is a plan-format finding, not a bounds finding, and the run preflight reads only the `**Assignment reason:**` line. A phase whose only reason line carries the old label departs without a reason in both.
 - The headless plan authoring session on Claude Code is read-only: its reading tools plus the granted command, as PR #148 made it. Granting `phax architecture` when only bounds are configured adds one read-only command to it.
@@ -748,15 +749,14 @@ Left open:
 - The architecture provider's time limit in lint: reuse `phax architecture`'s.
 - How `phax architecture <path>...` shows a part bound whose part the path-scoped report does not carry.
 - The exact wording of the lint findings, the validate lines, the rendered report and bounds, the prompt bullet and the skill text.
-- The position of `mode` (interactive-phases) and `oracle` (oracle-phases) among the phase's keys: the joint phase-shape session arbitrates it.
-- Which release carries the joint plan-document change. If it is not 0.26.0, the upgrading step moves with it.
+- Which release carries the plan-document change this spec shares with interactive-phases. If it is not 0.26.0, the upgrading step moves with it.
 - Where the bounds check sits in `RUN_PREFLIGHT_CHECKS`: it reads the phase sections `phase-sections` locates, so after it.
 - How often a `phax run` invocation runs the architecture provider: `freshRunPreflight` and executePlan's resume re-check both run the shared set, and the spec asks only that their findings agree with lint's.
 - Whether `phax run --dry-run`, which returns before the preflight, reports the bounds errors as a "Preflight will fail" line, as it does for uncovered commands.
 
 Constraints:
 
-- This spec, `interactive-phases` (per-phase `mode`) and `oracle-phases` (per-phase `oracle`) change the plan document together. They must ship in the same release, with one frozen copy of the 0.25.0 plan-document shape and one lift by `phax artifact migrate-documents`. A joint session arbitrates the phase shape across the three, and `assignmentReason`, `model` and `effort` stay the last three keys.
+- This spec and `interactive-phases` (per-phase `mode`) change the plan document together. They ship in the same release, with one frozen copy of the 0.25.0 plan-document shape and one lift by `phax artifact migrate-documents`, which carries `modelReason` over as `assignmentReason` and gives every phase `mode: "headless"`. `assignmentReason`, `model` and `effort` stay the last three keys. `oracle-phases` (per-phase `oracle`), reopened to Draft on 2026-10-20, does not ride this lift: it follows later, with its own.
 - The architecture-report change does not depend on the plan-document change and should be planned first. The 0.26.0 cut waits for it. Otherwise the report's body-only shape is cut as 0.26.0, and the change costs a frozen copy and a lift of the report.
 - No back-compat shims: `modelReason` is removed and refused as an unknown key in the current shape, an older sidecar is lifted and never read with the key missing, and `**Model reason:**` is a lint error, not an alias.
 - Explicit per-variant enums: `kind: "part" | "globs"`, each variant with exactly its keys.

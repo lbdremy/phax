@@ -45,7 +45,10 @@ Ground read:
 - `src/infra/providers/mistralVibe.ts` — The secure vibe flags are `--workdir` and `--add-dir`, with no per-command or network restriction. The model is passed through the `VIBE_ACTIVE_MODEL` environment variable, and phax uses no read-only mode for vibe.
 - `src/app/decideArtifact.ts` — After decide's interactive session, phax resumes that session headless for a structured answer. A refused answer gets one corrective resume, and each resume's transcript is written to the artifact's folder. Closing an interactive phase follows the same pattern.
 - `src/cli/commands/runLayers.ts` — EXIT_CODE_MEANINGS runs from 0 to 12, and a test keeps the README table in step with it. 8 (rate or usage limit) and 9 (no changes) are resumable codes, and 13 is free.
+- `src/app/runPreflight.ts` — The shared run preflight set. `phax run` runs it before it names the run, and executePlan runs it again as the resume re-check, so `phax resume` runs it too. Its `phase-models` check calls `preflightPhaseModels`, the function lint's `models` check calls, and refuses with exit 11, as `phase-sections` does. `phax validate --plan` only decodes `phax-plan.json` and runs none of it.
+- `src/schemas/planDocument.ts` — A plan-document phase's keys run `…, plannedFilesToCreate, plannedFilesToEdit, optionalFilesToEdit, boundaryContracts, …, expectedHandoff, commit, modelReason, model, effort`. A `phax-plan.json` phase ends `…, optionalFilesToEdit, commit`.
 - `docs/specs/2609250823-headless-review.md` — Approved. It covers `review-code` and `--new-session`, `review_open`, and `phax run --append`, which takes a run from review_open back to running. The interactive phase sits before all of this and changes none of it.
+- `docs/specs/2610201350-assignment-bounds.md` — Draft. Renames the plan document's `modelReason` to `assignmentReason`, rendered as an `**Assignment reason:**` line under the model and effort lines, keeps `assignmentReason`, `model` and `effort` as a phase's last three keys, and holds each phase's model and effort to the owner's bounds in lint and in the run preflight, matching a phase through its create, edit and optional files. This spec ships with it, in one plan-document lift.
 
 ## 2. Problem
 
@@ -67,8 +70,8 @@ The plan itself is never rewritten. This is the one sanctioned exception to auto
 
 ## 4. Terminology
 
-- **Mode** — A phase's required `mode` field. Its value is exactly `headless` (an agent session executes the phase, as today) or `interactive` (a person reviews and corrects; the run starts no work session for it).
-- **Interactive phase** — A phase whose mode is `interactive`. Like any phase, it has its own id, branch, worktree, gate, commit and handoff, and builds on the previous phase. It plans no file to create or edit. Its Detailed instructions say what to review, which pattern is at stake and which later phases repeat it.
+- **Mode** — A phase's required `mode` field, placed directly after `optionalFilesToEdit` in a phase of the plan document and of phax-plan.json. Its value is exactly `headless` (an agent session executes the phase, as today) or `interactive` (a person reviews and corrects; the run starts no work session for it).
+- **Interactive phase** — A phase whose mode is `interactive`. Like any phase, it has its own id, branch, worktree, gate, commit and handoff, and builds on the previous phase. It plans no file to create or edit; its optional files may name what the person is expected to touch. Through those files a bound of assignment-bounds governs it like any phase, and its model and effort are those its first turn and closing turn run. Its Detailed instructions say what to review, which pattern is at stake and which later phases repeat it.
 - **Headless phase** — A phase whose mode is `headless`. Every phase that exists today is one.
 - **Pattern** — A choice an executed phase made that later phases are planned to repeat, such as a record shape, a wording, an error policy or a test style.
 - **Seed** — The file phax writes when a run reaches an interactive phase: `.phax-context/interactive-review.md` in the worktree, with an identical copy, `review-seed.md`, in the phase's run folder. It is never committed.
@@ -92,7 +95,7 @@ The plan itself is never rewritten. This is the one sanctioned exception to auto
 
 ### 5.1 The per-phase mode
 
-The system SHALL carry a required `mode` field on every phase of `phax-plan.json` and of the plan document, with a value of exactly `headless` or `interactive`. It SHALL reject a phase that lacks the field or holds any other value.
+The system SHALL carry a required `mode` field on every phase of `phax-plan.json` and of the plan document, placed directly after `optionalFilesToEdit`, with a value of exactly `headless` or `interactive`. It SHALL reject a phase that lacks the field or holds any other value.
 
 ### 5.2 Reading the mode from plan.md
 
@@ -100,217 +103,225 @@ WHEN phax parses or extracts a plan.md THE system SHALL give `mode: "interactive
 
 ### 5.3 Rendering the mode
 
-WHEN phax renders a plan document to plan.md THE system SHALL write the `**Mode:** interactive` line in the header paragraph of each interactive phase, and no Mode line on a headless phase.
+WHEN phax renders a plan document to plan.md THE system SHALL write the `**Mode:** interactive` line in the header paragraph of each interactive phase, after its `**Recommended model:**` and `**Recommended effort:**` lines and, when the phase has one, its `**Assignment reason:**` line. It SHALL write no Mode line on a headless phase.
 
-### 5.4 Lint: where an interactive phase may sit
+### 5.4 One lift with assignment-bounds
+
+WHEN `phax artifact migrate-documents` lifts a live plan sidecar stamped at the 0.25.0 plan-document shape or below THE system SHALL give every phase `mode: "headless"` in the same lift that carries `modelReason` over as `assignmentReason` (assignment-bounds), and SHALL add no Mode line to its plan.md.
+
+### 5.5 Lint: where an interactive phase may sit
 
 IF an interactive phase is the plan's first phase or its last phase, or directly follows another interactive phase, THEN `phax plans lint` SHALL report an error on the `interactive` check, naming the phase and the rule it breaks.
 
-### 5.5 Lint: an interactive phase plans no work
+### 5.6 Lint: an interactive phase plans no work
 
 IF an interactive phase lists a planned file to create or to edit THEN `phax plans lint` SHALL report an error on the `interactive` check, naming the phase and the file.
 
-### 5.6 Lint: not inside an oracle pair
+### 5.7 An interactive phase is held to the bounds
 
-IF an interactive phase sits strictly between an oracle phase and the phase that discharges it THEN `phax plans lint` SHALL report an error on the `interactive` check, naming the interactive phase and the oracle phase.
+The system SHALL hold an interactive phase to the assignment bounds like any phase: its governing bound is the first bound that matches any of its optional files, its model and effort are checked against that bound (or against the policy default when none governs) with its `**Assignment reason:**` line read as for any phase, and its first turn and closing turn run at that model and effort.
 
-### 5.7 Run, resume and validate refuse an ill-placed interactive phase
+### 5.8 One interactive check
 
-IF `phax run`, `phax resume` or `phax validate --plan` is given a plan in which an `interactive` lint rule reports an error THEN it SHALL refuse with exit 2, naming the first such error, before any phase starts and without changing an existing run's state.
+The system SHALL compute the `interactive` findings (where an interactive phase sits and whether it plans work) in one domain check that `phax plans lint` and the run preflight both call, as lint's `models` check and the run's `phase-models` preflight both call `preflightPhaseModels`, so that an error lint reports is the error the run preflight refuses on.
 
-### 5.8 The planning skill
+### 5.9 The run preflight refuses an ill-placed interactive phase
+
+IF the `interactive` check reports an error when `phax run` or `phax resume` runs its preflight THEN the system SHALL refuse before any phase starts (for `phax run`, before the run is named), print every error of the check, each naming its phase, leave an existing run's state unchanged, and exit 11, as the `phase-models` preflight refuses.
+
+### 5.10 The planning skill
 
 The phax-planning skill SHALL state when to declare an interactive phase: directly after the first phase that sets a pattern at least one later phase repeats, and never by default. It SHALL give the Mode line, and SHALL say that the phase's Detailed instructions name what to review, the pattern at stake and the later phases that repeat it.
 
-### 5.9 Reaching an interactive phase
+### 5.11 Reaching an interactive phase
 
 WHEN a run reaches an interactive phase THE system SHALL create its worktree on its own phase branch, off the previous phase's branch, and run the project's phase setup commands. It SHALL run no work session, no gate and no fix loop for the phase.
 
-### 5.10 The seed
+### 5.12 The seed
 
 WHEN an interactive phase's worktree is set up THE system SHALL write the seed to `.phax-context/interactive-review.md` in the worktree and to `review-seed.md` in the phase's run folder. The seed SHALL hold what is expected of the person (correct the pattern, add guards, keep the scope), the phase's own Detailed instructions, every executed phase's handoff in plan order, the upcoming phases' plan sections, the path of the full plan, the gate commands and the closing command.
 
-### 5.11 The seed is never committed
+### 5.13 The seed is never committed
 
 The system SHALL never include the seed, `first-reading.md`, `interactive-session.json` or an interactive transcript in any commit of the run's branches.
 
-### 5.12 The first turn
+### 5.14 The first turn
 
 WHEN the seed is written THE system SHALL run the first turn: a new headless session of the phase's provider, model and effort in the worktree, never a resume of an earlier phase's session. The turn's prompt SHALL ask it to read the seed and answer a versioned `first-reading` document.
 
-### 5.13 The first turn is recorded
+### 5.15 The first turn is recorded
 
 WHEN the first turn returns a valid first-reading document THE system SHALL record the session's provider, model, effort, session id and start time as the current session in `interactive-session.json` in the phase's run folder. It SHALL write the rendered first reading to `first-reading.md` beside that file.
 
-### 5.14 phax's turns run read-only where they can
+### 5.16 phax's turns run read-only where they can
 
 The system SHALL run every first turn and every closing turn under the phase's security posture, narrowed to the provider's read-only mode wherever phax has one for that provider: Claude Code's read-only tool set and codex's read-only sandbox.
 
-### 5.15 A first turn that edits is refused
+### 5.17 A first turn that edits is refused
 
 IF the worktree's tracked files, or its untracked files that are not ignored, differ after a first turn from before it, THEN the system SHALL restore them to their state before the turn, record no session for that turn, and treat the turn as a failed first turn, naming the changed files.
 
-### 5.16 A failed first turn still stops
+### 5.18 A failed first turn still stops
 
 IF the first turn fails, through a rate or usage limit, a provider error, or an answer that is still not a valid first-reading document after one corrective resume, THEN the system SHALL still stop at the interactive phase, with no current session. It SHALL name the failure and print the fresh-start command in place of a continue command.
 
-### 5.17 Awaiting review
+### 5.19 Awaiting review
 
 WHEN the first turn has ended, whether or not it succeeded, THE system SHALL move the phase and the run to `awaiting_review`, write `resume-instructions.md` for that kind, and release the run lock. It SHALL print the first reading when there is one, the worktree path, the seed path, the continue or fresh-start command, `phax enter-phase` and the closing command, and then exit 13.
 
-### 5.18 No terminal, no wait
+### 5.20 No terminal, no wait
 
 WHILE phax runs without a terminal THE system SHALL stop at an interactive phase exactly as it does with one, and SHALL never read stdin or wait for input there.
 
-### 5.19 The only planned stop
+### 5.21 The only planned stop
 
 The system SHALL stop a run to wait for a person only at a phase whose `mode` is `interactive`.
 
-### 5.20 Interactive resume support per provider
+### 5.22 Interactive resume support per provider
 
 The system SHALL hold each provider's interactive resume support as exactly `verified` or `unverified`: `verified` for claude-code and codex, and `unverified` for mistral-vibe.
 
-### 5.21 The continue command
+### 5.23 The continue command
 
 WHERE the current session's provider has `verified` interactive resume support THE system SHALL print as the continue command that provider's interactive resume of the current session in the worktree (`claude --resume <id>` or `codex resume <id>`). The command SHALL carry the phase's model and effort and the filesystem and network flags of the phase's security posture.
 
-### 5.22 A provider whose interactive resume is unverified
+### 5.24 A provider whose interactive resume is unverified
 
 WHERE the phase's provider has `unverified` interactive resume support THE system SHALL print the fresh-start command, warn that a session started with it will not be captured, and keep the current session for the closing turn.
 
-### 5.23 Visible as waiting, not failed
+### 5.25 Visible as waiting, not failed
 
 WHEN `phax ls` or `phax session-info` reads a run in `awaiting_review` THE system SHALL show the `awaiting_review` state, the interactive phase and its worktree, distinct from failed and interrupted runs. `phax session-info` SHALL also show the current session, or that there is none. `phax ls --awaiting-review` SHALL list only runs in `awaiting_review`.
 
-### 5.24 The worktree commands target the interactive phase
+### 5.26 The worktree commands target the interactive phase
 
 WHILE a run is in `awaiting_review` THE system SHALL make `phax path`, `phax shell` and `phax open` target the interactive phase's worktree.
 
-### 5.25 enter-phase continues the session phax started
+### 5.27 enter-phase continues the session phax started
 
 WHEN `phax enter-phase <run> <phase>` targets an interactive phase in `awaiting_review` THE system SHALL run the continue command when there is a current session and its provider has `verified` interactive resume support, and the fresh-start command otherwise.
 
-### 5.26 enter-phase resumes codex sessions
+### 5.28 enter-phase resumes codex sessions
 
 WHEN `phax enter-phase` targets a headless phase whose recorded agent session is a codex session THE system SHALL resume that session interactively with `codex resume <id>` in the phase's worktree, instead of refusing it as unsupported.
 
-### 5.27 --new-session starts another recorded session
+### 5.29 --new-session starts another recorded session
 
 WHEN `phax enter-phase <run> <phase> --new-session` targets an interactive phase in `awaiting_review` THE system SHALL run a new first turn as at the stop and make it the current session, keeping the earlier sessions in the history of `interactive-session.json`. It SHALL then run the continue or fresh-start command.
 
-### 5.28 The worktree diff is the work
+### 5.30 The worktree diff is the work
 
 The system SHALL gate, commit and reconcile an interactive phase by its worktree's changes since the previous phase's commit, whatever made them: an editor, a continued session, or an agent phax did not start.
 
-### 5.29 The phase guard holds
+### 5.31 The phase guard holds
 
 IF `phax resume`, `phax enter-phase` or any other command the phase guard refuses runs inside an interactive phase's worktree THEN the system SHALL refuse it, as for any phase worktree.
 
-### 5.30 Closing runs the gate first
+### 5.32 Closing runs the gate first
 
 WHEN `phax resume <run>` targets a run in `awaiting_review` THE system SHALL run the interactive phase's gate on its worktree as it stands, before any agent turn.
 
-### 5.31 A red gate returns the phase to the person
+### 5.33 A red gate returns the phase to the person
 
 IF the gate fails while an interactive phase is closing THEN the system SHALL start no fix attempt and no agent turn, keep the attempt's log, commit nothing, leave the phase and the run in `awaiting_review` and exit 4.
 
-### 5.32 The interactive handoff
+### 5.34 The interactive handoff
 
 The system SHALL accept as an interactive phase's handoff only a document with, in this order, `## What was corrected`, `## The pattern to follow from now on`, `## Guards` and `## What the next phases need to know`. `## Guards` SHALL hold one entry per `## What was corrected` entry, in the same order, each naming a test, lint rule or gate step, or `no guard:` followed by the reason.
 
-### 5.33 A handoff the person wrote takes precedence
+### 5.35 A handoff the person wrote takes precedence
 
 WHERE the person wrote `.phax-context/phase-handoff.md` in the interactive phase's worktree THE system SHALL validate that file as the interactive handoff and use it, running no closing turn.
 
-### 5.34 The closing turn resumes the current session
+### 5.36 The closing turn resumes the current session
 
 WHEN the gate passes on a changed worktree, the person wrote no handoff, and there is a current session, THE system SHALL run the closing turn as a headless resume of that session, given the diff of the corrections. It SHALL ask for a versioned `interactive-handoff` document and render it as the interactive handoff.
 
-### 5.35 A closing turn without a usable session
+### 5.37 A closing turn without a usable session
 
 IF there is no current session, or resuming it fails for a reason other than a rate or usage limit, THEN the system SHALL run the closing turn as a new headless session of the phase's provider, model and effort, given the seed and the diff of the corrections.
 
-### 5.36 A closing turn that edits is refused
+### 5.38 A closing turn that edits is refused
 
 IF the worktree differs after the closing turn from the gated worktree THEN the system SHALL commit nothing, leave the changes in place, keep the phase and the run in `awaiting_review`, name the changed files and exit 5.
 
-### 5.37 An invalid handoff commits nothing
+### 5.39 An invalid handoff commits nothing
 
 IF the handoff fails validation THEN the system SHALL commit nothing, keep the phase and the run in `awaiting_review` and name what is missing or out of place. It SHALL exit 1 when the handoff is a file the person wrote, and exit 5 when it is a closing turn's answer that is still invalid after one corrective resume.
 
-### 5.38 A limit at closing keeps the stop
+### 5.40 A limit at closing keeps the stop
 
 IF the closing turn hits a rate or usage limit THEN the system SHALL commit nothing, keep the phase and the run in `awaiting_review`, name the reset time and exit 8.
 
-### 5.39 The transcripts are captured
+### 5.41 The transcripts are captured
 
 WHEN an interactive phase closes THE system SHALL copy each of its recorded sessions from the provider's own session store into `interactive-transcripts/<session id>.jsonl` in the phase's run folder. It SHALL do so after the closing turn, whether or not the person ever continued the session.
 
-### 5.40 A missing transcript never blocks closing
+### 5.42 A missing transcript never blocks closing
 
 IF a recorded session's transcript cannot be found or read THEN the system SHALL record it as missing, with the reason, and go on closing the phase.
 
-### 5.41 The phase commit
+### 5.43 The phase commit
 
 WHEN the gate passes and the handoff is valid on a changed worktree THE system SHALL commit the worktree's changes on the phase branch, with the plan's commit subject and body and an `Interactive-Phase: <phase id>` trailer, authored by the checkout's git identity. It SHALL record the phase `committed` with outcome `corrected` and continue with the next phase in the same invocation.
 
-### 5.42 Reviewed without change
+### 5.44 Reviewed without change
 
 WHEN `phax resume` closes an interactive phase whose worktree has no change THE system SHALL run the gate and use the person's handoff, or else a fixed reviewed-without-change handoff, with no closing turn. It SHALL make an empty commit on the phase branch with the plan's subject and the `Interactive-Phase` trailer and record outcome `unchanged`. It SHALL never treat the phase as having produced no changes (exit 9).
 
-### 5.43 Later phases read the corrections
+### 5.45 Later phases read the corrections
 
 WHEN a phase after an interactive phase is dispatched THE system SHALL put the handoff of every earlier interactive phase, in plan order, in a `## Review corrections` section of its prompt. The section SHALL state that it takes precedence over the earlier phases' handoffs where they disagree, and that the phase's own plan section still binds.
 
-### 5.44 The plan is not rewritten
+### 5.46 The plan is not rewritten
 
 The system SHALL run the phases after an interactive phase from the plan as it was approved. An interactive phase SHALL change neither the run's `phax-plan.json` nor its plan.md.
 
-### 5.45 Corrections are not deviations
+### 5.47 Corrections are not deviations
 
 WHEN phax reconciles the files of an interactive phase THE system SHALL report every file the phase changed as a review correction, and none as an unplanned edit.
 
-### 5.46 The compliance review
+### 5.48 The compliance review
 
 WHEN the compliance review runs on a run with an interactive phase THE system SHALL present that phase to the reviewer as interactive, with its handoff, so that its corrections are judged against that handoff and not as deviations from the plan.
 
-### 5.47 The review handoff and the PR body
+### 5.49 The review handoff and the PR body
 
 WHEN phax writes `review-handoff.md` or builds the PR body of a run with an interactive phase THE system SHALL show each interactive phase's outcome and committer. `review-handoff.md` SHALL also show its corrections and their guards.
 
-### 5.48 Records
+### 5.50 Records
 
 WHEN records are configured and an interactive phase commits THE system SHALL record its mode, its outcome, its committer, its recorded sessions (provider, model and id) or that there were none, and each transcript's sha256 or that it is missing, and never the transcript's content. `phax records explain` on the phase's commit SHALL name them.
 
-### 5.49 The posture is told honestly
+### 5.51 The posture is told honestly
 
 The system SHALL record in an interactive phase's security record that the person's work, including a session they continued, ran outside phax's enforcement. It SHALL also record the applied posture of each first turn and closing turn phax ran.
 
-### 5.50 Cost of phax's turns
+### 5.52 Cost of phax's turns
 
 The system SHALL write a cost-ledger entry for each first turn and each closing turn, holding that turn's own cost rather than its session's cumulative cost. It SHALL write none for the turns of a session the person continued, or for a session phax did not start.
 
-### 5.51 Estimating an interactive phase
+### 5.53 Estimating an interactive phase
 
 WHEN `phax plans estimate` sizes a plan with an interactive phase THE system SHALL name the phase as interactive, size only its first turn and closing turn, and leave the person's work out of the estimate.
 
-### 5.52 Reset at an interactive phase
+### 5.54 Reset at an interactive phase
 
 WHEN `phax reset-phase` targets an interactive phase in `awaiting_review` THE system SHALL ask for confirmation, naming the uncommitted corrections it would discard, and then remove the phase's worktree, its branch and its recorded sessions. A later `phax resume` SHALL set the phase up again, run a new first turn and stop again.
 
-### 5.53 Reset the interactive phase first
+### 5.55 Reset the interactive phase first
 
 IF `phax reset-phase` targets a phase before an interactive phase that is in `awaiting_review` THEN it SHALL refuse, naming the interactive phase to reset first, and change nothing.
 
-### 5.54 adjust-plan waits for the landing
+### 5.56 adjust-plan waits for the landing
 
 IF `phax adjust-plan --landed <run>` names a run in `awaiting_review` THEN it SHALL refuse, naming the run's state, and start no session.
 
-### 5.55 Archive treats the stop as unfinished
+### 5.57 Archive treats the stop as unfinished
 
 WHEN `phax archive` targets a run in `awaiting_review` THE system SHALL treat it as unfinished: it SHALL refuse without `--force`, naming the state.
 
-### 5.56 Plans without an interactive phase
+### 5.58 Plans without an interactive phase
 
 WHILE a plan declares no interactive phase THE system SHALL extract, lint, run, resume and record it with the same prompts, states, findings and exit codes as before this change, apart from `mode: "headless"` on every phase.
 
@@ -322,15 +333,17 @@ before:
 
     ## phase-03 — Review the export record  {#phase-03-review-export-record}
 
-    **Recommended model:** gpt-5.5-codex
+    **Recommended model:** gpt-6-luna
     **Recommended effort:** medium
+    **Assignment reason:** The person continues this phase's session in codex, the provider of the run's export phases.
 
 after:
 
     ## phase-03 — Review the export record  {#phase-03-review-export-record}
 
-    **Recommended model:** gpt-5.5-codex
+    **Recommended model:** gpt-6-luna
     **Recommended effort:** medium
+    **Assignment reason:** The person continues this phase's session in codex, the provider of the run's export phases.
     **Mode:** interactive
 
     ### Detailed instructions
@@ -356,34 +369,45 @@ after:
 
     fix(export): review corrections to the invoice record
 
-    # normative: the line sits only on an interactive phase, in the header paragraph; a phase with no line is headless; an interactive phase plans no file to create or edit. Indicative: the line's spelling.
+    # normative: the line sits only on an interactive phase, in the header paragraph, after the Recommended model and Recommended effort lines and the Assignment reason line when there is one; a phase with no line is headless; an interactive phase plans no file to create or edit. Indicative: the line's spelling.
 
 ### file: phax-plan.json — per-phase mode — normative
 
 before:
 
-    { "id": "phase-03", "title": "Review the export record", "model": "gpt-5.5-codex", "effort": "medium",
+    { "id": "phase-03", "title": "Review the export record", "model": "gpt-6-luna", "effort": "medium",
       "planMarkdownAnchor": "phase-03-review-export-record", "plannedFilesToCreate": [], "plannedFilesToEdit": [],
       "optionalFilesToEdit": ["src/export/invoiceRow.ts"], "commit": { "subject": "fix(export): review corrections to the invoice record", "body": "…" } }
 
 after:
 
-    { "id": "phase-02", …same fields…, "mode": "headless" }
-    { "id": "phase-03", …same fields…, "mode": "interactive" }
+    { "id": "phase-02", …same fields up to optionalFilesToEdit…, "mode": "headless", "commit": { … } }
+    { "id": "phase-03", …same fields up to optionalFilesToEdit…, "mode": "interactive", "commit": { … } }
 
-    # `mode` is required on every phase; any other value, or its absence, is rejected.
+    # `mode` is required on every phase, directly after `optionalFilesToEdit`; any other value, or its absence, is rejected.
 
 ### file: plan document (`phax artifact schema plan`) — per-phase mode — normative
 
 before:
 
-    "phases": [{ "id": "phase-03", "model": …, "plannedFilesToCreate": [], …, "expectedHandoff": "…" }]
+    "phases": [{ "id": "phase-03", …, "plannedFilesToCreate": [], "plannedFilesToEdit": [],
+      "optionalFilesToEdit": ["src/export/invoiceRow.ts", "tests/export/invoiceRow.test.ts"],
+      "boundaryContracts": null, …, "expectedHandoff": "…", "commit": { … },
+      "assignmentReason": "The person continues this phase's session in codex, the provider of the run's export phases.",
+      "model": "gpt-6-luna", "effort": "medium" }]
+
+    # The phase's keys once assignment-bounds renames `modelReason`.
 
 after:
 
-    "phases": [{ "id": "phase-03", "model": …, "plannedFilesToCreate": [], …, "mode": "interactive", "expectedHandoff": "…" }]
+    "phases": [{ "id": "phase-03", …, "plannedFilesToCreate": [], "plannedFilesToEdit": [],
+      "optionalFilesToEdit": ["src/export/invoiceRow.ts", "tests/export/invoiceRow.test.ts"],
+      "mode": "interactive",
+      "boundaryContracts": null, …, "expectedHandoff": "…", "commit": { … },
+      "assignmentReason": "The person continues this phase's session in codex, the provider of the run's export phases.",
+      "model": "gpt-6-luna", "effort": "medium" }]
 
-    # Same field and values as phax-plan.json; it renders to the plan.md Mode line and projects to phax-plan.json unchanged.
+    # normative: `mode` sits directly after `optionalFilesToEdit`, in `properties` and `required`; `assignmentReason`, `model` and `effort` stay the last three keys. Same field and values as phax-plan.json; it renders to the plan.md Mode line, after the Assignment reason line, and projects to phax-plan.json unchanged.
 
 ### cli: phax plans lint — `interactive` check — normative
 
@@ -394,14 +418,28 @@ before:
 after:
 
     $ phax plans lint docs/plans/2610191200-invoice-export-plan.md
-    docs/plans/2610191200-invoice-export-plan.md: 4 errors, 0 warnings
+    docs/plans/2610191200-invoice-export-plan.md: 3 errors, 0 warnings
     error    interactive    phase-06  an interactive phase cannot be the last phase (the final phase is already kept open)
     error    interactive    phase-04  directly follows interactive phase-03
     error    interactive    phase-03  plans src/export/csv.ts to edit; an interactive phase plans no work
-    error    interactive    phase-03  sits between oracle phase-02 and its discharging phase-04
     $? = 1
 
-    # normative: the check name `interactive`, severity error, the phase column, exit 1. Indicative: wording.
+    # normative: the check name `interactive`, severity error, the phase column, exit 1, and the same errors the run preflight refuses on. Indicative: wording.
+
+### cli: phax run / phax resume — the `interactive` preflight — normative
+
+    $ phax run --plan docs/plans/2610191200-invoice-export-plan.md
+    Interactive preflight failed: 1 error.
+      phase-06  an interactive phase cannot be the last phase (the final phase is already kept open)
+    Fix the plan, then check it with `phax plans lint docs/plans/2610191200-invoice-export-plan.md`.
+    $? = 11
+
+    $ phax resume invoice-export --yes      # the run folder's plan carries the same defect
+    Interactive preflight failed: 1 error.
+      phase-06  an interactive phase cannot be the last phase (the final phase is already kept open)
+    $? = 11
+
+    # normative: every error of the shared `interactive` check, the same errors `phax plans lint` reports; refused before any phase starts (for `phax run`, before the run is named), with an existing run's state unchanged; exit 11, as the `phase-models` preflight. Indicative: wording.
 
 ### cli: phax run — stopping at an interactive phase — normative
 
@@ -410,7 +448,7 @@ after:
     ✓ phase-02  Invoice CSV record       committed  5d6e7f8
     ◐ phase-03  Review the export record — awaiting review (interactive phase)
 
-      First reading (codex gpt-5.5-codex, session 019a2f6e…):
+      First reading (codex gpt-6-luna, session 019a2f6e…):
         Pattern at stake: the InvoiceRow column order, the header wording `invoice_no`,
         skip-and-warn on a missing tax id.
         phase-04 and phase-05 copy all three; phase-06 reuses the header wording.
@@ -418,7 +456,7 @@ after:
       Worktree:  ~/.phax/worktrees/invoice-export/phase-03
       Seed:      .phax-context/interactive-review.md
       Continue the session phax started:
-        cd ~/.phax/worktrees/invoice-export/phase-03 && codex resume 019a2f6e-… -m gpt-5.5-codex -c model_reasoning_effort="medium" -c sandbox_mode="workspace-write" …
+        cd ~/.phax/worktrees/invoice-export/phase-03 && codex resume 019a2f6e-… -m gpt-6-luna -c model_reasoning_effort="medium" -c sandbox_mode="workspace-write" …
         or: phax enter-phase invoice-export phase-03
       Or work by hand or with any agent. Then, from the main checkout:
         phax resume invoice-export
@@ -427,7 +465,7 @@ after:
     # first turn failed (no current session):
       First reading: none — codex stopped: rate limit hit (resets 14:20)
       Start a session:
-        cd ~/.phax/worktrees/invoice-export/phase-03 && codex -m gpt-5.5-codex … "Read .phax-context/interactive-review.md, then review phase-03 with me."
+        cd ~/.phax/worktrees/invoice-export/phase-03 && codex -m gpt-6-luna … "Read .phax-context/interactive-review.md, then review phase-03 with me."
     $? = 13
 
     # normative: state `awaiting_review`, exit 13 whether or not the first turn succeeded, no prompt and no stdin read with or without a terminal, the first reading and a continue or fresh-start command printed. Indicative: layout and wording.
@@ -445,10 +483,10 @@ after:
     claude-code (verified):
       cd <worktree> && claude --resume <id> --model claude-sonnet-5-5 --effort medium <phase permission flags>
     codex (verified):
-      cd <worktree> && codex resume <id> -m gpt-5.5-codex -c model_reasoning_effort="medium" -c sandbox_mode="workspace-write" -c sandbox_workspace_write.writable_roots=[…] -c sandbox_workspace_write.network_access=false
+      cd <worktree> && codex resume <id> -m gpt-6-luna -c model_reasoning_effort="medium" -c sandbox_mode="workspace-write" -c sandbox_workspace_write.writable_roots=[…] -c sandbox_workspace_write.network_access=false
       (the first open of the worktree asks you to trust the directory, then to review its hooks)
     mistral-vibe (unverified, fresh start; this session's transcript will not be captured):
-      cd <worktree> && VIBE_ACTIVE_MODEL=devstral-2 vibe --workdir <worktree> "Read .phax-context/interactive-review.md, then review phase-03 with me."
+      cd <worktree> && VIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-medium vibe --workdir <worktree> "Read .phax-context/interactive-review.md, then review phase-03 with me."
 
     # normative: the executable and its resume form (`claude --resume <id>`, `codex resume <id>`); a fresh start for an unverified provider; model, effort and posture flags carried. Indicative: the exact flag spelling and order.
 
@@ -508,7 +546,7 @@ after:
     { "$schema": "…/interactive-session/<release>.json",
       "phaseId": "phase-03",
       "interactiveResume": "verified",
-      "current": { "provider": "codex", "model": "gpt-5.5-codex", "effort": "medium",
+      "current": { "provider": "codex", "model": "gpt-6-luna", "effort": "medium",
                    "sessionId": "019a2f6e-…", "startedAt": "2026-10-19T09:12:04Z", "origin": "stop" },
       "history": [],
       "firstTurns": [ { "origin": "stop", "outcome": "answered" } ] }
@@ -553,7 +591,7 @@ after:
     Continuing codex session 019a2f6e-… in ~/.phax/worktrees/invoice-export/phase-03
 
     $ phax enter-phase invoice-export phase-03 --new-session
-    First turn: new codex session 7d0e41b2-… (gpt-5.5-codex, medium) — first reading written
+    First turn: new codex session 7d0e41b2-… (gpt-6-luna, medium) — first reading written
     Continuing codex session 7d0e41b2-… in ~/.phax/worktrees/invoice-export/phase-03
 
     $ phax enter-phase invoice-export phase-02     # a headless codex phase
@@ -652,7 +690,7 @@ after:
 
 before:
 
-    { "phaseId": "phase-03", "phaseIndex": 2, "state": "running", "model": "gpt-5.5-codex", "effort": "medium", … }
+    { "phaseId": "phase-03", "phaseIndex": 2, "state": "running", "model": "gpt-6-luna", "effort": "medium", … }
 
 after:
 
@@ -704,12 +742,12 @@ after:
 
     phase-03  committed  surfaces: local
       interactive: corrected by Ada Example
-      sessions: codex gpt-5.5-codex 019a2f6e-… (transcript sha256 3f9a…)
+      sessions: codex gpt-6-luna 019a2f6e-… (transcript sha256 3f9a…)
 
 ### file: cost-ledger.json — interactive phase entries — indicative
 
-    { "phaseId": "phase-03", "kind": "first-turn",   "provider": "codex", "model": "gpt-5.5-codex", … }
-    { "phaseId": "phase-03", "kind": "closing-turn", "provider": "codex", "model": "gpt-5.5-codex", … }
+    { "phaseId": "phase-03", "kind": "first-turn",   "provider": "codex", "model": "gpt-6-luna", … }
+    { "phaseId": "phase-03", "kind": "closing-turn", "provider": "codex", "model": "gpt-6-luna", … }
 
     # Each entry holds its own turn's cost, never the session's cumulative cost. No entry for the person's interactive turns.
 
@@ -758,7 +796,6 @@ after:
 - Changing today's kept-open final phase, `review_open`, `phax enter`, `phax review-code` or the end-of-run order.
 - Lifting `unverified` interactive resume for mistral-vibe. That waits until `vibe --resume <id>` is verified to continue a `vibe -p` session interactively.
 - Capturing, costing or recording the content of a session phax did not start, or the person's interactive turns.
-- An interactive phase inside an oracle pair. Lint refuses it until a later spec defines which commit the discharge judges after a person's correction.
 - A timeout, reminder or notification while a run awaits review. The run waits indefinitely, like every resumable stop.
 - Changing `phax report`, which is a telemetry issue reporter and not a status view.
 - `phax review-plan` declaring interactive phases in a review plan.
@@ -772,187 +809,177 @@ Given a six-phase plan whose phase-03 header carries `**Mode:** interactive`, wi
 
 ### The plan document carries the mode
 
-Given a plan document whose phase-03 has `"mode": "interactive"` and whose other phases have `"mode": "headless"`, plus two variants, one with no `mode` on phase-02 and one with `"mode": "review"`, when the document is rendered and linted, and both variants are decoded against `phax artifact schema plan`, then the rendered plan.md carries the Mode line on phase-03 only, the projected extraction matches the document's mode field on every phase, and both variants are rejected. (refs §5.1, §5.3)
+Given a plan document whose phase-03 has `"mode": "interactive"` and an `assignmentReason`, and whose other phases have `"mode": "headless"`, plus two variants, one with no `mode` on phase-02 and one with `"mode": "review"`, when the document is rendered and linted, and both variants are decoded against `phax artifact schema plan`, then `phax artifact schema plan` places `mode` directly after `optionalFilesToEdit` and keeps `assignmentReason`, `model` and `effort` last; the rendered plan.md carries the Mode line on phase-03 only, after its Recommended model, Recommended effort and Assignment reason lines; the projected extraction matches the document's mode field on every phase, with `mode` directly after `optionalFilesToEdit`; and both variants are rejected. (refs §5.1, §5.3)
+
+### One lift gives every phase its mode
+
+Given a live plan sidecar stamped at the 0.25.0 plan-document shape, whose phase-02 carries a `modelReason`, and its plan.md, when `phax artifact migrate-documents` runs, then the sidecar is rewritten at the current shape with `mode: "headless"` on every phase and phase-02's reason as its `assignmentReason`; the plan.md gains no Mode line, and both files are committed. (refs §5.4)
 
 ### Lint places interactive phases
 
-Given in turn, a plan whose phase-01 is interactive, a plan whose last phase is interactive, and a plan whose phase-03 and phase-04 are both interactive, when `phax plans lint` runs on each, then each exits 1 with an `error` row on the `interactive` check, naming phase-01, the last phase and phase-04 respectively. (refs §5.4)
+Given in turn, a plan whose phase-01 is interactive, a plan whose last phase is interactive, and a plan whose phase-03 and phase-04 are both interactive, when `phax plans lint` runs on each, then each exits 1 with an `error` row on the `interactive` check, naming phase-01, the last phase and phase-04 respectively. (refs §5.5)
 
 ### Lint refuses planned work in an interactive phase
 
-Given an interactive phase-03 that lists src/export/csv.ts as a planned file to edit, and the same plan with src/export/csv.ts listed only as optional, when `phax plans lint` runs on each, then the first exits 1 with an `interactive` error naming phase-03 and src/export/csv.ts, and the second reports no `interactive` finding. (refs §5.5)
+Given an interactive phase-03 that lists src/export/csv.ts as a planned file to edit, and the same plan with src/export/csv.ts listed only as optional, when `phax plans lint` runs on each, then the first exits 1 with an `interactive` error naming phase-03 and src/export/csv.ts, and the second reports no `interactive` finding. (refs §5.6)
 
-### Lint refuses an interactive phase inside an oracle pair
+### A bound governs an interactive phase through its optional files
 
-Given a plan in which phase-02 is an oracle phase discharged by phase-04 and phase-03 is interactive, and the same plan with the interactive phase moved after phase-04, when `phax plans lint` runs on each, then the first exits 1 with an `interactive` error naming phase-03 and phase-02, and the second reports no `interactive` finding. (refs §5.6)
+Given `phax.json` declaring one globs bound, `assignments[0]`, on `src/export/**` at `claude-opus-5-5` from `medium` to `high`; an interactive phase-03 whose only files are the optional src/export/invoiceRow.ts and tests/export/invoiceRow.test.ts, at `gpt-6-luna` `medium` with no `**Assignment reason:**` line; and the same plan with phase-03 at `claude-opus-5-5` `high`, when `phax plans lint` runs on each, and the second is run to phase-03 and closed on a changed worktree with a fake claude-code CLI that records its argv, then the first reports a `models` error for phase-03 naming `assignments[0]`; the second reports no `models` finding for phase-03, and its first turn and its closing turn each run `claude-opus-5-5` at `high`. (refs §5.7)
 
-### Run, resume and validate refuse before any phase
+### Lint and the run preflight report the same error
 
-Given a plan whose last phase is interactive, its phax-plan.json, and an interrupted run whose phax-plan.json carries the same defect, when `phax run --plan <plan>`, `phax validate --plan <phax-plan.json>` and `phax resume <run> --yes` run, then each exits 2 naming the `interactive` error; no run, worktree or phase branch is created, and the interrupted run's state and last error are unchanged. (refs §5.7)
+Given a plan whose last phase is interactive, and an interrupted run whose phax-plan.json and plan.md carry the same defect, when `phax plans lint <plan>`, `phax run --plan <plan>` and `phax resume <run> --yes` run, then lint exits 1 with an `interactive` error naming the last phase; run and resume each exit 11 printing that same error; no run, worktree or phase branch is created, and the interrupted run's state and last error are unchanged. (refs §5.8, §5.9)
 
 ### The planning skill says when and how
 
-Given the phax-planning skill as shipped, when its interactive-phase section is read, then it gives the `**Mode:** interactive` line and the rule to declare one directly after the first phase that sets a pattern at least one later phase repeats, and never by default; it also says the Detailed instructions name what to review, the pattern and the later phases that repeat it. (refs §5.8)
+Given the phax-planning skill as shipped, when its interactive-phase section is read, then it gives the `**Mode:** interactive` line and the rule to declare one directly after the first phase that sets a pattern at least one later phase repeats, and never by default; it also says the Detailed instructions name what to review, the pattern and the later phases that repeat it. (refs §5.10)
 
 ### The run stops at the interactive phase after a first turn
 
-Given a six-phase plan whose phase-03 is interactive and routed to a fake codex CLI that records its argv and cwd, reports session id S1 and answers a valid first-reading document, and a setup command that writes a marker file, when `phax run --plan <plan>` runs, then phase-01 and phase-02 commit. phase-03's worktree exists on `<run.branch>--phase-03` at phase-02's commit, with the marker present. The fake is spawned exactly once for phase-03, headless, as a new session in that worktree with the phase's model and effort, and no gate runs. `interactive-session.json` records codex, the model, the effort and S1 as current, and `first-reading.md` holds the rendered answer. The run and phase-03 are `awaiting_review`, `resume-instructions.md` exists and the lock is released. The output holds the first reading, the worktree, the seed, a `codex resume S1` continue command, `phax enter-phase invoice-export phase-03` and `phax resume invoice-export`, and the exit code is 13. (refs §5.9, §5.12, §5.13, §5.17)
+Given a six-phase plan whose phase-03 is interactive and routed to a fake codex CLI that records its argv and cwd, reports session id S1 and answers a valid first-reading document, and a setup command that writes a marker file, when `phax run --plan <plan>` runs, then phase-01 and phase-02 commit. phase-03's worktree exists on `<run.branch>--phase-03` at phase-02's commit, with the marker present. The fake is spawned exactly once for phase-03, headless, as a new session in that worktree with the phase's model and effort, and no gate runs. `interactive-session.json` records codex, the model, the effort and S1 as current, and `first-reading.md` holds the rendered answer. The run and phase-03 are `awaiting_review`, `resume-instructions.md` exists and the lock is released. The output holds the first reading, the worktree, the seed, a `codex resume S1` continue command, `phax enter-phase invoice-export phase-03` and `phax resume invoice-export`, and the exit code is 13. (refs §5.11, §5.14, §5.15, §5.19)
 
 ### The seed holds what the person needs
 
-Given that stopped run, when the seed files are read, then `.phax-context/interactive-review.md` in the worktree and `review-seed.md` in phase-03's run folder are identical. They contain the expectations, phase-03's Detailed instructions, the handoffs of phase-01 and phase-02 in that order, the plan sections of phase-04 to phase-06, the full plan's path, the gate commands and `phax resume invoice-export`. (refs §5.10)
+Given that stopped run, when the seed files are read, then `.phax-context/interactive-review.md` in the worktree and `review-seed.md` in phase-03's run folder are identical. They contain the expectations, phase-03's Detailed instructions, the handoffs of phase-01 and phase-02 in that order, the plan sections of phase-04 to phase-06, the full plan's path, the gate commands and `phax resume invoice-export`. (refs §5.12)
 
 ### The stop's files are never committed
 
-Given the stopped run, after the person edited src/export/invoiceRow.ts, when the phase is closed and phase-03's commit is listed, then the commit contains src/export/invoiceRow.ts and no path under `.phax-context/`, and no commit on any of the run's branches contains `first-reading.md`, `interactive-session.json` or an interactive transcript. (refs §5.11)
+Given the stopped run, after the person edited src/export/invoiceRow.ts, when the phase is closed and phase-03's commit is listed, then the commit contains src/export/invoiceRow.ts and no path under `.phax-context/`, and no commit on any of the run's branches contains `first-reading.md`, `interactive-session.json` or an interactive transcript. (refs §5.13)
 
 ### phax's turns run read-only where the provider allows
 
-Given phase-03 routed in turn to a fake claude-code CLI and to a fake codex CLI, each recording its argv, when the run stops at phase-03, and later closes it on a changed worktree, then for claude-code, the first turn and the closing turn each carry Claude's read-only tool set. For codex, both carry `sandbox_mode="read-only"`. Both turns also carry the phase's security posture. (refs §5.14)
+Given phase-03 routed in turn to a fake claude-code CLI and to a fake codex CLI, each recording its argv, when the run stops at phase-03, and later closes it on a changed worktree, then for claude-code, the first turn and the closing turn each carry Claude's read-only tool set. For codex, both carry `sandbox_mode="read-only"`. Both turns also carry the phase's security posture. (refs §5.16)
 
 ### A first turn that edits is refused
 
-Given phase-03 routed to a fake mistral-vibe CLI whose first turn answers a valid first-reading document and also writes src/export/invoiceRow.ts, when the run reaches phase-03, then after the turn, src/export/invoiceRow.ts is back at phase-02's content. `interactive-session.json` has no current session and records the first turn as `refused-change`. The output names src/export/invoiceRow.ts and prints the fresh-start command. The run is `awaiting_review` and the exit code is 13. (refs §5.15)
+Given phase-03 routed to a fake mistral-vibe CLI whose first turn answers a valid first-reading document and also writes src/export/invoiceRow.ts, when the run reaches phase-03, then after the turn, src/export/invoiceRow.ts is back at phase-02's content. `interactive-session.json` has no current session and records the first turn as `refused-change`. The output names src/export/invoiceRow.ts and prints the fresh-start command. The run is `awaiting_review` and the exit code is 13. (refs §5.17)
 
 ### A failed first turn still stops
 
-Given in turn, a fake codex first turn that reports a rate limit, one that exits with a provider error, and one that answers twice without `$schema`, when the run reaches phase-03 in each case, then each run is `awaiting_review` with exit 13 and no current session. The output names the failure (the reset time for the rate limit) and prints the fresh-start command and no continue command, and the third case had exactly one corrective resume. (refs §5.16, §5.17)
+Given in turn, a fake codex first turn that reports a rate limit, one that exits with a provider error, and one that answers twice without `$schema`, when the run reaches phase-03 in each case, then each run is `awaiting_review` with exit 13 and no current session. The output names the failure (the reset time for the rate limit) and prints the fresh-start command and no continue command, and the third case had exactly one corrective resume. (refs §5.18, §5.19)
 
 ### No terminal, no wait
 
-Given the same plan run with no TTY and a stdin pipe that is never written to, when the run reaches phase-03, then the process exits 13 with the run `awaiting_review`, having read nothing from stdin. (refs §5.18)
+Given the same plan run with no TTY and a stdin pipe that is never written to, when the run reaches phase-03, then the process exits 13 with the run `awaiting_review`, having read nothing from stdin. (refs §5.20)
 
 ### Only a declared phase stops
 
-Given a plan with no interactive phase, whose phase-02 fake agent ends its handoff with a question to a person, when the run runs, then no phase and no run is ever `awaiting_review`, and the run ends `review_open` with the same exit code as before this change. (refs §5.19)
+Given a plan with no interactive phase, whose phase-02 fake agent ends its handoff with a question to a person, when the run runs, then no phase and no run is ever `awaiting_review`, and the run ends `review_open` with the same exit code as before this change. (refs §5.21)
 
 ### The continue command is the provider's own
 
-Given two fresh stops at phase-03 whose first turns succeeded, one on fake claude-code with session C1 and one on fake codex with session X1, when the stop output is read, then the claude-code stop prints `claude --resume C1` and the codex stop prints `codex resume X1`, each to run in phase-03's worktree, each carrying the phase's model, effort and posture flags. (refs §5.21, §5.20)
+Given two fresh stops at phase-03 whose first turns succeeded, one on fake claude-code with session C1 and one on fake codex with session X1, when the stop output is read, then the claude-code stop prints `claude --resume C1` and the codex stop prints `codex resume X1`, each to run in phase-03's worktree, each carrying the phase's model, effort and posture flags. (refs §5.23, §5.22)
 
 ### An unverified provider gets a fresh start and keeps its session for closing
 
-Given a stop at phase-03 on fake mistral-vibe whose first turn succeeded with session V1, when the stop output is read, and the phase is later closed on a changed worktree with no person-written handoff, then the output prints a fresh-start `vibe` command pointing at the seed, warns that its session will not be captured, and prints no `vibe --resume` command. The closing turn is a headless resume of V1. (refs §5.22, §5.20)
+Given a stop at phase-03 on fake mistral-vibe whose first turn succeeded with session V1, when the stop output is read, and the phase is later closed on a changed worktree with no person-written handoff, then the output prints a fresh-start `vibe` command pointing at the seed, warns that its session will not be captured, and prints no `vibe --resume` command. The closing turn is a headless resume of V1. (refs §5.24, §5.22)
 
 ### Waiting is visible and filterable
 
-Given one run in `awaiting_review` at phase-03 with current session X1, one failed run and one interrupted run, when `phax ls`, `phax ls --awaiting-review` and `phax session-info invoice-export` run, then `phax ls` shows `awaiting_review` and phase-03 for the first run only, and the filter lists that run alone. `session-info` prints the state, phase-03, its worktree and X1. (refs §5.23)
+Given one run in `awaiting_review` at phase-03 with current session X1, one failed run and one interrupted run, when `phax ls`, `phax ls --awaiting-review` and `phax session-info invoice-export` run, then `phax ls` shows `awaiting_review` and phase-03 for the first run only, and the filter lists that run alone. `session-info` prints the state, phase-03, its worktree and X1. (refs §5.25)
 
 ### The worktree commands target the interactive phase
 
-Given a run in `awaiting_review` at phase-03, with a fake shell and a fake editor that record their cwd and arguments, when `phax path invoice-export`, `phax shell invoice-export` and `phax open invoice-export` run, then `path` prints phase-03's worktree, the fake shell starts there, and the fake editor receives that path. (refs §5.24)
+Given a run in `awaiting_review` at phase-03, with a fake shell and a fake editor that record their cwd and arguments, when `phax path invoice-export`, `phax shell invoice-export` and `phax open invoice-export` run, then `path` prints phase-03's worktree, the fake shell starts there, and the fake editor receives that path. (refs §5.26)
 
 ### enter-phase continues the session phax started, on codex too
 
-Given phase-03 in `awaiting_review` with current codex session X1, a stop whose first turn failed, and a committed headless codex phase-02 whose agent binding holds session X0, with a fake codex recording argv and cwd, when `phax enter-phase invoice-export phase-03` runs on each stop, and `phax enter-phase invoice-export phase-02` runs, then the first spawns `codex resume X1` interactively in phase-03's worktree. The second spawns the fresh-start command. The third spawns `codex resume X0` in phase-02's worktree, and none of them refuses as unsupported. (refs §5.25, §5.26)
+Given phase-03 in `awaiting_review` with current codex session X1, a stop whose first turn failed, and a committed headless codex phase-02 whose agent binding holds session X0, with a fake codex recording argv and cwd, when `phax enter-phase invoice-export phase-03` runs on each stop, and `phax enter-phase invoice-export phase-02` runs, then the first spawns `codex resume X1` interactively in phase-03's worktree. The second spawns the fresh-start command. The third spawns `codex resume X0` in phase-02's worktree, and none of them refuses as unsupported. (refs §5.27, §5.28)
 
 ### --new-session runs a new first turn
 
-Given phase-03 with current session X1, and a fake codex that reports X2 on its next headless start, when `phax enter-phase invoice-export phase-03 --new-session` runs, then a new headless first turn runs and `first-reading.md` is rewritten. `interactive-session.json` holds X2 as current, with origin `new-session`, and X1 in its history, and `codex resume X2` is spawned interactively. (refs §5.27)
+Given phase-03 with current session X1, and a fake codex that reports X2 on its next headless start, when `phax enter-phase invoice-export phase-03 --new-session` runs, then a new headless first turn runs and `first-reading.md` is rewritten. `interactive-session.json` holds X2 as current, with origin `new-session`, and X1 in its history, and `codex resume X2` is spawned interactively. (refs §5.29)
 
 ### Who made the edit does not matter
 
-Given two identical stops at phase-03; in one the test writes the corrections directly, in the other a fake continued session writes the same bytes, when each is closed with `phax resume invoice-export --yes` and the same person-written handoff, then the two phase-03 commits have the same tree, and the two file reconciliations are equal. (refs §5.28)
+Given two identical stops at phase-03; in one the test writes the corrections directly, in the other a fake continued session writes the same bytes, when each is closed with `phax resume invoice-export --yes` and the same person-written handoff, then the two phase-03 commits have the same tree, and the two file reconciliations are equal. (refs §5.30)
 
 ### The phase guard holds inside the worktree
 
-Given a shell whose cwd is phase-03's worktree, with the run `awaiting_review`, when `phax resume invoice-export` and `phax enter-phase invoice-export phase-03` run there, then both are refused with the phase-guard message, and the run stays `awaiting_review`. (refs §5.29)
+Given a shell whose cwd is phase-03's worktree, with the run `awaiting_review`, when `phax resume invoice-export` and `phax enter-phase invoice-export phase-03` run there, then both are refused with the phase-guard message, and the run stays `awaiting_review`. (refs §5.31)
 
 ### Closing gates, resumes the session for the handoff, commits and continues
 
-Given phase-03 in `awaiting_review`, with current codex session X1, a corrected src/export/invoiceRow.ts, a new test and no person-written handoff, when `phax resume invoice-export --yes` runs from the main checkout, then the gate runs before any agent turn. The closing turn is a headless resume of X1 given the corrections diff, its valid `interactive-handoff` answer is rendered to `<run>/phase-03/phase-handoff.md`, and no new session starts. The phase commits on `<run.branch>--phase-03` with the plan's subject and body, an `Interactive-Phase: phase-03` trailer and the checkout's git identity as author. phase-03 is `committed` with outcome `corrected`, and phase-04 starts in the same invocation. (refs §5.30, §5.34, §5.41)
+Given phase-03 in `awaiting_review`, with current codex session X1, a corrected src/export/invoiceRow.ts, a new test and no person-written handoff, when `phax resume invoice-export --yes` runs from the main checkout, then the gate runs before any agent turn. The closing turn is a headless resume of X1 given the corrections diff, its valid `interactive-handoff` answer is rendered to `<run>/phase-03/phase-handoff.md`, and no new session starts. The phase commits on `<run.branch>--phase-03` with the plan's subject and body, an `Interactive-Phase: phase-03` trailer and the checkout's git identity as author. phase-03 is `committed` with outcome `corrected`, and phase-04 starts in the same invocation. (refs §5.32, §5.36, §5.43)
 
 ### A closing turn without a usable session starts fresh
 
-Given in turn, phase-03 with no current session, and phase-03 whose current session X1 the fake codex reports as not found on resume, each with a changed worktree and no person-written handoff, when `phax resume invoice-export --yes` runs on each, then each closing turn is a new headless codex session given the seed and the corrections diff, and each phase commits with outcome `corrected`. (refs §5.35)
+Given in turn, phase-03 with no current session, and phase-03 whose current session X1 the fake codex reports as not found on resume, each with a changed worktree and no person-written handoff, when `phax resume invoice-export --yes` runs on each, then each closing turn is a new headless codex session given the seed and the corrections diff, and each phase commits with outcome `corrected`. (refs §5.37)
 
 ### A red gate returns the phase to the person
 
-Given phase-03 corrections that break the unit-test gate step, when `phax resume invoice-export --yes` runs, and runs again after the test is fixed, then the first exits 4 with no fix attempt and no agent turn, keeps `checks-attempt-01.log`, commits nothing and leaves the run and phase-03 `awaiting_review`; the second commits phase-03 and continues. (refs §5.31)
+Given phase-03 corrections that break the unit-test gate step, when `phax resume invoice-export --yes` runs, and runs again after the test is fixed, then the first exits 4 with no fix attempt and no agent turn, keeps `checks-attempt-01.log`, commits nothing and leaves the run and phase-03 `awaiting_review`; the second commits phase-03 and continues. (refs §5.33)
 
 ### The person's handoff is used as written
 
-Given phase-03 with current session X1 and a `.phax-context/phase-handoff.md` holding the four interactive sections and one Guards entry per correction, when `phax resume invoice-export --yes` runs, then no closing turn runs and `<run>/phase-03/phase-handoff.md` equals the person's file byte for byte. (refs §5.33, §5.32)
+Given phase-03 with current session X1 and a `.phax-context/phase-handoff.md` holding the four interactive sections and one Guards entry per correction, when `phax resume invoice-export --yes` runs, then no closing turn runs and `<run>/phase-03/phase-handoff.md` equals the person's file byte for byte. (refs §5.35, §5.34)
 
 ### An invalid handoff commits nothing
 
-Given in turn, a person-written handoff without `## Guards`, a person-written handoff with three corrections and two Guards entries, and a fake closing turn that answers twice with no `corrections`, when `phax resume invoice-export --yes` runs on each, then the first two exit 1, naming the missing section or the uncovered correction. The third exits 5 after exactly one corrective resume. None commits, and the run stays `awaiting_review`. (refs §5.32, §5.37)
+Given in turn, a person-written handoff without `## Guards`, a person-written handoff with three corrections and two Guards entries, and a fake closing turn that answers twice with no `corrections`, when `phax resume invoice-export --yes` runs on each, then the first two exit 1, naming the missing section or the uncovered correction. The third exits 5 after exactly one corrective resume. None commits, and the run stays `awaiting_review`. (refs §5.34, §5.39)
 
 ### A closing turn that edits is refused
 
-Given phase-03 with a green gate, no person-written handoff, and a fake closing turn that answers a valid handoff and also creates src/export/labels.ts, when `phax resume invoice-export --yes` runs, then it exits 5 naming src/export/labels.ts, the file is still in the worktree, nothing is committed and the run stays `awaiting_review`. (refs §5.36)
+Given phase-03 with a green gate, no person-written handoff, and a fake closing turn that answers a valid handoff and also creates src/export/labels.ts, when `phax resume invoice-export --yes` runs, then it exits 5 naming src/export/labels.ts, the file is still in the worktree, nothing is committed and the run stays `awaiting_review`. (refs §5.38)
 
 ### A limit at closing keeps the stop
 
-Given phase-03 with a green gate and a fake closing turn that reports a usage limit with a reset time, when `phax resume invoice-export --yes` runs, then it exits 8 naming the reset time, commits nothing, and leaves the run and phase-03 `awaiting_review`. (refs §5.38)
+Given phase-03 with a green gate and a fake closing turn that reports a usage limit with a reset time, when `phax resume invoice-export --yes` runs, then it exits 8 naming the reset time, commits nothing, and leaves the run and phase-03 `awaiting_review`. (refs §5.40)
 
 ### The transcripts are captured, even of a session never continued
 
-Given a test HOME in which the fake codex keeps sessions X1 (the stop's first turn, never continued) and X2 (from `--new-session`, continued) as rollout files under `.codex/sessions/2026/10/19/`, when phase-03 closes, then `interactive-transcripts/X1.jsonl` and `interactive-transcripts/X2.jsonl` exist in phase-03's run folder, and X2's copy includes the closing turn. (refs §5.39)
+Given a test HOME in which the fake codex keeps sessions X1 (the stop's first turn, never continued) and X2 (from `--new-session`, continued) as rollout files under `.codex/sessions/2026/10/19/`, when phase-03 closes, then `interactive-transcripts/X1.jsonl` and `interactive-transcripts/X2.jsonl` exist in phase-03's run folder, and X2's copy includes the closing turn. (refs §5.41)
 
 ### A missing transcript never blocks closing
 
-Given phase-03 with current session X1 whose rollout file was deleted, when `phax resume invoice-export --yes` runs, then phase-03 commits and the run continues, and phase-03's record names X1's transcript as missing with its reason. (refs §5.40)
+Given phase-03 with current session X1 whose rollout file was deleted, when `phax resume invoice-export --yes` runs, then phase-03 commits and the run continues, and phase-03's record names X1's transcript as missing with its reason. (refs §5.42)
 
 ### Reviewed without change
 
-Given phase-03 in `awaiting_review` with current session X1, no change in its worktree and no person-written handoff, when `phax resume invoice-export --yes` runs, then the gate runs and no closing turn runs. The handoff is the fixed reviewed-without-change text, and an empty commit with the plan's subject and the `Interactive-Phase` trailer lands on `<run.branch>--phase-03`. The outcome is `unchanged`, X1's transcript is copied, the exit code is never 9, and phase-04 starts. (refs §5.42)
+Given phase-03 in `awaiting_review` with current session X1, no change in its worktree and no person-written handoff, when `phax resume invoice-export --yes` runs, then the gate runs and no closing turn runs. The handoff is the fixed reviewed-without-change text, and an empty commit with the plan's subject and the `Interactive-Phase` trailer lands on `<run.branch>--phase-03`. The outcome is `unchanged`, X1's transcript is copied, the exit code is never 9, and phase-04 starts. (refs §5.44)
 
 ### Later phases read the corrections
 
-Given a run whose interactive phase-03 has committed, and a second plan whose phase-03 and phase-05 are both interactive, when the prompts of phase-04 to phase-06 are built, then each prompt carries a `## Review corrections` section with phase-03's handoff verbatim, the precedence sentence and the statement that its own plan section binds. In the second plan, phase-06's section holds phase-03's handoff, then phase-05's. (refs §5.43)
+Given a run whose interactive phase-03 has committed, and a second plan whose phase-03 and phase-05 are both interactive, when the prompts of phase-04 to phase-06 are built, then each prompt carries a `## Review corrections` section with phase-03's handoff verbatim, the precedence sentence and the statement that its own plan section binds. In the second plan, phase-06's section holds phase-03's handoff, then phase-05's. (refs §5.45)
 
 ### The plan stays as approved
 
-Given the run before the stop and after phase-03 has committed, when phax-plan.json and the run's plan.md are compared, and phase-04's prompt is built, then both files are byte-identical across the stop, and phase-04's prompt carries its approved plan section unchanged. (refs §5.44)
+Given the run before the stop and after phase-03 has committed, when phax-plan.json and the run's plan.md are compared, and phase-04's prompt is built, then both files are byte-identical across the stop, and phase-04's prompt carries its approved plan section unchanged. (refs §5.46)
 
 ### Corrections are not deviations
 
-Given a phase-03 that changed src/export/invoiceRow.ts and created tests/export/invoiceRow.test.ts and src/export/labels.ts, when its files are reconciled and the compliance review's prompt is built, then `file-reconciliation.json` lists the three files as review corrections and none as an unplanned edit, and the compliance prompt presents phase-03 as interactive, with its handoff. (refs §5.45, §5.46)
+Given a phase-03 that changed src/export/invoiceRow.ts and created tests/export/invoiceRow.test.ts and src/export/labels.ts, when its files are reconciled and the compliance review's prompt is built, then `file-reconciliation.json` lists the three files as review corrections and none as an unplanned edit, and the compliance prompt presents phase-03 as interactive, with its handoff. (refs §5.47, §5.48)
 
 ### The review handoff and the PR show the review
 
-Given a run that reaches `review_open` with phase-03 corrected by the git identity Ada Example, when `review-handoff.md` and the PR body are built, then the review handoff lists phase-03 with outcome `corrected`, Ada Example, its corrections and its guards, and the PR body's phase-03 line marks it interactive and corrected by Ada Example. (refs §5.47)
+Given a run that reaches `review_open` with phase-03 corrected by the git identity Ada Example, when `review-handoff.md` and the PR body are built, then the review handoff lists phase-03 with outcome `corrected`, Ada Example, its corrections and its guards, and the PR body's phase-03 line marks it interactive and corrected by Ada Example. (refs §5.49)
 
 ### Records and the security record name the review honestly
 
-Given records configured, and two closed runs, one whose phase-03 recorded session X1 with its transcript and one whose first turn failed, when `phax records explain` is given each run's phase-03 commit, and each phase-03 security record is read, then each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. Neither records branch contains transcript content. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran. (refs §5.48, §5.49)
+Given records configured, and two closed runs, one whose phase-03 recorded session X1 with its transcript and one whose first turn failed, when `phax records explain` is given each run's phase-03 commit, and each phase-03 security record is read, then each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. Neither records branch contains transcript content. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran. (refs §5.50, §5.51)
 
 ### Only phax's turns are costed, each by its own increment
 
-Given a closed run whose phase-03 had a first turn of fake claude-code session C1, which the person continued, then a closing turn resuming C1 whose stream reports a cumulative cost of $1.40 over a turn whose own cost is $0.30, and kept runs with interactive phases, when `cost-ledger.json` is read and `phax plans estimate <plan> --no-probe --json` runs, then the ledger holds exactly one `first-turn` and one `closing-turn` entry for phase-03; the closing-turn entry holds $0.30, not $1.40, and no entry covers the person's turns. The estimate names phase-03 as interactive and sizes only its first and closing turns. (refs §5.50, §5.51)
+Given a closed run whose phase-03 had a first turn of fake claude-code session C1, which the person continued, then a closing turn resuming C1 whose stream reports a cumulative cost of $1.40 over a turn whose own cost is $0.30, and kept runs with interactive phases, when `cost-ledger.json` is read and `phax plans estimate <plan> --no-probe --json` runs, then the ledger holds exactly one `first-turn` and one `closing-turn` entry for phase-03; the closing-turn entry holds $0.30, not $1.40, and no entry covers the person's turns. The estimate names phase-03 as interactive and sizes only its first and closing turns. (refs §5.52, §5.53)
 
 ### Reset at the interactive phase sets it up again
 
-Given phase-03 in `awaiting_review` with three uncommitted corrections and current session X1, when `phax reset-phase invoice-export phase-03` runs and is confirmed, then `phax resume invoice-export --yes` runs, then the confirmation names the three files. The worktree, the branch and the recorded sessions are removed. The resume recreates phase-03 at phase-02's commit, rewrites the seed, runs a new first turn and exits 13. (refs §5.52)
+Given phase-03 in `awaiting_review` with three uncommitted corrections and current session X1, when `phax reset-phase invoice-export phase-03` runs and is confirmed, then `phax resume invoice-export --yes` runs, then the confirmation names the three files. The worktree, the branch and the recorded sessions are removed. The resume recreates phase-03 at phase-02's commit, rewrites the seed, runs a new first turn and exits 13. (refs §5.54)
 
 ### Reset the interactive phase first
 
-Given phase-03 in `awaiting_review`, when `phax reset-phase invoice-export phase-02 --yes` runs, then it refuses, naming phase-03, and changes no worktree, branch or state. (refs §5.53)
+Given phase-03 in `awaiting_review`, when `phax reset-phase invoice-export phase-02 --yes` runs, then it refuses, naming phase-03, and changes no worktree, branch or state. (refs §5.55)
 
 ### adjust-plan and archive treat the stop as unfinished
 
-Given a run in `awaiting_review`, when `phax adjust-plan <plan> --landed invoice-export`, `phax archive invoice-export` and `phax archive invoice-export --force` run, then adjust-plan refuses naming `awaiting_review` and starts no session; archive without `--force` refuses, naming the state and the flag; archive with `--force` archives the run. (refs §5.54, §5.55)
+Given a run in `awaiting_review`, when `phax adjust-plan <plan> --landed invoice-export`, `phax archive invoice-export` and `phax archive invoice-export --force` run, then adjust-plan refuses naming `awaiting_review` and starts no session; archive without `--force` refuses, naming the state and the flag; archive with `--force` archives the run. (refs §5.56, §5.57)
 
 ### Plans without an interactive phase are unchanged
 
-Given a plan with no Mode line, run once with the binary before this change and once with the binary after it, when `phax plans lint`, `phax run` and `phax records explain` run, then both binaries produce the same lint findings, prompts (with no `## Review corrections` section), states and exit codes, and the new run's phax-plan.json carries `"mode": "headless"` on every phase. (refs §5.56)
+Given a plan with no Mode line, run once with the binary before this change and once with the binary after it, when `phax plans lint`, `phax run` and `phax records explain` run, then both binaries produce the same lint findings, prompts (with no `## Review corrections` section), states and exit codes, and the new run's phax-plan.json carries `"mode": "headless"` on every phase. (refs §5.58)
 
 ## 9. Open questions
-
-### q-mode-line — Does every phase of a plan.md carry a Mode line, or only an interactive one?
-
-- interactive-only — Only an interactive phase carries `**Mode:** interactive`; a phase with no line reads as headless — abandons: A one-to-one match between the JSON field and a plan.md line: a headless phase's mode is read from the absence of the line
-- every-phase — Every phase carries `**Mode:** headless` or `**Mode:** interactive` — abandons: Every existing plan.md: each one, Approved ones included, fails the structure check until it is edited and re-approved
-
-Recommendation: interactive-only — It follows the approved oracle-phases precedent. The persisted formats (phax-plan.json and the plan document) stay explicit and required on every phase. plan.md is an authored grammar, not a persisted schema, so reading absence as headless is not a back-compat shim, and existing plans keep linting.
-
-### q-planned-work — May an interactive phase also carry planned work?
-
-- review-only — No planned file to create or edit; optional files may name what the person is expected to touch — abandons: A phase where the person also does work the planner foresaw, such as a guard the planner already knew was needed; that work moves to an ordinary phase before or after
-- planned-work-allowed — Planned files are allowed; the person does them along with the review — abandons: The file plan as a contract: reconciliation can no longer tell a correction from planned work, and a person who only reviewed leaves the phase's planned files untouched
-
-Recommendation: review-only — Work the planner can foresee belongs to an agent phase, under the gate and the fix loop. The interactive phase exists for what the planner could not foresee. Keeping it review-only is also what lets every changed file count as a correction rather than a deviation.
 
 ### q-person-handoff — Does a handoff file the person wrote take precedence over the closing turn?
 
@@ -1007,13 +1034,35 @@ Recommendation: never — The ledger records what phax ran. The person's continu
 
 ## 9b. Arbitrated questions
 
-None.
+### q-mode-line — Does every phase of a plan.md carry a Mode line, or only an interactive one?
+
+- interactive-only — Only an interactive phase carries `**Mode:** interactive`; a phase with no line reads as headless — abandons: A one-to-one match between the JSON field and a plan.md line: a headless phase's mode is read from the absence of the line
+- every-phase — Every phase carries `**Mode:** headless` or `**Mode:** interactive` — abandons: Every existing plan.md: each one, Approved ones included, fails the structure check until it is edited and re-approved
+
+Recommendation: interactive-only — It follows the approved oracle-phases precedent. The persisted formats (phax-plan.json and the plan document) stay explicit and required on every phase. plan.md is an authored grammar, not a persisted schema, so reading absence as headless is not a back-compat shim, and existing plans keep linting.
+
+Decision: interactive-only — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator (Rémy Loubradou) on 2026-10-20, as recommended, in the joint phase-shape session with assignment-bounds and oracle-phases. Only an interactive phase carries `**Mode:** interactive`, and a phase with no line reads as headless: the persisted formats stay explicit on every phase, and existing plans keep linting. The session also placed the key and the line (J2): `mode` directly after `optionalFilesToEdit` in the plan document and in phax-plan.json, and the Mode line after the Recommended model, Recommended effort and Assignment reason lines. The body revisions for that placement, for the `assignmentReason` rename of assignment-bounds, and for the one plan-document lift this spec shares with it (J5) are recorded under this verdict. Advocate: Every phase states its mode in plan.md, so the JSON field and the line match one to one and no reader infers `headless` from a missing line. Principles: none. Reversibility: cheap. Revised: §1, §4, §5.1, §5.3, §5.4, §6, §8, §10.
+
+### q-planned-work — May an interactive phase also carry planned work?
+
+- review-only — No planned file to create or edit; optional files may name what the person is expected to touch — abandons: A phase where the person also does work the planner foresaw, such as a guard the planner already knew was needed; that work moves to an ordinary phase before or after
+- planned-work-allowed — Planned files are allowed; the person does them along with the review — abandons: The file plan as a contract: reconciliation can no longer tell a correction from planned work, and a person who only reviewed leaves the phase's planned files untouched
+
+Recommendation: review-only — Work the planner can foresee belongs to an agent phase, under the gate and the fix loop. The interactive phase exists for what the planner could not foresee. Keeping it review-only is also what lets every changed file count as a correction rather than a deviation.
+
+Decision: review-only — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator (Rémy Loubradou) on 2026-10-20, as recommended, in the joint phase-shape session with assignment-bounds and oracle-phases. An interactive phase plans no file to create or edit, and its optional files may name what the person is expected to touch, so every changed file counts as a correction. The session's other decisions on what an interactive phase carries and where it may sit fit neither question exactly, so their body revisions are recorded under this verdict, the closest: J3, a bound governs an interactive phase through its optional files and its model and effort run the first and closing turns; J4, one `interactive` check called by `phax plans lint` and by the run preflight, which refuses with exit 11 rather than exit 2 (an error lint reports is the error the preflight refuses on; `phax validate --plan` stays a decode); J5, the rule against an interactive phase inside an oracle pair leaves this spec for oracle-phases, re-authored later with its own lift. Advocate: A person who already knows a guard is needed writes it during the same stop, and the planner need not split foreseeable work into an extra agent phase around the review. Principles: none. Reversibility: cheap. Revised: §1, §4, §5.6, §5.7, §5.8, §5.9, §6, §7, §8, §10.
 
 ## 10. Implementation-planning note
 
 Settled:
 
-- The stop is declared only in the plan, by the planner, through a required per-phase `mode` enum (`headless | interactive`) in phax-plan.json and in the plan document. It is the one sanctioned exception to autonomous runs, and `phase-decision-requests` stays parked.
+- The stop is declared only in the plan, by the planner, through a required per-phase `mode` enum (`headless | interactive`) in phax-plan.json and in the plan document, placed directly after `optionalFilesToEdit` in both. `mode` is its own key, never a shared `role`. In plan.md only an interactive phase carries `**Mode:** interactive`, after its Recommended model, Recommended effort and Assignment reason lines. It is the one sanctioned exception to autonomous runs, and `phase-decision-requests` stays parked.
+- Decided by the operator on 2026-10-20 (§9b), in the joint phase-shape session with assignment-bounds and oracle-phases: q-mode-line `interactive-only` (r-mode-parse, r-mode-render) and q-planned-work `review-only` (r-lint-work). The same session settled the phase's shape across the specs: (J1) separate keys, `mode` here and `oracle` in oracle-phases; (J2) `mode` directly after `optionalFilesToEdit`, and the Mode line after the Assignment reason line (r-mode, r-mode-render); (J3) a bound governs an interactive phase through its optional files, and that phase's model and effort run its first and closing turns (r-bounds); (J4) one `interactive` check, called by `phax plans lint` and by the run preflight, which refuses with exit 11 (r-interactive-shared, r-refuse); (J5) oracle-phases does not ride this release's lift.
+- This spec and assignment-bounds ship together, with one frozen copy of the 0.25.0 plan-document shape and one lift by `phax artifact migrate-documents`, which renames `modelReason` to `assignmentReason` and gives every phase `mode: "headless"` (r-mode-lift). `assignmentReason`, `model` and `effort` stay the phase's last three keys.
+- `phax validate --plan` stays a decode of `phax-plan.json`: it rejects a missing or unknown `mode`, and runs neither the `interactive` check nor any other preflight, as it runs no `phase-models` check today.
+- The rule that an interactive phase may not sit strictly between an oracle phase and the phase that discharges it is no longer this spec's. oracle-phases, reopened to Draft on 2026-10-20, carries it when it is re-authored (on `gate-report`, after `steme oracles` exists, with its own plan-document lift), together with which commit the discharge judges after a person's correction.
 - An interactive phase is a phase of its own: id, branch, worktree, setup, gate, commit and handoff, building on the previous phase. It runs no work session and no fix loop.
 - At the stop, phax runs one headless first turn of the phase's provider, model and effort: a new session, read-only where the provider allows, with any edit refused by comparing the worktree before and after the turn. phax records the session's id, prints the first reading and the provider's own continue command, and exits 13 in `awaiting_review`. A failed first turn still stops, with the fresh-start command instead.
 - Interactive resume support is an explicit per-provider value: `verified` for claude-code and codex (codex verified on 2026-10-19 with codex-cli 0.153.4), `unverified` for mistral-vibe. For an unverified provider phax prints a fresh-start command, and only that session's transcript is lost. The codex session adapter's interactive resume is lifted for every phase.
@@ -1032,10 +1081,12 @@ Left open:
 - Where `outcome`, the recorded sessions and the transcript digests live in the persisted phase status and the phase record, under the no-shims rule (required, with explicit variants for headless phases).
 - How each provider's session store is located for transcript capture (Claude's project folder, codex's dated rollout file, vibe's session directory), behind a port.
 - The text of the reviewed-without-change handoff, and whether the next phase also keeps the interactive handoff in `## Previous phase handoff` or only in `## Review corrections`.
+- `mode` also changes `phax-plan.json`, a second persisted format, and the extraction cache entry that embeds its schema. How cache entries and in-flight runs written by an older binary are treated is left to planning; plan sidecars are lifted by the lift shared with assignment-bounds.
+- Where the `interactive` check sits in `RUN_PREFLIGHT_CHECKS`, and whether `phax run --dry-run`, which returns before the preflight, reports its errors as a "Preflight will fail" line.
 
 Constraints:
 
-- No back-compat shims in persisted schemas. `mode` is required on every phase of phax-plan.json and the plan document. The plan must say how extraction-cache entries, plan sidecars and in-flight runs written by an older binary are treated.
+- No back-compat shims in persisted schemas. `mode` is required on every phase of phax-plan.json and the plan document. The plan must say how extraction-cache entries and in-flight runs written by an older binary are treated; plan sidecars are lifted by the lift shared with assignment-bounds, never read with `mode` missing.
 - Explicit per-variant enums: `mode` is `headless | interactive`, the outcome is `corrected | unchanged`, interactive resume support is `verified | unverified`, the first-turn outcome is `answered | failed | refused-change`, and the guard kind is `test | lint | gate-step | none`. `awaiting_review` is a new run state and a new phase state, never `interrupted` with a free-text reason.
 - State transitions go only through `src/domain/state.ts` and the reducer that interprets events against PhaxState. The new transitions are: running → awaiting_review at the stop; awaiting_review → running on closing; back to awaiting_review on a red gate, an editing closing turn, an invalid handoff or a limit; and awaiting_review → archived with --force. A reset follows today's reset-phase rules.
 - Every provider answer carries a required `$schema`, and an answer with none, or of an unknown version, is refused.
@@ -1054,3 +1105,8 @@ Page: README §Interactive phases (under §Run, after §Resume), plus an interac
 Reader: A planner who sees that one phase sets a pattern later phases repeat, and the person asked to review that pattern when the run stops
 
 Example: In plan.md, phase-03 carries `**Mode:** interactive` and plans no file, and its Detailed instructions name phase-02's record shape and the phases that copy it. `phax run --plan …` commits phase-01 and phase-02, then runs a short read-only codex turn that reports what phase-04 and phase-05 will copy. It stops with exit 13, printing the worktree, `.phax-context/interactive-review.md` and `codex resume <id>`. The person continues that session (or edits by hand, or uses any agent), fixes the record, adds a test for it, and runs `phax resume invoice-export` from the main checkout. The gate runs, phax resumes the session headless for the handoff (What was corrected, The pattern to follow from now on, Guards, What the next phases need to know), copies the transcript into the run folder and commits phase-03. phase-04 starts with that handoff under `## Review corrections`.
+
+## 12. Decision log
+
+- 2026-10-20 q-mode-line decided interactive-only — operator (Rémy Loubradou) — revised 8 sections
+- 2026-10-20 q-planned-work decided review-only — operator (Rémy Loubradou) — revised 10 sections
