@@ -60,14 +60,14 @@
             "minItems": 1,
             "items": {
               "$ref": "#/$defs/NonEmptyString",
-              "description": "Checked by phax's parser: no leading /, backslash, brace, empty, . or .. segment, and ** only as a whole segment."
+              "description": "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment."
             },
             "description": "The files the part holds, as globs: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory."
           }
         },
         "additionalProperties": false
       },
-      "description": "Checked by phax's parser: no two parts share an id."
+      "description": "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json."
     }
   },
   "additionalProperties": false

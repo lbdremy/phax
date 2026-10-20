@@ -19,7 +19,7 @@ phax architecture
 phax architecture src/core
 ```
 
-The first asks about the whole repository, the second about the parts that hold `src/core`. Each prints the provider's Markdown body as is (every name here is made up):
+The first asks about the whole repository, the second about the parts that hold `src/core`. Each prints the provider's report as Markdown: its body as is, then, when the report lists parts, a `## Parts` section with each part's name, id, description and globs (every name here is made up):
 
 ```markdown
 # Architecture — acme-billing
@@ -28,6 +28,12 @@ Three layers, dependencies pointing inward: `src/cli` → `src/core/billing` →
 
 - `src/core/billing/totals.ts` sums invoices and may not import from `src/cli`.
 - `acme-guard check` fails the build when a lower layer imports a higher one.
+
+## Parts
+
+### core · billing (`core-billing`)
+Invoice totals and their rules.
+- `src/core/billing/**`
 ```
 
 Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. `phax architecture .` is refused as the tree itself: asking with no path is the one way to ask about the whole repository. The provider runs from the working tree's root, with no shell and a fixed 60-second limit.

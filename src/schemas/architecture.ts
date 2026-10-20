@@ -40,6 +40,12 @@ function globProblem(glob: string): string | undefined {
   if (glob.startsWith("/")) return `${quoted} starts with /`;
   if (glob.includes("\\")) return `${quoted} contains a backslash`;
   if (glob.includes("{") || glob.includes("}")) return `${quoted} uses braces`;
+  // phax prints a glob as a Markdown code span on one line: a backtick or a
+  // control character would break out of it.
+  if (glob.includes("`")) return `${quoted} contains a backtick`;
+  if ([...glob].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) {
+    return `${quoted} contains a control character`;
+  }
   for (const segment of glob.split("/")) {
     if (segment === "") return `${quoted} has an empty segment`;
     if (segment === "." || segment === "..") return `${quoted} has a ${segment} segment`;
@@ -52,7 +58,7 @@ const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
   Schema.filter((glob) => globProblem(glob), {
     jsonSchema: {
       description:
-        "Checked by phax's parser: no leading /, backslash, brace, empty, . or .. segment, and ** only as a whole segment.",
+        "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",
     },
   }),
 );
@@ -68,7 +74,11 @@ function firstRepeatedPartId(parts: ReadonlyArray<{ readonly id: string }>): str
 
 /** One part of the code an architecture report describes. */
 const ArchitecturePartSchema = Schema.Struct({
-  id: Schema.NonEmptyString.pipe(Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/)).annotations({
+  id: Schema.NonEmptyString.pipe(
+    Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+      message: () => "a kebab-case slug: lowercase letters and digits, single hyphens between",
+    }),
+  ).annotations({
     description:
       "The part's stable id, a kebab-case slug unique within the report. A phax.json bound names a part by it.",
   }),
@@ -102,11 +112,13 @@ export const ArchitectureReportFileSchema = Schema.Struct({
           ? undefined
           : `part id ${JSON.stringify(repeated)} is used twice`;
       },
-      { jsonSchema: { description: "Checked by phax's parser: no two parts share an id." } },
+      {
+        jsonSchema: {
+          description:
+            "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json.",
+        },
+      },
     ),
-    Schema.annotations({
-      description: "The parts of the code the report describes, possibly empty.",
-    }),
   ),
 });
 
