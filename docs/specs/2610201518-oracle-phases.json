@@ -1,0 +1,1162 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
+  "kind": "spec",
+  "title": "Oracle phases — a plan declares the phase that writes the tests and the phase that discharges them, and a configured `oracles` provider judges both gates",
+  "ground": [
+    {
+      "path": "docs/specs/archive/2609281159-oracle-phases.md",
+      "note": "The 2026-09-28 design. It was reopened to Draft and abandoned on 2026-10-20, and this spec re-authors it. Its problem, product goal, terminology and most requirements still hold. What changes: its provider answered the old `{ diagnostics }` document with no `$schema`, it refused a missing provider with exit 2, and its only provider was steme's unbuilt `steme oracles`. Its §9b holds five lifted verdicts: Q1 oracle-side-line, Q2 one-designated, Q3 error-and-refuse, Q4 new-oracle-surface and Q5 explicit-subset."
+    },
+    {
+      "path": "src/app/gates.ts",
+      "note": "The gate runner. Steps run in profile order and stop at the first failure or refusal. An `input: \"gate-request\"` step gets the gate request on stdin, which is saved as `checks-attempt-NN.request.json`. An `output: \"gate-report\"` step is judged by its report: a checked report passes with no finding on exit 0, and any finding fails the step. A checked report with no finding and a non-zero exit, or an unreadable report, fails as a broken step. A `refused` report records `refused`, writes the reason and remedy to the log, and fails with GateStepRefusedError. A readable report is saved as printed as `checks-attempt-NN.report-SS.json`. The steps that ran go to the attempt's step record and to `gate-attribution.json`. Gate steps run with no time cap."
+    },
+    {
+      "path": "src/schemas/gateReport.ts",
+      "note": "gate-report: `{ $schema, outcome: \"checked\", findings, review }` or `{ $schema, outcome: \"refused\", reason, remedy }`. Any other key is refused at any level. A finding is `{ id, rule, location: { file, lines }, message, related, guide }`. Review notes never fail a step and reach only the reviewer."
+    },
+    {
+      "path": "src/schemas/gateRequest.ts",
+      "note": "gate-request: `{ $schema, phase, base, terminal, phases: [{ id, files }] }`. It has exactly five keys. `base` is the commit the gated phase's branch was created from. The last snapshot is 0.20.0."
+    },
+    {
+      "path": "src/schemas/gateAttribution.ts",
+      "note": "A step result is `{ command, surface, result }`, with `result` exactly `pass` | `fail` | `refused`. The current shape is the 0.21.0 snapshot, and the history decoders 0.17.0 and 0.20.0 are frozen."
+    },
+    {
+      "path": "src/schemas/surface.ts",
+      "note": "`SurfaceSchema` is the closed literal `local` | `structural` | `product`. One enum serves three uses: configured gate steps (phaxConfig.ts), gate-attribution, and the phase record's `verifiedSurfaces` (runRecord.ts, format phase-record-manifest, current shape 0.17.0)."
+    },
+    {
+      "path": "src/domain/gate/verifiedSurfaces.ts",
+      "note": "A surface is verified when at least one of its steps ran and every one of its steps passed. The result feeds the phase record, the final report and the PR body's 'Verified surfaces' line."
+    },
+    {
+      "path": "src/app/fixLoop.ts",
+      "note": "A GateStepRefusedError ends the loop: the gate is recorded as rejected, a GateStepRefused event pauses the phase, and there is no fix prompt and no counted attempt. `phax run` prints 'paused: a gate step refused to run' with the reason and remedy, and writes resume-instructions.md."
+    },
+    {
+      "path": "src/cli/commands/runLayers.ts",
+      "note": "Exit families: 2 for plan or config validation, 4 for a gate failure (fix attempts exhausted, or a step refused), 11 for a security or preflight refusal (ModelPreflightError, PlanSectionsPreflightError), and 1 for generic failures and lint."
+    },
+    {
+      "path": "src/schemas/phaxConfig.ts",
+      "note": "The provider seats `brief`, `planAuditor` and `architecture` are optional `{ command }` blocks, split on whitespace with no shell. They are present in both PhaxConfigSchema and PhaxUserOverlaySchema and decoded with excess properties refused. A gate step is `{ command, surface, firing, output?: log | gate-report, input?: gate-request }`. `getPhaxConfigJsonSchema` and `getPhaxUserOverlayJsonSchema` feed `phax schema upgrade`."
+    },
+    {
+      "path": "src/schemas/phaxPlan.ts",
+      "note": "An extracted and persisted phase: id, (title,) model, effort, planMarkdownAnchor, the three planned-file lists, commit. interactive-phases adds `mode` directly after `optionalFilesToEdit`. The current phax-plan snapshot is 0.17.0."
+    },
+    {
+      "path": "src/schemas/planDocument.ts",
+      "note": "A plan-document phase spreads the extracted fields and ends with `commit, modelReason, model, effort`. assignment-bounds renames `modelReason` to `assignmentReason`, and interactive-phases adds `mode` after `optionalFilesToEdit`. The 0.25.0 snapshot is cut."
+    },
+    {
+      "path": "src/domain/plan/lint.ts",
+      "note": "LintCheck is structure | files | commands | models | advisory. A finding is `{ severity, check, phase, message }`, and any error exits 1. interactive-phases adds an `interactive` check."
+    },
+    {
+      "path": "src/app/runPreflight.ts",
+      "note": "RUN_PREFLIGHT_CHECKS: gate-profile, required-commands, skill-edit-consent, mcp-allow, records-destination, phase-models, phase-sections. `phax run` runs them before it names the run, and executePlan runs them again as the resume re-check. `phase-models` and `phase-sections` refuse with exit 11."
+    },
+    {
+      "path": "src/domain/authoring/prompt.ts",
+      "note": "The headless authoring prompt for a plan states, in one bullet, whether an architecture provider is configured. The bullet is absent for a spec."
+    },
+    {
+      "path": "src/schemas/schemaUrl.ts",
+      "note": "FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS list every versioned format, including gate-request, gate-report, brief-request, architecture-request and architecture-report. A new provider format joins both lists."
+    },
+    {
+      "path": "docs/release.md",
+      "note": "A format's changed shape lives in `next.schema.json` until the cut renames it to the release. A stamp names the release that last changed the format's shape."
+    },
+    {
+      "path": "docs/specs/2610201350-assignment-bounds.md",
+      "note": "Approved. Its §10 records the joint phase-shape session of 2026-10-20: J1 separate keys, with `oracle` its own key; J2 `mode` after `optionalFilesToEdit`, with `assignmentReason`, `model`, `effort` last and `oracle`'s place left to this spec; J4 one shared check per rule family, refusing with exit 11; J5, at the time, oracle-phases with its own lift."
+    },
+    {
+      "path": "docs/specs/2610190947-interactive-phases.md",
+      "note": "Draft. It adds `mode` (`headless` | `interactive`) and a `**Mode:** interactive` line after the model, effort and Assignment reason lines, and an interactive phase plans no file to create or edit (q-planned-work, review-only). §10 hands this spec the rule against an interactive phase between an oracle phase and its discharging phase, and the question of which commit the discharge judges after a person's correction."
+    },
+    {
+      "path": ".claude/skills/phax-decide-plan/SKILL.md",
+      "note": "P3: oracle first when the surface is shown, with the oracle files 'read-only for the implementing phase'. A wrong oracle pauses the run and goes back to the spec."
+    },
+    {
+      "path": "package.json",
+      "note": "The `files` of the source package. The published launcher `@lbdremy/phax` (npm/package.json) ships only `bin`, `lib` and README.md. phax's own tests run on Vitest (`vitest run`)."
+    },
+    {
+      "path": "phax.json",
+      "note": "phax's own config: the `standard` gate profile (pnpm format … pnpm test … pnpm audit:architecture, then the terminal build and smoke steps), `pnpm install` as setup, and no provider declared."
+    },
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "The oracle-phases entry still says it waits for `steme oracles` and takes its own plan-document lift."
+    }
+  ],
+  "context": "phax runs a plan as chained phases. Each phase gets its own worktree on `<run.branch>--phase-NN`, branched off the previous phase's branch, and is committed once its gate is green. A red gate opens a same-session fix loop.\n\nThe gate is the project's gate profile, an ordered list of steps. Each step is `{ command, surface, firing }`. `surface` is exactly `local` | `structural` | `product`, and `firing` is exactly `every-phase` | `terminal`. A step may also carry two optional keys:\n- `input: \"gate-request\"`: the step gets `{ $schema, phase, base, terminal, phases }` on stdin.\n- `output: \"gate-report\"`: phax judges the step by the gate-report it prints. `{ $schema, outcome: \"checked\", findings, review }` passes with no finding on exit 0. Any finding fails the step and drives the fix prompt. `{ $schema, outcome: \"refused\", reason, remedy }` stops the phase for the operator with no fix attempt (exit 4, resumable). Anything unreadable fails as a broken step.\n\nSteps run in order and stop at the first failure or refusal. Each step that ran is recorded in `<phase>/gate-attribution.json` as `{ command, surface, result }`, where `result` is exactly `pass` | `fail` | `refused`. A surface whose steps all passed is a verified surface in the phase record, the run summary and the PR body.\n\nphax.json declares providers as `{ \"command\" }` blocks, split on whitespace with no shell, and merges them across `phax.json`, `~/.phax/config.json` and `phax.local.json`. `brief` and `architecture` speak versioned request and report formats that each carry a required `$schema`. The headless plan authoring prompt says whether an architecture provider is configured.\n\n`phax plans lint` runs the checks structure, files, commands, models and advisory. The run preflight runs a fixed set of checks before `phax run` names a run, and again when `phax resume` re-checks it. Its plan checks refuse with exit 11.\n\nTwo specs reshape a phase in this release:\n- assignment-bounds (Approved) renames `modelReason` to `assignmentReason`, which stays among the phase's last three keys.\n- interactive-phases (Draft) adds `mode` (`headless` | `interactive`) directly after `optionalFilesToEdit`, a `**Mode:** interactive` line, and an `interactive` check that lint and the run preflight share.\n\nThe joint session of 2026-10-20 settled three points for this spec. oracle-phases adds its own `oracle` key (J1), placed after `mode` (J2), and its placement rules form one shared check that refuses with exit 11 (J4).\n\nThe 2026-09-28 oracle-phases design answered in the old diagnostics document, refused a missing provider with exit 2, and named steme's unbuilt `steme oracles` as its only provider. It was reopened and abandoned on 2026-10-20, to be re-authored here.\n\nphax's own tests run on Vitest. There, `test.fails` and `it.fails` mark a test that must fail: the run passes when the test fails and fails when it passes.",
+  "problem": "An oracle-first plan cannot pass phax's gates today. The gate runs the ordinary test command at every phase, so an oracle phase is red by construction:\n- its new tests fail because the code does not exist yet;\n- old tests edited to state the new behaviour fail too.\n\nThose failing tests, and the tests it deletes on purpose, are what the oracle phase exists to produce. They are the arbitration a reviewer reads like a spec before any code exists. The only way through today is to keep test and code in one phase. That gives up the separation the plan doctrine asks for (phax-decide-plan P3): the agent that writes the code also writes, and can quietly weaken, what judges it.\n\nThe implementing phase has the opposite problem. Nothing stops it from 'fixing' a red oracle by editing its assertion, deleting it or turning it into a skip. Read-only oracle files cannot fix this, because making the oracles live needs at least one edit: removing what kept them green while they were red.\n\nphax cannot learn this per test framework. Vitest, pytest and every other runner mark expected failures differently, and phax's contract is to stay framework-agnostic and delegate such judgments to a provider. The 2026-09-28 design did that, but it had two flaws:\n- it waited on a single provider that does not exist, so no plan, phax's own included, could ever declare an oracle phase;\n- its request and answer carried no `$schema`, against the rule that every provider request and answer is a versioned phax format.",
+  "productGoal": {
+    "statement": "A plan can declare an oracle phase and the later phase that discharges it, wherever an `oracles` provider is configured, whoever wrote that provider.\n\nIn the oracle phase, every added or modified test carries its framework's own expected-failure marker. The ordinary test command stays green, and the runner itself turns a vacuous oracle red. In the discharging phase every marker is gone, and removing them is the only change made to the oracle files since the oracle phase's commit.\n\nphax checks none of this itself. At the gate of those two phases it sends the configured provider a versioned oracle request and judges the `gate-report` answer like any report step. A finding drives the fix loop. A wrong oracle exhausts the loop and pauses the run on what is a spec disagreement, not a bug.\n\nLint and the run's start preflight hold the declarations to one shared check.\n\nThe phax repository carries an example Vitest provider that compares syntax trees, and phax's own phax.json declares it. phax's own plans can then be oracle-first, and provider authors have a working reference.",
+    "guidingRule": "phax knows which phase authors the oracles and which phase discharges them; only the provider knows what an oracle is."
+  },
+  "terminology": [
+    {
+      "term": "Oracle",
+      "definition": "A test that states the behaviour the code must have and judges the phase that implements it. This spec covers tests only; disposition matrices, fixtures and golden files are out of scope."
+    },
+    {
+      "term": "Expected-failure marker",
+      "definition": "A test framework's own annotation for a test that must fail: Vitest `test.fails` and `it.fails`, pytest `xfail(strict=True)`. A marked test that fails passes the run, and a marked test that passes fails it. phax never names, detects or parses a marker; only a provider does."
+    },
+    {
+      "term": "Oracle phase",
+      "definition": "A phase whose plan.md header carries the oracle declaration. Every test it adds or modifies in its oracle files carries an expected-failure marker, and it may delete tests. It is always a headless phase."
+    },
+    {
+      "term": "Discharging phase",
+      "definition": "The one later phase that makes an oracle phase's oracles live: it removes every marker and makes the implementation satisfy the oracles. It is the next phase unless the declaration names another. Its own `oracle` is null; its role is derived from the oracle phase's declaration."
+    },
+    {
+      "term": "Oracle pair",
+      "definition": "An oracle phase together with its discharging phase."
+    },
+    {
+      "term": "Oracle files",
+      "definition": "The files an oracle phase lists on its `**Oracle files:**` line: a subset of its planned files to create and to edit. Only these files are sent to the provider and guarded between the pair. The oracle phase's other planned files, such as stubs the tests compile against, are ordinary files."
+    },
+    {
+      "term": "Base commit",
+      "definition": "The commit the oracle phase's branch was created from: the previous phase's commit, or the run's start commit for phase-01."
+    },
+    {
+      "term": "Oracle commit",
+      "definition": "The commit the oracle phase produced: the tip of its phase branch."
+    },
+    {
+      "term": "Proved-minimal edit",
+      "definition": "A change to the oracle files, from the oracle commit to the discharging phase's worktree, that only removes expected-failure markers. No assertion changes, no test is deleted, and no skip or todo takes a marker's place. The provider proves this; phax does not."
+    },
+    {
+      "term": "Oracles provider",
+      "definition": "The command configured as `oracles.command` in any config layer. It answers an oracle request with a `gate-report`."
+    },
+    {
+      "term": "Oracle request",
+      "definition": "The `oracle-request` document phax writes on the oracles provider's stdin: `$schema`, `verdict`, `phase`, `oraclePhase`, `base`, `files`, and, on a `discharged` request only, `oracleCommit`."
+    },
+    {
+      "term": "Verdict",
+      "definition": "What an oracle request asks the provider to judge: exactly `authored` (at the oracle phase's gate) or `discharged` (at the discharging phase's gate). The key is named `verdict`, not `mode`, because a phase already uses `mode` for `headless` | `interactive`."
+    },
+    {
+      "term": "Oracle step",
+      "definition": "The gate step phax itself appends, after every configured step the attempt fires, at the gate of an oracle phase or a discharging phase. It runs the oracles provider and is recorded under the `oracle` surface."
+    },
+    {
+      "term": "`oracles` check",
+      "definition": "The one domain check behind lint's `oracles` findings and the run preflight's oracle refusal."
+    },
+    {
+      "term": "Example Vitest provider",
+      "definition": "Repository tooling in the phax repository: an oracles provider for Vitest that judges oracle files by their syntax trees. phax's own phax.json declares it, and no phax command runs it."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-declare",
+      "title": "Declaring an oracle phase in plan.md",
+      "pattern": "ubiquitous",
+      "statement": "The system shall read a phase of plan.md as an oracle phase when its header paragraph carries an `**Oracle phase:**` line valued `yes` or `discharged by phase-NN` and an `**Oracle files:**` line listing its oracle files. It shall take `yes` to designate the next phase in plan order as the discharging phase."
+    },
+    {
+      "id": "r-field",
+      "title": "The oracle key in phax-plan.json and the plan document",
+      "pattern": "event",
+      "statement": "WHEN phax extracts a plan.md or decodes a plan document THE system SHALL carry a required `oracle` key, placed directly after `mode`, on every phase of `phax-plan.json` and of the plan document. On an oracle phase the key is `{ \"dischargedBy\": \"<phase id>\", \"files\": [...] }`, with the discharging phase resolved and the oracle files in declaration order. On every other phase it is `null`."
+    },
+    {
+      "id": "r-render",
+      "title": "Rendering the declaration",
+      "pattern": "event",
+      "statement": "WHEN phax renders a plan document to plan.md THE system SHALL write the `**Oracle phase:** discharged by <dischargedBy>` and `**Oracle files:**` lines on each phase whose `oracle` is not null, after that phase's Recommended model, Recommended effort, Assignment reason and Mode lines, and SHALL write no oracle line on any other phase."
+    },
+    {
+      "id": "r-lift",
+      "title": "Lifted sidecars carry no oracle",
+      "pattern": "event",
+      "statement": "WHEN `phax artifact migrate-documents` lifts a live plan sidecar stamped below the plan-document shape that carries `oracle` THE system SHALL give every lifted phase `oracle: null` and add no oracle line to its plan.md."
+    },
+    {
+      "id": "r-lint-lines",
+      "title": "Lint: well-formed declaration lines",
+      "pattern": "unwanted",
+      "statement": "IF a phase carries an `**Oracle phase:**` line without an `**Oracle files:**` line or the reverse, an `**Oracle phase:**` value other than `yes` or `discharged by phase-NN`, or either line outside its header paragraph, THEN `phax plans lint` SHALL report an error on the `oracles` check naming the phase and the line."
+    },
+    {
+      "id": "r-lint-order",
+      "title": "Lint: a discharging phase that exists and comes after",
+      "pattern": "unwanted",
+      "statement": "IF an oracle phase's discharging phase is absent from the plan or does not come after the oracle phase THEN `phax plans lint` SHALL report an error on the `oracles` check naming the oracle phase and the discharging phase it resolved to."
+    },
+    {
+      "id": "r-lint-roles",
+      "title": "Lint: one role per phase, one-to-one pairs",
+      "pattern": "unwanted",
+      "statement": "IF a phase is both an oracle phase and a discharging phase, or is the discharging phase of more than one oracle phase, THEN `phax plans lint` SHALL report an error on the `oracles` check naming that phase."
+    },
+    {
+      "id": "r-lint-files-listed",
+      "title": "Lint: an oracle phase lists oracle files",
+      "pattern": "unwanted",
+      "statement": "IF an oracle phase's `**Oracle files:**` line lists no file THEN `phax plans lint` SHALL report an error on the `oracles` check naming that phase."
+    },
+    {
+      "id": "r-lint-files-planned",
+      "title": "Lint: oracle files are planned by the oracle phase",
+      "pattern": "unwanted",
+      "statement": "IF an oracle phase lists an oracle file that is not among its own planned files to create or to edit THEN `phax plans lint` SHALL report an error on the `oracles` check naming the phase and the file."
+    },
+    {
+      "id": "r-lint-between-files",
+      "title": "Lint: no oracle file planned between the pair",
+      "pattern": "unwanted",
+      "statement": "IF a phase strictly between an oracle phase and its discharging phase names one of that pair's oracle files in its planned files to create, to edit or optionally edit THEN `phax plans lint` SHALL report an error on the `oracles` check naming the intervening phase, the file and the oracle phase."
+    },
+    {
+      "id": "r-lint-between-interactive",
+      "title": "Lint: no interactive phase between the pair",
+      "pattern": "unwanted",
+      "statement": "IF an interactive phase sits strictly between an oracle phase and its discharging phase THEN `phax plans lint` SHALL report an error on the `oracles` check naming the interactive phase and the oracle pair."
+    },
+    {
+      "id": "r-lint-interactive-role",
+      "title": "Lint: an interactive phase takes no oracle role",
+      "pattern": "unwanted",
+      "statement": "IF an interactive phase is an oracle phase or a discharging phase THEN `phax plans lint` SHALL report an error on the `oracles` check naming that phase."
+    },
+    {
+      "id": "r-lint-provider",
+      "title": "Lint: an oracle phase needs a provider",
+      "pattern": "unwanted",
+      "statement": "IF a plan declares an oracle phase and no configuration layer declares an `oracles` provider THEN `phax plans lint` SHALL report an error on the `oracles` check naming the oracle phase and the missing `oracles` key."
+    },
+    {
+      "id": "r-check-shared",
+      "title": "One oracles check",
+      "pattern": "ubiquitous",
+      "statement": "The system shall compute every `oracles` finding in one domain check that `phax plans lint` and the run preflight both call, so that each error lint reports is exactly an error the run preflight refuses on."
+    },
+    {
+      "id": "r-preflight",
+      "title": "Run and resume refuse an ill-formed declaration",
+      "pattern": "unwanted",
+      "statement": "IF the `oracles` check reports an error when `phax run` or `phax resume` runs its preflight THEN the system SHALL refuse before any phase starts (for `phax run`, before the run is named), print every error of the check, leave an existing run's state unchanged, and exit 11."
+    },
+    {
+      "id": "r-config",
+      "title": "The oracles provider block",
+      "pattern": "ubiquitous",
+      "statement": "The system shall accept an optional `oracles` block holding exactly one non-empty `command` in `phax.json`, `~/.phax/config.json` and `phax.local.json`, merged across the layers as `brief` and `architecture` are, and shall refuse any other key inside the block with exit 2."
+    },
+    {
+      "id": "r-schema-upgrade",
+      "title": "Schema upgrade describes the block",
+      "pattern": "event",
+      "statement": "WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` and a `phax.user.schema.json` that both describe the `oracles` block, with the provider contract summarized in the block's description."
+    },
+    {
+      "id": "r-surface-config",
+      "title": "A configured step cannot claim the oracle surface",
+      "pattern": "unwanted",
+      "statement": "IF a configured gate step declares the `oracle` surface THEN loading the configuration SHALL fail with exit 2 naming the step's surface, because a configured step's surface stays exactly `local`, `structural` or `product`."
+    },
+    {
+      "id": "r-step-authored",
+      "title": "The oracle step at the oracle phase",
+      "pattern": "event",
+      "statement": "WHEN a gate attempt of an oracle phase has run every configured step it fires and all of them passed THE system SHALL run the oracle step, with an `authored` oracle request, as the attempt's last step."
+    },
+    {
+      "id": "r-step-discharged",
+      "title": "The oracle step at the discharging phase",
+      "pattern": "event",
+      "statement": "WHEN a gate attempt of a discharging phase has run every configured step it fires and all of them passed THE system SHALL run the oracle step, with a `discharged` oracle request, as the attempt's last step."
+    },
+    {
+      "id": "r-step-nowhere-else",
+      "title": "No oracle step anywhere else",
+      "pattern": "ubiquitous",
+      "statement": "The system shall run the oracles provider only at the gate of an oracle phase or a discharging phase, and never from `phax plans lint`, `phax validate`, the run preflight, plan authoring or the gate of any other phase."
+    },
+    {
+      "id": "r-request",
+      "title": "The oracle request",
+      "pattern": "ubiquitous",
+      "statement": "The system shall write on the oracle step's stdin an `oracle-request` document with a required `$schema` and exactly the keys of its verdict, and shall save that document beside the attempt's log. The keys are `verdict`, `phase`, `oraclePhase`, `base` (the oracle phase's full base commit), `files` (the oracle files) and, on a `discharged` request only, `oracleCommit` (full)."
+    },
+    {
+      "id": "r-spawn",
+      "title": "The spawn contract",
+      "pattern": "ubiquitous",
+      "statement": "The system shall run the oracle step in the gated phase's worktree as it stands before the phase commit, with the `oracles.command` string split on whitespace and no shell."
+    },
+    {
+      "id": "r-verdict",
+      "title": "The step is judged as a report step",
+      "pattern": "ubiquitous",
+      "statement": "The system shall judge the oracle step by its stdout and exit code exactly as it judges an `output: \"gate-report\"` step: a `checked` report with no finding passes on exit 0, any finding fails the step whatever the exit code, and the report is saved as printed beside the attempt's log."
+    },
+    {
+      "id": "r-fix-loop",
+      "title": "Findings drive the fix loop",
+      "pattern": "event",
+      "statement": "WHEN the oracle step fails with findings THE system SHALL put the findings in the phase's fix prompt, as for any report step, and SHALL run the oracle step again on the next attempt once the configured steps pass."
+    },
+    {
+      "id": "r-refused",
+      "title": "A refusal pauses the phase",
+      "pattern": "event",
+      "statement": "WHEN the oracles provider answers with a `refused` gate report THE system SHALL record the step as `refused`, make no fix attempt, print the provider's reason and remedy, and pause the run at that phase with exit 4, as for any refused report step."
+    },
+    {
+      "id": "r-provider-error",
+      "title": "Provider errors fail the step",
+      "pattern": "unwanted",
+      "statement": "IF the oracles provider cannot be spawned, outruns its time cap, prints no readable gate report, or exits non-zero with no finding THEN the system SHALL fail the oracle step as a broken step and name the reason in the attempt's log."
+    },
+    {
+      "id": "r-exhausted",
+      "title": "An undischargeable oracle pauses the run",
+      "pattern": "event",
+      "statement": "WHEN an oracle phase or a discharging phase exhausts its fix loop on a failing oracle step THE system SHALL stop the run as a gate failure with exit 4, resumable at that phase."
+    },
+    {
+      "id": "r-attribution",
+      "title": "Attribution of the oracle step",
+      "pattern": "event",
+      "statement": "WHEN the oracle step runs THE system SHALL record it as the last step of the attempt's step record and of the phase's `gate-attribution.json`, with the `oracles.command` string as its command, `oracle` as its surface, and `pass`, `fail` or `refused` as its result."
+    },
+    {
+      "id": "r-surface-carried",
+      "title": "The oracle surface is carried like any other",
+      "pattern": "ubiquitous",
+      "statement": "The system shall count the `oracle` surface among a phase's verified surfaces in the phase record, the run summary and the PR body, by the same rule as every other surface."
+    },
+    {
+      "id": "r-handoff",
+      "title": "Oracle pairs in the review handoff",
+      "pattern": "ubiquitous",
+      "statement": "The system shall list every oracle pair in the run's `review-handoff.md`, with its oracle phase, its discharging phase and the result of each side's last oracle step, and shall write no such list for a plan with no oracle phase."
+    },
+    {
+      "id": "r-records",
+      "title": "Oracle role in the records",
+      "pattern": "event",
+      "statement": "WHEN `phax records explain` resolves the commit of an oracle phase or a discharging phase THE system SHALL name the phase's oracle role, its counterpart phase and its last oracle-step result."
+    },
+    {
+      "id": "r-prompt",
+      "title": "The agent is told its role",
+      "pattern": "ubiquitous",
+      "statement": "The system shall state in the prompt of an oracle phase and of a discharging phase the phase's oracle role, its counterpart phase and the oracle files, in a fixed wording that names no test framework and no marker."
+    },
+    {
+      "id": "r-reconcile",
+      "title": "Discharge edits are planned edits",
+      "pattern": "event",
+      "statement": "WHEN phax reconciles the files a discharging phase touched THE system SHALL count an edit to one of its pair's oracle files as a planned edit."
+    },
+    {
+      "id": "r-current-commit",
+      "title": "The discharge judges the current oracle commit",
+      "pattern": "event",
+      "statement": "WHEN a discharging phase's gate runs after a resume, a reset or a re-run THE system SHALL name in the `discharged` request the oracle phase's current commit and its current base commit."
+    },
+    {
+      "id": "r-reset",
+      "title": "Reset the discharge before its oracles",
+      "pattern": "unwanted",
+      "statement": "IF `phax reset-phase` targets an oracle phase whose discharging phase is no longer pending THEN it SHALL refuse, naming the discharging phase to reset first, and change nothing."
+    },
+    {
+      "id": "r-authoring-configured",
+      "title": "The planner is told a provider is configured",
+      "pattern": "optional",
+      "statement": "WHERE an `oracles` provider is configured THE system SHALL state in the headless plan authoring prompt that one is configured and that the planner may declare oracle phases."
+    },
+    {
+      "id": "r-authoring-absent",
+      "title": "The planner is told no provider is configured",
+      "pattern": "optional",
+      "statement": "WHERE no `oracles` provider is configured THE system SHALL state in the headless plan authoring prompt that none is configured and that the planner declares no oracle phase."
+    },
+    {
+      "id": "r-skill",
+      "title": "The planning skill states the rule",
+      "pattern": "ubiquitous",
+      "statement": "The phax-planning skill shall state that a plan declares an oracle phase only when an `oracles` provider is configured. It shall give the two declaration lines, the oracle files as a subset of the oracle phase's planned files, and the one change the discharging phase may make to those files."
+    },
+    {
+      "id": "r-unchanged",
+      "title": "Nothing changes without an oracle phase",
+      "pattern": "state",
+      "statement": "WHILE a plan declares no oracle phase THE system SHALL extract, lint, run, resume, reset and record it with the same findings, prompts, gate steps, attribution and exit codes as before this change, apart from `oracle: null` on every phase, whether or not an `oracles` provider is configured."
+    },
+    {
+      "id": "r-agnostic",
+      "title": "No test-framework knowledge in phax",
+      "pattern": "ubiquitous",
+      "statement": "The system shall neither read the content of an oracle file nor add, remove, reorder or alter a configured gate step in order to judge an oracle."
+    },
+    {
+      "id": "r-example-home",
+      "title": "The example provider is repository tooling",
+      "pattern": "ubiquitous",
+      "statement": "The phax repository shall carry an example `oracles` provider for Vitest as repository tooling outside the phax CLI, run by no phax command and imported by no phax module."
+    },
+    {
+      "id": "r-example-declared",
+      "title": "phax's own config declares the example",
+      "pattern": "ubiquitous",
+      "statement": "The phax repository's own `phax.json` shall declare the example as its `oracles` provider."
+    },
+    {
+      "id": "r-example-authored",
+      "title": "The example judges authored oracles",
+      "pattern": "event",
+      "statement": "WHEN the example provider receives an `authored` request THE example SHALL answer with a `checked` gate report that holds one finding for each test, added or modified since `base` in the oracle files, that does not carry `.fails`, and no finding for a test deleted since `base`."
+    },
+    {
+      "id": "r-example-left",
+      "title": "The example finds markers left at discharge",
+      "pattern": "event",
+      "statement": "WHEN the example provider receives a `discharged` request THE example SHALL report one finding for each `.fails` marker left in the oracle files."
+    },
+    {
+      "id": "r-example-only",
+      "title": "The example proves marker removal is the only change",
+      "pattern": "event",
+      "statement": "WHEN the example provider receives a `discharged` request THE example SHALL report one finding for each oracle file whose syntax tree now differs from its syntax tree at `oracleCommit` with every `.fails` member access removed."
+    },
+    {
+      "id": "r-example-trees",
+      "title": "The example compares syntax trees, not lines",
+      "pattern": "ubiquitous",
+      "statement": "The example provider shall judge oracle files by their syntax trees and never by their lines, so that a change of whitespace, line breaks or trailing commas alone never changes its answer."
+    },
+    {
+      "id": "r-example-unreadable",
+      "title": "The example refuses a request it cannot read",
+      "pattern": "unwanted",
+      "statement": "IF the example provider receives a request it cannot read THEN it SHALL answer with a `refused` gate report naming the reason and a remedy."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "file: plan.md — oracle phase declaration",
+      "binding": "indicative",
+      "before": "## phase-02 — Refund oracles  {#phase-02-refund-oracles}\n\n**Recommended model:** claude-sonnet-5-5\n**Recommended effort:** medium",
+      "after": "## phase-02 — Refund oracles  {#phase-02-refund-oracles}\n\n**Recommended model:** claude-sonnet-5-5\n**Recommended effort:** medium\n**Oracle phase:** yes\n**Oracle files:** tests/refunds.test.ts, tests/prune.test.ts\n\n# or, naming the discharging phase:\n**Oracle phase:** discharged by phase-04\n**Oracle files:** tests/refunds.test.ts, tests/prune.test.ts\n\nNormative:\n- the two lines sit only on an oracle phase, in its header paragraph;\n- they come after the Recommended model and Recommended effort lines, and after the Assignment reason and Mode lines when the phase has them (an oracle phase is headless, so in practice it has no Mode line);\n- `yes` means the next phase in plan order, and a rendered plan always names the phase;\n- the oracle files are a subset of the phase's planned files to create and to edit (Q5), so the phase may also plan a stub such as src/refunds/index.ts that is not an oracle.\n\nIndicative: the labels' spelling."
+    },
+    {
+      "surface": "file: phax-plan.json — per-phase oracle",
+      "binding": "normative",
+      "before": "{ \"id\": \"phase-02\", \"title\": \"Refund oracles\", \"model\": \"claude-sonnet-5-5\", \"effort\": \"medium\",\n  \"planMarkdownAnchor\": \"phase-02-refund-oracles\",\n  \"plannedFilesToCreate\": [\"tests/refunds.test.ts\"], \"plannedFilesToEdit\": [\"tests/prune.test.ts\", \"src/refunds/index.ts\"],\n  \"optionalFilesToEdit\": [], \"mode\": \"headless\",\n  \"commit\": { \"subject\": \"test(refunds): oracles for partial refunds\", \"body\": \"…\" } }\n\n# the phase as interactive-phases leaves it",
+      "after": "{ \"id\": \"phase-02\", …same fields up to mode…, \"mode\": \"headless\",\n  \"oracle\": { \"dischargedBy\": \"phase-03\", \"files\": [\"tests/refunds.test.ts\", \"tests/prune.test.ts\"] },\n  \"commit\": { … } }\n{ \"id\": \"phase-03\", …same fields up to mode…, \"mode\": \"headless\", \"oracle\": null, \"commit\": { … } }\n\nNormative:\n- `oracle` is required on every phase, directly after `mode`;\n- it is null on an ordinary phase and on a discharging phase;\n- on an oracle phase it is `{ dischargedBy, files }`, always resolved (never `yes`/next), with both keys required and no other key."
+    },
+    {
+      "surface": "file: plan document (`phax artifact schema plan`) — per-phase oracle",
+      "binding": "normative",
+      "before": "\"phases\": [{ \"id\": \"phase-02\", …, \"plannedFilesToCreate\": [\"tests/refunds.test.ts\"],\n  \"plannedFilesToEdit\": [\"tests/prune.test.ts\", \"src/refunds/index.ts\"], \"optionalFilesToEdit\": [],\n  \"mode\": \"headless\",\n  \"boundaryContracts\": null, …, \"expectedHandoff\": \"…\", \"commit\": { … },\n  \"assignmentReason\": null, \"model\": \"claude-sonnet-5-5\", \"effort\": \"medium\" }]\n\n# the phase once assignment-bounds and interactive-phases have reshaped it",
+      "after": "\"phases\": [{ \"id\": \"phase-02\", …, \"optionalFilesToEdit\": [],\n  \"mode\": \"headless\",\n  \"oracle\": { \"dischargedBy\": \"phase-03\", \"files\": [\"tests/refunds.test.ts\", \"tests/prune.test.ts\"] },\n  \"boundaryContracts\": null, …, \"expectedHandoff\": \"…\", \"commit\": { … },\n  \"assignmentReason\": null, \"model\": \"claude-sonnet-5-5\", \"effort\": \"medium\" }]\n\nNormative:\n- `oracle` sits directly after `mode` in `properties` and `required` (J2);\n- `assignmentReason`, `model` and `effort` stay the last three keys;\n- it has the same shape as in phax-plan.json, renders to the plan.md oracle lines, and projects unchanged to phax-plan.json."
+    },
+    {
+      "surface": "config: phax.json `oracles`",
+      "binding": "normative",
+      "before": "\"brief\": { \"command\": \"acme-guard brief\", \"push\": \"findings\" },\n\"architecture\": { \"command\": \"acme-guard architecture\" }",
+      "after": "\"brief\": { \"command\": \"acme-guard brief\", \"push\": \"findings\" },\n\"architecture\": { \"command\": \"acme-guard architecture\" },\n\"oracles\": { \"command\": \"node tools/vitest-oracles.mjs\" }\n\nNormative:\n- the block is optional and is accepted in phax.json, ~/.phax/config.json and phax.local.json, merged per layer as `brief` and `architecture` are;\n- it holds exactly one non-empty `command`, split on whitespace with no shell;\n- any other key inside the block is refused with exit 2."
+    },
+    {
+      "surface": "api: oracle request (the provider's stdin)",
+      "binding": "normative",
+      "before": null,
+      "after": "$ node tools/vitest-oracles.mjs      # cwd: ~/.phax/worktrees/refunds/phase-02, the phase's work uncommitted\nstdin:\n{\n  \"$schema\": \"https://docs.phax.run/schemas/oracle-request/<release>.json\",\n  \"verdict\": \"authored\",\n  \"phase\": \"phase-02\",\n  \"oraclePhase\": \"phase-02\",\n  \"base\": \"3f2a91c0d6e84b1f9a7c2e5d8b0a4f6c1e3d7b92\",\n  \"files\": [\"tests/refunds.test.ts\", \"tests/prune.test.ts\"]\n}\n\n$ node tools/vitest-oracles.mjs      # cwd: ~/.phax/worktrees/refunds/phase-03\nstdin:\n{\n  \"$schema\": \"https://docs.phax.run/schemas/oracle-request/<release>.json\",\n  \"verdict\": \"discharged\",\n  \"phase\": \"phase-03\",\n  \"oraclePhase\": \"phase-02\",\n  \"base\": \"3f2a91c0d6e84b1f9a7c2e5d8b0a4f6c1e3d7b92\",\n  \"oracleCommit\": \"8be04d71a2c94f3e6b0d5a7c9e1f2b3a4d6c8e05\",\n  \"files\": [\"tests/refunds.test.ts\", \"tests/prune.test.ts\"]\n}\n\nNormative (under q-request's recommendation):\n- a new versioned format `oracle-request`, with a required `$schema`;\n- two variants by `verdict` (`authored` | `discharged`), each with exactly its keys and all of them required: `oracleCommit` is present on `discharged` only;\n- `base` is the oracle phase's base commit on both variants;\n- commits are full object names;\n- `files` holds the oracle files in declaration order.\n\nIndicative: the release in the URL."
+    },
+    {
+      "surface": "api: oracles provider answer (its stdout) — the existing gate-report",
+      "binding": "normative",
+      "before": null,
+      "after": "pass — exit 0:\n{ \"$schema\": \"https://docs.phax.run/schemas/gate-report/<release>.json\",\n  \"outcome\": \"checked\", \"findings\": [], \"review\": [] }\n\nfail — any exit code:\n{ \"$schema\": \"https://docs.phax.run/schemas/gate-report/<release>.json\",\n  \"outcome\": \"checked\",\n  \"findings\": [\n    { \"id\": \"oracle-changed:tests/refunds.test.ts:caps a refund at the invoice total\",\n      \"rule\": \"After the oracle phase, only the expected-failure markers may change in an oracle file\",\n      \"location\": { \"file\": \"tests/refunds.test.ts\", \"lines\": [42, 42] },\n      \"message\": \"expect(refund.amount).toBe(120) became toBe(100) since the oracle commit\",\n      \"related\": [],\n      \"guide\": null } ],\n  \"review\": [] }\n\nrefused — any exit code:\n{ \"$schema\": \"https://docs.phax.run/schemas/gate-report/<release>.json\",\n  \"outcome\": \"refused\",\n  \"reason\": \"tests/prune.test.ts is not at the oracle commit 8be04d7\",\n  \"remedy\": \"reset phase-03, then phase-02, and resume\" }\n\nNormative:\n- the answer is exactly gate-report, judged by the rules of an `output: \"gate-report\"` step;\n- a refusal pauses the phase with no fix attempt;\n- review notes reach only the reviewer;\n- an answer with no `$schema`, or of an unknown version, is a broken step.\n\nIndicative: finding ids, rules and wording, which are the provider's own."
+    },
+    {
+      "surface": "cli: phax plans lint — the `oracles` check",
+      "binding": "normative",
+      "before": "$ phax plans lint docs/plans/2611021000-refunds-plan.md\ndocs/plans/2611021000-refunds-plan.md: 0 errors, 0 warnings\n$? = 0",
+      "after": "$ phax plans lint docs/plans/2611021000-refunds-plan.md\ndocs/plans/2611021000-refunds-plan.md: 5 errors, 0 warnings\nerror    oracles  phase-05  oracle phase is discharged by the next phase, and phase-05 is the last phase\nerror    oracles  phase-02  oracle phase is discharged by phase-01, which comes before it\nerror    oracles  phase-03  plans tests/refunds.test.ts, an oracle file of phase-02, before phase-04 discharges it\nerror    oracles  phase-03  interactive phase sits between oracle phase-02 and its discharging phase-04\nerror    oracles  phase-02  oracle phase declared, but no \"oracles\" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\n$? = 1\n\nNormative:\n- the check name `oracles`;\n- severity error, with the phase column;\n- exit 1;\n- the same errors the run preflight refuses on;\n- the provider is never spawned.\n\nIndicative: the wording."
+    },
+    {
+      "surface": "cli: phax run / phax resume — the oracle preflight",
+      "binding": "normative",
+      "before": null,
+      "after": "$ phax run --plan docs/plans/2611021000-refunds-plan.md\nOracle preflight failed: 1 error.\n  phase-02  oracle phase declared, but no \"oracles\" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\nCheck the plan with `phax plans lint docs/plans/2611021000-refunds-plan.md`.\n$? = 11\n\n$ phax resume refunds --yes      # the oracles block was removed after the run failed\nOracle preflight failed: 1 error.\n  phase-02  oracle phase declared, but no \"oracles\" provider is configured (…)\n$? = 11\n\nNormative:\n- exit 11;\n- every error of the shared `oracles` check is printed, the same errors `phax plans lint` reports for the same plan and config;\n- the refusal comes before any phase starts (for `phax run`, before the run is named), and an existing run's state is unchanged.\n\nIndicative: the wording and the layout."
+    },
+    {
+      "surface": "cli: phax schema upgrade",
+      "binding": "normative",
+      "before": "$ phax schema upgrade\nUpdated /repo/phax.schema.json\nUpdated /repo/phax.user.schema.json",
+      "after": "$ phax schema upgrade\nUpdated /repo/phax.schema.json\nUpdated /repo/phax.user.schema.json\n\nThe output is unchanged. Both files now carry properties.oracles = { command: a non-empty string }, with no other key, and a description summarizing the contract: an oracle-request on stdin, a gate-report on stdout, and the provider is run only at the gate of an oracle or discharging phase. The configured gate step's `surface` enum stays local | structural | product.\n\nIndicative: the description's wording."
+    },
+    {
+      "surface": "config: a configured gate step with `\"surface\": \"oracle\"`",
+      "binding": "normative",
+      "before": "{ \"command\": \"pnpm test\", \"surface\": \"local\", \"firing\": \"every-phase\" }",
+      "after": "{ \"command\": \"pnpm test\", \"surface\": \"oracle\", \"firing\": \"every-phase\" }\n\n$ phax validate\nConfig validation failed: gateProfiles.standard[5].surface: Expected \"local\" | \"structural\" | \"product\", actual \"oracle\"\n  at: phax.json\n$? = 2\n\nNormative: refused at config load, with exit 2, naming the step's surface. Only the oracle step carries `oracle`.\n\nIndicative: the message."
+    },
+    {
+      "surface": "file: <run>/phase-NN/gate-attribution.json",
+      "binding": "normative",
+      "before": "{ \"$schema\": \"https://docs.phax.run/schemas/gate-attribution/0.21.0.json\", \"phase\": \"phase-03\", \"steps\": [\n  { \"command\": \"pnpm typecheck\", \"surface\": \"local\", \"result\": \"pass\" },\n  { \"command\": \"pnpm test\", \"surface\": \"local\", \"result\": \"pass\" } ] }",
+      "after": "{ \"$schema\": \"https://docs.phax.run/schemas/gate-attribution/<release>.json\", \"phase\": \"phase-03\", \"steps\": [\n  { \"command\": \"pnpm typecheck\", \"surface\": \"local\", \"result\": \"pass\" },\n  { \"command\": \"pnpm test\", \"surface\": \"local\", \"result\": \"pass\" },\n  { \"command\": \"node tools/vitest-oracles.mjs\", \"surface\": \"oracle\", \"result\": \"fail\" } ] }\n\nNormative:\n- the keys are unchanged;\n- `surface` gains `oracle`, carried only by the oracle step, which is always last and present only at an oracle or discharging phase's gate;\n- `result` stays `pass` | `fail` | `refused`;\n- the widened enum is a new gate-attribution shape, and a new phase-record-manifest shape through `verifiedSurfaces`; documents stamped earlier stay readable.\n\nIndicative: the release in the URL."
+    },
+    {
+      "surface": "file: <run>/phase-NN/checks-attempt-NN.* — the oracle step's files",
+      "binding": "indicative",
+      "before": "~/.phax/runs/refunds/phase-03/\n  checks-attempt-01.log\n  checks-attempt-01.steps.json",
+      "after": "~/.phax/runs/refunds/phase-03/\n  checks-attempt-01.log\n  checks-attempt-01.steps.json\n  checks-attempt-01.oracle-request.json     # the oracle request, as written on stdin\n  checks-attempt-01.report-03.json          # the provider's gate report, as printed\n\nchecks-attempt-01.log:\n$ pnpm typecheck\n…\nexit 0\n\n$ pnpm test\n…\nexit 0\n\n$ node tools/vitest-oracles.mjs\nstdin: checks-attempt-01.oracle-request.json\nreport: checks-attempt-01.report-03.json\nexit 1\n\nIndicative: the request file's name. The report follows the existing report-SS naming."
+    },
+    {
+      "surface": "cli: phax run — an oracle step that refuses",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax run --plan docs/plans/2611021000-refunds-plan.md\n✓ phase-01  Refund port        committed  1a2b3c4\n✓ phase-02  Refund oracles     committed  8be04d7\n✗ phase-03  Partial refunds    gate step refused\nRun \"refunds\" paused: a gate step refused to run.\n  node tools/vitest-oracles.mjs: tests/prune.test.ts is not at the oracle commit 8be04d7 — remedy: reset phase-03, then phase-02, and resume\nSee ~/.phax/runs/refunds/resume-instructions.md for details.\n$? = 4\n\nThis is the same pause any refused report step causes. An exhausted fix loop on a failing oracle step also exits 4."
+    },
+    {
+      "surface": "file: <run>/review-handoff.md — oracle pairs",
+      "binding": "indicative",
+      "before": null,
+      "after": "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |\n| ------------ | ------------- | -------- | ---------- |\n| phase-02     | phase-03      | pass     | pass       |\n\nThe section is omitted entirely when the plan declares no oracle phase."
+    },
+    {
+      "surface": "cli: phax records explain",
+      "binding": "indicative",
+      "before": "phase-03  committed  surfaces: local, structural",
+      "after": "phase-03  committed  surfaces: local, oracle, structural\n  oracle: discharges phase-02 — node tools/vitest-oracles.mjs: pass"
+    },
+    {
+      "surface": "cli: phax reset-phase — the discharge first",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax reset-phase refunds phase-02\n✗ Cannot reset \"phase-02\" of run \"refunds\": its discharging phase \"phase-03\" is failed — reset phase-03 first.\n$? = 1"
+    },
+    {
+      "surface": "internal: phase prompt — oracle role paragraph",
+      "binding": "indicative",
+      "before": null,
+      "after": "Oracle phase: This phase writes the oracles that phase-03 will discharge. In the oracle files (tests/refunds.test.ts, tests/prune.test.ts), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.\n\nDischarging phase: This phase discharges the oracles phase-02 wrote. In the oracle files, the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.\n\nNormative: no test framework and no marker named.\n\nIndicative: the wording."
+    },
+    {
+      "surface": "file: ~/.phax/authoring/<id>/prompt.md (headless plan authoring)",
+      "binding": "indicative",
+      "before": "- An architecture provider is configured: before cutting phases, run `phax architecture` …\n- Return ONLY a JSON object …",
+      "after": "- An architecture provider is configured: before cutting phases, run `phax architecture` …\n- An oracles provider is configured (\"oracles\" in phax config): you may declare an oracle phase and its discharging phase, as the skill's oracle-phase section says.\n- Return ONLY a JSON object …\n\nWith none configured, the bullet reads:\n- No oracles provider is configured: declare no oracle phase; every phase's `oracle` is null.\n\nNormative:\n- a plan prompt always states whether an oracles provider is configured;\n- spec prompts are unchanged;\n- no provider runs at authoring.\n\nIndicative: the wording and the position."
+    },
+    {
+      "surface": "file: .claude/skills/phax-planning/SKILL.md — oracle phases",
+      "binding": "indicative",
+      "before": null,
+      "after": "## Oracle phases\n\n- Declare an oracle phase only when an `oracles` provider is configured: the authoring prompt says so, and by hand you check `oracles` in phax.json and its overlays. Without one, keep tests and code in one phase.\n- The oracle phase writes the tests. Every test it adds or modifies carries the runner's expected-failure marker. It may delete tests, and it may plan stubs the tests compile against; only the files on its `**Oracle files:**` line are oracles.\n- Its discharging phase (the next phase, or the one named) removes the markers and writes the code. Removing the markers is the only change it makes to the oracle files.\n- No phase in between plans an oracle file, and no interactive phase sits in between.\n\nNormative:\n- the provider rule;\n- the two lines;\n- oracle files as a subset of the planned files;\n- the discharge's one allowed change.\n\nIndicative: the wording and the placement."
+    },
+    {
+      "surface": "file: the example Vitest provider (repository tooling) and phax's own phax.json",
+      "binding": "indicative",
+      "before": "phax.json (the phax repository): no provider declared.",
+      "after": "examples/vitest-oracles/\n  README.md     # what it answers and why, and how to adapt it to another runner\n  main.ts       # reads an oracle-request on stdin and prints a gate-report\n  …             # its own tests run in phax's `pnpm test`\n\nphax.json (the phax repository):\n  \"oracles\": { \"command\": \"pnpm exec tsx examples/vitest-oracles/main.ts\" }\n\nNormative:\n- it lives in the repository, outside `src/`;\n- no phax command runs it, and no phax module imports it;\n- phax's own phax.json declares it;\n- it answers the two verdicts as the example requirements say, from syntax trees.\n\nIndicative:\n- the folder (`examples/` or `scripts/`), the file names and the command;\n- the parser: web-tree-sitter with the TypeScript grammar as WebAssembly, so nothing is built natively."
+    },
+    {
+      "surface": "package: @lbdremy/phax-schemas — formats this spec changes",
+      "binding": "normative",
+      "before": "snapshots/gate-attribution/0.21.0.schema.json         # surface: local | structural | product\nsnapshots/phase-record-manifest/0.17.0.schema.json    # verifiedSurfaces: the same three\nsnapshots/gate-request/0.20.0.schema.json\nsnapshots/gate-report/0.21.0.schema.json",
+      "after": "snapshots/oracle-request/next.schema.json             # new format, born with $schema\nsnapshots/gate-attribution/next.schema.json           # surface gains \"oracle\"\nsnapshots/phase-record-manifest/next.schema.json      # verifiedSurfaces gains \"oracle\"\nsnapshots/plan-document/next.schema.json              # phase gains oracle\nsnapshots/phax-plan/next.schema.json                  # phase gains oracle\n# unchanged: gate-request, gate-report\n\nNormative:\n- the format id `oracle-request`;\n- the `oracle` value in gate-attribution's and phase-record-manifest's surface enums;\n- gate-request and gate-report are unchanged.\n\nIndicative: which release names the snapshots, and whether plan-document and phax-plan share their `next` with mode and assignmentReason (J5, §10)."
+    },
+    {
+      "surface": "file: docs/upgrading.md",
+      "binding": "indicative",
+      "before": "### 0.26.0\n\n- **Plan sidecars: `modelReason` becomes `assignmentReason`.** Run `phax artifact migrate-documents` …",
+      "after": "### 0.26.0\n\n- **Plan sidecars: `modelReason` becomes `assignmentReason`, and every phase gains `mode` and `oracle`.** Run `phax artifact migrate-documents` once. It writes `mode: \"headless\"` and `oracle: null` on every phase, in the same commit.\n- **Oracle phases** need an `oracles` provider: `phax plans lint` and `phax run` refuse an oracle phase without one.\n\nNormative: the step lives under the release that ships the plan-document change. Under J5 it joins that entry; otherwise it is an entry of its own.\n\nIndicative: the wording."
+    }
+  ],
+  "nonGoals": [
+    "steme's own `oracles` provider, or any provider other than the repository's Vitest example.",
+    "Non-test oracles: disposition matrices, fixtures and golden files.",
+    "Read-only enforcement of oracle files at the file-system or sandbox level. The discharging phase may write them, and the provider judges the result.",
+    "Several discharging phases for one oracle phase, one phase discharging several oracle phases, or a phase in both roles.",
+    "Changes to headless-review. Its §9 Q5 decision (no oracle-file refusal in `--append`) stands, and oracle declarations inside appended review plans are out of scope.",
+    "Any phax knowledge of test frameworks, markers or test-file conventions, and any fallback check when no provider is configured.",
+    "Example providers for other runners (pytest, Jest), or the example as a supported product with its own release.",
+    "The full change-gates lint of docs/ideas/change-gates-from-the-harness.md: refusing a phase that plans both a file and its oracle, and the per-phase diff budget.",
+    "A command to amend a wrong oracle in place. The spec disagreement is resolved with existing tooling: reset the pair, or abandon the run and revise the spec and plan.",
+    "Changing the gate request, the gate report, or the configured gate steps' `input` and `output`."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "a-default-next",
+      "name": "An oracle phase defaults to the next phase",
+      "given": "a plan whose phase-02 header carries `**Oracle phase:** yes` and `**Oracle files:** tests/refunds.test.ts, tests/prune.test.ts`, followed by phase-03, with both files among phase-02's planned files to create or edit",
+      "when": "`phax run --plan <plan> --dry-run` extracts it",
+      "then": "`phax-plan.json` gives phase-02 `\"oracle\": { \"dischargedBy\": \"phase-03\", \"files\": [\"tests/refunds.test.ts\", \"tests/prune.test.ts\"] }` directly after its `mode`, and gives every other phase `\"oracle\": null`.",
+      "refs": [
+        "r-declare",
+        "r-field"
+      ]
+    },
+    {
+      "id": "a-explicit",
+      "name": "An explicit discharging phase is kept",
+      "given": "a four-phase plan whose phase-02 carries `**Oracle phase:** discharged by phase-04` and its oracle files",
+      "when": "the plan is extracted",
+      "then": "phase-02's `oracle` is `{ \"dischargedBy\": \"phase-04\", \"files\": [...] }` with its declared files in order, and phases 01, 03 and 04 carry `\"oracle\": null`.",
+      "refs": [
+        "r-declare",
+        "r-field"
+      ]
+    },
+    {
+      "id": "a-key-order",
+      "name": "The key is required and sits after mode",
+      "given": "the JSON Schemas printed by `phax artifact schema plan` and published for `phax-plan`",
+      "when": "a phase's `properties` and `required` are read, and a phase lacking `oracle`, then one with `\"oracle\": { \"dischargedBy\": \"phase-03\" }`, is decoded",
+      "then": "`oracle` is required and sits directly after `mode`, which sits directly after `optionalFilesToEdit`; in the plan document, `assignmentReason`, `model` and `effort` stay the last three keys; and both malformed phases are refused.",
+      "refs": [
+        "r-field"
+      ]
+    },
+    {
+      "id": "a-render",
+      "name": "The plan document renders and projects the declaration",
+      "given": "a headless plan document whose phase-02 has `\"oracle\": { \"dischargedBy\": \"phase-03\", \"files\": [\"tests/refunds.test.ts\"] }` and whose other phases have `\"oracle\": null`",
+      "when": "it is rendered and the rendered plan.md is extracted",
+      "then": "the plan.md carries `**Oracle phase:** discharged by phase-03` and `**Oracle files:** tests/refunds.test.ts` on phase-02 only, after its model and effort lines, and every extracted phase's `oracle` equals the document's.",
+      "refs": [
+        "r-render",
+        "r-field"
+      ]
+    },
+    {
+      "id": "a-lift",
+      "name": "Lifted sidecars get oracle null",
+      "given": "a live plan sidecar stamped at the 0.25.0 plan-document shape, committed with its plan.md",
+      "when": "`phax artifact migrate-documents` runs",
+      "then": "the rewritten sidecar is at the current shape with `\"oracle\": null` on every phase, and its plan.md gains no oracle line.",
+      "refs": [
+        "r-lift"
+      ]
+    },
+    {
+      "id": "a-lines",
+      "name": "Lint rejects malformed declaration lines",
+      "given": "in turn: a phase with `**Oracle phase:** yes` and no `**Oracle files:**` line; a phase with `**Oracle files:** tests/refunds.test.ts` and no `**Oracle phase:**` line; a phase with `**Oracle phase:** maybe`; and a phase whose `**Oracle phase:**` line sits under its `### Detailed instructions`",
+      "when": "`phax plans lint` runs on each",
+      "then": "each run exits 1 with one `error` row on the `oracles` check naming the phase and the line.",
+      "refs": [
+        "r-lint-lines"
+      ]
+    },
+    {
+      "id": "a-order",
+      "name": "Lint rejects a missing or earlier discharging phase",
+      "given": "in turn, a plan whose last phase carries `**Oracle phase:** yes`, and a plan whose phase-02 carries `**Oracle phase:** discharged by phase-01`",
+      "when": "`phax plans lint` runs on each",
+      "then": "each run exits 1 with an `error` row on the `oracles` check naming the oracle phase and the discharging phase it resolved to.",
+      "refs": [
+        "r-lint-order"
+      ]
+    },
+    {
+      "id": "a-roles",
+      "name": "Lint rejects overlapping roles",
+      "given": "in turn, a plan where phase-03 is discharged by phase-04 and also discharges phase-02, and a plan where phase-01 and phase-02 are both discharged by phase-03",
+      "when": "`phax plans lint` runs on each",
+      "then": "each run exits 1 with an `error` row on the `oracles` check naming phase-03.",
+      "refs": [
+        "r-lint-roles"
+      ]
+    },
+    {
+      "id": "a-files-listed",
+      "name": "Lint rejects an oracle phase that lists no oracle file",
+      "given": "an oracle phase whose `**Oracle files:**` line names no file",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an `error` row on the `oracles` check naming that phase.",
+      "refs": [
+        "r-lint-files-listed"
+      ]
+    },
+    {
+      "id": "a-files-planned",
+      "name": "Lint rejects an oracle file the phase does not plan",
+      "given": "an oracle phase that plans tests/refunds.test.ts and the stub src/refunds/index.ts, and lists tests/refunds.test.ts and tests/other.test.ts as oracle files",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with one `error` row on the `oracles` check naming the phase and tests/other.test.ts, and src/refunds/index.ts is not treated as an oracle file.",
+      "refs": [
+        "r-lint-files-planned"
+      ]
+    },
+    {
+      "id": "a-between-files",
+      "name": "Lint rejects an oracle file planned between the pair",
+      "given": "phase-02, an oracle phase discharged by phase-04 with oracle file tests/refunds.test.ts, and phase-03 listing tests/refunds.test.ts as an optional file",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an `error` row on the `oracles` check for phase-03 naming tests/refunds.test.ts and phase-02, and the same plan with the file moved to phase-05 reports no `oracles` finding.",
+      "refs": [
+        "r-lint-between-files"
+      ]
+    },
+    {
+      "id": "a-between-interactive",
+      "name": "Lint rejects an interactive phase inside the pair",
+      "given": "phase-02, an oracle phase discharged by phase-04, and a phase-03 that carries `**Mode:** interactive` and plans no file",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an `error` row on the `oracles` check naming phase-03 and the pair phase-02 → phase-04, and the same plan with the interactive phase placed after phase-04 reports no `oracles` finding.",
+      "refs": [
+        "r-lint-between-interactive"
+      ]
+    },
+    {
+      "id": "a-interactive-role",
+      "name": "Lint rejects an interactive phase in an oracle role",
+      "given": "a plan whose phase-02 carries `**Oracle phase:** yes` and whose phase-03 carries `**Mode:** interactive`",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an `error` row on the `oracles` check naming phase-03.",
+      "refs": [
+        "r-lint-interactive-role"
+      ]
+    },
+    {
+      "id": "a-provider",
+      "name": "An oracle phase needs a configured provider",
+      "given": "a well-formed oracle pair, first with no `oracles` key in any config layer, then with `\"oracles\": { \"command\": \"./fake-oracles\" }` in phax.local.json only",
+      "when": "`phax plans lint` runs in each configuration",
+      "then": "the first run exits 1 with an `oracles` error naming phase-02 and the missing `oracles` key; the second reports no `oracles` finding; and `./fake-oracles` is never spawned.",
+      "refs": [
+        "r-lint-provider",
+        "r-step-nowhere-else"
+      ]
+    },
+    {
+      "id": "a-preflight",
+      "name": "Run and resume refuse on exactly lint's errors",
+      "given": "each defective plan of the lint criteria above, and separately a failed run of a well-formed oracle plan whose `oracles` block has since been removed",
+      "when": "`phax run --plan <plan>` and `phax resume <run> --yes` run",
+      "then": "each exits 11 and prints every error `phax plans lint` reports for the same plan and config. `phax run` names no run and creates no worktree or branch. The failed run's state and last error are unchanged.",
+      "refs": [
+        "r-preflight",
+        "r-check-shared"
+      ]
+    },
+    {
+      "id": "a-config",
+      "name": "The oracles block is strictly decoded and merged",
+      "given": "three phax.json variants, `\"oracles\": { \"command\": \"node tools/vitest-oracles.mjs\" }`, `\"oracles\": { \"command\": \"node tools/vitest-oracles.mjs\", \"timeout\": 60 }` and `\"oracles\": { \"command\": \"\" }`, plus a phax.local.json overriding the command",
+      "when": "`phax validate` runs on each, and an oracle phase's gate runs with the first",
+      "then": "the first passes and the gate spawns the local command; the second exits 2 naming `timeout`; the third exits 2 naming `command`.",
+      "refs": [
+        "r-config"
+      ]
+    },
+    {
+      "id": "a-schema-upgrade",
+      "name": "Schema upgrade describes the block",
+      "given": "a repository whose phax.schema.json predates this change",
+      "when": "`phax schema upgrade` runs",
+      "then": "it prints `Updated …/phax.schema.json` and `Updated …/phax.user.schema.json`, and both files define `oracles` with a required non-empty `command`, no other key, and a description.",
+      "refs": [
+        "r-schema-upgrade"
+      ]
+    },
+    {
+      "id": "a-surface-config",
+      "name": "A configured step cannot claim the oracle surface",
+      "given": "a phax.json gate profile with the step `{ \"command\": \"pnpm test\", \"surface\": \"oracle\", \"firing\": \"every-phase\" }`",
+      "when": "`phax validate` runs, then `phax run --plan <plan>`",
+      "then": "both exit 2 naming the step's `surface`, and no run is created.",
+      "refs": [
+        "r-surface-config"
+      ]
+    },
+    {
+      "id": "a-authored-request",
+      "name": "The oracle phase is judged on an authored request",
+      "given": "a three-phase plan with the pair phase-02 → phase-03 and oracle files tests/refunds.test.ts and tests/prune.test.ts, a two-step gate profile, and a fake provider that records its stdin and cwd and prints a `checked` gate report with no finding",
+      "when": "phase-02's gate runs",
+      "then": "the provider is spawned once, after both configured steps pass, in phase-02's worktree before its commit. Its stdin is an `oracle-request` whose `$schema` names the `oracle-request` format (asserted by format id and release pattern), with `verdict` `authored`, `phase` and `oraclePhase` `phase-02`, `base` equal to phase-01's full commit, `files` equal to the two oracle files, and no `oracleCommit` key. The same request is saved beside the attempt's log.",
+      "refs": [
+        "r-step-authored",
+        "r-request",
+        "r-spawn"
+      ]
+    },
+    {
+      "id": "a-discharged-request",
+      "name": "The discharging phase is judged on a discharged request",
+      "given": "the same run after phase-02 committed",
+      "when": "phase-03's gate runs",
+      "then": "the provider receives `verdict` `discharged`, `phase` `phase-03`, `oraclePhase` `phase-02`, `base` equal to phase-01's full commit, `oracleCommit` equal to the full tip of `<run.branch>--phase-02`, and the same `files`.",
+      "refs": [
+        "r-step-discharged",
+        "r-request"
+      ]
+    },
+    {
+      "id": "a-nowhere-else",
+      "name": "No oracle step elsewhere",
+      "given": "a five-phase plan whose only pair is phase-02 → phase-04, and a provider that logs each call",
+      "when": "`phax plans lint`, `phax validate --plan` and the run run to completion",
+      "then": "the provider was called only at the gates of phase-02 and phase-04: never at phase-01, phase-03 or phase-05, never from lint or validate, and never from the run preflight.",
+      "refs": [
+        "r-step-nowhere-else"
+      ]
+    },
+    {
+      "id": "a-waits-green",
+      "name": "The oracle step waits for a green profile",
+      "given": "an oracle phase whose configured test step exits non-zero on its first attempt",
+      "when": "that gate attempt runs",
+      "then": "the provider is not spawned on that attempt, and the attempt's step record ends with the failing test step.",
+      "refs": [
+        "r-step-authored",
+        "r-verdict"
+      ]
+    },
+    {
+      "id": "a-pass-attributed",
+      "name": "A passing verdict is attributed and saved",
+      "given": "a provider that exits 0 with a `checked` gate report holding no finding",
+      "when": "the oracle or discharging phase's gate runs",
+      "then": "`gate-attribution.json` ends with `{ \"command\": \"node tools/vitest-oracles.mjs\", \"surface\": \"oracle\", \"result\": \"pass\" }`, the report is saved byte for byte beside the attempt's log, and the phase commits.",
+      "refs": [
+        "r-verdict",
+        "r-attribution"
+      ]
+    },
+    {
+      "id": "a-fix-loop",
+      "name": "Findings drive the fix loop",
+      "given": "a provider that answers one finding on the first attempt and none on the second, with `maxFixAttempts` 1",
+      "when": "the discharging phase's gate runs",
+      "then": "the fix prompt carries the finding's message and location, the provider is queried again on attempt 2, and the phase passes.",
+      "refs": [
+        "r-fix-loop",
+        "r-verdict"
+      ]
+    },
+    {
+      "id": "a-refused",
+      "name": "A refusal pauses with no fix attempt",
+      "given": "a provider that answers `{ \"$schema\": …, \"outcome\": \"refused\", \"reason\": \"…\", \"remedy\": \"…\" }`",
+      "when": "the oracle phase's gate runs",
+      "then": "the oracle step is recorded `refused` as the last step, no fix prompt is built, `phax run` exits 4 printing the reason and remedy, and `phax resume <run>` runs that phase's gate again.",
+      "refs": [
+        "r-refused",
+        "r-attribution"
+      ]
+    },
+    {
+      "id": "a-provider-error",
+      "name": "Provider errors fail the step",
+      "given": "in turn: a provider command that does not exist; one that prints non-JSON; one that prints a gate report without `$schema`; one that exits 3 with a `checked` report holding no finding; and one that sleeps past the time cap",
+      "when": "the oracle phase's gate runs with each",
+      "then": "the oracle step is recorded `fail` each time, and the attempt's log names the reason.",
+      "refs": [
+        "r-provider-error"
+      ]
+    },
+    {
+      "id": "a-exhausted",
+      "name": "An undischargeable oracle pauses the run",
+      "given": "a discharging phase whose provider returns a finding on every attempt",
+      "when": "the fix loop exhausts",
+      "then": "`phax run` exits 4, the run is failed at the discharging phase, and `phax resume <run>` runs that phase's gate again with a `discharged` request naming the same `oracleCommit`.",
+      "refs": [
+        "r-exhausted",
+        "r-current-commit"
+      ]
+    },
+    {
+      "id": "a-surfaces",
+      "name": "The oracle surface is verified like any other",
+      "given": "a completed run with records enabled whose phase-03 passed its configured local steps and its oracle step",
+      "when": "its phase record and PR body are built",
+      "then": "phase-03's `verifiedSurfaces` lists `local` and `oracle`, and the PR body's verified surfaces include `oracle`.",
+      "refs": [
+        "r-surface-carried"
+      ]
+    },
+    {
+      "id": "a-handoff",
+      "name": "The review handoff lists the pair",
+      "given": "a run with one oracle pair, both of whose sides passed",
+      "when": "the run reaches `review_open`",
+      "then": "`review-handoff.md` lists phase-02, phase-03 and a pass result for each side, and a run of a plan with no oracle phase has no such section.",
+      "refs": [
+        "r-handoff"
+      ]
+    },
+    {
+      "id": "a-records",
+      "name": "Records explain names the role",
+      "given": "a completed run with records enabled and one oracle pair",
+      "when": "`phax records explain` is given the commit of phase-02, then that of phase-03",
+      "then": "the first names phase-02 as the oracle phase discharged by phase-03, with its oracle-step result; the second names phase-03 as discharging phase-02, with its result.",
+      "refs": [
+        "r-records"
+      ]
+    },
+    {
+      "id": "a-prompt",
+      "name": "The prompt states the role without naming a framework",
+      "given": "the same oracle plan run in a TypeScript/Vitest project and in a Python/pytest project",
+      "when": "the prompts of phase-02 and phase-03 are built",
+      "then": "each prompt carries its role paragraph naming the counterpart phase and the oracle files. The paragraphs are identical across the two projects apart from those names, and neither names `fails`, `xfail` or a framework.",
+      "refs": [
+        "r-prompt"
+      ]
+    },
+    {
+      "id": "a-reconcile",
+      "name": "Marker removal is not an unplanned edit",
+      "given": "a discharging phase that does not list the oracle files among its own planned edits, and that edits them to remove markers",
+      "when": "its files are reconciled",
+      "then": "`file-reconciliation.json` reports no unplanned edit for those oracle files.",
+      "refs": [
+        "r-reconcile"
+      ]
+    },
+    {
+      "id": "a-reset",
+      "name": "Reset the discharge first",
+      "given": "a run failed at discharging phase-03, whose oracle phase-02 is committed",
+      "when": "`phax reset-phase <run> phase-02` runs, then `phax reset-phase <run> phase-03`, `phax reset-phase <run> phase-02` and `phax resume <run> --yes`",
+      "then": "the first reset refuses, naming phase-03, and changes nothing. After the two resets, the resume re-runs phase-02, and phase-03's `discharged` request names phase-02's new commit as `oracleCommit`.",
+      "refs": [
+        "r-reset",
+        "r-current-commit"
+      ]
+    },
+    {
+      "id": "a-authoring-prompt",
+      "name": "The authoring prompt states whether a provider is configured",
+      "given": "a repository with `\"oracles\": { \"command\": \"node tools/vitest-oracles.mjs\" }`, then one with no `oracles` key in any layer",
+      "when": "`phax artifact new plan refunds --headless --brief <file>` writes its prompt.md in each",
+      "then": "the first prompt says an oracles provider is configured and oracle phases may be declared; the second says none is configured and no oracle phase is declared; a spec authoring prompt carries neither line; and no provider is spawned.",
+      "refs": [
+        "r-authoring-configured",
+        "r-authoring-absent"
+      ]
+    },
+    {
+      "id": "a-skill",
+      "name": "The planning skill states the rule",
+      "given": "the phax-planning skill shipped with phax",
+      "when": "its oracle-phase section is read",
+      "then": "it says an oracle phase is declared only when an `oracles` provider is configured, and it gives the `**Oracle phase:**` and `**Oracle files:**` lines, the oracle files as a subset of the phase's planned files, and marker removal as the discharge's only change to them.",
+      "refs": [
+        "r-skill"
+      ]
+    },
+    {
+      "id": "a-unchanged",
+      "name": "Plans without oracle phases are unchanged",
+      "given": "a plan with no oracle declaration, run once with an `oracles` provider configured and once without",
+      "when": "`phax plans lint`, `phax run` and `phax records explain` run",
+      "then": "both runs produce the same lint findings, prompts, `gate-attribution.json` steps and exit codes, with `\"oracle\": null` on every phase, no `oracle`-surface step, and the provider never spawned.",
+      "refs": [
+        "r-unchanged"
+      ]
+    },
+    {
+      "id": "a-agnostic",
+      "name": "phax neither reads oracles nor rewrites the gate",
+      "given": "an oracle pair run with a filesystem port that records every read, and a gate profile of three steps",
+      "when": "both phases' gates run",
+      "then": "phax itself reads no oracle file path, and each phase's attribution lists the three configured steps unchanged and in order, followed only by the oracle step.",
+      "refs": [
+        "r-agnostic"
+      ]
+    },
+    {
+      "id": "a-example-home",
+      "name": "The example stays outside the CLI",
+      "given": "the phax repository, its built CLI and its packed npm packages",
+      "when": "`phax --usage` is read, `src/` is searched for imports, and the packages' file lists are read",
+      "then": "no phax command names or runs the example, no module under `src/` imports it, and, under q-example-ships' recommendation, neither npm package contains it.",
+      "refs": [
+        "r-example-home"
+      ]
+    },
+    {
+      "id": "a-example-declared",
+      "name": "phax's own config declares the example",
+      "given": "the phax repository's phax.json",
+      "when": "`phax validate` runs and the resolved `oracles.command` is executed on a made-up `authored` request",
+      "then": "validation passes, and the command prints a gate-report carrying `$schema`.",
+      "refs": [
+        "r-example-declared"
+      ]
+    },
+    {
+      "id": "a-example-authored",
+      "name": "The example judges authored oracles",
+      "given": "a git repository whose `base` commit holds tests/prune.test.ts with the tests `keeps the newest run` and `drops archived runs`, and a working tree that adds `test.fails('refunds a partial capture', …)` and `it('caps a refund at the invoice total', …)`, modifies `keeps the newest run` without `.fails`, and deletes `drops archived runs`",
+      "when": "the example receives an `authored` request for tests/prune.test.ts",
+      "then": "it prints a `checked` gate report with exactly two findings, naming `caps a refund at the invoice total` and `keeps the newest run`, and none for the deleted test or the `test.fails` one.",
+      "refs": [
+        "r-example-authored"
+      ]
+    },
+    {
+      "id": "a-example-left",
+      "name": "The example finds a marker left at discharge",
+      "given": "an oracle commit whose tests/refunds.test.ts holds two `test.fails` tests, and a working tree that removes one of the two markers and changes nothing else",
+      "when": "the example receives a `discharged` request",
+      "then": "it reports exactly one finding, naming the remaining `.fails`; with both markers removed and nothing else changed, it prints a `checked` report with no finding and exits 0.",
+      "refs": [
+        "r-example-left",
+        "r-example-only"
+      ]
+    },
+    {
+      "id": "a-example-only",
+      "name": "The example refuses any other change at discharge",
+      "given": "the same oracle commit and, in turn, working trees that remove both markers and also change `toBe(120)` to `toBe(100)`, delete a test, or replace a `test.fails` with `test.skip`",
+      "when": "the example receives a `discharged` request for each",
+      "then": "each answer holds a finding naming tests/refunds.test.ts.",
+      "refs": [
+        "r-example-only"
+      ]
+    },
+    {
+      "id": "a-example-trees",
+      "name": "Reformatting never changes the example's answer",
+      "given": "the same oracle commit and a working tree that removes both markers and also re-indents the file, moves its line breaks and adds trailing commas, and separately a `base` and working tree that differ in one unchanged test only by re-indentation",
+      "when": "the example receives a `discharged` request for the first and an `authored` request for the second",
+      "then": "neither answer holds a finding.",
+      "refs": [
+        "r-example-trees"
+      ]
+    },
+    {
+      "id": "a-example-unreadable",
+      "name": "The example refuses a request it cannot read",
+      "given": "in turn, a request with no `$schema`, and one whose `verdict` is `approved`",
+      "when": "the example receives each",
+      "then": "it prints a `refused` gate report carrying `$schema`, a reason naming the defect, and a remedy.",
+      "refs": [
+        "r-example-unreadable"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-request",
+      "question": "Which request does phax write on the oracle step's stdin: a new `oracle-request` format, or the existing `gate-request` extended?",
+      "options": [
+        {
+          "id": "oracle-request",
+          "label": "A new versioned `oracle-request` format: `$schema`, `verdict` (`authored` | `discharged`), `phase`, `oraclePhase`, `base`, `files`, and `oracleCommit` on `discharged` only — two variants, each with exactly its keys",
+          "abandons": "One request reader for every provider phax spawns at a gate. A provider that is both an oracles provider and a configured gate-report step reads two formats, and phax versions, snapshots and publishes one more format."
+        },
+        {
+          "id": "gate-request-extended",
+          "label": "The existing `gate-request` gains a required `oracle` key: null for configured steps, and `{ verdict, oraclePhase, oracleBase, oracleCommit, files }` for the oracle step",
+          "abandons": "gate-request's single meaning and its stable shape. Every declaring step's request changes shape for a key only one step reads. Its `base` (the gated phase's) is not the oracle base the verdict needs, so the block repeats a second base. A nullable block also admits combinations, such as a discharged verdict with no oracle commit, that two explicit variants exclude."
+        }
+      ],
+      "recommendation": "oracle-request",
+      "rationale": "The lost shared reader costs little. phax already gives each provider its own request format (brief-request, architecture-request), and a provider that is also a configured report step is the rare case. Extending gate-request would change a published shape (0.20.0) for every report step in every repository, to carry a block one step reads, and would need a second `base` beside the gated phase's. A separate format keeps both shapes explicit per variant, with no null-filled keys."
+    },
+    {
+      "id": "q-example-ships",
+      "question": "Where does the example Vitest provider ship?",
+      "options": [
+        {
+          "id": "repo-only",
+          "label": "Repository tooling only: it lives in the phax repository under `examples/` (or `scripts/`), phax's own plans use it, and it ships in neither npm package",
+          "abandons": "A ready-to-install Vitest provider for other repositories: they copy the example's folder, or write their own against its README."
+        },
+        {
+          "id": "launcher-bin",
+          "label": "Shipped in `@lbdremy/phax` as a second executable beside `phax`",
+          "abandons": "The launcher's thinness and phax's framework neutrality. Every install carries tree-sitter and a TypeScript grammar for one test framework, under phax's own name, and the example's behaviour becomes something each release must keep working."
+        },
+        {
+          "id": "own-package",
+          "label": "Published as its own npm package, released in lockstep with phax",
+          "abandons": "A release with two packages. A third package means another trusted publisher, version check, smoke test and approval in the release workflow, for a tool with one known consumer."
+        }
+      ],
+      "recommendation": "repo-only",
+      "rationale": "The operator decided the example is repository tooling, there so that phax's own plans can be oracle-first and provider authors have a reference. Shipping it under phax's name would contradict the guiding rule that only the provider knows what an oracle is. A separate package can be cut later, at no cost to this spec, if a second consumer appears."
+    },
+    {
+      "id": "q-interactive-role",
+      "question": "May an interactive phase be the discharging phase of an oracle phase? (It can never be an oracle phase: oracle files must be planned files to create or edit, and an interactive phase plans none.)",
+      "options": [
+        {
+          "id": "refuse",
+          "label": "No: an interactive phase takes no oracle role. It is a lint error and an exit-11 preflight refusal on the `oracles` check",
+          "abandons": "A person writing the implementation against oracles an agent wrote, during the stop, with the oracles provider judging the closing gate."
+        },
+        {
+          "id": "allow-discharge",
+          "label": "Yes: an interactive phase may discharge, and its closing gate runs the oracle step with a `discharged` request",
+          "abandons": "interactive-phases' review-only rule (q-planned-work). Discharging is implementation the planner foresaw, so the phase would carry planned work. A red oracle verdict at closing would also return the phase to the person with no fix loop."
+        }
+      ],
+      "recommendation": "refuse",
+      "rationale": "Discharge is foreseeable work, and interactive-phases decided that foreseeable work belongs to an agent phase under the gate and the fix loop. Refusing also keeps every oracle verdict on a headless phase, where a finding has a fix loop to drive. A person who wants to review the oracles places an interactive phase before the oracle phase, or after the discharge."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "Decided by the operator on 2026-10-20, not to reopen:\n- any provider will do: the `oracles` block, merged across layers like `brief` and `architecture`;\n- the phax repository carries an example Vitest provider that compares syntax trees, and phax's own phax.json declares it;\n- the planner declares an oracle phase only when a provider is configured, and the prompt, the skill, lint and the preflight all say so;\n- the request and the answer are versioned phax formats with a required `$schema`, and the answer is the existing `gate-report`;\n- the phase shape of the joint session: J1, a separate `oracle` key; J2, the key directly after `mode`, with `assignmentReason`, `model` and `effort` last, and the oracle lines after the Mode line;\n- one shared `oracles` check refusing `phax run` and `phax resume` with exit 11 (J4), which also carries the rule handed over by interactive-phases.",
+      "Lifted from the abandoned 2026-09-28 spec, unattributed, not reopened:\n- Q1 `oracle-side-line`: the declaration sits on the oracle phase and defaults to the next phase; its lines now follow the Mode line;\n- Q2 `one-designated`: one discharging phase per oracle phase, and no phase in both roles;\n- Q3 `error-and-refuse`: a lint error and a run refusal without a provider, now exit 11 instead of exit 2 under J4;\n- Q4 `new-oracle-surface`: a new `oracle` surface that only the oracle step carries;\n- Q5 `explicit-subset`: the oracle files are listed, as a subset of the oracle phase's planned files.\nThey are recorded here because a headless authoring session leaves §9b empty.",
+      "The oracle step is judged exactly as an `output: \"gate-report\"` step, by the code that judges one today:\n- findings fail the step and drive the fix prompt;\n- a `refused` report pauses the phase with no fix attempt (exit 4, resumable), a stop on a machine-detected cause that runs-stay-autonomous allows;\n- anything unreadable fails as a broken step;\n- review notes reach only the reviewer.\nThe oracle step runs after every configured step the attempt fires, and only when all of them passed.",
+      "Q4's widened surface changes two published shapes: gate-attribution (current shape 0.21.0) and phase-record-manifest (current shape 0.17.0, through `verifiedSurfaces`). Each gets a `next` snapshot and a frozen decoder for its current shape, and documents stamped earlier stay readable. A configured gate step keeps its own three-value enum, so phax.json's JSON Schema still offers only `local`, `structural` and `product`, and `\"surface\": \"oracle\"` on a configured step is refused at decode. gate-request and gate-report are unchanged.",
+      "The rule against an interactive phase inside a pair settles the question interactive-phases handed over. No person's correction can land between the two phases, so the discharge always judges the oracle phase's own commit. A correction after the discharge belongs to an ordinary interactive phase and runs no oracle step.",
+      "`phax validate --plan` stays a decode of `phax-plan.json`. It refuses a phase whose `oracle` is missing or malformed, and runs neither the `oracles` check nor the provider.",
+      "Release, under J5 as revised on 2026-10-20, in two cases:\n- If this spec is approved before the joint plan-document plan of assignment-bounds and interactive-phases is cut, `oracle` rides that change. There is one frozen copy of the 0.25.0 plan-document shape and one `phax artifact migrate-documents` lift, which renames `modelReason`, writes `mode: \"headless\"` and writes `oracle: null`. There is one new phax-plan shape carrying `mode` and `oracle`, with a frozen copy of 0.17.0, one treatment of the extraction cache and of in-flight runs, and one upgrading entry. The J5 lines in those two specs and in NEXT_STEPS.md then describe a superseded plan.\n- Otherwise this spec takes its own lift after theirs: a frozen copy of the plan-document and phax-plan shapes they cut, a second lift that writes `oracle: null`, its own extraction-cache treatment and its own upgrading entry.\nEither way, `oracle-request`, gate-attribution and phase-record-manifest are this spec's own shape changes.",
+      "The example provider's semantics:\n- it compares syntax trees, so formatting never changes a verdict;\n- in the authored verdict, a deleted test is allowed;\n- in the discharge, the oracle files' trees at the oracle commit, with every `.fails` member access removed, must equal their trees now;\n- an oracle file with a syntax error is a finding, not a refusal, so the fix loop can repair it."
+    ],
+    "open": [
+      "q-request, q-example-ships and q-interactive-role (§9).",
+      "The spelling of the plan.md lines, the lint, preflight and refusal messages, the prompt paragraphs, the handoff table, the records-explain line and the skill text. All are indicative.",
+      "The provider time cap. 120 s is indicative: it covers a syntax-tree comparison of a few files without letting a hung provider stall an unattended phase. Configured report steps have no cap today.",
+      "Where the `oracles` check sits in RUN_PREFLIGHT_CHECKS (after `phase-sections`, beside the `interactive` check), and whether `phax run --dry-run`, which returns before the preflight, reports its errors as a \"Preflight will fail\" line.",
+      "How the oracle role reaches `phax records explain`. Either a new per-phase record field (required, null for ordinary phases, under the no-shims rule), or a derivation from the recorded `phax-plan.json`.",
+      "How the example identifies a test across two trees (its `describe` path and title), how it treats `test.each` tables and nested `describe` blocks, whether a comment change counts as a change, and what it answers for an oracle file missing at a commit.",
+      "The example's folder (`examples/` or `scripts/`), its command in phax.json, and its parser. web-tree-sitter with the TypeScript grammar as WebAssembly is suggested.",
+      "The oracle request's saved file name. `checks-attempt-NN.oracle-request.json` is indicative."
+    ],
+    "constraints": [
+      "No back-compat shims. `oracle` is required on every phase of `phax-plan.json` and of the plan document, and is null on every phase that is not an oracle phase. Older sidecars are lifted, never read with the key missing. The plan must say how extraction-cache entries and in-flight runs written by an older binary are treated.",
+      "Explicit per-variant enums:\n- `verdict` is `authored` | `discharged`;\n- each request variant carries exactly its keys, with `oracleCommit` on `discharged` only;\n- the configured-step surface stays `local` | `structural` | `product`;\n- the recorded surface is that set plus `oracle`.",
+      "Every provider request and answer carries a required `$schema`. `oracle-request` is born with it and joins FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS.",
+      "phax stays autonomous:\n- a missing provider refuses only at lint and at the start preflight;\n- a failing provider fails the oracle step;\n- a refusing provider pauses the phase as any refused report step does;\n- nothing stops a phase to wait for a person.",
+      "phax gains no test-framework knowledge: no built-in provider, no marker list and no test-file convention in `src/`. The example lives outside `src/`, so the port rules do not bind it, and nothing in `src/` imports it. It must install without native builds.",
+      "Respect the layers:\n- the `oracles` check and the pair resolution are pure domain;\n- the provider runs through the Shell port, as gate steps do;\n- the config block is decoded, and the request encoded, through schemas.",
+      "Fixtures and examples are made up: acme-billing, refunds, tests/prune.test.ts, tests/refunds.test.ts. Tests hold across a release cut: they assert `$schema` URLs by format id and release pattern, never by the running version.",
+      "Update:\n- `phax --usage`: cmd run, cmd resume, cmd plans lint, and the oracles contract;\n- README §Oracle provider, beside the other providers;\n- docs/upgrading.md;\n- the phax-planning skill;\n- the phax-decide-plan skill's P3, where 'read-only for the implementing phase' becomes 'changed only by removing the markers, judged by the oracles provider';\n- NEXT_STEPS.md, whose oracle-phases entry no longer waits for `steme oracles`.",
+      "headless-review is unchanged: its `--append` keeps no oracle-file refusal."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "README §Oracle provider (under §Configure, beside the other providers) and the docs-site page built from it, plus an oracle-phase section in the phax-planning skill",
+    "reader": "Two readers. First, a project owner who wants an agent's tests written before, and judged apart from, the code that satisfies them, and who configures an `oracles` provider: their own, or one adapted from phax's Vitest example. Second, a planner writing an oracle-first plan.",
+    "example": "In acme-billing's phax.json: \"oracles\": { \"command\": \"node tools/vitest-oracles.mjs\" }.\n\nIn plan.md, phase-02 carries `**Oracle phase:** yes` and `**Oracle files:** tests/refunds.test.ts`, and writes `test.fails('caps a refund at the invoice total', …)`. At phase-02's gate, phax sends {\"$schema\": \"…/oracle-request/<release>.json\", \"verdict\": \"authored\", \"phase\": \"phase-02\", \"oraclePhase\": \"phase-02\", \"base\": \"3f2a91c…\", \"files\": [\"tests/refunds.test.ts\"]}, and the provider answers a checked gate report with no finding.\n\nphase-03 removes `.fails` and writes the refund cap. Its gate sends verdict \"discharged\", with phase-02's commit as oracleCommit. Had phase-03 changed toBe(120) to toBe(100), the provider's finding would drive the fix loop, and an oracle that cannot pass unchanged pauses the run with exit 4.\n\nWithout an oracles block, `phax plans lint` reports an error on the oracles check, and `phax run` refuses with exit 11."
+  }
+}
