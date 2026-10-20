@@ -153,11 +153,11 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
   const common = ["--print", "--output-format", "stream-json", "--verbose"];
 
   // A read-only session writes nothing, so it needs no writable path and
-  // takes no grant.
+  // takes no skill grant; its agent commands are its only shell.
   if (options.readOnly === true) {
     const args = [
       ...common,
-      ...claudeReadOnlyFlags([]),
+      ...claudeReadOnlyFlags([], options.agentCommands ?? []),
       "--model",
       options.model,
       "--effort",

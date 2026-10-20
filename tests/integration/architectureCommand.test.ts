@@ -158,6 +158,21 @@ describe("phax architecture", () => {
     ]);
   });
 
+  it("prints one stderr line and exits 1 when the provider fails", async () => {
+    const failing = join(scripts, "acme-guard-fails.mjs");
+    writeFileSync(
+      failing,
+      `process.stderr.write("acme-guard: no standard found\\n"); process.exit(3);`,
+    );
+    writeConfig("phax.json", projectConfig({ architecture: { command: `node ${failing}` } }));
+    const result = await architecture(mainRoot);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toEqual([]);
+    expect(result.stderr).toEqual([
+      "✗ architecture provider exited with code 3: acme-guard: no standard found",
+    ]);
+  });
+
   it("fails outside a git working tree", async () => {
     const result = await architecture(base);
     expect(result.code).toBe(1);
@@ -191,6 +206,7 @@ describe("phax architecture — inside a phase worktree", () => {
     const before = {
       worktree: listing(worktree),
       main: listing(mainRoot),
+      home: listing(home),
       worktreeStatus: git(worktree, "status --porcelain"),
       mainStatus: git(mainRoot, "status --porcelain"),
     };
@@ -206,6 +222,8 @@ describe("phax architecture — inside a phase worktree", () => {
     expect(existsSync(join(worktree, ".phax-context", "architecture-request.json"))).toBe(false);
     expect(listing(worktree)).toEqual(before.worktree);
     expect(listing(mainRoot)).toEqual(before.main);
+    // No run folder or record under the state root either.
+    expect(listing(home)).toEqual(before.home);
     expect(git(worktree, "status --porcelain")).toBe(before.worktreeStatus);
     expect(git(mainRoot, "status --porcelain")).toBe(before.mainStatus);
   });

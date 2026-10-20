@@ -203,6 +203,32 @@ describe("buildArgs — read-only", () => {
     );
     expect(args).toEqual(readOnlyArgs);
   });
+
+  it("adds the shell back for exactly its agent commands, with no writing tool", () => {
+    const args = buildArgs({
+      ...baseOptions(securePolicy),
+      readOnly: true,
+      agentCommands: ["phax architecture"],
+    });
+    expect(args).toEqual([
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--permission-mode",
+      "default",
+      "--tools",
+      "Read,Grep,Glob,Bash",
+      "--allowedTools",
+      "Bash(phax architecture:*)",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "high",
+    ]);
+    expect(args).not.toContain("acceptEdits");
+  });
 });
 
 describe("buildArgs — skill edit grants", () => {

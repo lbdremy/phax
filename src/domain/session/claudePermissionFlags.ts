@@ -126,19 +126,29 @@ const READ_TOOLS = ["Read", "Grep", "Glob"] as const;
 
 /**
  * The permission flags of a read-only Claude Code session: decide's interactive
- * session and its headless handback, which answer with a document and never
- * write. Manual mode (`default`), only the reading tools, no MCP server, and
- * `readDirs` added as working directories so the session can read files phax
- * keeps outside the repository (its prompt). The security profile does not
- * loosen it: an unsafe profile still gets no write.
+ * session and its headless handback, and headless authoring, which answer with
+ * a document and never write. Manual mode (`default`), only the reading tools,
+ * no MCP server, and `readDirs` added as working directories so the session can
+ * read files phax keeps outside the repository (its prompt). The security
+ * profile does not loosen it: an unsafe profile still gets no write.
+ *
+ * `agentCommands` (headless plan authoring's `phax architecture`) adds the
+ * shell back with one prefix rule per command. Under `default` a headless
+ * session has no approver, so any other command, a redirect or a compound
+ * with an unmatched part is denied, and no writing tool comes back.
  */
-export function claudeReadOnlyFlags(readDirs: readonly string[]): string[] {
+export function claudeReadOnlyFlags(
+  readDirs: readonly string[],
+  agentCommands: readonly string[] = [],
+): string[] {
+  const allowRules = gateCommandAllowRules(agentCommands);
   return [
     "--permission-mode",
     "default",
     ...readDirs.flatMap((dir) => ["--add-dir", dir]),
     "--tools",
-    READ_TOOLS.join(","),
+    (allowRules.length > 0 ? [...READ_TOOLS, "Bash"] : READ_TOOLS).join(","),
+    ...(allowRules.length > 0 ? ["--allowedTools", allowRules.join(",")] : []),
     "--strict-mcp-config",
   ];
 }

@@ -346,6 +346,11 @@ function runAuthoringSession(
           ? policy
           : { ...policy, agentCommands: [...policy.agentCommands, ...granted] },
       ...(granted.length > 0 ? { agentCommands: granted } : {}),
+      // The session answers with a document and writes nothing. On Claude Code
+      // this keeps it to its reading tools, so it cannot edit phax.json or
+      // phax.local.json and turn the granted phax architecture into a
+      // command of its own.
+      readOnly: true,
       outputJsonlPath: join(session.folder, AUTHORING_TRANSCRIPT_FILENAME),
       phaseFolderPath: session.folder,
     };
