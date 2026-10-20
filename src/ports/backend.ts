@@ -62,8 +62,9 @@ export interface AgentRunOptions {
    */
   readonly skillEditGrants?: readonly string[] | undefined;
   /**
-   * A session that answers and never writes (decide's handback). The claude
-   * provider keeps only its reading tools whatever `security` allows. Absent
+   * A session that answers and never writes (decide's handback, headless
+   * authoring). The claude provider keeps only its reading tools, plus the
+   * shell for exactly `agentCommands`, whatever `security` allows. Absent
    * means the policy alone governs.
    */
   readonly readOnly?: boolean | undefined;

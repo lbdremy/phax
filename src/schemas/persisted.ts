@@ -776,9 +776,11 @@ function readReport<T>(
   const reads = schemaUrl(format, bounds.current);
   const malformedReport = (reason: string) =>
     Either.left<ReportError>({ kind: "malformed", reads, reason });
-  if (!isDocumentObject(input)) return malformedReport(`a ${format} document is a JSON object`);
+  const article = /^[aeiou]/.test(format) ? "an" : "a";
+  if (!isDocumentObject(input))
+    return malformedReport(`${article} ${format} document is a JSON object`);
   if (!Object.hasOwn(input, "$schema")) {
-    return malformedReport(`a ${format} document carries $schema`);
+    return malformedReport(`${article} ${format} document carries $schema`);
   }
   const named = parseSchemaUrl(input["$schema"]);
   if (named === undefined) {

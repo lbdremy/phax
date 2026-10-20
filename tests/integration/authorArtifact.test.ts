@@ -545,6 +545,8 @@ describe("authorArtifact — the architecture provider", () => {
     const options = backend.runCalls[0]?.options;
     expect(options?.agentCommands).toEqual(["phax architecture"]);
     expect(options?.security.agentCommands).toEqual(["git", "phax architecture"]);
+    // Read-only, so the planner cannot rewrite the provider it is granted.
+    expect(options?.readOnly).toBe(true);
     expect(backend.runCalls[0]?.prompt).toContain("An architecture provider is configured");
     expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
       "An architecture provider is configured",
@@ -562,6 +564,7 @@ describe("authorArtifact — the architecture provider", () => {
     expect(options).toBeDefined();
     expect(options).not.toHaveProperty("agentCommands");
     expect(options?.security.agentCommands).toEqual(["git"]);
+    expect(options?.readOnly).toBe(true);
     expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
       "No architecture provider is configured",
     );

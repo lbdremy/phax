@@ -96,12 +96,12 @@ A provider that exits non-zero, runs past the limit, prints something that is no
 
 ## In headless plan authoring
 
-`phax artifact new plan --headless` tells the planner whether a provider is configured. With one, the prompt asks it to run `phax architecture`, or `phax architecture <path>...` for the parts the plan touches, before cutting phases, and the session is granted that one command and nothing else. With none, the prompt tells it not to run the command and to read the code and its documentation. Spec authoring is unchanged.
+`phax artifact new plan --headless` tells the planner whether a provider is configured. With one, the prompt asks it to run `phax architecture`, or `phax architecture <path>...` for the parts the plan touches, before cutting phases, and the session may run that command. On Claude Code the session is read-only: it keeps its reading tools, cannot write a file, and runs no other command. Codex and Mistral Vibe do not restrict a session's commands, so there the grant changes nothing. With none, the prompt tells it not to run the command and to read the code and its documentation. Spec authoring is unchanged.
 
 The session runs under limits your provider must live with:
 
-- It may write only `.phax-context/`. A provider must not count on writing a cache elsewhere.
+- It must not count on writing a cache. On Claude Code the session writes nothing, and on Codex it writes only `.phax-context/`.
 - The network is provider-only. A provider must not count on reaching the network.
-- On Codex, a provider that writes outside its writable roots or reaches the network fails, as one line, and the planner falls back to the code. On Claude Code a granted command is not sandboxed, so nothing beyond the provider's own code holds its process.
+- On Codex, a provider that writes outside its writable roots or reaches the network fails, as one line, and the planner falls back to the code. On Claude Code the command itself is not sandboxed. The planner cannot change which provider it runs, because it cannot edit `phax.json` or `phax.local.json`, so nothing beyond the provider's own code holds its process.
 
 A provider that needs more than this should answer from files it can read, and decline with a non-zero exit when it cannot.
