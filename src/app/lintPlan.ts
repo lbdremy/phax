@@ -17,11 +17,15 @@ import {
   lineageFindings,
   modelFindings,
   plannedPaths,
+  reasonLabelFindings,
   sequenceGapFindings,
   structureFindings,
   unlocatableFindings,
   type LintFinding,
 } from "../domain/plan/lint.js";
+import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
+import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makePlanAuditRequest } from "../domain/plan/projection.js";
 import { queryPlanAuditor } from "./planAuditor.js";
 import { resolveGateProfile } from "./gates.js";
@@ -95,6 +99,15 @@ export function lintPlan(
 
     // The numbering gap is reported even when the deterministic parse fails.
     const findings: LintFinding[] = [...structureFindings(planMd), ...sequenceGapFindings(planMd)];
+
+    // Header lines are read from plan.md alone, so they are reported whether or
+    // not the plan parses.
+    const headers = readPhaseHeaders(planMd);
+    findings.push(
+      ...reasonLabelFindings(headers),
+      ...interactiveFindings(headers),
+      ...oracleFindings(headers),
+    );
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);

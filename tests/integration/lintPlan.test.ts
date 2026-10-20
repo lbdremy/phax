@@ -60,6 +60,8 @@ function planMd(
     readonly create?: string;
     readonly edit?: string;
     readonly frontmatter?: string;
+    /** Extra header lines, right after the effort line. */
+    readonly header?: readonly string[];
   } = {},
 ): string {
   const {
@@ -68,6 +70,7 @@ function planMd(
     create = "- (none)",
     edit = "- (none)",
     frontmatter = DRAFT_FRONTMATTER,
+    header = [],
   } = overrides;
   return `${frontmatter}# Thing
 
@@ -78,7 +81,7 @@ ${requiredCommands}
 ## phase-01 — First Phase {#phase-01-first}
 
 **Recommended model:** ${model}
-**Recommended effort:** medium
+**Recommended effort:** medium${header.map((line) => `\n${line}`).join("")}
 
 ### Planned files to create
 
@@ -333,6 +336,61 @@ describe("lintPlan", () => {
       const report = await runLint(md, { "/repo/src/a.ts": "export {}" });
       expect(report.findings).toEqual([]);
     }
+  });
+
+  it("reports a Model reason line as a models error naming Assignment reason", async () => {
+    const report = await runLint(planMd({ header: ["**Model reason:** old label"] }));
+
+    expect(report.findings).toEqual([
+      {
+        severity: "error",
+        check: "models",
+        phase: "phase-01",
+        message: "**Model reason:** is no longer read: write **Assignment reason:**",
+      },
+    ]);
+    expect(hasLintErrors(report.findings)).toBe(true);
+  });
+
+  it("fails lint for an interactive declaration", async () => {
+    const report = await runLint(planMd({ header: ["**Mode:** interactive"] }));
+
+    expect(report.findings).toEqual([
+      {
+        severity: "error",
+        check: "interactive",
+        phase: "phase-01",
+        message:
+          "declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
+      },
+    ]);
+  });
+
+  it("fails lint for an oracle declaration", async () => {
+    const report = await runLint(
+      planMd({ header: ["**Oracle phase:** yes", "**Oracle files:** `src/a.ts`"] }),
+    );
+
+    expect(report.findings).toEqual([
+      {
+        severity: "error",
+        check: "oracles",
+        phase: "phase-01",
+        message:
+          "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
+      },
+    ]);
+  });
+
+  it("reports a malformed Mode line on interactive even when the plan does not parse", async () => {
+    const broken = planMd({ header: ["**Mode:** review"] }).replace(
+      "## Required commands\n\n- (none)\n\n",
+      "",
+    );
+
+    const report = await runLint(broken);
+
+    expect(report.findings.filter((f) => f.check === "interactive")).toHaveLength(1);
   });
 
   it("reports only structure findings for a structurally broken plan", async () => {

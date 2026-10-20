@@ -1,6 +1,7 @@
 import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
+import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
@@ -329,6 +330,19 @@ export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")
 export class PlanSectionsPreflightError extends Data.TaggedError("PlanSectionsPreflightError")<{
   message: string;
   phases: readonly string[];
+  planPath: string;
+}> {}
+
+// A phase declares a Mode or oracle line this phax cannot run (yet), or a malformed one.
+export class InteractivePreflightError extends Data.TaggedError("InteractivePreflightError")<{
+  message: string;
+  findings: readonly LintFinding[];
+  planPath: string;
+}> {}
+
+export class OraclePreflightError extends Data.TaggedError("OraclePreflightError")<{
+  message: string;
+  findings: readonly LintFinding[];
   planPath: string;
 }> {}
 

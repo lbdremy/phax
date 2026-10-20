@@ -202,7 +202,43 @@ const CASES: Record<string, RecheckCase> = {
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),
   },
+  "the run folder's plan.md gains a Model reason line": {
+    change: (roots) => addHeaderLines(roots, ["**Model reason:** old label"]),
+    message: () =>
+      [
+        `Model preflight failed: 1 phase(s) have invalid model configuration.`,
+        `\n  phase-01 (${FIXTURE_MODEL}/${FIXTURE_EFFORT}):`,
+        `    - **Model reason:** is no longer read: write **Assignment reason:**`,
+      ].join("\n"),
+  },
+  "the run folder's plan.md gains an interactive declaration": {
+    change: (roots) => addHeaderLines(roots, ["**Mode:** interactive"]),
+    message: (roots) =>
+      [
+        `Interactive preflight failed: 1 error(s).`,
+        `  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line`,
+        `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
+      ].join("\n"),
+  },
+  "the run folder's plan.md gains an oracle declaration": {
+    change: (roots) =>
+      addHeaderLines(roots, ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"]),
+    message: (roots) =>
+      [
+        `Oracle preflight failed: 1 error(s).`,
+        `  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines`,
+        `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
+      ].join("\n"),
+  },
 };
+
+/** Adds header lines to phase-01 in the paused run's own plan.md. */
+function addHeaderLines(roots: PreflightRepo, lines: readonly string[]): void {
+  const planMdPath = runPlanMdPath(roots);
+  const effortLine = `**Recommended effort:** ${FIXTURE_EFFORT}`;
+  const planMd = readFileSync(planMdPath, "utf8");
+  writeFileSync(planMdPath, planMd.replace(effortLine, [effortLine, ...lines].join("\n")));
+}
 
 /** The paused run's own copy of plan.md, which `phax resume` reads. */
 function runPlanMdPath(roots: PreflightRepo): string {

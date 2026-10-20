@@ -92,6 +92,26 @@ const REQUIRED_COMMANDS_MESSAGE = [
   `Add the missing commands to security.agentCommands in phax.json before running.`,
 ].join("\n");
 
+const INTERACTIVE_LINE = "**Mode:** interactive";
+const ORACLE_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"];
+const LINT_HINT = "Fix the plan, then check it with `phax plans lint plan.md`.";
+const INTERACTIVE_MESSAGE = [
+  "Interactive preflight failed: 1 error(s).",
+  "  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
+  LINT_HINT,
+].join("\n");
+const ORACLE_MESSAGE = [
+  "Oracle preflight failed: 1 error(s).",
+  "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
+  LINT_HINT,
+].join("\n");
+// The same text lint prints for the label error, under the model preflight header.
+const MODEL_REASON_MESSAGE = [
+  "Model preflight failed: 1 phase(s) have invalid model configuration.",
+  "\n  phase-01 (claude-opus-5-5/medium):",
+  "    - **Model reason:** is no longer read: write **Assignment reason:**",
+].join("\n");
+
 interface RefusalScenario {
   /** Committed fixture content; the tree is clean unless `arrange` dirties it. */
   readonly fixture?: Fixture;
@@ -197,6 +217,16 @@ const SCENARIOS = {
         "Fix the plan, then check it with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
+  "interactive-phases": {
+    fixture: { plan: { phases: [{ headerLines: [INTERACTIVE_LINE] }] } },
+    exitCode: 11,
+    errorLine: () => `phax run failed: ${INTERACTIVE_MESSAGE}`,
+  },
+  "oracle-phases": {
+    fixture: { plan: { phases: [{ headerLines: ORACLE_LINES }] } },
+    exitCode: 11,
+    errorLine: () => `phax run failed: ${ORACLE_MESSAGE}`,
+  },
   "clean-tree": {
     arrange: (roots) => writeFixtureFile(roots.repo, "README.md", "# fixture, edited\n"),
     exitCode: 3,
@@ -205,7 +235,29 @@ const SCENARIOS = {
   },
 } satisfies Record<FreshRunPreflightStep, RefusalScenario>;
 
-const SCENARIO_CASES = Object.entries(SCENARIOS) as [FreshRunPreflightStep, RefusalScenario][];
+// Refusals that share a step with another scenario above.
+const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
+  "phase-models (a Model reason line)": {
+    fixture: { plan: { phases: [{ headerLines: ["**Model reason:** old label"] }] } },
+    exitCode: 11,
+    errorLine: () => `phax run failed: ${MODEL_REASON_MESSAGE}`,
+  },
+  "interactive-phases (a malformed Mode line)": {
+    fixture: { plan: { phases: [{ headerLines: ["**Mode:** review"] }] } },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${[
+        "Interactive preflight failed: 1 error(s).",
+        `  phase-01  **Mode:** "review" is not a mode: only an interactive phase carries a Mode line (**Mode:** interactive); a headless phase carries no Mode line`,
+        LINT_HINT,
+      ].join("\n")}`,
+  },
+};
+
+const SCENARIO_CASES = [...Object.entries(SCENARIOS), ...Object.entries(EXTRA_SCENARIOS)] as [
+  string,
+  RefusalScenario,
+][];
 
 describe("phax run — a preflight refusal precedes naming", () => {
   let roots: PreflightRepo | undefined;

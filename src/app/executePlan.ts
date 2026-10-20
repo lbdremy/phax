@@ -26,6 +26,8 @@ import {
   HandoffPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
+  type InteractivePreflightError,
+  type OraclePreflightError,
   type PlanSectionsPreflightError,
   RateLimitError,
   RecordsDestinationRefusedError,
@@ -231,6 +233,8 @@ export type ExecutePlanError =
   | SkillEditConsentError
   | ModelPreflightError
   | PlanSectionsPreflightError
+  | InteractivePreflightError
+  | OraclePreflightError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
   | RecordsSyncRequiredError;
