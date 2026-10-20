@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610201350-assignment-bounds.md
 completes-spec: false
+approved:
+  date: 2026-10-20
+  baseline: "1819358"
 ---
 # Architecture report parts
 
