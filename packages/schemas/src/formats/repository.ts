@@ -5,8 +5,9 @@
 // src/schemas/history/; the approval record files are born with $schema and
 // have no pre-schema shape, and list their 0.19.0 shape, written before they
 // named the approver, as a release; the spec and plan documents list their
-// 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, as
-// releases, and lift them as phax's reader does. Each current shape, named by
+// 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, and the
+// plan document's 0.25.0 shape, written before `modelReason` became
+// `assignmentReason`, as releases, and lift them as phax's reader does. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import { Array as Arr } from "effect";
@@ -45,6 +46,11 @@ import {
   decodePlanDocumentV0_20_0,
   type PlanDocumentV0_20_0,
 } from "../../../../src/schemas/history/plan-document/0.20.0.js";
+import {
+  PlanDocumentV0_25_0Schema,
+  decodePlanDocumentV0_25_0,
+  type PlanDocumentV0_25_0,
+} from "../../../../src/schemas/history/plan-document/0.25.0.js";
 import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
@@ -331,6 +337,7 @@ export type PlanDocumentShapes = {
   "pre-schema": PlanDocumentPreSchema;
   "0.17.0": PlanDocumentV0_17_0;
   "0.20.0": PlanDocumentV0_20_0;
+  "0.25.0": PlanDocumentV0_25_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -345,6 +352,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   releases: [
     ["0.17.0", { schema: PlanDocumentV0_17_0Schema, decode: decodePlanDocumentV0_17_0 }],
     ["0.20.0", { schema: PlanDocumentV0_20_0Schema, decode: decodePlanDocumentV0_20_0 }],
+    ["0.25.0", { schema: PlanDocumentV0_25_0Schema, decode: decodePlanDocumentV0_25_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
@@ -372,23 +380,33 @@ export type LatestPlanDocument =
  * Upgrades a parsed plan document in memory. Keeps every recorded fact; never
  * invents one: an older shape's `completesSpec` is null beside `sourceSpec:
  * null`, the only value that variant allows, and `Unknown` beside a spec path;
- * an older shape carried no questions, so its preamble's `openQuestions` and
- * `arbitratedQuestions` are empty, and no phase reason, so each phase's
- * `modelReason` is null.
+ * a 0.25.0 document carries its questions and its phases' `modelReason`,
+ * which becomes `assignmentReason`; an older shape carried no questions, so
+ * its preamble's `openQuestions` and `arbitratedQuestions` are empty, and no
+ * phase reason, so each phase's `assignmentReason` is null.
  */
-export function toLatestPlanDocument(
-  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentV0_20_0 | PlanDocumentFile,
-): LatestPlanDocument {
-  if (carriesQuestions(value)) {
+export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
+  if (isCurrentPlanDocument(value)) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if (isPlanDocumentV0_25_0(value)) {
+    const { $schema: _schema, ...recorded } = value;
+    // The reason keeps its place before model and effort; only its key changes.
+    const phases = Arr.map(value.phases, ({ modelReason, model, effort, ...phase }) => ({
+      ...phase,
+      assignmentReason: modelReason,
+      model,
+      effort,
+    }));
+    return { ...recorded, phases };
+  }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
-  // modelReason joins model and effort at the end of each phase; the other
+  // assignmentReason joins model and effort at the end of each phase; the other
   // keys keep their recorded order (the lift is built in memory, never written).
   const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
     ...phase,
-    modelReason: null,
+    assignmentReason: null,
     model,
     effort,
   }));
@@ -404,11 +422,21 @@ export function toLatestPlanDocument(
   return withUnrecordedCompletesSpec({ ...recorded, preamble, phases });
 }
 
-/** Whether a parsed plan document is the current shape: only it carries preamble questions. */
-function carriesQuestions(
-  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentV0_20_0 | PlanDocumentFile,
-): value is PlanDocumentFile {
-  return "openQuestions" in value.preamble;
+type PlanDocumentParsed =
+  | PlanDocumentPreSchema
+  | PlanDocumentV0_17_0
+  | PlanDocumentV0_20_0
+  | PlanDocumentV0_25_0
+  | PlanDocumentFile;
+
+/** Whether a parsed plan document is the current shape: only it carries `assignmentReason` on its phases. */
+function isCurrentPlanDocument(value: PlanDocumentParsed): value is PlanDocumentFile {
+  return "assignmentReason" in value.phases[0];
+}
+
+/** Whether a parsed plan document is the 0.25.0 shape: questions in the preamble, phases with `modelReason`. */
+function isPlanDocumentV0_25_0(value: PlanDocumentParsed): value is PlanDocumentV0_25_0 {
+  return "openQuestions" in value.preamble && "modelReason" in value.phases[0];
 }
 
 function withUnrecordedCompletesSpec(

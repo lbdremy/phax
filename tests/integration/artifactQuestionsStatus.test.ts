@@ -436,7 +436,7 @@ describe("phax artifact status — unmigrated sidecars", () => {
     const base = planBase();
     const { preamble, phases, ...rest } = base;
     const { openQuestions: _o, arbitratedQuestions: _a, ...olderPreamble } = preamble;
-    const olderPhases = phases.map(({ modelReason: _r, ...phase }) => phase);
+    const olderPhases = phases.map(({ assignmentReason: _r, ...phase }) => phase);
     writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(base));
     writeRepoFile(
       PLAN_SIDECAR,

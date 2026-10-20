@@ -42,6 +42,7 @@ import {
   validDocuments,
   withKey,
   withoutKey,
+  withModelReasons,
   withoutPreambleQuestions,
   type Doc,
 } from "./documents.js";
@@ -370,8 +371,39 @@ describe("the plan document's question history", () => {
     expect(toLatestPlanDocument(result.value)).toEqual({
       ...withoutKey(v0_20_0, "$schema"),
       preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
-      phases: (v0_20_0["phases"] as Doc[]).map((phase) => ({ ...phase, modelReason: null })),
+      phases: (v0_20_0["phases"] as Doc[]).map((phase) => ({ ...phase, assignmentReason: null })),
     });
+  });
+
+  it("parses a 0.25.0 document as shape 0.25.0 and carries each modelReason over", () => {
+    const v0_25_0 = withKey(
+      withModelReasons({
+        ...current,
+        phases: (current["phases"] as Doc[]).map((phase) => ({
+          ...phase,
+          assignmentReason: "Designs a state machine.",
+        })),
+      }),
+      "$schema",
+      schemaUrl("plan-document", "0.25.0"),
+    );
+    const result = parsePlanDocument(v0_25_0);
+    expect(result).toEqual({ ok: true, shape: "0.25.0", value: v0_25_0 });
+    expect(parseDocument(v0_25_0)).toMatchObject({
+      ok: true,
+      format: "plan-document",
+      shape: "0.25.0",
+    });
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPlanDocument(result.value)).toEqual({
+      ...withoutKey(current, "$schema"),
+      phases: (current["phases"] as Doc[]).map((phase) => ({
+        ...phase,
+        assignmentReason: "Designs a state machine.",
+      })),
+    });
+    // Stamped with the current shape, a document still carrying modelReason is refused.
+    expect(parsePlanDocument(withKey(v0_25_0, "$schema", current["$schema"])).ok).toBe(false);
   });
 
   it("refuses preamble questions in a 0.20.0 document, and a current document without them", () => {

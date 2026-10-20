@@ -15,7 +15,7 @@ function validPhase(n: number) {
   return {
     id,
     title: `Phase ${n}`,
-    modelReason: null as string | null,
+    assignmentReason: null as string | null,
     model: "claude-opus-5-5",
     effort: "high",
     planMarkdownAnchor: `#${id}-work`,
@@ -375,7 +375,7 @@ describe("getPlanDocumentJsonSchema", () => {
   });
 });
 
-describe("a phase's modelReason", () => {
+describe("a phase's assignmentReason", () => {
   type JsonSchemaNode = {
     $ref?: string;
     items?: JsonSchemaNode;
@@ -396,14 +396,14 @@ describe("a phase's modelReason", () => {
 
   it("is the last of the phase's three trailing keys, in properties and required", () => {
     const { properties, required } = phaseObject();
-    expect(properties.slice(-3)).toEqual(["modelReason", "model", "effort"]);
-    expect(required.slice(-3)).toEqual(["modelReason", "model", "effort"]);
+    expect(properties.slice(-3)).toEqual(["assignmentReason", "model", "effort"]);
+    expect(required.slice(-3)).toEqual(["assignmentReason", "model", "effort"]);
   });
 
   it("admits a reason and null, in the authoring answer and the sidecar", () => {
     const reasoned = {
       ...validPlanDocument(),
-      phases: [{ ...validPhase(1), modelReason: "Designs a state machine." }],
+      phases: [{ ...validPhase(1), assignmentReason: "Designs a state machine." }],
     };
     expect(Either.isRight(decodePlanDocument(reasoned))).toBe(true);
     expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
@@ -412,20 +412,33 @@ describe("a phase's modelReason", () => {
     expect(Either.isRight(decodePlanDocumentFile(sidecar))).toBe(true);
   });
 
+  it("refuses the old key modelReason as an unknown key, with no alias", () => {
+    const { assignmentReason: _reason, ...rest } = validPhase(1);
+    const old = { ...validPlanDocument(), phases: [{ ...rest, modelReason: null }] };
+    expect(Either.isLeft(decodePlanDocument(old))).toBe(true);
+    const { version: _version, ...doc } = validPlanDocument();
+    const sidecar = {
+      $schema: currentSchemaUrl("plan-document"),
+      ...doc,
+      phases: [{ ...validPhase(1), modelReason: null }],
+    };
+    expect(Either.isLeft(decodePlanDocumentFile(sidecar))).toBe(true);
+  });
+
   it("is required, and an empty string is not a reason", () => {
-    const { modelReason: _reason, ...withoutReason } = validPhase(1);
+    const { assignmentReason: _reason, ...withoutReason } = validPhase(1);
     const missing = { ...validPlanDocument(), phases: [withoutReason] };
     expect(Either.isLeft(decodePlanDocument(missing))).toBe(true);
-    const empty = { ...validPlanDocument(), phases: [{ ...validPhase(1), modelReason: "" }] };
+    const empty = { ...validPlanDocument(), phases: [{ ...validPhase(1), assignmentReason: "" }] };
     expect(Either.isLeft(decodePlanDocument(empty))).toBe(true);
   });
 
   it("never reaches the projection", () => {
     const reasoned = {
       ...validPlanDocument(),
-      phases: [{ ...validPhase(1), modelReason: "Designs a state machine." }],
+      phases: [{ ...validPhase(1), assignmentReason: "Designs a state machine." }],
     };
     const projected = projectExtractedPlan(Either.getOrThrow(decodePlanDocument(reasoned)));
-    expect(JSON.stringify(projected)).not.toContain("modelReason");
+    expect(JSON.stringify(projected)).not.toContain("assignmentReason");
   });
 });

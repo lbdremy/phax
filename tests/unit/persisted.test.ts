@@ -49,7 +49,9 @@ import {
   versionOnePhaseRecordManifest,
   withKey,
   withoutKey,
+  withModelReasons,
   withoutPreambleQuestions,
+  type Doc,
 } from "./schemasPackage/documents.js";
 
 // Toy formats: a pre-schema shape with `version: 1`, and a current shape with
@@ -95,13 +97,13 @@ function left<A>(result: Either.Either<A, PersistedReadError>): PersistedReadErr
 
 /**
  * A plan document with what an older shape lifts to: the preamble's empty
- * question arrays, and a null `modelReason` on every phase.
+ * question arrays, and a null `assignmentReason` on every phase.
  */
 function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
   return {
     ...doc,
     preamble: { ...(doc["preamble"] as object), openQuestions: [], arbitratedQuestions: [] },
-    phases: (doc["phases"] as object[]).map((phase) => ({ ...phase, modelReason: null })),
+    phases: (doc["phases"] as object[]).map((phase) => ({ ...phase, assignmentReason: null })),
   };
 }
 
@@ -546,6 +548,51 @@ describe("format readers", () => {
       );
     });
 
+    it("lifts a sidecar stamped 0.25.0 with each modelReason carried over as assignmentReason", () => {
+      const reasoned = withKey(
+        withModelReasons({
+          ...validDocuments["plan-document"],
+          phases: (validDocuments["plan-document"]["phases"] as Doc[]).map((phase, i) => ({
+            ...phase,
+            assignmentReason: i === 0 ? "Designs a state machine." : null,
+          })),
+        }),
+        "$schema",
+        schemaUrl("plan-document", "0.25.0"),
+      );
+      const lifted = right(readPlanDocumentFile(file, reasoned));
+      expect(lifted).toEqual({
+        ...withoutKey(reasoned, "$schema"),
+        phases: (reasoned["phases"] as Doc[]).map(({ modelReason, model, effort, ...phase }) => ({
+          ...phase,
+          assignmentReason: modelReason,
+          model,
+          effort,
+        })),
+      });
+      expect(lifted.phases.map((phase) => phase.assignmentReason)).toContain(
+        "Designs a state machine.",
+      );
+      expect(JSON.stringify(lifted)).not.toContain("modelReason");
+      const sidecar = right(readDocumentSidecar("plan", file, reasoned));
+      expect(sidecar).toMatchObject({
+        kind: "plan",
+        shape: "0.25.0",
+        older: withoutKey(reasoned, "$schema"),
+      });
+    });
+
+    it("refuses a 0.25.0 sidecar that carries assignmentReason, naming the file", () => {
+      const refused = left(
+        readPlanDocumentFile(
+          file,
+          withKey(validDocuments["plan-document"], "$schema", schemaUrl("plan-document", "0.25.0")),
+        ),
+      );
+      expect(refused.message).toContain(file);
+      expect(refused.message).toContain("modelReason");
+    });
+
     it("lifts a sidecar written before $schema with sourceSpec: null, with completesSpec: null", () => {
       expect(right(readPlanDocumentFile(file, preSchemaDocuments["plan-document"]))).toEqual(
         latestPreSchema("plan-document"),
@@ -778,7 +825,9 @@ describe("documents from another release", () => {
           : id === "spec-document"
             ? withoutKey(validDocuments[id], "arbitratedQuestions")
             : id === "plan-document"
-              ? withoutPreambleQuestions(validDocuments[id])
+              ? compareReleases(release, "0.25.0") >= 0
+                ? withModelReasons(validDocuments[id])
+                : withoutPreambleQuestions(validDocuments[id])
               : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {

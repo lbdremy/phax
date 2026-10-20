@@ -24,8 +24,10 @@
 // below its current stamp is read by the frozen 0.17.0 decoder, and one
 // written before `$schema` by the pre-schema decoder, then lifted by the
 // author's rationale marker (`liftMarkedQuestions`); a plan document stamped
-// below its current stamp is read by the frozen 0.20.0 decoder and lifted
-// with empty preamble questions and `modelReason: null`. `readDocumentSidecar`
+// below its current stamp is read by the frozen 0.25.0 decoder when stamped
+// 0.25.0 or later (its `modelReason` carried over as `assignmentReason`), and
+// by the frozen 0.20.0 decoder below that, lifted with empty preamble
+// questions and `assignmentReason: null`. `readDocumentSidecar`
 // also reports the shape a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
@@ -78,6 +80,10 @@ import {
   decodePlanDocumentV0_20_0,
   type PlanDocumentV0_20_0,
 } from "./history/plan-document/0.20.0.js";
+import {
+  decodePlanDocumentV0_25_0,
+  type PlanDocumentV0_25_0,
+} from "./history/plan-document/0.25.0.js";
 import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -452,6 +458,12 @@ export type SpecDocumentV0_17_0Value = Omit<SpecDocumentV0_17_0, "$schema">;
 export type PlanDocumentV0_20_0Value = DistributiveOmit<PlanDocumentV0_20_0, "$schema">;
 
 /**
+ * A plan document in its 0.25.0 shape, as a 0.25.0 sidecar carried it: phases
+ * with `modelReason`, no `$schema`, no `version`.
+ */
+export type PlanDocumentV0_25_0Value = DistributiveOmit<PlanDocumentV0_25_0, "$schema">;
+
+/**
  * A spec sidecar as read: the document at the current in-memory shape, and
  * the shape the file is stamped at. A sidecar below the current shape also
  * carries the value its frozen decoder read.
@@ -474,6 +486,12 @@ export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
   | {
       readonly kind: "plan";
+      readonly shape: "0.25.0";
+      readonly document: PlanDocument;
+      readonly older: PlanDocumentV0_25_0Value;
+    }
+  | {
+      readonly kind: "plan";
       readonly shape: "0.20.0" | "pre-schema";
       readonly document: PlanDocument;
       readonly older: PlanDocumentV0_20_0Value;
@@ -489,7 +507,7 @@ function liftSpecDocument(older: SpecDocumentV0_17_0Value): SpecDocument {
 
 /**
  * Lifts the phases of a plan document older than `modelReason`: each gains
- * `modelReason: null`, rebuilt in the current key order.
+ * `assignmentReason: null`, rebuilt in the current key order.
  */
 function liftPlanDocumentPhases(
   phases: PlanDocumentV0_20_0Value["phases"],
@@ -510,10 +528,44 @@ function liftPlanDocumentPhases(
     verification: phase.verification,
     expectedHandoff: phase.expectedHandoff,
     commit: phase.commit,
-    modelReason: null,
+    assignmentReason: null,
     model: phase.model,
     effort: phase.effort,
   }));
+}
+
+/**
+ * Lifts the phases of a 0.25.0 plan document: `modelReason` becomes
+ * `assignmentReason`, rebuilt in the current key order.
+ */
+function liftPlanDocumentV0_25_0Phases(
+  phases: PlanDocumentV0_25_0Value["phases"],
+): PlanDocument["phases"] {
+  return Arr.map(phases, (phase) => ({
+    id: phase.id,
+    title: phase.title,
+    objective: phase.objective,
+    detailedInstructions: phase.detailedInstructions,
+    planMarkdownAnchor: phase.planMarkdownAnchor,
+    plannedFilesToCreate: phase.plannedFilesToCreate,
+    plannedFilesToEdit: phase.plannedFilesToEdit,
+    optionalFilesToEdit: phase.optionalFilesToEdit,
+    boundaryContracts: phase.boundaryContracts,
+    testStrategy: phase.testStrategy,
+    implementationOrder: phase.implementationOrder,
+    excludedScope: phase.excludedScope,
+    verification: phase.verification,
+    expectedHandoff: phase.expectedHandoff,
+    commit: phase.commit,
+    assignmentReason: phase.modelReason,
+    model: phase.model,
+    effort: phase.effort,
+  }));
+}
+
+// A 0.25.0 plan already carries its preamble questions, kept as recorded.
+function liftPlanDocumentV0_25_0(older: PlanDocumentV0_25_0Value): PlanDocument {
+  return { ...older, phases: liftPlanDocumentV0_25_0Phases(older.phases) };
 }
 
 // A plan written before questions carried none: both arrays lift empty.
@@ -568,6 +620,21 @@ function readPlanDocumentSidecar(
   input: unknown,
 ): Either.Either<PlanDocumentSidecar, PersistedReadError> {
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.25.0") >= 0) {
+      const frozen = decodePlanDocumentV0_25_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(readError(file, "plan-document", formatFirstViolation(frozen.left)));
+      }
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({
+        kind: "plan",
+        shape: "0.25.0",
+        document: liftPlanDocumentV0_25_0(value),
+        older: value,
+      });
+    }
     const older = decodePlanDocumentV0_20_0(input);
     if (Either.isLeft(older)) {
       return Either.left(readError(file, "plan-document", formatFirstViolation(older.left)));
@@ -610,12 +677,14 @@ function readPlanDocumentSidecar(
  * - a spec stamped below its current stamp is read by the frozen 0.17.0
  *   decoder, and a spec written before `$schema` by the pre-schema decoder;
  *   either is lifted by `liftMarkedQuestions`;
- * - a plan stamped below its current stamp is read by the frozen 0.20.0
- *   decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`, is
- *   refused naming it; a plan written before `$schema` steps to
+ * - a plan stamped 0.25.0 or later, below its current stamp, is read by the
+ *   frozen 0.25.0 decoder and lifted with each `modelReason` carried over as
+ *   `assignmentReason`; a plan stamped below 0.25.0 is read by the frozen
+ *   0.20.0 decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`,
+ *   is refused naming it; a plan written before `$schema` steps to
  *   `completesSpec: null` beside `sourceSpec: null` and is refused, naming
  *   `completesSpec`, beside a spec path; either lifts with empty preamble
- *   question arrays and `modelReason: null` on every phase;
+ *   question arrays and `assignmentReason: null` on every phase;
  * - any other sidecar is read by the current file decoder, shape `current`.
  */
 export function readDocumentSidecar(

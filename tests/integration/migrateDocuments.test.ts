@@ -23,6 +23,7 @@ import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordF
 import { renderDocumentMigrationReport } from "../../src/domain/artifact/render.js";
 import type { ArtifactKind } from "../../src/domain/artifact/status.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
+import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
 import {
   ArtifactCommitFailedError,
@@ -36,6 +37,7 @@ import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import {
+  type PlanDocumentV0_25_0Value,
   type SpecDocumentV0_17_0Value,
   currentSchemaUrl,
   readPlanDocumentFile,
@@ -260,6 +262,35 @@ function writeOlderPlan(sourceSpec: string | null, frontmatter: string): string 
   return md;
 }
 
+const PHASE_REASON = "Designs the prune store, which no code in the repository shows yet.";
+
+// The 0.25.0 shape: questions in the preamble, a `modelReason` on each phase.
+function plan0_25_0(): PlanDocumentV0_25_0Value {
+  const { preamble, phases, ...rest } = olderPlan(null);
+  return {
+    ...rest,
+    kind: "plan",
+    sourceSpec: null,
+    completesSpec: null,
+    preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
+    phases: phases.map(({ model, effort, ...phase }, i) => ({
+      ...phase,
+      modelReason: i === 1 ? PHASE_REASON : null,
+      model,
+      effort: effort as "high" | "medium",
+    })) as unknown as PlanDocumentV0_25_0Value["phases"],
+  };
+}
+
+// A headless plan stamped 0.25.0, its body the frozen 0.25.0 rendering.
+function writeV0_25_0Plan(frontmatter: string): string {
+  const doc = plan0_25_0();
+  const md = frontmatter + renderPlanBodyV0_25_0(doc);
+  writeRepoFile(PLAN, md);
+  writeRepoFile(sidecarOf(PLAN), json({ $schema: schemaUrl("plan-document", "0.25.0"), ...doc }));
+  return md;
+}
+
 function approvedStamp(): string {
   return `approved:\n  date: 2026-09-25\n  baseline: "${headSha().slice(0, 7)}"\n`;
 }
@@ -400,9 +431,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       phases: Array<Record<string, unknown>>;
     };
     expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
-    expect(sidecar.phases.map((phase) => phase["modelReason"])).toEqual([null, null]);
+    expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, null]);
+    expect(sidecar.phases.map((phase) => "modelReason" in phase)).toEqual([false, false]);
     expect(Object.keys(sidecar.phases[0] ?? {}).slice(-3)).toEqual([
-      "modelReason",
+      "assignmentReason",
       "model",
       "effort",
     ]);
@@ -433,6 +465,67 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     );
     expect(lineOf(await statusLines(PLAN), "Authored")).toBe(
       `Authored:          headless — sidecar ${sidecarOf(PLAN)} (in sync)`,
+    );
+  });
+
+  it("lifts a 0.25.0 plan with its reasons, re-rendering its Model reason lines as Assignment reason", async () => {
+    const md = writeV0_25_0Plan(planFrontmatter("Draft", null));
+    commitAll();
+    expect(md).toContain(`\n**Model reason:** ${PHASE_REASON}\n`);
+
+    const before = await statusLines(PLAN);
+    expect(lineOf(before, "Authored")).toContain(
+      "plan-document 0.25.0 — migrate with `phax artifact migrate-documents`",
+    );
+
+    const result = await migrated();
+
+    const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+      $schema: string;
+      phases: Array<Record<string, unknown>>;
+    };
+    expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, PHASE_REASON]);
+    expect(sidecar.phases.map((phase) => "modelReason" in phase)).toEqual([false, false]);
+    expect(Object.keys(sidecar.phases[1] ?? {}).slice(-3)).toEqual([
+      "assignmentReason",
+      "model",
+      "effort",
+    ]);
+
+    const after = readRepoFile(PLAN);
+    expect(after).toContain(`\n**Assignment reason:** ${PHASE_REASON}\n`);
+    expect(after).not.toContain("Model reason");
+    expect(after).toBe(md.replace("**Model reason:**", "**Assignment reason:**"));
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
+    expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
+    expect(porcelain()).toBe("");
+    expect(renderDocumentMigrationReport(result)).toContain(
+      `plan-document 0.25.0 → ${CURRENT_STAMPS["plan-document"]}`,
+    );
+    expect(lineOf(await statusLines(PLAN), "Authored")).toBe(
+      `Authored:          headless — sidecar ${sidecarOf(PLAN)} (in sync)`,
+    );
+  });
+
+  it("refuses a 0.25.0 plan whose body was edited by hand, writing nothing", async () => {
+    writeV0_25_0Plan(planFrontmatter("Draft", null));
+    writeRepoFile(PLAN, readRepoFile(PLAN).replace("Do the step.", "Do the step, by hand."));
+    commitAll();
+    const before = headSha();
+
+    const result = await migrate();
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.left.message).toContain(
+        `${PLAN} is not its sidecar's plan-document 0.25.0 rendering — a hand edit would be overwritten`,
+      );
+    }
+    expect(headSha()).toBe(before);
+    expect(JSON.parse(readRepoFile(sidecarOf(PLAN))).$schema).toBe(
+      schemaUrl("plan-document", "0.25.0"),
     );
   });
 

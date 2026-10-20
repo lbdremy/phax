@@ -79,6 +79,7 @@ import type {
   PlanDocumentShape,
   PlanDocumentV0_17_0,
   PlanDocumentV0_20_0,
+  PlanDocumentV0_25_0,
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
   RecordManifest,
@@ -271,6 +272,7 @@ import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/sc
 import type { SpecApprovalRecordV0_19_0 as FrozenSpecApprovalRecordV0_19_0 } from "../../src/schemas/history/spec-approval-record/0.19.0.js";
 import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src/schemas/history/plan-document/0.17.0.js";
 import type { PlanDocumentV0_20_0 as FrozenPlanDocumentV0_20_0 } from "../../src/schemas/history/plan-document/0.20.0.js";
+import type { PlanDocumentV0_25_0 as FrozenPlanDocumentV0_25_0 } from "../../src/schemas/history/plan-document/0.25.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
@@ -546,7 +548,10 @@ const eachShapeId: [
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
   Equals<SpecDocumentShape, "pre-schema" | "0.17.0" | Current<"spec-document">>,
-  Equals<PlanDocumentShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"plan-document">>,
+  Equals<
+    PlanDocumentShape,
+    "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | Current<"plan-document">
+  >,
   Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
   Equals<
     AuthoringRecordManifestShape,
@@ -610,6 +615,7 @@ const parseValues: [
     | FrozenPlanDocument
     | FrozenPlanDocumentV0_17_0
     | FrozenPlanDocumentV0_20_0
+    | FrozenPlanDocumentV0_25_0
     | PhaxPlanDocumentFile
   >,
   Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifestFile>,
@@ -1071,6 +1077,7 @@ const toLatestParameters: [
         | FrozenPlanDocument
         | FrozenPlanDocumentV0_17_0
         | FrozenPlanDocumentV0_20_0
+        | FrozenPlanDocumentV0_25_0
         | PhaxPlanDocumentFile,
     ]
   >,
@@ -1133,6 +1140,7 @@ const planDocumentIsPhax: Equals<PlanDocument, PhaxPlanDocumentFile> = true;
 // A released shape that is no longer current is its frozen module's type.
 const planDocumentV0_17_0IsFrozen: Equals<PlanDocumentV0_17_0, FrozenPlanDocumentV0_17_0> = true;
 const planDocumentV0_20_0IsFrozen: Equals<PlanDocumentV0_20_0, FrozenPlanDocumentV0_20_0> = true;
+const planDocumentV0_25_0IsFrozen: Equals<PlanDocumentV0_25_0, FrozenPlanDocumentV0_25_0> = true;
 const specDocumentV0_17_0IsFrozen: Equals<SpecDocumentV0_17_0, FrozenSpecDocumentV0_17_0> = true;
 void planApprovalsIsPhax;
 void specApprovalsIsPhax;
@@ -1140,6 +1148,7 @@ void specDocumentIsPhax;
 void planDocumentIsPhax;
 void planDocumentV0_17_0IsFrozen;
 void planDocumentV0_20_0IsFrozen;
+void planDocumentV0_25_0IsFrozen;
 void specDocumentV0_17_0IsFrozen;
 // An older document always upgrades with both question arrays: a spec's
 // arbitratedQuestions, a plan's preamble openQuestions and arbitratedQuestions

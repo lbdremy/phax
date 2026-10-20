@@ -270,7 +270,7 @@ function planWithQuestions(): PlanDocument {
         {
           id: "phase-01",
           title: "First Phase",
-          modelReason: null,
+          assignmentReason: null,
           model: "claude-sonnet-5",
           effort: "medium",
           planMarkdownAnchor: "#phase-01-first",
@@ -314,20 +314,20 @@ describe("lintPlan", () => {
     expect(report.findings).toEqual([]);
   });
 
-  it("reports no structure error for a rendered plan with or without a model reason", async () => {
+  it("reports no structure error for a rendered plan with or without an assignment reason", async () => {
     const doc = planWithQuestions();
     const reasoned: PlanDocument = {
       ...doc,
       phases: [
         {
           ...doc.phases[0],
-          modelReason:
+          assignmentReason:
             "Designs the invoice state machine, which no code in the repository shows yet.",
         },
       ],
     };
     const withReason = DRAFT_FRONTMATTER + renderPlanBody(reasoned);
-    expect(withReason).toContain("\n**Model reason:** Designs the invoice state machine");
+    expect(withReason).toContain("\n**Assignment reason:** Designs the invoice state machine");
 
     for (const md of [withReason, DRAFT_FRONTMATTER + renderPlanBody(doc)]) {
       const report = await runLint(md, { "/repo/src/a.ts": "export {}" });

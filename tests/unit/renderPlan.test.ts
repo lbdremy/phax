@@ -45,7 +45,7 @@ function fixture(): PlanDocument {
       {
         id: "phase-01",
         title: "Spec and plan document schemas, `artifact schema`",
-        modelReason: null,
+        assignmentReason: null,
         model: "claude-opus-5-5",
         effort: "high",
         planMarkdownAnchor: "#phase-01-document-schemas",
@@ -71,7 +71,7 @@ function fixture(): PlanDocument {
       {
         id: "phase-02",
         title: "Renderers",
-        modelReason: null,
+        assignmentReason: null,
         model: "claude-sonnet-5",
         effort: "medium",
         planMarkdownAnchor: "#phase-02-renderers",
@@ -596,7 +596,7 @@ describe("renderPlanBody with a model reason", () => {
       ...base,
       phases: [
         first,
-        { ...second, model: "claude-haiku-5-5", effort: "low", modelReason: REASON },
+        { ...second, model: "claude-haiku-5-5", effort: "low", assignmentReason: REASON },
         {
           ...second,
           id: "phase-03",
@@ -604,7 +604,7 @@ describe("renderPlanBody with a model reason", () => {
           planMarkdownAnchor: "#phase-03-defaults",
           model: "claude-sonnet-5-5",
           effort: "medium",
-          modelReason: null,
+          assignmentReason: null,
         },
       ],
     };
@@ -613,7 +613,7 @@ describe("renderPlanBody with a model reason", () => {
   it("renders the reason line directly under the effort line, in the same paragraph", () => {
     const md = renderPlanBody(reasoned());
     expect(md).toContain(
-      `**Recommended model:** claude-haiku-5-5\n**Recommended effort:** low\n**Model reason:** ${REASON}\n\n`,
+      `**Recommended model:** claude-haiku-5-5\n**Recommended effort:** low\n**Assignment reason:** ${REASON}\n\n`,
     );
   });
 
@@ -623,8 +623,8 @@ describe("renderPlanBody with a model reason", () => {
     expect(phase03).toContain(
       "**Recommended model:** claude-sonnet-5-5\n**Recommended effort:** medium\n\n",
     );
-    expect(phase03).not.toContain("Model reason");
-    expect(renderPlanBody(fixture())).not.toContain("Model reason");
+    expect(phase03).not.toContain("Assignment reason");
+    expect(renderPlanBody(fixture())).not.toContain("Assignment reason");
   });
 
   it("parses to exactly the projection, with the stated models and efforts and no reason", () => {
@@ -638,6 +638,6 @@ describe("renderPlanBody with a model reason", () => {
       ["claude-haiku-5-5", "low"],
       ["claude-sonnet-5-5", "medium"],
     ]);
-    expect(JSON.stringify(parsed)).not.toContain("modelReason");
+    expect(JSON.stringify(parsed)).not.toContain("assignmentReason");
   });
 });
