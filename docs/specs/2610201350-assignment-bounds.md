@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-20
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-20
+  baseline: 7d596de
 ---
 # Assignment bounds — the repository's owner bounds each phase's model and effort per part of the code, and lint holds plans to them
 
