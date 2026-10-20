@@ -184,11 +184,21 @@ describe("phax architecture", () => {
       "a repeated part id",
       {
         parts: [
-          { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**"] },
-          { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**"] },
+          {
+            id: "core-decide",
+            name: "core · decide",
+            description: "The pure decision logic.",
+            globs: ["src/core/decide/**"],
+          },
+          {
+            id: "core-decide",
+            name: "core · decide",
+            description: "The pure decision logic.",
+            globs: ["src/core/decide/**"],
+          },
         ],
       },
-      "docs",
+      'part id "core-decide" is used twice',
     ],
     [
       "a part carrying model",

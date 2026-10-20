@@ -52,6 +52,8 @@ function report(parts: unknown) {
 const OMITTED_KEYS = ["id", "name", "description", "globs"] as const;
 const BAD_IDS = ["Core_Decide", "core--decide", "-core", "core-", ""];
 const BAD_GLOBS = [
+  "docs/**\n## Bounds",
+  "src/`core`/**",
   "/src/**",
   "src\\core",
   "{docs,src}/**",
