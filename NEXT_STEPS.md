@@ -16,6 +16,15 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### In flight
 
+- [ ] **`assignment-bounds`** — `docs/specs/2610201350-assignment-bounds.md`, approved 2026-10-20.
+      It replaces `phase-model-assignment`.
+      - The owner writes ordered bounds in `phax.json` (`part` or `globs`, a model and an effort
+        range). The first matching bound governs a phase.
+      - Lint and the run preflight share one bounds check (exit 11), and `modelReason` becomes
+        `assignmentReason`.
+      - Plan 1, the architecture report gaining `parts`, is PR #150. It unblocks the 0.26.0 cut.
+      - Next: one joint plan-document plan with `interactive-phases` and `oracle-phases` (a frozen
+        0.25.0 copy and one lift), then the bounds plan.
 - [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
       (`phax architecture`) landed and the spec is complete.
@@ -50,18 +59,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Drafts
 
-- [ ] **`assignment-bounds`** — replaces `phase-model-assignment`, abandoned 2026-10-20 (brief:
-      `docs/briefs/assignment-bounds.md`).
-      - The architecture report gains `parts` (id, name, description, globs).
-      - The owner writes ordered bounds in `phax.json`, each one a `part` or `globs` bound with a
-        model and an effort range. The first matching bound governs a phase.
-      - `modelReason` becomes `assignmentReason`, and lint errors on a departure without one.
-      - Joint phase-shape session done (2026-10-20): J1 separate keys (`mode`, later `oracle`),
-        not one `role`; J2 `mode` sits right after `optionalFilesToEdit`; J3 interactive phases are
-        governed by bounds through their optional files; J4 lint and the run preflight share one
-        interactive check, refusing with exit 11; J5 `oracle-phases` comes later, with its own lift.
-      - It ships in one release with `interactive-phases`, so the plan document is lifted once.
-      - The 0.26.0 cut waits for the report change, or that change costs a lift.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
       on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
       without a terminal. Its format changes (the `other` option, the decision record's mode, a new
