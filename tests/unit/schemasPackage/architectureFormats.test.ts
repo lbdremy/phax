@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -36,7 +36,9 @@ describe("architecture formats in the schemas package", () => {
     expect(parsed.ok).toBe(false);
   });
 
+  // `next` while the release is open, `<X.Y.Z>` once it is cut: either holds.
   it.each(["architecture-request", "architecture-report"])("has a snapshot for %s", (id) => {
-    expect(existsSync(join(SNAPSHOTS, id, "next.schema.json"))).toBe(true);
+    const snapshots = existsSync(join(SNAPSHOTS, id)) ? readdirSync(join(SNAPSHOTS, id)) : [];
+    expect(snapshots.some((name) => /^(next|\d+\.\d+\.\d+)\.schema\.json$/.test(name))).toBe(true);
   });
 });
