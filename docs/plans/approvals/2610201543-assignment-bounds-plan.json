@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610201543-assignment-bounds-plan.md",
+  "planFingerprint": "9c0f3d065fcf9d1f319c5311980ca4e9b6092e64d4a44902e566553fc56b53af",
+  "approvedAt": "2026-10-20T16:07:45.823Z",
+  "baseline": "be1835de10cd011141969b20dee6c2c11fcfbc04",
+  "sourceSpec": {
+    "path": "docs/specs/2610201350-assignment-bounds.md",
+    "fingerprint": "8f8b5cbb3bb826ec10ff2063c2cf267b9da87238663e44136f2681d331deb6a8"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
