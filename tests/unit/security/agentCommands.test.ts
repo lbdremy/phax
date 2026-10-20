@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARCHITECTURE_AGENT_COMMAND,
+  authoringAgentCommands,
   checkRequiredCommands,
   computeFrozenAgentCommands,
 } from "../../../src/domain/security/agentCommands.js";
@@ -324,5 +326,22 @@ describe("checkRequiredCommands", () => {
       gateCommands: [],
     });
     expect(missing).toEqual(["deno lint"]);
+  });
+});
+
+describe("authoringAgentCommands", () => {
+  it("grants phax architecture to a plan with a provider", () => {
+    expect(ARCHITECTURE_AGENT_COMMAND).toBe("phax architecture");
+    expect(authoringAgentCommands({ kind: "plan", architectureProvider: true })).toEqual([
+      "phax architecture",
+    ]);
+  });
+
+  it("grants nothing to a plan without a provider", () => {
+    expect(authoringAgentCommands({ kind: "plan", architectureProvider: false })).toEqual([]);
+  });
+
+  it("grants nothing to a spec, even with a provider", () => {
+    expect(authoringAgentCommands({ kind: "spec", architectureProvider: true })).toEqual([]);
   });
 });

@@ -441,7 +441,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Three hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider that answers with a brief report, and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+Four hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider that answers with a brief report, an architecture provider that answers with the repository's architecture for planners, and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
 
 The two reports share one location, guide and finding, and phax routes each fact to whoever acts on it: findings and their guides go to the agent, review notes to the reviewer, and a refusal to you.
 
@@ -661,6 +661,16 @@ jq -c .request brief-01.json | node ./brief.mjs
 ```
 
 In `secure` mode the in-phase agent is granted `phax brief` (source `brief` in `security.json`) whenever a brief provider is configured, and a pull runs inside the agent's sandbox. Inside a phase worktree phax refuses every command but `phax brief` and the read-only ones, as a guard against mistakes; the sandbox's write scope is the boundary. The authoring `--brief` flag and `docs/briefs/` are something else: a brief a person writes for an authoring session.
+
+### Architecture provider
+
+An architecture provider tells a planner how the repository is built:
+
+```json
+{ "architecture": { "command": "acme-guard architecture" } }
+```
+
+`phax architecture [path]…` prints the Markdown body the provider answers, for the whole repository or the parts that hold the paths. With no provider configured it prints one line telling the agent to read the code and its documentation, and exits 1; it writes nothing either way. A headless plan authoring session is told whether a provider is configured, and is granted this command when one is. See [Architecture provider](docs/architecture-provider.md) for the request, the report and the limits a provider runs under.
 
 ### Plan auditor
 

@@ -133,11 +133,14 @@ describe("phax-planning skill", () => {
     expect(boundaries).toMatch(/in the example\s+architecture: page\/cli\/surface → view-model/);
   });
 
-  it("reads the repository's architecture from its code and documentation", () => {
+  it("reads the repository's architecture from `phax architecture`, or from its code and documentation", () => {
     const section = sectionOf(content, "### The repository's architecture");
+    expect(section).toContain("`phax architecture`");
+    expect(section).toContain("exits 1");
     expect(section).toContain("README");
     expect(section).toContain("CLAUDE.md");
-    expect(content).not.toContain("phax architecture");
+    expect(section).toContain("carry on");
+    expect(section).toContain("not a failure of the repository");
   });
 
   it("keeps the comprehensive-instructions constraint", () => {

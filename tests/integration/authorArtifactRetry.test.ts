@@ -178,6 +178,7 @@ function setup(first: string | undefined, retry?: string) {
     nowIso: NOW,
     records: RECORDS_IN_REPO,
     publishRemote: "origin",
+    architectureProvider: false,
     output: { warn: (message) => events.push(`warn: ${message}`) },
     ...overrides,
   });
