@@ -17,6 +17,10 @@ import {
   PlanRecordFileSchema,
   type PlanRecord,
 } from "../../../src/schemas/approvalRecord.js";
+import {
+  ArchitectureReportFileSchema,
+  ArchitectureRequestFileSchema,
+} from "../../../src/schemas/architecture.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
 import {
   BriefRecordFileSchema,
@@ -729,6 +733,14 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("decision-record-manifest", decisionRecordManifest),
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
+  "architecture-request": encoded(
+    ArchitectureRequestFileSchema,
+    withSchemaUrl("architecture-request", { files: ["src/example.ts", "src/missing.ts"] }),
+  ),
+  "architecture-report": encoded(
+    ArchitectureReportFileSchema,
+    withSchemaUrl("architecture-report", { body: "# Architecture — example" }),
+  ),
 };
 
 /**

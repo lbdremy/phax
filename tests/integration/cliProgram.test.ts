@@ -23,6 +23,7 @@ const TOP_LEVEL_COMMANDS = [
   "plans",
   "adjust-plan",
   "brief",
+  "architecture",
   "init",
   "resume",
   "reset-phase",

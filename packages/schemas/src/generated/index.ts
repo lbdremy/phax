@@ -32,4 +32,6 @@ export const CURRENT_SHAPES = {
   "hand-decision-answer": "0.25.0",
   "decision-record-manifest": "0.25.0",
   "cost-ledger": "0.25.0",
+  "architecture-request": "next",
+  "architecture-report": "next",
 } as const;

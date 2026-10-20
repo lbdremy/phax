@@ -7,6 +7,10 @@ import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
 } from "../../../src/schemas/approvalRecord.js";
+import {
+  decodeArchitectureReportFile,
+  decodeArchitectureRequestFile,
+} from "../../../src/schemas/architecture.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
@@ -86,6 +90,8 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "hand-decision-answer": decodeHandDecisionAnswerFile,
   "decision-record-manifest": decodeDecisionRecordManifestFile,
   "cost-ledger": decodeCostLedgerFile,
+  "architecture-request": decodeArchitectureRequestFile,
+  "architecture-report": decodeArchitectureReportFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

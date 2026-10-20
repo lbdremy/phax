@@ -156,6 +156,11 @@ export function mergeConfigLayers(input: {
     localUser?.planAuditor?.command ??
     globalUser?.planAuditor?.command ??
     project.planAuditor?.command;
+  // architecture: scalar override (command is required when architecture is present)
+  const architectureCommand =
+    localUser?.architecture?.command ??
+    globalUser?.architecture?.command ??
+    project.architecture?.command;
 
   // review.compliance: per-field scalar override (enabled is required when compliance is present)
   const hasCompliance =
@@ -289,6 +294,9 @@ export function mergeConfigLayers(input: {
       : {}),
     ...(brief !== undefined ? { brief: { command: brief.command, push: brief.push } } : {}),
     ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
+    ...(architectureCommand !== undefined
+      ? { architecture: { command: architectureCommand } }
+      : {}),
     ...(compliance !== undefined || codeReview !== undefined
       ? {
           review: {

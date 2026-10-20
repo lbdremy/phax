@@ -38,6 +38,10 @@ import {
 } from "../../../packages/schemas/src/formats/reports.js";
 import { handDecisionAnswerFormat } from "../../../packages/schemas/src/formats/answers.js";
 import {
+  architectureReportFormat,
+  architectureRequestFormat,
+} from "../../../packages/schemas/src/formats/architecture.js";
+import {
   complianceReviewFormat,
   costLedgerFormat,
   phaseStatusFormat,
@@ -105,6 +109,8 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "hand-decision-answer": handDecisionAnswerFormat.current.shape.decode,
   "decision-record-manifest": decisionRecordManifestFormat.current.shape.decode,
   "cost-ledger": costLedgerFormat.current.shape.decode,
+  "architecture-request": architectureRequestFormat.current.shape.decode,
+  "architecture-report": architectureReportFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -167,6 +173,8 @@ describe("the JSON Schema table", () => {
       handDecisionAnswerFormat,
       decisionRecordManifestFormat,
       costLedgerFormat,
+      architectureRequestFormat,
+      architectureReportFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -189,10 +197,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 24 files and no failure", () => {
+  it("renders 26 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(24);
+    expect(rendered.files.size).toBe(26);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

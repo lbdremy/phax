@@ -10,12 +10,13 @@ export type PhaseGuardClass = "allowed" | "refused";
 
 /**
  * Every subcommand path registered in src/cli/program.ts. Allowed are
- * `phax brief`, `schema upgrade` (it writes only the working tree's local
+ * `phax brief`, `phax architecture`, `schema upgrade` (it writes only the working tree's local
  * schemas) and the commands that only read. A unit test fails on a registered
  * command missing here, so a new command is refused until it is classified.
  */
 export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass>> = {
   brief: "allowed",
+  architecture: "allowed",
   "schema upgrade": "allowed",
   validate: "allowed",
   ls: "allowed",
@@ -107,5 +108,5 @@ export function phaseGuardRefusal(
     );
   return allowed
     ? undefined
-    : `✗ phax ${commandPath} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)`;
+    : `✗ phax ${commandPath} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)`;
 }

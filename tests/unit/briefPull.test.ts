@@ -4,17 +4,17 @@ import {
   BRIEFS_CLOSED_MARKER,
   PULLED_BRIEFS_DIR,
   nextPulledBriefName,
-  resolveBriefPaths,
 } from "../../src/domain/brief/pull.js";
+import { resolveTreePaths } from "../../src/domain/treePaths.js";
 
 // Made-up roots and paths throughout.
 const root = "/work/repo";
 
 function resolveFrom(cwd: string, ...paths: [string, ...string[]]) {
-  return resolveBriefPaths({ cwd, root, paths });
+  return resolveTreePaths({ cwd, root, paths });
 }
 
-describe("resolveBriefPaths", () => {
+describe("resolveTreePaths", () => {
   it("resolves against the cwd and makes the paths root-relative", () => {
     expect(resolveFrom(`${root}/src/core`, "billing/tax.ts")).toEqual(
       Either.right(["src/core/billing/tax.ts"]),

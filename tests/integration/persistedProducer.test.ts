@@ -683,6 +683,10 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a brief report as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-report",
+  // phax never writes the architecture call's documents: the request goes on
+  // the architecture provider's stdin and the report is its stdout, printed.
+  "architecture-request",
+  "architecture-report",
   // phax never writes a hand decision answer: it is a decide session's final
   // message, from which phax writes the artifact itself.
   "hand-decision-answer",

@@ -4,9 +4,9 @@ import {
   BRIEFS_CLOSED_MARKER,
   PULLED_BRIEFS_DIR,
   nextPulledBriefName,
-  resolveBriefPaths,
 } from "../domain/brief/pull.js";
 import { outsideBriefRequest, phaseBriefRequest } from "../domain/brief/request.js";
+import { resolveTreePaths } from "../domain/treePaths.js";
 import { FileSystem } from "../ports/fs.js";
 import type { Shell } from "../ports/shell.js";
 import type { BriefRequestFile, PhaseBriefRequest } from "../schemas/brief.js";
@@ -172,7 +172,7 @@ export function pullBrief(input: {
       if (phase === undefined) return refused("outside a phase, name at least one path");
       request = stampBriefRequest(phase);
     } else {
-      const files = resolveBriefPaths({
+      const files = resolveTreePaths({
         cwd: input.cwd,
         root: input.root,
         paths: [first, ...rest],

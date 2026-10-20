@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax architecture report",
+  "type": "object",
+  "required": [
+    "$schema",
+    "body"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The architecture-report format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/architecture-report/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/architecture-report\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "body": {
+      "type": "string",
+      "description": "Markdown for the agent to read. phax prints it as is and never parses it.",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

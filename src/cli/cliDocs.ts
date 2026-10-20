@@ -33,6 +33,12 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax brief src/core/billing/invoice.ts src/core/billing/tax.ts", "phax brief"],
   },
 
+  architecture: {
+    longHelp:
+      'Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository\'s architecture, and prints the Markdown body it answers. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository\'s main checkout; the provider runs from the working tree\'s root, with no shell, one architecture request on stdin, and a fixed 60-second limit.\n\nThe request is {"$schema": ".../architecture-request/<release>.json", "files"}: files is null with no path (the whole repository), otherwise the paths relative to the working tree\'s root, deduplicated, in the order given, never checked for existence.\n\nThe provider prints an architecture report on stdout: {"$schema": ".../architecture-report/<release>.json", "body"}. The report must carry its own `$schema` naming architecture-report at a release this phax reads, and body is non-empty Markdown for the agent to read. A key the format does not name is refused. phax prints the body as is and never parses it. A provider that declines exits non-zero.\n\nExits 0 on a readable report. Exits 1 with one line on stdout, telling the agent to read the architecture from the code and its documentation, when no architecture provider is configured. Exits 1 with one line on stderr when the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape; a path lies outside the working tree; or there is no git working tree at all. An invalid config exits 2.\n\nSide effects: runs the architecture provider. Writes no file, inside a phase worktree or outside one.',
+    examples: ["phax architecture", "phax architecture src/core/billing/totals.ts"],
+  },
+
   init: {
     longHelp:
       "Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.",
