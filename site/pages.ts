@@ -208,6 +208,13 @@ export default definePageMap({
         "Estimate a plan's API-list cost from your cost ledgers with phax plans estimate, and whether it fits your Claude subscription windows now.",
     },
     {
+      route: "/guide/architecture-provider",
+      title: "Architecture provider",
+      source: "docs/architecture-provider.md",
+      description:
+        "Declare a command that answers phax architecture with your repository's architecture, and the limits it runs under when a planner calls it.",
+    },
+    {
       route: "/reference/model-catalog",
       title: "Model catalog",
       source: "docs/model-catalog.md",

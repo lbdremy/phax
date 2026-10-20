@@ -16,9 +16,9 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### In flight
 
-- [ ] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
-      2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2 adds
-      `phax architecture` and completes the spec.
+- [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
+      2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
+      (`phax architecture`) landed and the spec is complete.
 
 ### Approved, not yet planned
 

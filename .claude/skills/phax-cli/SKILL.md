@@ -85,6 +85,7 @@ run it. That covers `run`, `resume`, `archive`, `publish-pr`, `review-*`,
 What still runs inside:
 
 - `phax brief [path…]`;
+- `phax architecture [path…]`;
 - the read-only commands: `validate`, `ls`, `path`, `session-info`, `completions`,
   `plans lint`, `plans status`, `artifact status`, `artifact schema`, `records explain`,
   `records status`, `records list`, `security status`;
@@ -98,8 +99,8 @@ scope is the boundary.
 ## Gate steps, briefs and records
 
 These are `phax.json` keys rather than commands, so `--usage` does not show them. The
-README (sections *Gate report steps*, *Gate request*, *Brief provider*, *Plan
-auditor*) holds the exact formats.
+README (sections *Gate report steps*, *Gate request*, *Brief provider*, *Architecture
+provider*, *Plan auditor*) holds the exact formats.
 
 - **`"output": "gate-report"`** on a gate step: the step prints a gate report on stdout,
   and phax reads the verdict from it, not from the exit code. A checked report carries
@@ -123,6 +124,11 @@ auditor*) holds the exact formats.
   never blocks; the gate still decides. In `secure` mode the phase agent is granted
   `phax brief` (source `brief` in `security.json`). Each brief is recorded as
   `brief-NN.json`; `phax records explain <commit> --briefs` prints them.
+- **`architecture`** (`command`, required): a provider that answers `phax architecture
+  [path…]` with the repository's architecture as a Markdown body. With none configured,
+  the command exits 1 with one line telling the agent to read the code and its
+  documentation. It writes nothing, and a headless plan session is granted it when one is
+  configured.
 - **`planAuditor`** (a provider command): advisory findings for `phax plans lint`, never
   during a run.
 

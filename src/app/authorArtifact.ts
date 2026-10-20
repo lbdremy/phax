@@ -31,6 +31,7 @@ import {
 import { renderPlanBody } from "../domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../domain/authoring/renderSpec.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
+import { authoringAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
 import { type AuthoringSession, encodeAuthoringSession } from "../schemas/authoringSession.js";
@@ -102,6 +103,8 @@ export interface AuthorArtifactInput {
   readonly recordsClonePath?: string | undefined;
   /** `publish.remote` from `phax.json`: the push target for an in-repo records destination. */
   readonly publishRemote: string;
+  /** Whether `architecture` is declared in a config layer, read by the caller. */
+  readonly architectureProvider: boolean;
   /**
    * Where a failed session's record and push warnings go. A committed session's
    * record and push are returned in the result for the caller to render instead.
@@ -324,16 +327,25 @@ function runAuthoringSession(
     const git = yield* Git;
     const backend = yield* Backend;
 
+    const policy = resolveReviewSecurityPolicy({
+      mode: input.security.profile,
+      worktreePath: input.repoRoot,
+      config: input.security,
+    });
+    const granted = authoringAgentCommands({
+      kind: input.kind,
+      architectureProvider: input.architectureProvider,
+    });
     const options: AgentRunOptions = {
       provider: session.binding.provider,
       model: session.binding.model,
       effort: session.binding.effort,
       cwd: input.repoRoot,
-      security: resolveReviewSecurityPolicy({
-        mode: input.security.profile,
-        worktreePath: input.repoRoot,
-        config: input.security,
-      }),
+      security:
+        granted.length === 0
+          ? policy
+          : { ...policy, agentCommands: [...policy.agentCommands, ...granted] },
+      ...(granted.length > 0 ? { agentCommands: granted } : {}),
       outputJsonlPath: join(session.folder, AUTHORING_TRANSCRIPT_FILENAME),
       phaseFolderPath: session.folder,
     };
@@ -466,6 +478,7 @@ export function authorArtifact(
       sourceSpec: target.sourceSpec,
       completesSpec: target.completesSpec,
       slug: input.slug,
+      architectureProvider: input.kind === "plan" ? input.architectureProvider : null,
     });
     yield* fs.mkdirp(folder);
     yield* fs.writeAtomic(join(folder, AUTHORING_BRIEF_FILENAME), input.brief.text);

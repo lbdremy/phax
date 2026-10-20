@@ -15,10 +15,11 @@ function specPrompt(): string {
     sourceSpec: null,
     completesSpec: null,
     slug: "plan-prune",
+    architectureProvider: null,
   });
 }
 
-function planPrompt(completesSpec: boolean): string {
+function planPrompt(completesSpec: boolean, architectureProvider = false): string {
   return buildAuthoringPrompt({
     kind: "plan",
     skillText: "# phax-planning\n",
@@ -30,6 +31,7 @@ function planPrompt(completesSpec: boolean): string {
     },
     completesSpec,
     slug: "plan-prune",
+    architectureProvider,
   });
 }
 
@@ -130,10 +132,38 @@ describe("buildAuthoringPrompt", () => {
       sourceSpec: null,
       completesSpec: null,
       slug: "catalog-refresh",
+      architectureProvider: false,
     });
 
     expect(prompt).toContain("Set `sourceSpec` to null");
     expect(prompt).toContain("- Set `completesSpec` to null: this plan has no source spec.");
     expect(prompt).not.toContain("## Source spec");
+  });
+
+  it("a plan prompt with a provider tells the planner to run phax architecture, before the output contract", () => {
+    const prompt = planPrompt(true, true);
+    const line = prompt.indexOf(
+      "- An architecture provider is configured: before cutting phases, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.",
+    );
+
+    expect(line).toBeGreaterThan(prompt.indexOf("You are authoring the plan"));
+    expect(line).toBeLessThan(prompt.indexOf("- Return ONLY"));
+    expect(prompt).not.toContain("No architecture provider is configured");
+  });
+
+  it("a plan prompt without a provider says so and does not ask to run the command", () => {
+    const prompt = planPrompt(true, false);
+
+    expect(prompt).toContain(
+      "- No architecture provider is configured: do not run `phax architecture`; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).",
+    );
+    expect(prompt).not.toContain("An architecture provider is configured");
+    expect(prompt.indexOf("No architecture provider")).toBeLessThan(
+      prompt.indexOf("- Return ONLY"),
+    );
+  });
+
+  it("a spec prompt carries no architecture statement", () => {
+    expect(specPrompt()).not.toMatch(/architecture provider|phax architecture/);
   });
 });

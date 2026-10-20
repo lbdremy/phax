@@ -1,3 +1,4 @@
+import type { ArtifactKind } from "../artifact/status.js";
 import { PROVIDER_SECURITY_CAPABILITIES } from "./capabilities.js";
 import type { CommandEnforcement } from "./capabilities.js";
 import type { ProviderId } from "../routing/types.js";
@@ -21,6 +22,16 @@ function isNarrow(command: string): boolean {
 
 function canEnforcePrefix(enforcement: CommandEnforcement): boolean {
   return enforcement === "exact" || enforcement === "prefix";
+}
+
+/** The one command a headless plan authoring session is granted when a provider is configured. */
+export const ARCHITECTURE_AGENT_COMMAND = "phax architecture";
+
+export function authoringAgentCommands(input: {
+  readonly kind: ArtifactKind;
+  readonly architectureProvider: boolean;
+}): readonly string[] {
+  return input.kind === "plan" && input.architectureProvider ? [ARCHITECTURE_AGENT_COMMAND] : [];
 }
 
 export function computeFrozenAgentCommands(input: {

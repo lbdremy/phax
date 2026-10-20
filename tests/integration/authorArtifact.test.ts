@@ -200,6 +200,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     nowIso: NOW,
     records: RECORDS_OFF,
     publishRemote: "origin",
+    architectureProvider: false,
     output: { warn: () => {} },
     ...overrides,
   };
@@ -527,6 +528,55 @@ describe("authorArtifact — plan", () => {
     expect(sidecar.sourceSpec).toBeNull();
     expect(sidecar.completesSpec).toBeNull();
     expect(fs.getFile(PLAN_PATH) ?? "").not.toContain("completes-spec");
+  });
+});
+
+describe("authorArtifact — the architecture provider", () => {
+  const planInput = (overrides: Partial<AuthorArtifactInput> = {}) =>
+    input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST, ...overrides });
+
+  it("a plan with a provider is granted phax architecture and told to run it", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+    const result = await run(planInput({ architectureProvider: true }));
+
+    expect(Either.isRight(result)).toBe(true);
+    const options = backend.runCalls[0]?.options;
+    expect(options?.agentCommands).toEqual(["phax architecture"]);
+    expect(options?.security.agentCommands).toEqual(["git", "phax architecture"]);
+    expect(backend.runCalls[0]?.prompt).toContain("An architecture provider is configured");
+    expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
+      "An architecture provider is configured",
+    );
+  });
+
+  it("a plan without a provider keeps today's options and is told not to run it", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+    const result = await run(planInput({ architectureProvider: false }));
+
+    expect(Either.isRight(result)).toBe(true);
+    const options = backend.runCalls[0]?.options;
+    expect(options).toBeDefined();
+    expect(options).not.toHaveProperty("agentCommands");
+    expect(options?.security.agentCommands).toEqual(["git"]);
+    expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
+      "No architecture provider is configured",
+    );
+  });
+
+  it("a spec session gets neither the grant nor the statement, whatever the config says", async () => {
+    const { backend, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(input({ architectureProvider: true }));
+
+    expect(Either.isRight(result)).toBe(true);
+    const options = backend.runCalls[0]?.options;
+    expect(options).not.toHaveProperty("agentCommands");
+    expect(options?.security.agentCommands).toEqual(["git"]);
+    expect(backend.runCalls[0]?.prompt).not.toContain("architecture provider");
   });
 });
 

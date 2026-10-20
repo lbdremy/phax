@@ -441,6 +441,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         nowIso: SPEC_NOW,
         records: RECORDS_IN_REPO,
         publishRemote: "origin",
+        architectureProvider: false,
         output: { warn: () => {} },
         ...overrides,
       }),

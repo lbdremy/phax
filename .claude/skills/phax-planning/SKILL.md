@@ -311,9 +311,15 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
 
 ### The repository's architecture
 
-Read the repository's architecture before cutting phases, from the code and its
-documentation (README, CLAUDE.md or equivalent), and plan against it: its parts,
-the direction of their dependencies, and the boundaries its own checks enforce.
+Read the repository's architecture before cutting phases. Run `phax architecture`,
+or `phax architecture <path>...` for the parts the plan touches: with an
+architecture provider configured, it prints the repository's architecture. Without
+one, it exits 1 with one line saying so. That exit means: read the architecture
+from the code and its documentation (README, CLAUDE.md or equivalent) instead, and
+carry on. It is not a failure of the repository.
+
+Either way, plan against it: its parts, the direction of their dependencies, and
+the boundaries its own checks enforce.
 
 ### One example architecture
 
@@ -544,7 +550,7 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 - **Comprehensive instructions.** Make sure each phase has enough detail for the
   model and effort you picked to execute it successfully.
 - **No phax lifecycle commands in a phase.** A phase runs inside a phase worktree,
-  where phax refuses every command except `phax brief` and the read-only ones
+  where phax refuses every command except `phax brief`, `phax architecture` and the read-only ones
   (`plans lint`, `artifact status`, `records explain`, …). Never instruct a phase to
   approve, complete or abandon an artifact, or to run, resume, archive or publish.
   Those steps belong to the operator, in the main checkout. In a project whose tests

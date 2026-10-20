@@ -15,7 +15,14 @@ export interface AuthoringPromptInput {
   /** Whether a plan completes its source spec (`--last`/`--not-last`); null for a spec or a plan without one. */
   readonly completesSpec: boolean | null;
   readonly slug: string;
+  /** Whether an architecture provider is configured, for a plan; null for a spec. */
+  readonly architectureProvider: boolean | null;
 }
+
+const ARCHITECTURE_CONFIGURED_LINE =
+  "- An architecture provider is configured: before cutting phases, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.";
+const ARCHITECTURE_ABSENT_LINE =
+  "- No architecture provider is configured: do not run `phax architecture`; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).";
 
 // The full prompt of a headless authoring session, in a fixed order: the skill
 // text verbatim, the output contract, the document JSON Schema, the source spec
@@ -32,6 +39,9 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     "",
     `You are authoring the ${input.kind} \`${input.slug}\` in a headless session spawned by \`phax artifact new ${input.kind} --headless\`.`,
     "",
+    ...(input.architectureProvider === null
+      ? []
+      : [input.architectureProvider ? ARCHITECTURE_CONFIGURED_LINE : ARCHITECTURE_ABSENT_LINE]),
     `- Return ONLY a JSON object valid against the ${documentName} JSON Schema below.`,
     "- No code fences, no Markdown, no commentary before or after the JSON.",
     "- Write no files: phax renders the Markdown artifact from your JSON, writes it and commits it.",
