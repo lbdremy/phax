@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-19
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-20
+  baseline: c5cf6d0
 ---
 # Interactive phases: a plan-declared stop where a person corrects the pattern, with any editor and any agent CLI
 
