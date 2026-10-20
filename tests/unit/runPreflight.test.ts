@@ -12,7 +12,9 @@ import {
 import { checkCleanWorkingTree } from "../../src/app/worktree.js";
 import {
   ConfigValidationError,
+  InteractivePreflightError,
   ModelPreflightError,
+  OraclePreflightError,
   PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -170,6 +172,28 @@ function expectedModelMessage(plan: PhaxPlan): string {
   return lines.join("\n");
 }
 
+/** A one-phase plan.md whose header paragraph carries `headerLines`. */
+function planMdWithHeader(headerLines: readonly string[]): string {
+  return [
+    "# Foo",
+    "",
+    "## Required commands",
+    "",
+    "- (none)",
+    "",
+    "## phase-01 — Phase phase-01 {#phase-01}",
+    "",
+    `**Recommended model:** ${GOOD_MODEL}`,
+    "**Recommended effort:** medium",
+    ...headerLines,
+    "",
+    "Carry out phase-01's made-up instructions.",
+    "",
+  ].join("\n");
+}
+
+const LINT_HINT = `Fix the plan, then check it with \`phax plans lint ${PLAN_PATH}\`.`;
+
 interface RefusalCase {
   readonly input: RunPreflightInput;
   readonly errorClass: new (...args: never[]) => Error;
@@ -232,6 +256,26 @@ const REFUSALS = {
       `Fix the plan, then check it with \`phax plans lint ${PLAN_PATH}\`.`,
     ].join("\n"),
   },
+  "interactive-phases": {
+    input: makeInput({ planMd: planMdWithHeader(["**Mode:** interactive"]) }),
+    errorClass: InteractivePreflightError,
+    message: [
+      "Interactive preflight failed: 1 error(s).",
+      "  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
+      LINT_HINT,
+    ].join("\n"),
+  },
+  "oracle-phases": {
+    input: makeInput({
+      planMd: planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]),
+    }),
+    errorClass: OraclePreflightError,
+    message: [
+      "Oracle preflight failed: 1 error(s).",
+      "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
+      LINT_HINT,
+    ].join("\n"),
+  },
 } satisfies Record<RunPreflightCheck, RefusalCase>;
 
 describe("runPreflights", () => {
@@ -244,7 +288,54 @@ describe("runPreflights", () => {
       "records-destination",
       "phase-models",
       "phase-sections",
+      "interactive-phases",
+      "oracle-phases",
     ]);
+  });
+
+  it("an ordinary plan with header lines of no new kind passes every check", async () => {
+    const ordinary = planMdWithHeader(["**Assignment reason:** Small, mechanical change."]);
+    expect(Either.isRight(await run(makeInput({ planMd: ordinary })))).toBe(true);
+  });
+
+  it("a Model reason line is refused by phase-models with lint's text", async () => {
+    const result = await run(
+      makeInput({ planMd: planMdWithHeader(["**Model reason:** old label"]) }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ModelPreflightError);
+      expect(result.left.message).toBe(
+        [
+          "Model preflight failed: 1 phase(s) have invalid model configuration.",
+          `\n  phase-01 (${GOOD_MODEL}/medium):`,
+          "    - **Model reason:** is no longer read: write **Assignment reason:**",
+        ].join("\n"),
+      );
+      if (result.left instanceof ModelPreflightError) {
+        expect(result.left.failures[0]?.alternatives).toEqual([]);
+      }
+    }
+  });
+
+  it("a Model reason line joins the catalog failure of the same phase", async () => {
+    const plan = makePlan([badModelPhase]);
+    const result = await run(
+      makeInput({ plan, planMd: planMdWithHeader(["**Model reason:** old label"]) }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result) && result.left instanceof ModelPreflightError) {
+      expect(result.left.failures).toHaveLength(1);
+      expect(result.left.failures[0]!.reasons.at(-1)).toBe(
+        "**Model reason:** is no longer read: write **Assignment reason:**",
+      );
+    }
+  });
+
+  it("a malformed Mode line is refused by interactive-phases", async () => {
+    const result = await run(makeInput({ planMd: planMdWithHeader(["**Mode:** review"]) }));
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(InteractivePreflightError);
   });
 
   it.each(Object.entries(REFUSALS))(

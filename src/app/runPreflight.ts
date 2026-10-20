@@ -13,13 +13,19 @@
 import { Effect, Either } from "effect";
 import {
   type ConfigValidationError,
+  InteractivePreflightError,
   ModelPreflightError,
+  OraclePreflightError,
   PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
   type SkillEditConsentError,
   UnsafeGitStateError,
 } from "../domain/errors.js";
+import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
+import { reasonLabelFindings, type LintFinding } from "../domain/plan/lint.js";
+import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { readPhaseHeaders, type PhaseHeader } from "../domain/plan/phaseHeader.js";
 import { locatePlanSections, type PlanSections } from "../domain/plan/sections.js";
 import { preflightPhaseModels } from "../domain/routing/preflight.js";
 import {
@@ -49,6 +55,8 @@ export const RUN_PREFLIGHT_CHECKS = [
   "records-destination",
   "phase-models",
   "phase-sections",
+  "interactive-phases",
+  "oracle-phases",
 ] as const;
 
 export type RunPreflightCheck = (typeof RUN_PREFLIGHT_CHECKS)[number];
@@ -76,7 +84,9 @@ export type RunPreflightRefusal =
   | SkillEditConsentError
   | RecordsSyncRequiredError
   | ModelPreflightError
-  | PlanSectionsPreflightError;
+  | PlanSectionsPreflightError
+  | InteractivePreflightError
+  | OraclePreflightError;
 
 export type RunPreflightError = RunPreflightRefusal | FsError;
 
@@ -142,6 +152,47 @@ function planSectionsRefusal(
     phases,
     planPath,
   });
+}
+
+function declarationRefusalMessage(
+  kind: "Interactive" | "Oracle",
+  findings: readonly LintFinding[],
+  planPath: string,
+): string {
+  return [
+    `${kind} preflight failed: ${findings.length} error(s).`,
+    ...findings.map((f) => `  ${f.phase ?? "-"}  ${f.message}`),
+    `Fix the plan, then check it with \`phax plans lint ${planPath}\`.`,
+  ].join("\n");
+}
+
+type ModelFailure = ReturnType<typeof preflightPhaseModels>["failures"][number];
+
+// Merge each label finding into its phase's catalog failure, or add one with
+// the phase's model and effort from the plan and no alternatives.
+function withLabelFailures(
+  failures: readonly ModelFailure[],
+  plan: PhaxPlan,
+  headers: readonly PhaseHeader[],
+): readonly ModelFailure[] {
+  const merged = failures.map((f) => ({ ...f, reasons: [...f.reasons] }));
+  for (const finding of reasonLabelFindings(headers)) {
+    const existing = merged.find((f) => f.phaseId === finding.phase);
+    if (existing) {
+      existing.reasons.push(finding.message);
+      continue;
+    }
+    const phase = plan.phases.find((p) => p.id === finding.phase);
+    if (phase === undefined) continue;
+    merged.push({
+      phaseId: phase.id,
+      model: phase.model,
+      effort: phase.effort,
+      reasons: [finding.message],
+      alternatives: [],
+    });
+  }
+  return merged;
 }
 
 function locateSections(input: RunPreflightInput): LocatedSections {
@@ -217,17 +268,20 @@ const checks = {
 
   // Validate every phase's model and effort against the catalog — all phases,
   // not only those still to run.
-  "phase-models": (input) => {
+  // A renamed reason label is a plan-format finding the catalog does not
+  // decide; it rides this refusal with lint's text.
+  "phase-models": (input, _gateSteps, _planSections, headers) => {
     const modelPreflight = preflightPhaseModels(
       input.plan.phases,
       input.routing,
       input.providerConfig,
     );
-    if (modelPreflight.failures.length === 0) return Effect.void;
+    const failures = withLabelFailures(modelPreflight.failures, input.plan, headers);
+    if (failures.length === 0) return Effect.void;
     const lines: string[] = [
-      `Model preflight failed: ${modelPreflight.failures.length} phase(s) have invalid model configuration.`,
+      `Model preflight failed: ${failures.length} phase(s) have invalid model configuration.`,
     ];
-    for (const failure of modelPreflight.failures) {
+    for (const failure of failures) {
       lines.push(`\n  ${failure.phaseId} (${failure.model}/${failure.effort}):`);
       for (const reason of failure.reasons) {
         lines.push(`    - ${reason}`);
@@ -242,7 +296,7 @@ const checks = {
     return Effect.fail(
       new ModelPreflightError({
         message: lines.join("\n"),
-        failures: modelPreflight.failures.map((f) => ({
+        failures: failures.map((f) => ({
           phaseId: f.phaseId,
           model: f.model,
           effort: f.effort,
@@ -260,12 +314,39 @@ const checks = {
   // Locate every phase's section in plan.md — all phases, not only those still
   // to run. The prompt builder reads the sections located here.
   "phase-sections": (_input, _gateSteps, planSections) => Effect.asVoid(planSections),
+
+  // A malformed Mode line, or an interactive phase this phax cannot run yet.
+  "interactive-phases": (input, _gateSteps, _planSections, headers) => {
+    const findings = interactiveFindings(headers);
+    if (findings.length === 0) return Effect.void;
+    return Effect.fail(
+      new InteractivePreflightError({
+        message: declarationRefusalMessage("Interactive", findings, input.planPath),
+        findings,
+        planPath: input.planPath,
+      }),
+    );
+  },
+
+  // The same for the oracle lines.
+  "oracle-phases": (input, _gateSteps, _planSections, headers) => {
+    const findings = oracleFindings(headers);
+    if (findings.length === 0) return Effect.void;
+    return Effect.fail(
+      new OraclePreflightError({
+        message: declarationRefusalMessage("Oracle", findings, input.planPath),
+        findings,
+        planPath: input.planPath,
+      }),
+    );
+  },
 } satisfies Record<
   RunPreflightCheck,
   (
     input: RunPreflightInput,
     gateSteps: GateSteps,
     planSections: LocatedSections,
+    headers: readonly PhaseHeader[],
   ) => Effect.Effect<void, RunPreflightError, FileSystem>
 >;
 
@@ -285,8 +366,9 @@ export function runPreflights(
     // Each resolved once, by the first check that needs it, and shared with the rest.
     const gateSteps = yield* Effect.cached(resolveGateSteps(input));
     const planSections = yield* Effect.cached(locateSections(input));
+    const headers = readPhaseHeaders(input.planMd);
     for (const id of RUN_PREFLIGHT_CHECKS) {
-      yield* checks[id](input, gateSteps, planSections);
+      yield* checks[id](input, gateSteps, planSections, headers);
     }
     return { gateSteps: yield* gateSteps, planSections: yield* planSections };
   });

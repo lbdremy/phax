@@ -9,12 +9,14 @@ import {
   advisoryFindings,
   auditorFailureFinding,
   lineageFindings,
+  reasonLabelFindings,
   sequenceGapFindings,
   unlocatableFindings,
   type LintCheck,
   type LintSeverity,
   type FilePlanPhase,
 } from "../../src/domain/plan/lint.js";
+import { readPhaseHeaders } from "../../src/domain/plan/phaseHeader.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -387,6 +389,34 @@ describe("modelFindings", () => {
       'claude-sonnet-5 / none: effort "none" is not supported',
     );
     expect(findings[0]?.message).toContain("(alternatives: claude-sonnet-5)");
+  });
+});
+
+describe("reasonLabelFindings", () => {
+  const planWith = (lines: readonly string[]): string =>
+    CONFORMING_PLAN.replace(
+      "**Recommended effort:** medium\n",
+      `**Recommended effort:** medium\n${lines.join("\n")}\n`,
+    );
+
+  it("reports a Model reason line as a models error naming the new label", () => {
+    expect(
+      reasonLabelFindings(readPhaseHeaders(planWith(["**Model reason:** old label"]))),
+    ).toEqual([
+      {
+        severity: "error",
+        check: "models",
+        phase: "phase-01",
+        message: "**Model reason:** is no longer read: write **Assignment reason:**",
+      },
+    ]);
+  });
+
+  it("reports nothing for an Assignment reason line or for no reason line", () => {
+    expect(reasonLabelFindings(readPhaseHeaders(planWith(["**Assignment reason:** why"])))).toEqual(
+      [],
+    );
+    expect(reasonLabelFindings(readPhaseHeaders(CONFORMING_PLAN))).toEqual([]);
   });
 });
 

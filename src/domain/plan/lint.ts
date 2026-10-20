@@ -1,5 +1,6 @@
 import { Either } from "effect";
 import { collectPlanStructureErrors } from "./parsePlanMarkdown.js";
+import type { PhaseHeader } from "./phaseHeader.js";
 import { locatePlanSections, phaseHeadingIds, type LocatablePhase } from "./sections.js";
 import { checkRequiredCommands } from "../security/agentCommands.js";
 import { preflightPhaseModels, type PreflightPhase } from "../routing/preflight.js";
@@ -8,7 +9,14 @@ import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import type { PlanAuditResponse } from "../../schemas/planAudit.js";
 
 export type LintSeverity = "error" | "warning";
-export type LintCheck = "structure" | "files" | "commands" | "models" | "advisory";
+export type LintCheck =
+  | "structure"
+  | "files"
+  | "commands"
+  | "models"
+  | "interactive"
+  | "oracles"
+  | "advisory";
 
 export interface LintFinding {
   readonly severity: LintSeverity;
@@ -225,6 +233,21 @@ export function modelFindings(
       message: `${failure.model} / ${failure.effort}: ${failure.reasons.join("; ")}${alternatives}`,
     };
   });
+}
+
+/**
+ * One `models` error per phase whose header carries a `**Model reason:**`
+ * line: the label was renamed, and the line is no longer read.
+ */
+export function reasonLabelFindings(headers: readonly PhaseHeader[]): readonly LintFinding[] {
+  return headers
+    .filter((h) => h.hasModelReason)
+    .map((h) => ({
+      severity: "error",
+      check: "models",
+      phase: h.phase,
+      message: "**Model reason:** is no longer read: write **Assignment reason:**",
+    }));
 }
 
 // Everything an auditor returns is untrusted text rendered straight into the

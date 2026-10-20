@@ -44,6 +44,8 @@ interface FixtureConfig {
 interface FixturePhase {
   readonly model?: string;
   readonly effort?: string;
+  /** Extra header lines (Mode, Oracle phase, Model reason, …), right after the effort line. */
+  readonly headerLines?: readonly string[];
   readonly plannedFilesToCreate?: readonly string[];
   readonly plannedFilesToEdit?: readonly string[];
 }
@@ -150,6 +152,7 @@ function fixturePlanMd(plan: FixturePlan = {}): string {
       "",
       `**Recommended model:** ${phase.model ?? FIXTURE_MODEL}`,
       `**Recommended effort:** ${phase.effort ?? FIXTURE_EFFORT}`,
+      ...(phase.headerLines ?? []),
       "",
       "### Planned files to create",
       "",
