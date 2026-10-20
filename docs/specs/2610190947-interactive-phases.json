@@ -455,7 +455,7 @@
       "id": "r-records",
       "title": "Records",
       "pattern": "event",
-      "statement": "WHEN records are configured and an interactive phase commits THE system SHALL record its mode, its outcome, its committer, its recorded sessions (provider, model and id) or that there were none, and each transcript's sha256 or that it is missing, and never the transcript's content. `phax records explain` on the phase's commit SHALL name them."
+      "statement": "WHEN records are configured and an interactive phase commits THE system SHALL record its mode, its outcome, its committer, its recorded sessions (provider, model and id) or that there were none, and each transcript's sha256 or that it is missing. WHERE `records.transcript` is true THE system SHALL also record each transcript's content, as it records a phase's `output.jsonl`, under the same destination checks. `phax records explain` on the phase's commit SHALL name them."
     },
     {
       "id": "r-posture",
@@ -660,7 +660,7 @@
     "An agent fix loop at an interactive phase's gate. Only the person, or an agent the person runs, repairs a red gate there.",
     "Changing today's kept-open final phase, `review_open`, `phax enter`, `phax review-code` or the end-of-run order.",
     "Lifting `unverified` interactive resume for mistral-vibe. That waits until `vibe --resume <id>` is verified to continue a `vibe -p` session interactively.",
-    "Capturing, costing or recording the content of a session phax did not start, or the person's interactive turns.",
+    "Capturing, costing or recording the content of a session phax did not start, and costing the person's interactive turns. Their content is recorded only inside a recorded session's transcript, under `records.transcript`.",
     "A timeout, reminder or notification while a run awaits review. The run waits indefinitely, like every resumable stop.",
     "Changing `phax report`, which is a telemetry issue reporter and not a status view.",
     "`phax review-plan` declaring interactive phases in a review plan.",
@@ -1067,7 +1067,7 @@
       "name": "Records and the security record name the review honestly",
       "given": "records configured, and two closed runs, one whose phase-03 recorded session X1 with its transcript and one whose first turn failed",
       "when": "`phax records explain` is given each run's phase-03 commit, and each phase-03 security record is read",
-      "then": "each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. Neither records branch contains transcript content. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran",
+      "then": "each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. With `records.transcript` false, neither records branch contains transcript content. With it true, the first run's records carry X1's transcript content, as they carry a phase's `output.jsonl`. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran",
       "refs": [
         "r-records",
         "r-posture"
@@ -1126,144 +1126,7 @@
       ]
     }
   ],
-  "openQuestions": [
-    {
-      "id": "q-person-handoff",
-      "question": "Does a handoff file the person wrote take precedence over the closing turn?",
-      "options": [
-        {
-          "id": "person-first",
-          "label": "A valid `.phax-context/phase-handoff.md` is used as written and no closing turn runs",
-          "abandons": "One writer for every interactive handoff: a person's file meets the same validation but gets no agent's help, and its guard list depends on the person's diligence"
-        },
-        {
-          "id": "session-always",
-          "label": "The closing turn always writes the handoff; a person's file is passed to it as input",
-          "abandons": "A close with no agent at all: every changed close spends a provider turn, and the person's own words are rewritten by a model before the later phases read them"
-        }
-      ],
-      "recommendation": "person-first",
-      "rationale": "The person is the authority on what they corrected. A person who wrote the handoff, or wants no agent involved, should not have their text paraphrased by one. Both paths meet the same validation, so the later phases always read the same shape, and the default close (no file) still costs the person nothing."
-    },
-    {
-      "id": "q-new-session",
-      "question": "What does `phax enter-phase --new-session` do at an interactive phase?",
-      "options": [
-        {
-          "id": "new-first-turn",
-          "label": "Runs a new headless first turn, records it as the current session, then continues it interactively",
-          "abandons": "A quick fresh start: each new session spends one headless first turn before the person can type"
-        },
-        {
-          "id": "print-fresh-start",
-          "label": "Only runs the provider's fresh-start command; the closing turn keeps the earlier recorded session",
-          "abandons": "Capture of the new session: phax never learns its id, so the closing turn resumes a session that missed the person's latest work, and the transcript of that work is lost"
-        }
-      ],
-      "recommendation": "new-first-turn",
-      "rationale": "Starting headless is the only provider-agnostic way phax learns a session's id, and the id is what lets the closing turn see the person's work and lets phax capture the transcript. A short read-only turn is a small cost next to losing both. A person who wants an uncaptured session can still start one themselves."
-    },
-    {
-      "id": "q-precedence",
-      "question": "Is the review-corrections section marked as taking precedence over earlier handoffs?",
-      "options": [
-        {
-          "id": "over-handoffs",
-          "label": "It takes precedence over the earlier phases' handoffs where they disagree; the phase's own plan section still binds",
-          "abandons": "A neutral prompt: phax tells the agent how to weigh its inputs, and a careless correction handoff can override a sound earlier fact"
-        },
-        {
-          "id": "no-precedence",
-          "label": "It is included as one more handoff, with no marking",
-          "abandons": "The point of the stop: the earlier handoffs describe the uncorrected pattern, and an agent that weighs them equally may copy that pattern again"
-        },
-        {
-          "id": "over-plan-too",
-          "label": "It also takes precedence over the later phases' plan sections",
-          "abandons": "The decided rule that the approved plan is not rewritten mid-run: a handoff would amend an approved plan without an approval"
-        }
-      ],
-      "recommendation": "over-handoffs",
-      "rationale": "The earlier handoffs were written before the correction, and the correction handoff is the only text that knows about both, so it must win where they conflict. The guards back it, so the gate still checks a careless handoff. The plan stays authoritative because it was approved and the handoff was not."
-    },
-    {
-      "id": "q-exit-code",
-      "question": "Which exit code does `phax run` (or `phax resume`) return when it stops at an interactive phase?",
-      "options": [
-        {
-          "id": "new-13",
-          "label": "A new code, 13: awaiting review at an interactive phase (resumable)",
-          "abandons": "Exit 0 for a stop that is not a failure: a shell with `set -e`, or a loop that treats any non-zero code as a failure, must learn 13"
-        },
-        {
-          "id": "zero",
-          "label": "Exit 0",
-          "abandons": "Telling a stop from a finished run by its exit code: a loop such as the steme conductor would read a run waiting for a person as done, and move on to publish or the next plan"
-        }
-      ],
-      "recommendation": "new-13",
-      "rationale": "Exits 8 and 9 already make resumable stops non-zero, so a loop's exit-code handling already has the right shape. A loop that mistakes a waiting run for a finished one makes the costlier error: it publishes work the plan said a person must review first."
-    },
-    {
-      "id": "q-unchanged-commit",
-      "question": "What does an interactive phase reviewed without change leave on its branch?",
-      "options": [
-        {
-          "id": "empty-commit",
-          "label": "An empty commit with the plan's subject and the `Interactive-Phase` trailer",
-          "abandons": "A history without empty commits: a review that changed nothing still adds a commit to the PR"
-        },
-        {
-          "id": "no-commit",
-          "label": "No commit; the phase branch points at the previous phase's commit",
-          "abandons": "The review as evidence: `phax records explain`, `git log` and the PR show no trace that a person reviewed and confirmed the pattern"
-        }
-      ],
-      "recommendation": "empty-commit",
-      "rationale": "Confirming a pattern is a review outcome worth recording. The commit is where records, attribution and the PR already look, and one empty commit per declared stop is a small cost."
-    },
-    {
-      "id": "q-transcript-records",
-      "question": "Does the interactive transcript go into the run's records?",
-      "options": [
-        {
-          "id": "digest-only",
-          "label": "Records carry each recorded session's provider, model, id and the transcript's sha256; the content stays in the run folder",
-          "abandons": "The proof chain's reasoning: a records reader sees that a session took place and can match a kept copy against its digest, but cannot read the conversation behind the corrections"
-        },
-        {
-          "id": "full",
-          "label": "Records carry the transcript content, under the records transcript setting, like a phase's `output.jsonl`",
-          "abandons": "The person's privacy: their free-form conversation, including anything they pasted, is committed to `phax/records/v1` and travels wherever the records are pushed"
-        },
-        {
-          "id": "none",
-          "label": "Records carry nothing about the sessions",
-          "abandons": "Any link from the commit to the session that shaped it: `phax records explain` cannot say whether an agent was involved"
-        }
-      ],
-      "recommendation": "digest-only",
-      "rationale": "Agent transcripts are phax's own output, but an interactive transcript is mostly a person's words, so publishing it should be an explicit choice rather than a side effect of a records setting. The digest keeps the proof chain verifiable against the run folder's copy. The handoff already carries what was corrected and why."
-    },
-    {
-      "id": "q-count-interactive",
-      "question": "Are the person's interactive turns in a recorded session counted in the cost ledger from its transcript?",
-      "options": [
-        {
-          "id": "never",
-          "label": "Never; the ledger counts only the first turn and the closing turn, each by its own increment",
-          "abandons": "Seeing the review's real spend: a long continued session draws on the subscription window with no ledger trace, and window calibration samples that overlap it read high"
-        },
-        {
-          "id": "from-transcript",
-          "label": "Counted as `interactive-turns` entries computed from the copied transcript, and excluded from estimate calibration",
-          "abandons": "Ledger entries read only from phax's own versioned streams: costs are parsed from three provider-internal transcript formats that phax does not version, and are priced at whatever model the person switched to mid-session"
-        }
-      ],
-      "recommendation": "never",
-      "rationale": "The ledger records what phax ran. The person's continued session is the person's own use of their CLI, like any session outside phax. Parsing unversioned provider transcripts for cost would bring a fragile source into a ledger that `phax plans estimate` relies on. The window calibration already has to tolerate spend outside phax."
-    }
-  ],
+  "openQuestions": [],
   "arbitratedQuestions": [
     {
       "id": "q-mode-line",
@@ -1354,6 +1217,274 @@
           "§8",
           "§10"
         ]
+      },
+      "history": []
+    },
+    {
+      "id": "q-person-handoff",
+      "question": "Does a handoff file the person wrote take precedence over the closing turn?",
+      "options": [
+        {
+          "id": "person-first",
+          "label": "A valid `.phax-context/phase-handoff.md` is used as written and no closing turn runs",
+          "abandons": "One writer for every interactive handoff: a person's file meets the same validation but gets no agent's help, and its guard list depends on the person's diligence"
+        },
+        {
+          "id": "session-always",
+          "label": "The closing turn always writes the handoff; a person's file is passed to it as input",
+          "abandons": "A close with no agent at all: every changed close spends a provider turn, and the person's own words are rewritten by a model before the later phases read them"
+        }
+      ],
+      "recommendation": "person-first",
+      "rationale": "The person is the authority on what they corrected. A person who wrote the handoff, or wants no agent involved, should not have their text paraphrased by one. Both paths meet the same validation, so the later phases always read the same shape, and the default close (no file) still costs the person nothing.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "person-first",
+        "abandoned": [
+          "session-always"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: a valid handoff the person wrote is used as written, and no closing turn runs.",
+        "advocate": "One writer for every handoff: the closing turn always writes it, with the person's file as input.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-new-session",
+      "question": "What does `phax enter-phase --new-session` do at an interactive phase?",
+      "options": [
+        {
+          "id": "new-first-turn",
+          "label": "Runs a new headless first turn, records it as the current session, then continues it interactively",
+          "abandons": "A quick fresh start: each new session spends one headless first turn before the person can type"
+        },
+        {
+          "id": "print-fresh-start",
+          "label": "Only runs the provider's fresh-start command; the closing turn keeps the earlier recorded session",
+          "abandons": "Capture of the new session: phax never learns its id, so the closing turn resumes a session that missed the person's latest work, and the transcript of that work is lost"
+        }
+      ],
+      "recommendation": "new-first-turn",
+      "rationale": "Starting headless is the only provider-agnostic way phax learns a session's id, and the id is what lets the closing turn see the person's work and lets phax capture the transcript. A short read-only turn is a small cost next to losing both. A person who wants an uncaptured session can still start one themselves.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "new-first-turn",
+        "abandoned": [
+          "print-fresh-start"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: --new-session runs a new headless first turn, records it as the current session, then continues it.",
+        "advocate": "A quick fresh start that spends no headless turn before the person can type.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-precedence",
+      "question": "Is the review-corrections section marked as taking precedence over earlier handoffs?",
+      "options": [
+        {
+          "id": "over-handoffs",
+          "label": "It takes precedence over the earlier phases' handoffs where they disagree; the phase's own plan section still binds",
+          "abandons": "A neutral prompt: phax tells the agent how to weigh its inputs, and a careless correction handoff can override a sound earlier fact"
+        },
+        {
+          "id": "no-precedence",
+          "label": "It is included as one more handoff, with no marking",
+          "abandons": "The point of the stop: the earlier handoffs describe the uncorrected pattern, and an agent that weighs them equally may copy that pattern again"
+        },
+        {
+          "id": "over-plan-too",
+          "label": "It also takes precedence over the later phases' plan sections",
+          "abandons": "The decided rule that the approved plan is not rewritten mid-run: a handoff would amend an approved plan without an approval"
+        }
+      ],
+      "recommendation": "over-handoffs",
+      "rationale": "The earlier handoffs were written before the correction, and the correction handoff is the only text that knows about both, so it must win where they conflict. The guards back it, so the gate still checks a careless handoff. The plan stays authoritative because it was approved and the handoff was not.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "over-handoffs",
+        "abandoned": [
+          "no-precedence",
+          "over-plan-too"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: the review-corrections section takes precedence over earlier handoffs where they disagree; the plan still binds.",
+        "advocate": "A neutral prompt that does not tell the agent how to weigh its inputs.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-exit-code",
+      "question": "Which exit code does `phax run` (or `phax resume`) return when it stops at an interactive phase?",
+      "options": [
+        {
+          "id": "new-13",
+          "label": "A new code, 13: awaiting review at an interactive phase (resumable)",
+          "abandons": "Exit 0 for a stop that is not a failure: a shell with `set -e`, or a loop that treats any non-zero code as a failure, must learn 13"
+        },
+        {
+          "id": "zero",
+          "label": "Exit 0",
+          "abandons": "Telling a stop from a finished run by its exit code: a loop such as the steme conductor would read a run waiting for a person as done, and move on to publish or the next plan"
+        }
+      ],
+      "recommendation": "new-13",
+      "rationale": "Exits 8 and 9 already make resumable stops non-zero, so a loop's exit-code handling already has the right shape. A loop that mistakes a waiting run for a finished one makes the costlier error: it publishes work the plan said a person must review first.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "new-13",
+        "abandoned": [
+          "zero"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: a stop at an interactive phase exits 13, resumable.",
+        "advocate": "Exit 0 for a stop that is not a failure, with nothing for a set -e shell to learn.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-unchanged-commit",
+      "question": "What does an interactive phase reviewed without change leave on its branch?",
+      "options": [
+        {
+          "id": "empty-commit",
+          "label": "An empty commit with the plan's subject and the `Interactive-Phase` trailer",
+          "abandons": "A history without empty commits: a review that changed nothing still adds a commit to the PR"
+        },
+        {
+          "id": "no-commit",
+          "label": "No commit; the phase branch points at the previous phase's commit",
+          "abandons": "The review as evidence: `phax records explain`, `git log` and the PR show no trace that a person reviewed and confirmed the pattern"
+        }
+      ],
+      "recommendation": "empty-commit",
+      "rationale": "Confirming a pattern is a review outcome worth recording. The commit is where records, attribution and the PR already look, and one empty commit per declared stop is a small cost.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "empty-commit",
+        "abandoned": [
+          "no-commit"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: a review that changed nothing leaves an empty commit with the plan's subject and the Interactive-Phase trailer.",
+        "advocate": "A history with no empty commits.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-transcript-records",
+      "question": "Does the interactive transcript go into the run's records?",
+      "options": [
+        {
+          "id": "digest-only",
+          "label": "Records carry each recorded session's provider, model, id and the transcript's sha256; the content stays in the run folder",
+          "abandons": "The proof chain's reasoning: a records reader sees that a session took place and can match a kept copy against its digest, but cannot read the conversation behind the corrections"
+        },
+        {
+          "id": "full",
+          "label": "Records carry the transcript content, under the records transcript setting, like a phase's `output.jsonl`",
+          "abandons": "The person's privacy: their free-form conversation, including anything they pasted, is committed to `phax/records/v1` and travels wherever the records are pushed"
+        },
+        {
+          "id": "none",
+          "label": "Records carry nothing about the sessions",
+          "abandons": "Any link from the commit to the session that shaped it: `phax records explain` cannot say whether an agent was involved"
+        }
+      ],
+      "recommendation": "digest-only",
+      "rationale": "Agent transcripts are phax's own output, but an interactive transcript is mostly a person's words, so publishing it should be an explicit choice rather than a side effect of a records setting. The digest keeps the proof chain verifiable against the run folder's copy. The handoff already carries what was corrected and why.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "full",
+        "abandoned": [
+          "digest-only",
+          "none"
+        ],
+        "why": "Decided by the operator on 2026-10-20, against the recommendation (digest-only). The interactive transcript is recorded like a phase's output.jsonl: its content goes into the records when `records.transcript` is true, under the same destination checks, and its provider, model, id and sha256 are recorded either way. The reasoning behind the corrections stays readable from the records, and the existing setting, not a new one, decides whether transcripts are published.",
+        "advocate": "An interactive transcript is mostly a person's own words, so publishing it should be a choice made for that transcript, not a side effect of the records setting that already publishes agent transcripts.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": [
+          "§5.50",
+          "§7",
+          "§8"
+        ]
+      },
+      "history": []
+    },
+    {
+      "id": "q-count-interactive",
+      "question": "Are the person's interactive turns in a recorded session counted in the cost ledger from its transcript?",
+      "options": [
+        {
+          "id": "never",
+          "label": "Never; the ledger counts only the first turn and the closing turn, each by its own increment",
+          "abandons": "Seeing the review's real spend: a long continued session draws on the subscription window with no ledger trace, and window calibration samples that overlap it read high"
+        },
+        {
+          "id": "from-transcript",
+          "label": "Counted as `interactive-turns` entries computed from the copied transcript, and excluded from estimate calibration",
+          "abandons": "Ledger entries read only from phax's own versioned streams: costs are parsed from three provider-internal transcript formats that phax does not version, and are priced at whatever model the person switched to mid-session"
+        }
+      ],
+      "recommendation": "never",
+      "rationale": "The ledger records what phax ran. The person's continued session is the person's own use of their CLI, like any session outside phax. Parsing unversioned provider transcripts for cost would bring a fragile source into a ledger that `phax plans estimate` relies on. The window calibration already has to tolerate spend outside phax.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "never",
+        "abandoned": [
+          "from-transcript"
+        ],
+        "why": "Decided by the operator on 2026-10-20, as recommended: the cost ledger counts only the first turn and the closing turn.",
+        "advocate": "Seeing the review's real spend in the ledger, computed from the copied transcript.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-20T15:41:07Z",
+        "revised": []
       },
       "history": []
     }

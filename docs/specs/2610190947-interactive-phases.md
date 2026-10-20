@@ -291,7 +291,7 @@ WHEN phax writes `review-handoff.md` or builds the PR body of a run with an inte
 
 ### 5.50 Records
 
-WHEN records are configured and an interactive phase commits THE system SHALL record its mode, its outcome, its committer, its recorded sessions (provider, model and id) or that there were none, and each transcript's sha256 or that it is missing, and never the transcript's content. `phax records explain` on the phase's commit SHALL name them.
+WHEN records are configured and an interactive phase commits THE system SHALL record its mode, its outcome, its committer, its recorded sessions (provider, model and id) or that there were none, and each transcript's sha256 or that it is missing. WHERE `records.transcript` is true THE system SHALL also record each transcript's content, as it records a phase's `output.jsonl`, under the same destination checks. `phax records explain` on the phase's commit SHALL name them.
 
 ### 5.51 The posture is told honestly
 
@@ -795,7 +795,7 @@ after:
 - An agent fix loop at an interactive phase's gate. Only the person, or an agent the person runs, repairs a red gate there.
 - Changing today's kept-open final phase, `review_open`, `phax enter`, `phax review-code` or the end-of-run order.
 - Lifting `unverified` interactive resume for mistral-vibe. That waits until `vibe --resume <id>` is verified to continue a `vibe -p` session interactively.
-- Capturing, costing or recording the content of a session phax did not start, or the person's interactive turns.
+- Capturing, costing or recording the content of a session phax did not start, and costing the person's interactive turns. Their content is recorded only inside a recorded session's transcript, under `records.transcript`.
 - A timeout, reminder or notification while a run awaits review. The run waits indefinitely, like every resumable stop.
 - Changing `phax report`, which is a telemetry issue reporter and not a status view.
 - `phax review-plan` declaring interactive phases in a review plan.
@@ -957,7 +957,7 @@ Given a run that reaches `review_open` with phase-03 corrected by the git identi
 
 ### Records and the security record name the review honestly
 
-Given records configured, and two closed runs, one whose phase-03 recorded session X1 with its transcript and one whose first turn failed, when `phax records explain` is given each run's phase-03 commit, and each phase-03 security record is read, then each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. Neither records branch contains transcript content. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran. (refs §5.50, §5.51)
+Given records configured, and two closed runs, one whose phase-03 recorded session X1 with its transcript and one whose first turn failed, when `phax records explain` is given each run's phase-03 commit, and each phase-03 security record is read, then each names phase-03 as interactive, with its outcome and committer. The first names codex, the model, X1 and the transcript's sha256, and the second names no session. With `records.transcript` false, neither records branch contains transcript content. With it true, the first run's records carry X1's transcript content, as they carry a phase's `output.jsonl`. Both security records state that the person's work ran outside phax's enforcement, and they record the applied posture of every first turn and closing turn that ran. (refs §5.50, §5.51)
 
 ### Only phax's turns are costed, each by its own increment
 
@@ -981,56 +981,7 @@ Given a plan with no Mode line, run once with the binary before this change and 
 
 ## 9. Open questions
 
-### q-person-handoff — Does a handoff file the person wrote take precedence over the closing turn?
-
-- person-first — A valid `.phax-context/phase-handoff.md` is used as written and no closing turn runs — abandons: One writer for every interactive handoff: a person's file meets the same validation but gets no agent's help, and its guard list depends on the person's diligence
-- session-always — The closing turn always writes the handoff; a person's file is passed to it as input — abandons: A close with no agent at all: every changed close spends a provider turn, and the person's own words are rewritten by a model before the later phases read them
-
-Recommendation: person-first — The person is the authority on what they corrected. A person who wrote the handoff, or wants no agent involved, should not have their text paraphrased by one. Both paths meet the same validation, so the later phases always read the same shape, and the default close (no file) still costs the person nothing.
-
-### q-new-session — What does `phax enter-phase --new-session` do at an interactive phase?
-
-- new-first-turn — Runs a new headless first turn, records it as the current session, then continues it interactively — abandons: A quick fresh start: each new session spends one headless first turn before the person can type
-- print-fresh-start — Only runs the provider's fresh-start command; the closing turn keeps the earlier recorded session — abandons: Capture of the new session: phax never learns its id, so the closing turn resumes a session that missed the person's latest work, and the transcript of that work is lost
-
-Recommendation: new-first-turn — Starting headless is the only provider-agnostic way phax learns a session's id, and the id is what lets the closing turn see the person's work and lets phax capture the transcript. A short read-only turn is a small cost next to losing both. A person who wants an uncaptured session can still start one themselves.
-
-### q-precedence — Is the review-corrections section marked as taking precedence over earlier handoffs?
-
-- over-handoffs — It takes precedence over the earlier phases' handoffs where they disagree; the phase's own plan section still binds — abandons: A neutral prompt: phax tells the agent how to weigh its inputs, and a careless correction handoff can override a sound earlier fact
-- no-precedence — It is included as one more handoff, with no marking — abandons: The point of the stop: the earlier handoffs describe the uncorrected pattern, and an agent that weighs them equally may copy that pattern again
-- over-plan-too — It also takes precedence over the later phases' plan sections — abandons: The decided rule that the approved plan is not rewritten mid-run: a handoff would amend an approved plan without an approval
-
-Recommendation: over-handoffs — The earlier handoffs were written before the correction, and the correction handoff is the only text that knows about both, so it must win where they conflict. The guards back it, so the gate still checks a careless handoff. The plan stays authoritative because it was approved and the handoff was not.
-
-### q-exit-code — Which exit code does `phax run` (or `phax resume`) return when it stops at an interactive phase?
-
-- new-13 — A new code, 13: awaiting review at an interactive phase (resumable) — abandons: Exit 0 for a stop that is not a failure: a shell with `set -e`, or a loop that treats any non-zero code as a failure, must learn 13
-- zero — Exit 0 — abandons: Telling a stop from a finished run by its exit code: a loop such as the steme conductor would read a run waiting for a person as done, and move on to publish or the next plan
-
-Recommendation: new-13 — Exits 8 and 9 already make resumable stops non-zero, so a loop's exit-code handling already has the right shape. A loop that mistakes a waiting run for a finished one makes the costlier error: it publishes work the plan said a person must review first.
-
-### q-unchanged-commit — What does an interactive phase reviewed without change leave on its branch?
-
-- empty-commit — An empty commit with the plan's subject and the `Interactive-Phase` trailer — abandons: A history without empty commits: a review that changed nothing still adds a commit to the PR
-- no-commit — No commit; the phase branch points at the previous phase's commit — abandons: The review as evidence: `phax records explain`, `git log` and the PR show no trace that a person reviewed and confirmed the pattern
-
-Recommendation: empty-commit — Confirming a pattern is a review outcome worth recording. The commit is where records, attribution and the PR already look, and one empty commit per declared stop is a small cost.
-
-### q-transcript-records — Does the interactive transcript go into the run's records?
-
-- digest-only — Records carry each recorded session's provider, model, id and the transcript's sha256; the content stays in the run folder — abandons: The proof chain's reasoning: a records reader sees that a session took place and can match a kept copy against its digest, but cannot read the conversation behind the corrections
-- full — Records carry the transcript content, under the records transcript setting, like a phase's `output.jsonl` — abandons: The person's privacy: their free-form conversation, including anything they pasted, is committed to `phax/records/v1` and travels wherever the records are pushed
-- none — Records carry nothing about the sessions — abandons: Any link from the commit to the session that shaped it: `phax records explain` cannot say whether an agent was involved
-
-Recommendation: digest-only — Agent transcripts are phax's own output, but an interactive transcript is mostly a person's words, so publishing it should be an explicit choice rather than a side effect of a records setting. The digest keeps the proof chain verifiable against the run folder's copy. The handoff already carries what was corrected and why.
-
-### q-count-interactive — Are the person's interactive turns in a recorded session counted in the cost ledger from its transcript?
-
-- never — Never; the ledger counts only the first turn and the closing turn, each by its own increment — abandons: Seeing the review's real spend: a long continued session draws on the subscription window with no ledger trace, and window calibration samples that overlap it read high
-- from-transcript — Counted as `interactive-turns` entries computed from the copied transcript, and excluded from estimate calibration — abandons: Ledger entries read only from phax's own versioned streams: costs are parsed from three provider-internal transcript formats that phax does not version, and are priced at whatever model the person switched to mid-session
-
-Recommendation: never — The ledger records what phax ran. The person's continued session is the person's own use of their CLI, like any session outside phax. Parsing unversioned provider transcripts for cost would bring a fragile source into a ledger that `phax plans estimate` relies on. The window calibration already has to tolerate spend outside phax.
+None.
 
 ## 9b. Arbitrated questions
 
@@ -1053,6 +1004,78 @@ Recommendation: review-only — Work the planner can foresee belongs to an agent
 
 Decision: review-only — by operator (Rémy Loubradou), 2026-10-20
 Why: Decided by the operator (Rémy Loubradou) on 2026-10-20, as recommended, in the joint phase-shape session with assignment-bounds and oracle-phases. An interactive phase plans no file to create or edit, and its optional files may name what the person is expected to touch, so every changed file counts as a correction. The session's other decisions on what an interactive phase carries and where it may sit fit neither question exactly, so their body revisions are recorded under this verdict, the closest: J3, a bound governs an interactive phase through its optional files and its model and effort run the first and closing turns; J4, one `interactive` check called by `phax plans lint` and by the run preflight, which refuses with exit 11 rather than exit 2 (an error lint reports is the error the preflight refuses on; `phax validate --plan` stays a decode); J5, the rule against an interactive phase inside an oracle pair leaves this spec for oracle-phases, re-authored later with its own lift. Advocate: A person who already knows a guard is needed writes it during the same stop, and the planner need not split foreseeable work into an extra agent phase around the review. Principles: none. Reversibility: cheap. Revised: §1, §4, §5.6, §5.7, §5.8, §5.9, §6, §7, §8, §10.
+
+### q-person-handoff — Does a handoff file the person wrote take precedence over the closing turn?
+
+- person-first — A valid `.phax-context/phase-handoff.md` is used as written and no closing turn runs — abandons: One writer for every interactive handoff: a person's file meets the same validation but gets no agent's help, and its guard list depends on the person's diligence
+- session-always — The closing turn always writes the handoff; a person's file is passed to it as input — abandons: A close with no agent at all: every changed close spends a provider turn, and the person's own words are rewritten by a model before the later phases read them
+
+Recommendation: person-first — The person is the authority on what they corrected. A person who wrote the handoff, or wants no agent involved, should not have their text paraphrased by one. Both paths meet the same validation, so the later phases always read the same shape, and the default close (no file) still costs the person nothing.
+
+Decision: person-first — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: a valid handoff the person wrote is used as written, and no closing turn runs. Advocate: One writer for every handoff: the closing turn always writes it, with the person's file as input. Principles: none. Reversibility: cheap. Revised: none.
+
+### q-new-session — What does `phax enter-phase --new-session` do at an interactive phase?
+
+- new-first-turn — Runs a new headless first turn, records it as the current session, then continues it interactively — abandons: A quick fresh start: each new session spends one headless first turn before the person can type
+- print-fresh-start — Only runs the provider's fresh-start command; the closing turn keeps the earlier recorded session — abandons: Capture of the new session: phax never learns its id, so the closing turn resumes a session that missed the person's latest work, and the transcript of that work is lost
+
+Recommendation: new-first-turn — Starting headless is the only provider-agnostic way phax learns a session's id, and the id is what lets the closing turn see the person's work and lets phax capture the transcript. A short read-only turn is a small cost next to losing both. A person who wants an uncaptured session can still start one themselves.
+
+Decision: new-first-turn — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: --new-session runs a new headless first turn, records it as the current session, then continues it. Advocate: A quick fresh start that spends no headless turn before the person can type. Principles: none. Reversibility: cheap. Revised: none.
+
+### q-precedence — Is the review-corrections section marked as taking precedence over earlier handoffs?
+
+- over-handoffs — It takes precedence over the earlier phases' handoffs where they disagree; the phase's own plan section still binds — abandons: A neutral prompt: phax tells the agent how to weigh its inputs, and a careless correction handoff can override a sound earlier fact
+- no-precedence — It is included as one more handoff, with no marking — abandons: The point of the stop: the earlier handoffs describe the uncorrected pattern, and an agent that weighs them equally may copy that pattern again
+- over-plan-too — It also takes precedence over the later phases' plan sections — abandons: The decided rule that the approved plan is not rewritten mid-run: a handoff would amend an approved plan without an approval
+
+Recommendation: over-handoffs — The earlier handoffs were written before the correction, and the correction handoff is the only text that knows about both, so it must win where they conflict. The guards back it, so the gate still checks a careless handoff. The plan stays authoritative because it was approved and the handoff was not.
+
+Decision: over-handoffs — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: the review-corrections section takes precedence over earlier handoffs where they disagree; the plan still binds. Advocate: A neutral prompt that does not tell the agent how to weigh its inputs. Principles: none. Reversibility: cheap. Revised: none.
+
+### q-exit-code — Which exit code does `phax run` (or `phax resume`) return when it stops at an interactive phase?
+
+- new-13 — A new code, 13: awaiting review at an interactive phase (resumable) — abandons: Exit 0 for a stop that is not a failure: a shell with `set -e`, or a loop that treats any non-zero code as a failure, must learn 13
+- zero — Exit 0 — abandons: Telling a stop from a finished run by its exit code: a loop such as the steme conductor would read a run waiting for a person as done, and move on to publish or the next plan
+
+Recommendation: new-13 — Exits 8 and 9 already make resumable stops non-zero, so a loop's exit-code handling already has the right shape. A loop that mistakes a waiting run for a finished one makes the costlier error: it publishes work the plan said a person must review first.
+
+Decision: new-13 — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: a stop at an interactive phase exits 13, resumable. Advocate: Exit 0 for a stop that is not a failure, with nothing for a set -e shell to learn. Principles: none. Reversibility: costly. Revised: none.
+
+### q-unchanged-commit — What does an interactive phase reviewed without change leave on its branch?
+
+- empty-commit — An empty commit with the plan's subject and the `Interactive-Phase` trailer — abandons: A history without empty commits: a review that changed nothing still adds a commit to the PR
+- no-commit — No commit; the phase branch points at the previous phase's commit — abandons: The review as evidence: `phax records explain`, `git log` and the PR show no trace that a person reviewed and confirmed the pattern
+
+Recommendation: empty-commit — Confirming a pattern is a review outcome worth recording. The commit is where records, attribution and the PR already look, and one empty commit per declared stop is a small cost.
+
+Decision: empty-commit — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: a review that changed nothing leaves an empty commit with the plan's subject and the Interactive-Phase trailer. Advocate: A history with no empty commits. Principles: none. Reversibility: cheap. Revised: none.
+
+### q-transcript-records — Does the interactive transcript go into the run's records?
+
+- digest-only — Records carry each recorded session's provider, model, id and the transcript's sha256; the content stays in the run folder — abandons: The proof chain's reasoning: a records reader sees that a session took place and can match a kept copy against its digest, but cannot read the conversation behind the corrections
+- full — Records carry the transcript content, under the records transcript setting, like a phase's `output.jsonl` — abandons: The person's privacy: their free-form conversation, including anything they pasted, is committed to `phax/records/v1` and travels wherever the records are pushed
+- none — Records carry nothing about the sessions — abandons: Any link from the commit to the session that shaped it: `phax records explain` cannot say whether an agent was involved
+
+Recommendation: digest-only — Agent transcripts are phax's own output, but an interactive transcript is mostly a person's words, so publishing it should be an explicit choice rather than a side effect of a records setting. The digest keeps the proof chain verifiable against the run folder's copy. The handoff already carries what was corrected and why.
+
+Decision: full — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, against the recommendation (digest-only). The interactive transcript is recorded like a phase's output.jsonl: its content goes into the records when `records.transcript` is true, under the same destination checks, and its provider, model, id and sha256 are recorded either way. The reasoning behind the corrections stays readable from the records, and the existing setting, not a new one, decides whether transcripts are published. Advocate: An interactive transcript is mostly a person's own words, so publishing it should be a choice made for that transcript, not a side effect of the records setting that already publishes agent transcripts. Principles: none. Reversibility: cheap. Revised: §5.50, §7, §8.
+
+### q-count-interactive — Are the person's interactive turns in a recorded session counted in the cost ledger from its transcript?
+
+- never — Never; the ledger counts only the first turn and the closing turn, each by its own increment — abandons: Seeing the review's real spend: a long continued session draws on the subscription window with no ledger trace, and window calibration samples that overlap it read high
+- from-transcript — Counted as `interactive-turns` entries computed from the copied transcript, and excluded from estimate calibration — abandons: Ledger entries read only from phax's own versioned streams: costs are parsed from three provider-internal transcript formats that phax does not version, and are priced at whatever model the person switched to mid-session
+
+Recommendation: never — The ledger records what phax ran. The person's continued session is the person's own use of their CLI, like any session outside phax. Parsing unversioned provider transcripts for cost would bring a fragile source into a ledger that `phax plans estimate` relies on. The window calibration already has to tolerate spend outside phax.
+
+Decision: never — by operator (Rémy Loubradou), 2026-10-20
+Why: Decided by the operator on 2026-10-20, as recommended: the cost ledger counts only the first turn and the closing turn. Advocate: Seeing the review's real spend in the ledger, computed from the copied transcript. Principles: none. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -1110,3 +1133,10 @@ Example: In plan.md, phase-03 carries `**Mode:** interactive` and plans no file,
 
 - 2026-10-20 q-mode-line decided interactive-only — operator (Rémy Loubradou) — revised 8 sections
 - 2026-10-20 q-planned-work decided review-only — operator (Rémy Loubradou) — revised 10 sections
+- 2026-10-20 q-person-handoff decided person-first — operator (Rémy Loubradou)
+- 2026-10-20 q-new-session decided new-first-turn — operator (Rémy Loubradou)
+- 2026-10-20 q-precedence decided over-handoffs — operator (Rémy Loubradou)
+- 2026-10-20 q-exit-code decided new-13 — operator (Rémy Loubradou)
+- 2026-10-20 q-unchanged-commit decided empty-commit — operator (Rémy Loubradou)
+- 2026-10-20 q-transcript-records decided full — operator (Rémy Loubradou) — revised 3 sections
+- 2026-10-20 q-count-interactive decided never — operator (Rémy Loubradou)
