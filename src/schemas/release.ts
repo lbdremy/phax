@@ -29,4 +29,6 @@ export const CURRENT_STAMPS = {
   "hand-decision-answer": "0.25.0",
   "decision-record-manifest": "0.25.0",
   "cost-ledger": "0.25.0",
+  "architecture-request": "0.26.0",
+  "architecture-report": "0.26.0",
 } as const;

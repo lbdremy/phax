@@ -1,4 +1,10 @@
 import {
+  architectureReportFormat,
+  architectureRequestFormat,
+  type ArchitectureReportShapes,
+  type ArchitectureRequestShapes,
+} from "./formats/architecture.js";
+import {
   briefRecordFormat,
   briefRequestFormat,
   type BriefRecordShapes,
@@ -269,6 +275,26 @@ export {
   type LatestGateReport,
 } from "./formats/reports.js";
 
+// The architecture request phax writes on an architecture provider's stdin and
+// the architecture report the provider prints. Each schema and type is phax's
+// own file schema and type, under the name the spec gives it.
+export {
+  ArchitectureRequestFileSchema as ArchitectureRequestSchema,
+  ArchitectureReportFileSchema as ArchitectureReportSchema,
+  type ArchitectureRequestFile as ArchitectureRequest,
+  type ArchitectureReportFile as ArchitectureReport,
+} from "../../../src/schemas/architecture.js";
+export {
+  parseArchitectureReport,
+  parseArchitectureRequest,
+  toLatestArchitectureReport,
+  toLatestArchitectureRequest,
+  type ArchitectureReportShape,
+  type ArchitectureRequestShape,
+  type LatestArchitectureReport,
+  type LatestArchitectureRequest,
+} from "./formats/architecture.js";
+
 // The answer a decide session returns for a hand-authored spec or plan. Its
 // schema and type are phax's own file schema and type.
 export {
@@ -408,6 +434,8 @@ type DocumentShapes = EveryFormat<{
   "brief-record": BriefRecordShapes;
   "gate-report": GateReportShapes;
   "brief-report": BriefReportShapes;
+  "architecture-request": ArchitectureRequestShapes;
+  "architecture-report": ArchitectureReportShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
   "cost-ledger": CostLedgerShapes;
 }>;
@@ -446,6 +474,8 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "brief-record": briefRecordFormat,
     "gate-report": gateReportFormat,
     "brief-report": briefReportFormat,
+    "architecture-request": architectureRequestFormat,
+    "architecture-report": architectureReportFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
     "cost-ledger": costLedgerFormat,
   });

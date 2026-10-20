@@ -2,6 +2,8 @@ import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
+  parseArchitectureReport,
+  parseArchitectureRequest,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -36,6 +38,10 @@ import {
   decodeRecordManifestFile,
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
+import {
+  decodeArchitectureReportFile,
+  decodeArchitectureRequestFile,
+} from "../../../src/schemas/architecture.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -276,6 +282,22 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeCostLedgerFile,
     wrongType: ["entries", {}],
     required: "entries",
+    excess: "error",
+  },
+  "architecture-request": {
+    id: "architecture-request",
+    parse: parseArchitectureRequest,
+    phax: decodeArchitectureRequestFile,
+    wrongType: ["files", {}],
+    required: "files",
+    excess: "error",
+  },
+  "architecture-report": {
+    id: "architecture-report",
+    parse: parseArchitectureReport,
+    phax: decodeArchitectureReportFile,
+    wrongType: ["body", {}],
+    required: "body",
     excess: "error",
   },
 };

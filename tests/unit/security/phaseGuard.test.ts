@@ -41,7 +41,7 @@ describe("phase guard — classification", () => {
   it("refuses the commands that act on phax state or an artifact's lifecycle", () => {
     for (const path of ["run", "resume", "archive", "unlock", "artifact approve", "records sync"]) {
       expect(phaseGuardRefusal(path), path).toBe(
-        `✗ phax ${path} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)`,
+        `✗ phax ${path} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)`,
       );
     }
   });
@@ -49,21 +49,21 @@ describe("phase guard — classification", () => {
   it("refuses artifact migrate-documents, which rewrites and commits live sidecars", () => {
     expect(PHASE_GUARD_CLASSIFICATION["artifact migrate-documents"]).toBe("refused");
     expect(phaseGuardRefusal("artifact migrate-documents")).toBe(
-      "✗ phax artifact migrate-documents is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)",
+      "✗ phax artifact migrate-documents is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)",
     );
   });
 
   it("refuses artifact decide, which spawns a session and commits the artifact (§5.9)", () => {
     expect(PHASE_GUARD_CLASSIFICATION["artifact decide"]).toBe("refused");
     expect(phaseGuardRefusal("artifact decide")).toBe(
-      "✗ phax artifact decide is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)",
+      "✗ phax artifact decide is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)",
     );
   });
 
   it("refuses plans estimate, which spends a model request and reads machine-wide history", () => {
     expect(PHASE_GUARD_CLASSIFICATION["plans estimate"]).toBe("refused");
     expect(phaseGuardRefusal("plans estimate", { probe: false })).toBe(
-      "✗ phax plans estimate is not available inside a phase worktree; run it from the main checkout (inside, only phax brief and read-only commands run)",
+      "✗ phax plans estimate is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)",
     );
   });
 

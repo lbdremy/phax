@@ -33,7 +33,8 @@
 //
 // It also reads the reports providers print: the `gate-report` a report step
 // prints (`readGateReport`) and the `brief-report` a brief provider prints
-// (`readBriefReport`). Each reads only stamps from its format's current stamp
+// (`readBriefReport`) and the `architecture-report` an architecture provider
+// prints (`readArchitectureReport`). Each reads only stamps from its format's current stamp
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
 import { Array as Arr, Either, type ParseResult } from "effect";
@@ -54,6 +55,7 @@ import {
   type BriefRecord,
   type BriefRequest,
 } from "./brief.js";
+import { decodeArchitectureReportFile, type ArchitectureReportFile } from "./architecture.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
@@ -740,11 +742,11 @@ export interface AnswerBounds {
   readonly running: string;
 }
 
-/** The two report formats, each read only under its own `$schema`. */
-export type ReportFormatId = "gate-report" | "brief-report";
+/** The three report formats, each read only under its own `$schema`. */
+export type ReportFormatId = "gate-report" | "brief-report" | "architecture-report";
 
 /**
- * Why a gate report or brief report was not read. `reads` is the `$schema`
+ * Why a gate, brief or architecture report was not read. `reads` is the `$schema`
  * URL the reader reads: the format at its current stamp.
  */
 export type ReportError =
@@ -753,8 +755,8 @@ export type ReportError =
   | { readonly kind: "older"; readonly reads: string; readonly message: string };
 
 /**
- * Reads the parsed document a report step or a brief provider printed, as
- * `format`. Never throws. In order:
+ * Reads the parsed document a report step, a brief provider or an architecture
+ * provider printed, as `format`. Never throws. In order:
  * 1. a non-object, or a document without its own `$schema` key, is
  *    malformed: there is no unversioned reading;
  * 2. a `$schema` that names any other format id, known or not, is malformed,
@@ -825,6 +827,17 @@ export function readBriefReport(
   bounds: AnswerBounds = { current: CURRENT_STAMPS["brief-report"], running: PHAX_RELEASE },
 ): Either.Either<BriefReportFile, ReportError> {
   return readReport("brief-report", decodeBriefReportFile, input, bounds);
+}
+
+/**
+ * Reads the parsed document an architecture provider printed as an
+ * `architecture-report`. See `readReport` for the checks, in order.
+ */
+export function readArchitectureReport(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["architecture-report"], running: PHAX_RELEASE },
+): Either.Either<ArchitectureReportFile, ReportError> {
+  return readReport("architecture-report", decodeArchitectureReportFile, input, bounds);
 }
 
 /**

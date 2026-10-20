@@ -1,5 +1,15 @@
 import type {
   AnyDocument,
+  ArchitectureReport,
+  ArchitectureReportShape,
+  ArchitectureRequest,
+  ArchitectureRequestShape,
+  LatestArchitectureReport,
+  LatestArchitectureRequest,
+  parseArchitectureReport,
+  parseArchitectureRequest,
+  toLatestArchitectureReport,
+  toLatestArchitectureRequest,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
   AuthoringRecordManifestV0_17_0,
@@ -170,6 +180,10 @@ import type {
   ComplianceReview as PhaxComplianceReview,
   ComplianceReviewFile as PhaxComplianceReviewFile,
 } from "../../src/schemas/complianceReview.js";
+import type {
+  ArchitectureReportFile as PhaxArchitectureReportFile,
+  ArchitectureRequestFile as PhaxArchitectureRequestFile,
+} from "../../src/schemas/architecture.js";
 import type {
   CostLedger as PhaxCostLedger,
   CostLedgerFile as PhaxCostLedgerFile,
@@ -432,6 +446,8 @@ const formats: Equals<
   | "hand-decision-answer"
   | "decision-record-manifest"
   | "cost-ledger"
+  | "architecture-request"
+  | "architecture-report"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -515,7 +531,9 @@ const shapeIds: Equals<
   | BriefReportShape
   | HandDecisionAnswerShape
   | DecisionRecordManifestShape
-  | CostLedgerShape,
+  | CostLedgerShape
+  | ArchitectureRequestShape
+  | ArchitectureReportShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -902,6 +920,24 @@ if (document.ok && document.format === "cost-ledger") {
   void exact;
   void ledgerShape;
 }
+// The architecture request and report are born with $schema: phax's own file
+// types, one current shape each, and in-memory values without $schema
+const architectureTypes: [
+  Equals<ArchitectureRequest, PhaxArchitectureRequestFile>,
+  Equals<ArchitectureReport, PhaxArchitectureReportFile>,
+  Equals<ArchitectureRequestShape, Current<"architecture-request">>,
+  Equals<ArchitectureReportShape, Current<"architecture-report">>,
+  Equals<Value<typeof parseArchitectureRequest>, PhaxArchitectureRequestFile>,
+  Equals<Value<typeof parseArchitectureReport>, PhaxArchitectureReportFile>,
+  Equals<LatestArchitectureRequest, Omit<PhaxArchitectureRequestFile, "$schema">>,
+  Equals<LatestArchitectureReport, Omit<PhaxArchitectureReportFile, "$schema">>,
+  Equals<Parameters<typeof toLatestArchitectureRequest>, [value: PhaxArchitectureRequestFile]>,
+  Equals<Parameters<typeof toLatestArchitectureReport>, [value: PhaxArchitectureReportFile]>,
+] = [true, true, true, true, true, true, true, true, true, true];
+void architectureTypes;
+declare const latestArchitectureReport: LatestArchitectureReport;
+// @ts-expect-error: the in-memory architecture report carries no $schema
+void latestArchitectureReport.$schema;
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
   const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;

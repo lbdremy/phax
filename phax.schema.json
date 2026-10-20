@@ -221,6 +221,20 @@
       },
       "additionalProperties": false
     },
+    "architecture": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {\"$schema\": \"https://docs.phax.run/schemas/architecture-request/<release>.json\", \"files\"} to its stdin and reads an architecture report {\"$schema\": \"https://docs.phax.run/schemas/architecture-report/<release>.json\", \"body\"} on stdout; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.",
+          "title": "nonEmptyString",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`."
+    },
     "review": {
       "type": "object",
       "required": [],

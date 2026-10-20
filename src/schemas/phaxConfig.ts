@@ -40,6 +40,15 @@ export const PlanAuditorConfigSchema = Schema.Struct({
 
 export type PlanAuditorConfig = Schema.Schema.Type<typeof PlanAuditorConfigSchema>;
 
+export const ArchitectureConfigSchema = Schema.Struct({
+  command: Schema.NonEmptyString.annotations({
+    description:
+      'The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {"$schema": "https://docs.phax.run/schemas/architecture-request/<release>.json", "files"} to its stdin and reads an architecture report {"$schema": "https://docs.phax.run/schemas/architecture-report/<release>.json", "body"} on stdout; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.',
+  }),
+});
+
+export type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
+
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
   readonly remote: string;
@@ -235,6 +244,10 @@ export const PhaxConfigSchema = Schema.Struct({
       "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
   }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
+  architecture: Schema.optional(ArchitectureConfigSchema).annotations({
+    description:
+      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`.",
+  }),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
@@ -283,6 +296,7 @@ export interface ResolvedConfig {
   readonly publish: ResolvedPublishConfig;
   readonly brief?: BriefConfig;
   readonly planAuditor?: PlanAuditorConfig;
+  readonly architecture?: ArchitectureConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
   readonly authoring: ResolvedAuthoringConfig;
@@ -326,6 +340,10 @@ export const PhaxUserOverlaySchema = Schema.Struct({
       "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
   }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
+  architecture: Schema.optional(ArchitectureConfigSchema).annotations({
+    description:
+      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`.",
+  }),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),

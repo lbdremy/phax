@@ -68,6 +68,8 @@ const packageRoot = resolve(
 describe("schemas package entry", () => {
   it("exports exactly parseDocument, each format's schema, pre-schema schema, parse and upgrade, and the unknown marker at runtime", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
+      "ArchitectureReportSchema",
+      "ArchitectureRequestSchema",
       "AuthoringRecordManifestPreSchemaSchema",
       "AuthoringRecordManifestSchema",
       "AuthoringRecordManifestV0_17_0Schema",
@@ -117,6 +119,8 @@ describe("schemas package entry", () => {
       "SpecDocumentV0_17_0Schema",
       "UNKNOWN",
       "isUnknown",
+      "parseArchitectureReport",
+      "parseArchitectureRequest",
       "parseAuthoringRecordManifest",
       "parseBriefRecord",
       "parseBriefReport",
@@ -142,6 +146,8 @@ describe("schemas package entry", () => {
       "parseSpecApprovalRecord",
       "parseSpecApprovals",
       "parseSpecDocument",
+      "toLatestArchitectureReport",
+      "toLatestArchitectureRequest",
       "toLatestAuthoringRecordManifest",
       "toLatestBriefRecord",
       "toLatestBriefReport",

@@ -18,6 +18,8 @@ import {
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
   UNKNOWN,
+  parseArchitectureReport,
+  parseArchitectureRequest,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -41,6 +43,8 @@ import {
   parseSpecApprovalRecord,
   parseSpecApprovals,
   parseSpecDocument,
+  toLatestArchitectureReport,
+  toLatestArchitectureRequest,
   toLatestAuthoringRecordManifest,
   toLatestBriefRecord,
   toLatestBriefReport,
@@ -222,6 +226,8 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "hand-decision-answer": latest(parseHandDecisionAnswer, toLatestHandDecisionAnswer),
   "decision-record-manifest": latest(parseDecisionRecordManifest, toLatestDecisionRecordManifest),
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
+  "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
+  "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -254,6 +260,11 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "hand-decision-answer": undefined,
   "decision-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,
+  // phax writes the architecture request and never reads it back; it reads the
+  // architecture report only as a provider's answer, through
+  // readArchitectureReport, which names no file.
+  "architecture-request": undefined,
+  "architecture-report": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

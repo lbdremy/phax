@@ -34,6 +34,7 @@ import { registerArtifactCommand } from "./commands/artifact.js";
 import { registerRecordsCommand } from "./commands/records.js";
 import { registerCostCommand } from "./commands/cost.js";
 import { runInit } from "./commands/init.js";
+import { runArchitecture } from "./commands/architecture.js";
 import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
@@ -332,6 +333,17 @@ export function buildProgram(): Command {
     .argument("[path...]", "Paths to brief, existing or not, relative to the current directory")
     .action(async (paths: string[]) => {
       const exitCode = await runBrief(paths, consoleOutput);
+      process.exit(exitCode);
+    });
+
+  program
+    .command("architecture")
+    .description(
+      "Ask the configured architecture provider for the repository's architecture; with paths, for the parts that hold them",
+    )
+    .argument("[path...]", "Paths to ask about, existing or not, relative to the current directory")
+    .action(async (paths: string[]) => {
+      const exitCode = await runArchitecture(paths, consoleOutput);
       process.exit(exitCode);
     });
 
