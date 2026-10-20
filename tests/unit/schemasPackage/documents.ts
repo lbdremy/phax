@@ -739,7 +739,17 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "architecture-report": encoded(
     ArchitectureReportFileSchema,
-    withSchemaUrl("architecture-report", { body: "# Architecture — example" }),
+    withSchemaUrl("architecture-report", {
+      body: "# Architecture — example",
+      parts: [
+        {
+          id: "core-decide",
+          name: "core · decide",
+          description: "The pure decision logic.",
+          globs: ["src/core/decide/**"],
+        },
+      ],
+    }),
   ),
 };
 

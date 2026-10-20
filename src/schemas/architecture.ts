@@ -2,7 +2,8 @@
 // architecture provider's stdin and the report the provider prints. Both are
 // born with `$schema`, every key required and any other key refused. phax
 // writes the request and never reads it back; it reads the report by its own
-// `$schema` (readArchitectureReport in persisted.ts) and prints its body as is.
+// `$schema` (readArchitectureReport in persisted.ts) and renders its body as
+// is, then its parts.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 
@@ -32,18 +33,87 @@ export const decodeArchitectureRequestFile = Schema.decodeUnknownEither(
 
 // ── architecture report
 
+// The first rule a glob breaks, as a message, or undefined for a glob in phax's
+// dialect. Syntax only: matching ships with the bounds that use it.
+function globProblem(glob: string): string | undefined {
+  const quoted = JSON.stringify(glob);
+  if (glob.startsWith("/")) return `${quoted} starts with /`;
+  if (glob.includes("\\")) return `${quoted} contains a backslash`;
+  if (glob.includes("{") || glob.includes("}")) return `${quoted} uses braces`;
+  for (const segment of glob.split("/")) {
+    if (segment === "") return `${quoted} has an empty segment`;
+    if (segment === "." || segment === "..") return `${quoted} has a ${segment} segment`;
+    if (segment.includes("**") && segment !== "**") return `${quoted} uses ** inside a segment`;
+  }
+  return undefined;
+}
+
+const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
+  Schema.filter((glob) => globProblem(glob), {
+    jsonSchema: {
+      description:
+        "Checked by phax's parser: no leading /, backslash, brace, empty, . or .. segment, and ** only as a whole segment.",
+    },
+  }),
+);
+
+function firstRepeatedPartId(parts: ReadonlyArray<{ readonly id: string }>): string | undefined {
+  const seen = new Set<string>();
+  for (const { id } of parts) {
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return undefined;
+}
+
+/** One part of the code an architecture report describes. */
+const ArchitecturePartSchema = Schema.Struct({
+  id: Schema.NonEmptyString.pipe(Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/)).annotations({
+    description:
+      "The part's stable id, a kebab-case slug unique within the report. A phax.json bound names a part by it.",
+  }),
+  name: Schema.NonEmptyString.annotations({
+    description: "The part's name, shown to the agent and never interpreted by phax.",
+  }),
+  description: Schema.NonEmptyString.annotations({
+    description: "One sentence on what the part holds.",
+  }),
+  globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotations({
+    description:
+      "The files the part holds, as globs: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory.",
+  }),
+});
+
 /**
  * An `architecture-report` document: what an architecture provider prints on
- * stdout. Exactly these two keys; any other key is refused.
+ * stdout. Exactly these three keys; any other key is refused.
  */
 export const ArchitectureReportFileSchema = Schema.Struct({
   $schema: schemaUrlField("architecture-report"),
   body: Schema.NonEmptyString.annotations({
-    description: "Markdown for the agent to read. phax prints it as is and never parses it.",
+    description:
+      "Markdown for the agent to read. phax prints it as is, before the parts, and never parses it.",
   }),
+  parts: Schema.Array(ArchitecturePartSchema).pipe(
+    Schema.filter(
+      (parts) => {
+        const repeated = firstRepeatedPartId(parts);
+        return repeated === undefined
+          ? undefined
+          : `part id ${JSON.stringify(repeated)} is used twice`;
+      },
+      { jsonSchema: { description: "Checked by phax's parser: no two parts share an id." } },
+    ),
+    Schema.annotations({
+      description: "The parts of the code the report describes, possibly empty.",
+    }),
+  ),
 });
 
 export type ArchitectureReportFile = Schema.Schema.Type<typeof ArchitectureReportFileSchema>;
+
+/** An architecture report, without `$schema`. */
+export type ArchitectureReport = Omit<ArchitectureReportFile, "$schema">;
 
 export const decodeArchitectureReportFile = Schema.decodeUnknownEither(
   ArchitectureReportFileSchema,

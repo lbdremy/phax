@@ -1,10 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "phax architecture report",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
   "type": "object",
   "required": [
     "$schema",
-    "body"
+    "body",
+    "parts"
   ],
   "properties": {
     "$schema": {
@@ -14,9 +23,51 @@
     },
     "body": {
       "type": "string",
-      "description": "Markdown for the agent to read. phax prints it as is and never parses it.",
+      "description": "Markdown for the agent to read. phax prints it as is, before the parts, and never parses it.",
       "title": "nonEmptyString",
       "minLength": 1
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "globs"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString",
+            "description": "The part's stable id, a kebab-case slug unique within the report. A phax.json bound names a part by it.",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "description": "The part's name, shown to the agent and never interpreted by phax.",
+            "title": "nonEmptyString",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "One sentence on what the part holds.",
+            "title": "nonEmptyString",
+            "minLength": 1
+          },
+          "globs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/NonEmptyString",
+              "description": "Checked by phax's parser: no leading /, backslash, brace, empty, . or .. segment, and ** only as a whole segment."
+            },
+            "description": "The files the part holds, as globs: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Checked by phax's parser: no two parts share an id."
     }
   },
   "additionalProperties": false

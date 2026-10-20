@@ -57,14 +57,66 @@ echo '{"$schema":"https://docs.phax.run/schemas/architecture-request/0.26.0.json
 
 ## The report
 
-The provider answers JSON on stdout. The minimal report is a `$schema` and a Markdown `body`; every other key is refused:
+The provider answers JSON on stdout: a `$schema`, a Markdown `body` and the `parts` of the code the report describes. All three are required and every other key is refused:
 
 ```json
 {
   "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
-  "body": "# Architecture — acme-billing\n\nThree layers, dependencies pointing inward."
+  "body": "# Architecture — acme-billing\n\nThree layers, dependencies pointing inward.",
+  "parts": [
+    {
+      "id": "core-decide",
+      "name": "core · decide",
+      "description": "The pure decision logic: no I/O.",
+      "globs": ["src/core/decide/**"]
+    },
+    {
+      "id": "http-requests",
+      "name": "http · requests",
+      "description": "Request handlers and their schemas.",
+      "globs": ["src/http/**", "src/*/schemas/**"]
+    },
+    {
+      "id": "docs",
+      "name": "docs",
+      "description": "The documentation.",
+      "globs": ["docs/**", "*.md"]
+    }
+  ]
 }
 ```
+
+`parts` may be empty. Each part carries exactly `id`, `name`, `description` and `globs`; no model or effort appears anywhere in the report.
+
+- `id` is a kebab-case slug (`core-decide`), unique within the report. It is the stable name a bound in `phax.json` will give the part.
+- `name` is shown to the agent and never interpreted by phax. `description` is one sentence on what the part holds.
+- `globs` is a non-empty list. Globs are working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, and `?` matches one character other than `/`. A leading dot is not special, so `docs/**` covers `docs/.vitepress/config.ts`. Every other character is literal, `[`, `]` and `!` included. A glob covers files: write `src/core/**` to cover a directory, and `docs/**` and `*.md` as two globs, since braces are refused. A glob that is empty, starts with `/`, contains a backslash, has an empty, `.` or `..` segment (a trailing `/` included) or uses `**` inside a segment (`src/**.ts`) is refused.
+
+`phax architecture` prints the body as is, then each part in the report's order:
+
+```markdown
+# Architecture — acme-billing
+
+Three layers, dependencies pointing inward.
+
+## Parts
+
+### core · decide (`core-decide`)
+The pure decision logic: no I/O.
+- `src/core/decide/**`
+
+### http · requests (`http-requests`)
+Request handlers and their schemas.
+- `src/http/**`
+- `src/*/schemas/**`
+
+### docs (`docs`)
+The documentation.
+- `docs/**`
+- `*.md`
+```
+
+With paths, the provider answers for those paths and phax renders whatever parts it returns.
 
 `$schema` names the `architecture-report` shape the report is written in: the release that last changed the format. A report without `$schema`, naming another format, stamped newer than the running phax or in an older shape is refused by name, and the refusal names the URL phax reads. Restamp the report whenever a release changes the shape.
 
@@ -87,6 +139,7 @@ A provider that exits non-zero, runs past the limit, prints something that is no
 ```text
 ✗ architecture provider exited with code 3: acme-guard: no ledger found
 ✗ architecture provider timed out after 60000ms: acme-guard architecture
+✗ architecture provider: parts: is missing; this phax reads https://docs.phax.run/schemas/architecture-report/0.26.0.json
 ✗ phax architecture: ../elsewhere is outside the working tree
 ```
 

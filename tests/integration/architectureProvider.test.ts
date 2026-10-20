@@ -27,10 +27,20 @@ afterEach(() => {
   rmSync(base, { recursive: true, force: true });
 });
 
-const reportJson = (body: string) =>
+const PARTS = [
+  {
+    id: "core-decide",
+    name: "core · decide",
+    description: "The pure decision logic.",
+    globs: ["src/core/decide/**"],
+  },
+];
+
+const reportJson = (body: string, extra: Record<string, unknown> = { parts: PARTS }) =>
   JSON.stringify({
     $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
     body,
+    ...extra,
   });
 
 /** A provider that saves its stdin, writes `stderr`, prints `stdout` and exits `code`. */
@@ -72,7 +82,10 @@ const sent = () => JSON.parse(readFileSync(capture, "utf8")) as Record<string, u
 describe("pullArchitecture", () => {
   it("with no path, sends files null and answers the body", async () => {
     const result = await pull(provider(reportJson("# Architecture — acme-billing")), []);
-    expect(result).toEqual({ kind: "answered", body: "# Architecture — acme-billing" });
+    expect(result).toEqual({
+      kind: "answered",
+      report: { body: "# Architecture — acme-billing", parts: PARTS },
+    });
     const request = sent();
     expect(request["$schema"]).toMatch(
       /^https:\/\/docs\.phax\.run\/schemas\/architecture-request\/\d+\.\d+\.\d+\.json$/,
@@ -114,6 +127,19 @@ describe("pullArchitecture", () => {
     if (result.kind !== "failed") return;
     expect(result.reason).toContain("architecture provider");
     expect(result.reason).toMatch(/schemas\/architecture-report\/\d+\.\d+\.\d+\.json/);
+    expect(result.reason).not.toContain("\n");
+  });
+
+  it.each([
+    ["a body-only report", {}, "parts"],
+    ["a repeated part id", { parts: [PARTS[0], PARTS[0]] }, "core-decide"],
+    ["a part carrying model", { parts: [{ ...PARTS[0], model: "claude-sonnet-5-5" }] }, "model"],
+  ])("fails %s as one line naming the reason", async (_name, extra, reason) => {
+    const result = await pull(provider(reportJson("x", extra)), []);
+    expect(result.kind).toBe("failed");
+    if (result.kind !== "failed") return;
+    expect(result.reason).toMatch(/^architecture provider/);
+    expect(result.reason).toContain(reason);
     expect(result.reason).not.toContain("\n");
   });
 
