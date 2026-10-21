@@ -248,7 +248,7 @@ phax plans lint docs/plans/2610041201-greet-plan.md
 phax plans estimate <plan>   # its API-list cost, and whether it fits your subscription windows now
 ```
 
-A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
+A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, each phase's declaration lines (an interactive or oracle phase is refused until a later release runs it, and a `**Model reason:**` line is an error: the label is `**Assignment reason:**`), and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
 
 `plans estimate` gives each phase's and the run's cost as P10/P50/P90, calibrated from this machine's cost ledgers, and says whether the plan fits the Claude subscription windows left right now. See [Estimating a plan](docs/plan-estimate.md).
 
@@ -715,7 +715,7 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | Hand decision answer                         | `hand-decision-answer`      | a decide session's final message over a hand-authored spec or plan                                         | `parseHandDecisionAnswer`      | `json/hand-decision-answer.schema.json`      |
 | Record manifest (union)                      | `record-manifest`           | any `record.json` on `phax/records/v1`                                                                     | `parseRecordManifest`          | `json/record-manifest.schema.json`           |
 
-Spec and plan documents carry open and arbitrated questions. A spec sidecar written in an older shape, or a plan sidecar stamped 0.20.0 or written before `$schema` without a source spec, is lifted when phax reads it, and `phax artifact migrate-documents` restamps it at the current shape; an older plan sidecar stays refused.
+Spec and plan documents carry open and arbitrated questions. A spec sidecar written in an older shape, or a plan sidecar stamped 0.25.0 or 0.20.0 or written before `$schema` without a source spec, is lifted when phax reads it, and `phax artifact migrate-documents` restamps it at the current shape; an older plan sidecar stays refused. A `phax-plan.json` in an older shape is still shown by `phax ls` and `phax session-info`, but `phax resume` and `phax validate --plan` refuse it.
 
 ## Read phax files from code
 

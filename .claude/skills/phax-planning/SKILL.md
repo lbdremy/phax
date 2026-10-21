@@ -40,7 +40,7 @@ executing agent to explain any deviation in its handoff (see
 
 `phax plans lint <plan>` reports every mechanical defect of a plan before a run
 touches it — read-only, and model-free, so it never falls back to the extraction
-model. Five checks: **structure** (every field the deterministic parse requires,
+model. Seven checks: **structure** (every field the deterministic parse requires,
 reported in full rather than stopping at the first, plus an error for a phase
 number missing from phase-01 … phase-NN, such as phase-02 in a plan with phase-01
 and phase-03), **files** (the planned
@@ -48,7 +48,9 @@ create/edit lists walked in phase order against the working tree — an edit of 
 file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
-catalog), and **advisory** (when `phax.json` registers a `planAuditor`, every
+catalog, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
+and **oracles** (a malformed `**Mode:**` or oracle line, and any interactive or oracle
+declaration at all, which this release refuses), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -56,7 +58,8 @@ registered, or on a plan the deterministic parser cannot read, there are no
 advisory findings. A `Draft` plan lints like any other — run it while drafting,
 not only before approval. The run preflight (`phax run`, `phax resume`) also
 refuses, with exit 11, a phase whose section it cannot locate in plan.md; a phase
-is located by its `## phase-NN` id heading or by its `{#anchor}`.
+is located by its `## phase-NN` id heading or by its `{#anchor}`. It refuses the same
+`models`, `interactive` and `oracles` errors with exit 11.
 
 ## Run title and short name
 
@@ -130,7 +133,9 @@ informational for the executing agent.
 | `title`                  | Section heading after the dash                          | yes        |
 | `model`                  | `**Recommended model:** <model-id>` line                | yes        |
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
-| Model reason             | `**Model reason:** <reason>` line under the effort line, only on a phase that departs from the default | no         |
+| Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from the default | no         |
+| `mode`                   | `**Mode:** interactive` line in the header paragraph; absent means `headless` | yes        |
+| `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph; absent means `null` | yes        |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
 | `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
 | `plannedFilesToEdit`     | `### Planned files to edit` list                        | yes        |
@@ -150,6 +155,10 @@ The run-level field `requiredCommands` (extracted from `## Required commands` in
 the plan preamble) is **not** per-phase — it applies to the whole run. See
 [Required commands declaration](#required-commands-declaration).
 
+`mode` and `oracle` are read by phax from the header lines, never by the extraction model.
+This phax refuses both kinds of phase (an interactive phase, an oracle phase) until a later
+release runs them, so a plan writes neither the `**Mode:**` line nor the oracle lines.
+
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). The extraction pulls
 all three into `phax-plan.json`, where they back the end-of-phase file
@@ -162,7 +171,7 @@ reconciliation.
 
 **Recommended model:** <model-id>
 **Recommended effort:** low | medium | high
-**Model reason:** <why this phase leaves the default — omit the line at the default>
+**Assignment reason:** <why this phase leaves the default — omit the line at the default>
 
 <Objective — one short paragraph: the user- or system-visible capability this
 phase adds.>
@@ -431,7 +440,7 @@ Cut and write every phase first. Choose its model and effort last, from what the
 <!-- END generated: phase-model-policy -->
 
 - Any other catalog model only for a stated reason.
-- Every phase that leaves the default says why, on the phase: its `modelReason` (headless), or a `**Model reason:**` line under its model and effort (by hand). A phase at the default has no reason: `modelReason: null`, and no line. A departure without a reason, or a default phase with one, is a defect.
+- Every phase that leaves the default says why, on the phase: its `assignmentReason` (headless), or an `**Assignment reason:**` line under its model and effort (by hand). A phase at the default has no reason: `assignmentReason: null`, and no line. A departure without a reason, or a default phase with one, is a defect.
 - A lighter model needs the detail: see "Comprehensive instructions".
 - A plan that changes the catalog itself must name only models already in the shipped catalog: the run-start preflight uses the running binary's catalog, not the one the plan adds.
 
@@ -647,8 +656,9 @@ Top-level keys:
 
 A phase's keys, in the document's order: `id`, `title`, `objective`,
 `detailedInstructions`, `planMarkdownAnchor`, `plannedFilesToCreate`, `plannedFilesToEdit`,
-`optionalFilesToEdit`, `boundaryContracts`, `testStrategy`, `implementationOrder`,
-`excludedScope`, `verification`, `expectedHandoff`, `commit`, then `modelReason`, `model`,
+`optionalFilesToEdit`, `mode`, `oracle`, `boundaryContracts`, `testStrategy`,
+`implementationOrder`, `excludedScope`, `verification`, `expectedHandoff`, `commit`, then
+`assignmentReason`, `model`,
 `effort` last. Write them in that order: the phase's content first, its assignment last,
 because you assign a phase only once it is written (see "Choosing a model and effort").
 
@@ -658,6 +668,7 @@ the cache seed:
 - `id` (`phase-NN`), `planMarkdownAnchor` (`#phase-NN-<slug>`, rendered as the heading's
   `{#phase-NN-<slug>}`).
 - `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
+- `mode`, `oracle`: write `mode: "headless"` and `oracle: null` on every phase in this release.
 - `commit`: `{ subject, body }`.
 - `model`, `effort` (see the model catalog).
 
@@ -671,9 +682,9 @@ and the fields that only render the phase:
 - `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
   section is then omitted rather than filled.
 - `testStrategy`, `verification`, `expectedHandoff`: strings.
-- `modelReason` — why the phase leaves the default assignment, rendered as a
-  `**Model reason:**` line under its effort line. Put each departure's reason in that
-  phase's `modelReason`, and `modelReason: null` on every phase at the default. Never put a
+- `assignmentReason` — why the phase leaves the default assignment, rendered as an
+  `**Assignment reason:**` line under its effort line. Put each departure's reason in that
+  phase's `assignmentReason`, and `assignmentReason: null` on every phase at the default. Never put a
   reason in `preamble.technicalArbitrations`.
 
 ## Example well-formed phase
