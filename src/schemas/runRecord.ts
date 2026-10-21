@@ -1,7 +1,7 @@
 import { Schema, type Types } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
-import { SurfaceSchema } from "./surface.js";
+import { RecordedSurfaceSchema } from "./surface.js";
 
 /**
  * Full = skeleton plus `output.jsonl`. Skeleton is produced both when the
@@ -87,6 +87,22 @@ export type TokenUsage = Schema.Schema.Type<typeof TokenUsageSchema>;
 
 export const UNAVAILABLE_TOKEN_USAGE: TokenUsage = { available: false };
 
+const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+
+/**
+ * The phase's role in an oracle pair: null when it is in none; `oracle` for
+ * the phase that authors the tests, naming the phase that discharges them;
+ * `discharging` for the phase that discharges them, naming the oracle phase.
+ */
+export const RecordOracleRoleSchema = Schema.NullOr(
+  Schema.Union(
+    Schema.Struct({ role: Schema.Literal("oracle"), dischargedBy: PhaseIdSchema }),
+    Schema.Struct({ role: Schema.Literal("discharging"), oraclePhase: PhaseIdSchema }),
+  ),
+);
+
+export type RecordOracleRole = Schema.Schema.Type<typeof RecordOracleRoleSchema>;
+
 /**
  * The record manifest (`record.json`): everything about a phase's record
  * except the artifacts it carries. The source sha is a back-reference that
@@ -103,7 +119,8 @@ const runRecordManifestFields = {
   provider: ProviderIdSchema,
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
-  verifiedSurfaces: Schema.Array(SurfaceSchema),
+  verifiedSurfaces: Schema.Array(RecordedSurfaceSchema),
+  oracle: RecordOracleRoleSchema,
 };
 
 /** A phase record manifest in memory: never a `version`, never a `$schema`. */

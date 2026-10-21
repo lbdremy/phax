@@ -11,6 +11,7 @@ import {
   decodeArchitectureReportFile,
   decodeArchitectureRequestFile,
 } from "../../../src/schemas/architecture.js";
+import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
@@ -92,6 +93,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "cost-ledger": decodeCostLedgerFile,
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,
+  "oracle-request": decodeOracleRequestFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

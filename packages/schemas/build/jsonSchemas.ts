@@ -28,6 +28,7 @@ import {
   architectureReportFormat,
   architectureRequestFormat,
 } from "../src/formats/architecture.js";
+import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import { handDecisionAnswerFormat } from "../src/formats/answers.js";
 import {
@@ -103,6 +104,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
+  "oracle-request": oracleRequestFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -134,6 +136,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",
+  "oracle-request": "error",
   "record-manifest": "error",
 };
 

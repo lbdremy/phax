@@ -20,6 +20,7 @@ import {
   UNKNOWN,
   parseArchitectureReport,
   parseArchitectureRequest,
+  parseOracleRequest,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -45,6 +46,7 @@ import {
   parseSpecDocument,
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
+  toLatestOracleRequest,
   toLatestAuthoringRecordManifest,
   toLatestBriefRecord,
   toLatestBriefReport,
@@ -228,6 +230,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
+  "oracle-request": latest(parseOracleRequest, toLatestOracleRequest),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -266,6 +269,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   // readArchitectureReport, which names no file.
   "architecture-request": undefined,
   "architecture-report": undefined,
+  // phax writes the oracle request on the oracles provider's stdin and never
+  // reads it back.
+  "oracle-request": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

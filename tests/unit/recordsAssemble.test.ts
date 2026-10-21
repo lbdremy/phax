@@ -17,6 +17,7 @@ const baseInput: AssembleRecordInput = {
   outcome: "committed",
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [],
+  oracle: null,
 };
 
 describe("assembleRecord", () => {
@@ -124,6 +125,15 @@ describe("selectRecordArtifacts", () => {
       shape: "full",
       artifactPaths: ["prompt.md", "retry-output.jsonl"],
     });
+  });
+
+  it("places the oracle role in the manifest after verifiedSurfaces", () => {
+    const oracle = { role: "oracle", dischargedBy: "phase-04" } as const;
+    const { manifest } = assembleRecord({ ...baseInput, oracle });
+    expect(manifest.oracle).toEqual(oracle);
+    const keys = Object.keys(manifest);
+    expect(keys.indexOf("oracle")).toBe(keys.indexOf("verifiedSurfaces") + 1);
+    expect(assembleRecord(baseInput).manifest.oracle).toBeNull();
   });
 
   it("a phase record treats only output.jsonl as its transcript", () => {

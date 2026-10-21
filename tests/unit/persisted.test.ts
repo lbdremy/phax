@@ -664,8 +664,11 @@ describe("format readers", () => {
     (id, label, file) => {
       const { version: _version, ...recorded } = preSchemaDocuments[id];
       // A pre-schema authoring session was never retried: it upgrades with retry none.
+      // A pre-schema phase manifest predates oracle phases: it upgrades with oracle null.
       const expected =
-        id === "authoring-record-manifest" ? { ...recorded, retry: "none" } : recorded;
+        id === "authoring-record-manifest"
+          ? { ...recorded, retry: "none" }
+          : { ...recorded, oracle: null };
       const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
       const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
       expect(fromPreSchema).toEqual(expected);
@@ -708,6 +711,29 @@ describe("format readers", () => {
         `^${file}: phase record manifest without \\$schema is not in the pre-schema shape — older than the first release that writes \\$schema, or damaged`,
       ),
     );
+  });
+
+  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to oracle null, and refuses a current one without oracle", () => {
+    const file = "run-0001/phase-01/record.json";
+    const older = withKey(
+      withoutKey(validDocuments["phase-record-manifest"], "oracle"),
+      "$schema",
+      schemaUrl("phase-record-manifest", "0.17.0"),
+    );
+    expect(right(readRecordManifestFile(file, older))).toMatchObject({ oracle: null });
+    expect(right(readRecordManifestFile(file, older))).not.toHaveProperty("$schema");
+
+    const current = withoutKey(validDocuments["phase-record-manifest"], "oracle");
+    expect(left(readRecordManifestFile(file, current)).format).toBe("phase-record-manifest");
+  });
+
+  it("readGateAttributionFile reads a 0.21.0-stamped attribution", () => {
+    const stamped = withKey(
+      validDocuments["gate-attribution"],
+      "$schema",
+      schemaUrl("gate-attribution", "0.21.0"),
+    );
+    right(readGateAttributionFile("run-0001/phase-01/gate-attribution.json", stamped));
   });
 
   it("readRecordManifestFile refuses a non-object as a record manifest", () => {
@@ -832,17 +858,19 @@ describe("documents from another release", () => {
       ? validDocuments[id]
       : id === "authoring-record-manifest"
         ? withoutKey(validDocuments[id], "retry")
-        : id === "plan-approval-record" || id === "spec-approval-record"
-          ? withoutKey(validDocuments[id], "approvedBy")
-          : id === "spec-document"
-            ? withoutKey(validDocuments[id], "arbitratedQuestions")
-            : id === "plan-document"
-              ? compareReleases(release, "0.25.0") >= 0
-                ? withModelReasons(validDocuments[id])
-                : withoutPreambleQuestions(validDocuments[id])
-              : id === "phax-plan"
-                ? withoutPhaseKinds(validDocuments[id])
-                : validDocuments[id];
+        : id === "phase-record-manifest"
+          ? withoutKey(validDocuments[id], "oracle")
+          : id === "plan-approval-record" || id === "spec-approval-record"
+            ? withoutKey(validDocuments[id], "approvedBy")
+            : id === "spec-document"
+              ? withoutKey(validDocuments[id], "arbitratedQuestions")
+              : id === "plan-document"
+                ? compareReleases(release, "0.25.0") >= 0
+                  ? withModelReasons(validDocuments[id])
+                  : withoutPreambleQuestions(validDocuments[id])
+                : id === "phax-plan"
+                  ? withoutPhaseKinds(validDocuments[id])
+                  : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);

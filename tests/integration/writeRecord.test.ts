@@ -109,6 +109,7 @@ describe("writeRecord", () => {
       model: "claude-opus-4-8",
       effort: "high",
       outcome: "committed",
+      oracle: null,
       records: inRepoConfig(true),
       ...overrides,
     };
@@ -326,6 +327,26 @@ describe("writeRecord", () => {
     await run(writeRecord(baseInput()));
 
     expect(readManifest("run-1/phase-01")["verifiedSurfaces"]).toEqual(["local", "product"]);
+  });
+
+  it("writes the phase's oracle role into the manifest", async () => {
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    await run(writeRecord(baseInput()));
+    expect(readManifest("run-1/phase-01")["oracle"]).toBeNull();
+
+    await run(
+      writeRecord(
+        baseInput({
+          phaseId: "phase-02",
+          oracle: { role: "discharging", oraclePhase: "phase-01" },
+        }),
+      ),
+    );
+    expect(readManifest("run-1/phase-02")["oracle"]).toEqual({
+      role: "discharging",
+      oraclePhase: "phase-01",
+    });
   });
 
   it("names no verified surfaces when a phase has no gate-attribution.json", async () => {

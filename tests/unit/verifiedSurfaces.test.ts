@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { verifiedSurfaces } from "../../src/domain/gate/verifiedSurfaces.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 
+const withOracle = (result: "pass" | "fail" | "refused"): GateAttribution => ({
+  phase: "phase-02",
+  steps: [
+    { command: "pnpm test", surface: "structural", result: "pass" },
+    { command: "pnpm lint", surface: "local", result: "pass" },
+    { command: "oracles provider", surface: "oracle", result },
+  ],
+});
+
 describe("verifiedSurfaces", () => {
   it("marks a surface verified when every step of it passed", () => {
     const record: GateAttribution = {
@@ -57,5 +66,11 @@ describe("verifiedSurfaces", () => {
     };
 
     expect(verifiedSurfaces(record)).toEqual(["local", "product", "structural"]);
+  });
+
+  it("verifies the oracle surface only when its step passed", () => {
+    expect(verifiedSurfaces(withOracle("pass"))).toEqual(["local", "oracle", "structural"]);
+    expect(verifiedSurfaces(withOracle("fail"))).toEqual(["local", "structural"]);
+    expect(verifiedSurfaces(withOracle("refused"))).toEqual(["local", "structural"]);
   });
 });

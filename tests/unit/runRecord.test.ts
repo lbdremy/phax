@@ -23,6 +23,7 @@ const baseManifest = {
   outcome: "committed" as const,
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [] as const,
+  oracle: null,
 };
 
 describe("TokenUsageSchema", () => {
@@ -148,6 +149,39 @@ describe("RunRecordManifestSchema", () => {
       verifiedSurfaces: ["local", "product"],
     });
     expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("decodes the oracle surface among the verified surfaces", () => {
+    const result = decodeRunRecordManifestFile({
+      ...baseManifest,
+      verifiedSurfaces: ["local", "oracle"],
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("requires the oracle role, null or one of the two variants", () => {
+    const { oracle: _oracle, ...withoutOracle } = baseManifest;
+    expect(Either.isLeft(decodeRunRecordManifestFile(withoutOracle))).toBe(true);
+    for (const oracle of [
+      null,
+      { role: "oracle", dischargedBy: "phase-04" },
+      { role: "discharging", oraclePhase: "phase-02" },
+    ]) {
+      expect(Either.isRight(decodeRunRecordManifestFile({ ...baseManifest, oracle }))).toBe(true);
+    }
+  });
+
+  it("refuses an oracle role with a missing, extra or mismatched key", () => {
+    for (const oracle of [
+      { role: "oracle" },
+      { role: "oracle", dischargedBy: "phase-04", oraclePhase: "phase-02" },
+      { role: "oracle", oraclePhase: "phase-02" },
+      { role: "discharging", dischargedBy: "phase-04" },
+      { role: "oracle", dischargedBy: "04" },
+      { role: "other", dischargedBy: "phase-04" },
+    ]) {
+      expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, oracle }))).toBe(true);
+    }
   });
 
   it("rejects a v1 manifest (no verifiedSurfaces field)", () => {

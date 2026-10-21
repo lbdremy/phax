@@ -2,13 +2,13 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { FileSystem } from "../ports/fs.js";
 import { readGateAttributionFile } from "../schemas/persisted.js";
-import type { Surface } from "../schemas/surface.js";
+import type { RecordedSurface } from "../schemas/surface.js";
 import { verifiedSurfaces } from "../domain/gate/verifiedSurfaces.js";
 
 function readPhaseVerifiedSurfaces(
   runPath: string,
   phaseId: string,
-): Effect.Effect<readonly Surface[], never, FileSystem> {
+): Effect.Effect<readonly RecordedSurface[], never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, phaseId, "gate-attribution.json");
@@ -35,12 +35,12 @@ function readPhaseVerifiedSurfaces(
 export function aggregateVerifiedSurfaces(
   runPath: string,
   phaseIds: readonly string[],
-): Effect.Effect<readonly Surface[], never, FileSystem> {
+): Effect.Effect<readonly RecordedSurface[], never, FileSystem> {
   return Effect.gen(function* () {
     const perPhase = yield* Effect.forEach(phaseIds, (phaseId) =>
       readPhaseVerifiedSurfaces(runPath, phaseId),
     );
-    const union = new Set<Surface>();
+    const union = new Set<RecordedSurface>();
     for (const surfaces of perPhase) {
       for (const surface of surfaces) union.add(surface);
     }

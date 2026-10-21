@@ -7,9 +7,13 @@ import { type Git, type GitError } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import { readGateAttributionFile, withSchemaUrl } from "../schemas/persisted.js";
-import type { Surface } from "../schemas/surface.js";
+import type { RecordedSurface } from "../schemas/surface.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { encodeRunRecordManifest, type RecordPhaseOutcome } from "../schemas/runRecord.js";
+import {
+  encodeRunRecordManifest,
+  type RecordOracleRole,
+  type RecordPhaseOutcome,
+} from "../schemas/runRecord.js";
 import {
   commitRecordTree,
   computeRecordUsage,
@@ -41,6 +45,8 @@ export interface WriteRecordInput {
   readonly model: string;
   readonly effort: string;
   readonly outcome: RecordPhaseOutcome;
+  /** The phase's role in an oracle pair, or null when it is in none. */
+  readonly oracle: RecordOracleRole;
   readonly records: ResolvedRecordsConfig;
   /** Back-reference recorded when the phase committed; absent for a phase that never did. */
   readonly sourceSha?: string | undefined;
@@ -94,6 +100,7 @@ export function writeRecord(
       outcome: input.outcome,
       usage,
       verifiedSurfaces: verifiedSurfacesForPhase,
+      oracle: input.oracle,
     });
 
     const key = `${input.runId}/${input.phaseId}`;
@@ -128,7 +135,7 @@ export function writeRecord(
 function computeVerifiedSurfacesForPhase(
   fs: FileSystemOps,
   phaseFolderPath: string,
-): Effect.Effect<readonly Surface[], never> {
+): Effect.Effect<readonly RecordedSurface[], never> {
   return Effect.gen(function* () {
     const attributionPath = join(phaseFolderPath, GATE_ATTRIBUTION_FILE);
     const exists = yield* fs.exists(attributionPath).pipe(Effect.orElseSucceed(() => false));

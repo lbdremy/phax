@@ -4,6 +4,7 @@ import {
   type ArchitectureReportShapes,
   type ArchitectureRequestShapes,
 } from "./formats/architecture.js";
+import { oracleRequestFormat, type OracleRequestShapes } from "./formats/oracleRequest.js";
 import {
   briefRecordFormat,
   briefRequestFormat,
@@ -295,6 +296,19 @@ export {
   type LatestArchitectureRequest,
 } from "./formats/architecture.js";
 
+// The oracle request phax writes on the oracles provider's stdin, once per
+// oracle step. Its schema and type are phax's own file schema and type.
+export {
+  OracleRequestFileSchema as OracleRequestSchema,
+  type OracleRequestFile as OracleRequest,
+} from "../../../src/schemas/oracleRequest.js";
+export {
+  parseOracleRequest,
+  toLatestOracleRequest,
+  type LatestOracleRequest,
+  type OracleRequestShape,
+} from "./formats/oracleRequest.js";
+
 // The answer a decide session returns for a hand-authored spec or plan. Its
 // schema and type are phax's own file schema and type.
 export {
@@ -385,6 +399,14 @@ export {
   type GateAttributionV0_20_0,
 } from "../../../src/schemas/history/gate-attribution/0.20.0.js";
 export {
+  GateAttributionV0_21_0Schema,
+  type GateAttributionV0_21_0,
+} from "../../../src/schemas/history/gate-attribution/0.21.0.js";
+export {
+  PhaseRecordManifestV0_17_0Schema,
+  type PhaseRecordManifestV0_17_0,
+} from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";
+export {
   BriefRecordV0_20_0Schema,
   type BriefRecordV0_20_0,
 } from "../../../src/schemas/history/brief-record/0.20.0.js";
@@ -444,6 +466,7 @@ type DocumentShapes = EveryFormat<{
   "brief-report": BriefReportShapes;
   "architecture-request": ArchitectureRequestShapes;
   "architecture-report": ArchitectureReportShapes;
+  "oracle-request": OracleRequestShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
   "cost-ledger": CostLedgerShapes;
 }>;
@@ -484,6 +507,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "brief-report": briefReportFormat,
     "architecture-request": architectureRequestFormat,
     "architecture-report": architectureReportFormat,
+    "oracle-request": oracleRequestFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
     "cost-ledger": costLedgerFormat,
   });

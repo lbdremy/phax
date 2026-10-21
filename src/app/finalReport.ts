@@ -7,7 +7,7 @@ import type { PublicationRecord } from "../domain/publish/types.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 import { decodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
-import type { Surface } from "../schemas/surface.js";
+import type { RecordedSurface } from "../schemas/surface.js";
 import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
 
 function formatDuration(startIso: string, endIso: string): string {
@@ -155,7 +155,7 @@ export function renderPublicationSection(record: PublicationRecord): string {
 
 function buildFinalReportMarkdown(
   info: RunReviewInfo,
-  verifiedSurfaces: readonly Surface[],
+  verifiedSurfaces: readonly RecordedSurface[],
   publication?: PublicationRecord,
 ): string {
   const passed = info.phaseStatuses.filter(isPhaseSuccessful).length;
