@@ -18,16 +18,22 @@ What the operator decided on 2026-10-21 (do not reopen):
 1. **The operator may hold a run when it starts.** The hold is a second way into the stop that a plan-declared interactive phase reaches. There is one state, `awaiting_review`, and one exit code (13). A run never stops on its own initiative: the operator asks for the hold, and the planner declares an interactive phase. The memory "runs stay autonomous" keeps its meaning, since no agent ever stops a run to ask.
 2. **A held phase is the headless phase that just committed**, not a new phase. The plan is not rewritten, and the phase keeps its id, branch and worktree.
 3. **A person may review an oracle phase before its discharge.** A held oracle phase, or a plan-declared interactive phase between the pair, is allowed. If the review changes an oracle file, phax runs the `authored` verdict again on the reviewed commit, and the discharge is judged against the latest commit that passed it. This revises oracle-phases §5.11, §5.35 and the rule it took over from this spec. Say so in §10, listing the sections of oracle-phases that change and that its plans must follow. An interactive phase still takes no oracle role (q-interactive-role).
-4. **A stable, machine-readable surface for a review UI.** `phax ls --json` and the stop's own output give the state, the stopped phase, why the run stopped (declared or held), and the commands that close it, as a normative `$schema` format. Today's ls output is indicative.
+4. **What `--hold` selects.** The flag takes an optional argument:
+   - `--hold` with no argument holds every headless phase, oracle phases and discharging phases included;
+   - `--hold phase-02,phase-04` holds the phases listed;
+   - `--hold oracle` holds every oracle phase (the phases that write the tests, `oracle.dischargedBy` set), so that a person reviews the tests before their discharge.
+
+   A plan-declared interactive phase already stops, so the hold never applies to it. A listed phase that does not exist, or that is interactive, is refused before the run starts. Say how a phase id and the `oracle` keyword are told apart, and settle in §9 whether the final phase, which already reaches `review_open`, can hold.
+5. **A stable, machine-readable surface for a review UI.** `phax ls --json` and the stop's own output give the state, the stopped phase, why the run stopped (declared or held), and the commands that close it, as a normative `$schema` format. Today's ls output is indicative.
 
 Settle in §9, framing each option by what it abandons:
-- **How the hold is asked for.** A `phax run --hold` flag only; or also a project or user config key; whether it is fixed per run at start (persisted) or can change on resume; and whether `phax resume --hold` exists.
-- **Which phases hold.** Every non-final phase, or a list (`--hold phase-02,phase-03`). The final phase reaches `review_open` anyway, so say whether it can hold.
+- **Where the hold is asked for, beyond the flag (decision 4).** Also a project or user config key, or not; whether the selection is fixed per run at start (persisted) or can change on resume; and whether `phax resume --hold` exists.
+- **Whether the final phase can hold**, since it reaches `review_open` anyway.
 - **Who continues a held phase.** The builder's own session, resumed, has all its context but was the one writing the code. A new read-only first turn, as for a declared phase, takes a fresh look but has to rebuild context. Or the person chooses. This decides what `phax enter-phase` opens at a held phase.
 - **What closing does on a red gate.** The current spec returns the phase to the person with no fix loop. The fork runs the fix loop in the builder's session. The current rule is that phax's own turns never write; a fix loop would be phax writing code after a person's review. Frame this by the autonomy and the authorship it abandons.
 - **What the corrections leave on the branch.** One more commit on the phase's branch with a trailer, an amended phase commit, or a `fixup!` commit. Also how the reconciliation, the handoff (the interactive handoff's four sections, or a rewrite of the phase's own), the records and the cost ledger cover the phase's whole range.
 - **Whether a held phase reviewed without change** leaves an empty commit, as q-unchanged-commit decided for a declared phase, or nothing.
-- **The surface format of point 4:** its name, whether it is a new format or extends an existing one, and which commands print it.
+- **The surface format of point 5:** its name, whether it is a new format or extends an existing one, and which commands print it.
 - **Anything in the current §9b that the hold reopens.**
 
 Re-check against the current code:
