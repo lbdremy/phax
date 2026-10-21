@@ -103,16 +103,22 @@ export interface RunGatesOptions {
    *  phase that discharges one. Run once every configured step has passed,
    *  last, under the `oracle` surface: `command` is split on whitespace (no
    *  shell), `request` is written on its stdin and saved beside the log as
-   *  `oracleRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. */
+   *  `oracleRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. A
+   *  `skipped` step spawns nothing and writes no request: it is recorded as
+   *  `skipped`, last, and the attempt passes. */
   readonly oracleStep?: OracleStep;
 }
 
-/** The oracle step's command, its serialized request and its time cap. */
-export interface OracleStep {
-  readonly command: string;
-  readonly request: string;
-  readonly timeoutMs: number;
-}
+/** The oracle step: run with its command, serialized request and time cap, or
+ *  skipped by the operator (`phax resume --skip-oracle`), with its command only. */
+export type OracleStep =
+  | {
+      readonly kind: "run";
+      readonly command: string;
+      readonly request: string;
+      readonly timeoutMs: number;
+    }
+  | { readonly kind: "skipped"; readonly command: string };
 
 export function runGates(
   opts: RunGatesOptions,
@@ -346,7 +352,12 @@ export function runGates(
       stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
     }
 
-    if (oracleStep !== undefined) {
+    if (oracleStep?.kind === "skipped") {
+      // Every configured step passed: the operator discharged the oracle step.
+      logLines.push(`oracle step skipped by the operator: ${oracleStep.command}`);
+      logLines.push("");
+      stepResults.push({ command: oracleStep.command, surface: "oracle", result: "skipped" });
+    } else if (oracleStep !== undefined) {
       // Every configured step passed: phax appends the oracle step, last. Its
       // request is saved beside the log before the provider reads it.
       const rawCommand = oracleStep.command;

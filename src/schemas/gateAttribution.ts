@@ -1,12 +1,27 @@
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
-import { RecordedSurfaceSchema } from "./surface.js";
+import { SurfaceSchema } from "./surface.js";
 
-const GateStepResultSchema = Schema.Struct({
+/** A step of the phase's configured gate: surface local | structural | product. */
+const ConfiguredStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
-  surface: RecordedSurfaceSchema,
+  surface: SurfaceSchema,
   result: Schema.Literal("pass", "fail", "refused"),
 });
+
+/**
+ * The oracle step: carried only by the step phax appends at an oracle pair's
+ * gate. `skipped` records `phax resume --skip-oracle`: the step was not run.
+ */
+const OracleStepResultSchema = Schema.Struct({
+  command: Schema.NonEmptyString,
+  surface: Schema.Literal("oracle"),
+  result: Schema.Literal("pass", "fail", "refused", "skipped"),
+});
+
+export type OracleStepResult = Schema.Schema.Type<typeof OracleStepResultSchema>;
+
+const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStepResultSchema);
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
 

@@ -525,6 +525,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       phaseId: "phase-01",
       gateRequest: "",
       oracleStep: {
+        kind: "run",
         command: "./oracles",
         request: serializeOracleRequest(
           makeOracleRequest({

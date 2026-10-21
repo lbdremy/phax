@@ -140,7 +140,7 @@ async function records(args: readonly string[]) {
   return { code, logs, errors, text: logs.join("\n") };
 }
 
-function attribution(phase: string, result: "pass" | "fail"): string {
+function attribution(phase: string, result: "pass" | "fail" | "skipped"): string {
   return JSON.stringify(
     withSchemaUrl("gate-attribution", {
       phase,
@@ -647,10 +647,10 @@ describe("records explain and list (real git)", () => {
           ...base,
           phaseId: "phase-03",
           sourceSha: dischargedSha,
-          verifiedSurfaces: [...base.verifiedSurfaces],
+          verifiedSurfaces: ["local"],
           oracle: { role: "discharging", oraclePhase: "phase-02" },
         },
-        {},
+        { "gate-attribution.json": attribution("phase-03", "skipped") },
       );
       const ordinarySha = commitWithTrailers(repoDir, runId, "phase-04");
       await writeFullRecordCommit(
@@ -670,7 +670,9 @@ describe("records explain and list (real git)", () => {
         "oracle   oracle phase, discharged by phase-03 — node tools/oracles.mjs: pass",
       );
       const discharged = await records(["explain", dischargedSha]);
-      expect(discharged.logs).toContain("oracle   discharges phase-02 — not run");
+      expect(discharged.logs).toContain(
+        "oracle   discharges phase-02 — node tools/oracles.mjs: skipped",
+      );
       const ordinary = await records(["explain", ordinarySha]);
       expect(ordinary.text).not.toContain("oracle   ");
     });

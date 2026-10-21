@@ -1,10 +1,12 @@
 import { Effect, Either, Layer } from "effect";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
+import { verifiedSurfaces } from "../../src/domain/gate/verifiedSurfaces.js";
+import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { resetPhase, ResetPhaseError } from "../../src/app/resetPhase.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
@@ -87,33 +89,48 @@ const refused = JSON.stringify({
 interface Pair {
   readonly oracle: number;
   readonly discharging: number;
+  /** The pair's oracle files; defaults to ORACLE_FILES. A second pair names its own. */
+  readonly files?: readonly string[];
 }
 
 function id(n: number): string {
   return `phase-${String(n).padStart(2, "0")}`;
 }
 
+async function oracleRequests(h: { runPath: string }, phase: string): Promise<string[]> {
+  return (await readdir(join(h.runPath, phase))).filter((f) => f.endsWith(".oracle-request.json"));
+}
+
+function source(p: Pair): string {
+  return p.files === undefined ? "src/refunds.ts" : `src/pair-${p.oracle}.ts`;
+}
+
 /** A plan of `count` phases; the pair's oracle phase creates the oracle files. */
-function planOf(count: number, pair: Pair | null): PhaxPlan {
+function planOf(count: number, pairs: Pair | readonly Pair[] | null): PhaxPlan {
+  const all = pairs === null ? [] : "oracle" in pairs ? [pairs] : pairs;
   const phases = Array.from({ length: count }, (_, i) => {
     const n = i + 1;
-    const isOracle = pair?.oracle === n;
-    const isDischarging = pair?.discharging === n;
+    const asOracle = all.find((p) => p.oracle === n);
+    const asDischarging = all.find((p) => p.discharging === n);
     return {
       id: id(n),
       title: `Step ${n}`,
       model: "claude-sonnet-4-6",
       effort: "low" as const,
       planMarkdownAnchor: `#${id(n)}`,
-      plannedFilesToCreate: isOracle
-        ? [...ORACLE_FILES, "src/refunds.ts"]
-        : isDischarging
-          ? []
-          : [`src/step-${n}.ts`],
-      plannedFilesToEdit: isDischarging ? ["src/refunds.ts"] : [],
+      plannedFilesToCreate:
+        asOracle !== undefined
+          ? [...(asOracle.files ?? ORACLE_FILES), source(asOracle)]
+          : asDischarging !== undefined
+            ? []
+            : [`src/step-${n}.ts`],
+      plannedFilesToEdit: asDischarging === undefined ? [] : [source(asDischarging)],
       optionalFilesToEdit: [],
       mode: "headless" as const,
-      oracle: isOracle ? { dischargedBy: id(pair.discharging), files: ORACLE_FILES } : null,
+      oracle:
+        asOracle === undefined
+          ? null
+          : { dischargedBy: id(asOracle.discharging), files: asOracle.files ?? ORACLE_FILES },
       commit: { subject: `feat: step ${n}`, body: "Made up." },
     };
   });
@@ -249,7 +266,8 @@ describe("oracle phases in a run", () => {
       fakeGit.impl.calls.filter((c) => c.method === "commit" && c.repo === cwd).length;
     const providerCalls: ProviderCall[] = [];
     const shellCalls: ShellRunOptions[] = [];
-    const harness = { answer: opts.answer ?? (() => passing) };
+    // `failConfigured`: how many upcoming runs of the configured `pnpm test` step exit 1.
+    const harness = { answer: opts.answer ?? (() => passing), failConfigured: 0 };
     const shell = Layer.succeed(Shell, {
       run: (options: ShellRunOptions) =>
         Effect.sync(() => {
@@ -273,6 +291,10 @@ describe("oracle phases in a run", () => {
             });
             return ok(harness.answer(request));
           }
+          if (command === "pnpm test" && harness.failConfigured > 0) {
+            harness.failConfigured -= 1;
+            return { exitCode: 1, stdout: "", stderr: "1 failed", stdoutEncoding: "utf8" as const };
+          }
           return ok("");
         }),
     });
@@ -289,7 +311,7 @@ describe("oracle phases in a run", () => {
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, planMd, plan, config, undefined, true).pipe(Effect.provide(layer)),
     );
-    const execute = (startIndex = 0) =>
+    const execute = (startIndex = 0, options: { readonly skipOracle?: boolean } = {}) =>
       Effect.runPromise(
         Effect.either(
           executePlan({
@@ -304,6 +326,7 @@ describe("oracle phases in a run", () => {
             runId: runId as RunId,
             startIndex,
             securityMode: "secure",
+            ...options,
           }).pipe(Effect.provide(layer)),
         ),
       );
@@ -512,6 +535,100 @@ describe("oracle phases in a run", () => {
 
     expect(Either.isRight(rerun)).toBe(true);
     expect(discharges().at(-1)?.request["oracleCommit"]).toBe(phase02["commitHash"]);
+  });
+
+  describe("a skipped oracle step", () => {
+    async function exhaustDischarge(publish: boolean) {
+      const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), {
+        publish,
+        answer: (request) => (request["verdict"] === "discharged" ? unmarked : passing),
+      });
+      if (publish) h.fakeGit.impl.addExistingRemote("origin");
+      const first = await h.execute();
+      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      await h.noteSession("phase-03");
+      return h;
+    }
+
+    it("discharges a wrong oracle without a provider call, and never counts it as verified", async () => {
+      const h = await exhaustDischarge(true);
+
+      // Without the skip, the provider is asked again for the same commit.
+      const callsBefore = h.providerCalls.length;
+      const again = await h.execute(2);
+      expect(Either.isLeft(again) && again.left instanceof GateAttemptsExhaustedError).toBe(true);
+      expect(h.providerCalls).toHaveLength(callsBefore + 2);
+      expect(h.providerCalls.at(-1)?.request["verdict"]).toBe("discharged");
+      await h.noteSession("phase-03");
+
+      const callsBeforeSkip = h.providerCalls.length;
+      const requestsBeforeSkip = await oracleRequests(h, "phase-03");
+      const resumed = await h.execute(2, { skipOracle: true });
+
+      expect(Either.isRight(resumed)).toBe(true);
+      expect(h.providerCalls).toHaveLength(callsBeforeSkip);
+      expect(await oracleRequests(h, "phase-03")).toEqual(requestsBeforeSkip);
+      // phase-03 is the final phase: committed, then kept open for review.
+      expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
+      const attribution = await h.readJson("phase-03", "gate-attribution.json");
+      const steps = attribution["steps"] as GateAttribution["steps"];
+      expect(steps.at(-1)).toEqual({ command: ORACLES, surface: "oracle", result: "skipped" });
+      expect(verifiedSurfaces({ phase: "phase-03", steps } as GateAttribution)).toEqual([
+        "local",
+        "structural",
+      ]);
+      const body = await readFile(join(h.runPath, "pr-body.md"), "utf8");
+      expect(body).toContain("**Verified surfaces** local, structural");
+    });
+
+    it("still runs the configured gate and its fix loop", async () => {
+      const h = await exhaustDischarge(false);
+      const callsBefore = h.providerCalls.length;
+      const fixesBefore = h.fixPrompts().length;
+      h.harness.failConfigured = 1;
+
+      const resumed = await h.execute(2, { skipOracle: true });
+
+      expect(Either.isRight(resumed)).toBe(true);
+      expect(h.fixPrompts()).toHaveLength(fixesBefore + 1);
+      expect(h.providerCalls).toHaveLength(callsBefore);
+      expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
+      const steps = (await h.readJson("phase-03", "gate-attribution.json"))["steps"];
+      expect(steps).toEqual([
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "pnpm lint", surface: "structural", result: "pass" },
+        { command: ORACLES, surface: "oracle", result: "skipped" },
+      ]);
+    });
+
+    it("reaches no later phase", async () => {
+      const second = { oracle: 3, discharging: 4, files: ["tests/prune.test.ts"] };
+      const h = await setup(planOf(4, [{ oracle: 1, discharging: 2 }, second]), {
+        answer: (request) =>
+          request["verdict"] === "discharged" && request["phase"] === "phase-02"
+            ? unmarked
+            : passing,
+      });
+      const first = await h.execute();
+      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      h.harness.answer = () => passing;
+      await h.noteSession("phase-02");
+      const callsBefore = h.providerCalls.length;
+
+      const resumed = await h.execute(1, { skipOracle: true });
+
+      expect(Either.isRight(resumed)).toBe(true);
+      expect(h.providerCalls.slice(callsBefore).map((c) => basename(c.cwd))).toEqual([
+        "phase-03",
+        "phase-04",
+      ]);
+      expect(h.providerCalls.slice(callsBefore).map((c) => c.request["verdict"])).toEqual([
+        "authored",
+        "discharged",
+      ]);
+    });
   });
 
   it("refuses the discharge of a skipped oracle phase before its agent runs, naming the remedy", async () => {

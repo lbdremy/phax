@@ -1568,7 +1568,7 @@ describe("runGates with an oracle step (Node shell)", () => {
           attributionPath: ws.attributionPath,
           phaseId,
           gateRequest,
-          oracleStep: { command, request: oracleRequest, timeoutMs },
+          oracleStep: { kind: "run", command, request: oracleRequest, timeoutMs },
         }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
       ),
     );
@@ -1599,6 +1599,62 @@ describe("runGates with an oracle step (Node shell)", () => {
       { command: "node ./check.mjs 0", surface: "local", result: "pass" },
       { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
     ]);
+  });
+
+  describe("a skipped oracle step", () => {
+    function runSkipped(ws: Workspace, gateSteps: readonly GateStep[]) {
+      return Effect.runPromise(
+        Effect.either(
+          runGates({
+            steps: gateSteps,
+            cwd: ws.dir,
+            attemptLogPath: ws.logPath,
+            attributionPath: ws.attributionPath,
+            phaseId,
+            gateRequest,
+            oracleStep: { kind: "skipped", command: "node ./oracles.mjs pass" },
+          }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
+        ),
+      );
+    }
+
+    it("spawns no provider, writes no request, passes, and records the skip last", async () => {
+      const ws = workspace();
+
+      const result = await runSkipped(ws, configured);
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(seen(ws)).toBeUndefined();
+      expect(existsSync(ws.oracleRequestPath)).toBe(false);
+      const skipped = { command: "node ./oracles.mjs pass", surface: "oracle", result: "skipped" };
+      expect(readAttribution(ws).steps).toEqual([
+        { command: "node ./check.mjs 0", surface: "local", result: "pass" },
+        { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
+        skipped,
+      ]);
+      expect(readFileSync(ws.logPath, "utf8")).toContain(
+        "oracle step skipped by the operator: node ./oracles.mjs pass",
+      );
+      const stepRecord = JSON.parse(
+        readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.attribution.json"), "utf8"),
+      ) as GateAttribution;
+      expect(stepRecord.steps.at(-1)).toEqual(skipped);
+    });
+
+    it("records no oracle step when a configured step fails first", async () => {
+      const ws = workspace();
+
+      const result = await runSkipped(ws, [
+        configured[0]!,
+        stepWithSurface("node ./check.mjs 1", "structural"),
+      ]);
+
+      expect(Either.isLeft(result)).toBe(true);
+      expect(readAttribution(ws).steps).toEqual([
+        { command: "node ./check.mjs 0", surface: "local", result: "pass" },
+        { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
+      ]);
+    });
   });
 
   it("appends a passing oracle step last, after the configured steps unchanged and in order", async () => {
@@ -1759,7 +1815,7 @@ describe("runGates with an oracle step (fake ports)", () => {
           attributionPath,
           phaseId,
           gateRequest,
-          oracleStep: { command: "./oracles --check", request, timeoutMs: 1000 },
+          oracleStep: { kind: "run", command: "./oracles --check", request, timeoutMs: 1000 },
         }).pipe(
           Effect.provide(Layer.mergeAll(Layer.succeed(FileSystem, recording), fakeShell.layer)),
         ),

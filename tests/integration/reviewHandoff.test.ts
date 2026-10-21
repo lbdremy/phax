@@ -152,7 +152,7 @@ function oraclePlanJson(pair: boolean): string {
   return JSON.stringify(withSchemaUrl("phax-plan", plan));
 }
 
-function oracleAttribution(phaseId: string, result: "pass" | "fail"): string {
+function oracleAttribution(phaseId: string, result: "pass" | "fail" | "skipped"): string {
   return JSON.stringify(
     withSchemaUrl("gate-attribution", {
       phase: phaseId,
@@ -193,6 +193,31 @@ describe("generateReviewHandoff — oracle pairs", () => {
       handoff.indexOf("## Oracle pairs"),
     );
     expect(handoff.indexOf("## Oracle pairs")).toBeLessThan(handoff.indexOf("## Phase details"));
+  });
+
+  it("says skipped for a discharge the operator skipped", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01", "phase-02", "phase-03"]);
+    for (const id of ["phase-01", "phase-02", "phase-03"]) {
+      setupPhaseFiles(impl, id, makeEmptyReconciliationJson(id));
+    }
+    impl.setFile(`${runPath}/phax-plan.json`, oraclePlanJson(true));
+    impl.setFile(
+      `${runPath}/phase-02/gate-attribution.json`,
+      oracleAttribution("phase-02", "pass"),
+    );
+    impl.setFile(
+      `${runPath}/phase-03/gate-attribution.json`,
+      oracleAttribution("phase-03", "skipped"),
+    );
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    expect(impl.getFile(`${runPath}/review-handoff.md`)).toContain(
+      "| phase-02 | phase-03 | pass | skipped |",
+    );
   });
 
   it("says not run for a side with no oracle step", async () => {
