@@ -225,7 +225,8 @@ const CASES: Record<string, RecheckCase> = {
       addHeaderLines(roots, ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"]),
     message: (roots) =>
       [
-        `Oracle preflight failed: 1 error(s).`,
+        `Oracle preflight failed: 2 error(s).`,
+        `  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
         `  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines`,
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),

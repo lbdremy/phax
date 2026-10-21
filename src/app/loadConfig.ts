@@ -373,6 +373,7 @@ export function loadConfig(
     ...(config.brief !== undefined ? { brief: config.brief } : {}),
     ...(config.planAuditor !== undefined ? { planAuditor: config.planAuditor } : {}),
     ...(config.architecture !== undefined ? { architecture: config.architecture } : {}),
+    ...(config.oracles !== undefined ? { oracles: config.oracles } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
     authoring: resolveAuthoringConfig(config.authoring),

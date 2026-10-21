@@ -105,11 +105,8 @@ export function lintPlan(
     // Header lines are read from plan.md alone, so they are reported whether or
     // not the plan parses.
     const headers = readPhaseHeaders(planMd);
-    findings.push(
-      ...reasonLabelFindings(headers),
-      ...interactiveFindings(headers),
-      ...oracleFindings(headers),
-    );
+    findings.push(...reasonLabelFindings(headers), ...interactiveFindings(headers));
+    const oracleInput = { headers, providerConfigured: config.oracles !== undefined };
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
@@ -124,6 +121,7 @@ export function lintPlan(
     if (Either.isLeft(extracted)) {
       // Every later check needs a parsed plan; the structural errors already
       // say why it could not be parsed.
+      findings.push(...oracleFindings({ ...oracleInput, phases: null }));
       return { plan: reportPath, findings };
     }
 
@@ -135,10 +133,12 @@ export function lintPlan(
         phase: null,
         message: finalized.left.message,
       });
+      findings.push(...oracleFindings({ ...oracleInput, phases: null }));
       return { plan: reportPath, findings };
     }
 
     const { plan, warnings } = finalized.right;
+    findings.push(...oracleFindings({ ...oracleInput, phases: plan.phases }));
     for (const warning of warnings) {
       findings.push({ severity: "warning", check: "structure", phase: null, message: warning });
     }

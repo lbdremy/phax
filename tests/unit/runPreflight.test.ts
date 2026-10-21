@@ -170,6 +170,10 @@ const SKILL_FILE = ".claude/skills/foo/SKILL.md";
 const skillPhase = makePhase("phase-01", { plannedFilesToCreate: [SKILL_FILE] });
 const badModelPhase = makePhase("phase-01", { model: "completely-unknown-model-xyz" });
 const twoPhasePlan = makePlan([makePhase("phase-01"), makePhase("phase-02")]);
+const oraclePlan = makePlan([
+  makePhase("phase-01", { plannedFilesToCreate: ["a.ts"] }),
+  makePhase("phase-02"),
+]);
 const recordsRepoConfig = makeConfig({
   records: {
     enabled: true,
@@ -308,11 +312,13 @@ const REFUSALS = {
   },
   "oracle-phases": {
     input: makeInput({
-      planMd: planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]),
+      plan: oraclePlan,
+      planMd: `${planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
     }),
     errorClass: OraclePreflightError,
     message: [
-      "Oracle preflight failed: 1 error(s).",
+      "Oracle preflight failed: 2 error(s).",
+      '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)',
       "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
       LINT_HINT,
     ].join("\n"),
@@ -330,8 +336,8 @@ describe("runPreflights", () => {
       "phase-models",
       "phase-sections",
       "assignment-bounds",
-      "interactive-phases",
       "oracle-phases",
+      "interactive-phases",
     ]);
   });
 
@@ -378,6 +384,34 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ planMd: planMdWithHeader(["**Mode:** review"]) }));
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(InteractivePreflightError);
+  });
+
+  it("oracle-phases drops the provider row once a provider is configured", async () => {
+    const input = REFUSALS["oracle-phases"].input;
+    const result = await run({
+      ...input,
+      config: makeConfig({ oracles: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
+    });
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result) && result.left instanceof OraclePreflightError) {
+      expect(result.left.findings.map((f) => f.check)).toEqual(["oracles"]);
+      expect(result.left.message).not.toContain('no "oracles" provider');
+    }
+  });
+
+  it("oracle-phases refuses a plan with an interactive phase before interactive-phases does", async () => {
+    const planMd = [
+      planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]),
+      "## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** m\n**Recommended effort:** medium\n**Mode:** interactive\n",
+    ].join("\n");
+    const result = await run(makeInput({ plan: oraclePlan, planMd }));
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(OraclePreflightError);
+      expect(result.left.message).toContain(
+        "phase-02  an interactive phase takes no oracle role: it discharges phase-01",
+      );
+    }
   });
 
   it.each(Object.entries(REFUSALS))(

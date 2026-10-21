@@ -59,8 +59,8 @@ export const RUN_PREFLIGHT_CHECKS = [
   "phase-models",
   "phase-sections",
   "assignment-bounds",
-  "interactive-phases",
   "oracle-phases",
+  "interactive-phases",
 ] as const;
 
 export type RunPreflightCheck = (typeof RUN_PREFLIGHT_CHECKS)[number];
@@ -383,9 +383,15 @@ const checks = {
     );
   },
 
-  // The same for the oracle lines.
+  // The oracle lines and pairs: exactly the errors `phax plans lint` reports.
+  // Runs before the interactive check, so a plan with any `oracles` error is
+  // refused here, with every `oracles` row.
   "oracle-phases": (input, _gateSteps, _planSections, headers) => {
-    const findings = oracleFindings(headers);
+    const findings = oracleFindings({
+      headers,
+      phases: input.plan.phases,
+      providerConfigured: input.config.oracles !== undefined,
+    });
     if (findings.length === 0) return Effect.void;
     return Effect.fail(
       new OraclePreflightError({

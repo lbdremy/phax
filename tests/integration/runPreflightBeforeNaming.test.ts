@@ -102,9 +102,14 @@ const INTERACTIVE_MESSAGE = [
   "  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
   LINT_HINT,
 ].join("\n");
+const NO_PROVIDER_ROW =
+  '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
+const REFUSAL_ROW =
+  "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines";
 const ORACLE_MESSAGE = [
-  "Oracle preflight failed: 1 error(s).",
-  "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
+  "Oracle preflight failed: 2 error(s).",
+  NO_PROVIDER_ROW,
+  REFUSAL_ROW,
   LINT_HINT,
 ].join("\n");
 // The same text lint prints for the label error, under the model preflight header.
@@ -268,7 +273,7 @@ const SCENARIOS = {
     errorLine: () => `phax run failed: ${INTERACTIVE_MESSAGE}`,
   },
   "oracle-phases": {
-    fixture: { plan: { phases: [{ headerLines: ORACLE_LINES }] } },
+    fixture: { plan: { phases: [{ headerLines: ORACLE_LINES }, {}] } },
     exitCode: 11,
     errorLine: () => `phax run failed: ${ORACLE_MESSAGE}`,
   },
@@ -324,6 +329,29 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
         "  assignments[0].model: claude-opus-9 is not in the catalog",
         "",
         "Check the plan with `phax plans lint plan.md`.",
+      ].join("\n")}`,
+  },
+  "oracle-phases (a provider is configured)": {
+    fixture: {
+      config: { oracles: { command: "./fake-oracles" } },
+      plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
+    },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${["Oracle preflight failed: 1 error(s).", REFUSAL_ROW, LINT_HINT].join("\n")}`,
+  },
+  "oracle-phases (an interactive last phase declaring an oracle phase)": {
+    fixture: { plan: { phases: [{}, { headerLines: [INTERACTIVE_LINE, ...ORACLE_LINES] }] } },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${[
+        "Oracle preflight failed: 5 error(s).",
+        "  phase-02  oracle phase is discharged by the next phase, and phase-02 is the last phase",
+        "  phase-02  oracle file src/step-01.ts is not among this phase's planned files to create or to edit",
+        "  phase-02  an interactive phase takes no oracle role: it declares an oracle phase",
+        NO_PROVIDER_ROW.replace("phase-01", "phase-02"),
+        REFUSAL_ROW.replace("phase-01", "phase-02"),
+        LINT_HINT,
       ].join("\n")}`,
   },
   "interactive-phases (a malformed Mode line)": {

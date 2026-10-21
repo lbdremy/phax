@@ -357,6 +357,36 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("oracles: scalar override", () => {
+    const project = makeProject({ oracles: { command: "project-oracles" } });
+    const globalUser = makeOverlay({ oracles: { command: "global-oracles" } });
+    const localUser = makeOverlay({ oracles: { command: "local-oracles" } });
+
+    it("resolves from local, then global once local is cleared, then project", () => {
+      expect(mergeConfigLayers({ project, globalUser, localUser }).oracles).toEqual({
+        command: "local-oracles",
+      });
+      expect(mergeConfigLayers({ project, globalUser }).oracles).toEqual({
+        command: "global-oracles",
+      });
+      expect(mergeConfigLayers({ project }).oracles).toEqual({ command: "project-oracles" });
+    });
+
+    it("a user layer can declare it when the project has none", () => {
+      expect(mergeConfigLayers({ project: makeProject(), localUser }).oracles).toEqual({
+        command: "local-oracles",
+      });
+    });
+
+    it("is absent when no layer declares it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect(result.oracles).toBeUndefined();
+    });
+  });
+
   describe("review.compliance: per-scalar override", () => {
     it("local compliance fields override project", () => {
       const project = makeProject({
