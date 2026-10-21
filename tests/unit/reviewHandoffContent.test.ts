@@ -82,6 +82,29 @@ describe("buildReviewHandoffContent — without compliance", () => {
   });
 });
 
+describe("buildReviewHandoffContent — oracle pairs", () => {
+  const oraclePairsMd =
+    "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |";
+
+  it("renders the section between the unexplained deviations and the compliance review", () => {
+    const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
+      oraclePairsMd,
+      complianceReviewMd: "conformant",
+    });
+    const at = (heading: string) => output.indexOf(heading);
+    expect(at("## Deviations not explained in any handoff")).toBeLessThan(at("## Oracle pairs"));
+    expect(at("## Oracle pairs")).toBeLessThan(at("## Plan compliance review"));
+  });
+
+  it("omitted section is byte-identical to no extras", () => {
+    expect(
+      buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
+        oraclePairsMd: undefined,
+      }),
+    ).toBe(buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents));
+  });
+});
+
 describe("buildReviewHandoffContent — with compliance", () => {
   const complianceMd = "## Verdict\n\nconformant — all phases delivered as planned.";
 

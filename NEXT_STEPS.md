@@ -32,6 +32,17 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
       (`phax architecture`) landed and the spec is complete.
 
+- [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
+      2026-10-20; the 2026-09-28 spec is abandoned.
+      - Any `oracles` provider will do. The provider gets a new `oracle-request` and answers a
+        `gate-report`, both with `$schema`.
+      - Plan 1 of 2 has landed: the provider block, the shared `oracles` check in lint and the
+        run preflight, the oracle step in the gate loop, the formats, and the surfaces around the
+        run (handoff, records, prompts, skills, docs).
+      - Plan 2 follows: an example Vitest provider that lives in the repository only (built on
+        tree-sitter, comparing syntax trees so reformatting never changes a verdict), and phax's
+        own `oracles` declaration in phax.json.
+
 ### Approved, not yet planned
 
 - [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. Approved 2026-10-20,
@@ -44,18 +55,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         `records.transcript`, and the person's turns are not costed.
       - The phase shape landed. Lint and the run preflight refuse an interactive phase for now,
         and the runtime plan replaces that refusal.
-- [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
-      2026-10-20; the 2026-09-28 spec is abandoned.
-      - Any `oracles` provider will do, not only steme. The provider gets a new `oracle-request`
-        and answers a `gate-report`, both with `$schema`.
-      - An example Vitest provider lives in the repository only. It is built on tree-sitter and
-        compares syntax trees, so reformatting a file never changes a verdict. phax's own plans use
-        it.
-      - The planner declares oracle phases only when a provider is configured.
-      - The `oracle` key sits right after `mode`. Lint and the run preflight share one check,
-        which refuses with exit 11. An interactive phase takes no oracle role.
-      - The phase shape landed. Lint and the run preflight refuse an oracle phase for now, and
-        the runtime plan replaces that refusal.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Reworked and re-approved
       2026-10-19: the review passes go under `## Needs your review` in the short PR body, the PR
       opens as a draft while a review plan or a finding is pending, run completion happens when

@@ -140,6 +140,18 @@ async function records(args: readonly string[]) {
   return { code, logs, errors, text: logs.join("\n") };
 }
 
+function attribution(phase: string, result: "pass" | "fail"): string {
+  return JSON.stringify(
+    withSchemaUrl("gate-attribution", {
+      phase,
+      steps: [
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "node tools/oracles.mjs", surface: "oracle", result },
+      ],
+    }),
+  );
+}
+
 // A phase manifest as phax wrote it before `$schema`: version 2, no `$schema`.
 function preSchemaPhaseManifest(runId: string, phaseId: string, sourceSha: string): object {
   return {
@@ -601,6 +613,80 @@ describe("records explain and list (real git)", () => {
         "gate log two",
         "--- checks-attempt-02.request.json ---",
         '{"attempt":2}',
+      ]);
+    });
+
+    it("names a phase's oracle role, its counterpart and its last oracle-step result", async () => {
+      const runId = "run-oracle-1786800000012";
+      const base = {
+        runId,
+        shape: "skeleton" as const,
+        model: "claude-sonnet-5",
+        effort: "high" as const,
+        provider: "claude-code" as const,
+        outcome: "committed" as const,
+        usage: { available: false as const },
+        verifiedSurfaces: ["local", "oracle"] as const,
+      };
+      const authoredSha = commitWithTrailers(repoDir, runId, "phase-02");
+      await writeFullRecordCommit(
+        repoDir,
+        {
+          ...base,
+          phaseId: "phase-02",
+          sourceSha: authoredSha,
+          verifiedSurfaces: [...base.verifiedSurfaces],
+          oracle: { role: "oracle", dischargedBy: "phase-03" },
+        },
+        { "gate-attribution.json": attribution("phase-02", "pass") },
+      );
+      const dischargedSha = commitWithTrailers(repoDir, runId, "phase-03");
+      await writeFullRecordCommit(
+        repoDir,
+        {
+          ...base,
+          phaseId: "phase-03",
+          sourceSha: dischargedSha,
+          verifiedSurfaces: [...base.verifiedSurfaces],
+          oracle: { role: "discharging", oraclePhase: "phase-02" },
+        },
+        {},
+      );
+      const ordinarySha = commitWithTrailers(repoDir, runId, "phase-04");
+      await writeFullRecordCommit(
+        repoDir,
+        {
+          ...base,
+          phaseId: "phase-04",
+          sourceSha: ordinarySha,
+          verifiedSurfaces: ["local"],
+          oracle: null,
+        },
+        {},
+      );
+
+      const authored = await records(["explain", authoredSha]);
+      expect(authored.logs).toContain(
+        "oracle   oracle phase, discharged by phase-03 — node tools/oracles.mjs: pass",
+      );
+      const discharged = await records(["explain", dischargedSha]);
+      expect(discharged.logs).toContain("oracle   discharges phase-02 — not run");
+      const ordinary = await records(["explain", ordinarySha]);
+      expect(ordinary.text).not.toContain("oracle   ");
+    });
+
+    it("lists the oracle request right after the attempt's request under --gates", () => {
+      const artifacts = new Map<string, Uint8Array>([
+        ["checks-attempt-01.oracle-request.json", bytes("{}")],
+        ["checks-attempt-01.report-02.json", bytes("{}")],
+        ["checks-attempt-01.request.json", bytes("{}")],
+        ["checks-attempt-01.log", bytes("one")],
+      ]);
+      expect(gateArtifactsInOrder(artifacts).map(([name]) => name)).toEqual([
+        "checks-attempt-01.log",
+        "checks-attempt-01.request.json",
+        "checks-attempt-01.oracle-request.json",
+        "checks-attempt-01.report-02.json",
       ]);
     });
 

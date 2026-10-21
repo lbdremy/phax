@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { renderPlanOutline } from "../domain/plan/outline.js";
+import type { OracleRole } from "../domain/plan/oraclePairs.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 import { PHASE_PLAN_FILE } from "./worktree.js";
 
@@ -19,6 +20,22 @@ export interface BuildPhasePromptOptions {
   readonly gateCommands: string[];
   /** The `## Brief for this phase` section, present exactly when a brief provider is configured. */
   readonly briefSection?: string | undefined;
+  /** The phase's role in an oracle pair, or null for an ordinary phase. */
+  readonly oracleRole: OracleRole | null;
+}
+
+/**
+ * The `## Oracle role` section: one fixed paragraph per role, naming the
+ * counterpart phase and the oracle files. It names no test framework or marker.
+ */
+function oracleRoleLines(role: OracleRole | null): string[] {
+  if (role === null) return [];
+  const files = role.pair.files.join(", ");
+  const paragraph =
+    role.role === "oracle"
+      ? `This phase writes the oracles that ${role.pair.dischargingPhase} will discharge. In the oracle files (${files}), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.`
+      : `This phase discharges the oracles ${role.pair.oraclePhase} wrote. In the oracle files (${files}), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.`;
+  return ["## Oracle role", "", paragraph, ""];
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
@@ -31,6 +48,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     previousReconciliation,
     gateCommands,
     briefSection,
+    oracleRole,
   } = opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
 
@@ -74,6 +92,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     phaseSection,
     "",
+    ...oracleRoleLines(oracleRole),
     "## Previous phase handoff",
     "",
     handoffSection,
@@ -148,6 +167,7 @@ export interface GeneratePhasePromptOptions {
   readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
   readonly briefSection?: string | undefined;
+  readonly oracleRole: OracleRole | null;
 }
 
 export function generatePhasePrompt(

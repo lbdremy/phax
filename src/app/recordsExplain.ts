@@ -15,7 +15,7 @@ import {
   isDecisionRecordManifest,
   type DecisionRecordManifest,
 } from "../schemas/decisionRecord.js";
-import { readRecordManifestFile } from "../schemas/persisted.js";
+import { readGateAttributionFile, readRecordManifestFile } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
 
@@ -43,6 +43,11 @@ export interface ExplainedRecord {
   readonly promptByteLength?: number;
   readonly diffStat?: RecordDiffStat;
   readonly handoffPresent: boolean;
+  /** The last step with surface `oracle` in the record's own `gate-attribution.json`, or null. */
+  readonly oracleStep: {
+    readonly command: string;
+    readonly result: "pass" | "fail" | "refused";
+  } | null;
   /** Artifact contents by file name (e.g. `"prompt.md"`), excluding `record.json`. */
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
@@ -111,6 +116,22 @@ function decodeText(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
 
+/** The last oracle step of a record's `gate-attribution.json` artifact; null when absent or unreadable. */
+function lastOracleStep(artifacts: ReadonlyMap<string, Uint8Array>): ExplainedRecord["oracleStep"] {
+  const bytes = artifacts.get("gate-attribution.json");
+  if (bytes === undefined) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(decodeText(bytes));
+  } catch {
+    return null;
+  }
+  const read = readGateAttributionFile("gate-attribution.json", parsed);
+  if (Either.isLeft(read)) return null;
+  const step = read.right.steps.findLast((s) => s.surface === "oracle");
+  return step === undefined ? null : { command: step.command, result: step.result };
+}
+
 /**
  * The gate artifacts of a phase record in attempt order: each
  * `checks-attempt-NN.log`, then its `checks-attempt-NN.request.json` when the
@@ -139,7 +160,7 @@ export function gateArtifactsInOrder(
   reports.sort((a, b) => a.step - b.step);
   const ordered: Array<readonly [string, Uint8Array]> = [];
   for (const { attempt, stem } of attempts) {
-    for (const name of [`${stem}.log`, `${stem}.request.json`]) {
+    for (const name of [`${stem}.log`, `${stem}.request.json`, `${stem}.oracle-request.json`]) {
       const bytes = artifacts.get(name);
       if (bytes !== undefined) ordered.push([name, bytes]);
     }
@@ -468,6 +489,7 @@ function explainPhaseRecord(
     ...(promptBytes !== undefined ? { promptByteLength: promptBytes.length } : {}),
     ...(diffBytes !== undefined ? { diffStat: parseDiffStat(decodeText(diffBytes)) } : {}),
     handoffPresent: artifacts.has("phase-handoff.md"),
+    oracleStep: lastOracleStep(artifacts),
     artifacts,
   });
 }

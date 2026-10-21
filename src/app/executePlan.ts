@@ -850,6 +850,7 @@ export function executePlan(
           previousReconciliation,
           gateCommands: gateCommandStrings,
           briefSection,
+          oracleRole: oracleRoleOf(plan.phases, phase.id),
         });
 
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);

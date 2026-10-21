@@ -11,6 +11,7 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
 import { generateGlobalReconciliation } from "./generateGlobalReconciliation.js";
 import {
+  loadOraclePairsSection,
   loadPhaseContents,
   loadReviewNotes,
   loadSourceSpecOutcome,
@@ -36,6 +37,9 @@ export interface ReviewHandoffExtras {
   // The `## Review notes` section gathered from the phases' last gate
   // attempts, rendered directly before `## Phase details`.
   readonly reviewNotesMd?: string | undefined;
+  // The `## Oracle pairs` section, rendered after the unexplained deviations
+  // and before the plan compliance review.
+  readonly oraclePairsMd?: string | undefined;
 }
 
 function buildUnexplainedSection(
@@ -70,7 +74,7 @@ export function buildReviewHandoffContent(
   phases: readonly PhaseContent[],
   extras: ReviewHandoffExtras = {},
 ): string {
-  const { complianceReviewMd, sourceSpecOutcomeMd, reviewNotesMd } = extras;
+  const { complianceReviewMd, sourceSpecOutcomeMd, reviewNotesMd, oraclePairsMd } = extras;
   const passed = info.phaseStatuses.filter(
     (p) => isPhaseTerminal(p.state) && p.state !== "skipped",
   ).length;
@@ -126,7 +130,7 @@ ${buildAttentionSection(global)}
 ## Deviations not explained in any handoff
 
 ${buildUnexplainedSection(global, phases)}
-${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}${reviewNotesMd !== undefined ? `\n${reviewNotesMd.trimEnd()}\n` : ""}
+${oraclePairsMd !== undefined ? `\n${oraclePairsMd.trimEnd()}\n` : ""}${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}${reviewNotesMd !== undefined ? `\n${reviewNotesMd.trimEnd()}\n` : ""}
 ## Phase details
 
 ${phaseDetails}
@@ -168,9 +172,11 @@ export function generateReviewHandoff(
 
     const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
     const reviewNotesMd = yield* loadReviewNotes(info);
+    const oraclePairsMd = yield* loadOraclePairsSection(info);
     const reviewHandoffContent = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
       sourceSpecOutcomeMd,
       reviewNotesMd,
+      oraclePairsMd,
     });
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), reviewHandoffContent);
 

@@ -204,6 +204,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
+    oraclesProvider: false,
     output: { warn: () => {} },
     ...overrides,
   };
@@ -587,6 +588,20 @@ describe("authorArtifact — the architecture provider", () => {
     expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
       "No architecture provider is configured",
     );
+  });
+
+  it("a plan is told whether an oracles provider is configured, and is granted nothing for it", async () => {
+    const configured = setup(JSON.stringify(PLAN_DOCUMENT));
+    configured.fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+    expect(Either.isRight(await configured.run(planInput({ oraclesProvider: true })))).toBe(true);
+    expect(configured.backend.runCalls[0]?.prompt).toContain("An oracles provider is configured");
+    expect(configured.backend.runCalls[0]?.options).not.toHaveProperty("agentCommands");
+    expect(configured.backend.runCalls[0]?.options.security.agentCommands).toEqual(["git"]);
+
+    const absent = setup(JSON.stringify(PLAN_DOCUMENT));
+    absent.fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+    expect(Either.isRight(await absent.run(planInput({ oraclesProvider: false })))).toBe(true);
+    expect(absent.backend.runCalls[0]?.prompt).toContain("No oracles provider is configured");
   });
 
   it("a spec session gets neither the grant nor the statement, whatever the config says", async () => {

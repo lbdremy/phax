@@ -216,6 +216,13 @@ export default definePageMap({
         "Declare a command that answers phax architecture with your repository's architecture, and the limits it runs under when a planner calls it.",
     },
     {
+      route: "/guide/oracle-phases",
+      title: "Oracle phases",
+      source: "docs/oracle-phases.md",
+      description:
+        "Declare an oracles provider, and write a plan whose tests are authored in one phase and discharged in the next.",
+    },
+    {
       route: "/guide/assignment-bounds",
       title: "Assignment bounds",
       source: "docs/assignment-bounds.md",

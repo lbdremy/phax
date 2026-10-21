@@ -63,3 +63,32 @@ export function recordOracleRole(role: OracleRole | null): RecordOracleRole {
     ? { role: "oracle", dischargedBy: role.pair.dischargingPhase }
     : { role: "discharging", oraclePhase: role.pair.oraclePhase };
 }
+
+/** The last oracle-step result of one side of a pair, `not run` when it has none. */
+export type OraclePairResult = "pass" | "fail" | "refused" | "not run";
+
+export interface OraclePairRow {
+  readonly oraclePhase: string;
+  readonly dischargingPhase: string;
+  readonly authored: OraclePairResult;
+  readonly discharged: OraclePairResult;
+}
+
+/**
+ * The review handoff's `## Oracle pairs` section, one table row per pair, or
+ * undefined when the plan declares no oracle phase.
+ */
+export function renderOraclePairsSection(rows: readonly OraclePairRow[]): string | undefined {
+  if (rows.length === 0) return undefined;
+  const lines = rows.map(
+    (row) =>
+      `| ${row.oraclePhase} | ${row.dischargingPhase} | ${row.authored} | ${row.discharged} |`,
+  );
+  return [
+    "## Oracle pairs",
+    "",
+    "| Oracle phase | Discharged by | Authored | Discharged |",
+    "| --- | --- | --- | --- |",
+    ...lines,
+  ].join("\n");
+}

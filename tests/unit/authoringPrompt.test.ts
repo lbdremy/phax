@@ -17,6 +17,7 @@ function specPrompt(): string {
     slug: "plan-prune",
     architectureProvider: null,
     assignmentBounds: null,
+    oraclesProvider: null,
   });
 }
 
@@ -24,6 +25,7 @@ function planPrompt(
   completesSpec: boolean,
   architectureProvider = false,
   assignmentBounds = false,
+  oraclesProvider = false,
 ): string {
   return buildAuthoringPrompt({
     kind: "plan",
@@ -38,6 +40,7 @@ function planPrompt(
     slug: "plan-prune",
     architectureProvider,
     assignmentBounds,
+    oraclesProvider,
   });
 }
 
@@ -123,6 +126,22 @@ describe("buildAuthoringPrompt", () => {
     }
   });
 
+  it("a plan prompt states whether an oracles provider is configured, a spec prompt neither", () => {
+    expect(planPrompt(true, false, false, true)).toContain(
+      '- An oracles provider is configured ("oracles" in phax config): you may declare an oracle phase',
+    );
+    expect(planPrompt(true, false, false, false)).toContain(
+      "- No oracles provider is configured: declare no oracle phase; every phase's `oracle` is null.",
+    );
+    expect(specPrompt()).not.toContain("oracles provider");
+  });
+
+  it("places the oracles bullet right after the architecture bullet", () => {
+    const lines = planPrompt(true, false, false, true).split("\n");
+    const architecture = lines.findIndex((l) => l.includes("No architecture provider"));
+    expect(lines[architecture + 1]).toContain("An oracles provider is configured");
+  });
+
   it("names no decide command", () => {
     for (const prompt of [specPrompt(), planPrompt(true)]) {
       expect(prompt).not.toContain("decide");
@@ -140,6 +159,7 @@ describe("buildAuthoringPrompt", () => {
       slug: "catalog-refresh",
       architectureProvider: false,
       assignmentBounds: false,
+      oraclesProvider: false,
     });
 
     expect(prompt).toContain("Set `sourceSpec` to null");

@@ -81,10 +81,10 @@ handoffs, docs, the PR's tables).
   *smells* that make you ask the question; they are not the rule.
 - `P3` (`C4`) **Oracle first, when the surface is shown.** When the spec shows the surface with
   real before/after artifacts, write tests and disposition matrices in an
-  `oracle-authoring` phase that precedes the implementing phase, and list those files
-  as read-only for the implementing phase. When the surface is only described, keep
+  `oracle-authoring` phase that precedes the implementing phase; the implementing phase
+  changes those files only by removing the markers, judged by the oracles provider. When the surface is only described, keep
   test and code in one phase and rely on the compliance review's `tests` dimension. If
-  an oracle written first turns out wrong, the implementing phase must not touch it: the
+  an oracle written first turns out wrong, the implementing phase changes it only by removing the markers: the
   run pauses and the disagreement goes back to the spec — that is the intended
   behaviour, not a failure.
 - `P4` (`C2`) **A fix stays inside the run's footprint.** A correction phase may touch the
