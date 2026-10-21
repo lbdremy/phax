@@ -77,6 +77,8 @@ All done.
   "optionalFilesToEdit": [
     "src/optional.ts"
   ],
+  "mode": "headless",
+  "oracle": null,
   "commit": {
     "subject": "feat: report errors",
     "body": "Commit body of phase-03."

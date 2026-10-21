@@ -60,6 +60,8 @@ function makeCacheEntry(
           plannedFilesToCreate: filesToCreate,
           plannedFilesToEdit: filesToEdit,
           optionalFilesToEdit: [],
+          mode: "headless",
+          oracle: null,
           commit: { subject: `feat: ${shortName}`, body: "body" },
         },
       ],

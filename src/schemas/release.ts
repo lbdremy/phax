@@ -9,7 +9,7 @@ export const CURRENT_STAMPS = {
   registry: "0.17.0",
   "run-status": "0.17.0",
   "phase-status": "0.20.0",
-  "phax-plan": "0.17.0",
+  "phax-plan": "0.26.0",
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",
   "spec-approvals": "0.17.0",

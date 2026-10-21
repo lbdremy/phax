@@ -610,8 +610,9 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 
 /**
  * A plan document as every shape before the preamble's question arrays and
- * each phase's reason (the frozen 0.20.0 shape): without both. The reason is
- * `assignmentReason` in the current shape.
+ * each phase's reason (the frozen 0.20.0 shape): without both, and without
+ * each phase's `mode` and `oracle`. The reason is `assignmentReason` in the
+ * current shape.
  */
 export function withoutPreambleQuestions(doc: Doc): Doc {
   const {
@@ -619,31 +620,53 @@ export function withoutPreambleQuestions(doc: Doc): Doc {
     arbitratedQuestions: _arbitrated,
     ...preamble
   } = doc["preamble"] as Doc;
-  const phases = (doc["phases"] as Doc[]).map(({ assignmentReason: _reason, ...phase }) => phase);
+  const phases = (doc["phases"] as Doc[]).map(
+    ({ assignmentReason: _reason, mode: _mode, oracle: _oracle, ...phase }) => phase,
+  );
   return { ...doc, preamble, phases };
 }
 
 /**
  * A current plan document as the frozen 0.25.0 shape wrote it: each phase's
- * `assignmentReason` is a `modelReason`, in the same place before model and effort.
+ * `assignmentReason` is a `modelReason`, in the same place before model and
+ * effort, and no phase carries `mode` or `oracle`.
  */
 export function withModelReasons(doc: Doc): Doc {
-  const phases = (doc["phases"] as Doc[]).map(({ assignmentReason, model, effort, ...phase }) => ({
-    ...phase,
-    modelReason: assignmentReason,
-    model,
-    effort,
-  }));
+  const phases = (doc["phases"] as Doc[]).map(
+    ({ assignmentReason, model, effort, mode: _mode, oracle: _oracle, ...phase }) => ({
+      ...phase,
+      modelReason: assignmentReason,
+      model,
+      effort,
+    }),
+  );
+  return { ...doc, phases };
+}
+
+/**
+ * A current phax-plan as the frozen 0.17.0 shape wrote it: no phase carries
+ * `mode` or `oracle`.
+ */
+export function withoutPhaseKinds(doc: Doc): Doc {
+  const phases = (doc["phases"] as Doc[]).map(
+    ({ mode: _mode, oracle: _oracle, ...phase }) => phase,
+  );
   return { ...doc, phases };
 }
 
 /**
  * A plan document with what an older shape lifts to: the preamble's question
- * arrays both empty, and a null `assignmentReason` on every phase.
+ * arrays both empty, and `mode: "headless"`, `oracle: null` and a null
+ * `assignmentReason` on every phase.
  */
 function withEmptyQuestions(doc: Doc): Doc {
   const preamble = doc["preamble"] as Doc;
-  const phases = (doc["phases"] as Doc[]).map((phase) => ({ ...phase, assignmentReason: null }));
+  const phases = (doc["phases"] as Doc[]).map((phase) => ({
+    ...phase,
+    mode: "headless",
+    oracle: null,
+    assignmentReason: null,
+  }));
   return {
     ...doc,
     preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
@@ -663,6 +686,14 @@ export function latestPreSchema(id: PreSchemaFormatId): Doc {
   const { version: _version, ...rest } = preSchemaDocuments[id];
   if (id === "plan-document") return withEmptyQuestions({ ...rest, completesSpec: null });
   if (id === "spec-document") return { ...rest, arbitratedQuestions: [] };
+  if (id === "phax-plan") {
+    const phases = (rest["phases"] as Doc[]).map((phase) => ({
+      ...phase,
+      mode: "headless",
+      oracle: null,
+    }));
+    return { ...rest, phases };
+  }
   return rest;
 }
 
@@ -677,7 +708,18 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     PhaseStatusFileSchema,
     withSchemaUrl("phase-status", { ...stepped(phaseStatus), base: EXAMPLE_BASE }),
   ),
-  "phax-plan": encoded(PhaxPlanFileSchema, withSchemaUrl("phax-plan", stepped(phaxPlan))),
+  "phax-plan": encoded(
+    PhaxPlanFileSchema,
+    withSchemaUrl("phax-plan", {
+      run: phaxPlan.run,
+      phases: [
+        { ...phaxPlan.phases[0], mode: "headless" as const, oracle: null },
+        ...phaxPlan.phases
+          .slice(1)
+          .map((phase) => ({ ...phase, mode: "headless" as const, oracle: null })),
+      ],
+    }),
+  ),
   "compliance-review": encoded(
     ComplianceReviewFileSchema,
     withSchemaUrl("compliance-review", stepped(complianceReview)),
@@ -721,8 +763,13 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       completesSpec: null,
       preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
       phases: [
-        { ...planDocument.phases[0], assignmentReason: null },
-        ...planDocument.phases.slice(1).map((phase) => ({ ...phase, assignmentReason: null })),
+        { ...planDocument.phases[0], mode: "headless", oracle: null, assignmentReason: null },
+        ...planDocument.phases.slice(1).map((phase) => ({
+          ...phase,
+          mode: "headless" as const,
+          oracle: null,
+          assignmentReason: null,
+        })),
       ],
     }),
   ),

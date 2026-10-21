@@ -122,9 +122,10 @@ function sizeRun(
       skipped.push({ path: planPath, reason: "no phax-plan.json: the run is not sized" });
       return null;
     }
+    // Sizing only: an older shape is read lifted, whatever the shape.
     const plan = yield* readJsonFile<PhaxPlan>(
       planPath,
-      readPhaxPlanFile,
+      (file, input) => Either.map(readPhaxPlanFile(file, input), (read) => read.plan),
       {
         unreadable: "phax-plan.json could not be read: the run is not sized",
         undecodable: "phax-plan.json could not be decoded: the run is not sized",

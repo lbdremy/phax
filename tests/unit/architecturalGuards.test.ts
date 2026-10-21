@@ -536,6 +536,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/phase-record-manifest/pre-schema.ts",
   "src/schemas/history/phase-status/0.17.0.ts",
   "src/schemas/history/phase-status/pre-schema.ts",
+  "src/schemas/history/phax-plan/0.17.0.ts",
   "src/schemas/history/phax-plan/pre-schema.ts",
   "src/schemas/history/plan-approval-record/0.19.0.ts",
   "src/schemas/history/plan-approvals/pre-schema.ts",

@@ -85,7 +85,7 @@ const plan: PhaxPlan = Either.getOrThrow(
       },
     ],
   }),
-);
+).plan;
 
 function makeConfig(stateRoot: string): ResolvedConfig {
   return {

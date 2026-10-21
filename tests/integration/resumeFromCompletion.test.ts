@@ -212,7 +212,7 @@ async function runResume(opts: {
   runPath: string;
   runId: RunId;
 }) {
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
   const config = makeConfig(opts.stateRoot);
   return Effect.runPromise(
     Effect.either(
@@ -245,7 +245,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("re-enters at the completion step, spawning no agent and re-running no gate", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -322,7 +322,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("creates no second commit when the plan on the branch is already Completed", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

@@ -15,8 +15,11 @@
 // `defineFormat` does: a document with `$schema` is read only by phax's
 // current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape. Five formats also read an older
-// `$schema` shape: an authoring record manifest stamped below its current
+// then stepped to the current shape. Six formats also read an older
+// `$schema` shape: a phax-plan stamped below its current stamp is read by the
+// frozen 0.17.0 decoder and lifted with `mode: "headless"` and `oracle: null`
+// on every phase, and `readPhaxPlanFile` reports the shape it read; an
+// authoring record manifest stamped below its current
 // stamp is read by the frozen 0.17.0 decoder, then stepped to the current
 // shape, so the records already on phax/records/v1 stay listed; a spec or plan
 // approval record stamped below its current stamp is read by its frozen 0.19.0
@@ -73,7 +76,8 @@ import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-s
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
-import { decodePhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
+import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
+import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
 import {
@@ -100,7 +104,7 @@ import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
 } from "./history/spec-document/pre-schema.js";
-import { decodePhaxPlanFile, type PhaxPlan } from "./phaxPlan.js";
+import { decodePhaxPlanFile, type PhaxPlan, type PhaxPlanFile } from "./phaxPlan.js";
 import {
   decodePlanDocumentFile,
   type PlanDocument,
@@ -344,17 +348,66 @@ export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
     fromPreSchema: () => Either.left({ fact: "base" }),
   });
 
-/** Reads a run's `phax-plan.json`. The pre-schema phax-plan carries every fact phax needs. */
-export const readPhaxPlanFile: Reader<PhaxPlan> = (file, input) =>
-  readPersisted(input, {
+/** The shape a run's `phax-plan.json` was read in, beside the plan at the current shape. */
+export type PhaxPlanShape = "current" | "0.17.0" | "pre-schema";
+
+export interface PhaxPlanRead {
+  readonly shape: PhaxPlanShape;
+  readonly plan: PhaxPlan;
+}
+
+/**
+ * Lifts the phases of a phax-plan older than `mode`: each gains
+ * `mode: "headless"` and `oracle: null` after `optionalFilesToEdit`. Every
+ * phase an older phax ran was headless, and no oracle phase existed.
+ */
+function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): PhaxPlan["phases"] {
+  return Arr.map(phases, (phase) => ({
+    id: phase.id,
+    title: phase.title,
+    model: phase.model,
+    effort: phase.effort,
+    planMarkdownAnchor: phase.planMarkdownAnchor,
+    plannedFilesToCreate: phase.plannedFilesToCreate,
+    plannedFilesToEdit: phase.plannedFilesToEdit,
+    optionalFilesToEdit: phase.optionalFilesToEdit,
+    mode: "headless",
+    oracle: null,
+    commit: phase.commit,
+  }));
+}
+
+/**
+ * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
+ * current stamp by the current decoder (`current`), one stamped below it by
+ * the frozen 0.17.0 decoder (`0.17.0`), and one without `$schema` by the
+ * pre-schema decoder (`pre-schema`). An older shape is lifted with
+ * `liftPhaxPlanPhases`. A caller that hands the plan to a run accepts only
+ * `current`; one that only displays or sizes it takes `.plan` whatever the shape.
+ */
+export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
+    const older = decodePhaxPlanV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "phax-plan", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, run, phases } = older.right;
+    return Either.right({
+      shape: "0.17.0",
+      plan: { run, phases: liftPhaxPlanPhases(phases) },
+    });
+  }
+  return readPersisted<PhaxPlanFile, PhaxPlanPreSchema, PhaxPlanRead>(input, {
     format: "phax-plan",
     label: "phax-plan",
     file,
     decodeCurrent: decodePhaxPlanFile,
     decodePreSchema: decodePhaxPlanPreSchema,
-    fromCurrent: ({ $schema: _schema, ...plan }) => plan,
-    fromPreSchema: ({ version: _version, ...plan }) => Either.right(plan),
+    fromCurrent: ({ $schema: _schema, ...plan }) => ({ shape: "current", plan }),
+    fromPreSchema: ({ run, phases }) =>
+      Either.right({ shape: "pre-schema", plan: { run, phases: liftPhaxPlanPhases(phases) } }),
   });
+};
 
 /**
  * Reads a run's `compliance-review.json`. The pre-schema review carries every
@@ -507,7 +560,8 @@ function liftSpecDocument(older: SpecDocumentV0_17_0Value): SpecDocument {
 
 /**
  * Lifts the phases of a plan document older than `modelReason`: each gains
- * `assignmentReason: null`, rebuilt in the current key order.
+ * `mode: "headless"`, `oracle: null` and `assignmentReason: null`, rebuilt in
+ * the current key order.
  */
 function liftPlanDocumentPhases(
   phases: PlanDocumentV0_20_0Value["phases"],
@@ -521,6 +575,8 @@ function liftPlanDocumentPhases(
     plannedFilesToCreate: phase.plannedFilesToCreate,
     plannedFilesToEdit: phase.plannedFilesToEdit,
     optionalFilesToEdit: phase.optionalFilesToEdit,
+    mode: "headless",
+    oracle: null,
     boundaryContracts: phase.boundaryContracts,
     testStrategy: phase.testStrategy,
     implementationOrder: phase.implementationOrder,
@@ -536,7 +592,9 @@ function liftPlanDocumentPhases(
 
 /**
  * Lifts the phases of a 0.25.0 plan document: `modelReason` becomes
- * `assignmentReason`, rebuilt in the current key order.
+ * `assignmentReason`, and each gains `mode: "headless"` and `oracle: null`,
+ * rebuilt in the current key order. No phax before mode and oracle ran an
+ * interactive or an oracle phase.
  */
 function liftPlanDocumentV0_25_0Phases(
   phases: PlanDocumentV0_25_0Value["phases"],
@@ -550,6 +608,8 @@ function liftPlanDocumentV0_25_0Phases(
     plannedFilesToCreate: phase.plannedFilesToCreate,
     plannedFilesToEdit: phase.plannedFilesToEdit,
     optionalFilesToEdit: phase.optionalFilesToEdit,
+    mode: "headless",
+    oracle: null,
     boundaryContracts: phase.boundaryContracts,
     testStrategy: phase.testStrategy,
     implementationOrder: phase.implementationOrder,

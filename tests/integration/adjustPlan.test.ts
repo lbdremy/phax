@@ -98,6 +98,8 @@ function buildMinimalExtracted() {
         plannedFilesToCreate: ["src/domain/foo.ts"],
         plannedFilesToEdit: ["src/app/bar.ts"],
         optionalFilesToEdit: [],
+        mode: "headless" as const,
+        oracle: null,
         commit: {
           subject: "feat: do something",
           body: "Do something useful.",

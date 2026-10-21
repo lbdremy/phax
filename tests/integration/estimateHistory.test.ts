@@ -7,6 +7,7 @@ import { readEstimateHistory, type EstimateHistory } from "../../src/app/estimat
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import type { RegistryEntry } from "../../src/schemas/registry.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   daysAgo,
   ledgerEntry,
@@ -52,7 +53,33 @@ function writeRegistry(fs: ReturnType<typeof setup>["fs"], entries: readonly Reg
   fs.setFile(`${STATE}/registry.json`, registryJson(entries));
 }
 
+/** `phaxPlanJson`'s plan as an older phax wrote it: stamped 0.25.0, no mode and no oracle. */
+function olderPhaxPlanJson(phases: Parameters<typeof phaxPlanJson>[0]): string {
+  const plan = JSON.parse(phaxPlanJson(phases)) as { phases: Array<Record<string, unknown>> };
+  return JSON.stringify({
+    ...plan,
+    $schema: schemaUrl("phax-plan", "0.25.0"),
+    phases: plan.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
+  });
+}
+
 describe("readEstimateHistory", () => {
+  it("sizes a run whose phax-plan.json an older phax wrote, read lifted", async () => {
+    const { fs, git, read } = setup();
+    writeRegistry(fs, [archived]);
+    fs.setFile(`${archivedFolder}/cost-ledger.json`, ledgerJson([ledgerEntry({ costUsd: 5 })]));
+    fs.setFile(
+      `${archivedFolder}/phax-plan.json`,
+      olderPhaxPlanJson([{ id: "phase-01", edit: ["a.ts"] }]),
+    );
+    git.addDatedCommit(BASE, daysAgo(20), { "a.ts": 1000 });
+
+    const history = await read();
+
+    expect(history.sizedRuns.map((run) => run.runKey)).toEqual(["demo.beta.run-b"]);
+    expect(history.sizedRuns[0]!.phases).toMatchObject([{ id: "phase-01", editBytes: 1000 }]);
+  });
+
   it("reads kept active and archived runs, sizes them, and adds a pruned copy", async () => {
     const { fs, git, read } = setup();
     writeRegistry(fs, [active, archived]);

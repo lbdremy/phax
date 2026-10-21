@@ -124,6 +124,8 @@ const plan: PhaxPlan = {
       plannedFilesToCreate: ["src/example.ts"],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "feat: add the example module", body: "Adds the example module." },
     },
   ],

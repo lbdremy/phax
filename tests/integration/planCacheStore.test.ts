@@ -7,6 +7,7 @@ import {
   cacheEntryPath,
   planMdSha256,
 } from "../../src/app/planCacheStore.js";
+import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import type { ExtractedPhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const STATE_ROOT = "/fake-state";
@@ -29,6 +30,8 @@ const EXTRACTED: ExtractedPhaxPlan = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "feat: do thing", body: "Does the thing." },
     },
   ],
@@ -149,5 +152,34 @@ describe("readCacheEntry — corrupted file", () => {
     await expect(
       Effect.runPromise(readCacheEntry(STATE_ROOT, KEY).pipe(Effect.provide(layer))),
     ).resolves.not.toThrow();
+  });
+});
+
+describe("readCacheEntry — an entry under extractor version 2", () => {
+  it("is never looked up: the version 3 key misses it", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const v2Key = planCacheKey(PLAN_MD, MODEL, EFFORT, 2);
+    const { mode: _mode, oracle: _oracle, ...v2Phase } = EXTRACTED.phases[0]!;
+    impl.setFile(
+      cacheEntryPath(STATE_ROOT, v2Key),
+      JSON.stringify({
+        version: 1,
+        key: v2Key,
+        planMdSha256: planMdSha256(PLAN_MD),
+        model: MODEL,
+        effort: EFFORT,
+        extractorVersion: 2,
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        extracted: { ...EXTRACTED, phases: [v2Phase] },
+      }),
+    );
+
+    const v3Key = planCacheKey(PLAN_MD, MODEL, EFFORT);
+    expect(EXTRACTOR_VERSION).toBe(3);
+    expect(v3Key).not.toBe(v2Key);
+    const result = await Effect.runPromise(
+      readCacheEntry(STATE_ROOT, v3Key).pipe(Effect.provide(layer)),
+    );
+    expect(Option.isNone(result)).toBe(true);
   });
 });

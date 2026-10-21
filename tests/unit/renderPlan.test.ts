@@ -52,6 +52,8 @@ function fixture(): PlanDocument {
         plannedFilesToCreate: ["src/schemas/specDocument.ts", "tests/unit/**/*.test.ts"],
         plannedFilesToEdit: ["src/schemas/phaxPlan.ts", "docs/cli/reference_v2_.md"],
         optionalFilesToEdit: ["docs/cli/inventory.md"],
+        mode: "headless",
+        oracle: null,
         commit: {
           subject: "feat(schemas): spec and plan document schemas with `phax artifact schema`",
           body: "Add the experimental spec document and plan document formats.\n\n- a strict projection\n- JSON Schema export\n\nUnit-tested; usage spec regenerated.",
@@ -78,6 +80,8 @@ function fixture(): PlanDocument {
         plannedFilesToCreate: [],
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
+        mode: "headless",
+        oracle: null,
         commit: { subject: "feat(authoring): renderers", body: "Add the renderers." },
         objective: "Render both documents.",
         detailedInstructions: [],
@@ -140,6 +144,8 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
       plannedFilesToCreate: ["src/schemas/specDocument.ts", "tests/unit/**/*.test.ts"],
       plannedFilesToEdit: ["src/schemas/phaxPlan.ts", "docs/cli/reference_v2_.md"],
       optionalFilesToEdit: ["docs/cli/inventory.md"],
+      mode: "headless",
+      oracle: null,
       commit: {
         subject: "feat(schemas): spec and plan document schemas with `phax artifact schema`",
         body: "Add the experimental spec document and plan document formats.\n\n- a strict projection\n- JSON Schema export\n\nUnit-tested; usage spec regenerated.",
@@ -639,5 +645,77 @@ describe("renderPlanBody with a model reason", () => {
       ["claude-sonnet-5-5", "medium"],
     ]);
     expect(JSON.stringify(parsed)).not.toContain("assignmentReason");
+  });
+});
+
+/** One phase's section of a rendered plan, from its heading to the next phase heading. */
+function section(md: string, id: string): string {
+  const start = md.indexOf(`## ${id}`);
+  const next = md.indexOf("\n## phase-", start + 1);
+  return md.slice(start, next === -1 ? undefined : next);
+}
+
+describe("renderPlanBody with interactive and oracle phases", () => {
+  const REASON = "Needs a person to read the screen.";
+
+  // phase-01 is an oracle discharged by phase-03; phase-02 is interactive with
+  // a reason; phase-03 is headless with no oracle.
+  function kinded(): PlanDocument {
+    const base = fixture();
+    const [first, second] = base.phases;
+    if (first === undefined || second === undefined) throw new Error("the fixture has two phases");
+    return {
+      ...base,
+      phases: [
+        {
+          ...first,
+          oracle: { dischargedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] },
+        },
+        { ...second, assignmentReason: REASON, mode: "interactive" },
+        {
+          ...second,
+          id: "phase-03",
+          title: "Defaults",
+          planMarkdownAnchor: "#phase-03-defaults",
+        },
+      ],
+    };
+  }
+
+  it("renders the Mode line after the Assignment reason line, in the header paragraph", () => {
+    const md = renderPlanBody(kinded());
+    expect(section(md, "phase-02")).toContain(
+      `**Recommended model:** claude-sonnet-5\n**Recommended effort:** medium\n**Assignment reason:** ${REASON}\n**Mode:** interactive\n\n`,
+    );
+  });
+
+  it("renders the oracle lines, files as comma-separated code spans, after the effort line", () => {
+    const md = renderPlanBody(kinded());
+    expect(section(md, "phase-01")).toContain(
+      "**Recommended model:** claude-opus-5-5\n**Recommended effort:** high\n**Oracle phase:** discharged by phase-03\n**Oracle files:** `tests/a.test.ts`, `tests/b.test.ts`\n\n",
+    );
+  });
+
+  it("renders no Mode or oracle line on a headless phase without an oracle", () => {
+    const md = renderPlanBody(kinded());
+    for (const text of [section(md, "phase-03"), renderPlanBody(fixture())]) {
+      expect(text).not.toContain("**Mode:**");
+      expect(text).not.toContain("**Oracle");
+    }
+    expect(section(md, "phase-01")).not.toContain("**Mode:**");
+    expect(section(md, "phase-02")).not.toContain("**Oracle");
+  });
+
+  it("parses to exactly the projection, mode and oracle included", () => {
+    const doc = kinded();
+    const md = renderPlanBody(doc);
+    const { parsed, fromMarkdown, fromDocument } = roundTrip(doc, md);
+    expect(fromMarkdown.plan).toEqual(fromDocument.plan);
+    expect(parsed.phases).toEqual(projectExtractedPlan(doc).phases);
+    expect(parsed.phases.map((phase) => [phase.mode, phase.oracle])).toEqual([
+      ["headless", { dischargedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] }],
+      ["interactive", null],
+      ["headless", null],
+    ]);
   });
 });

@@ -47,13 +47,32 @@ function section(title: string, content: string): string {
   return `### ${title}\n\n${content}`;
 }
 
+// The header paragraph: model and effort, the optional assignment reason, then
+// the phase's kinds. A headless phase writes no Mode line and a null oracle no
+// oracle line; an oracle always names its discharging phase, so it reads back
+// unchanged wherever the phase sits.
+function headerLines(phase: PlanDocumentPhase): string[] {
+  return [
+    `**Recommended model:** ${phase.model}`,
+    `**Recommended effort:** ${phase.effort}`,
+    ...(phase.assignmentReason === null
+      ? []
+      : [`**Assignment reason:** ${phase.assignmentReason}`]),
+    ...(phase.mode === "interactive" ? ["**Mode:** interactive"] : []),
+    ...(phase.oracle === null
+      ? []
+      : [
+          `**Oracle phase:** discharged by ${phase.oracle.dischargedBy}`,
+          `**Oracle files:** ${phase.oracle.files.map(inlineCode).join(", ")}`,
+        ]),
+  ];
+}
+
 function renderPhase(phase: PlanDocumentPhase): string {
   const blocks = [
     "---",
     `## ${phase.id} — ${headingText(phase.title)} {${anchorOf(phase.planMarkdownAnchor)}}`,
-    `**Recommended model:** ${phase.model}\n**Recommended effort:** ${phase.effort}${
-      phase.assignmentReason === null ? "" : `\n**Assignment reason:** ${phase.assignmentReason}`
-    }`,
+    headerLines(phase).join("\n"),
     phase.objective,
     section("Detailed instructions", proseList(phase.detailedInstructions)),
     section("Planned files to create", codeList(phase.plannedFilesToCreate)),

@@ -22,6 +22,8 @@ function validPhase(n: number) {
     plannedFilesToCreate: [`src/phase${n}.ts`],
     plannedFilesToEdit: ["README.md"],
     optionalFilesToEdit: [],
+    mode: "headless" as "headless" | "interactive",
+    oracle: null as { dischargedBy: string; files: string[] } | null,
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
     objective: "Deliver the phase.",
     detailedInstructions: ["Write the module."],
@@ -307,9 +309,30 @@ describe("projectExtractedPlan", () => {
         plannedFilesToCreate: [`src/phase${n}.ts`],
         plannedFilesToEdit: ["README.md"],
         optionalFilesToEdit: [],
+        mode: "headless",
+        oracle: null,
         commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
       })),
     });
+  });
+
+  it("projects mode and oracle unchanged, directly after optionalFilesToEdit", () => {
+    const oracle = { dischargedBy: "phase-02", files: ["tests/a.test.ts"] };
+    const doc = Either.getOrThrow(
+      decodePlanDocument({
+        ...validPlanDocument(),
+        phases: [{ ...validPhase(1), mode: "interactive", oracle }, validPhase(2)],
+      }),
+    );
+    const [first, second] = projectExtractedPlan(doc).phases;
+    expect(first).toMatchObject({ mode: "interactive", oracle });
+    expect(second).toMatchObject({ mode: "headless", oracle: null });
+    expect(Object.keys(first!).slice(-4)).toEqual([
+      "optionalFilesToEdit",
+      "mode",
+      "oracle",
+      "commit",
+    ]);
   });
 
   it("never carries a question into the projection", () => {
@@ -398,6 +421,29 @@ describe("a phase's assignmentReason", () => {
     const { properties, required } = phaseObject();
     expect(properties.slice(-3)).toEqual(["assignmentReason", "model", "effort"]);
     expect(required.slice(-3)).toEqual(["assignmentReason", "model", "effort"]);
+  });
+
+  it("follows mode and oracle, which follow optionalFilesToEdit", () => {
+    const { properties, required } = phaseObject();
+    for (const keys of [properties, required]) {
+      const at = keys.indexOf("optionalFilesToEdit");
+      expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "oracle"]);
+    }
+  });
+
+  it("requires mode and oracle on every phase, and refuses a mode or oracle outside their shapes", () => {
+    const { mode: _mode, ...noMode } = validPhase(1);
+    const { oracle: _oracle, ...noOracle } = validPhase(1);
+    for (const phase of [
+      noMode,
+      noOracle,
+      { ...validPhase(1), mode: "review" },
+      { ...validPhase(1), oracle: { dischargedBy: "phase-03" } },
+    ]) {
+      expect(Either.isLeft(decodePlanDocument({ ...validPlanDocument(), phases: [phase] }))).toBe(
+        true,
+      );
+    }
   });
 
   it("admits a reason and null, in the authoring answer and the sidecar", () => {

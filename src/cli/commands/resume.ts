@@ -143,7 +143,7 @@ export async function runResume(
   const planPath = join(runPath, "phax-plan.json");
   const planMdPath = join(runPath, "plan.md");
 
-  const planResult = loadPlan(planPath);
+  const planResult = loadPlan(planPath, { run: qualifiedName });
   if (Either.isLeft(planResult)) {
     out.error(`Plan error: ${planResult.left.message}`);
     return 2;

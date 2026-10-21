@@ -116,7 +116,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -180,7 +180,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -247,7 +247,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer } = makeLayers();
 
@@ -314,7 +314,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 

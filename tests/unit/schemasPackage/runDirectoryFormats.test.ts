@@ -47,6 +47,8 @@ interface RunDirectoryFormat {
   readonly toLatest: (value: never) => unknown;
   /** Facts a later shape added, as the upgrade marks them on a pre-schema document. */
   readonly unrecorded?: Doc;
+  /** What the upgrade gives every phase of an older document, as the shape it read never carried it. */
+  readonly phaseLift?: Doc;
 }
 
 const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
@@ -64,7 +66,14 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     toLatest: toLatestPhaseStatus,
     unrecorded: { base: UNKNOWN },
   },
-  { id: "phax-plan", parse: parsePhaxPlan, phax: decodePhaxPlanFile, toLatest: toLatestPhaxPlan },
+  {
+    id: "phax-plan",
+    parse: parsePhaxPlan,
+    phax: decodePhaxPlanFile,
+    toLatest: toLatestPhaxPlan,
+    // Every phase an older phax ran was headless, and no oracle phase existed.
+    phaseLift: { mode: "headless", oracle: null },
+  },
   {
     id: "compliance-review",
     parse: parseComplianceReview,
@@ -123,9 +132,14 @@ describe.each(FORMATS)("$id", (format) => {
   it("upgrades by dropping version, keeping everything else and marking what it never recorded", () => {
     const result = format.parse(preSchema);
     if (!result.ok) throw new Error("document rejected");
+    const recorded = withoutKey(preSchema, "version");
+    const phaseLift = format.phaseLift;
     expect(format.toLatest(result.value as never)).toEqual({
-      ...withoutKey(preSchema, "version"),
+      ...recorded,
       ...format.unrecorded,
+      ...(phaseLift === undefined
+        ? {}
+        : { phases: (recorded["phases"] as Doc[]).map((phase) => ({ ...phase, ...phaseLift })) }),
     });
   });
 
@@ -188,6 +202,51 @@ describe("toLatestPhaxPlan", () => {
     expect(latest.phases[0].plannedFilesToCreate).toEqual(["src/example.ts"]);
     expect(latest.phases[0].plannedFilesToEdit).toEqual(["src/index.ts"]);
     expect(latest.phases[0].optionalFilesToEdit).toEqual(["README.md"]);
+  });
+});
+
+describe("the phax-plan's mode and oracle history", () => {
+  const current = validDocuments["phax-plan"];
+  /** A phax-plan as phax 0.17.0 through 0.25.x wrote it: `$schema`, phases without mode and oracle. */
+  function older(release: string): Doc {
+    const phases = (current["phases"] as Doc[]).map((phase) =>
+      withoutKey(withoutKey(phase, "mode"), "oracle"),
+    );
+    return withKey(withKey(current, "phases", phases), "$schema", schemaUrl("phax-plan", release));
+  }
+
+  it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
+    const document = older("0.17.0");
+    expect(parsePhaxPlan(document)).toEqual({ ok: true, shape: "0.17.0", value: document });
+  });
+
+  // Literal releases, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  it("reads a document stamped 0.25.0, the last release without mode, as shape 0.17.0", () => {
+    expect(parsePhaxPlan(older("0.25.0"))).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("refuses a document stamped 0.26.0, the first release with mode, that lacks it", () => {
+    expect(parsePhaxPlan(older("0.26.0"))).toMatchObject({ ok: false });
+  });
+
+  it("lifts an older document's phases with mode headless and oracle null, keeping every recorded fact", () => {
+    const result = parsePhaxPlan(older("0.17.0"));
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPhaxPlan(result.value)).toEqual(withoutKey(current, "$schema"));
+  });
+
+  it("keeps an interactive phase and its oracle as recorded", () => {
+    const phases = (current["phases"] as Doc[]).map((phase) => ({
+      ...phase,
+      mode: "interactive",
+      oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+    }));
+    const result = parsePhaxPlan(withKey(current, "phases", phases));
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPhaxPlan(result.value).phases[0]).toMatchObject({
+      mode: "interactive",
+      oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+    });
   });
 });
 

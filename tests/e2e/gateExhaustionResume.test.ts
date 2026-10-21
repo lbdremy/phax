@@ -77,7 +77,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
   });
 
   it("pauses in gates_exhausted then gate-first resumes and commits without a fresh agent invocation", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const config: ResolvedConfig = {

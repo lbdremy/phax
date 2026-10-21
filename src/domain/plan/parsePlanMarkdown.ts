@@ -5,6 +5,7 @@ import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
 import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
+import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
 
 const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -352,7 +353,7 @@ function walkPlan(planMd: string): PlanWalkResult {
   }
 
   const phases: unknown[] = [];
-  for (const pb of phaseBlocks) {
+  for (const [index, pb] of phaseBlocks.entries()) {
     const headingText = toString(pb.heading).trim();
     const parsed = parsePhaseHeading(headingText);
     if (!parsed) {
@@ -430,6 +431,14 @@ function walkPlan(planMd: string): PlanWalkResult {
       Either.isRight(subjectE) &&
       Either.isRight(bodyE)
     ) {
+      // A declaration line never adds a structure error here: its defects are
+      // the `interactive` and `oracles` checks' errors, and it reads as
+      // headless with no oracle.
+      const nextBlock = phaseBlocks[index + 1];
+      const nextId = nextBlock
+        ? (toString(nextBlock.heading).trim().match(PHASE_HEADING_RE)?.[1]?.toLowerCase() ?? null)
+        : null;
+      const kinds = phaseKinds(readPhaseBlock(id, pb.body, body), nextId);
       phases.push({
         id,
         model,
@@ -438,6 +447,8 @@ function walkPlan(planMd: string): PlanWalkResult {
         plannedFilesToCreate: createE.right,
         plannedFilesToEdit: editE.right,
         optionalFilesToEdit: optionalE.right,
+        mode: kinds.mode,
+        oracle: kinds.oracle,
         commit: { subject: subjectE.right, body: bodyE.right },
       });
     }

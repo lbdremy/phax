@@ -108,6 +108,8 @@ async function seedCache(
           plannedFilesToCreate: creates,
           plannedFilesToEdit: edits,
           optionalFilesToEdit: [],
+          mode: "headless",
+          oracle: null,
           commit: { subject: `feat: ${shortName}`, body: "body" },
         },
       ],

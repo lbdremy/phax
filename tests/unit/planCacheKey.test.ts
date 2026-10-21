@@ -43,8 +43,8 @@ describe("planCacheKey", () => {
     expect(a).toBe(b);
   });
 
-  it("EXTRACTOR_VERSION is 2", () => {
-    expect(EXTRACTOR_VERSION).toBe(2);
+  it("EXTRACTOR_VERSION is 3", () => {
+    expect(EXTRACTOR_VERSION).toBe(3);
   });
 
   describe("keys on the body without its frontmatter", () => {

@@ -55,7 +55,7 @@ function makePlan(): PhaxPlan {
         },
       ],
     }),
-  );
+  ).plan;
 }
 
 function makeConfig(stateRoot: string): ResolvedConfig {

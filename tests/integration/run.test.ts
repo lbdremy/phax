@@ -3,7 +3,7 @@ import { Effect, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
-import type { ExtractedPhaxPlan } from "../../src/schemas/phaxPlan.js";
+import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
 
 // Integration test: verifies that phax run's extraction step (loadOrExtractPlan)
 // reuses a cached extraction across calls and re-extracts only on --refresh.
@@ -21,7 +21,8 @@ const PLAN_MD = `# Plan — Run Cache Test
 Phase description.
 `;
 
-const EXTRACTED: ExtractedPhaxPlan = {
+// The extraction model's answer: no mode and no oracle, phax reads those.
+const EXTRACTED: ExtractionAnswer = {
   version: 1,
   run: {
     shortName: "run-cache-test",

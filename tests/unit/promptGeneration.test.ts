@@ -15,6 +15,8 @@ function phase(n: number, title: string, files: Partial<PhaxPlanPhase> = {}): Ph
     plannedFilesToCreate: [],
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
+    mode: "headless",
+    oracle: null,
     commit: {
       subject: `feat: ${title.toLowerCase()}`,
       body: `Commit body of ${id}.`,

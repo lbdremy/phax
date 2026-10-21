@@ -198,7 +198,7 @@ async function seedHandoffs(phaseIds: readonly string[]): Promise<void> {
 }
 
 async function startRun(rawPlan: unknown, layers: ReturnType<typeof makeFakes>["layers"]) {
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
   const config = makeConfig();
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),

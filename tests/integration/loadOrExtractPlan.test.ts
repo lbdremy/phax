@@ -4,7 +4,9 @@ import { PlanValidationError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
-import type { ExtractedPhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { planCacheKey } from "../../src/domain/planCache/key.js";
+import { cacheEntryPath, planMdSha256 } from "../../src/app/planCacheStore.js";
+import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
 
 const PLAN_MD_PATH = "/workspace/plan.md";
 const STATE_ROOT = "/fake-state";
@@ -19,7 +21,8 @@ const PLAN_MD = `# Plan — My Test Run
 Phase description.
 `;
 
-const EXTRACTED: ExtractedPhaxPlan = {
+// The extraction model's answer: no mode and no oracle, phax reads those.
+const EXTRACTED: ExtractionAnswer = {
   version: 1,
   run: {
     shortName: "my-test-run",
@@ -226,6 +229,46 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(PlanValidationError);
+      expect((result.left as PlanValidationError).message).toContain("--no-extract");
+    }
+    expect(fakeBackend.impl.completeCalls).toHaveLength(0);
+  });
+
+  it("does not read an entry keyed under extractor version 2", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeBackend = makeFakeBackend();
+
+    fakeFs.impl.setFile(PLAN_MD_PATH, PLAN_MD);
+    const v2Key = planCacheKey(PLAN_MD, MODEL, EFFORT, 2);
+    fakeFs.impl.setFile(
+      cacheEntryPath(STATE_ROOT, v2Key),
+      JSON.stringify({
+        version: 1,
+        key: v2Key,
+        planMdSha256: planMdSha256(PLAN_MD),
+        model: MODEL,
+        effort: EFFORT,
+        extractorVersion: 2,
+        extractedAt: NOW_ISO,
+        extracted: EXTRACTED,
+      }),
+    );
+
+    const result = await Effect.runPromise(
+      loadOrExtractPlan({
+        planMdPath: PLAN_MD_PATH,
+        model: MODEL,
+        effort: EFFORT,
+        stateRoot: STATE_ROOT,
+        nowIso: NOW_ISO,
+        noExtract: true,
+      })
+        .pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)))
+        .pipe(Effect.either),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
       expect((result.left as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);

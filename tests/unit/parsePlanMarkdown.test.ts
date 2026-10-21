@@ -13,6 +13,8 @@ function makePhase(
     model?: string;
     effort?: string;
     reason?: string;
+    /** Header lines after the effort and reason lines: Mode, Oracle phase, Oracle files. */
+    header?: readonly string[];
     create?: string;
     edit?: string;
     optional?: string;
@@ -35,7 +37,8 @@ function makePhase(
     ``,
     `**Recommended model:** ${model}`,
     `**Recommended effort:** ${effort}` +
-      (overrides.reason === undefined ? "" : `\n**Assignment reason:** ${overrides.reason}`),
+      (overrides.reason === undefined ? "" : `\n**Assignment reason:** ${overrides.reason}`) +
+      (overrides.header ?? []).map((line) => `\n${line}`).join(""),
     ``,
     `### Planned files to create`,
     ``,
@@ -133,6 +136,8 @@ describe("extractPlanDeterministic", () => {
           plannedFilesToCreate: ["src/a.ts", "src/b.ts"],
           plannedFilesToEdit: ["package.json"],
           optionalFilesToEdit: [],
+          mode: "headless",
+          oracle: null,
           commit: { subject: "feat(a): alpha", body: "Alpha body paragraph." },
         },
         {
@@ -143,6 +148,8 @@ describe("extractPlanDeterministic", () => {
           plannedFilesToCreate: ["src/c.ts"],
           plannedFilesToEdit: ["src/d.ts"],
           optionalFilesToEdit: ["src/e.ts"],
+          mode: "headless",
+          oracle: null,
           commit: { subject: "feat(b): beta", body: "Beta body paragraph." },
         },
       ],
@@ -618,5 +625,84 @@ describe("an `**Assignment reason:**` line under the effort line", () => {
         effort: "low",
       });
     }
+  });
+});
+
+/** The phases a plan extracts to on the deterministic path. */
+function extractedPhases(md: string) {
+  const result = extractPlanDeterministic(md);
+  if (Either.isLeft(result)) throw new Error(`plan does not extract: ${result.left.message}`);
+  return result.right.phases;
+}
+
+describe("mode and oracle, read from the header lines", () => {
+  const ids = ["phase-01", "phase-02", "phase-03", "phase-04", "phase-05", "phase-06"];
+  const plan = (headers: Readonly<Record<string, readonly string[]>>) =>
+    makePlan({ phases: ids.map((id) => makePhase({ id, header: headers[id] ?? [] })) });
+
+  it("extracts the mode: phase-03 interactive, the other five headless", () => {
+    const extracted = extractedPhases(plan({ "phase-03": ["**Mode:** interactive"] }));
+    expect(extracted.map((p) => p.mode)).toEqual([
+      "headless",
+      "headless",
+      "interactive",
+      "headless",
+      "headless",
+      "headless",
+    ]);
+    expect(extracted.every((p) => p.oracle === null)).toBe(true);
+  });
+
+  it("puts mode and oracle directly after optionalFilesToEdit", () => {
+    const [first] = extractedPhases(plan({}));
+    expect(Object.keys(first!).slice(-4)).toEqual([
+      "optionalFilesToEdit",
+      "mode",
+      "oracle",
+      "commit",
+    ]);
+  });
+
+  it("defaults an oracle phase to the next phase, files in declaration order", () => {
+    const extracted = extractedPhases(
+      plan({
+        "phase-02": [
+          "**Oracle phase:** yes",
+          "**Oracle files:** `tests/z.test.ts`, `tests/a.test.ts`",
+        ],
+      }),
+    );
+    expect(extracted[1]!.oracle).toEqual({
+      dischargedBy: "phase-03",
+      files: ["tests/z.test.ts", "tests/a.test.ts"],
+    });
+    expect(extracted[1]!.mode).toBe("headless");
+  });
+
+  it("keeps an explicit discharging phase", () => {
+    const extracted = extractedPhases(
+      plan({
+        "phase-02": [
+          "**Oracle phase:** discharged by phase-05",
+          "**Oracle files:** tests/b.test.ts, `tests/a.test.ts`",
+        ],
+      }),
+    );
+    expect(extracted[1]!.oracle).toEqual({
+      dischargedBy: "phase-05",
+      files: ["tests/b.test.ts", "tests/a.test.ts"],
+    });
+  });
+
+  it("reads a malformed or unresolvable declaration as headless with no oracle, and still extracts", () => {
+    const md = plan({
+      "phase-01": ["**Mode:** review"],
+      "phase-02": ["**Oracle phase:** maybe", "**Oracle files:** `tests/a.test.ts`"],
+      "phase-03": ["**Oracle phase:** yes"],
+      "phase-06": ["**Oracle phase:** yes", "**Oracle files:** `tests/a.test.ts`"],
+    });
+    expect(collectPlanStructureErrors(md)).toEqual([]);
+    const extracted = extractedPhases(md);
+    expect(extracted.map((p) => [p.mode, p.oracle])).toEqual(ids.map(() => ["headless", null]));
   });
 });

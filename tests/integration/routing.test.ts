@@ -108,7 +108,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
   });
 
   it("resolves claude-sonnet-4-6/medium to mistral-vibe with the phax alias", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

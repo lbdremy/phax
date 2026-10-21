@@ -191,7 +191,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("completes the plan and rides the spec along on the run branch, leaving the origin untouched", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -294,7 +294,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("with completes-spec: false, completes only the plan and states the kept spec in the handoff", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -366,7 +366,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("pauses the run as interrupted (not review_open) when the plan's transition is illegal", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 

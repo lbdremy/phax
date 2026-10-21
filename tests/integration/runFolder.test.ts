@@ -71,6 +71,8 @@ const plan: PhaxPlan = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
     },
     {
@@ -82,6 +84,8 @@ const plan: PhaxPlan = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "ai(phase-02): do more", body: "Does more." },
     },
   ],

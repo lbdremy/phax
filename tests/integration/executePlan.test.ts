@@ -176,7 +176,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("drives both phases to review_open and writes all expected artifacts", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -352,7 +352,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("returns committed phase ids and final worktree path", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -474,7 +474,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     // persistSessionId (called by real providers during streaming) no longer patches
     // agent-binding.json. This test would fail if the patchAgentBindingSession call
     // were removed from executePlan, proving the app-layer owns binding mutations.
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -599,7 +599,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -748,7 +748,7 @@ describe("executePlan — firing scheduling", () => {
   });
 
   it("runs only every-phase steps before the terminal phase, and both at the terminal phase", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -914,7 +914,9 @@ describe("executePlan — binding status lifecycle", () => {
   });
 
   it("sets binding status to awaiting_manual_review for the single (final) phase on success", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlanStatus));
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", singlePhaseRawPlanStatus),
+    ).plan;
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -984,7 +986,9 @@ describe("executePlan — binding status lifecycle", () => {
   });
 
   it("sets binding status to failed when the agent invocation fails", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlanStatus));
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", singlePhaseRawPlanStatus),
+    ).plan;
     const config = makeStatusTestConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -1075,7 +1079,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("injects the named deviating files into the handoff prompt passed to the backend", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", deviationRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", deviationRawPlan)).plan;
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1163,7 +1167,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("renders the no-deviation line when the commit matches the plan exactly", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", deviationRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", deviationRawPlan)).plan;
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1313,7 +1317,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan)).plan;
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1393,7 +1397,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("pauses the run again (does not fail it) when the gate keeps failing on resume", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan)).plan;
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1473,7 +1477,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("fails loudly with a reset-phase-directing error when the persisted Claude session id is missing", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan)).plan;
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1528,7 +1532,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("uses the locked binding provider/model on resume, ignoring routing config", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", singlePhaseRawPlan)).plan;
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1741,7 +1745,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("publishes PR and writes publication.json when publish.auto is true", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
@@ -1801,7 +1805,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("run stays review_open when gh is unavailable (non-fatal failure)", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
@@ -1861,7 +1865,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("no publication side effects when publish.auto is false", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", autoPublishRawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(false));
 
@@ -1948,7 +1952,7 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlanWithRequired));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlanWithRequired)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -2072,7 +2076,9 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlanWithCoveredRequired));
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", rawPlanWithCoveredRequired),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -2221,7 +2227,7 @@ describe("executePlan — records destination refusal", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawRecordsRefusalPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawRecordsRefusalPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -2371,7 +2377,7 @@ interface AgentLaunch {
 // `pnpm test`. The gate starts failing once phase-02's agent launches, so a
 // plain start pauses with phase-02 in gates_exhausted.
 function makeBaselineScenario(root: string) {
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan));
+  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan)).plan;
   const base = makeStatusTestConfig(root);
   const config: ResolvedConfig = {
     ...base,
@@ -2672,7 +2678,7 @@ describe("executePlan — resumed-session prompts", () => {
         ...baselineRawPlan,
         phases: [baselineRawPlan.phases[0]],
       }),
-    );
+    ).plan;
     const base = makeStatusTestConfig(stateRoot);
     const config: ResolvedConfig = {
       ...base,
@@ -2775,7 +2781,7 @@ describe("executePlan — a green gate-report gate", () => {
   });
 
   it("prints exactly what a passing gate with no findings printed before, on every phase", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan)).plan;
     const base = makeStatusTestConfig(stateRoot);
     const config: ResolvedConfig = {
       ...base,
