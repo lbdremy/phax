@@ -12,7 +12,7 @@ import { resolveSecurityConfig } from "../../../src/schemas/securityConfig.js";
 import type { StalenessReport } from "../../../src/domain/artifact/render.js";
 import type { LintReport } from "../../../src/app/lintPlan.js";
 import type { PlansStalenessResult } from "../../../src/app/planStaleness.js";
-import { ArtifactValidationError } from "../../../src/domain/errors.js";
+import { ArtifactValidationError, ConfigValidationError } from "../../../src/domain/errors.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -225,6 +225,28 @@ describe("runPlansLint", () => {
     vi.clearAllMocks();
   });
 
+  it("exits 2 on an invalid config, as every command does, never lint's 1", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(
+      Either.left(
+        new ConfigValidationError({
+          message: '"assignments" is accepted only in phax.json',
+          path: "/fake-repo/phax.local.json",
+        }),
+      ),
+    );
+    const { lintPlan } = vi.mocked(await import("../../../src/app/lintPlan.js"));
+
+    const { out, errors } = makeOutput();
+    const code = await runPlansLint("plan.md", {}, out);
+
+    expect(code).toBe(2);
+    expect(errors.join("\n")).toContain(
+      'Config error: "assignments" is accepted only in phax.json',
+    );
+    expect(lintPlan).not.toHaveBeenCalled();
+  });
+
   it("reads the absolutized path but reports the argument as typed", async () => {
     await setupConfig();
     const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
@@ -313,19 +335,6 @@ describe("runPlansLint", () => {
     expect(code).toBe(1);
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0]!)).toEqual(report);
-  });
-
-  it("a config error exits 1 without calling the use case", async () => {
-    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.left({ message: "bad phax.json" } as never));
-    const { lintPlan } = vi.mocked(await import("../../../src/app/lintPlan.js"));
-
-    const { out, errors } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
-
-    expect(code).toBe(1);
-    expect(errors.join("\n")).toContain("bad phax.json");
-    expect(lintPlan).not.toHaveBeenCalled();
   });
 
   it("passes the plan's path relative to the repo root as repoRelPath", async () => {

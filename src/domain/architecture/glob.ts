@@ -12,7 +12,28 @@
 
 /** True when `path` matches `glob`. */
 export function matchesGlob(glob: string, path: string): boolean {
-  return matchSegments(glob.split("/"), 0, path.split("/"), 0);
+  // Consecutive `**` segments match what one does; collapsing them keeps the
+  // search below linear in the number of `**` runs.
+  const globs = glob.split("/").filter((g, i, all) => g !== "**" || all[i - 1] !== "**");
+  const segments = path.split("/");
+  // failed[gi][si]: globs from gi cannot match segments from si. Each pair is
+  // tried once, so a glob of many `**` against a deep path stays polynomial.
+  const failed = globs.map(() => Array.from({ length: segments.length + 1 }, () => false));
+  const matchFrom = (gi: number, si: number): boolean => {
+    if (gi === globs.length) return si === segments.length;
+    if (failed[gi]![si]!) return false;
+    const g = globs[gi]!;
+    const matched =
+      g === "**"
+        ? // Zero or more whole segments.
+          Array.from({ length: segments.length - si + 1 }, (_, n) => si + n).some((skip) =>
+            matchFrom(gi + 1, skip),
+          )
+        : si < segments.length && matchSegment(g, segments[si]!) && matchFrom(gi + 1, si + 1);
+    if (!matched) failed[gi]![si] = true;
+    return matched;
+  };
+  return matchFrom(0, 0);
 }
 
 /** True when any of `paths` matches any of `globs`. */
@@ -20,44 +41,31 @@ export function matchesAnyGlob(globs: readonly string[], paths: readonly string[
   return paths.some((path) => globs.some((glob) => matchesGlob(glob, path)));
 }
 
-function matchSegments(
-  globs: readonly string[],
-  gi: number,
-  segments: readonly string[],
-  si: number,
-): boolean {
-  if (gi === globs.length) return si === segments.length;
-  const glob = globs[gi]!;
-  if (glob === "**") {
-    // Zero or more whole segments.
-    for (let skip = si; skip <= segments.length; skip++) {
-      if (matchSegments(globs, gi + 1, segments, skip)) return true;
-    }
-    return false;
-  }
-  if (si === segments.length) return false;
-  return (
-    matchSegment([...glob], 0, [...segments[si]!], 0) &&
-    matchSegments(globs, gi + 1, segments, si + 1)
-  );
-}
-
 // One segment, by code point: `*` any run of characters, `?` one character.
-function matchSegment(
-  glob: readonly string[],
-  gi: number,
-  text: readonly string[],
-  ti: number,
-): boolean {
-  if (gi === glob.length) return ti === text.length;
-  const char = glob[gi]!;
-  if (char === "*") {
-    for (let skip = ti; skip <= text.length; skip++) {
-      if (matchSegment(glob, gi + 1, text, skip)) return true;
+// Iterative, backtracking only to the last `*`, so it is linear-times-length
+// rather than exponential in the number of stars.
+function matchSegment(globSegment: string, textSegment: string): boolean {
+  const glob = [...globSegment];
+  const text = [...textSegment];
+  let gi = 0;
+  let ti = 0;
+  let star = -1;
+  let resume = 0;
+  while (ti < text.length) {
+    const char = glob[gi];
+    if (char === "*") {
+      star = gi++;
+      resume = ti;
+    } else if (char !== undefined && (char === "?" || char === text[ti])) {
+      gi++;
+      ti++;
+    } else if (star !== -1) {
+      gi = star + 1;
+      ti = ++resume;
+    } else {
+      return false;
     }
-    return false;
   }
-  if (ti === text.length) return false;
-  if (char !== "?" && char !== text[ti]) return false;
-  return matchSegment(glob, gi + 1, text, ti + 1);
+  while (glob[gi] === "*") gi++;
+  return gi === glob.length;
 }

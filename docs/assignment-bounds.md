@@ -58,7 +58,7 @@ The pure decision logic.
 - assignments[1] globs `src/*/schemas/**`: claude-sonnet-5-5, medium–high
 ```
 
-A path-scoped call, `phax architecture src/http/handler.ts`, shows a part bound whose part the report does not carry as `(not in this report: run `phax architecture` with no path for its globs)`. A whole-repository report that lacks the part shows `(unresolved: the report has no part core-decide)`.
+A path-scoped call, `phax architecture src/http/handler.ts`, shows a part bound whose part the report does not carry as ``(not in this report: run `phax architecture` with no path for its globs)``. A whole-repository report that lacks the part shows `(unresolved: the report has no part core-decide)`.
 
 With no provider configured, the command prints its one no-provider line, then the bounds, and still exits 1. A part bound cannot be resolved without a provider:
 
@@ -123,11 +123,11 @@ To make the policy default binding for every file no earlier bound covers, end t
   "kind": "globs",
   "globs": ["**"],
   "model": "claude-sonnet-5-5",
-  "effort": { "min": "low", "max": "medium" }
+  "effort": { "min": "medium", "max": "medium" }
 }
 ```
 
-Every phase then has a governing bound, and a departure from it without a reason is an error, not a warning.
+Every phase that plans a file then has a governing bound, and a departure from it without a reason is an error, not a warning.
 
 ## Check the bounds
 

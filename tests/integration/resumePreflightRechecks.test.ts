@@ -258,6 +258,7 @@ const CASES: Record<string, RecheckCase> = {
         `Assignment preflight failed: 1 error(s) from the assignment bounds.`,
         "",
         `  assignments[0] (part core-decide): unresolved: no architecture provider is configured; no phase was compared with the bounds`,
+        "",
         `Check the plan with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),
   },
@@ -284,6 +285,7 @@ function assignmentRefusal(roots: PreflightRepo): string {
     "",
     `  phase-02 (${FIXTURE_MODEL}/${FIXTURE_EFFORT}):`,
     `    - outside assignments[0] (globs src/step-02.ts: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line`,
+    "",
     `Check the plan with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
   ].join("\n");
 }

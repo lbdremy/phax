@@ -111,7 +111,7 @@ describe("phax-planning skill", () => {
 
     it("defines conformity and when a reason is due", () => {
       expect(section).toContain(
-        "takes the governing bound's model (or the default's) at an effort inside the range",
+        "takes the governing bound's model at an effort inside the bound's range; with no governing bound, when it takes the default's model and effort exactly",
       );
       expect(section).toContain(
         "A conforming phase has `assignmentReason: null` and no `**Assignment reason:**` line",

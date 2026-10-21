@@ -81,12 +81,15 @@ function firstRepeatedPartId(parts: ReadonlyArray<{ readonly id: string }>): str
 }
 
 /** One part of the code an architecture report describes. */
+/** A part id: a kebab-case slug, as a report declares it and a phax.json bound names it. */
+export const ArchitecturePartIdSchema = Schema.NonEmptyString.pipe(
+  Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+    message: () => "a kebab-case slug: lowercase letters and digits, single hyphens between",
+  }),
+);
+
 const ArchitecturePartSchema = Schema.Struct({
-  id: Schema.NonEmptyString.pipe(
-    Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
-      message: () => "a kebab-case slug: lowercase letters and digits, single hyphens between",
-    }),
-  ).annotations({
+  id: ArchitecturePartIdSchema.annotations({
     description:
       "The part's stable id, a kebab-case slug unique within the report. A phax.json bound names a part by it.",
   }),

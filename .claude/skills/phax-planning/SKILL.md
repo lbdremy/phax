@@ -60,8 +60,10 @@ not only before approval. The run preflight (`phax run`, `phax resume`) also
 refuses, with exit 11, a phase whose section it cannot locate in plan.md; a phase
 is located by its `## phase-NN` id heading or by its `{#anchor}`. It refuses the same
 `models`, `interactive` and `oracles` errors with exit 11: a departure from a bound
-without a reason, or an invalid bound, stops the run before it is named
-("Assignment preflight failed"), and `phax plans lint` shows the same findings first.
+without a reason, an invalid bound, or a part bound the architecture provider does not
+resolve (provider missing or failing, or the part gone) stops `phax run` before the run is
+named and `phax resume` before its next phase starts ("Assignment preflight failed"), and
+`phax plans lint` shows the same findings first.
 
 ## Run title and short name
 
@@ -445,7 +447,7 @@ Cut and write every phase first. Choose its model and effort last, from what the
 - Any other catalog model only for a stated reason.
 - Read the assignment bounds before assigning: `phax architecture` prints them after the parts, also when it exits 1 with its no-provider line. A bound names the files it covers (an architecture part, or globs), one model and an effort range.
 - The first bound that matches any file the phase plans to create, edit or optionally edit governs it. With no match, the default above stands in.
-- A phase conforms when it takes the governing bound's model (or the default's) at an effort inside the range.
+- A phase conforms when it takes the governing bound's model at an effort inside the bound's range; with no governing bound, when it takes the default's model and effort exactly.
 - A conforming phase has `assignmentReason: null` and no `**Assignment reason:**` line. Any other phase says why: its `assignmentReason` (headless), or an `**Assignment reason:**` line under its model and effort (by hand).
 - `phax plans lint` and the run's start preflight fail an unstated departure from a bound. An unstated departure from the default is a warning. A conforming phase that carries a reason is a defect.
 - A lighter model needs the detail: see "Comprehensive instructions".
@@ -691,7 +693,8 @@ and the fields that only render the phase:
 - `testStrategy`, `verification`, `expectedHandoff`: strings.
 - `assignmentReason` — why the phase leaves its governing bound or the default assignment, rendered as an
   `**Assignment reason:**` line under its effort line. Put each departure's reason in that
-  phase's `assignmentReason`, and `assignmentReason: null` on every phase at the default. Never put a
+  phase's `assignmentReason`, and `assignmentReason: null` on every phase that conforms to its governing
+  bound (or, with none, takes the default). Never put a
   reason in `preamble.technicalArbitrations`.
 
 ## Example well-formed phase

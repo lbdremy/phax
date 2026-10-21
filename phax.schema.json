@@ -470,10 +470,9 @@
                 "enum": ["part"]
               },
               "part": {
-                "type": "string",
+                "$ref": "#/$defs/NonEmptyString",
                 "description": "The id of an architecture-report part: the bound covers the files of the part whose id this is, read from the architecture provider.",
-                "title": "nonEmptyString",
-                "minLength": 1
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
               },
               "model": {
                 "type": "string",
