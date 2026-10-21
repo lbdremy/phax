@@ -10,7 +10,8 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const SHORT_NAME = "my-run";
 const NAMESPACE = "test-project";
@@ -71,6 +72,34 @@ async function seedRun(
   }
 
   return { runPath };
+}
+
+/** A made-up phase of a current `phax-plan.json`. */
+function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
+  return {
+    id,
+    title: `Made-up ${id}`,
+    model: "claude-opus-5-5",
+    effort: "high" as const,
+    planMarkdownAnchor: `#${id}`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    mode: "headless" as const,
+    oracle,
+    commit: { subject: `feat: ${id}`, body: "Made up." },
+  };
+}
+
+/** Every name under the run folder, with the text of its JSON files. */
+async function snapshot(runPath: string) {
+  const names = (await readdir(runPath, { recursive: true })).toSorted();
+  return Promise.all(
+    names.map(async (name) => {
+      const path = join(runPath, name);
+      return [name, existsSync(path) && name.endsWith(".json") ? await readFile(path, "utf8") : ""];
+    }),
+  );
 }
 
 function shortName(): ShortName {
@@ -217,6 +246,141 @@ describe("resetPhase", () => {
     // No side effects on the registry / git fake.
     expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
     expect(fakeGit.impl.deletedBranches.length).toBe(0);
+  });
+
+  describe("an oracle phase resets only after its discharging phase", () => {
+    // The refunds plan: phase-02 authors tests/refunds.test.ts, phase-03 discharges it.
+    function writePairPlan(runPath: string) {
+      const plan: PhaxPlan = {
+        run: {
+          shortName: SHORT_NAME,
+          title: "Refunds",
+          branch: "phax/refunds",
+          requiredCommands: [],
+        },
+        phases: [
+          planPhase("phase-01", null),
+          planPhase("phase-02", { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
+          planPhase("phase-03", null),
+        ],
+      };
+      return writeFile(
+        join(runPath, "phax-plan.json"),
+        JSON.stringify(withSchemaUrl("phax-plan", plan), null, 2),
+      );
+    }
+
+    function seedPair(phase03State: string, phase03Commit?: string) {
+      const worktree = (id: string) =>
+        join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, id);
+      return seedRun(stateRoot, {
+        runState: "failed",
+        phases: [
+          {
+            id: "phase-01",
+            index: 0,
+            state: "committed",
+            worktreePath: worktree("phase-01"),
+            branchName: "ai/my-run--phase-01",
+            commitHash: "aabbccdd",
+          },
+          {
+            id: "phase-02",
+            index: 1,
+            state: "committed",
+            worktreePath: worktree("phase-02"),
+            branchName: "ai/my-run--phase-02",
+            commitHash: "bbccddee",
+          },
+          {
+            id: "phase-03",
+            index: 2,
+            state: phase03State,
+            worktreePath: worktree("phase-03"),
+            branchName: "ai/my-run--phase-03",
+            ...(phase03Commit === undefined ? {} : { commitHash: phase03Commit }),
+          },
+        ],
+      });
+    }
+
+    function reset(phaseId: string, fakeGit = makeFakeGit()) {
+      const layers = Layer.mergeAll(
+        fakeGit.layer,
+        makeFakeShell().layer,
+        NodeFileSystemLayer,
+        NoopSystemTelemetryLayer,
+      );
+      return Effect.runPromise(
+        Effect.either(
+          resetPhase({
+            shortName: shortName(),
+            namespace: NAMESPACE,
+            phaseId,
+            stateRoot,
+            repoRoot: stateRoot,
+          }).pipe(Effect.provide(layers)),
+        ),
+      );
+    }
+
+    it("refuses while the discharging phase is failed, naming it, and changes nothing", async () => {
+      const { runPath } = await seedPair("failed");
+      await writePairPlan(runPath);
+      const before = await snapshot(runPath);
+      const fakeGit = makeFakeGit();
+
+      const result = await reset("phase-02", fakeGit);
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) throw new Error("unreachable");
+      expect(result.left).toBeInstanceOf(ResetPhaseError);
+      const error = result.left as ResetPhaseError;
+      expect(error.reason).toBe("phase_blocked_by_discharge");
+      expect(error.message).toBe(
+        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed — reset phase-03 first.`,
+      );
+      expect(await snapshot(runPath)).toEqual(before);
+      expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
+      expect(fakeGit.impl.deletedBranches).toEqual([]);
+    });
+
+    it("refuses with its own reason when the discharging phase is also committed", async () => {
+      const { runPath } = await seedPair("committed", "ccddeeff");
+      await writePairPlan(runPath);
+
+      const result = await reset("phase-02");
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_discharge");
+      }
+    });
+
+    it("lifts the rule once the discharging phase is reset to pending", async () => {
+      const { runPath } = await seedPair("failed");
+      await writePairPlan(runPath);
+
+      expect(Either.isRight(await reset("phase-03"))).toBe(true);
+      const second = await reset("phase-02");
+
+      // The discharge no longer blocks; a committed phase stays unresettable
+      // by the state machine, as before.
+      expect(Either.isLeft(second)).toBe(true);
+      if (Either.isLeft(second)) {
+        expect((second.left as ResetPhaseError).reason).toBe("not_resettable");
+      }
+    });
+
+    it("adds no refusal when the run's plan is unreadable", async () => {
+      const { runPath } = await seedPair("failed");
+      await writeFile(join(runPath, "phax-plan.json"), "not json");
+
+      const result = await reset("phase-02");
+
+      // The later-committed rule does not apply (phase-03 is failed): the reset proceeds.
+      expect(Either.isRight(result)).toBe(true);
+    });
   });
 
   it("rejects resetting a phase that is not in a resettable state", async () => {

@@ -15,6 +15,7 @@ describe("attemptNumberOf", () => {
   it("reads the number of every per-attempt file", () => {
     expect(attemptNumberOf("checks-attempt-03.log")).toBe(3);
     expect(attemptNumberOf("checks-attempt-03.request.json")).toBe(3);
+    expect(attemptNumberOf("checks-attempt-03.oracle-request.json")).toBe(3);
     expect(attemptNumberOf("checks-attempt-03.attribution.json")).toBe(3);
     expect(attemptNumberOf("checks-attempt-03.report-02.json")).toBe(3);
     expect(attemptNumberOf("fix-attempt-03.jsonl")).toBe(3);
@@ -53,6 +54,12 @@ describe("nextAttemptNumber", () => {
         "checks-attempt-04.report-01.json",
       ]),
     ).toBe(5);
+  });
+
+  it("counts a saved oracle request, so its attempt number is never reused", () => {
+    expect(
+      nextAttemptNumber(["checks-attempt-01.log", "checks-attempt-02.oracle-request.json"]),
+    ).toBe(3);
   });
 
   it("reads numbers of any digit count", () => {

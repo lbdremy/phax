@@ -28,7 +28,7 @@ import {
   PhaseHadNoChangesError,
   type AssignmentPreflightError,
   type InteractivePreflightError,
-  type OraclePreflightError,
+  OraclePreflightError,
   type PlanSectionsPreflightError,
   RateLimitError,
   RecordsDestinationRefusedError,
@@ -90,7 +90,13 @@ import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
-import { recordGateProfileInRunStatus, serializeGateRequest } from "./gates.js";
+import {
+  ORACLE_PROVIDER_TIMEOUT_MS,
+  recordGateProfileInRunStatus,
+  serializeGateRequest,
+  serializeOracleRequest,
+  type OracleStep,
+} from "./gates.js";
 import { makeGateRequest } from "../domain/gate/gateRequest.js";
 import { phaseBriefRequest } from "../domain/brief/request.js";
 import type { BriefRequestFile } from "../schemas/brief.js";
@@ -104,7 +110,11 @@ import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInject
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
-import { readPhaseBase, recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
+import {
+  readPhaseBase,
+  readPhaseCommit,
+  recordPhaseWorktreeAndBranch,
+} from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRun } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
@@ -121,7 +131,14 @@ import {
   readAgentBinding,
 } from "./agentBinding.js";
 import { providerToAdapter } from "../domain/providerAdapter.js";
-import { oracleRoleOf, recordOracleRole } from "../domain/plan/oraclePairs.js";
+import {
+  dischargedOracleFiles,
+  oracleRoleOf,
+  recordOracleRole,
+} from "../domain/plan/oraclePairs.js";
+import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
+import { makeOracleRequest } from "../domain/gate/oracleRequest.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -406,6 +423,51 @@ export function executePlan(
         makeGateRequest({ phaseId, base, terminal: isFinal, phases: plan.phases }),
       ),
     );
+  }
+
+  // The oracle step of a phase in an oracle pair, or undefined for any other
+  // phase. Its request is built from the oracle phase's status.json facts
+  // only, never from git, on every phase entry, so a resume, a reset or a
+  // re-run names the oracle phase's current base and commit. The oracles
+  // command runs only from phax: it is in no grant, frozen command set or
+  // prompt list.
+  function oracleStepFor(
+    phaseFolderPath: string,
+    phaseId: string,
+  ): Effect.Effect<OracleStep | undefined, FsError | OraclePreflightError, FileSystem> {
+    return Effect.gen(function* () {
+      const role = oracleRoleOf(plan.phases, phaseId);
+      if (role === null) return undefined;
+      if (config.oracles === undefined) {
+        // The preflight refuses this plan; never skip the step.
+        const planPath = join(runPath, "plan.md");
+        const findings = oracleFindings({
+          headers: readPhaseHeaders(planMd),
+          phases: plan.phases,
+          providerConfigured: false,
+        });
+        return yield* Effect.fail(
+          new OraclePreflightError({
+            message: [
+              `Oracle preflight failed: ${findings.length} error(s).`,
+              ...findings.map((f) => `  ${f.phase ?? "-"}  ${f.message}`),
+              `Fix the plan, then check it with \`phax plans lint ${planPath}\`.`,
+            ].join("\n"),
+            findings,
+            planPath,
+          }),
+        );
+      }
+      const oracleFolder =
+        role.role === "oracle" ? phaseFolderPath : join(runPath, role.pair.oraclePhase);
+      const base = yield* readPhaseBase(oracleFolder);
+      const oracleCommit = role.role === "oracle" ? null : yield* readPhaseCommit(oracleFolder);
+      return {
+        command: config.oracles.command,
+        request: serializeOracleRequest(makeOracleRequest({ role, phaseId, base, oracleCommit })),
+        timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
+      };
+    });
   }
 
   const program = Effect.gen(function* () {
@@ -1026,6 +1088,7 @@ export function executePlan(
         const gateRequest = serializeGateRequest(
           phaseFacts ?? (yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal)),
         );
+        const oracleStep = yield* oracleStepFor(phaseFolderPath, phase.id);
         const gateOutcome = yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,
@@ -1037,6 +1100,7 @@ export function executePlan(
           phaseId: phase.id,
           runPath,
           gateRequest,
+          ...(oracleStep === undefined ? {} : { oracleStep }),
           ...(isResumeFromGate ? { worktreePath: worktreePath as string } : {}),
         });
         gateLogPath = gateOutcome.attemptLogPath;
@@ -1145,6 +1209,7 @@ export function executePlan(
             phaseFolderPath,
             runId: runId as string,
             fileReconciliationMode: config.fileReconciliationMode,
+            oracleFiles: dischargedOracleFiles(plan.phases, phase.id),
           });
         }
 

@@ -47,21 +47,6 @@ function oracleDefects(header: PhaseHeader): readonly string[] {
   return defects;
 }
 
-/**
- * One error per phase with a well-formed oracle declaration. Stays until the
- * oracle step can run; the gate-loop phase deletes it.
- */
-export function unsupportedOracleFindings(headers: readonly PhaseHeader[]): readonly LintFinding[] {
-  return headers
-    .filter((h) => oracleDeclaration(h) !== null)
-    .map((h) =>
-      error(
-        h.phase,
-        "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
-      ),
-    );
-}
-
 /** The planned-file lists of one phase, as the file-plan rules read them. */
 export interface OracleCheckPhase {
   readonly id: string;
@@ -203,9 +188,8 @@ function interactiveRows(
 
 /**
  * Every `oracles` error of a plan: the malformed-line rows, then the rule rows
- * grouped in the order of the spec's §5.6 … §5.13, each group in plan order,
- * then the not-supported refusal. The rules that read planned files report
- * nothing when `phases` is null.
+ * grouped in the order of the spec's §5.6 … §5.13, each group in plan order.
+ * The rules that read planned files report nothing when `phases` is null.
  */
 export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] {
   const { headers, phases, providerConfigured } = input;
@@ -277,6 +261,5 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
     ...interactive.inside,
     ...interactive.role,
     ...noProvider,
-    ...unsupportedOracleFindings(headers),
   ];
 }

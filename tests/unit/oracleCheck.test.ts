@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  oracleFindings,
-  unsupportedOracleFindings,
-  type OracleCheckPhase,
-} from "../../src/domain/plan/oracleCheck.js";
+import { oracleFindings, type OracleCheckPhase } from "../../src/domain/plan/oracleCheck.js";
 import { readPhaseHeaders } from "../../src/domain/plan/phaseHeader.js";
 
 interface PlanPhase {
@@ -15,8 +11,6 @@ interface PlanPhase {
 
 const NO_PROVIDER =
   'oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
-const REFUSAL =
-  "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines";
 
 function id(index: number): string {
   return `phase-${String(index + 1).padStart(2, "0")}`;
@@ -49,7 +43,7 @@ function planned(phases: readonly PlanPhase[]): readonly OracleCheckPhase[] {
   }));
 }
 
-/** The `oracles` rows without the trailing not-supported refusal rows. */
+/** The `oracles` rows, every one an error. */
 function rowsOf(
   phases: readonly PlanPhase[],
   opts: { providerConfigured?: boolean; parsed?: boolean } = {},
@@ -60,15 +54,14 @@ function rowsOf(
     providerConfigured: opts.providerConfigured ?? true,
   });
   expect(all.every((f) => f.severity === "error" && f.check === "oracles")).toBe(true);
-  const refusals = all.filter((f) => f.message === REFUSAL);
-  return { rows: all.filter((f) => f.message !== REFUSAL), refusals };
+  return all;
 }
 
 function messages(
   phases: readonly PlanPhase[],
   opts: { providerConfigured?: boolean; parsed?: boolean } = {},
 ) {
-  return rowsOf(phases, opts).rows.map((f) => `${f.phase}: ${f.message}`);
+  return rowsOf(phases, opts).map((f) => `${f.phase}: ${f.message}`);
 }
 
 const ORACLE = (files = "`tests/refunds.test.ts`", value = "yes") => [
@@ -80,14 +73,6 @@ const oraclePhase = {
   header: ORACLE(),
   create: ["tests/refunds.test.ts", "src/refunds/index.ts"],
 } satisfies PlanPhase;
-
-describe("unsupportedOracleFindings", () => {
-  it("skips a phase whose declaration is malformed", () => {
-    expect(unsupportedOracleFindings(headersOf([{ header: ["**Oracle phase:** yes"] }]))).toEqual(
-      [],
-    );
-  });
-});
 
 describe("oracleFindings: malformed lines", () => {
   it("gives nothing without an oracle line", () => {
@@ -152,12 +137,8 @@ describe("oracleFindings: malformed lines", () => {
 });
 
 describe("oracleFindings: pairs", () => {
-  it("a well-formed pair with a provider gives only the not-supported refusal", () => {
-    const { rows, refusals } = rowsOf([oraclePhase, plain]);
-    expect(rows).toEqual([]);
-    expect(refusals).toEqual([
-      { severity: "error", check: "oracles", phase: "phase-01", message: REFUSAL },
-    ]);
+  it("a well-formed pair with a provider gives no finding", () => {
+    expect(rowsOf([oraclePhase, plain])).toEqual([]);
   });
 
   it("names the explicit discharging phase of a pair", () => {
@@ -319,7 +300,7 @@ describe("oracleFindings: pairs", () => {
     ]);
   });
 
-  it("orders the rows: §5.6, roles, §5.8 … §5.13, then the refusal", () => {
+  it("orders the rows: §5.6, roles, §5.8 … §5.13", () => {
     const phases = [
       { header: ORACLE("", "discharged by phase-09") },
       { header: ["**Mode:** interactive", ...ORACLE()], create: ["tests/refunds.test.ts"] },
@@ -336,8 +317,6 @@ describe("oracleFindings: pairs", () => {
       "phase-02: an interactive phase takes no oracle role: it declares an oracle phase",
       `phase-01: ${NO_PROVIDER}`,
       `phase-02: ${NO_PROVIDER}`,
-      `phase-01: ${REFUSAL}`,
-      `phase-02: ${REFUSAL}`,
     ]);
   });
 });

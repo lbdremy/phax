@@ -7,6 +7,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -14,8 +15,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
-import { runGates, serializeGateRequest } from "../../src/app/gates.js";
+import {
+  ORACLE_PROVIDER_TIMEOUT_MS,
+  runGates,
+  serializeGateRequest,
+  serializeOracleRequest,
+} from "../../src/app/gates.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
+import { makeOracleRequest } from "../../src/domain/gate/oracleRequest.js";
+import { FileSystem } from "../../src/ports/fs.js";
 import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
 import { GateFailedError, GateStepRefusedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -719,6 +727,14 @@ function runReal(ws: Workspace, gateSteps: readonly GateStep[], request: string 
 
 function readLogLines(ws: Workspace): string[] {
   return readFileSync(ws.logPath, "utf8").split("\n");
+}
+
+/** What the made-up oracles provider recorded: its stdin and cwd, or undefined when it never ran. */
+function seen(ws: Workspace): { stdin: string; cwd: string } | undefined {
+  const path = join(ws.dir, "oracle-seen.json");
+  return existsSync(path)
+    ? (JSON.parse(readFileSync(path, "utf8")) as { stdin: string; cwd: string })
+    : undefined;
 }
 
 function readAttribution(ws: Workspace): GateAttribution {
@@ -1459,5 +1475,304 @@ describe("runGates with a report step", () => {
     expect(Either.isRight(result)).toBe(true);
     expect(fakeShell.impl.calls[0]?.stdin).toBe(gateRequest);
     expect(fakeFs.impl.getFile(logPath)).toContain("stdin: checks-attempt-01.request.json");
+  });
+});
+
+// The oracle step phax appends for an oracle pair, through the real Node shell.
+// The provider is a made-up script in a temp dir; it records its stdin and cwd.
+describe("runGates with an oracle step (Node shell)", () => {
+  const reportUrl = currentSchemaUrl("gate-report");
+  const oracleFiles = ["tests/refunds.test.ts", "tests/prune.test.ts"];
+  const oracleRequest = serializeOracleRequest(
+    makeOracleRequest({
+      role: {
+        role: "oracle",
+        pair: { oraclePhase: "phase-01", dischargingPhase: "phase-02", files: oracleFiles },
+      },
+      phaseId,
+      base: "0123456789abcdef0123456789abcdef01234567",
+      oracleCommit: null,
+    }),
+  );
+  const markerFinding = {
+    id: "oracle-unmarked tests/refunds.test.ts",
+    rule: "an oracle test is marked until its discharging phase",
+    location: { file: "tests/refunds.test.ts", lines: [12, 12] },
+    message: "the refund test is not marked",
+    related: [],
+    guide: null,
+  };
+  const outputs: Readonly<Record<string, string>> = {
+    pass: JSON.stringify({ $schema: reportUrl, outcome: "checked", findings: [], review: [] }),
+    finding: JSON.stringify({
+      $schema: reportUrl,
+      outcome: "checked",
+      findings: [markerFinding],
+      review: [],
+    }),
+    refused: JSON.stringify({
+      $schema: reportUrl,
+      outcome: "refused",
+      reason: "the oracle files are not test files",
+      remedy: "list test files under **Oracle files:**",
+    }),
+    nonjson: "not a report",
+    noschema: JSON.stringify({ outcome: "checked", findings: [], review: [] }),
+  };
+  const provider = [
+    'import { writeFileSync } from "node:fs";',
+    'let input = "";',
+    "for await (const chunk of process.stdin) input += chunk;",
+    'writeFileSync("oracle-seen.json", JSON.stringify({ stdin: input, cwd: process.cwd() }));',
+    "const mode = process.argv[2];",
+    `const outputs = ${JSON.stringify(outputs)};`,
+    'if (mode === "exit3") process.exit(3);',
+    'if (mode === "sleep") await new Promise((done) => setTimeout(done, 5000));',
+    "process.stdout.write(outputs[mode] ?? outputs.pass);",
+  ].join("\n");
+
+  const tempDirs: string[] = [];
+  afterAll(() => {
+    for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function workspace(): Workspace & { readonly oracleRequestPath: string } {
+    const dir = mkdtempSync(join(tmpdir(), "phax-oracle-step-"));
+    tempDirs.push(dir);
+    writeFileSync(join(dir, "oracles.mjs"), provider);
+    writeFileSync(join(dir, "check.mjs"), "process.exit(Number(process.argv[2] ?? 0));");
+    const phaseFolder = join(dir, "phase-01");
+    mkdirSync(phaseFolder);
+    return {
+      dir,
+      logPath: join(phaseFolder, "checks-attempt-01.log"),
+      requestPath: join(phaseFolder, "checks-attempt-01.request.json"),
+      oracleRequestPath: join(phaseFolder, "checks-attempt-01.oracle-request.json"),
+      attributionPath: join(phaseFolder, "gate-attribution.json"),
+    };
+  }
+
+  function runOracle(
+    ws: Workspace,
+    gateSteps: readonly GateStep[],
+    mode: string,
+    timeoutMs = ORACLE_PROVIDER_TIMEOUT_MS,
+    command = `node ./oracles.mjs ${mode}`,
+  ) {
+    return Effect.runPromise(
+      Effect.either(
+        runGates({
+          steps: gateSteps,
+          cwd: ws.dir,
+          attemptLogPath: ws.logPath,
+          attributionPath: ws.attributionPath,
+          phaseId,
+          gateRequest,
+          oracleStep: { command, request: oracleRequest, timeoutMs },
+        }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
+      ),
+    );
+  }
+
+  const configured = [
+    stepWithSurface("node ./check.mjs 0", "local"),
+    stepWithSurface("node ./check.mjs 0", "structural"),
+  ];
+
+  it("caps the provider at 120 s", () => {
+    expect(ORACLE_PROVIDER_TIMEOUT_MS).toBe(120_000);
+  });
+
+  it("spawns no provider when a configured step fails, and the record ends with that step", async () => {
+    const ws = workspace();
+
+    const result = await runOracle(
+      ws,
+      [configured[0]!, stepWithSurface("node ./check.mjs 1", "structural")],
+      "pass",
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(seen(ws)).toBeUndefined();
+    expect(existsSync(ws.oracleRequestPath)).toBe(false);
+    expect(readAttribution(ws).steps).toEqual([
+      { command: "node ./check.mjs 0", surface: "local", result: "pass" },
+      { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
+    ]);
+  });
+
+  it("appends a passing oracle step last, after the configured steps unchanged and in order", async () => {
+    const ws = workspace();
+    const threeSteps = [...configured, stepWithSurface("node ./check.mjs 0", "product")];
+
+    const result = await runOracle(ws, threeSteps, "pass");
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(readAttribution(ws).steps).toEqual([
+      { command: "node ./check.mjs 0", surface: "local", result: "pass" },
+      { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
+      { command: "node ./check.mjs 0", surface: "product", result: "pass" },
+      { command: "node ./oracles.mjs pass", surface: "oracle", result: "pass" },
+    ]);
+    // The report is saved byte for byte at position steps + 1.
+    expect(readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.report-04.json"), "utf8")).toBe(
+      outputs["pass"],
+    );
+  });
+
+  it("writes the request on stdin, saves it beside the log, and runs in the gate's cwd", async () => {
+    const ws = workspace();
+
+    await runOracle(ws, configured, "pass");
+
+    expect(seen(ws)?.stdin).toBe(oracleRequest);
+    expect(seen(ws)?.cwd).toBe(realpathSync(ws.dir));
+    expect(readFileSync(ws.oracleRequestPath, "utf8")).toBe(oracleRequest);
+    const lines = readLogLines(ws);
+    expect(lineAfter(lines, "$ node ./oracles.mjs pass")).toBe(
+      "stdin: checks-attempt-01.oracle-request.json",
+    );
+    expect(lines).toContain("report: checks-attempt-01.report-03.json");
+  });
+
+  it("fails on a finding, carrying it as the oracle step's report findings", async () => {
+    const ws = workspace();
+
+    const result = await runOracle(ws, configured, "finding");
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateFailedError);
+      if (result.left instanceof GateFailedError) {
+        expect(result.left.command).toBe("node ./oracles.mjs finding");
+        expect(result.left.reportFindings).toEqual({ step: 3, findings: [markerFinding] });
+      }
+    }
+    expect(readAttribution(ws).steps.at(-1)).toEqual({
+      command: "node ./oracles.mjs finding",
+      surface: "oracle",
+      result: "fail",
+    });
+  });
+
+  it("stops for the operator on a refusal, recording it refused", async () => {
+    const ws = workspace();
+
+    const result = await runOracle(ws, configured, "refused");
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateStepRefusedError);
+      if (result.left instanceof GateStepRefusedError) {
+        expect(result.left.reason).toBe("the oracle files are not test files");
+        expect(result.left.remedy).toBe("list test files under **Oracle files:**");
+      }
+    }
+    expect(readAttribution(ws).steps.at(-1)).toEqual({
+      command: "node ./oracles.mjs refused",
+      surface: "oracle",
+      result: "refused",
+    });
+  });
+
+  it.each([
+    [
+      "a missing command",
+      "pass",
+      ORACLE_PROVIDER_TIMEOUT_MS,
+      "./no-such-oracles",
+      "provider error:",
+    ],
+    ["non-JSON", "nonjson", ORACLE_PROVIDER_TIMEOUT_MS, undefined, "stdout is not JSON"],
+    ["no $schema", "noschema", ORACLE_PROVIDER_TIMEOUT_MS, undefined, reportUrl],
+    ["exit 3 with no finding", "exit3", ORACLE_PROVIDER_TIMEOUT_MS, undefined, "provider error:"],
+    ["the time cap", "sleep", 200, undefined, "timed out after 200ms"],
+  ] as const)(
+    "fails the oracle step as broken on %s",
+    async (_label, mode, timeoutMs, command, logged) => {
+      const ws = workspace();
+
+      const result = await runOracle(ws, configured, mode, timeoutMs, command);
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(GateFailedError);
+        if (result.left instanceof GateFailedError) expect(result.left.reportFindings).toBeNull();
+      }
+      const recorded = readAttribution(ws).steps;
+      expect(recorded).toHaveLength(3);
+      expect(recorded.at(-1)).toMatchObject({ surface: "oracle", result: "fail" });
+      const log = readFileSync(ws.logPath, "utf8");
+      expect(log).toContain("provider error:");
+      expect(log).toContain(logged);
+    },
+  );
+});
+
+describe("runGates with an oracle step (fake ports)", () => {
+  it("reads no oracle file: the provider alone looks at them", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const touched: string[] = [];
+    const recording = new Proxy(fakeFs.impl, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if (key !== "writeAtomic") touched.push(String(args[0]));
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setDefaultResponse({
+      exitCode: 0,
+      stdout: JSON.stringify({
+        $schema: currentSchemaUrl("gate-report"),
+        outcome: "checked",
+        findings: [],
+        review: [],
+      }),
+      stderr: "",
+    });
+    const request = serializeOracleRequest(
+      makeOracleRequest({
+        role: {
+          role: "discharging",
+          pair: {
+            oraclePhase: "phase-00",
+            dischargingPhase: phaseId,
+            files: ["tests/refunds.test.ts"],
+          },
+        },
+        phaseId,
+        base: "0123456789abcdef0123456789abcdef01234567",
+        oracleCommit: "89abcdef0123456789abcdef0123456789abcdef",
+      }),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        runGates({
+          steps: steps("pnpm test"),
+          cwd,
+          attemptLogPath: logPath,
+          attributionPath,
+          phaseId,
+          gateRequest,
+          oracleStep: { command: "./oracles --check", request, timeoutMs: 1000 },
+        }).pipe(
+          Effect.provide(Layer.mergeAll(Layer.succeed(FileSystem, recording), fakeShell.layer)),
+        ),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(touched.filter((path) => path.includes("refunds.test.ts"))).toEqual([]);
+    expect(fakeShell.impl.calls.at(-1)).toMatchObject({
+      command: ["./oracles", "--check"],
+      cwd,
+      stdin: request,
+      timeoutMs: 1000,
+    });
   });
 });

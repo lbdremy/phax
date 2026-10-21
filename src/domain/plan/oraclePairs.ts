@@ -43,6 +43,19 @@ export function oracleRoleOf(phases: ReadonlyArray<PairPhase>, phaseId: string):
   return null;
 }
 
+/**
+ * The oracle files `phaseId` discharges: its pair's files when it is a
+ * discharging phase, else none. Reconciliation counts them as optional files,
+ * so removing a marker is never an unplanned edit.
+ */
+export function dischargedOracleFiles(
+  phases: ReadonlyArray<PairPhase>,
+  phaseId: string,
+): readonly string[] {
+  const role = oracleRoleOf(phases, phaseId);
+  return role?.role === "discharging" ? role.pair.files : [];
+}
+
 /** The role as a phase record's manifest stores it. */
 export function recordOracleRole(role: OracleRole | null): RecordOracleRole {
   if (role === null) return null;

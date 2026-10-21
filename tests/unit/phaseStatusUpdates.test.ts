@@ -1,6 +1,10 @@
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { readPhaseBase, recordPhaseWorktreeAndBranch } from "../../src/app/phaseStatusUpdates.js";
+import {
+  readPhaseBase,
+  readPhaseCommit,
+  recordPhaseWorktreeAndBranch,
+} from "../../src/app/phaseStatusUpdates.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { FsError } from "../../src/ports/fs.js";
@@ -53,6 +57,40 @@ describe("readPhaseBase", () => {
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(FsError);
       expect(result.left.message).toContain(`${phaseFolderPath}/status.json`);
+    }
+  });
+});
+
+describe("readPhaseCommit", () => {
+  const commitHash = "0123456789abcdef0123456789abcdef01234567";
+
+  function read(extra: Record<string, unknown>) {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, makePhaseStatusJson(extra));
+    return Effect.runPromise(
+      Effect.either(readPhaseCommit(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
+    );
+  }
+
+  it("reads the noted full commit back from status.json", async () => {
+    expect(await read({ state: "committed", commitHash })).toEqual(Either.right(commitHash));
+  });
+
+  it("fails naming the phase when no commit is noted", async () => {
+    const result = await read({});
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(FsError);
+      expect(result.left.message).toContain("phase-01");
+    }
+  });
+
+  it("fails naming the phase when the noted commit is abbreviated", async () => {
+    const result = await read({ state: "committed", commitHash: "0123456" });
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("phase-01");
+      expect(result.left.message).toContain("0123456");
     }
   });
 });

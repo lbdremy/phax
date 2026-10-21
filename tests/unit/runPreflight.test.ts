@@ -317,9 +317,8 @@ const REFUSALS = {
     }),
     errorClass: OraclePreflightError,
     message: [
-      "Oracle preflight failed: 2 error(s).",
+      "Oracle preflight failed: 1 error(s).",
       '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)',
-      "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
       LINT_HINT,
     ].join("\n"),
   },
@@ -386,17 +385,13 @@ describe("runPreflights", () => {
     if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(InteractivePreflightError);
   });
 
-  it("oracle-phases drops the provider row once a provider is configured", async () => {
+  it("oracle-phases passes a well-formed pair once a provider is configured", async () => {
     const input = REFUSALS["oracle-phases"].input;
     const result = await run({
       ...input,
       config: makeConfig({ oracles: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
     });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result) && result.left instanceof OraclePreflightError) {
-      expect(result.left.findings.map((f) => f.check)).toEqual(["oracles"]);
-      expect(result.left.message).not.toContain('no "oracles" provider');
-    }
+    expect(Either.isRight(result)).toBe(true);
   });
 
   it("oracle-phases refuses a plan with an interactive phase before interactive-phases does", async () => {

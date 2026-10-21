@@ -29,7 +29,7 @@ import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
-import { runGates, type GateOutcome } from "./gates.js";
+import { runGates, type GateOutcome, type OracleStep } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
 import { reportPathFor } from "../domain/gate/reportPath.js";
@@ -60,6 +60,8 @@ export interface RunGatesWithFixLoopOptions {
   readonly worktreePath?: string;
   /** The phase's serialized gate request, passed unchanged to every attempt. */
   readonly gateRequest: string;
+  /** The phase's oracle step, passed unchanged to every attempt. */
+  readonly oracleStep?: OracleStep;
 }
 
 export function runGatesWithFixLoop(
@@ -91,6 +93,7 @@ export function runGatesWithFixLoop(
     phaseId,
     runPath,
     gateRequest,
+    oracleStep,
   } = opts;
   const resolvedWorktreePath = opts.worktreePath ?? cwd;
 
@@ -197,6 +200,7 @@ export function runGatesWithFixLoop(
           attributionPath: join(phaseFolderPath, "gate-attribution.json"),
           phaseId,
           gateRequest,
+          ...(oracleStep === undefined ? {} : { oracleStep }),
         }),
       );
 

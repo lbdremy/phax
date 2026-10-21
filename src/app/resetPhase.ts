@@ -14,7 +14,8 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
+import { readPhaxPlanFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
+import { oracleRoleOf } from "../domain/plan/oraclePairs.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { composePhaxState } from "./phaxState.js";
@@ -24,6 +25,7 @@ export class ResetPhaseError extends Data.TaggedError("ResetPhaseError")<{
   readonly reason:
     | "run_not_found"
     | "phase_not_found"
+    | "phase_blocked_by_discharge"
     | "phase_blocked_by_later_committed"
     | "not_resettable";
   readonly message: string;
@@ -94,6 +96,19 @@ export function resetPhase(
           ? `Phase "${opts.phaseId}" not found in run "${opts.shortName}"`
           : `Run "${opts.shortName}" has no resettable phase`;
       return yield* Effect.fail(new ResetPhaseError({ reason: "phase_not_found", message: msg }));
+    }
+
+    // An oracle phase resets only after its discharging phase: the discharge
+    // judged this phase's commit, which the reset discards.
+    const discharging = yield* dischargingPhaseOf(info.runPath, target.phaseId);
+    const dischargingStatus = info.phaseStatuses.find((p) => p.phaseId === discharging);
+    if (dischargingStatus !== undefined && dischargingStatus.state !== "pending") {
+      return yield* Effect.fail(
+        new ResetPhaseError({
+          reason: "phase_blocked_by_discharge",
+          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state} — reset ${dischargingStatus.phaseId} first.`,
+        }),
+      );
     }
 
     const laterCommitted = info.phaseStatuses.find(
@@ -215,6 +230,27 @@ function selectTargetPhase(
   return phaseStatuses
     .filter((p) => !TERMINAL_COMMITTED_STATES.has(p.state))
     .toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
+}
+
+/**
+ * The phase that discharges `phaseId` when it is an oracle phase, read from the
+ * run's `phax-plan.json` in any shape; undefined otherwise. An unreadable plan
+ * names none: such a run cannot resume anyway.
+ */
+function dischargingPhaseOf(
+  runPath: string,
+  phaseId: string,
+): Effect.Effect<string | undefined, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, "phax-plan.json");
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const read = readPhaxPlanFile(path, parsed);
+    if (Either.isLeft(read)) return undefined;
+    const role = oracleRoleOf(read.right.plan.phases, phaseId);
+    return role?.role === "oracle" ? role.pair.dischargingPhase : undefined;
+  }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
 function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, FileSystem> {
