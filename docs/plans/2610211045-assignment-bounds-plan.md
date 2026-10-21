@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610201350-assignment-bounds.md
 completes-spec: true
+approved:
+  date: 2026-10-21
+  baseline: 99fc91a
 ---
 # Assignment bounds
 
