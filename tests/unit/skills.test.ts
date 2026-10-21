@@ -98,10 +98,26 @@ describe("phax-planning skill", () => {
       expect(section).toMatch(/Lighter \(`claude-haiku-5-5`\).*a configured gate checks it/);
     });
 
-    it("names both departure-reason defects", () => {
-      expect(section).toContain("A departure without a reason");
-      expect(section).toContain("a default phase with one");
-      expect(section).toContain("is a defect");
+    it("reads the bounds through phax architecture, even on its no-provider exit", () => {
+      expect(section).toContain("Read the assignment bounds before assigning");
+      expect(section).toContain("`phax architecture` prints them after the parts");
+      expect(section).toContain("also when it exits 1 with its no-provider line");
+    });
+
+    it("lets the first matching bound govern, with the default as the fallback", () => {
+      expect(section).toContain("The first bound that matches any file the phase plans to");
+      expect(section).toContain("With no match, the default above stands in.");
+    });
+
+    it("defines conformity and when a reason is due", () => {
+      expect(section).toContain(
+        "takes the governing bound's model (or the default's) at an effort inside the range",
+      );
+      expect(section).toContain(
+        "A conforming phase has `assignmentReason: null` and no `**Assignment reason:**` line",
+      );
+      expect(section).toContain("fail an unstated departure from a bound");
+      expect(section).toContain("An unstated departure from the default is a warning");
     });
   });
 

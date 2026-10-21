@@ -16,10 +16,15 @@ function specPrompt(): string {
     completesSpec: null,
     slug: "plan-prune",
     architectureProvider: null,
+    assignmentBounds: null,
   });
 }
 
-function planPrompt(completesSpec: boolean, architectureProvider = false): string {
+function planPrompt(
+  completesSpec: boolean,
+  architectureProvider = false,
+  assignmentBounds = false,
+): string {
   return buildAuthoringPrompt({
     kind: "plan",
     skillText: "# phax-planning\n",
@@ -32,6 +37,7 @@ function planPrompt(completesSpec: boolean, architectureProvider = false): strin
     completesSpec,
     slug: "plan-prune",
     architectureProvider,
+    assignmentBounds,
   });
 }
 
@@ -133,6 +139,7 @@ describe("buildAuthoringPrompt", () => {
       completesSpec: null,
       slug: "catalog-refresh",
       architectureProvider: false,
+      assignmentBounds: false,
     });
 
     expect(prompt).toContain("Set `sourceSpec` to null");
@@ -143,7 +150,7 @@ describe("buildAuthoringPrompt", () => {
   it("a plan prompt with a provider tells the planner to run phax architecture, before the output contract", () => {
     const prompt = planPrompt(true, true);
     const line = prompt.indexOf(
-      "- An architecture provider is configured: before cutting phases, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.",
+      "- An architecture provider is configured: before cutting phases and assigning models, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.",
     );
 
     expect(line).toBeGreaterThan(prompt.indexOf("You are authoring the plan"));
@@ -161,6 +168,33 @@ describe("buildAuthoringPrompt", () => {
     expect(prompt.indexOf("No architecture provider")).toBeLessThan(
       prompt.indexOf("- Return ONLY"),
     );
+  });
+
+  it("a plan prompt with a provider and bounds adds the sentence about the bounds", () => {
+    const prompt = planPrompt(true, true, true);
+
+    expect(prompt).toContain(
+      "and plan against its answer. It lists the assignment bounds (phax.json `assignments`) after the parts: assign each phase against them.\n",
+    );
+    expect(prompt).not.toContain("No architecture provider is configured");
+  });
+
+  it("a plan prompt with bounds and no provider sends the planner to the command", () => {
+    const prompt = planPrompt(true, false, true);
+    const line = prompt.indexOf("- Assignment bounds are declared (phax.json `assignments`)");
+
+    expect(prompt).toContain(
+      "- Assignment bounds are declared (phax.json `assignments`), and no architecture provider is configured: before cutting phases and assigning models, run `phax architecture`. It exits 1 with its no-provider line, then lists the bounds; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).",
+    );
+    expect(line).toBeLessThan(prompt.indexOf("- Return ONLY"));
+    expect(prompt).not.toContain("do not run `phax architecture`");
+  });
+
+  it("lists no bound in any plan prompt", () => {
+    for (const prompt of [planPrompt(true, true, true), planPrompt(true, false, true)]) {
+      expect(prompt).not.toContain("assignments[");
+      expect(prompt).not.toContain("globs `");
+    }
   });
 
   it("a spec prompt carries no architecture statement", () => {

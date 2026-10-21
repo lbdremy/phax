@@ -31,13 +31,29 @@ Format for --usage output: kdl (default, no external dependency) or json (requir
 
 - **Usage**: `phax validate [--plan <path>]`
 
-Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
+Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
+
+The assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.
+
+Exits 0 when everything is valid, 2 otherwise.
+
+Side effects: none.
 
 ### Flags
 
 #### `--plan <path>`
 
 Also validate a phax-plan.json at this path
+
+### Examples
+
+```
+phax validate
+```
+
+```
+phax validate --plan phax-plan.json
+```
 
 ## `phax unlock`
 
@@ -363,6 +379,8 @@ A gate step with "output": "gate-report" is judged from the gate report it print
 
 Extraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.
 
+The start preflight also holds every phase to the owner's assignment bounds (phax.json "assignments"): a bound that names an unknown model or effort, or a phase that departs from its governing bound without an **Assignment reason:** line, refuses before the run is named, with exit 11 and "Assignment preflight failed". A part bound makes the preflight run the architecture provider.
+
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
 ### Arguments
@@ -585,13 +603,13 @@ phax brief
 
 - **Usage**: `phax architecture [path]…`
 
-Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.
+Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown, then the owner's assignment bounds (phax.json "assignments") as a "## Bounds" list, each as assignments[N] with its model and effort range; a part bound shows its part's name and globs, and a path-scoped report that does not carry the part says to run the command with no path for its globs. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.
 
 The request is {"$schema": ".../architecture-request/<release>.json", "files"}: files is null with no path (the whole repository), otherwise the paths relative to the working tree's root, deduplicated, in the order given, never checked for existence.
 
 The provider prints an architecture report on stdout: {"$schema": ".../architecture-report/<release>.json", "body", "parts"}. The report must carry its own `$schema` naming architecture-report at a release this phax reads, and body is non-empty Markdown for the agent to read. parts is a list, possibly empty, of {"id", "name", "description", "globs"}: id is a kebab-case slug unique within the report, name and description are non-empty text, and globs is a non-empty list of working-tree-root-relative POSIX globs matched case-sensitively, where only ** (a whole segment), * and ? are special; a leading slash, a backslash, braces, an empty, . or .. segment and ** inside a segment are refused. A key the format does not name is refused, and no model or effort appears anywhere. phax prints the body as is, never parsing it, then a "## Parts" section with each part's name, id, description and globs in the report's order. A provider that declines exits non-zero.
 
-Exits 0 on a readable report. Exits 1 with one line on stdout, telling the agent to read the architecture from the code and its documentation, when no architecture provider is configured. Exits 1 with one line on stderr when the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape (a missing parts, a repeated part id, an unknown key, an empty or refused glob); a path lies outside the working tree; or there is no git working tree at all. An invalid config exits 2.
+Exits 0 on a readable report. Exits 1 with one line on stdout, telling the agent to read the architecture from the code and its documentation, when no architecture provider is configured; when bounds are declared, that line is followed by the bounds, part bounds marked unresolved, and the exit is still 1. Exits 1 with one line on stderr when the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape (a missing parts, a repeated part id, an unknown key, an empty or refused glob); a path lies outside the working tree; or there is no git working tree at all. An invalid config exits 2.
 
 Side effects: runs the architecture provider. Writes no file, inside a phase worktree or outside one.
 
@@ -690,6 +708,8 @@ Shell to generate completions for (zsh, bash, fish, nu, powershell)
 Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
 
 A run whose phax-plan.json was written by an older phax, in an older shape, is refused with exit 2: finish it with the phax release that started it, or archive it with phax archive <run> --force and run its plan again.
+
+The same preflight as phax run applies: a phase that departs from the owner's assignment bounds without an **Assignment reason:** line, or an invalid bound, refuses with exit 11 ("Assignment preflight failed").
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
@@ -1418,7 +1438,7 @@ phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md
 
 Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.
 
-Seven checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused, and a **Model reason:** line is an error (the label is now **Assignment reason:**); interactive and oracles — a malformed **Mode:** or oracle line is an error, and so is any interactive or oracle declaration, which this release does not run yet; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.
+Seven checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused, each assignment bound of phax.json against the catalog, and each phase against the first bound that matches a file it plans to touch (or the policy default when none does): a departure without an **Assignment reason:** line is an error against a bound and a warning against the default, and a **Model reason:** line is an error (the label is now **Assignment reason:**); when a bound names an architecture part, the architecture provider runs once to resolve it; interactive and oracles — a malformed **Mode:** or oracle line is an error, and so is any interactive or oracle declaration, which this release does not run yet; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.
 
 A plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.
 

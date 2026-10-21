@@ -18,6 +18,7 @@ const SOURCE_FILES = [
   "docs/arbitration.md",
   "docs/plan-estimate.md",
   "docs/architecture-provider.md",
+  "docs/assignment-bounds.md",
   "docs/upgrading.md",
 ] as const;
 

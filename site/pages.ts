@@ -216,6 +216,13 @@ export default definePageMap({
         "Declare a command that answers phax architecture with your repository's architecture, and the limits it runs under when a planner calls it.",
     },
     {
+      route: "/guide/assignment-bounds",
+      title: "Assignment bounds",
+      source: "docs/assignment-bounds.md",
+      description:
+        "Bound which model and efforts a phase takes where it touches certain files, and how phax plans lint and phax run hold plans to the bounds.",
+    },
+    {
       route: "/reference/model-catalog",
       title: "Model catalog",
       source: "docs/model-catalog.md",

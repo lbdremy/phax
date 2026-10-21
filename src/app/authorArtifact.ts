@@ -105,6 +105,8 @@ export interface AuthorArtifactInput {
   readonly publishRemote: string;
   /** Whether `architecture` is declared in a config layer, read by the caller. */
   readonly architectureProvider: boolean;
+  /** Whether `assignments` is declared in phax.json, read by the caller. */
+  readonly assignmentBounds: boolean;
   /**
    * Where a failed session's record and push warnings go. A committed session's
    * record and push are returned in the result for the caller to render instead.
@@ -335,6 +337,7 @@ function runAuthoringSession(
     const granted = authoringAgentCommands({
       kind: input.kind,
       architectureProvider: input.architectureProvider,
+      assignmentBounds: input.assignmentBounds,
     });
     const options: AgentRunOptions = {
       provider: session.binding.provider,
@@ -484,6 +487,7 @@ export function authorArtifact(
       completesSpec: target.completesSpec,
       slug: input.slug,
       architectureProvider: input.kind === "plan" ? input.architectureProvider : null,
+      assignmentBounds: input.kind === "plan" ? input.assignmentBounds : null,
     });
     yield* fs.mkdirp(folder);
     yield* fs.writeAtomic(join(folder, AUTHORING_BRIEF_FILENAME), input.brief.text);

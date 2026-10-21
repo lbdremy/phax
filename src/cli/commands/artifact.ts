@@ -454,6 +454,7 @@ export async function runCreateArtifactHeadless(
       records: config.records,
       publishRemote: config.publish.remote,
       architectureProvider: config.architecture !== undefined,
+      assignmentBounds: config.assignments !== undefined,
       output: out,
       ...(config.records.destination.kind === "repo"
         ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }

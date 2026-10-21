@@ -332,16 +332,30 @@ describe("checkRequiredCommands", () => {
 describe("authoringAgentCommands", () => {
   it("grants phax architecture to a plan with a provider", () => {
     expect(ARCHITECTURE_AGENT_COMMAND).toBe("phax architecture");
-    expect(authoringAgentCommands({ kind: "plan", architectureProvider: true })).toEqual([
-      "phax architecture",
-    ]);
+    expect(
+      authoringAgentCommands({ kind: "plan", architectureProvider: true, assignmentBounds: false }),
+    ).toEqual(["phax architecture"]);
   });
 
-  it("grants nothing to a plan without a provider", () => {
-    expect(authoringAgentCommands({ kind: "plan", architectureProvider: false })).toEqual([]);
+  it("grants phax architecture to a plan with bounds and no provider", () => {
+    expect(
+      authoringAgentCommands({ kind: "plan", architectureProvider: false, assignmentBounds: true }),
+    ).toEqual(["phax architecture"]);
   });
 
-  it("grants nothing to a spec, even with a provider", () => {
-    expect(authoringAgentCommands({ kind: "spec", architectureProvider: true })).toEqual([]);
+  it("grants nothing to a plan with neither a provider nor bounds", () => {
+    expect(
+      authoringAgentCommands({
+        kind: "plan",
+        architectureProvider: false,
+        assignmentBounds: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it("grants nothing to a spec, even with a provider and bounds", () => {
+    expect(
+      authoringAgentCommands({ kind: "spec", architectureProvider: true, assignmentBounds: true }),
+    ).toEqual([]);
   });
 });

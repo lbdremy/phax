@@ -670,7 +670,32 @@ An architecture provider tells a planner how the repository is built:
 { "architecture": { "command": "acme-guard architecture" } }
 ```
 
-`phax architecture [path]…` prints the report the provider answers, the Markdown body then each part (id, name, description, globs), for the whole repository or the parts that hold the paths. With no provider configured it prints one line telling the agent to read the code and its documentation, and exits 1; it writes nothing either way. A headless plan authoring session is told whether a provider is configured, and is granted this command when one is. See [Architecture provider](docs/architecture-provider.md) for the request, the report and the limits a provider runs under.
+`phax architecture [path]…` prints the report the provider answers, the Markdown body then each part (id, name, description, globs), for the whole repository or the parts that hold the paths. When `phax.json` declares `assignments`, it then lists the bounds. With no provider configured it prints one line telling the agent to read the code and its documentation, followed by the bounds when declared, and exits 1; it writes nothing either way. A headless plan authoring session is told whether a provider is configured or bounds are declared, and is granted this command when either is. See [Architecture provider](docs/architecture-provider.md) for the request, the report and the limits a provider runs under.
+
+### Assignment bounds
+
+The repository's owner can bound which model, at which efforts, a phase takes where it touches certain files:
+
+```json
+{
+  "assignments": [
+    {
+      "kind": "part",
+      "part": "core-decide",
+      "model": "claude-opus-5-5",
+      "effort": { "min": "medium", "max": "high" }
+    },
+    {
+      "kind": "globs",
+      "globs": ["src/*/schemas/**"],
+      "model": "claude-sonnet-5-5",
+      "effort": { "min": "medium", "max": "high" }
+    }
+  ]
+}
+```
+
+A `part` bound names an architecture-report part by its id; a `globs` bound lists globs. The list is ordered and the first bound that matches any file a phase plans to touch governs it; with none, the policy default stands in. A phase that departs from its governing bound needs an `**Assignment reason:**` line: without one, `phax plans lint` reports an error and `phax run` / `phax resume` refuse with exit 11 before the run is named. `assignments` is accepted in `phax.json` only, and `phax validate` checks each bound against the routing catalog. See [Assignment bounds](docs/assignment-bounds.md).
 
 ### Plan auditor
 
@@ -824,7 +849,7 @@ Something else? `phax report <run>` opens a GitHub issue with the run's telemetr
 
 Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 
-- `phax validate [--plan <path>]` — Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
+- `phax validate [--plan <path>]` — Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax enter <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-phase <short-name> <phase-id>` — Attaches to the agent session for a specific phase worktree. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
@@ -844,7 +869,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax review-code [FLAGS] <short-name>` — Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
 - `phax adjust-plan <FLAGS> <plan>` — Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.
 - `phax brief [path]…` — Asks the brief provider configured as "brief": { "command": …, "push": … } in phax.json, phax.local.json or ~/.phax/config.json which rules cover the given paths, what fails there and how to fix it. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.
-- `phax architecture [path]…` — Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.
+- `phax architecture [path]…` — Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown, then the owner's assignment bounds (phax.json "assignments") as a "## Bounds" list, each as assignments[N] with its model and effort range; a part bound shows its part's name and globs, and a path-scoped report that does not carry the part says to run the command with no path for its globs. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.
 - `phax init [--force] [--yes]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
