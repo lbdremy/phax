@@ -1,5 +1,5 @@
 // The frozen 0.17.0 shape of `phase-record-manifest`: the `record.json` phax
-// 0.17.0 through 0.26.x wrote for a phase, `$schema` first, a three-value
+// 0.17.0 through 0.25.x wrote for a phase, `$schema` first, a three-value
 // `verifiedSurfaces` and no `oracle` role.
 // Never edit this module: packages/schemas/history.lock.json pins its bytes.
 // In phax, only src/schemas/persisted.ts may import it. The schemas package

@@ -248,7 +248,7 @@ describe("resetPhase", () => {
     expect(fakeGit.impl.deletedBranches.length).toBe(0);
   });
 
-  describe("an oracle phase resets only after its discharging phase", () => {
+  describe("an oracle phase is not reset once its discharge has started", () => {
     // The refunds plan: phase-02 authors tests/refunds.test.ts, phase-03 discharges it.
     function writePairPlan(runPath: string) {
       const plan: PhaxPlan = {
@@ -338,7 +338,7 @@ describe("resetPhase", () => {
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_discharge");
       expect(error.message).toBe(
-        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed — reset phase-03 first.`,
+        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive my-run --force) and run a corrected plan.`,
       );
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
@@ -357,15 +357,15 @@ describe("resetPhase", () => {
       }
     });
 
-    it("lifts the rule once the discharging phase is reset to pending", async () => {
+    it("still refuses a committed oracle phase as not_resettable once its discharge is reset", async () => {
       const { runPath } = await seedPair("failed");
       await writePairPlan(runPath);
 
       expect(Either.isRight(await reset("phase-03"))).toBe(true);
       const second = await reset("phase-02");
 
-      // The discharge no longer blocks; a committed phase stays unresettable
-      // by the state machine, as before.
+      // The discharge no longer blocks, but the state machine never resets a
+      // committed phase: a committed oracle phase is not reset.
       expect(Either.isLeft(second)).toBe(true);
       if (Either.isLeft(second)) {
         expect((second.left as ResetPhaseError).reason).toBe("not_resettable");

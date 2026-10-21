@@ -100,6 +100,7 @@ describe("exitCodeForError families", () => {
         exitCode: 1,
         logPath: "/tmp/gate.log",
         reportFindings: null,
+        failedStep: "configured",
       }),
     ],
     [

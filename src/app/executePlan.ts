@@ -28,6 +28,7 @@ import {
   PhaseHadNoChangesError,
   type AssignmentPreflightError,
   type InteractivePreflightError,
+  OracleCommitMissingError,
   OraclePreflightError,
   type PlanSectionsPreflightError,
   RateLimitError,
@@ -135,6 +136,7 @@ import {
   dischargedOracleFiles,
   oracleRoleOf,
   recordOracleRole,
+  type OraclePair,
 } from "../domain/plan/oraclePairs.js";
 import { oracleFindings } from "../domain/plan/oracleCheck.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
@@ -255,6 +257,7 @@ export type ExecutePlanError =
   | AssignmentPreflightError
   | InteractivePreflightError
   | OraclePreflightError
+  | OracleCommitMissingError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
   | RecordsSyncRequiredError;
@@ -434,7 +437,11 @@ export function executePlan(
   function oracleStepFor(
     phaseFolderPath: string,
     phaseId: string,
-  ): Effect.Effect<OracleStep | undefined, FsError | OraclePreflightError, FileSystem> {
+  ): Effect.Effect<
+    OracleStep | undefined,
+    FsError | OraclePreflightError | OracleCommitMissingError,
+    FileSystem
+  > {
     return Effect.gen(function* () {
       const role = oracleRoleOf(plan.phases, phaseId);
       if (role === null) return undefined;
@@ -461,12 +468,34 @@ export function executePlan(
       const oracleFolder =
         role.role === "oracle" ? phaseFolderPath : join(runPath, role.pair.oraclePhase);
       const base = yield* readPhaseBase(oracleFolder);
-      const oracleCommit = role.role === "oracle" ? null : yield* readPhaseCommit(oracleFolder);
+      const oracleCommit = role.role === "oracle" ? null : yield* oracleCommitOf(role.pair);
       return {
         command: config.oracles.command,
         request: serializeOracleRequest(makeOracleRequest({ role, phaseId, base, oracleCommit })),
         timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
       };
+    });
+  }
+
+  // The commit a discharging phase judges: the one its oracle phase noted in
+  // status.json. An oracle phase that noted none was skipped for producing no
+  // changes, so there is nothing to discharge, and no resume can change that.
+  function oracleCommitOf(
+    pair: OraclePair,
+  ): Effect.Effect<string, FsError | OracleCommitMissingError, FileSystem> {
+    return Effect.gen(function* () {
+      const noted = yield* readPhaseCommit(join(runPath, pair.oraclePhase));
+      if (noted.commit !== null) return noted.commit;
+      return yield* Effect.fail(
+        new OracleCommitMissingError({
+          message: [
+            `Cannot run discharging phase "${pair.dischargingPhase}" of run "${shortName}": its oracle phase "${pair.oraclePhase}" is ${noted.state} and noted no commit, so there are no oracles to discharge.`,
+            `No resume gives a skipped oracle phase a commit: archive the run (phax archive ${shortName} --force) and run a corrected plan whose oracle phase writes its oracles.`,
+          ].join("\n"),
+          oraclePhase: pair.oraclePhase,
+          dischargingPhase: pair.dischargingPhase,
+        }),
+      );
     });
   }
 
@@ -613,6 +642,10 @@ export function executePlan(
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
       const isResumeFromCleanup = i === startIndex && resumeFromCleanup;
       const isResumeFromCompletion = i === startIndex && resumeFromCompletion;
+      // A discharging phase judges its oracle phase's commit: refuse before
+      // anything of the phase runs when the oracle phase noted none.
+      const phaseOracleRole = oracleRoleOf(plan.phases, phase.id);
+      if (phaseOracleRole?.role === "discharging") yield* oracleCommitOf(phaseOracleRole.pair);
       // The preflight already refused skill-declaring phases without consent,
       // so the `[]` branch is defense in depth only.
       const skillEditGrants = allowSkillEdits ? phaseSkillEditGrants(phase) : [];

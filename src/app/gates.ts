@@ -153,6 +153,7 @@ export function runGates(
      *  `fail` step result. */
     function failGate(params: {
       readonly rawCommand: string;
+      readonly surface: RecordedSurface;
       readonly exitCode: number;
       readonly message: string;
       readonly reportFindings?: {
@@ -171,6 +172,7 @@ export function runGates(
             exitCode: params.exitCode,
             logPath: attemptLogPath,
             reportFindings: params.reportFindings ?? null,
+            failedStep: params.surface === "oracle" ? "oracle" : "configured",
             ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
           }),
         );
@@ -200,6 +202,7 @@ export function runGates(
           stepResults.push({ command: rawCommand, surface, result: "fail" });
           return failGate({
             rawCommand,
+            surface,
             exitCode: result.exitCode,
             message: `Gate step "${rawCommand}": ${line}`,
             stderr: result.stderr,
@@ -267,6 +270,7 @@ export function runGates(
           stepResults.push({ command: rawCommand, surface, result: "fail" });
           return yield* failGate({
             rawCommand,
+            surface,
             exitCode: result.exitCode,
             message,
             stderr: result.stderr,
@@ -279,6 +283,7 @@ export function runGates(
         stepResults.push({ command: rawCommand, surface, result: "fail" });
         return yield* failGate({
           rawCommand,
+          surface,
           exitCode: result.exitCode,
           message: `Gate command failed: ${rawCommand} (${count === 1 ? "1 finding" : `${count} findings`})`,
           reportFindings: { step: position, findings: report.findings },
@@ -331,6 +336,7 @@ export function runGates(
         stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
         return yield* failGate({
           rawCommand,
+          surface: step.surface,
           exitCode: result.exitCode,
           message: `Gate command failed: ${rawCommand} (exit ${result.exitCode})`,
           stderr: result.stderr,
@@ -365,6 +371,7 @@ export function runGates(
         stepResults.push({ command: rawCommand, surface: "oracle", result: "fail" });
         return yield* failGate({
           rawCommand,
+          surface: "oracle",
           exitCode: error.exitCode ?? -1,
           message: `Gate step "${rawCommand}": ${error.message}`,
           stderr: error.stderrExcerpt ?? "",

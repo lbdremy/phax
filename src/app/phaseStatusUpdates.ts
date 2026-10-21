@@ -3,7 +3,9 @@ import { join } from "node:path";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { readPhaseStatusFile, withSchemaUrl } from "../schemas/persisted.js";
-import { encodePhaseStatus, FullCommitShaSchema } from "../schemas/status.js";
+import { encodePhaseStatus, FullCommitShaSchema, type PhaseStatus } from "../schemas/status.js";
+
+type PhaseState = PhaseStatus["state"];
 
 /**
  * The phase's noted base: the commit its branch was created from, read back
@@ -16,28 +18,30 @@ export function readPhaseBase(phaseFolderPath: string): Effect.Effect<string, Fs
 
 /**
  * The phase's noted commit: `status.json`'s `commitHash`, never re-derived
- * from git. Fails, naming the phase, when the hash is absent or is not a full
- * object name.
+ * from git, or null when the phase noted none (a skipped phase, or one that
+ * has not committed yet), with the phase's id and state. Fails, naming the
+ * phase, when the noted hash is not a full object name.
  */
-export function readPhaseCommit(
-  phaseFolderPath: string,
-): Effect.Effect<string, FsError, FileSystem> {
+export function readPhaseCommit(phaseFolderPath: string): Effect.Effect<
+  {
+    readonly phaseId: string;
+    readonly state: PhaseState;
+    readonly commit: string | null;
+  },
+  FsError,
+  FileSystem
+> {
   return Effect.gen(function* () {
     const status = yield* readPhaseStatus(phaseFolderPath);
     const hash = status.commitHash;
-    if (hash === undefined) {
-      return yield* Effect.fail(
-        new FsError({ message: `${status.phaseId} has no commit noted in its status` }),
-      );
-    }
-    if (!isFullCommit(hash)) {
+    if (hash !== undefined && !isFullCommit(hash)) {
       return yield* Effect.fail(
         new FsError({
           message: `${status.phaseId}'s noted commit "${hash}" is not a full object name`,
         }),
       );
     }
-    return hash;
+    return { phaseId: status.phaseId, state: status.state, commit: hash ?? null };
   });
 }
 

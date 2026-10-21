@@ -10,6 +10,7 @@ const baseInput = {
   logPath: "/phase-01/checks-attempt-02.log",
   reportFindings: null,
   stillFailing: new Set<string>(),
+  failedStep: "configured" as const,
 };
 
 // The spec's made-up checked example: two findings, the first with a related
@@ -166,6 +167,29 @@ describe("buildFixPrompt for a failing gate report", () => {
 
   it("marks no finding still failing when no id is carried over", () => {
     expect(buildFixPrompt(reportInput)).not.toContain("still failing");
+  });
+});
+
+describe("buildFixPrompt for a failing oracle step", () => {
+  const ORACLE_LINE =
+    "The oracles provider runs only at the gate; it will judge again after your changes. Do not run it yourself.";
+  const RUN_LINE =
+    "Make sure to run the failed command after your changes to verify the gate now passes.";
+
+  it.each([
+    ["a finding", { ...reportInput, command: "node tools/vitest-oracles.mjs" }],
+    ["a broken provider", { ...baseInput, command: "node tools/vitest-oracles.mjs" }],
+  ])("tells the agent not to run the provider on %s", (_label, input) => {
+    const prompt = buildFixPrompt({ ...input, failedStep: "oracle" });
+
+    expect(prompt).toContain(ORACLE_LINE);
+    expect(prompt).not.toContain(RUN_LINE);
+    expect(prompt).toContain("The gate run will be re-attempted automatically after your changes.");
+  });
+
+  it("keeps the run-the-command line for a configured step", () => {
+    expect(buildFixPrompt(reportInput)).toContain(RUN_LINE);
+    expect(buildFixPrompt(baseInput)).not.toContain(ORACLE_LINE);
   });
 });
 

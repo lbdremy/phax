@@ -51,6 +51,7 @@ import {
   PhaseHadNoChangesError,
   PlanNotApprovedError,
   InteractivePreflightError,
+  OracleCommitMissingError,
   OraclePreflightError,
   PlanSectionsPreflightError,
   AssignmentPreflightError,
@@ -195,6 +196,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof AssignmentPreflightError ||
     err instanceof InteractivePreflightError ||
     err instanceof OraclePreflightError ||
+    err instanceof OracleCommitMissingError ||
     err instanceof RecordsSyncRequiredError
   )
     return 11;

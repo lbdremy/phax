@@ -72,17 +72,16 @@ describe("readPhaseCommit", () => {
     );
   }
 
-  it("reads the noted full commit back from status.json", async () => {
-    expect(await read({ state: "committed", commitHash })).toEqual(Either.right(commitHash));
+  it("reads the noted full commit back from status.json, with the phase and its state", async () => {
+    expect(await read({ state: "committed", commitHash })).toEqual(
+      Either.right({ phaseId: "phase-01", state: "committed", commit: commitHash }),
+    );
   });
 
-  it("fails naming the phase when no commit is noted", async () => {
-    const result = await read({});
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(FsError);
-      expect(result.left.message).toContain("phase-01");
-    }
+  it("reads null when no commit is noted, as for a skipped phase", async () => {
+    expect(await read({ state: "skipped" })).toEqual(
+      Either.right({ phaseId: "phase-01", state: "skipped", commit: null }),
+    );
   });
 
   it("fails naming the phase when the noted commit is abbreviated", async () => {
