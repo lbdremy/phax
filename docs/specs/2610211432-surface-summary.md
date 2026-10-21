@@ -405,6 +405,10 @@ Given the `phax-spec` skill phax ships, when its canonical spec template is read
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-lift — What does `phax artifact migrate-documents` write for a live sidecar element that has no summary?
 
 - lift-refuse — Refuse every spec sidecar with a non-empty surface, and name re-authoring or a hand edit — abandons: The one-command upgrade. Because the migration is all-or-nothing and approve, reopen and decide refuse repository-wide while any sidecar is older, every approval in the repository stops until all five live specs (101 elements) are fixed. The ways out are expensive. Re-authoring gives the spec a new file name, so `oracle-phases-plan`'s `source-spec` no longer resolves, and it drops Approved status. Demoting a spec by deleting its sidecar loses the summary for good. A hand edit means restamping the sidecar and re-rendering the body, which phax has no command for.
@@ -413,12 +417,18 @@ Given the `phax-spec` skill phax ships, when its canonical spec template is read
 
 Recommendation: lift-marker — The cost of the placeholder is bounded and visible: it shows in §6 and in the migration report, and approve and complete refuse it. That means no spec can reach Completed, the only state the release-notes script reads, with a placeholder in it. Refusing instead freezes the whole repository's artifact workflow behind 101 hand edits that phax gives no tool for. Copying the surface name silently fills the release notes with the wrong content. Either way, `oracle-phases` and its plan need re-approving after migration because the body is re-rendered, so the placeholder adds only the writing, which no option can avoid.
 
+Decision: lift-marker — by operator (Rémy Loubradou), 2026-10-21
+Why: Decided by the operator on 2026-10-21, as recommended: migrate-documents lifts each element with the summary placeholder, and approve and complete refuse a spec that still holds one. Advocate: Refusing the lift keeps every persisted summary real content, with no sentinel the schema accepts and phax must recognise. Principles: none. Reversibility: costly. Revised: none.
+
 ### q-hand — Does a hand-authored spec (no sidecar) show the summary line too?
 
 - hand-template — The skill's Markdown template carries the `Summary:` line under each §6 heading, as guidance phax does not check — abandons: A checked contract. The line exists in hand-authored specs only when the author follows the template, so a reader of §6 Markdown cannot rely on it there the way it can in a rendered spec.
 - hand-sidecar-only — Only the sidecar format requires `summary`; the template is unchanged — abandons: The same reading for every spec. A hand-authored §6 carries no one-line summary for human readers, and nothing marks where one would go, so hand-authored specs drift further from the rendered layout.
 
 Recommendation: hand-template — A hand-authored §6 is already unchecked as a whole, so an unchecked summary line takes away nothing that phax enforced before. One template line keeps the two kinds of spec reading the same, in the same form the renderer prints.
+
+Decision: hand-template — by operator (Rémy Loubradou), 2026-10-21
+Why: Decided by the operator on 2026-10-21, as recommended: the skill's Markdown template shows the summary line under each §6 heading, as guidance phax does not check. Advocate: Leaving the template unchanged keeps the summary a checked contract only: no line a reader may rely on that phax never verifies. Principles: none. Reversibility: cheap. Revised: none.
 
 ### q-bound — Does `summary` have a length bound?
 
@@ -428,9 +438,8 @@ Recommendation: hand-template — A hand-authored §6 is already unchecked as a 
 
 Recommendation: bound-one-line — A line break is structural: both §6 and the release notes print one line per element. Length is a matter of style, which the skill teaches and a reviewer catches. Refusing a whole provider answer over a character count costs more than a long sentence does.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: bound-one-line — by operator (Rémy Loubradou), 2026-10-21
+Why: Decided by the operator on 2026-10-21, as recommended: a summary is one line, with no line break and no character cap. Advocate: A character cap keeps every release-notes bullet scannable without relying on a reviewer to catch a run-on sentence. Principles: none. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -462,3 +471,9 @@ Page: docs/upgrading.md — the section for the release that ships this change
 Reader: An operator upgrading phax in a repository that has live headless-authored specs. They need to know what to run, what it leaves them to write, and what stays refused until then.
 
 Example: - **Spec sidecars gain a `summary` on every surface element.** Run `phax artifact migrate-documents` once. It restamps every live spec sidecar, writes a placeholder summary on each element, re-renders §6, and commits; the report counts the summaries left to write per spec. Then write each summary — one sentence, in the consumer's words, in the sidecar and on its §6 `Summary:` line. `phax artifact approve` and `complete` refuse a spec until its placeholders are gone. Archived specs are not touched.
+
+## 12. Decision log
+
+- 2026-10-21 q-lift decided lift-marker — operator (Rémy Loubradou)
+- 2026-10-21 q-hand decided hand-template — operator (Rémy Loubradou)
+- 2026-10-21 q-bound decided bound-one-line — operator (Rémy Loubradou)

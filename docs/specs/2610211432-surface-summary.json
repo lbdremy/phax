@@ -415,7 +415,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-lift",
       "question": "What does `phax artifact migrate-documents` write for a live sidecar element that has no summary?",
@@ -437,7 +438,26 @@
         }
       ],
       "recommendation": "lift-marker",
-      "rationale": "The cost of the placeholder is bounded and visible: it shows in §6 and in the migration report, and approve and complete refuse it. That means no spec can reach Completed, the only state the release-notes script reads, with a placeholder in it. Refusing instead freezes the whole repository's artifact workflow behind 101 hand edits that phax gives no tool for. Copying the surface name silently fills the release notes with the wrong content. Either way, `oracle-phases` and its plan need re-approving after migration because the body is re-rendered, so the placeholder adds only the writing, which no option can avoid."
+      "rationale": "The cost of the placeholder is bounded and visible: it shows in §6 and in the migration report, and approve and complete refuse it. That means no spec can reach Completed, the only state the release-notes script reads, with a placeholder in it. Refusing instead freezes the whole repository's artifact workflow behind 101 hand edits that phax gives no tool for. Copying the surface name silently fills the release notes with the wrong content. Either way, `oracle-phases` and its plan need re-approving after migration because the body is re-rendered, so the placeholder adds only the writing, which no option can avoid.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "lift-marker",
+        "abandoned": [
+          "lift-refuse",
+          "lift-copy"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: migrate-documents lifts each element with the summary placeholder, and approve and complete refuse a spec that still holds one.",
+        "advocate": "Refusing the lift keeps every persisted summary real content, with no sentinel the schema accepts and phax must recognise.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:43:35Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-hand",
@@ -455,7 +475,25 @@
         }
       ],
       "recommendation": "hand-template",
-      "rationale": "A hand-authored §6 is already unchecked as a whole, so an unchecked summary line takes away nothing that phax enforced before. One template line keeps the two kinds of spec reading the same, in the same form the renderer prints."
+      "rationale": "A hand-authored §6 is already unchecked as a whole, so an unchecked summary line takes away nothing that phax enforced before. One template line keeps the two kinds of spec reading the same, in the same form the renderer prints.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "hand-template",
+        "abandoned": [
+          "hand-sidecar-only"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: the skill's Markdown template shows the summary line under each §6 heading, as guidance phax does not check.",
+        "advocate": "Leaving the template unchanged keeps the summary a checked contract only: no line a reader may rely on that phax never verifies.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:43:35Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-bound",
@@ -478,10 +516,28 @@
         }
       ],
       "recommendation": "bound-one-line",
-      "rationale": "A line break is structural: both §6 and the release notes print one line per element. Length is a matter of style, which the skill teaches and a reviewer catches. Refusing a whole provider answer over a character count costs more than a long sentence does."
+      "rationale": "A line break is structural: both §6 and the release notes print one line per element. Length is a matter of style, which the skill teaches and a reviewer catches. Refusing a whole provider answer over a character count costs more than a long sentence does.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "bound-one-line",
+        "abandoned": [
+          "bound-cap",
+          "bound-free"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: a summary is one line, with no line break and no character cap.",
+        "advocate": "A character cap keeps every release-notes bullet scannable without relying on a reviewer to catch a run-on sentence.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:43:35Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The five operator decisions of 2026-10-21: `summary` is required on every element of every kind, with no optional field for older sidecars; it is one sentence, in the consumer's words, saying what changes; the renderer prints it under each heading before the blocks; archived specs are never touched; the headless authoring prompt and its JSON Schema carry it.",
