@@ -214,7 +214,7 @@ IF the oracles provider cannot be spawned, outruns its time cap, prints no reada
 
 ### 5.28 An undischargeable oracle pauses the run
 
-WHEN an oracle phase or a discharging phase exhausts its fix loop on a failing oracle step THE system SHALL stop the run as a gate failure with exit 4, resumable at that phase.
+WHEN an oracle phase or a discharging phase exhausts its fix loop on a failing oracle step THE system SHALL stop the run as a gate failure with exit 4, resumable at that phase, and its remedy SHALL name both ways on: let the fix loop try again with `phax resume <run>`, or correct the oracle in the phase's worktree and resume with `phax resume <run> --skip-oracle`.
 
 ### 5.29 Attribution of the oracle step
 
@@ -246,7 +246,7 @@ WHEN a discharging phase's gate runs after a resume, a reset or a re-run THE sys
 
 ### 5.36 Reset the discharge before its oracles
 
-IF `phax reset-phase` targets an oracle phase whose discharging phase is no longer pending THEN it SHALL refuse, naming the discharging phase to reset first, and change nothing.
+IF `phax reset-phase` targets an oracle phase whose discharging phase is no longer pending THEN it SHALL refuse and change nothing, naming the recovery: correct the oracle in the stopped phase's worktree and run `phax resume <run> --skip-oracle`. A committed oracle phase is never reset.
 
 ### 5.37 The planner is told a provider is configured
 
@@ -295,6 +295,14 @@ The example provider shall judge oracle files by their syntax trees and never by
 ### 5.48 The example refuses a request it cannot read
 
 IF the example provider receives a request it cannot read THEN it SHALL answer with a `refused` gate report naming the reason and a remedy.
+
+### 5.49 The operator may skip a phase's oracle step on resume
+
+WHEN `phax resume <run> --skip-oracle` restarts at an oracle phase or a discharging phase THE system SHALL run that phase's configured gate steps, which must pass as at any gate, with the usual fix loop, SHALL NOT run its oracle step, SHALL record the oracle step in that phase's attribution with result `skipped`, and SHALL NOT count `oracle` among that phase's verified surfaces. The skip applies to that phase in that invocation only.
+
+### 5.50 A skip needs an oracle role
+
+IF `phax resume <run> --skip-oracle` would restart at a phase that is neither an oracle phase nor a discharging phase THEN the system SHALL refuse before any phase runs and change nothing.
 
 ## 6. Surface
 
@@ -564,7 +572,7 @@ after:
     Normative:
     - the keys are unchanged;
     - `surface` gains `oracle`, carried only by the oracle step, which is always last and present only at an oracle or discharging phase's gate;
-    - `result` stays `pass` | `fail` | `refused`;
+    - a configured step's `result` stays `pass` | `fail` | `refused`; the oracle step's `result` is `pass` | `fail` | `refused` | `skipped`, two explicit variants; `skipped` records `phax resume --skip-oracle`;
     - the widened enum is a new gate-attribution shape, and a new phase-record-manifest shape through `verifiedSurfaces`; documents stamped earlier stay readable.
 
     Indicative: the release in the URL.
@@ -608,11 +616,11 @@ after:
     ✓ phase-02  Refund oracles     committed  8be04d7
     ✗ phase-03  Partial refunds    gate step refused
     Run "refunds" paused: a gate step refused to run.
-      node tools/vitest-oracles.mjs: tests/prune.test.ts is not at the oracle commit 8be04d7 — remedy: reset phase-03, then phase-02, and resume
+      node tools/vitest-oracles.mjs: tests/prune.test.ts is not at the oracle commit 8be04d7 — remedy: restore tests/prune.test.ts to the oracle commit
     See ~/.phax/runs/refunds/resume-instructions.md for details.
     $? = 4
 
-    This is the same pause any refused report step causes. An exhausted fix loop on a failing oracle step also exits 4.
+    This is the same pause any refused report step causes. Its next steps also name `phax enter-phase refunds phase-03` and `phax resume refunds --skip-oracle`, for an oracle the person judges wrong. An exhausted fix loop on a failing oracle step also exits 4.
 
 ### file: <run>/review-handoff.md — oracle pairs — indicative
 
@@ -635,11 +643,18 @@ after:
     phase-03  committed  surfaces: local, oracle, structural
       oracle: discharges phase-02 — node tools/vitest-oracles.mjs: pass
 
-### cli: phax reset-phase — the discharge first — indicative
+### cli: phax reset-phase and phax resume --skip-oracle — a wrong oracle — indicative
 
     $ phax reset-phase refunds phase-02
-    ✗ Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is failed — reset phase-03 first.
+    ✗ Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (`phax enter-phase refunds phase-03`), then run `phax resume refunds --skip-oracle`.
     $? = 1
+
+    $ phax resume refunds --yes --skip-oracle
+    ✓ phase-03  Partial refunds    committed  9c0d1e2   (oracle step skipped by the operator)
+
+    $ phax resume invoice --yes --skip-oracle
+    ✗ --skip-oracle: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.
+    $? = 2
 
 ### internal: phase prompt — oracle role paragraph — indicative
 
@@ -771,7 +786,7 @@ after:
 - Any phax knowledge of test frameworks, markers or test-file conventions, and any fallback check when no provider is configured.
 - Example providers for other runners (pytest, Jest), or the example as a supported product with its own release.
 - The full change-gates lint of docs/ideas/change-gates-from-the-harness.md: refusing a phase that plans both a file and its oracle, and the per-phase diff budget.
-- A command to amend a wrong oracle in place. The spec disagreement is resolved with existing tooling: reset the pair, or abandon the run and revise the spec and plan.
+- Resetting a committed oracle phase. A wrong oracle found at its discharge is corrected in the discharging phase and closed with `phax resume <run> --skip-oracle`, with the configured gate still green; a person who wants to review the oracles before their discharge holds the oracle phase (interactive-phases, `--hold oracle`).
 - Changing the gate request, the gate report, or the configured gate steps' `input` and `output`.
 
 ## 8. Acceptance criteria
@@ -882,7 +897,7 @@ Given in turn: a provider command that does not exist; one that prints non-JSON;
 
 ### An undischargeable oracle pauses the run
 
-Given a discharging phase whose provider returns a finding on every attempt, when the fix loop exhausts, then `phax run` exits 4, the run is failed at the discharging phase, and `phax resume <run>` runs that phase's gate again with a `discharged` request naming the same `oracleCommit`. (refs §5.28, §5.35)
+Given a discharging phase whose provider returns a finding on every attempt, when the fix loop exhausts, then `phax run` exits 4, the run is failed at the discharging phase, its remedy names `phax resume <run>` and `phax resume <run> --skip-oracle`, and `phax resume <run>` runs that phase's gate again with a `discharged` request naming the same `oracleCommit`. (refs §5.28, §5.35)
 
 ### The oracle surface is verified like any other
 
@@ -904,9 +919,17 @@ Given the same oracle plan run in a TypeScript/Vitest project and in a Python/py
 
 Given a discharging phase that does not list the oracle files among its own planned edits, and that edits them to remove markers, when its files are reconciled, then `file-reconciliation.json` reports no unplanned edit for those oracle files. (refs §5.34)
 
-### Reset the discharge first
+### A wrong oracle is corrected in place
 
-Given a run failed at discharging phase-03, whose oracle phase-02 is committed, when `phax reset-phase <run> phase-02` runs, then `phax reset-phase <run> phase-03`, `phax reset-phase <run> phase-02` and `phax resume <run> --yes`, then the first reset refuses, naming phase-03, and changes nothing. After the two resets, the resume re-runs phase-02, and phase-03's `discharged` request names phase-02's new commit as `oracleCommit`. (refs §5.36, §5.35)
+Given a run failed at discharging phase-03 because the oracle in tests/refunds.test.ts asserts the wrong total, with phase-02 committed as its oracle phase, when `phax reset-phase <run> phase-02` runs; then the person corrects the assertion in phase-03's worktree and runs `phax resume <run> --yes --skip-oracle`, then the reset refuses, names the `--skip-oracle` recovery and changes nothing. The resume runs phase-03's configured steps, sends no oracle request, commits, records the oracle step as `skipped` in phase-03's attribution, and leaves `oracle` out of phase-03's verified surfaces. (refs §5.36, §5.49)
+
+### A skip needs an oracle role
+
+Given a run failed at phase-01, which is neither an oracle phase nor a discharging phase, when `phax resume <run> --yes --skip-oracle` runs, then it refuses before any phase runs, names phase-01 as having no oracle step, and the run is unchanged. (refs §5.50)
+
+### A skip keeps the configured gate
+
+Given a discharging phase-03 whose correction breaks a configured step, when `phax resume <run> --yes --skip-oracle` runs, then the configured step fails, the fix loop runs as usual, no oracle request is sent, and the phase does not commit until every configured step passes. (refs §5.49)
 
 ### The authoring prompt states whether a provider is configured
 
@@ -1025,6 +1048,7 @@ Settled:
   - in the authored verdict, a deleted test is allowed;
   - in the discharge, the oracle files' trees at the oracle commit, with every `.fails` member access removed, must equal their trees now;
   - an oracle file with a syntax error is a finding, not a refusal, so the fix loop can repair it.
+- Decided by the operator on 2026-10-21, after PR #154's review found that `phax reset-phase` never resets a committed phase, so the reset-the-pair recovery could not work: a wrong oracle is corrected in the stopped phase's worktree and closed with `phax resume <run> --skip-oracle`. That runs the configured gate as usual and no oracle step for that phase, records the oracle step `skipped` in its attribution (a new explicit result of the oracle-step variant), and leaves `oracle` out of that phase's verified surfaces (r-skip-oracle, r-skip-oracle-role, r-reset). Plan 1 shipped without it; it lands in its own plan.
 
 Left open:
 
