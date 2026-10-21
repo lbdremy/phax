@@ -338,7 +338,7 @@ describe("resetPhase", () => {
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_discharge");
       expect(error.message).toBe(
-        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive my-run --force) and run a corrected plan.`,
+        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --skip-oracle\`: the configured gate still runs.`,
       );
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);

@@ -112,6 +112,7 @@ describe("exitCodeForError families", () => {
         logPath: "/tmp/gate.log",
         attempt: 4,
         phaseId: "phase-01",
+        failedStep: "configured",
       }),
     ],
     [5, new AgentInvocationError({ message: "agent failed" })],

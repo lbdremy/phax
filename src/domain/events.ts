@@ -103,6 +103,7 @@ export interface FixAttemptsExhausted extends PhaxEventBase {
   readonly worktreePath: WorktreePath;
   readonly sessionId: ClaudeSessionId;
   readonly command: string;
+  readonly failedStep: "configured" | "oracle";
 }
 
 // A report step refused to run. Pauses the phase as FixAttemptsExhausted does,
@@ -116,6 +117,7 @@ export interface GateStepRefused extends PhaxEventBase {
   readonly command: string;
   readonly reason: string;
   readonly remedy: string;
+  readonly failedStep: "configured" | "oracle";
 }
 
 export interface HandoffRequested extends PhaxEventBase {

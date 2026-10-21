@@ -72,6 +72,12 @@ describe("resume subcommand argv parsing", () => {
     expect(spy.mock.calls[0]?.[1].yes).toBeUndefined();
   });
 
+  it("forwards --skip-oracle to runResume", async () => {
+    const spy = await parseAndCapture(["resume", "foo", "--yes", "--skip-oracle"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, skipOracle: true });
+  });
+
   it("forwards --provider-priority to runResume", async () => {
     const spy = await parseAndCapture([
       "resume",

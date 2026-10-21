@@ -311,6 +311,7 @@ describe("runGatesWithFixLoop", () => {
       const err = result.left as GateAttemptsExhaustedError;
       expect(err.command).toBe("pnpm test");
       expect(err.attempt).toBe(2);
+      expect(err.failedStep).toBe("configured");
     }
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
@@ -1055,6 +1056,7 @@ describe("runGatesWithFixLoop", () => {
       if (Either.isLeft(result)) {
         expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
         expect((result.left as GateAttemptsExhaustedError).command).toBe("./oracles");
+        expect((result.left as GateAttemptsExhaustedError).failedStep).toBe("oracle");
       }
       const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
         state: string;

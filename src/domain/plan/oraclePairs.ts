@@ -44,6 +44,18 @@ export function oracleRoleOf(phases: ReadonlyArray<PairPhase>, phaseId: string):
 }
 
 /**
+ * Why `phaseId` may not skip its oracle step (`phax resume --skip-oracle`), or
+ * null when it may: only an oracle phase and a discharging phase have one.
+ */
+export function oracleSkipRefusal(
+  phases: ReadonlyArray<PairPhase>,
+  phaseId: string,
+): string | null {
+  if (oracleRoleOf(phases, phaseId) !== null) return null;
+  return `--skip-oracle: ${phaseId} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`;
+}
+
+/**
  * The oracle files `phaseId` discharges: its pair's files when it is a
  * discharging phase, else none. Reconciliation counts them as optional files,
  * so removing a marker is never an unplanned edit.

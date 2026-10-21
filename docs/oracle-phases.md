@@ -74,7 +74,7 @@ The provider prints a `gate-report` on stdout, and phax judges it like any repor
   }
   ```
 
-- **Refusal.** `"outcome": "refused"` with a `reason` and a `remedy` stops the phase with no fix attempt and exits 4. `phax resume` runs the gate again.
+- **Refusal.** `"outcome": "refused"` with a `reason` and a `remedy` stops the phase with no fix attempt and exits 4. `phax resume` runs the gate again. The next steps of a refused oracle step also name the `--skip-oracle` correction below.
 - **Provider error.** A provider that cannot be spawned, runs past 120 seconds, or prints something that is not a `gate-report` with a `$schema` fails the step as a broken step.
 
 phax records the step under the `oracle` surface in the phase's `gate-attribution.json`. A `phax.json` gate step cannot claim that surface.
@@ -110,9 +110,28 @@ phase-03 removes `.fails` and writes the refund cap. Its gate sends `discharged`
 
 An oracle that the code cannot satisfy unchanged is a spec question, not a bug to work around. The fix loop runs out on the failing oracle step, the run pauses at the discharging phase with exit 4, resumable at that phase, and the agent has been told to say so in its handoff. Send the disagreement back to the spec.
 
-A committed oracle phase is not reset: `phax reset-phase` refuses an oracle phase while its discharging phase is in any state other than `pending`, and the state machine never resets a committed phase. When the oracle itself is wrong, archive the run (`phax archive <run> --force`), correct the oracle in the spec and the plan, and run the corrected plan. `--hold oracle`, coming with interactive phases, will let a person review the oracles before their discharge.
+A committed oracle phase is not reset: `phax reset-phase` refuses an oracle phase while its discharging phase is in any state other than `pending`, and the state machine never resets a committed phase. When the oracle itself is wrong, correct it in the stopped phase and close the step with `phax resume <run> --skip-oracle`. That resume runs the phase's configured gate with the usual fix loop, runs no oracle step, and records the step as `skipped`. `--hold oracle`, coming with interactive phases, will let a person review the oracles before their discharge.
 
-An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names the same recovery: archive the run and run a corrected plan.
+For example, phase-03 of the `refunds` run exhausts its fix loop on the oracle step and the run pauses with exit 4. The person decides the oracle is wrong, edits it in the stopped phase's worktree, and resumes:
+
+```bash
+phax enter-phase refunds phase-03
+phax resume refunds --yes --skip-oracle
+```
+
+phase-03's configured steps run and must pass. Its oracle step is recorded in `gate-attribution.json` as
+
+```json
+{ "command": "node tools/vitest-oracles.mjs", "surface": "oracle", "result": "skipped" }
+```
+
+and `oracle` is then not among phase-03's verified surfaces, nor the run's: the PR body does not claim an oracle that was not discharged. The handoff's `## Oracle pairs` table shows `skipped` in that side's cell.
+
+- `--skip-oracle` applies only to the phase the resume restarts at, in this invocation. It never reaches a later phase, and it is not persisted.
+- At a phase that is neither an oracle phase nor a discharging phase, the resume is refused with exit 1 and nothing changes, with or without `--yes`.
+- It is an operator's choice. No agent prompt names it.
+
+An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names the same recovery: archive the run and run a corrected plan. `--skip-oracle` does not apply: there is no commit to discharge.
 
 ## What you see afterwards
 

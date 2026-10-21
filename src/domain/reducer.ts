@@ -462,6 +462,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                     phaseId: event.phaseId,
                     worktreePath: event.worktreePath as string,
                     sessionId: event.sessionId as string,
+                    failedStep: event.failedStep,
                   },
                 },
                 {
@@ -532,6 +533,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                     phaseId: event.phaseId,
                     worktreePath: event.worktreePath as string,
                     sessionId: event.sessionId as string,
+                    failedStep: event.failedStep,
                     refusal: {
                       command: event.command,
                       reason: event.reason,

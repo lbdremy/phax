@@ -2,7 +2,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Either } from "effect";
+import { Effect, Either } from "effect";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import type { BranchName } from "../../../src/domain/branded.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import type { PhaseState } from "../../../src/domain/state.js";
@@ -14,6 +15,7 @@ vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig:
 vi.mock("../../../src/app/resolveRunRef.js", () => ({ resolveRunRef: vi.fn() }));
 vi.mock("../../../src/app/resume.js", () => ({ inspectResumeFromInfo: vi.fn() }));
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
+vi.mock("../../../src/app/loadPlan.js", () => ({ loadPlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({
   withRunLock: vi.fn((_key: string, e: unknown) => e),
 }));
@@ -119,6 +121,130 @@ function makeReviewOpenRefusal() {
     message: "Run is already in review-open state.",
   };
 }
+
+describe("runResume --skip-oracle", () => {
+  let stateRoot: string;
+  let runPath: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-skip-"));
+    runPath = join(stateRoot, "runs", "test-ns.my-run");
+    mkdirSync(runPath, { recursive: true });
+    const now = new Date().toISOString();
+    writeFileSync(join(runPath, "plan.md"), "# plan\n");
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify({
+        $schema: currentSchemaUrl("run-status"),
+        namespace: "test-ns",
+        shortName: "my-run",
+        runId: "run-123",
+        state: "interrupted",
+        createdAt: now,
+        updatedAt: now,
+        phasesCount: 2,
+      }),
+    );
+  });
+
+  afterEach(() => {
+    rmSync(stateRoot, { recursive: true, force: true });
+  });
+
+  /** A run restarting at `restartPhase`; phase-02 discharges phase-01's oracle when `paired`. */
+  async function setupMocks(restartPhase: "phase-01" | "phase-02", paired: boolean) {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    const { inspectResumeFromInfo } = vi.mocked(await import("../../../src/app/resume.js"));
+    const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+
+    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-ns",
+        shortName: "my-run",
+        info: { runPath } as unknown as RunReviewInfo,
+        crossProject: false,
+      }),
+    );
+    inspectResumeFromInfo.mockReturnValue(
+      Either.right({
+        shortName: "my-run",
+        nextPhaseId: restartPhase,
+        nextPhaseIndex: restartPhase === "phase-01" ? 0 : 1,
+        fromState: "interrupted",
+        worktreePath: undefined,
+        skippedPhaseIds: [],
+      }),
+    );
+    loadPlan.mockReturnValue(
+      Either.right({
+        phases: [
+          {
+            id: "phase-01",
+            oracle: paired ? { dischargedBy: "phase-02", files: ["tests/a.test.ts"] } : null,
+          },
+          { id: "phase-02", oracle: null },
+        ],
+      } as never),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(undefined) as never);
+    loadProviderConfig.mockReturnValue(Effect.succeed({}) as never);
+    executePlan.mockReturnValue(Effect.succeed({ committedPhases: [] }) as never);
+    return executePlan;
+  }
+
+  it("refuses a restart phase with no oracle role, with exit 1 and nothing run", async () => {
+    const executePlan = await setupMocks("phase-01", false);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+
+    for (const yes of [true, false]) {
+      const { out, errors, lines } = makeOutput();
+      const code = await runResume("my-run", { yes, skipOracle: true }, out);
+      expect(code).toBe(1);
+      expect(errors).toEqual([
+        "--skip-oracle: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+      ]);
+      expect(lines.join("\n")).not.toContain("would resume");
+    }
+    expect(executePlan).not.toHaveBeenCalled();
+  });
+
+  it("logs the skipping line and passes skipOracle: true at a discharging phase", async () => {
+    const executePlan = await setupMocks("phase-02", true);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, lines } = makeOutput();
+
+    const code = await runResume("my-run", { yes: true, skipOracle: true }, out);
+
+    expect(code).toBe(0);
+    expect(lines).toContain(
+      "  Skipping the oracle step of phase-02 (--skip-oracle); its configured gate still runs.",
+    );
+    expect(executePlan).toHaveBeenCalledOnce();
+    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: true, startIndex: 1 });
+  });
+
+  it("passes skipOracle: false without the flag", async () => {
+    const executePlan = await setupMocks("phase-02", true);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, lines } = makeOutput();
+
+    await runResume("my-run", { yes: true }, out);
+
+    expect(lines.join("\n")).not.toContain("Skipping the oracle step");
+    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: false });
+  });
+});
 
 describe("runResume — review_open early branch recap", () => {
   let stateRoot: string;

@@ -183,6 +183,7 @@ export function run(
         sessionId: cmd.ctx.sessionId,
         rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
         refusal: cmd.ctx.refusal,
+        failedStep: cmd.ctx.failedStep,
         now: new Date(),
         platform,
       }).pipe(Effect.asVoid);

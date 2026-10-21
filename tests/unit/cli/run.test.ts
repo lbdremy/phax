@@ -561,6 +561,7 @@ describe("runRun — a refused gate report", () => {
     exitCode: 0,
     logPath: "/fake-state/runs/acme.fixbug/phase-01/checks-attempt-01.log",
     phaseId: "phase-01",
+    failedStep: "configured",
   });
 
   it("maps to exit 4", async () => {

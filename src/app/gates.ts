@@ -261,6 +261,7 @@ export function runGates(
               exitCode: result.exitCode,
               logPath: attemptLogPath,
               phaseId: phaseId ?? "",
+              failedStep: surface === "oracle" ? "oracle" : "configured",
             }),
           );
         }
