@@ -558,4 +558,84 @@ describe("runValidate", () => {
       ]);
     });
   });
+
+  describe("oracles provider block", () => {
+    let repoDir: string;
+    let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-oracles-")));
+      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      vi.stubEnv("HOME", repoDir);
+      cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
+      const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
+        "../../../src/app/loadConfig.js",
+      );
+      const { loadConfig, describeConfigSources } = vi.mocked(
+        await import("../../../src/app/loadConfig.js"),
+      );
+      loadConfig.mockImplementation(actual.loadConfig);
+      describeConfigSources.mockImplementation(actual.describeConfigSources);
+    });
+
+    afterEach(() => {
+      cwdSpy.mockRestore();
+      vi.unstubAllEnvs();
+      rmSync(repoDir, { recursive: true, force: true });
+    });
+
+    const STEP = { command: "pnpm test", surface: "local", firing: "every-phase" };
+
+    function writeConfig(extra: Record<string, unknown>, step: object = STEP): void {
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "acme-billing",
+          gateProfiles: { standard: [step] },
+          ...extra,
+        }),
+      );
+    }
+
+    it("accepts an oracles block with a command", async () => {
+      writeConfig({ oracles: { command: "./fake-oracles" } });
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(0);
+      expect(errors).toEqual([]);
+    });
+
+    it("accepts the block in a user overlay", async () => {
+      writeConfig({});
+      writeFileSync(
+        join(repoDir, "phax.local.json"),
+        JSON.stringify({ oracles: { command: "./fake-oracles" } }),
+      );
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(0);
+      expect(errors).toEqual([]);
+    });
+
+    it("exits 2 for a timeout key, naming it", async () => {
+      writeConfig({ oracles: { command: "./fake-oracles", timeout: 30 } });
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(2);
+      expect(errors.join("\n")).toContain("timeout");
+      expect(errors.join("\n")).toContain("oracles");
+    });
+
+    it("exits 2 for an empty command, naming it", async () => {
+      writeConfig({ oracles: { command: "" } });
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(2);
+      expect(errors.join("\n")).toContain("oracles.command");
+    });
+
+    it("exits 2 for a configured step with surface oracle, naming the surface", async () => {
+      writeConfig({}, { ...STEP, surface: "oracle" });
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(2);
+      expect(errors.join("\n")).toContain("surface");
+    });
+  });
 });

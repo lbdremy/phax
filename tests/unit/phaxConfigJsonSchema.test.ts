@@ -71,6 +71,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "brief",
         "planAuditor",
         "architecture",
+        "oracles",
         "review",
         "authoring",
         "gateProfiles",
@@ -102,6 +103,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "brief",
         "planAuditor",
         "architecture",
+        "oracles",
         "review",
         "authoring",
         "gateProfiles",
@@ -109,6 +111,35 @@ describe("getPhaxConfigJsonSchema", () => {
       ].toSorted(),
     );
     expect(Object.keys(schema["properties"] as object)).not.toContain("assignments");
+  });
+
+  it.each([
+    ["project", getPhaxConfigJsonSchema],
+    ["user", getPhaxUserOverlayJsonSchema],
+  ])(
+    "describes the oracles block in the %s schema: a required non-empty command, no other key",
+    (_name, get) => {
+      const schema = get() as Record<string, unknown>;
+      const oracles = (schema["properties"] as Record<string, Record<string, unknown>>)["oracles"]!;
+      expect(oracles["description"]).toContain("oracles provider");
+      expect(Object.keys(oracles["properties"] as object)).toEqual(["command"]);
+      expect(oracles["required"]).toEqual(["command"]);
+      expect(oracles["additionalProperties"]).toBe(false);
+      const command = (oracles["properties"] as Record<string, Record<string, unknown>>)[
+        "command"
+      ]!;
+      expect(command["minLength"]).toBe(1);
+      expect(command["description"]).toContain("oracle request");
+      expect(command["description"]).toContain("120 s");
+    },
+  );
+
+  it("keeps the configured gate step surface to local, structural and product", () => {
+    const stepSchema = findGateStepSchema(getPhaxConfigJsonSchema());
+    expect(stepSchema).toBeDefined();
+    const properties = stepSchema!["properties"] as Record<string, Record<string, unknown>>;
+    const surface = properties["surface"]!;
+    expect(surface["enum"]).toEqual(["local", "structural", "product"]);
   });
 
   it("commits root schema files equal to the generated ones", () => {

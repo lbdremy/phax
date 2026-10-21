@@ -225,6 +225,20 @@
       "additionalProperties": false,
       "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`."
     },
+    "oracles": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The oracles provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an oracle phase or its discharging phase only, phax writes an oracle request {\"$schema\": \"https://docs.phax.run/schemas/oracle-request/<release>.json\", \"verdict\", \"phase\", \"oraclePhase\", \"base\", \"files\"} (plus \"oracleCommit\" on a \"discharged\" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: \"gate-report\"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.",
+          "title": "nonEmptyString",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "The oracles provider: a command that judges the oracles an oracle phase authors and its discharging phase discharges."
+    },
     "review": {
       "type": "object",
       "required": [],

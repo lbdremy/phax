@@ -124,6 +124,7 @@ function architectureReportJson(parts: readonly object[]): string {
   });
 }
 
+const oracleRows = (report: LintReport) => report.findings.filter((f) => f.check === "oracles");
 const modelFindingsOf = (report: LintReport) => report.findings.filter((f) => f.check === "models");
 
 /** The error of a part bound the architecture report does not resolve. */
@@ -400,20 +401,89 @@ describe("lintPlan", () => {
     ]);
   });
 
-  it("fails lint for an oracle declaration", async () => {
-    const report = await runLint(
-      planMd({ header: ["**Oracle phase:** yes", "**Oracle files:** `src/a.ts`"] }),
-    );
+  describe("oracles", () => {
+    const REFUSAL =
+      "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines";
+    const NO_PROVIDER =
+      'oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
+    const withProvider = {
+      ...config,
+      oracles: { command: "./fake-oracles" },
+    } as unknown as ResolvedConfig;
 
-    expect(report.findings).toEqual([
-      {
-        severity: "error",
-        check: "oracles",
-        phase: "phase-01",
-        message:
-          "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines",
-      },
-    ]);
+    // Phase 1 of PLAN_WITH_TWO_PHASES creates src/a.ts and edits src/b.ts.
+    const pairPlan = (files: string, dischargedBy = "yes") =>
+      PLAN_WITH_TWO_PHASES.replace(
+        "**Recommended effort:** medium\n\n### Planned files to create\n\n- src/a.ts",
+        `**Recommended effort:** medium\n**Oracle phase:** ${dischargedBy}\n**Oracle files:** ${files}\n\n### Planned files to create\n\n- src/a.ts`,
+      );
+
+    it("reports a missing provider and the refusal for a declared oracle phase", async () => {
+      const report = await runLint(pairPlan("`src/a.ts`"));
+
+      expect(
+        oracleRows(report).map((f) => ({ phase: f.phase, severity: f.severity, m: f.message })),
+      ).toEqual([
+        { phase: "phase-01", severity: "error", m: NO_PROVIDER },
+        { phase: "phase-01", severity: "error", m: REFUSAL },
+      ]);
+      expect(hasLintErrors(report.findings)).toBe(true);
+    });
+
+    it("reports only the refusal once a provider is configured, and never spawns it", async () => {
+      const fakeShell = makeFakeShell();
+      const report = await runLint(
+        pairPlan("`src/a.ts`"),
+        {},
+        {
+          config: withProvider,
+          fakeShell,
+        },
+      );
+
+      expect(oracleRows(report).map((f) => f.message)).toEqual([REFUSAL]);
+      expect(fakeShell.impl.calls).toEqual([]);
+    });
+
+    it("reports a planned-file rule when the plan parses", async () => {
+      const report = await runLint(
+        pairPlan("`src/a.ts`, `src/other.ts`"),
+        {},
+        {
+          config: withProvider,
+        },
+      );
+
+      expect(oracleRows(report).map((f) => f.message)).toEqual([
+        "oracle file src/other.ts is not among this phase's planned files to create or to edit",
+        REFUSAL,
+      ]);
+    });
+
+    it("reports the last-phase rule once, not twice", async () => {
+      const report = await runLint(
+        planMd({ header: ["**Oracle phase:** yes", "**Oracle files:** `src/a.ts`"] }),
+        {},
+        { config: withProvider },
+      );
+
+      expect(oracleRows(report).map((f) => f.message)).toEqual([
+        "oracle phase is discharged by the next phase, and phase-01 is the last phase",
+        "oracle file src/a.ts is not among this phase's planned files to create or to edit",
+        REFUSAL,
+      ]);
+    });
+
+    it("keeps the rows that need no parsed plan when the plan does not parse", async () => {
+      const broken = pairPlan("`src/a.ts`, `src/other.ts`").replace(
+        "## Required commands\n\n- (none)\n\n",
+        "",
+      );
+
+      const report = await runLint(broken);
+
+      expect(oracleRows(report).map((f) => f.message)).toEqual([NO_PROVIDER, REFUSAL]);
+    });
   });
 
   it("reports a malformed Mode line on interactive even when the plan does not parse", async () => {

@@ -43,6 +43,8 @@ interface FixtureConfig {
   readonly assignments?: readonly unknown[];
   /** Verbatim `architecture` block of phax.json. */
   readonly architecture?: Record<string, unknown>;
+  /** Verbatim `oracles` block of phax.json. */
+  readonly oracles?: Record<string, unknown>;
 }
 
 interface FixturePhase {
@@ -135,6 +137,7 @@ function fixturePhaxJson(roots: PreflightRepo, config: FixtureConfig = {}): stri
         ...(config.security !== undefined ? { security: config.security } : {}),
         ...(config.records !== undefined ? { records: config.records } : {}),
         ...(config.architecture !== undefined ? { architecture: config.architecture } : {}),
+        ...(config.oracles !== undefined ? { oracles: config.oracles } : {}),
         ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
       },
       null,

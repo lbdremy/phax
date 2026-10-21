@@ -50,6 +50,15 @@ export const ArchitectureConfigSchema = Schema.Struct({
 
 export type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
 
+export const OraclesConfigSchema = Schema.Struct({
+  command: Schema.NonEmptyString.annotations({
+    description:
+      'The oracles provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an oracle phase or its discharging phase only, phax writes an oracle request {"$schema": "https://docs.phax.run/schemas/oracle-request/<release>.json", "verdict", "phase", "oraclePhase", "base", "files"} (plus "oracleCommit" on a "discharged" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: "gate-report"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.',
+  }),
+});
+
+export type OraclesConfig = Schema.Schema.Type<typeof OraclesConfigSchema>;
+
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
   readonly remote: string;
@@ -249,6 +258,10 @@ export const PhaxConfigSchema = Schema.Struct({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
+  oracles: Schema.optional(OraclesConfigSchema).annotations({
+    description:
+      "The oracles provider: a command that judges the oracles an oracle phase authors and its discharging phase discharges.",
+  }),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
@@ -302,6 +315,7 @@ export interface ResolvedConfig {
   readonly brief?: BriefConfig;
   readonly planAuditor?: PlanAuditorConfig;
   readonly architecture?: ArchitectureConfig;
+  readonly oracles?: OraclesConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
   readonly authoring: ResolvedAuthoringConfig;
@@ -350,6 +364,10 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   architecture: Schema.optional(ArchitectureConfigSchema).annotations({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
+  }),
+  oracles: Schema.optional(OraclesConfigSchema).annotations({
+    description:
+      "The oracles provider: a command that judges the oracles an oracle phase authors and its discharging phase discharges.",
   }),
   review: Schema.optional(
     Schema.Struct({
