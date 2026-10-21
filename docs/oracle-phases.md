@@ -131,7 +131,7 @@ and `oracle` is then not among phase-03's verified surfaces, nor the run's: the 
 - At a phase that is neither an oracle phase nor a discharging phase, the resume is refused with exit 1 and nothing changes, with or without `--yes`.
 - It is an operator's choice. No agent prompt names it.
 
-An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names the same recovery: archive the run and run a corrected plan. `--skip-oracle` does not apply: there is no commit to discharge.
+An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names a different recovery: archive the run and run a corrected plan. `--skip-oracle` does not apply: there is no commit to discharge.
 
 ## What you see afterwards
 

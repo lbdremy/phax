@@ -49,6 +49,13 @@ export interface ResetPhaseResult {
 
 const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
 
+// A discharge the next resume restarts at, so `--skip-oracle` reaches its oracle step.
+const STOPPED_AT_GATE_STATES = new Set<PhaseStatus["state"]>([
+  "gates_exhausted",
+  "gates_failed",
+  "failed",
+]);
+
 function archiveTimestamp(): string {
   // ISO timestamp with colons swapped for hyphens so it is a safe path segment.
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -107,7 +114,13 @@ export function resetPhase(
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "phase_blocked_by_discharge",
-          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset. To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${opts.shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${opts.shortName} --skip-oracle\`: the configured gate still runs.`,
+          // The skip recovery applies only while the discharge is the stopped
+          // phase: a resume skips the oracle step of the phase it restarts at.
+          message:
+            `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset.` +
+            (STOPPED_AT_GATE_STATES.has(dischargingStatus.state)
+              ? ` To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${opts.shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${opts.shortName} --yes --skip-oracle\`: the configured gate still runs.`
+              : ""),
         }),
       );
     }

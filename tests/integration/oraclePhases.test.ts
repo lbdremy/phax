@@ -534,7 +534,7 @@ describe("oracle phases in a run", () => {
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
     expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_discharge" });
     expect(refusedReset.left.message).toBe(
-      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --skip-oracle\`: the configured gate still runs.`,
+      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-oracle\`: the configured gate still runs.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 
