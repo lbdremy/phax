@@ -469,12 +469,19 @@ describe("oracle phases in a run", () => {
 
     if (Either.isRight(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateStepRefusedError);
-    expect(result.left).toMatchObject({ command: ORACLES, reason: REASON, remedy: REMEDY });
+    expect(result.left).toMatchObject({
+      command: ORACLES,
+      reason: REASON,
+      remedy: REMEDY,
+      failedStep: "oracle",
+    });
     expect(h.fixPrompts()).toEqual([]);
     expect(await h.readJson("phase-02", "status.json")).toMatchObject({ state: "gates_exhausted" });
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain(REASON);
     expect(instructions).toContain(REMEDY);
+    expect(instructions).toContain("phax resume refunds --yes --skip-oracle");
+    expect(instructions).toContain("the phase's configured gate still runs");
 
     h.harness.answer = () => passing;
     await h.noteSession("phase-02");
@@ -500,7 +507,13 @@ describe("oracle phases in a run", () => {
 
     if (Either.isRight(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(result.left).toMatchObject({ failedStep: "oracle" });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
+    const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
+    expect(instructions).toContain("the oracle step failed after exhausting all fix attempts");
+    expect(instructions).toContain("phax resume refunds --yes");
+    expect(instructions).toContain("--skip-oracle");
+    expect(instructions).toContain("the phase's configured gate still runs");
     const phase02 = await h.readJson("phase-02", "status.json");
     const discharges = () => h.providerCalls.filter((c) => c.request["verdict"] === "discharged");
     expect(discharges()).toHaveLength(2);
@@ -521,7 +534,7 @@ describe("oracle phases in a run", () => {
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
     expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_discharge" });
     expect(refusedReset.left.message).toBe(
-      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive refunds --force) and run a corrected plan.`,
+      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --skip-oracle\`: the configured gate still runs.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 

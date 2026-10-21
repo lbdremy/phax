@@ -271,6 +271,7 @@ export function runGatesWithFixLoop(
           command: error.command,
           reason: error.reason,
           remedy: error.remedy,
+          failedStep: error.failedStep,
         };
         yield* dispatch(refusedEvent, dispatchCtx);
         return yield* Effect.fail(error);
@@ -329,6 +330,7 @@ export function runGatesWithFixLoop(
           worktreePath: resolvedWorktreePath as WorktreePath,
           sessionId: currentSessionId,
           command: error.command,
+          failedStep: error.failedStep,
         };
         yield* dispatch(exhaustedEvent, dispatchCtx);
         return yield* Effect.fail(
@@ -339,6 +341,7 @@ export function runGatesWithFixLoop(
             logPath: error.logPath,
             attempt,
             phaseId: phaseId as string,
+            failedStep: error.failedStep,
           }),
         );
       }

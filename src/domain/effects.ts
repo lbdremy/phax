@@ -34,6 +34,8 @@ export interface ResumeContext {
   readonly rawMessage?: string | undefined;
   /** The refused step, its reason and its remedy; set for kind `gate_refused`. */
   readonly refusal?: GateRefusal | undefined;
+  /** Which step stopped the phase; set for kinds `gates_exhausted` and `gate_refused`. */
+  readonly failedStep?: "configured" | "oracle" | undefined;
 }
 
 export interface GateRefusal {

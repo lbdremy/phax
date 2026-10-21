@@ -473,7 +473,12 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
-              { kind: "gates_exhausted", shortName, phaseId: err.phaseId },
+              {
+                kind: "gates_exhausted",
+                shortName,
+                phaseId: err.phaseId,
+                failedStep: err.failedStep,
+              },
               new Date(),
             ),
           ),
@@ -490,6 +495,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
                 kind: "gate_refused",
                 shortName,
                 phaseId: err.phaseId,
+                failedStep: err.failedStep,
                 command: err.command,
                 reason: err.reason,
                 remedy: err.remedy,

@@ -3,6 +3,7 @@ import {
   dischargedOracleFiles,
   oraclePairs,
   oracleRoleOf,
+  oracleSkipRefusal,
   recordOracleRole,
   renderOraclePairsSection,
 } from "../../src/domain/plan/oraclePairs.js";
@@ -49,6 +50,21 @@ describe("oracleRoleOf", () => {
     expect(oracleRoleOf(phases, "phase-04")).toEqual({ role: "discharging", pair });
     for (const id of ["phase-01", "phase-03", "phase-05", "phase-09"]) {
       expect(oracleRoleOf(phases, id)).toBeNull();
+    }
+  });
+});
+
+describe("oracleSkipRefusal", () => {
+  it("is null for an oracle phase and a discharging phase", () => {
+    expect(oracleSkipRefusal(phases, "phase-02")).toBeNull();
+    expect(oracleSkipRefusal(phases, "phase-04")).toBeNull();
+  });
+
+  it("refuses any other phase, naming it", () => {
+    for (const id of ["phase-01", "phase-03", "phase-05"]) {
+      expect(oracleSkipRefusal(phases, id)).toBe(
+        `--skip-oracle: ${id} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`,
+      );
     }
   });
 });

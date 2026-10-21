@@ -27,6 +27,7 @@ const refused: GateStepRefused = {
   command: "node ./audit.mjs",
   reason: "the checks need hw-rules 2, and 1 is installed",
   remedy: "pnpm add -D hw-rules@2",
+  failedStep: "configured",
 };
 
 const gatesFailed: PhaxState = { run: "running", phase: { state: "gates_failed", attempt: 1 } };
@@ -65,12 +66,21 @@ describe("GateStepRefused reducer — a refusal reuses the gate-failure pause", 
       phaseId: "phase-01",
       worktreePath: "/tmp/worktrees/hello-world.greet/phase-01",
       sessionId: "session-abc123",
+      failedStep: "configured",
       refusal: {
         command: "node ./audit.mjs",
         reason: "the checks need hw-rules 2, and 1 is installed",
         remedy: "pnpm add -D hw-rules@2",
       },
     });
+  });
+
+  it("carries an oracle failedStep into the resume instructions context", () => {
+    const result = interpret(gatesFailed, { ...refused, failedStep: "oracle" });
+    if (result.kind !== "Handled") throw new Error(`expected Handled, got ${result.kind}`);
+    const write = result.effects.find((e) => e.type === "WriteResumeInstructions");
+    if (write?.type !== "WriteResumeInstructions") throw new Error("no WriteResumeInstructions");
+    expect(write.ctx.failedStep).toBe("oracle");
   });
 
   it("emits the gate.refused and resume.available traces", () => {

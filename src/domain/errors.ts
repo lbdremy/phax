@@ -96,6 +96,8 @@ export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsEx
   logPath: string;
   attempt: number;
   phaseId: string;
+  /** Which step exhausted the fix loop: a configured gate step, or the oracle step. */
+  failedStep: "configured" | "oracle";
 }> {}
 
 /** A report step printed a refused gate report: the phase stops without a fix
@@ -109,6 +111,8 @@ export class GateStepRefusedError extends Data.TaggedError("GateStepRefusedError
   exitCode: number;
   logPath: string;
   phaseId: string;
+  /** Which step refused: a configured gate step, or the oracle step. */
+  failedStep: "configured" | "oracle";
 }> {}
 
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{

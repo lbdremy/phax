@@ -107,7 +107,7 @@ export function resetPhase(
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "phase_blocked_by_discharge",
-          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive ${opts.shortName} --force) and run a corrected plan.`,
+          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset. To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${opts.shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${opts.shortName} --skip-oracle\`: the configured gate still runs.`,
         }),
       );
     }

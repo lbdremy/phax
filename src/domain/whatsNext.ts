@@ -29,11 +29,13 @@ export type WhatsNextScenario =
       readonly kind: "gates_exhausted";
       readonly shortName: string;
       readonly phaseId?: string | undefined;
+      readonly failedStep: "configured" | "oracle";
     }
   | {
       readonly kind: "gate_refused";
       readonly shortName: string;
       readonly phaseId: string;
+      readonly failedStep: "configured" | "oracle";
       readonly command: string;
       readonly reason: string;
       readonly remedy: string;
@@ -80,6 +82,21 @@ export function resumeWhenClearCommand(
   }
 }
 
+/** The recovery for a wrong oracle: correct it in the phase worktree, resume without its step. */
+function oracleCorrectionSteps(shortName: string, phaseArg: string): NextStep[] {
+  return [
+    {
+      title: "Or, if the oracle itself is wrong, correct it in the phase worktree",
+      command: `phax enter-phase ${shortName} ${phaseArg}`,
+    },
+    {
+      title:
+        "Then resume without the oracle step — the configured gate still runs, with the usual fix loop",
+      command: `phax resume ${shortName} --yes --skip-oracle`,
+    },
+  ];
+}
+
 export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNext {
   switch (scenario.kind) {
     case "limit": {
@@ -120,6 +137,18 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
     }
     case "gates_exhausted": {
       const phaseArg = scenario.phaseId ?? "<phase-id>";
+      if (scenario.failedStep === "oracle") {
+        return {
+          headline: "The oracle step failed after all fix attempts.",
+          steps: [
+            {
+              title: "Let the fix loop try again — the gate, oracle step included, is re-run first",
+              command: `phax resume ${scenario.shortName} --yes`,
+            },
+            ...oracleCorrectionSteps(scenario.shortName, phaseArg),
+          ],
+        };
+      }
       return {
         headline: "Gates failed after all fix attempts.",
         steps: [
@@ -155,6 +184,9 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
             title: "Resume — the gate is re-run first, with the full fix budget",
             command: `phax resume ${scenario.shortName} --yes`,
           },
+          ...(scenario.failedStep === "oracle"
+            ? oracleCorrectionSteps(scenario.shortName, scenario.phaseId)
+            : []),
         ],
       };
     }

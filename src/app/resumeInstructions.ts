@@ -24,11 +24,17 @@ export interface ResumeInstructionsInput {
   readonly rawMessage?: string | undefined;
   /** The refused step, its reason and its remedy (kind `gate_refused`). */
   readonly refusal?: GateRefusal | undefined;
+  /** Which step stopped the phase (kinds `gates_exhausted` and `gate_refused`). */
+  readonly failedStep?: "configured" | "oracle" | undefined;
   /** Current wall time — injected so the builder stays pure/testable. */
   readonly now: Date;
   /** Host platform — injected so the builder stays pure/testable. */
   readonly platform: KeepAwakePlatform;
 }
+
+/** Operator-only: the wrong-oracle recovery; no agent prompt carries it. */
+const OracleSkipSentence =
+  "Either resume as is — the gate, oracle step included, is re-run first — or, if the oracle itself is wrong, correct it in the phase worktree and resume with --skip-oracle: the phase's configured gate still runs, with the usual fix loop, and the oracle step is recorded as skipped.";
 
 function stepsToMarkdown(steps: readonly NextStep[]): string[] {
   const lines: string[] = [];
@@ -49,17 +55,28 @@ function stepsToMarkdown(steps: readonly NextStep[]): string[] {
 
 function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
+  const failedStep = input.failedStep ?? "configured";
   const wn = buildWhatsNext(
-    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId, failedStep },
     input.now,
   );
+
+  const opening =
+    failedStep === "oracle"
+      ? [
+          "This run paused because the oracle step failed after exhausting all fix attempts.",
+          OracleSkipSentence,
+        ]
+      : [
+          "This run paused because its gate checks failed after exhausting all fix attempts.",
+          "Fix the gate manually in the worktree, then resume — the gate is re-run first on",
+          "resume, and if it passes the phase commits with no fresh agent invocation.",
+        ];
 
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
     "",
-    "This run paused because its gate checks failed after exhausting all fix attempts.",
-    "Fix the gate manually in the worktree, then resume — the gate is re-run first on",
-    "resume, and if it passes the phase commits with no fresh agent invocation.",
+    ...opening,
     "",
     "## Why it stopped",
     "",
@@ -80,8 +97,9 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     reason: "(not recorded)",
     remedy: "(not recorded)",
   };
+  const failedStep = input.failedStep ?? "configured";
   const wn = buildWhatsNext(
-    { kind: "gate_refused", shortName: input.shortName, phaseId, ...refusal },
+    { kind: "gate_refused", shortName: input.shortName, phaseId, failedStep, ...refusal },
     input.now,
   );
 
@@ -89,6 +107,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `# Resume Instructions: ${input.shortName}`,
     "",
     `This run paused because the gate step \`${refusal.command}\` refused to run.`,
+    ...(failedStep === "oracle" ? [OracleSkipSentence] : []),
     "No fix attempt was made. Fix the cause, then resume — the gate is re-run first,",
     "with the full fix budget.",
     "",
@@ -147,7 +166,12 @@ function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
 function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
-    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    {
+      kind: "gates_exhausted",
+      shortName: input.shortName,
+      phaseId: input.phaseId,
+      failedStep: "configured",
+    },
     input.now,
   );
 
@@ -173,7 +197,12 @@ function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
 function buildCleanupFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
-    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    {
+      kind: "gates_exhausted",
+      shortName: input.shortName,
+      phaseId: input.phaseId,
+      failedStep: "configured",
+    },
     input.now,
   );
 
@@ -198,7 +227,12 @@ function buildCleanupFailedInstructions(input: ResumeInstructionsInput): string 
 function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
-    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    {
+      kind: "gates_exhausted",
+      shortName: input.shortName,
+      phaseId: input.phaseId,
+      failedStep: "configured",
+    },
     input.now,
   );
 

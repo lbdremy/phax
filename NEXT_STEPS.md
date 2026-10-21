@@ -39,10 +39,11 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - Plan 1 of 3 landed (PR #154): the provider block, the shared `oracles` check in lint and
         the run preflight, the oracle step in the gate loop, the formats, and the surfaces around
         the run (handoff, records, prompts, skills, docs).
-      - Plan 2 follows: `phax resume <run> --skip-oracle` (§5.49, §5.50), added 2026-10-21 after
-        PR #154's review found that `reset-phase` never resets a committed oracle phase. A wrong
-        oracle is corrected in the stopped phase and closed with the configured gate green and the
-        oracle step recorded `skipped`.
+      - Plan 2 of 3 landed: `phax resume <run> --skip-oracle` (§5.49, §5.50), added 2026-10-21
+        after PR #154's review found that `reset-phase` never resets a committed oracle phase. A
+        wrong oracle is corrected in the stopped phase and closed with the configured gate green
+        and the oracle step recorded `skipped` (never a verified surface). The reset refusal, the
+        next steps, resume-instructions.md, the help and the docs name this recovery.
       - Plan 3: an example Vitest provider that lives in the repository only (built on
         tree-sitter, comparing syntax trees so reformatting never changes a verdict), and phax's
         own `oracles` declaration in phax.json.

@@ -14,6 +14,7 @@ import {
 } from "../../domain/errors.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { runKey } from "../../domain/runRef.js";
+import { oracleSkipRefusal } from "../../domain/plan/oraclePairs.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResumeFromInfo } from "../../app/resume.js";
@@ -47,6 +48,7 @@ export interface ResumeCommandOptions {
   verbose?: boolean;
   trace?: boolean;
   providerPriority?: string;
+  skipOracle?: boolean;
 }
 
 export async function runResume(
@@ -143,9 +145,22 @@ export async function runResume(
   }
   const plan = planResult.right;
 
+  if (opts.skipOracle === true) {
+    const skipRefusal = oracleSkipRefusal(plan.phases, decision.nextPhaseId);
+    if (skipRefusal !== null) {
+      out.error(skipRefusal);
+      return 1;
+    }
+  }
+
   out.log(
     `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
   );
+  if (opts.skipOracle === true) {
+    out.log(
+      `  Skipping the oracle step of ${decision.nextPhaseId} (--skip-oracle); its configured gate still runs.`,
+    );
+  }
 
   if (!opts.yes) {
     out.log("Pass --yes to proceed.");
@@ -232,6 +247,7 @@ export async function runResume(
         runPath,
         runId,
         startIndex: decision.nextPhaseIndex,
+        skipOracle: opts.skipOracle === true,
         routing,
         providerConfig,
         // Skill edit consent is given only at `phax run`; resume inherits it.
@@ -277,7 +293,12 @@ export async function runResume(
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
-              { kind: "gates_exhausted", shortName, phaseId: err.phaseId },
+              {
+                kind: "gates_exhausted",
+                shortName,
+                phaseId: err.phaseId,
+                failedStep: err.failedStep,
+              },
               new Date(),
             ),
           ),
@@ -294,6 +315,7 @@ export async function runResume(
                 kind: "gate_refused",
                 shortName,
                 phaseId: err.phaseId,
+                failedStep: err.failedStep,
                 command: err.command,
                 reason: err.reason,
                 remedy: err.remedy,

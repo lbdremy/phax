@@ -156,7 +156,12 @@ describe("buildWhatsNext", () => {
   describe("gates_exhausted scenario", () => {
     it("produces the three expected steps with phaseId", () => {
       const wn = buildWhatsNext(
-        { kind: "gates_exhausted", shortName: "proj", phaseId: "phase-03" },
+        {
+          kind: "gates_exhausted",
+          shortName: "proj",
+          phaseId: "phase-03",
+          failedStep: "configured",
+        },
         NOW,
       );
       expect(wn.headline).toContain("Gates failed");
@@ -166,9 +171,27 @@ describe("buildWhatsNext", () => {
     });
 
     it("uses <phase-id> placeholder when phaseId is absent", () => {
-      const wn = buildWhatsNext({ kind: "gates_exhausted", shortName: "proj" }, NOW);
+      const wn = buildWhatsNext(
+        { kind: "gates_exhausted", shortName: "proj", failedStep: "configured" },
+        NOW,
+      );
       expect(wn.steps[0]?.command).toContain("phax enter-phase proj <phase-id>");
       expect(wn.steps[2]?.command).toContain("phax reset-phase proj <phase-id>");
+    });
+
+    it("names the oracle step and the --skip-oracle correction, and no reset, for an oracle failure", () => {
+      const wn = buildWhatsNext(
+        { kind: "gates_exhausted", shortName: "proj", phaseId: "phase-03", failedStep: "oracle" },
+        NOW,
+      );
+      expect(wn.headline).toBe("The oracle step failed after all fix attempts.");
+      expect(wn.steps.map((s) => s.command)).toEqual([
+        "phax resume proj --yes",
+        "phax enter-phase proj phase-03",
+        "phax resume proj --yes --skip-oracle",
+      ]);
+      expect(wn.steps[2]?.title).toContain("the configured gate still runs");
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
     });
   });
 
@@ -177,10 +200,23 @@ describe("buildWhatsNext", () => {
       kind: "gate_refused",
       shortName: "hello-world.greet",
       phaseId: "phase-01",
+      failedStep: "configured",
       command: "node ./audit.mjs",
       reason: "the checks need hw-rules 2, and 1 is installed",
       remedy: "pnpm add -D hw-rules@2",
     } as const;
+
+    it("appends the --skip-oracle correction, and no reset, for an oracle refusal", () => {
+      const configured = buildWhatsNext(refusal, NOW);
+      const wn = buildWhatsNext({ ...refusal, failedStep: "oracle" }, NOW);
+      expect(wn.headline).toBe(configured.headline);
+      expect(wn.steps.slice(0, 2)).toEqual(configured.steps);
+      expect(wn.steps.slice(2).map((s) => s.command)).toEqual([
+        "phax enter-phase hello-world.greet phase-01",
+        "phax resume hello-world.greet --yes --skip-oracle",
+      ]);
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
+    });
 
     it("names the step, the reason and the remedy, and says no fix attempt was made", () => {
       const wn = buildWhatsNext(refusal, NOW);

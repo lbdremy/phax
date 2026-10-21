@@ -19,10 +19,20 @@ export function registerResumeCommand(
       "--provider-priority <list>",
       "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
     )
+    .option(
+      "--skip-oracle",
+      "Skip the oracle step of the phase this resume restarts at; its configured gate still runs",
+    )
     .action(
       async (
         shortName: string,
-        opts: { yes?: boolean; verbose?: boolean; trace?: boolean; providerPriority?: string },
+        opts: {
+          yes?: boolean;
+          verbose?: boolean;
+          trace?: boolean;
+          providerPriority?: string;
+          skipOracle?: boolean;
+        },
       ) => {
         const merged = { ...getGlobalTraceOpts(), ...opts };
         const exitCode = await runResumeImpl(shortName, merged, out);

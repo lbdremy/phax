@@ -104,6 +104,7 @@ const samples = {
     worktreePath,
     sessionId,
     command: "pnpm test",
+    failedStep: "configured",
   },
   GateStepRefused: {
     ...base,
@@ -114,6 +115,7 @@ const samples = {
     worktreePath,
     sessionId,
     command: "node ./audit.mjs",
+    failedStep: "configured",
     reason: "the checks need hw-rules 2, and 1 is installed",
     remedy: "pnpm add -D hw-rules@2",
   },
