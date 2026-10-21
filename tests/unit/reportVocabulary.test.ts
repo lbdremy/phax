@@ -129,6 +129,7 @@ function fixPrompt(): string {
     logPath: "/runs/phase-01/checks-attempt-02.log",
     reportFindings: { step: 1, findings: checkedReport.findings },
     stillFailing: new Set(["no-node-import src/greet.ts node:fs"]),
+    failedStep: "configured",
   });
 }
 

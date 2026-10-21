@@ -8,7 +8,13 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { resetPhase, ResetPhaseError } from "../../src/app/resetPhase.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
-import { GateAttemptsExhaustedError, GateStepRefusedError } from "../../src/domain/errors.js";
+import {
+  GateAttemptsExhaustedError,
+  GateStepRefusedError,
+  OracleCommitMissingError,
+  PhaseHadNoChangesError,
+} from "../../src/domain/errors.js";
+import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -135,7 +141,7 @@ function planMdOf(plan: PhaxPlan): string {
   return lines.join("\n");
 }
 
-function makeConfig(stateRoot: string, provider: boolean): ResolvedConfig {
+function makeConfig(stateRoot: string, provider: boolean, publish: boolean): ResolvedConfig {
   return {
     raw: {
       version: 1,
@@ -155,7 +161,7 @@ function makeConfig(stateRoot: string, provider: boolean): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
-    publish: resolvePublishConfig(undefined),
+    publish: resolvePublishConfig(publish ? { auto: true } : undefined),
     complianceReview: resolveComplianceReviewConfig(undefined),
     codeReview: resolveCodeReviewConfig(undefined),
     authoring: resolveAuthoringConfig(undefined),
@@ -206,7 +212,14 @@ describe("oracle phases in a run", () => {
 
   async function setup(
     plan: PhaxPlan,
-    opts: { provider?: boolean; answer?: (request: Record<string, unknown>) => string } = {},
+    opts: {
+      provider?: boolean;
+      answer?: (request: Record<string, unknown>) => string;
+      /** Phases whose worktree is clean at the commit: they produce no changes. */
+      noChanges?: readonly string[];
+      /** Publish the run when it reaches review, as `publish.auto` does. */
+      publish?: boolean;
+    } = {},
   ) {
     for (const phase of plan.phases) {
       await mkdir(join(worktreeOf(phase.id), ".phax-context"), { recursive: true });
@@ -215,12 +228,16 @@ describe("oracle phases in a run", () => {
         HANDOFF_CONTENT,
       );
     }
-    const config = makeConfig(stateRoot, opts.provider ?? true);
+    const config = makeConfig(stateRoot, opts.provider ?? true, opts.publish ?? false);
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
     // Each phase's worktree has changes to commit, then is clean for cleanup.
     for (const phase of plan.phases) {
-      fakeGit.impl.enqueueWorktreeIsClean(worktreeOf(phase.id), false, true);
+      if (opts.noChanges?.includes(phase.id) === true) {
+        fakeGit.impl.enqueueWorktreeIsClean(worktreeOf(phase.id), true);
+      } else {
+        fakeGit.impl.enqueueWorktreeIsClean(worktreeOf(phase.id), false, true);
+      }
     }
     const fakeBackend = makeFakeBackend();
     for (let i = 0; i < 20; i++) {
@@ -396,6 +413,17 @@ describe("oracle phases in a run", () => {
     expect(reconciliation["optionalTouched"]).toEqual(expect.arrayContaining(ORACLE_FILES));
   });
 
+  it("lists oracle among the PR body's verified surfaces once the pair passed", async () => {
+    const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), { publish: true });
+    h.fakeGit.impl.addExistingRemote("origin");
+
+    const result = await h.execute();
+
+    expect(Either.isRight(result)).toBe(true);
+    const body = await readFile(join(h.runPath, "pr-body.md"), "utf8");
+    expect(body).toContain("**Verified surfaces** local, oracle, structural");
+  });
+
   it("calls the provider at the pair's two phases only", async () => {
     const h = await setup(planOf(5, { oracle: 2, discharging: 4 }));
 
@@ -440,7 +468,7 @@ describe("oracle phases in a run", () => {
     );
   });
 
-  it("exhausts an always-finding discharge, resumes with the same commit, and resets the discharge first", async () => {
+  it("exhausts an always-finding discharge, resumes with the same commit, and never resets the committed oracle phase", async () => {
     const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), {
       answer: (request) => (request["verdict"] === "discharged" ? unmarked : passing),
     });
@@ -463,22 +491,58 @@ describe("oracle phases in a run", () => {
       new Set([phase02["commitHash"]]),
     );
 
-    // The oracle phase resets only after its discharging phase.
+    // The committed oracle phase is not reset, before or after its discharge.
     const statusBefore = await readFile(join(h.runPath, "phase-02", "status.json"), "utf8");
     const refusedReset = await h.reset("phase-02");
     if (Either.isRight(refusedReset)) throw new Error("expected the reset to be refused");
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
+    expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_discharge" });
     expect(refusedReset.left.message).toBe(
-      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted — reset phase-03 first.`,
+      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive refunds --force) and run a corrected plan.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 
     expect(Either.isRight(await h.reset("phase-03"))).toBe(true);
+    const afterDischargeReset = await h.reset("phase-02");
+    if (Either.isRight(afterDischargeReset)) throw new Error("expected the reset to be refused");
+    expect(afterDischargeReset.left).toMatchObject({ reason: "not_resettable" });
+    expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
     h.harness.answer = () => passing;
     const rerun = await h.execute(2);
 
     expect(Either.isRight(rerun)).toBe(true);
     expect(discharges().at(-1)?.request["oracleCommit"]).toBe(phase02["commitHash"]);
+  });
+
+  it("refuses the discharge of a skipped oracle phase before its agent runs, naming the remedy", async () => {
+    const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), { noChanges: ["phase-02"] });
+
+    const first = await h.execute();
+
+    if (Either.isRight(first)) throw new Error("expected the run to pause");
+    expect(first.left).toBeInstanceOf(PhaseHadNoChangesError);
+    const phase02 = await h.readJson("phase-02", "status.json");
+    expect(phase02).toMatchObject({ state: "skipped" });
+    expect(phase02["commitHash"]).toBeUndefined();
+    const agentRuns = h.fakeBackend.impl.runCalls.length;
+
+    const resumed = await h.execute(2);
+
+    if (Either.isRight(resumed)) throw new Error("expected the discharge to be refused");
+    expect(resumed.left).toBeInstanceOf(OracleCommitMissingError);
+    expect(resumed.left).toMatchObject({ oraclePhase: "phase-02", dischargingPhase: "phase-03" });
+    expect(resumed.left.message).toBe(
+      [
+        `Cannot run discharging phase "phase-03" of run "refunds": its oracle phase "phase-02" is skipped and noted no commit, so there are no oracles to discharge.`,
+        "No resume gives a skipped oracle phase a commit: archive the run (phax archive refunds --force) and run a corrected plan whose oracle phase writes its oracles.",
+      ].join("\n"),
+    );
+    expect(exitCodeForError(resumed.left)).toBe(11);
+    // Nothing of phase-03 ran: no agent turn, no gate, no oracle request.
+    expect(h.fakeBackend.impl.runCalls.length).toBe(agentRuns);
+    expect(h.providerCalls.map((c) => c.request["verdict"])).toEqual(["authored"]);
+    expect(existsSync(join(h.runPath, "phase-03", "checks-attempt-01.log"))).toBe(false);
+    expect(await h.readJson("run-status.json")).toMatchObject({ state: "failed" });
   });
 
   it.each([

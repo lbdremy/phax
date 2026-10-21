@@ -375,4 +375,51 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     ).toBe(false);
     expect(git(["worktree", "list", "--porcelain"], r.repo)).toBe(worktreesBefore);
   });
+
+  it("refuses a well-formed oracle run once phax.json loses its oracles block", async () => {
+    const r = createPreflightRepo({
+      config: { oracles: { command: "node tools/oracles.mjs" } },
+      plan: {
+        phases: [
+          { headerLines: ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"] },
+          {},
+        ],
+      },
+    });
+    roots = r;
+    process.chdir(r.repo);
+    const config = loadConfig(r.repo);
+    expect(Either.isRight(config) && config.right.stateRoot).toBe(r.stateRoot);
+
+    const shortName = await pauseAfterPhase01(r);
+
+    // Resumable at phase-02 while the provider is configured.
+    const probe = recordingOutput();
+    expect(await runResume(shortName, {}, probe.port)).toBe(0);
+    expect(probe.logs.some((l) => l.includes("would resume from phase 2: phase-02"))).toBe(true);
+    expect(probe.errors).toEqual([]);
+
+    const worktreesBefore = git(["worktree", "list", "--porcelain"], r.repo);
+    const phaxJsonPath = join(r.repo, "phax.json");
+    const { oracles: _oracles, ...withoutOracles } = JSON.parse(
+      readFileSync(phaxJsonPath, "utf8"),
+    ) as Record<string, unknown>;
+    writeFileSync(phaxJsonPath, JSON.stringify(withoutOracles, null, 2));
+    const out = recordingOutput();
+
+    const code = await runResume(shortName, { yes: true }, out.port);
+
+    expect(code).toBe(11);
+    expect(out.errors).toEqual([
+      `phax resume failed: ${[
+        `Oracle preflight failed: 1 error(s).`,
+        `  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
+        `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(r)}\`.`,
+      ].join("\n")}`,
+    ]);
+    expect(
+      existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${shortName}`, "phase-02")),
+    ).toBe(false);
+    expect(git(["worktree", "list", "--porcelain"], r.repo)).toBe(worktreesBefore);
+  });
 });

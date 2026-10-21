@@ -1,5 +1,5 @@
 // The frozen 0.21.0 shape of `gate-attribution`: the file phax 0.21.x through
-// 0.26.x wrote, `$schema` first, a step surface of local, structural or
+// 0.25.x wrote, `$schema` first, a step surface of local, structural or
 // product and a step result of pass, fail or refused.
 // Never edit this module: packages/schemas/history.lock.json pins its bytes.
 // phax itself never imports it; the schemas package lists it as the format's

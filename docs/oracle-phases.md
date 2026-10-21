@@ -98,7 +98,7 @@ phase-02 adds its tests with the framework's expected-failure marker, so the tes
 
 ```ts
 test.fails("caps a refund at the invoice total", () => {
-  expect(refund(invoice, 500).amount).toBe(100);
+  expect(refund(invoice, 500).amount).toBe(120);
 });
 ```
 
@@ -110,7 +110,9 @@ phase-03 removes `.fails` and writes the refund cap. Its gate sends `discharged`
 
 An oracle that the code cannot satisfy unchanged is a spec question, not a bug to work around. The fix loop runs out on the failing oracle step, the run pauses at the discharging phase with exit 4, resumable at that phase, and the agent has been told to say so in its handoff. Send the disagreement back to the spec.
 
-`phax reset-phase` resets the discharging phase first: it refuses an oracle phase while its discharging phase is in any state other than `pending`, and names that phase in the refusal.
+A committed oracle phase is not reset: `phax reset-phase` refuses an oracle phase while its discharging phase is in any state other than `pending`, and the state machine never resets a committed phase. When the oracle itself is wrong, archive the run (`phax archive <run> --force`), correct the oracle in the spec and the plan, and run the corrected plan. `--hold oracle`, coming with interactive phases, will let a person review the oracles before their discharge.
+
+An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names the same recovery: archive the run and run a corrected plan.
 
 ## What you see afterwards
 

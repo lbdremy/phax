@@ -10,7 +10,7 @@
  * a refusal scenario fails `pnpm test:type`; a step moved back after naming
  * fails its scenario's no-trace assertions.
  */
-import { mkdtempSync, realpathSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
@@ -26,6 +26,8 @@ import type { FreshRunPreflightStep } from "../../src/app/runPreflight.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { lintPlan } from "../../src/app/lintPlan.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -483,6 +485,131 @@ describe("phax run — a preflight refusal precedes naming", () => {
     expect(out.errors.filter((e) => e.includes("Oracle preflight"))).toEqual([]);
     expect(code).not.toBe(11);
   });
+
+  it("a configured gate step claiming the oracle surface is a config error: exit 2, no run", async () => {
+    const r = enter({
+      config: { oracles: { command: "./fake-oracles" } },
+      plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
+    });
+    const phaxJsonPath = join(r.repo, "phax.json");
+    const phaxJson = JSON.parse(readFileSync(phaxJsonPath, "utf8")) as Record<string, unknown>;
+    writeFixtureFile(
+      r.repo,
+      "phax.json",
+      JSON.stringify({
+        ...phaxJson,
+        gateProfiles: {
+          standard: [{ command: "./fake-oracles", surface: "oracle", firing: "every-phase" }],
+        },
+      }),
+    );
+    const before = snapshotRepo(r);
+    const out = recordingOutput();
+
+    const code = await runRun({ plan: "plan.md", trace: true }, out.port);
+
+    expect(code).toBe(2);
+    expect(out.errors[0]).toMatch(/^Config error: Invalid phax\.json at /);
+    expect(out.errors[0]).toContain(
+      'gateProfiles.standard.0.surface: Expected "local", actual "oracle"',
+    );
+    expect(out.logs.filter((l) => l.startsWith("Run: "))).toEqual([]);
+    const after = snapshotRepo(r);
+    expect(after.runs).toEqual([]);
+    expect(after.registry).toEqual(before.registry);
+    expect(after.phaxBranches).toBe("");
+    expect(after.worktrees).toBe(before.worktrees);
+    expect(after.semanticJsonl).toEqual([]);
+  });
+
+  // Lint and the run preflight report the same `oracles` error rows for the
+  // same plan.md: lint's rows, printed as the preflight prints them, are the
+  // rows of the preflight's refusal, in the same order.
+  const PROVIDER = { oracles: { command: "./fake-oracles" } };
+  it.each([
+    ["no provider", { plan: { phases: [{ headerLines: ORACLE_LINES }, {}] } }],
+    [
+      "an oracle file the phase does not plan",
+      {
+        config: PROVIDER,
+        plan: {
+          phases: [
+            {
+              headerLines: [
+                "**Oracle phase:** yes",
+                "**Oracle files:** `src/step-01.ts`, `src/other.ts`",
+              ],
+            },
+            {},
+          ],
+        },
+      },
+    ],
+    [
+      "an oracle last phase",
+      { config: PROVIDER, plan: { phases: [{ headerLines: ORACLE_LINES }] } },
+    ],
+    [
+      "a discharging phase that does not exist",
+      {
+        config: PROVIDER,
+        plan: {
+          phases: [
+            {
+              headerLines: [
+                "**Oracle phase:** discharged by phase-09",
+                "**Oracle files:** `src/step-01.ts`",
+              ],
+            },
+            {},
+          ],
+        },
+      },
+    ],
+    [
+      "a malformed Oracle phase line",
+      {
+        config: PROVIDER,
+        plan: {
+          phases: [
+            { headerLines: ["**Oracle phase:** maybe", "**Oracle files:** `src/step-01.ts`"] },
+            {},
+          ],
+        },
+      },
+    ],
+    [
+      "an interactive discharging phase",
+      { plan: { phases: [{ headerLines: ORACLE_LINES }, { headerLines: [INTERACTIVE_LINE] }] } },
+    ],
+  ] satisfies [string, Fixture][])(
+    "lint and the run preflight report the same oracles rows: %s",
+    async (_label, fixture) => {
+      const r = enter(fixture);
+      const config = Either.getOrThrow(loadConfig(r.repo));
+      const report = await Effect.runPromise(
+        lintPlan({
+          planMdPath: join(r.repo, "plan.md"),
+          reportPath: "plan.md",
+          repoRelPath: "plan.md",
+          config,
+        }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeShell().layer))),
+      );
+      const lintRows = report.findings
+        .filter((f) => f.check === "oracles" && f.severity === "error")
+        .map((f) => `  ${f.phase ?? "-"}  ${f.message}`);
+      expect(lintRows.length).toBeGreaterThan(0);
+      const out = recordingOutput();
+
+      const code = await runRun({ plan: "plan.md" }, out.port);
+
+      expect(code).toBe(11);
+      expect(out.errors).toEqual([
+        `phax run failed: ${[`Oracle preflight failed: ${lintRows.length} error(s).`, ...lintRows, LINT_HINT].join("\n")}`,
+      ]);
+      expect(snapshotRepo(r).runs).toEqual([]);
+    },
+  );
 
   it("several refusals at once report only the first, in today's order", async () => {
     const r = enter({

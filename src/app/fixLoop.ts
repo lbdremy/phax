@@ -364,6 +364,7 @@ export function runGatesWithFixLoop(
         logPath: error.logPath,
         reportFindings: error.reportFindings,
         stillFailing,
+        failedStep: error.failedStep,
       });
 
       yield* telemetry.recordEvent(

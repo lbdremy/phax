@@ -83,6 +83,9 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
     readonly step: number;
     readonly findings: readonly GateFinding[];
   } | null;
+  /** Which step failed: a configured gate step, or the oracle step phax
+   *  appends for an oracle pair. */
+  failedStep: "configured" | "oracle";
   stderrExcerpt?: string;
 }> {}
 
@@ -344,6 +347,16 @@ export class OraclePreflightError extends Data.TaggedError("OraclePreflightError
   message: string;
   findings: readonly LintFinding[];
   planPath: string;
+}> {}
+
+/** A discharging phase's oracle phase noted no commit (it was skipped for
+ *  producing no changes): there are no oracles to discharge, and no resume
+ *  can give the oracle phase a commit. Refused at the discharging phase's
+ *  entry, before its agent runs; the run fails. */
+export class OracleCommitMissingError extends Data.TaggedError("OracleCommitMissingError")<{
+  message: string;
+  oraclePhase: string;
+  dischargingPhase: string;
 }> {}
 
 // The errors of the bounds check (the `models` errors lint reports from the

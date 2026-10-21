@@ -1,6 +1,6 @@
 ---
 name: phax-decide-plan
-description: Default arbitration doctrine for `phax artifact decide` on a plan and for the planning agent's technical arbitrations when no human is in the session — split by shippable surface, oracle first when the surface is shown, footprint discipline, model and effort left to the planner, docs last.
+description: Default arbitration doctrine for `phax artifact decide` on a plan and for the planning agent's technical arbitrations when no human is in the session — split by shippable surface, oracle first when the surface is shown and an oracles provider is configured, footprint discipline, model and effort left to the planner, docs last.
 ---
 
 > Bundled default doctrine, landed by hand on 2026-09-24; wired into the
@@ -79,14 +79,16 @@ handoffs, docs, the PR's tables).
   useful on its own; split when two pieces are useful separately, never split a piece
   that is only useful whole. Six phases or eleven planned files in one phase are
   *smells* that make you ask the question; they are not the rule.
-- `P3` (`C4`) **Oracle first, when the surface is shown.** When the spec shows the surface with
-  real before/after artifacts, write tests and disposition matrices in an
-  `oracle-authoring` phase that precedes the implementing phase; the implementing phase
-  changes those files only by removing the markers, judged by the oracles provider. When the surface is only described, keep
-  test and code in one phase and rely on the compliance review's `tests` dimension. If
-  an oracle written first turns out wrong, the implementing phase changes it only by removing the markers: the
-  run pauses and the disagreement goes back to the spec — that is the intended
-  behaviour, not a failure.
+- `P3` (`C4`) **Oracle first, when the surface is shown and a provider is configured.** When
+  an `oracles` provider is configured (phax.json or its overlays; the headless authoring
+  prompt says whether one is) and the spec shows the surface with real before/after
+  artifacts, write the tests in an `oracle-authoring` phase that precedes the implementing
+  phase; the implementing phase changes those files only by removing the markers, judged by
+  the oracles provider. With no `oracles` provider, or when the surface is only described,
+  keep test and code in one phase and rely on the compliance review's `tests` dimension. If
+  an oracle written first turns out wrong, the implementing phase changes it only by
+  removing the markers: the run pauses and the disagreement goes back to the spec — that is
+  the intended behaviour, not a failure.
 - `P4` (`C2`) **A fix stays inside the run's footprint.** A correction phase may touch the
   files the findings name plus the run's declared footprint. A root cause outside it is
   not fixed here: it becomes a `deviation` to escalate (a spec amendment or a new plan).

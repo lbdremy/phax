@@ -17,15 +17,22 @@ export interface BuildFixPromptInput {
   /** The ids the same step's checked report listed in the phase's previous
    *  gate attempt: each finding with one of them is marked `still failing`. */
   readonly stillFailing: ReadonlySet<string>;
+  /** Which step failed: a configured gate step, which the agent may run, or
+   *  the oracle step, which only phax runs, at the gate. */
+  readonly failedStep: "configured" | "oracle";
 }
 
-const REQUIRED_ACTION_TAIL = [
-  "Make the minimum changes required to pass the gate.",
-  "Do not change unrelated code or introduce new features.",
-  "",
-  "Make sure to run the failed command after your changes to verify the gate now passes.",
-  "The gate run will be re-attempted automatically after your changes.",
-];
+function requiredActionTail(failedStep: "configured" | "oracle"): string[] {
+  return [
+    "Make the minimum changes required to pass the gate.",
+    "Do not change unrelated code or introduce new features.",
+    "",
+    failedStep === "oracle"
+      ? "The oracles provider runs only at the gate; it will judge again after your changes. Do not run it yourself."
+      : "Make sure to run the failed command after your changes to verify the gate now passes.",
+    "The gate run will be re-attempted automatically after your changes.",
+  ];
+}
 
 /**
  * One finding: its location, marked `still failing` when the previous attempt
@@ -51,6 +58,7 @@ function renderFinding(printed: GateFinding, stillFailing: ReadonlySet<string>):
 
 export function buildFixPrompt(input: BuildFixPromptInput): string {
   const { command, exitCode, attempt, logContent, logPath, reportFindings, stillFailing } = input;
+  const tail = requiredActionTail(input.failedStep);
 
   if (reportFindings !== null) {
     const { findings } = reportFindings;
@@ -71,7 +79,7 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
       "## Required action",
       "",
       "Read the file each guide names before changing code, then fix every finding under **Findings**.",
-      ...REQUIRED_ACTION_TAIL,
+      ...tail,
     ].join("\n");
   }
 
@@ -92,6 +100,6 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
     "## Required action",
     "",
     "Fix all issues revealed by the gate output above.",
-    ...REQUIRED_ACTION_TAIL,
+    ...tail,
   ].join("\n");
 }

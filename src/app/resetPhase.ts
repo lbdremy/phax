@@ -98,15 +98,16 @@ export function resetPhase(
       return yield* Effect.fail(new ResetPhaseError({ reason: "phase_not_found", message: msg }));
     }
 
-    // An oracle phase resets only after its discharging phase: the discharge
-    // judged this phase's commit, which the reset discards.
+    // An oracle phase is not reset once its discharge has started: the
+    // discharge judges this phase's commit, which a reset would discard. A
+    // committed oracle phase is never resettable anyway.
     const discharging = yield* dischargingPhaseOf(info.runPath, target.phaseId);
     const dischargingStatus = info.phaseStatuses.find((p) => p.phaseId === discharging);
     if (dischargingStatus !== undefined && dischargingStatus.state !== "pending") {
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "phase_blocked_by_discharge",
-          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state} — reset ${dischargingStatus.phaseId} first.`,
+          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset. If the oracle itself is wrong, archive the run (phax archive ${opts.shortName} --force) and run a corrected plan.`,
         }),
       );
     }

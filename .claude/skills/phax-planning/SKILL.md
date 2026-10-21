@@ -291,8 +291,8 @@ provider judges both gates.
 
 - **Declare one only when an `oracles` provider is configured.** The headless authoring
   prompt says so; otherwise check `oracles` in phax.json and its overlays by hand. Without a
-  provider, keep tests and code in one phase: `phax plans lint` and `phax run` refuse an
-  oracle phase with exit 11.
+  provider, keep tests and code in one phase: `phax plans lint` reports an `oracles` error
+  and exits 1, and `phax run` and `phax resume` refuse the plan with exit 11.
 - **Two header lines** sit after the model, effort and Assignment reason lines of the oracle
   phase: `**Oracle phase:** yes` (the next phase discharges it) or
   `**Oracle phase:** discharged by phase-NN`, then `**Oracle files:** <paths>`.
