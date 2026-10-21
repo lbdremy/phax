@@ -9,6 +9,7 @@ import { runValidate } from "../../../src/cli/commands/validate.js";
 import { ConfigValidationError, PlanValidationError } from "../../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../../src/schemas/phaxPlan.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -85,6 +86,8 @@ function makePhase(i: number): PhaxPlan["phases"][number] {
     plannedFilesToCreate: [],
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
+    mode: "headless",
+    oracle: null,
     commit: { subject: `feat: phase ${i + 1}`, body: "" },
     title: `Phase ${i + 1}`,
   };
@@ -186,6 +189,48 @@ describe("runValidate", () => {
     expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Plan validation failed"))).toBe(true);
     expect(errors.some((e) => e.includes("phax-plan.json"))).toBe(true);
+  });
+
+  it("--plan on a phax-plan.json in the 0.17.0 shape: exits 2 naming the shape and the way out", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
+    const actual = await vi.importActual<typeof import("../../../src/app/loadPlan.js")>(
+      "../../../src/app/loadPlan.js",
+    );
+    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    describeConfigSources.mockReturnValue(undefined);
+    loadPlan.mockImplementation(actual.loadPlan);
+
+    const dir = mkdtempSync(join(tmpdir(), "phax-validate-older-"));
+    try {
+      const planPath = join(dir, "phax-plan.json");
+      const { run, phases } = makePlan("myrun", 2);
+      writeFileSync(
+        planPath,
+        JSON.stringify({
+          $schema: schemaUrl("phax-plan", "0.25.0"),
+          run,
+          phases: phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => ({
+            ...phase,
+            commit: { ...phase.commit, body: "Body." },
+          })),
+        }),
+      );
+
+      const { out, errors } = makeOutput();
+      const code = runValidate({ plan: planPath }, out);
+
+      expect(code).toBe(2);
+      const combined = errors.join("\n");
+      expect(combined).toContain("Plan validation failed");
+      expect(combined).toContain(`${planPath}: phax-plan in the 0.17.0 shape`);
+      expect(combined).toContain("Finish the run with the phax release that started it");
+      expect(combined).toContain("`phax archive <run> --force`");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("describeConfigSources returning undefined does not crash the success path", async () => {

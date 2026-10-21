@@ -26,6 +26,8 @@ const minimalPlan: PhaxPlan = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "feat: add thing", body: "" },
     },
   ],

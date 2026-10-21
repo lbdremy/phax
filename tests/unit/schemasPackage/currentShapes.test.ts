@@ -240,7 +240,8 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
   "phase-status": readPhaseStatusFile,
-  "phax-plan": readPhaxPlanFile,
+  // The reader reports the shape it read beside the plan; the plan is the lift.
+  "phax-plan": (file, input) => Either.map(readPhaxPlanFile(file, input), (read) => read.plan),
   "compliance-review": readComplianceReviewFile,
   "plan-approvals": readPlanApprovalsFile,
   "spec-approvals": readSpecApprovalsFile,

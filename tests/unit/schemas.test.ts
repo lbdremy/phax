@@ -1,7 +1,8 @@
-import { Either } from "effect";
+import { Either, JSONSchema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile, PhaxPlanFileSchema } from "../../src/schemas/phaxPlan.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { decodeRegistryFile } from "../../src/schemas/registry.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../src/schemas/status.js";
@@ -148,7 +149,7 @@ describe("decodePhaxConfig", () => {
 });
 
 const validPlan = {
-  $schema: schemaUrl("phax-plan", "0.17.0"),
+  $schema: schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]),
   run: {
     shortName: "my-run",
     title: "My Run",
@@ -165,10 +166,70 @@ const validPlan = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      mode: "headless",
+      oracle: null,
       commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
     },
   ],
 } as const;
+
+describe("decodePhaxPlanFile — mode and oracle", () => {
+  const withPhase = (phase: object) => ({ ...validPlan, phases: [phase] });
+
+  it("carries mode then oracle directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
+    const decoded = Either.getOrThrow(decodePhaxPlanFile(validPlan));
+    expect(Object.keys(decoded.phases[0]!).slice(-4)).toEqual([
+      "optionalFilesToEdit",
+      "mode",
+      "oracle",
+      "commit",
+    ]);
+    const jsonSchema = JSONSchema.make(PhaxPlanFileSchema) as unknown as {
+      $defs?: Record<string, { properties?: Record<string, unknown> }>;
+      properties: { phases: { items: { $ref?: string; properties?: Record<string, unknown> } } };
+    };
+    const items = jsonSchema.properties.phases.items;
+    const phaseProps =
+      items.properties ?? jsonSchema.$defs?.[items.$ref!.split("/").pop()!]?.properties ?? {};
+    expect(Object.keys(phaseProps).slice(-4)).toEqual([
+      "optionalFilesToEdit",
+      "mode",
+      "oracle",
+      "commit",
+    ]);
+  });
+
+  it("accepts an interactive phase and an oracle, including one with no files", () => {
+    for (const phase of [
+      { ...validPlan.phases[0], mode: "interactive" },
+      { ...validPlan.phases[0], oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] } },
+      { ...validPlan.phases[0], oracle: { dischargedBy: "phase-02", files: [] } },
+    ]) {
+      expect(Either.isRight(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+    }
+  });
+
+  it('refuses "mode": "review", a missing mode, and a missing oracle', () => {
+    const { mode: _mode, ...noMode } = validPlan.phases[0];
+    const { oracle: _oracle, ...noOracle } = validPlan.phases[0];
+    for (const phase of [{ ...validPlan.phases[0], mode: "review" }, noMode, noOracle]) {
+      expect(Either.isLeft(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+    }
+  });
+
+  it("refuses an oracle without files, with an extra key, or with a malformed discharging phase", () => {
+    for (const oracle of [
+      { dischargedBy: "phase-03" },
+      { dischargedBy: "phase-03", files: [], extra: true },
+      { dischargedBy: "next", files: [] },
+      { dischargedBy: "phase-03", files: [""] },
+    ]) {
+      expect(Either.isLeft(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], oracle })))).toBe(
+        true,
+      );
+    }
+  });
+});
 
 describe("decodePhaxPlanFile", () => {
   it("accepts a valid plan", () => {

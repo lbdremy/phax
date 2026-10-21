@@ -76,7 +76,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes file-reconciliation.json and .md with correct classification", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -205,7 +205,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes no-deviation report when actual changes match planned exactly", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

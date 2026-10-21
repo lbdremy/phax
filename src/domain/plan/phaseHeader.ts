@@ -2,8 +2,8 @@
  * phax's own reading of a phase's header lines in plan.md: Assignment reason,
  * Model reason, Mode, Oracle phase and Oracle files. Pure: no model, no I/O.
  *
- * One line grammar, shared by lint, the run preflight and (phase-03) the
- * extraction: a label is recognised at the start of a line, bold or not
+ * One line grammar, shared by lint, the run preflight and both extraction
+ * paths (`phaseKinds`): a label is recognised at the start of a line, bold or not
  * (`**Mode:**`, `**Mode**:` or `Mode:`), case-insensitively, the tolerance the
  * model and effort lines get. Its value is the rest of the line, trimmed.
  * Inline code and code blocks are prose and never declare anything.
@@ -11,7 +11,10 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
+import { Either } from "effect";
+import type { ExtractionAnswer, PhaseMode, PhaseOracle } from "../../schemas/phaxPlan.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
+import { PlanValidationError } from "../errors.js";
 
 /** The declaration labels a phase may carry only in its header paragraph. */
 type DeclarationLabel = "Mode" | "Oracle phase" | "Oracle files";
@@ -143,7 +146,18 @@ function sourceOf(body: string, node: RootContent): string {
   return body.slice(node.position?.start.offset ?? 0, node.position?.end.offset ?? 0);
 }
 
-function readPhaseBlock(phase: string, nodes: readonly RootContent[], body: string): PhaseHeader {
+/**
+ * One phase block's header: its header paragraph read by `readHeaderParagraph`,
+ * and the declaration labels misplaced in its other paragraphs and list items.
+ * `nodes` are the root-level nodes under the phase's `##` heading; `body` is
+ * the markdown they were parsed from, frontmatter skipped. The deterministic
+ * walk reads its phase blocks through this, so both readers share one grammar.
+ */
+export function readPhaseBlock(
+  phase: string,
+  nodes: readonly RootContent[],
+  body: string,
+): PhaseHeader {
   const headerNode = nodes.find(
     (n): n is Paragraph => n.type === "paragraph" && /Recommended\s+model:/i.test(toString(n)),
   );
@@ -215,4 +229,65 @@ export function oracleDeclaration(header: PhaseHeader): OracleDeclaration | null
   const discharged = header.oraclePhase.match(DISCHARGED_BY_RE);
   if (discharged === null) return null;
   return { dischargedBy: { kind: "phase", id: discharged[1]! }, files: header.oracleFiles };
+}
+
+/** A phase's `mode` and `oracle`, as the plan document and phax-plan.json carry them. */
+export interface PhaseKinds {
+  readonly mode: PhaseMode;
+  readonly oracle: PhaseOracle;
+}
+
+/**
+ * The only source of a phase's `mode` and `oracle`: phax's reading of its
+ * header lines. `mode` is `interactive` exactly when `declaresInteractive`.
+ * `oracle` is `oracleDeclaration` resolved, `next` to `nextPhaseId`; it is
+ * null when the declaration is, or when it says `next` and no phase follows.
+ * A declaration phax cannot read or resolve yields headless and null here, and
+ * an error of the `interactive` or `oracles` check, never an extraction failure.
+ */
+export function phaseKinds(header: PhaseHeader, nextPhaseId: string | null): PhaseKinds {
+  const mode = declaresInteractive(header) ? "interactive" : "headless";
+  const declaration = oracleDeclaration(header);
+  if (declaration === null) return { mode, oracle: null };
+  const dischargedBy =
+    declaration.dischargedBy.kind === "phase" ? declaration.dischargedBy.id : nextPhaseId;
+  if (dischargedBy === null) return { mode, oracle: null };
+  return { mode, oracle: { dischargedBy, files: [...declaration.files] } };
+}
+
+type AnswerPhase = ExtractionAnswer["phases"][number];
+
+/** An extraction answer phase with `mode` and `oracle` set directly after `optionalFilesToEdit`. */
+type KindedPhase = Omit<AnswerPhase, "commit"> & PhaseKinds & Pick<AnswerPhase, "commit">;
+
+/**
+ * The extraction model's answer with every phase's `mode` and `oracle` read
+ * from plan.md's header lines (`phaseKinds`), placed directly after
+ * `optionalFilesToEdit`. An answer phase with no `## phase-NN` heading in
+ * plan.md fails, naming it. The next phase of an oracle is the next heading
+ * in plan.md, as on the deterministic path.
+ */
+export function withPhaseKinds(
+  answer: ExtractionAnswer,
+  planMd: string,
+): Either.Either<
+  Omit<ExtractionAnswer, "phases"> & { readonly phases: readonly KindedPhase[] },
+  PlanValidationError
+> {
+  const headers = readPhaseHeaders(planMd);
+  const missing = answer.phases.filter((p) => !headers.some((h) => h.phase === p.id));
+  if (missing.length > 0) {
+    return Either.left(
+      new PlanValidationError({
+        message: `The extraction model returned ${missing.map((p) => p.id).join(", ")}, which plan.md has no \`## phase-NN\` heading for.`,
+      }),
+    );
+  }
+  const phases = answer.phases.map((phase): KindedPhase => {
+    const index = headers.findIndex((h) => h.phase === phase.id);
+    const kinds = phaseKinds(headers[index]!, headers[index + 1]?.phase ?? null);
+    const { commit, ...fields } = phase;
+    return { ...fields, mode: kinds.mode, oracle: kinds.oracle, commit };
+  });
+  return Either.right({ ...answer, phases });
 }

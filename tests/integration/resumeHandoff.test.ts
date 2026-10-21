@@ -221,7 +221,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("re-runs only the handoff and continues to the next phase — no second commit", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -343,7 +343,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("pauses again (interrupted) when the handoff re-run fails a second time", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

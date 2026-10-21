@@ -373,6 +373,8 @@ describe("Plan approval writes its own record file", () => {
           plannedFilesToCreate: ["src/app/alpha.ts"],
           plannedFilesToEdit: [],
           optionalFilesToEdit: [],
+          mode: "headless",
+          oracle: null,
           commit: { subject: "feat(cli): phax alpha", body: "Add `phax alpha`." },
           objective: "Ship the alpha command.",
           detailedInstructions: ["Add the use case."],

@@ -125,7 +125,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("stops the run as rate_limited and writes resume-instructions.md", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -200,7 +200,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("classifies a usage limit and exits with code 8", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -250,7 +250,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("resumes a rate-limited run to review_open without re-running committed phases", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -440,7 +440,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   it("continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing", async () => {
     const plan = Either.getOrThrow(
       readPhaxPlanFile("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
-    );
+    ).plan;
     const gateCommand = "node scripts/check.mjs";
     const config: ResolvedConfig = {
       ...makeConfig(stateRoot),

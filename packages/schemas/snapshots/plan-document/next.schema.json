@@ -525,6 +525,8 @@
           "plannedFilesToCreate",
           "plannedFilesToEdit",
           "optionalFilesToEdit",
+          "mode",
+          "oracle",
           "boundaryContracts",
           "testStrategy",
           "implementationOrder",
@@ -574,6 +576,41 @@
             "items": {
               "type": "string"
             }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "headless",
+              "interactive"
+            ]
+          },
+          "oracle": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "dischargedBy",
+                  "files"
+                ],
+                "properties": {
+                  "dischargedBy": {
+                    "type": "string",
+                    "description": "a string matching the pattern ^phase-\\d{2}$",
+                    "pattern": "^phase-\\d{2}$"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "boundaryContracts": {
             "anyOf": [

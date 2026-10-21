@@ -31,6 +31,8 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   plannedFilesToCreate: ExtractedPhaseFields.plannedFilesToCreate,
   plannedFilesToEdit: ExtractedPhaseFields.plannedFilesToEdit,
   optionalFilesToEdit: ExtractedPhaseFields.optionalFilesToEdit,
+  mode: ExtractedPhaseFields.mode,
+  oracle: ExtractedPhaseFields.oracle,
   // Null for a phase that crosses no boundary: the phax-planning skill omits the
   // section rather than filling it.
   boundaryContracts: Schema.NullOr(Schema.NonEmptyString),
@@ -220,6 +222,8 @@ export function projectExtractedPlan(doc: AuthoredPlanDocument): ExtractedPhaxPl
       plannedFilesToCreate: phase.plannedFilesToCreate,
       plannedFilesToEdit: phase.plannedFilesToEdit,
       optionalFilesToEdit: phase.optionalFilesToEdit,
+      mode: phase.mode,
+      oracle: phase.oracle,
       commit: { subject: phase.commit.subject, body: phase.commit.body },
     })),
   };

@@ -373,6 +373,10 @@ export {
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";
 export {
+  PhaxPlanV0_17_0Schema,
+  type PhaxPlanV0_17_0,
+} from "../../../src/schemas/history/phax-plan/0.17.0.js";
+export {
   GateAttributionV0_17_0Schema,
   type GateAttributionV0_17_0,
 } from "../../../src/schemas/history/gate-attribution/0.17.0.js";

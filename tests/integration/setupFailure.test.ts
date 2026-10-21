@@ -60,7 +60,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("fails with SetupCommandFailedError when a setup command exits non-zero", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -142,7 +142,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("transitions run-status to failed after setup command failure", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -224,7 +224,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("writes setup.log with the failed command output before failing", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

@@ -508,6 +508,42 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     );
   });
 
+  // interactive-phases "One lift gives every phase its mode"; oracle-phases
+  // "Lifted sidecars get oracle null".
+  it.each([
+    ["0.20.0", (fm: string) => writeOlderPlan(null, fm)],
+    ["0.25.0", (fm: string) => writeV0_25_0Plan(fm)],
+  ] as const)(
+    "lifts a %s plan with mode headless and oracle null on every phase, adding no line to plan.md",
+    async (_release, write) => {
+      const md = write(planFrontmatter("Draft", null));
+      commitAll();
+
+      await migrated();
+
+      const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+        $schema: string;
+        phases: Array<Record<string, unknown>>;
+      };
+      expect(sidecar.$schema).toMatch(
+        /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/\d+\.\d+\.\d+\.json$/,
+      );
+      expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+      expect(sidecar.phases.map((phase) => [phase["mode"], phase["oracle"]])).toEqual([
+        ["headless", null],
+        ["headless", null],
+      ]);
+      for (const phase of sidecar.phases) {
+        const keys = Object.keys(phase);
+        const at = keys.indexOf("optionalFilesToEdit");
+        expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "oracle"]);
+      }
+      const after = readRepoFile(PLAN);
+      expect(after).not.toMatch(/\*\*Mode:\*\*|\*\*Oracle (phase|files):\*\*/);
+      expect(after).toBe(md.replace("**Model reason:**", "**Assignment reason:**"));
+    },
+  );
+
   it("refuses a 0.25.0 plan whose body was edited by hand, writing nothing", async () => {
     writeV0_25_0Plan(planFrontmatter("Draft", null));
     writeRepoFile(PLAN, readRepoFile(PLAN).replace("Do the step.", "Do the step, by hand."));

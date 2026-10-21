@@ -66,6 +66,8 @@ Carry out phase-01's made-up instructions.
     "src/edit-01.ts"
   ],
   "optionalFilesToEdit": [],
+  "mode": "headless",
+  "oracle": null,
   "commit": {
     "subject": "ai(phase-01): step 01",
     "body": "Does step 01."
@@ -232,6 +234,8 @@ Ready to proceed.
     "src/edit-02.ts"
   ],
   "optionalFilesToEdit": [],
+  "mode": "headless",
+  "oracle": null,
   "commit": {
     "subject": "ai(phase-02): step 02",
     "body": "Does step 02."

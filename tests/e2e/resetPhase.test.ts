@@ -89,7 +89,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
   });
 
   it("resets a gates_exhausted phase, archives its folder, removes worktree and branch, then resumes fresh", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

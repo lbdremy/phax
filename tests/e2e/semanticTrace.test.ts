@@ -86,7 +86,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — happy-path snapshot", () => 
   });
 
   it("captures the full semantic trace for a one-phase happy-path run and pins the projection", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

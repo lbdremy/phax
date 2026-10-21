@@ -65,7 +65,8 @@ function loadRunReviewInfo(
 
   const planPath = join(runPath, "phax-plan.json");
   const planResult = readPhaxPlanFile(planPath, tryReadJson(planPath));
-  const plan = Either.isRight(planResult) ? planResult.right : undefined;
+  // Display only: an older shape is read lifted, whatever the shape.
+  const plan = Either.isRight(planResult) ? planResult.right.plan : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
   const runTitle = plan?.run.title;

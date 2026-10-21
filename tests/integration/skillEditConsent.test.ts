@@ -63,7 +63,7 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
       },
       phases: [phase(1), phase(2)],
     }),
-  );
+  ).plan;
 }
 
 function makeConfig(stateRoot: string): ResolvedConfig {

@@ -6,9 +6,11 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
   ExtractedPhaxPlanSchema,
+  ExtractionAnswerSchema,
   getExtractedPlanJsonSchema,
   type ExtractedPhaxPlan,
 } from "../schemas/phaxPlan.js";
+import { withPhaseKinds } from "../domain/plan/phaseHeader.js";
 import {
   AgentInvocationError,
   PlanValidationError,
@@ -17,6 +19,10 @@ import {
 } from "../domain/errors.js";
 import { formatParseError } from "../schemas/formatError.js";
 import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
+
+const decodeExtractionAnswer = Schema.decodeUnknownEither(ExtractionAnswerSchema, {
+  onExcessProperty: "error",
+});
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -100,11 +106,24 @@ export function extractPlanLlm(
       );
     }
 
-    const decoded = decodeExtractedPlan(parsed);
+    const answer = decodeExtractionAnswer(parsed);
+    if (Either.isLeft(answer)) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `Extracted JSON failed schema validation:\n${formatParseError(answer.left)}`,
+        }),
+      );
+    }
+
+    // mode and oracle are phax's own reading of the header lines, never the model's.
+    const kinded = withPhaseKinds(answer.right, planMd);
+    if (Either.isLeft(kinded)) return yield* Effect.fail(kinded.left);
+
+    const decoded = decodeExtractedPlan(kinded.right);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
+          message: `Extracted plan failed schema validation:\n${formatParseError(decoded.left)}`,
         }),
       );
     }

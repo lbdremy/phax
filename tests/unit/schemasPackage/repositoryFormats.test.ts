@@ -371,7 +371,12 @@ describe("the plan document's question history", () => {
     expect(toLatestPlanDocument(result.value)).toEqual({
       ...withoutKey(v0_20_0, "$schema"),
       preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
-      phases: (v0_20_0["phases"] as Doc[]).map((phase) => ({ ...phase, assignmentReason: null })),
+      phases: (v0_20_0["phases"] as Doc[]).map((phase) => ({
+        ...phase,
+        mode: "headless",
+        oracle: null,
+        assignmentReason: null,
+      })),
     });
   });
 

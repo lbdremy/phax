@@ -383,7 +383,9 @@ export type LatestPlanDocument =
  * a 0.25.0 document carries its questions and its phases' `modelReason`,
  * which becomes `assignmentReason`; an older shape carried no questions, so
  * its preamble's `openQuestions` and `arbitratedQuestions` are empty, and no
- * phase reason, so each phase's `assignmentReason` is null.
+ * phase reason, so each phase's `assignmentReason` is null. Every older
+ * shape's phases get `mode: "headless"` and `oracle: null`: no phax that
+ * wrote them ran an interactive or an oracle phase.
  */
 export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
   if (isCurrentPlanDocument(value)) {
@@ -395,6 +397,8 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
     // The reason keeps its place before model and effort; only its key changes.
     const phases = Arr.map(value.phases, ({ modelReason, model, effort, ...phase }) => ({
       ...phase,
+      mode: "headless" as const,
+      oracle: null,
       assignmentReason: modelReason,
       model,
       effort,
@@ -402,10 +406,13 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
     return { ...recorded, phases };
   }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
-  // assignmentReason joins model and effort at the end of each phase; the other
-  // keys keep their recorded order (the lift is built in memory, never written).
+  // mode, oracle and assignmentReason join model and effort at the end of each
+  // phase; the other keys keep their recorded order (the lift is built in
+  // memory, never written).
   const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
     ...phase,
+    mode: "headless" as const,
+    oracle: null,
     assignmentReason: null,
     model,
     effort,
@@ -429,9 +436,9 @@ type PlanDocumentParsed =
   | PlanDocumentV0_25_0
   | PlanDocumentFile;
 
-/** Whether a parsed plan document is the current shape: only it carries `assignmentReason` on its phases. */
+/** Whether a parsed plan document is the current shape: only it carries `mode` on its phases. */
 function isCurrentPlanDocument(value: PlanDocumentParsed): value is PlanDocumentFile {
-  return "assignmentReason" in value.phases[0];
+  return "mode" in value.phases[0];
 }
 
 /** Whether a parsed plan document is the 0.25.0 shape: questions in the preamble, phases with `modelReason`. */

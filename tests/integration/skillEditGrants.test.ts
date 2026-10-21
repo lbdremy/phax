@@ -64,7 +64,7 @@ function makePlan(plannedFilesToEdit: readonly string[]): PhaxPlan {
         },
       ],
     }),
-  );
+  ).plan;
 }
 
 function makeConfig(stateRoot: string, gateCommand: string): ResolvedConfig {

@@ -63,7 +63,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the ordered semantic trace for a happy-path one-phase run", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -178,7 +178,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the rate-limit pause semantic events", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -295,7 +295,7 @@ describe("State Machine Contract", () => {
   });
 
   it("pauses the run as gates_exhausted when fix attempts are exhausted", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

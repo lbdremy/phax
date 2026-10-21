@@ -50,6 +50,7 @@ import {
   withKey,
   withoutKey,
   withModelReasons,
+  withoutPhaseKinds,
   withoutPreambleQuestions,
   type Doc,
 } from "./schemasPackage/documents.js";
@@ -103,9 +104,18 @@ function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
   return {
     ...doc,
     preamble: { ...(doc["preamble"] as object), openQuestions: [], arbitratedQuestions: [] },
-    phases: (doc["phases"] as object[]).map((phase) => ({ ...phase, assignmentReason: null })),
+    phases: (doc["phases"] as object[]).map((phase) => ({
+      ...phase,
+      mode: "headless",
+      oracle: null,
+      assignmentReason: null,
+    })),
   };
 }
+
+/** `readPhaxPlanFile`'s plan, whatever shape it read: the lift the display readers take. */
+const readPhaxPlan = (file: string, input: unknown) =>
+  Either.map(readPhaxPlanFile(file, input), (read) => read.plan);
 
 function right<A>(result: Either.Either<A, PersistedReadError>): A {
   if (Either.isLeft(result)) throw new Error(`expected a value, got ${result.left.message}`);
@@ -365,7 +375,7 @@ describe("format readers", () => {
     | "plan-document";
   const RUN_DIR = "/home/example/.phax/runs/example.example-run";
   it.each<readonly [StrictFormat, StrictReader, string, string]>([
-    ["phax-plan", readPhaxPlanFile, "phax-plan", `${RUN_DIR}/phax-plan.json`],
+    ["phax-plan", readPhaxPlan, "phax-plan", `${RUN_DIR}/phax-plan.json`],
     [
       "compliance-review",
       readComplianceReviewFile,
@@ -565,6 +575,8 @@ describe("format readers", () => {
         ...withoutKey(reasoned, "$schema"),
         phases: (reasoned["phases"] as Doc[]).map(({ modelReason, model, effort, ...phase }) => ({
           ...phase,
+          mode: "headless",
+          oracle: null,
           assignmentReason: modelReason,
           model,
           effort,
@@ -787,7 +799,7 @@ describe("documents from another release", () => {
     ["registry", readRegistryFile, "run registry"],
     ["run-status", readRunStatusFile, "run status"],
     ["phase-status", readPhaseStatusFile, "phase status"],
-    ["phax-plan", readPhaxPlanFile, "phax-plan"],
+    ["phax-plan", readPhaxPlan, "phax-plan"],
     ["compliance-review", readComplianceReviewFile, "compliance review"],
     ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger"],
     ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger"],
@@ -828,7 +840,9 @@ describe("documents from another release", () => {
               ? compareReleases(release, "0.25.0") >= 0
                 ? withModelReasons(validDocuments[id])
                 : withoutPreambleQuestions(validDocuments[id])
-              : validDocuments[id];
+              : id === "phax-plan"
+                ? withoutPhaseKinds(validDocuments[id])
+                : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);
@@ -1016,11 +1030,54 @@ describe("files stamped by an earlier release in the current shape", () => {
     ["registry", readRegistryFile, "0.20.0"],
     ["run-status", readRunStatusFile, "0.20.0"],
     ["phase-status", readPhaseStatusFile, "0.20.0"],
-    ["phax-plan", readPhaxPlanFile, "0.20.0"],
     ["run-status", readRunStatusFile, "0.19.0"],
   ])("reads a %s stamped %s", (id, read, release) => {
     const document = withKey(validDocuments[id], "$schema", schemaUrl(id, release));
     expect(Either.isRight(read(`${id}.json`, document))).toBe(true);
+  });
+});
+
+// A phax-plan reports the shape it read, so the reader that hands a plan to a
+// run can refuse an older one while the display readers take the lift.
+describe("readPhaxPlanFile's shapes", () => {
+  const file = "/home/example/.phax/runs/example.example-run/phax-plan.json";
+  const lifted = latestPreSchema("phax-plan");
+
+  it("reads a file at the current stamp as shape current", () => {
+    expect(right(readPhaxPlanFile(file, validDocuments["phax-plan"]))).toEqual({
+      shape: "current",
+      plan: withoutKey(validDocuments["phax-plan"], "$schema"),
+    });
+  });
+
+  // Literal release: the answer must not change when a release is cut.
+  it("reads a file stamped 0.20.0 as shape 0.17.0, lifted with mode headless and oracle null", () => {
+    const older = withKey(
+      withoutPhaseKinds(validDocuments["phax-plan"]),
+      "$schema",
+      schemaUrl("phax-plan", "0.20.0"),
+    );
+    const read = right(readPhaxPlanFile(file, older));
+    expect(read).toEqual({ shape: "0.17.0", plan: lifted });
+    expect(read.plan.phases.every((p) => p.mode === "headless" && p.oracle === null)).toBe(true);
+  });
+
+  it("reads a file without $schema as shape pre-schema, lifted the same way", () => {
+    expect(right(readPhaxPlanFile(file, preSchemaDocuments["phax-plan"]))).toEqual({
+      shape: "pre-schema",
+      plan: lifted,
+    });
+  });
+
+  it("refuses an older-stamped file that carries mode, and a current one that lacks it, naming the file", () => {
+    const olderWithMode = withKey(
+      validDocuments["phax-plan"],
+      "$schema",
+      schemaUrl("phax-plan", "0.20.0"),
+    );
+    expect(left(readPhaxPlanFile(file, olderWithMode)).message).toMatch(new RegExp(`^${file}: `));
+    const currentWithout = withoutPhaseKinds(validDocuments["phax-plan"]);
+    expect(left(readPhaxPlanFile(file, currentWithout)).message).toMatch(new RegExp(`^${file}: `));
   });
 });
 

@@ -2,7 +2,10 @@
 // status, phax-plan, compliance review and cost ledger. Each pre-schema shape
 // is phax's frozen module under src/schemas/history/; each current shape,
 // named by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own
-// schema and decoder. The package declares none of its own.
+// schema and decoder. The package declares none of its own. phax-plan also
+// lists its 0.17.0 shape, written before phases carried `mode` and `oracle`,
+// as a release, and lifts it as phax's reader does.
+import { Array as Arr } from "effect";
 import {
   ComplianceReviewFileSchema,
   decodeComplianceReviewFile,
@@ -30,6 +33,11 @@ import {
   decodePhaseStatusV0_17_0,
   type PhaseStatusV0_17_0,
 } from "../../../../src/schemas/history/phase-status/0.17.0.js";
+import {
+  PhaxPlanV0_17_0Schema,
+  decodePhaxPlanV0_17_0,
+  type PhaxPlanV0_17_0,
+} from "../../../../src/schemas/history/phax-plan/0.17.0.js";
 import {
   PhaxPlanPreSchemaSchema,
   decodePhaxPlanPreSchema,
@@ -201,7 +209,7 @@ export function toLatestPhaseStatus(
 
 // ── phax-plan
 
-export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema } & {
+export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema; "0.17.0": PhaxPlanV0_17_0 } & {
   [K in CurrentShapeName<"phax-plan">]: PhaxPlanFile;
 };
 
@@ -212,7 +220,7 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
   id: "phax-plan",
   label: "phax-plan",
   preSchema: { schema: PhaxPlanPreSchemaSchema, decode: decodePhaxPlanPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: PhaxPlanV0_17_0Schema, decode: decodePhaxPlanV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES["phax-plan"],
     shape: { schema: PhaxPlanFileSchema, decode: decodePhaxPlanFile },
@@ -225,14 +233,36 @@ export const parsePhaxPlan: (input: unknown) => ParsedShape<PhaxPlanShapes> = ph
 /** The latest phax-plan: phax's in-memory value, with no `version` and no `$schema`. */
 export type LatestPhaxPlan = PhaxPlan;
 
-/** Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaxPlan(value: PhaxPlanPreSchema | PhaxPlanFile): LatestPhaxPlan {
-  if ("$schema" in value) {
+/**
+ * Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never
+ * invents one: a 0.17.0 or pre-schema plan's phases get `mode: "headless"`
+ * and `oracle: null`, because every phase a phax of those shapes ran was
+ * headless and no oracle phase existed.
+ */
+export function toLatestPhaxPlan(
+  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanFile,
+): LatestPhaxPlan {
+  if (isCurrentPhaxPlan(value)) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
-  const { version: _version, ...recorded } = value;
-  return recorded;
+  const { run, phases } = value;
+  return {
+    run,
+    phases: Arr.map(phases, ({ commit, ...phase }) => ({
+      ...phase,
+      mode: "headless" as const,
+      oracle: null,
+      commit,
+    })),
+  };
+}
+
+/** Whether a parsed phax-plan is the current shape: only its phases carry `mode`. */
+function isCurrentPhaxPlan(
+  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanFile,
+): value is PhaxPlanFile {
+  return "mode" in value.phases[0];
 }
 
 // ── compliance review
