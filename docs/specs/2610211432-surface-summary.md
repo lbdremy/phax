@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-21
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-21
+  baseline: 366334a
 ---
 # Surface summary: one line per §6 element, in the consumer's words
 
