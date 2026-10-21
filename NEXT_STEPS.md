@@ -98,6 +98,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-21 | `phase-shape` (#151) | 3 × sonnet-5-5 / medium, 1 × opus-5-5 / medium (with a reason) | $16.95 ($4.35 of it lost to a rate-limit pause) | 2 / 3 | The plan promised a refused resume leaves the run unchanged, which it does not, and its header grammar let `*Mode:*`, `__Mode:__` and blockquoted lines read as headless. Execution previewed a resume it would refuse, ignored a `**Model reason:**` line set off by a blank line, and split oracle files on commas inside code spans. |
 | 2026-10-21 | `assignment-bounds` (#152) | 1 × opus-5-5 / high (with a reason), 1 × sonnet-5-5 / medium | $11.27 | 1 / 3 | The plan had `phax validate` print its success line before checking the bounds. Execution on the Opus phase left `phax plans lint` exiting 1 on an invalid config and wrote a glob matcher that backtracks exponentially; on the Sonnet phase it left the headless skill tying a null reason to the default. |
 | 2026-10-21 | `oracle-phases` plan 1 (#154) | 3 × sonnet-5-5 / medium, 1 × opus-5-5 / medium (with a reason) | $14.85 | 2 / 5 | The plan promised a reset-the-pair recovery that `reset-phase` cannot do (now `phax resume --skip-oracle`, its own plan), and missed an oracle phase skipped for no changes. Execution told the agent to run the ungranted oracles provider, gave two frozen modules a wrong release range, documented lint as exiting 11, left phax-decide-plan's P3 unconditioned on a provider, and missed four §8 tests. |
+| 2026-10-21 | `oracle-phases` plan 2, skip-oracle (#155) | 2 × sonnet-5-5 / medium | $2.88 ($0.97 of it before a usage-limit pause) | 0 / 1 | Execution named the `--skip-oracle` recovery in the reset refusal even when the discharge was already past its gate, where a resume would skip another phase's oracle step. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -156,6 +157,10 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **`phax reset-phase` without `--yes` previews a reset it would refuse.** The preview prints
+      "Would reset …" before the use case runs its refusals (a later committed phase, an oracle phase
+      whose discharge has started), so the refusal only shows with `--yes`. Run the refusals first, as
+      `phax resume` now does for its preview.
 - [ ] **A refused `phax resume` should leave the run as it was.** Today `RunResumeRequested` moves the
       run to `running` before the start preflight re-checks it. A refusal (exit 11) then reaches the
       `RunFailed` guard in `executePlan`, and the run becomes `failed`, which `resume` refuses for
