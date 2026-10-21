@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610211708-oracle-phases-plan.md",
+  "planFingerprint": "cf3dc69bb036788907583ab6779afe0620a4384e9b0c9b13539c2abf76d4b871",
+  "approvedAt": "2026-10-21T18:30:49.197Z",
+  "baseline": "273050a4f8e88aec25f5aa142535fa956dd25546",
+  "sourceSpec": {
+    "path": "docs/specs/2610201518-oracle-phases.md",
+    "fingerprint": "b1bf20880881926a61d0d42a810dc2e26c8dfbccc3e50b51e745b90d8e13a926"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
