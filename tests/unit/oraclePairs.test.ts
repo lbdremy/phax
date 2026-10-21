@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { oraclePairs, oracleRoleOf, recordOracleRole } from "../../src/domain/plan/oraclePairs.js";
+import {
+  dischargedOracleFiles,
+  oraclePairs,
+  oracleRoleOf,
+  recordOracleRole,
+} from "../../src/domain/plan/oraclePairs.js";
 
 // A five-phase plan with one pair: phase-02 authors tests/prune.test.ts and
 // phase-04 discharges it.
@@ -58,5 +63,14 @@ describe("recordOracleRole", () => {
       oraclePhase: "phase-02",
     });
     expect(recordOracleRole(null)).toBeNull();
+  });
+});
+
+describe("dischargedOracleFiles", () => {
+  it("gives the pair's files at the discharging phase only", () => {
+    expect(dischargedOracleFiles(phases, "phase-04")).toEqual(["tests/prune.test.ts"]);
+    for (const id of ["phase-01", "phase-02", "phase-03", "phase-05"]) {
+      expect(dischargedOracleFiles(phases, id)).toEqual([]);
+    }
   });
 });

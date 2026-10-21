@@ -402,8 +402,6 @@ describe("lintPlan", () => {
   });
 
   describe("oracles", () => {
-    const REFUSAL =
-      "declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines";
     const NO_PROVIDER =
       'oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
     const withProvider = {
@@ -418,19 +416,16 @@ describe("lintPlan", () => {
         `**Recommended effort:** medium\n**Oracle phase:** ${dischargedBy}\n**Oracle files:** ${files}\n\n### Planned files to create\n\n- src/a.ts`,
       );
 
-    it("reports a missing provider and the refusal for a declared oracle phase", async () => {
+    it("reports a missing provider for a declared oracle phase", async () => {
       const report = await runLint(pairPlan("`src/a.ts`"));
 
       expect(
         oracleRows(report).map((f) => ({ phase: f.phase, severity: f.severity, m: f.message })),
-      ).toEqual([
-        { phase: "phase-01", severity: "error", m: NO_PROVIDER },
-        { phase: "phase-01", severity: "error", m: REFUSAL },
-      ]);
+      ).toEqual([{ phase: "phase-01", severity: "error", m: NO_PROVIDER }]);
       expect(hasLintErrors(report.findings)).toBe(true);
     });
 
-    it("reports only the refusal once a provider is configured, and never spawns it", async () => {
+    it("reports no oracles row once a provider is configured, and never spawns it", async () => {
       const fakeShell = makeFakeShell();
       const report = await runLint(
         pairPlan("`src/a.ts`"),
@@ -441,7 +436,7 @@ describe("lintPlan", () => {
         },
       );
 
-      expect(oracleRows(report).map((f) => f.message)).toEqual([REFUSAL]);
+      expect(oracleRows(report)).toEqual([]);
       expect(fakeShell.impl.calls).toEqual([]);
     });
 
@@ -456,7 +451,6 @@ describe("lintPlan", () => {
 
       expect(oracleRows(report).map((f) => f.message)).toEqual([
         "oracle file src/other.ts is not among this phase's planned files to create or to edit",
-        REFUSAL,
       ]);
     });
 
@@ -470,7 +464,6 @@ describe("lintPlan", () => {
       expect(oracleRows(report).map((f) => f.message)).toEqual([
         "oracle phase is discharged by the next phase, and phase-01 is the last phase",
         "oracle file src/a.ts is not among this phase's planned files to create or to edit",
-        REFUSAL,
       ]);
     });
 
@@ -482,7 +475,7 @@ describe("lintPlan", () => {
 
       const report = await runLint(broken);
 
-      expect(oracleRows(report).map((f) => f.message)).toEqual([NO_PROVIDER, REFUSAL]);
+      expect(oracleRows(report).map((f) => f.message)).toEqual([NO_PROVIDER]);
     });
   });
 

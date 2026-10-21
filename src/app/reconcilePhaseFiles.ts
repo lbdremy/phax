@@ -18,6 +18,10 @@ export interface ReconcilePhaseFilesOptions {
   readonly phaseFolderPath: string;
   readonly runId: string;
   readonly fileReconciliationMode: "report_only" | "warn";
+  /** The oracle files the phase discharges (`dischargedOracleFiles`), counted
+   *  as optional files: removing a marker is never an unplanned edit, and an
+   *  untouched oracle file is never a missing edit. */
+  readonly oracleFiles: readonly string[];
 }
 
 export function reconcilePhaseFiles(
@@ -31,7 +35,7 @@ export function reconcilePhaseFiles(
     const planned: PlannedFiles = {
       create: opts.phase.plannedFilesToCreate,
       edit: opts.phase.plannedFilesToEdit,
-      optional: opts.phase.optionalFilesToEdit,
+      optional: [...new Set([...opts.phase.optionalFilesToEdit, ...opts.oracleFiles])],
     };
 
     const entries = yield* git.diffNameStatus(opts.worktreePath);

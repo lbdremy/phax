@@ -104,14 +104,9 @@ const INTERACTIVE_MESSAGE = [
 ].join("\n");
 const NO_PROVIDER_ROW =
   '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
-const REFUSAL_ROW =
-  "  phase-01  declared an oracle phase (**Oracle phase:**): this phax cannot run an oracle phase yet; remove the oracle lines";
-const ORACLE_MESSAGE = [
-  "Oracle preflight failed: 2 error(s).",
-  NO_PROVIDER_ROW,
-  REFUSAL_ROW,
-  LINT_HINT,
-].join("\n");
+const ORACLE_MESSAGE = ["Oracle preflight failed: 1 error(s).", NO_PROVIDER_ROW, LINT_HINT].join(
+  "\n",
+);
 // The same text lint prints for the label error, under the model preflight header.
 const MODEL_REASON_MESSAGE = [
   "Model preflight failed: 1 phase(s) have invalid model configuration.",
@@ -331,26 +326,16 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
         "Check the plan with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
-  "oracle-phases (a provider is configured)": {
-    fixture: {
-      config: { oracles: { command: "./fake-oracles" } },
-      plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
-    },
-    exitCode: 11,
-    errorLine: () =>
-      `phax run failed: ${["Oracle preflight failed: 1 error(s).", REFUSAL_ROW, LINT_HINT].join("\n")}`,
-  },
   "oracle-phases (an interactive last phase declaring an oracle phase)": {
     fixture: { plan: { phases: [{}, { headerLines: [INTERACTIVE_LINE, ...ORACLE_LINES] }] } },
     exitCode: 11,
     errorLine: () =>
       `phax run failed: ${[
-        "Oracle preflight failed: 5 error(s).",
+        "Oracle preflight failed: 4 error(s).",
         "  phase-02  oracle phase is discharged by the next phase, and phase-02 is the last phase",
         "  phase-02  oracle file src/step-01.ts is not among this phase's planned files to create or to edit",
         "  phase-02  an interactive phase takes no oracle role: it declares an oracle phase",
         NO_PROVIDER_ROW.replace("phase-01", "phase-02"),
-        REFUSAL_ROW.replace("phase-01", "phase-02"),
         LINT_HINT,
       ].join("\n")}`,
   },
@@ -484,6 +469,20 @@ describe("phax run — a preflight refusal precedes naming", () => {
       expect(code).not.toBe(11);
     },
   );
+
+  it("a well-formed oracle pair with a provider passes the preflight and names the run", async () => {
+    const r = enter({
+      config: { oracles: { command: "./fake-oracles" } },
+      plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
+    });
+    const out = recordingOutput();
+
+    const code = await runRun({ plan: "plan.md" }, out.port);
+
+    expect(out.logs).toContain(`Run: ${r.namespace}.foo`);
+    expect(out.errors.filter((e) => e.includes("Oracle preflight"))).toEqual([]);
+    expect(code).not.toBe(11);
+  });
 
   it("several refusals at once report only the first, in today's order", async () => {
     const r = enter({

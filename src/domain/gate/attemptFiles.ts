@@ -1,14 +1,15 @@
 /**
  * Numbers a phase's gate attempts from the file names in its phase folder.
  * Every per-attempt file carries its attempt's number, in two or more digits:
- * `checks-attempt-NN.log`, `.request.json`, `.attribution.json` (the step
- * record), `.report-SS.json`, and the fix transcript `fix-attempt-NN.jsonl`.
+ * `checks-attempt-NN.log`, `.request.json`, `.oracle-request.json` (the oracle
+ * step's request), `.attribution.json` (the step record), `.report-SS.json`,
+ * and the fix transcript `fix-attempt-NN.jsonl`.
  * An attempt is recorded when its log exists; one cut short before its log
  * was written is not. The per-phase `gate-attribution.json` carries no number.
  */
 
 const CHECKS_FILE =
-  /^checks-attempt-(\d{2,})\.(?:log|request\.json|attribution\.json|report-\d{2,}\.json)$/;
+  /^checks-attempt-(\d{2,})\.(?:log|request\.json|oracle-request\.json|attribution\.json|report-\d{2,}\.json)$/;
 const FIX_TRANSCRIPT = /^fix-attempt-(\d{2,})\.jsonl$/;
 const ATTEMPT_LOG = /^checks-attempt-(\d{2,})\.log$/;
 

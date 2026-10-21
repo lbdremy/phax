@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
 import { serializeGateRequest } from "../../src/app/gates.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
-import { GateAttemptsExhaustedError } from "../../src/domain/errors.js";
+import { GateAttemptsExhaustedError, GateStepRefusedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -960,5 +960,101 @@ describe("runGatesWithFixLoop", () => {
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeDefined();
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeDefined();
+  });
+
+  describe("an oracle step", () => {
+    const reportUrl = currentSchemaUrl("gate-report");
+    const oracleStep = { command: "./oracles", request: '{"made-up":"request"}', timeoutMs: 1000 };
+    const unmarked = {
+      id: "oracle-unmarked tests/refunds.test.ts",
+      rule: "an oracle test is marked until its discharging phase",
+      location: { file: "tests/refunds.test.ts", lines: [12, 12] },
+      message: "the refund test is not marked",
+      related: [],
+      guide: null,
+    };
+    const report = (findings: readonly object[]) =>
+      JSON.stringify({ $schema: reportUrl, outcome: "checked", findings, review: [] });
+
+    it("sends a finding to the fix prompt, queries the provider again, and passes", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 0, stdout: "ok", stderr: "" },
+        { exitCode: 0, stdout: report([unmarked]), stderr: "" },
+        { exitCode: 0, stdout: "ok", stderr: "" },
+        { exitCode: 0, stdout: report([]), stderr: "" },
+      );
+
+      const outcome = await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer)),
+      );
+
+      expect(outcome.attemptLogPath).toContain("checks-attempt-02");
+      const providerCalls = fakeShell.impl.calls.filter((c) => c.command[0] === "./oracles");
+      expect(providerCalls).toHaveLength(2);
+      expect(providerCalls.every((c) => c.stdin === oracleStep.request)).toBe(true);
+      const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+      expect(prompt).toContain("**Failed step:** `./oracles` (1 finding)");
+      expect(prompt).toContain("- tests/refunds.test.ts:12");
+      expect(prompt).toContain("found: the refund test is not marked");
+      const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+        state: string;
+      };
+      expect(persisted.state).toBe("passed");
+    });
+
+    it("pauses on a refusal with no fix attempt", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeShell.impl.enqueue(
+        { exitCode: 0, stdout: "ok", stderr: "" },
+        {
+          exitCode: 0,
+          stdout: JSON.stringify({
+            $schema: reportUrl,
+            outcome: "refused",
+            reason: "the oracle files are not test files",
+            remedy: "list test files under **Oracle files:**",
+          }),
+          stderr: "",
+        },
+      );
+
+      const result = await Effect.runPromise(
+        Effect.either(runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer))),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(GateStepRefusedError);
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+    });
+
+    it("exhausts the loop on an always-finding provider", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok", stderr: "" });
+      fakeShell.impl.setResponse("./oracles", {
+        exitCode: 0,
+        stdout: report([unmarked]),
+        stderr: "",
+      });
+
+      const result = await Effect.runPromise(
+        Effect.either(runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer))),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+        expect((result.left as GateAttemptsExhaustedError).command).toBe("./oracles");
+      }
+      const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+        state: string;
+      };
+      expect(persisted.state).toBe("gates_exhausted");
+    });
   });
 });

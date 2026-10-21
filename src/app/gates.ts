@@ -20,6 +20,9 @@ import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
 import { commandWords } from "../domain/gate/commandWords.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
+import { encodeOracleRequestFile, type OracleRequest } from "../schemas/oracleRequest.js";
+import { oracleRequestPathFor } from "../domain/gate/oracleRequest.js";
+import type { RecordedSurface } from "../schemas/surface.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
@@ -37,6 +40,18 @@ function unreadableReport(reason: string): ReportError {
  */
 export function serializeGateRequest(request: GateRequest): string {
   return JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2);
+}
+
+/** The oracles provider's wall-clock cap. Fixed: the `oracles` block holds only `command`. */
+export const ORACLE_PROVIDER_TIMEOUT_MS = 120_000;
+
+/**
+ * The exact bytes of an oracle request: what the oracles provider reads on
+ * stdin and what is saved as `checks-attempt-NN.oracle-request.json`. Stamped
+ * with oracle-request's current stamp, two-space indented, no trailing newline.
+ */
+export function serializeOracleRequest(request: OracleRequest): string {
+  return JSON.stringify(encodeOracleRequestFile(withSchemaUrl("oracle-request", request)), null, 2);
 }
 
 export function resolveGateProfile(
@@ -84,6 +99,19 @@ export interface RunGatesOptions {
    *  the stdin of every step that declares `input: "gate-request"`, and saved
    *  beside the attempt log before the attempt's first declaring step. */
   readonly gateRequest: string;
+  /** The oracle step, set exactly when the phase is an oracle phase or the
+   *  phase that discharges one. Run once every configured step has passed,
+   *  last, under the `oracle` surface: `command` is split on whitespace (no
+   *  shell), `request` is written on its stdin and saved beside the log as
+   *  `oracleRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. */
+  readonly oracleStep?: OracleStep;
+}
+
+/** The oracle step's command, its serialized request and its time cap. */
+export interface OracleStep {
+  readonly command: string;
+  readonly request: string;
+  readonly timeoutMs: number;
 }
 
 export function runGates(
@@ -93,7 +121,7 @@ export function runGates(
   GateFailedError | GateStepRefusedError | FsError | ShellError,
   Shell | FileSystem
 > {
-  const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest } = opts;
+  const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest, oracleStep } = opts;
   const requestPath = requestPathFor(attemptLogPath);
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -149,37 +177,27 @@ export function runGates(
       });
     }
 
-    for (const [index, step] of steps.entries()) {
-      const rawCommand = step.command;
-      const command = parseCommandTokens(rawCommand);
-      logLines.push(`$ ${rawCommand}`);
-
-      let result: ShellRunResult;
-      if (step.input === "gate-request") {
-        if (!requestWritten) {
-          yield* fs.writeAtomic(requestPath, gateRequest);
-          requestWritten = true;
-        }
-        logLines.push(`stdin: ${basename(requestPath)}`);
-        result = yield* shell.run({ command, cwd, stdin: gateRequest });
-      } else {
-        result = yield* shell.run({ command, cwd });
-      }
-
-      const stdoutLine = logLines.length;
-      if (result.stdout) logLines.push(result.stdout.trimEnd());
-      if (result.stderr) logLines.push(result.stderr.trimEnd());
-      logLines.push(`exit ${result.exitCode}`);
-      logLines.push("");
-
-      if (step.output === "gate-report") {
+    /**
+     * Judges a report step's result, a configured `output: "gate-report"` step
+     * and the oracle step alike, and records it. Succeeds only when the step
+     * passed; any other verdict fails the gate.
+     */
+    function judgeReport(params: {
+      readonly rawCommand: string;
+      readonly surface: RecordedSurface;
+      readonly position: number;
+      readonly result: ShellRunResult;
+      readonly stdoutLine: number;
+    }): Effect.Effect<void, GateFailedError | GateStepRefusedError | FsError> {
+      const { rawCommand, surface, position, result, stdoutLine } = params;
+      return Effect.gen(function* () {
         // The step promised a gate report on stdout; the verdict comes from the
         // report. Anything else is a broken step: it fails with the raw log,
         // and nothing is saved beside it.
         function unread(error: ReportError) {
           const line = describeReportError(error);
           logLines.push(`provider error: ${line}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          stepResults.push({ command: rawCommand, surface, result: "fail" });
           return failGate({
             rawCommand,
             exitCode: result.exitCode,
@@ -210,7 +228,6 @@ export function runGates(
 
         // A readable report is saved first, whatever the verdict, as the step
         // printed it: never re-serialized, trimmed or re-stamped.
-        const position = index + 1;
         const reportPath = reportPathFor(attemptLogPath, position);
         yield* fs.writeAtomic(reportPath, result.stdout);
         // The log names the saved report in place of its text, so that a raw-log
@@ -223,7 +240,7 @@ export function runGates(
           // A refusal stops the gate for the operator, whatever the exit code:
           // no later step runs, and the fix loop makes no attempt.
           logLines.push(`refused: ${report.reason} — remedy: ${report.remedy}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "refused" });
+          stepResults.push({ command: rawCommand, surface, result: "refused" });
           yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
           yield* writeAttribution();
           return yield* Effect.fail(
@@ -242,12 +259,12 @@ export function runGates(
         if (report.findings.length === 0) {
           // Review notes never fail a step.
           if (result.exitCode === 0) {
-            stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
-            continue;
+            stepResults.push({ command: rawCommand, surface, result: "pass" });
+            return;
           }
           const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no finding`;
           logLines.push(`provider error: ${message}`);
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          stepResults.push({ command: rawCommand, surface, result: "fail" });
           return yield* failGate({
             rawCommand,
             exitCode: result.exitCode,
@@ -259,7 +276,7 @@ export function runGates(
         // Any finding fails the step, whatever the exit code. The findings
         // keep the report's order.
         const count = report.findings.length;
-        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+        stepResults.push({ command: rawCommand, surface, result: "fail" });
         return yield* failGate({
           rawCommand,
           exitCode: result.exitCode,
@@ -267,6 +284,47 @@ export function runGates(
           reportFindings: { step: position, findings: report.findings },
           stderr: result.stderr,
         });
+      });
+    }
+
+    /** Logs a step's output and exit; returns the index of its stdout line. */
+    function logResult(result: ShellRunResult): number {
+      const stdoutLine = logLines.length;
+      if (result.stdout) logLines.push(result.stdout.trimEnd());
+      if (result.stderr) logLines.push(result.stderr.trimEnd());
+      logLines.push(`exit ${result.exitCode}`);
+      logLines.push("");
+      return stdoutLine;
+    }
+
+    for (const [index, step] of steps.entries()) {
+      const rawCommand = step.command;
+      const command = parseCommandTokens(rawCommand);
+      logLines.push(`$ ${rawCommand}`);
+
+      let result: ShellRunResult;
+      if (step.input === "gate-request") {
+        if (!requestWritten) {
+          yield* fs.writeAtomic(requestPath, gateRequest);
+          requestWritten = true;
+        }
+        logLines.push(`stdin: ${basename(requestPath)}`);
+        result = yield* shell.run({ command, cwd, stdin: gateRequest });
+      } else {
+        result = yield* shell.run({ command, cwd });
+      }
+
+      const stdoutLine = logResult(result);
+
+      if (step.output === "gate-report") {
+        yield* judgeReport({
+          rawCommand,
+          surface: step.surface,
+          position: index + 1,
+          result,
+          stdoutLine,
+        });
+        continue;
       }
 
       if (result.exitCode !== 0) {
@@ -280,6 +338,46 @@ export function runGates(
       }
 
       stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
+    }
+
+    if (oracleStep !== undefined) {
+      // Every configured step passed: phax appends the oracle step, last. Its
+      // request is saved beside the log before the provider reads it.
+      const rawCommand = oracleStep.command;
+      const oracleRequestPath = oracleRequestPathFor(attemptLogPath);
+      yield* fs.writeAtomic(oracleRequestPath, oracleStep.request);
+      logLines.push(`$ ${rawCommand}`);
+      logLines.push(`stdin: ${basename(oracleRequestPath)}`);
+      const spawned = yield* Effect.either(
+        shell.run({
+          command: parseCommandTokens(rawCommand),
+          cwd,
+          stdin: oracleStep.request,
+          timeoutMs: oracleStep.timeoutMs,
+        }),
+      );
+      if (Either.isLeft(spawned)) {
+        // The provider could not be spawned or outran the cap: there is no
+        // report to judge, so the step is broken.
+        const error = spawned.left;
+        logLines.push(`provider error: ${error.message}`);
+        logLines.push("");
+        stepResults.push({ command: rawCommand, surface: "oracle", result: "fail" });
+        return yield* failGate({
+          rawCommand,
+          exitCode: error.exitCode ?? -1,
+          message: `Gate step "${rawCommand}": ${error.message}`,
+          stderr: error.stderrExcerpt ?? "",
+        });
+      }
+      const result = spawned.right;
+      yield* judgeReport({
+        rawCommand,
+        surface: "oracle",
+        position: steps.length + 1,
+        result,
+        stdoutLine: logResult(result),
+      });
     }
 
     yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));

@@ -15,7 +15,13 @@ import { putPlanApprovalRecord, putSpecApprovalRecord } from "../../src/app/appr
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
 import { stampBriefRequest } from "../../src/app/briefProvider.js";
-import { runGates, serializeGateRequest } from "../../src/app/gates.js";
+import {
+  ORACLE_PROVIDER_TIMEOUT_MS,
+  runGates,
+  serializeGateRequest,
+  serializeOracleRequest,
+} from "../../src/app/gates.js";
+import { makeOracleRequest } from "../../src/domain/gate/oracleRequest.js";
 import { pushBrief, writePhaseBriefRequest } from "../../src/app/pushedBrief.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
@@ -287,6 +293,7 @@ function formatAt(
   if (name === "brief-request.json") return "brief-request";
   if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";
   if (/\.report-\d{2,}\.json$/.test(name)) return "gate-report";
+  if (name.endsWith(".oracle-request.json")) return "oracle-request";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     if (location.startsWith("records:decision/")) return "decision-record-manifest";
@@ -505,6 +512,39 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     }),
   );
 
+  // A third gate attempt with the oracle step: the gate saves the oracle
+  // request it writes on the provider's stdin.
+  shell.impl.setResponse("./oracles", { exitCode: 0, stdout: FAILING_REPORT, stderr: "" });
+  await run(
+    runGates({
+      steps: [],
+      cwd: WORKTREE,
+      attemptLogPath: `${PHASE_FOLDER}/checks-attempt-03.log`,
+      attributionPath: `${PHASE_FOLDER}/gate-attribution.json`,
+      phaseId: "phase-01",
+      gateRequest: "",
+      oracleStep: {
+        command: "./oracles",
+        request: serializeOracleRequest(
+          makeOracleRequest({
+            role: {
+              role: "oracle",
+              pair: {
+                oraclePhase: "phase-01",
+                dischargingPhase: "phase-02",
+                files: ["tests/refunds.test.ts"],
+              },
+            },
+            phaseId: "phase-01",
+            base: "0123456789abcdef0123456789abcdef01234567",
+            oracleCommit: null,
+          }),
+        ),
+        timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
+      },
+    }),
+  );
+
   // A file reconciliation.
   const reconciled = await run(
     reconcilePhaseFiles({
@@ -513,6 +553,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       phaseFolderPath: PHASE_FOLDER,
       runId: created.right.runId,
       fileReconciliationMode: "report_only",
+      oracleFiles: [],
     }),
   );
   if (Either.isLeft(reconciled)) throw new Error("reconcilePhaseFiles failed");
@@ -692,10 +733,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // the architecture provider's stdin and the report is its stdout, printed.
   "architecture-request",
   "architecture-report",
-  // phax never writes the oracle request yet: the oracle step that puts it on
-  // the oracles provider's stdin lands in phase-03 of oracle-phases, which
-  // removes this entry.
-  "oracle-request",
   // phax never writes a hand decision answer: it is a decide session's final
   // message, from which phax writes the artifact itself.
   "hand-decision-answer",
