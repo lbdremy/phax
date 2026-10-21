@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610201350-assignment-bounds.md
 completes-spec: false
 approved:
