@@ -33,7 +33,16 @@ export interface Home {
   readonly actions: ReadonlyArray<HomeAction>;
   /** The install command shown under the actions; README.md must contain it. */
   readonly install: string;
+  /** The video the control under the actions plays in a dialog. */
+  readonly video: HomeVideo;
   readonly features: ReadonlyArray<HomeFeature>;
+}
+
+/** A video and its poster, by their site/public paths (`/tour.mp4`); the build refuses a missing one. */
+export interface HomeVideo {
+  readonly label: string;
+  readonly src: string;
+  readonly poster: string;
 }
 
 export interface HomeAction {

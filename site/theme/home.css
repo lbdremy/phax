@@ -223,6 +223,93 @@
   color: var(--rp-c-text-1);
 }
 
+/*
+ * The video control under the hero's actions (WatchVideo.tsx): a quiet third
+ * action, closer to the buttons than the hero's 32px gap, and its dialog.
+ */
+.phax-watch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -12px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--rp-c-text-2);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.phax-watch:hover {
+  color: var(--rp-c-text-1);
+}
+
+.phax-watch__play {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--rp-c-brand);
+  border-radius: 50%;
+  color: var(--rp-c-brand);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.phax-watch__play svg {
+  margin-left: 2px;
+}
+
+.phax-watch:hover .phax-watch__play {
+  background: var(--phax-c-fill);
+  color: var(--phax-c-fill-text);
+}
+
+.phax-watch__dialog {
+  box-sizing: border-box;
+  width: min(1100px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 12px;
+  background: #000;
+  overflow: visible;
+}
+
+.phax-watch__dialog::backdrop {
+  background: rgb(0 0 0 / 0.75);
+}
+
+.phax-watch__dialog video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+}
+
+.phax-watch__close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 6px;
+  background: var(--rp-c-bg);
+  color: var(--rp-c-text-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.phax-watch__close:hover {
+  border-color: var(--rp-c-brand);
+  color: var(--rp-c-text-1);
+}
+
 /* The hero's run card (LiveRun.tsx), where Rspress shows an image. */
 .rp-home-hero__image:has(.phax-run) {
   flex: 0 1 34rem;

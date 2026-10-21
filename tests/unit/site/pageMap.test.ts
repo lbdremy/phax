@@ -174,6 +174,7 @@ describe("checkPageMap", () => {
       tagline: "Runs plans.",
       actions: [{ text: "Run", link: "/guide/run", theme: "brand" as const }],
       install: "npm install -g tool",
+      video: { label: "Watch it", src: "/tour.mp4", poster: "/tour.jpg" },
       features: [
         { key: "post", title: "1.0", details: "Shipped.", link: "/blog/announcing-tool-1-0" },
         { key: "gone", title: "Gone", details: "Missing.", link: "/guide/missing" },

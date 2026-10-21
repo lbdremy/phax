@@ -78,6 +78,28 @@ describe("runGuard", () => {
     expect(LIVE_INDEX_URL).toBe("https://docs.phax.run/schemas/index.json");
   });
 
+  it("refuses a build holding a Git LFS pointer before fetching anything, naming it", async () => {
+    const dir = buildDir(BUILT_0_17);
+    writeFileSync(
+      join(dir, "tour.mp4"),
+      "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a\nsize 4695800\n",
+    );
+    const seen: Array<string> = [];
+    const result = await runGuard({
+      fetch: async (url) => {
+        seen.push(url);
+        return new Response("", { status: 404 });
+      },
+      buildDir: dir,
+    });
+    expect(result).toEqual({
+      pass: false,
+      finding:
+        "✗ deploy guard: /tour.mp4 is a Git LFS pointer, not the file; check out with LFS (actions/checkout lfs: true)",
+    });
+    expect(seen).toEqual([]);
+  });
+
   it("passes a 404 as a first deploy", async () => {
     const result = await runGuard({ fetch: answer(404), buildDir: buildDir(BUILT_0_17) });
     expect(result.pass).toBe(true);
