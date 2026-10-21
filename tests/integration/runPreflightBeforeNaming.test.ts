@@ -26,6 +26,8 @@ import type { FreshRunPreflightStep } from "../../src/app/runPreflight.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   createPreflightRepo,
@@ -111,6 +113,43 @@ const MODEL_REASON_MESSAGE = [
   "\n  phase-01 (claude-opus-5-5/medium):",
   "    - **Model reason:** is no longer read: write **Assignment reason:**",
 ].join("\n");
+
+// Made-up assignment bounds over the fixture's phase-01, which creates
+// src/step-01.ts at claude-opus-5-5 / medium: both name another model.
+const BOUND_EFFORT = { min: "medium", max: "high" };
+const STEP_BOUND = {
+  kind: "globs",
+  globs: ["src/step-01.ts"],
+  model: "claude-sonnet-5-5",
+  effort: BOUND_EFFORT,
+};
+const STEPS_PART_BOUND = {
+  kind: "part",
+  part: "steps",
+  model: "claude-sonnet-5-5",
+  effort: BOUND_EFFORT,
+};
+/** A committed architecture provider: reads its request, prints a report with a `steps` part. */
+const ARCHITECTURE_PROVIDER = [
+  "for await (const _chunk of process.stdin);",
+  `process.stdout.write(${JSON.stringify(
+    JSON.stringify({
+      $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
+      body: "# Architecture — acme",
+      parts: [{ id: "steps", name: "steps", description: "The steps.", globs: ["src/**"] }],
+    }),
+  )});`,
+].join("\n");
+
+function assignmentRefusal(covers: string): string {
+  return [
+    "Assignment preflight failed: 1 error(s) from the assignment bounds.",
+    "",
+    "  phase-01 (claude-opus-5-5/medium):",
+    `    - outside assignments[0] (${covers}: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line`,
+    "Check the plan with `phax plans lint plan.md`.",
+  ].join("\n");
+}
 
 interface RefusalScenario {
   /** Committed fixture content; the tree is clean unless `arrange` dirties it. */
@@ -217,6 +256,11 @@ const SCENARIOS = {
         "Fix the plan, then check it with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
+  "assignment-bounds": {
+    fixture: { config: { assignments: [STEP_BOUND] } },
+    exitCode: 11,
+    errorLine: () => `phax run failed: ${assignmentRefusal("globs src/step-01.ts")}`,
+  },
   "interactive-phases": {
     fixture: { plan: { phases: [{ headerLines: [INTERACTIVE_LINE] }] } },
     exitCode: 11,
@@ -241,6 +285,43 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
     fixture: { plan: { phases: [{ headerLines: ["**Model reason:** old label"] }] } },
     exitCode: 11,
     errorLine: () => `phax run failed: ${MODEL_REASON_MESSAGE}`,
+  },
+  "assignment-bounds (a part bound the provider resolves)": {
+    fixture: {
+      config: {
+        assignments: [STEPS_PART_BOUND],
+        architecture: { command: "node acme-guard.mjs" },
+      },
+      files: { "acme-guard.mjs": ARCHITECTURE_PROVIDER },
+    },
+    exitCode: 11,
+    errorLine: () => `phax run failed: ${assignmentRefusal("part steps")}`,
+  },
+  "assignment-bounds (an unresolved part bound)": {
+    fixture: {
+      config: {
+        assignments: [STEP_BOUND, STEPS_PART_BOUND],
+      },
+    },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${[
+        "Assignment preflight failed: 1 error(s) from the assignment bounds.",
+        "",
+        "  assignments[1] (part steps): unresolved: no architecture provider is configured; no phase was compared with the bounds",
+        "Check the plan with `phax plans lint plan.md`.",
+      ].join("\n")}`,
+  },
+  "assignment-bounds (an invalid bound)": {
+    fixture: { config: { assignments: [{ ...STEP_BOUND, model: "claude-opus-9" }] } },
+    exitCode: 11,
+    errorLine: () =>
+      `phax run failed: ${[
+        "Assignment preflight failed: 1 error(s) from the assignment bounds.",
+        "",
+        "  assignments[0].model: claude-opus-9 is not in the catalog",
+        "Check the plan with `phax plans lint plan.md`.",
+      ].join("\n")}`,
   },
   "interactive-phases (a malformed Mode line)": {
     fixture: { plan: { phases: [{ headerLines: ["**Mode:** review"] }] } },
@@ -346,6 +427,32 @@ describe("phax run — a preflight refusal precedes naming", () => {
       removeTempDir(remote);
     }
   });
+
+  // The plan the assignment-bounds scenario refuses, with a reason line in
+  // plan.md: the same extracted plan now starts. Off the policy default in a
+  // repository without bounds is a warning too.
+  it.each([
+    [
+      "a stated departure from a bound",
+      {
+        config: { assignments: [STEP_BOUND] },
+        plan: { phases: [{ headerLines: ["**Assignment reason:** Designs the step."] }] },
+      },
+    ],
+    ["a repository without bounds", {}],
+  ] satisfies [string, Fixture][])(
+    "%s passes the preflight and names the run",
+    async (_label, fixture) => {
+      const r = enter(fixture);
+      const out = recordingOutput();
+
+      const code = await runRun({ plan: "plan.md" }, out.port);
+
+      expect(out.logs).toContain(`Run: ${r.namespace}.foo`);
+      expect(out.errors.filter((e) => e.includes("Assignment preflight"))).toEqual([]);
+      expect(code).not.toBe(11);
+    },
+  );
 
   it("several refusals at once report only the first, in today's order", async () => {
     const r = enter({

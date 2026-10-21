@@ -449,4 +449,39 @@ describe("mergeConfigLayers", () => {
       expect(result.security?.network?.profile).toBe("open");
     });
   });
+
+  describe("assignments: project-only", () => {
+    const assignments: NonNullable<PhaxConfig["assignments"]> = [
+      {
+        kind: "part",
+        part: "core-decide",
+        model: "claude-opus-5-5",
+        effort: { min: "medium", max: "high" },
+      },
+      {
+        kind: "globs",
+        globs: ["src/*/schemas/**"],
+        model: "claude-sonnet-5-5",
+        effort: { min: "medium", max: "high" },
+      },
+    ];
+
+    it("keeps the project's bounds, in order, when both overlays are present", () => {
+      const result = mergeConfigLayers({
+        project: makeProject({ assignments }),
+        globalUser: makeOverlay({ state: { root: "~/.global" } }),
+        localUser: makeOverlay({ agent: { maxFixAttempts: 3 } }),
+      });
+      expect(result.assignments).toEqual(assignments);
+    });
+
+    it("ignores bounds an overlay smuggles past its schema", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: { assignments } as unknown as PhaxUserOverlay,
+        globalUser: { assignments } as unknown as PhaxUserOverlay,
+      });
+      expect(result.assignments).toBeUndefined();
+    });
+  });
 });

@@ -346,6 +346,14 @@ export class OraclePreflightError extends Data.TaggedError("OraclePreflightError
   planPath: string;
 }> {}
 
+// The errors of the bounds check (the `models` errors lint reports from the
+// assignment bounds): an unstated departure, an unresolved or invalid bound.
+export class AssignmentPreflightError extends Data.TaggedError("AssignmentPreflightError")<{
+  message: string;
+  findings: readonly LintFinding[];
+  planPath: string;
+}> {}
+
 export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
   "ReviewHandoffArtifactMissingError",
 )<{

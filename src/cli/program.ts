@@ -95,8 +95,8 @@ export function buildProgram(): Command {
       "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
     )
     .option("--plan <path>", "Also validate a phax-plan.json at this path")
-    .action((opts: { plan?: string }) => {
-      const exitCode = runValidate(opts, consoleOutput);
+    .action(async (opts: { plan?: string }) => {
+      const exitCode = await runValidate(opts, consoleOutput);
       process.exit(exitCode);
     });
 

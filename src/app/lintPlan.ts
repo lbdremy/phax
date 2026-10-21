@@ -27,6 +27,7 @@ import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
 import { oracleFindings } from "../domain/plan/oracleCheck.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makePlanAuditRequest } from "../domain/plan/projection.js";
+import { assignmentBoundFindings } from "./assignmentBounds.js";
 import { queryPlanAuditor } from "./planAuditor.js";
 import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
@@ -72,7 +73,8 @@ function sourceSpecSlug(planMd: string): string | null {
  * Read-only, model-free plan lint (spec 33 §5.1, §5.3): reads the plan, runs
  * the structure, file-plan, required-commands and model checks, and returns
  * the findings. The requirement set is `FileSystem` plus `Shell` for the
- * registered plan auditor — still no `Backend`, so this use case cannot fall
+ * registered plan auditor and the architecture provider that resolves part
+ * bounds — still no `Backend`, so this use case cannot fall
  * back to the extraction model by construction. Advisory findings are the one
  * check that reports on an external provider, and they are warnings by
  * construction: an auditor failure is a finding, never an effect error.
@@ -163,6 +165,11 @@ export function lintPlan(
     const routing = yield* loadModelRouting();
     const providerConfig = yield* loadProviderConfig();
     findings.push(...modelFindings(plan.phases, routing, providerConfig));
+    // The owner's bounds, or the policy default: the run preflight refuses on
+    // exactly the errors among these.
+    findings.push(
+      ...(yield* assignmentBoundFindings({ config, phases: plan.phases, headers, providerConfig })),
+    );
 
     // Advisory: only when a plan auditor is registered, and only once the plan
     // parsed cleanly — an unparseable plan never spawns the auditor.

@@ -227,13 +227,13 @@
       "properties": {
         "command": {
           "type": "string",
-          "description": "The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {\"$schema\": \"https://docs.phax.run/schemas/architecture-request/<release>.json\", \"files\"} to its stdin and reads an architecture report {\"$schema\": \"https://docs.phax.run/schemas/architecture-report/<release>.json\", \"body\"} on stdout; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.",
+          "description": "The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {\"$schema\": \"https://docs.phax.run/schemas/architecture-request/<release>.json\", \"files\"} to its stdin and reads an architecture report {\"$schema\": \"https://docs.phax.run/schemas/architecture-report/<release>.json\", \"body\", \"parts\"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.",
           "title": "nonEmptyString",
           "minLength": 1
         }
       },
       "additionalProperties": false,
-      "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`."
+      "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`."
     },
     "review": {
       "type": "object",
@@ -455,6 +455,136 @@
         }
       },
       "additionalProperties": false
+    },
+    "assignments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": ["kind", "part", "model", "effort"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["part"]
+              },
+              "part": {
+                "type": "string",
+                "description": "The id of an architecture-report part: the bound covers the files of the part whose id this is, read from the architecture provider.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "model": {
+                "type": "string",
+                "description": "The model a governed phase takes: a catalog model id, never ranked against another.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "effort": {
+                "type": "object",
+                "required": ["min", "max"],
+                "properties": {
+                  "min": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "off",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max",
+                      "ultracode",
+                      "ultra"
+                    ]
+                  },
+                  "max": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "off",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max",
+                      "ultracode",
+                      "ultra"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The efforts a phase may take, inclusive, in the order of the bound model's catalog `efforts` list. `min` equal to `max` admits one effort."
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "globs", "model", "effort"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["globs"]
+              },
+              "globs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString",
+                  "description": "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment."
+                },
+                "description": "The files the bound covers, as globs: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory."
+              },
+              "model": {
+                "type": "string",
+                "description": "The model a governed phase takes: a catalog model id, never ranked against another.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "effort": {
+                "type": "object",
+                "required": ["min", "max"],
+                "properties": {
+                  "min": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "off",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max",
+                      "ultracode",
+                      "ultra"
+                    ]
+                  },
+                  "max": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "off",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max",
+                      "ultracode",
+                      "ultra"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The efforts a phase may take, inclusive, in the order of the bound model's catalog `efforts` list. `min` equal to `max` admits one effort."
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "description": "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused."
     }
   },
   "additionalProperties": false

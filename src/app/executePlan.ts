@@ -26,6 +26,7 @@ import {
   HandoffPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
+  type AssignmentPreflightError,
   type InteractivePreflightError,
   type OraclePreflightError,
   type PlanSectionsPreflightError,
@@ -233,6 +234,7 @@ export type ExecutePlanError =
   | SkillEditConsentError
   | ModelPreflightError
   | PlanSectionsPreflightError
+  | AssignmentPreflightError
   | InteractivePreflightError
   | OraclePreflightError
   | PhaseHadNoChangesError

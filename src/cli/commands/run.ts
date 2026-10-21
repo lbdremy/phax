@@ -36,6 +36,7 @@ import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import type { SecurityMode } from "../../domain/security/types.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { NodeShellLayer } from "../../infra/shell.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
@@ -361,6 +362,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       }).pipe(
         Effect.provide(makeRepoRootedFileSystemLayer(config)),
         Effect.provide(makeNodeGitLayer()),
+        Effect.provide(NodeShellLayer),
       ),
     ),
   );

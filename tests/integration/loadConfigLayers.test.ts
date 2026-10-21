@@ -199,6 +199,80 @@ describe("loadConfig allowlist union across layers", () => {
   });
 });
 
+describe("loadConfig assignments", () => {
+  const assignments = [
+    {
+      kind: "part",
+      part: "core-decide",
+      model: "claude-opus-5-5",
+      effort: { min: "medium", max: "high" },
+    },
+    {
+      kind: "globs",
+      globs: ["src/*/schemas/**"],
+      model: "claude-sonnet-5-5",
+      effort: { min: "medium", max: "high" },
+    },
+  ];
+
+  it("resolves the bounds from phax.json, in order", () => {
+    writeProjectConfig({ ...baseConfig, assignments });
+    writeLocalUserConfig({ agent: { maxFixAttempts: 2 } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.assignments).toEqual(assignments);
+  });
+
+  it("leaves assignments unset when phax.json declares none", () => {
+    writeProjectConfig(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.assignments).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "phax.local.json",
+      () => writeLocalUserConfig({ assignments }),
+      () => join(repoDir, "phax.local.json"),
+    ],
+    [
+      "~/.phax/config.json",
+      () => writeGlobalUserConfig({ assignments }),
+      () => join(tempHome, ".phax", "config.json"),
+    ],
+  ])("refuses bounds declared in %s, naming the file", (_label, write, path) => {
+    writeProjectConfig({ ...baseConfig, assignments });
+    write();
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe('"assignments" is accepted only in phax.json');
+      expect(result.left.path).toBe(path());
+    }
+  });
+
+  it("refuses an overlay's bounds even when they are malformed", () => {
+    writeProjectConfig(baseConfig);
+    writeLocalUserConfig({ assignments: [] });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result) && result.left.message).toBe(
+      '"assignments" is accepted only in phax.json',
+    );
+  });
+
+  it("refuses a malformed bound in phax.json, naming the file and the bound", () => {
+    writeProjectConfig({
+      ...baseConfig,
+      assignments: [assignments[0], { ...assignments[1], globs: [] }],
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe(join(repoDir, "phax.json"));
+      expect(result.left.message).toContain("  assignments[1].globs: must not be empty");
+    }
+  });
+});
+
 describe("loadConfig invalid user file error handling", () => {
   it("returns ConfigValidationError naming the global user file on invalid JSON", () => {
     writeProjectConfig(baseConfig);

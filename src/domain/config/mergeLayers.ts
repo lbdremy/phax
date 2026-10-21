@@ -221,6 +221,10 @@ export function mergeConfigLayers(input: {
   // records: project-only, never overlaid (not part of PhaxUserOverlaySchema)
   const records = project.records;
 
+  // assignments: project-only, never overlaid (not part of PhaxUserOverlaySchema;
+  // loadConfig refuses an overlay that carries it)
+  const assignments = project.assignments;
+
   return {
     ...(project.$schema !== undefined ? { $schema: project.$schema } : {}),
     version: project.version,
@@ -316,5 +320,6 @@ export function mergeConfigLayers(input: {
     gateProfiles,
     ...(workspaces !== undefined ? { workspaces } : {}),
     ...(records !== undefined ? { records } : {}),
+    ...(assignments !== undefined ? { assignments } : {}),
   };
 }

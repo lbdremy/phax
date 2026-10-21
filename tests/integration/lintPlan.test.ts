@@ -4,8 +4,11 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { ArtifactValidationError } from "../../src/domain/errors.js";
-import { hasLintErrors } from "../../src/domain/plan/lint.js";
+import { hasLintErrors, type LintFinding } from "../../src/domain/plan/lint.js";
+import type { Assignments } from "../../src/schemas/assignments.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { decodePlanDocumentFile, type PlanDocument } from "../../src/schemas/planDocument.js";
@@ -66,7 +69,8 @@ function planMd(
 ): string {
   const {
     requiredCommands = "- (none)",
-    model = "claude-sonnet-5",
+    // The policy default, so a plan with no defect has no models finding.
+    model = "claude-sonnet-5-5",
     create = "- (none)",
     edit = "- (none)",
     frontmatter = DRAFT_FRONTMATTER,
@@ -103,6 +107,33 @@ feat(test): do thing
 
 Does the thing.
 `;
+}
+
+function bulletList(files: readonly string[] | undefined): string {
+  return files === undefined || files.length === 0
+    ? "- (none)"
+    : files.map((f) => `- ${f}`).join("\n");
+}
+
+/** A made-up architecture provider's stdout: a report of these parts. */
+function architectureReportJson(parts: readonly object[]): string {
+  return JSON.stringify({
+    $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
+    body: "# Architecture — acme-billing",
+    parts,
+  });
+}
+
+const modelFindingsOf = (report: LintReport) => report.findings.filter((f) => f.check === "models");
+
+/** The error of a part bound the architecture report does not resolve. */
+function unresolved(index: number, part: string, cause: string): LintFinding {
+  return {
+    severity: "error",
+    check: "models",
+    phase: null,
+    message: `assignments[${index}] (part ${part}): unresolved: ${cause}; no phase was compared with the bounds`,
+  };
 }
 
 interface LintOpts {
@@ -155,7 +186,7 @@ const PLAN_WITH_TWO_PHASES = `${DRAFT_FRONTMATTER}# Thing
 
 ## phase-01 — First Phase {#phase-01-first}
 
-**Recommended model:** claude-sonnet-5
+**Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 
 ### Planned files to create
@@ -180,7 +211,7 @@ Does the first thing.
 
 ## phase-02 — Second Phase {#phase-02-second}
 
-**Recommended model:** claude-sonnet-5
+**Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 
 ### Planned files to create
@@ -274,7 +305,7 @@ function planWithQuestions(): PlanDocument {
           id: "phase-01",
           title: "First Phase",
           assignmentReason: null,
-          model: "claude-sonnet-5",
+          model: "claude-sonnet-5-5",
           effort: "medium",
           planMarkdownAnchor: "#phase-01-first",
           plannedFilesToCreate: [],
@@ -336,7 +367,8 @@ describe("lintPlan", () => {
 
     for (const md of [withReason, DRAFT_FRONTMATTER + renderPlanBody(doc)]) {
       const report = await runLint(md, { "/repo/src/a.ts": "export {}" });
-      expect(report.findings).toEqual([]);
+      expect(report.findings.filter((f) => f.check === "structure")).toEqual([]);
+      expect(hasLintErrors(report.findings)).toBe(false);
     }
   });
 
@@ -466,6 +498,13 @@ describe("lintPlan", () => {
         check: "models",
         phase: "phase-01",
         message: 'claude-imaginary-9 / medium: model id "claude-imaginary-9" not found in catalog',
+      },
+      {
+        severity: "warning",
+        check: "models",
+        phase: "phase-01",
+        message:
+          "claude-imaginary-9 / medium: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line",
       },
     ]);
   });
@@ -705,6 +744,347 @@ describe("lintPlan", () => {
 
       expect(report.findings.every((f) => f.check === "structure")).toBe(true);
       expect(fakeShell.impl.calls).toHaveLength(0);
+    });
+  });
+
+  // Spec assignment-bounds §8, with the §6 bounds and report of a made-up
+  // acme-billing repository.
+  describe("assignment bounds", () => {
+    const PROVIDER = "acme-guard architecture";
+    const CORE_DECIDE_BOUND: Assignments[number] = {
+      kind: "part",
+      part: "core-decide",
+      model: "claude-opus-5-5",
+      effort: { min: "medium", max: "high" },
+    };
+    const SCHEMAS_BOUND: Assignments[number] = {
+      kind: "globs",
+      globs: ["src/*/schemas/**"],
+      model: "claude-sonnet-5-5",
+      effort: { min: "medium", max: "high" },
+    };
+    const DOCS_BOUND: Assignments[number] = {
+      kind: "part",
+      part: "docs",
+      model: "claude-haiku-5-5",
+      effort: { min: "low", max: "medium" },
+    };
+    const BOUNDS: Assignments = [CORE_DECIDE_BOUND, SCHEMAS_BOUND, DOCS_BOUND];
+    const PARTS = [
+      {
+        id: "core-decide",
+        name: "core · decide",
+        description: "Pure functions that decide a command against the current state.",
+        globs: ["src/core/decide/**"],
+      },
+      {
+        id: "http-requests",
+        name: "http · requests",
+        description: "Schemas that decode every inbound HTTP request.",
+        globs: ["src/http/requests/**"],
+      },
+      {
+        id: "docs",
+        name: "docs",
+        description: "User-facing documentation pages.",
+        globs: ["docs/**", "*.md"],
+      },
+    ];
+    const REPORT = architectureReportJson(PARTS);
+    const EXISTING = {
+      "/repo/src/http/schemas/refund.ts": "export {}",
+      "/repo/src/app/main.ts": "",
+    };
+    const B0 = "assignments[0] (part core-decide: claude-opus-5-5, medium–high)";
+
+    function boundsConfig(assignments: Assignments = BOUNDS, withProvider = true): ResolvedConfig {
+      return {
+        ...config,
+        assignments,
+        ...(withProvider ? { architecture: { command: PROVIDER } } : {}),
+      } as ResolvedConfig;
+    }
+
+    function provider(stdout = REPORT, exitCode = 0) {
+      const shell = makeFakeShell();
+      shell.impl.setResponse(PROVIDER, { exitCode, stdout, stderr: "" });
+      return shell;
+    }
+
+    interface BoundsPhase {
+      readonly model: string;
+      readonly effort: string;
+      readonly create?: readonly string[];
+      readonly edit?: readonly string[];
+      readonly optional?: readonly string[];
+      readonly header?: readonly string[];
+    }
+
+    function boundsPlan(phases: readonly BoundsPhase[]): string {
+      const sections = phases.map((p, i) => {
+        const id = `phase-${String(i + 1).padStart(2, "0")}`;
+        return `## ${id} — Phase ${i + 1} {#${id}}
+
+**Recommended model:** ${p.model}
+**Recommended effort:** ${p.effort}${(p.header ?? []).map((line) => `\n${line}`).join("")}
+
+### Planned files to create
+
+${bulletList(p.create)}
+
+### Planned files to edit
+
+${bulletList(p.edit)}
+
+### Optional files that may be edited
+
+${bulletList(p.optional)}
+
+### Commit subject
+
+feat(test): phase ${i + 1}
+
+### Commit body
+
+Does phase ${i + 1}.
+`;
+      });
+      return `${DRAFT_FRONTMATTER}# Refunds\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
+    }
+
+    // phase-01 sits at the policy default with no file, so only phase-02 speaks.
+    const QUIET: BoundsPhase = { model: "claude-sonnet-5-5", effort: "medium" };
+
+    async function lint(
+      phase02: BoundsPhase,
+      cfg = boundsConfig(),
+      shell = provider(),
+    ): Promise<LintReport> {
+      return runLint(boundsPlan([QUIET, phase02]), EXISTING, { config: cfg, fakeShell: shell });
+    }
+
+    it("the first matching bound governs", async () => {
+      const departing = await lint({
+        model: "claude-sonnet-5-5",
+        effort: "medium",
+        create: ["src/core/decide/refund.ts"],
+        edit: ["src/http/schemas/refund.ts"],
+      });
+      expect(modelFindingsOf(departing)).toEqual([
+        {
+          severity: "error",
+          check: "models",
+          phase: "phase-02",
+          message: `claude-sonnet-5-5 / medium: outside ${B0} with no **Assignment reason:** line`,
+        },
+      ]);
+      expect(hasLintErrors(departing.findings)).toBe(true);
+
+      const conforming = await lint({
+        model: "claude-opus-5-5",
+        effort: "medium",
+        create: ["src/core/decide/refund.ts"],
+        edit: ["src/http/schemas/refund.ts"],
+      });
+      expect(modelFindingsOf(conforming)).toEqual([]);
+    });
+
+    it("optional files count", async () => {
+      const r = await lint({
+        model: "claude-sonnet-5-5",
+        effort: "medium",
+        optional: ["src/core/decide/refund.ts"],
+      });
+      expect(modelFindingsOf(r).map((f) => [f.severity, f.phase, f.message])).toEqual([
+        [
+          "error",
+          "phase-02",
+          `claude-sonnet-5-5 / medium: outside ${B0} with no **Assignment reason:** line`,
+        ],
+      ]);
+    });
+
+    it("an effort outside the range departs", async () => {
+      const low = await lint({
+        model: "claude-opus-5-5",
+        effort: "low",
+        create: ["src/core/decide/refund.ts"],
+      });
+      expect(modelFindingsOf(low).map((f) => f.severity)).toEqual(["error"]);
+      const high = await lint({
+        model: "claude-opus-5-5",
+        effort: "high",
+        create: ["src/core/decide/refund.ts"],
+      });
+      expect(modelFindingsOf(high)).toEqual([]);
+    });
+
+    it("a stated departure is a warning that quotes the reason", async () => {
+      const r = await lint({
+        model: "claude-sonnet-5-5",
+        effort: "medium",
+        create: ["src/core/decide/refund.ts"],
+        header: [
+          "**Assignment reason:** Renames the decider's inputs only; no decision logic changes.",
+        ],
+      });
+      expect(modelFindingsOf(r)).toEqual([
+        {
+          severity: "warning",
+          check: "models",
+          phase: "phase-02",
+          message: `claude-sonnet-5-5 / medium: outside ${B0}: "Renames the decider's inputs only; no decision logic changes."`,
+        },
+      ]);
+      expect(hasLintErrors(r.findings)).toBe(false);
+    });
+
+    it("a conforming phase with a reason warns", async () => {
+      const r = await lint({
+        model: "claude-sonnet-5-5",
+        effort: "high",
+        edit: ["src/http/schemas/refund.ts"],
+        header: ["**Assignment reason:** Mechanical."],
+      });
+      expect(modelFindingsOf(r)).toEqual([
+        {
+          severity: "warning",
+          check: "models",
+          phase: "phase-02",
+          message:
+            "conforms to assignments[1] (globs src/*/schemas/**: claude-sonnet-5-5, medium–high) but carries an **Assignment reason:** line",
+        },
+      ]);
+      expect(hasLintErrors(r.findings)).toBe(false);
+    });
+
+    it("asks the provider once, for the whole repository, on a plan of three phases", async () => {
+      const shell = provider();
+      await runLint(
+        boundsPlan([
+          QUIET,
+          { model: "claude-opus-5-5", effort: "high", create: ["src/core/decide/refund.ts"] },
+          { model: "claude-haiku-5-5", effort: "low", create: ["docs/refunds.md"] },
+        ]),
+        EXISTING,
+        { config: boundsConfig(), fakeShell: shell },
+      );
+      const calls = shell.impl.calls.filter((c) => c.command.join(" ") === PROVIDER);
+      expect(calls).toHaveLength(1);
+      const request = JSON.parse(calls[0]!.stdin!) as Record<string, unknown>;
+      expect(request["$schema"]).toMatch(
+        /^https:\/\/docs\.phax\.run\/schemas\/architecture-request\/\d+\.\d+\.\d+\.json$/,
+      );
+      expect(request["files"]).toBeNull();
+    });
+
+    const UNSTATED: BoundsPhase = {
+      model: "claude-sonnet-5-5",
+      effort: "medium",
+      create: ["src/core/decide/refund.ts"],
+    };
+    it("an unresolved part bound fails lint and compares nothing", async () => {
+      const noProvider = await lint(UNSTATED, boundsConfig(BOUNDS, false));
+      expect(modelFindingsOf(noProvider)).toEqual([
+        unresolved(0, "core-decide", "no architecture provider is configured"),
+        unresolved(2, "docs", "no architecture provider is configured"),
+      ]);
+
+      const failing = await lint(UNSTATED, boundsConfig(), provider("", 3));
+      expect(modelFindingsOf(failing)).toEqual([
+        unresolved(0, "core-decide", "architecture provider exited with code 3"),
+        unresolved(2, "docs", "architecture provider exited with code 3"),
+      ]);
+
+      const noDocs = await lint(
+        UNSTATED,
+        boundsConfig(),
+        provider(architectureReportJson(PARTS.slice(0, 2))),
+      );
+      expect(modelFindingsOf(noDocs)).toEqual([
+        unresolved(2, "docs", "the architecture report has no part docs"),
+      ]);
+      for (const r of [noProvider, failing, noDocs]) expect(hasLintErrors(r.findings)).toBe(true);
+    });
+
+    it("an invalid bound is one lint error and compares nothing", async () => {
+      const r = await lint(
+        UNSTATED,
+        boundsConfig([{ ...CORE_DECIDE_BOUND, model: "claude-opus-9" }, SCHEMAS_BOUND, DOCS_BOUND]),
+      );
+      expect(modelFindingsOf(r)).toEqual([
+        {
+          severity: "error",
+          check: "models",
+          phase: null,
+          message: "assignments[0].model: claude-opus-9 is not in the catalog",
+        },
+      ]);
+    });
+
+    it("globs bounds are checked without a provider", async () => {
+      const globsOnly: Assignments = [
+        {
+          kind: "globs",
+          globs: ["src/core/decide/**"],
+          model: "claude-opus-5-5",
+          effort: { min: "medium", max: "high" },
+        },
+      ];
+      for (const withProvider of [true, false]) {
+        const shell = provider();
+        const r = await lint(UNSTATED, boundsConfig(globsOnly, withProvider), shell);
+        expect(modelFindingsOf(r).map((f) => [f.severity, f.phase, f.message])).toEqual([
+          [
+            "error",
+            "phase-02",
+            "claude-sonnet-5-5 / medium: outside assignments[0] (globs src/core/decide/**: claude-opus-5-5, medium–high) with no **Assignment reason:** line",
+          ],
+        ]);
+        expect(shell.impl.calls.filter((c) => c.command.join(" ") === PROVIDER)).toEqual([]);
+      }
+    });
+
+    it("the policy default warns where no bound governs", async () => {
+      const OFF_DEFAULT =
+        "claude-opus-5-5 / high: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line";
+      const AT_DEFAULT =
+        "no bound governs; takes the policy default (claude-sonnet-5-5 / medium) but carries an **Assignment reason:** line";
+      const MAIN = ["src/app/main.ts"];
+      const REASON = ["**Assignment reason:** Designs the entry point."];
+      // No bounds and no provider, then the §6 bounds and report.
+      for (const cfg of [config, boundsConfig()]) {
+        const unstated = await lint({ model: "claude-opus-5-5", effort: "high", edit: MAIN }, cfg);
+        expect(modelFindingsOf(unstated).map((f) => [f.severity, f.message])).toEqual([
+          ["warning", OFF_DEFAULT],
+        ]);
+        const stated = await lint(
+          { model: "claude-opus-5-5", effort: "high", edit: MAIN, header: REASON },
+          cfg,
+        );
+        expect(modelFindingsOf(stated)).toEqual([]);
+        const atDefault = await lint(
+          { model: "claude-sonnet-5-5", effort: "medium", edit: MAIN, header: REASON },
+          cfg,
+        );
+        expect(modelFindingsOf(atDefault).map((f) => [f.severity, f.message])).toEqual([
+          ["warning", AT_DEFAULT],
+        ]);
+        for (const r of [unstated, stated, atDefault]) {
+          expect(hasLintErrors(r.findings)).toBe(false);
+        }
+      }
+    });
+
+    it("a Model reason line is an error, and the phase departs without a reason", async () => {
+      const r = await lint({
+        ...UNSTATED,
+        header: ["**Model reason:** Renames the decider's inputs only."],
+      });
+      expect(modelFindingsOf(r).map((f) => [f.severity, f.message])).toEqual([
+        ["error", "**Model reason:** is no longer read: write **Assignment reason:**"],
+        ["error", `claude-sonnet-5-5 / medium: outside ${B0} with no **Assignment reason:** line`],
+      ]);
     });
   });
 });

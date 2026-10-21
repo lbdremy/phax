@@ -157,6 +157,16 @@ function readUserOverlay(
       }),
     );
   }
+  // Refused before the decode, so the refusal names the remedy rather than an
+  // unknown key: the bounds are the repository's, not a workstation's.
+  if (typeof raw === "object" && raw !== null && Object.hasOwn(raw, "assignments")) {
+    return Either.left(
+      new ConfigValidationError({
+        message: '"assignments" is accepted only in phax.json',
+        path: filePath,
+      }),
+    );
+  }
   const decoded = decodePhaxUserOverlay(raw);
   if (Either.isLeft(decoded)) {
     return Either.left(
@@ -367,6 +377,7 @@ export function loadConfig(
     codeReview: resolveCodeReviewConfig(config.review?.code),
     authoring: resolveAuthoringConfig(config.authoring),
     records: resolveRecordsConfig(config.records),
+    ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
   };
 
   return Either.right(resolved);

@@ -53,6 +53,7 @@ import {
   InteractivePreflightError,
   OraclePreflightError,
   PlanSectionsPreflightError,
+  AssignmentPreflightError,
   PlanStaleError,
   PlanValidationError,
   RateLimitError,
@@ -191,6 +192,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof SkillEditConsentError ||
     err instanceof ModelPreflightError ||
     err instanceof PlanSectionsPreflightError ||
+    err instanceof AssignmentPreflightError ||
     err instanceof InteractivePreflightError ||
     err instanceof OraclePreflightError ||
     err instanceof RecordsSyncRequiredError

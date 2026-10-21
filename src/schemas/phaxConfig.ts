@@ -2,6 +2,7 @@ import { JSONSchema, Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
 import { SurfaceSchema } from "./surface.js";
+import { AssignmentsSchema, type Assignments } from "./assignments.js";
 
 export const PublishConfigSchema = Schema.Struct({
   auto: Schema.Boolean,
@@ -43,7 +44,7 @@ export type PlanAuditorConfig = Schema.Schema.Type<typeof PlanAuditorConfigSchem
 export const ArchitectureConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
-      'The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {"$schema": "https://docs.phax.run/schemas/architecture-request/<release>.json", "files"} to its stdin and reads an architecture report {"$schema": "https://docs.phax.run/schemas/architecture-report/<release>.json", "body"} on stdout; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.',
+      'The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {"$schema": "https://docs.phax.run/schemas/architecture-request/<release>.json", "files"} to its stdin and reads an architecture report {"$schema": "https://docs.phax.run/schemas/architecture-report/<release>.json", "body", "parts"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.',
   }),
 });
 
@@ -246,7 +247,7 @@ export const PhaxConfigSchema = Schema.Struct({
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   architecture: Schema.optional(ArchitectureConfigSchema).annotations({
     description:
-      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`.",
+      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
   review: Schema.optional(
     Schema.Struct({
@@ -258,6 +259,10 @@ export const PhaxConfigSchema = Schema.Struct({
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
   records: Schema.optional(RecordsConfigSchema),
+  assignments: Schema.optional(AssignmentsSchema).annotations({
+    description:
+      "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused.",
+  }),
 });
 
 export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
@@ -301,6 +306,8 @@ export interface ResolvedConfig {
   readonly codeReview: ResolvedCodeReviewConfig;
   readonly authoring: ResolvedAuthoringConfig;
   readonly records: ResolvedRecordsConfig;
+  /** From phax.json alone: no user overlay carries it. */
+  readonly assignments?: Assignments;
 }
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
@@ -342,7 +349,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   architecture: Schema.optional(ArchitectureConfigSchema).annotations({
     description:
-      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as Markdown. Serves `phax architecture`.",
+      "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
   review: Schema.optional(
     Schema.Struct({
