@@ -130,15 +130,8 @@ export async function runResume(
   for (const skippedId of decision.skippedPhaseIds) {
     out.log(`  Skipping ${skippedId} (produced no changes).`);
   }
-  out.log(
-    `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
-  );
-
-  if (!opts.yes) {
-    out.log("Pass --yes to proceed.");
-    return 0;
-  }
-
+  // Read the plan before promising a resume: a phax-plan.json this phax
+  // refuses (an older shape) is refused on the preview too.
   const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const planPath = join(runPath, "phax-plan.json");
   const planMdPath = join(runPath, "plan.md");
@@ -149,6 +142,15 @@ export async function runResume(
     return 2;
   }
   const plan = planResult.right;
+
+  out.log(
+    `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
+  );
+
+  if (!opts.yes) {
+    out.log("Pass --yes to proceed.");
+    return 0;
+  }
 
   let planMd: string;
   try {

@@ -82,6 +82,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | --- | --- | --- | --- | --- | --- |
 | 2026-10-20 | `architecture-provider` (#148) | 2 × sonnet-5-5 / medium | $2.66 | 2 / 3 | The plan accepted an unsandboxed grant to a session that could edit `phax.local.json`, and it dictated two wrong lines of the docs page. Execution missed three tests and a/an, and wrote a test that held only until the release cut. For scale, recent all-Opus runs of 2–3 phases cost $11–13. |
 | 2026-10-20 | `architecture-report-parts` (#150) | 1 × sonnet-5-5 / medium | $0.96 | 1 / 2 | The plan's glob rules missed backticks and control characters, which break the rendered code span. Execution wrote a duplicate-id test that could not fail and left one stale docs line. |
+| 2026-10-21 | `phase-shape` (#151) | 3 × sonnet-5-5 / medium, 1 × opus-5-5 / medium (with a reason) | $16.95 ($4.35 of it lost to a rate-limit pause) | 2 / 3 | The plan promised a refused resume leaves the run unchanged, which it does not, and its header grammar let `*Mode:*`, `__Mode:__` and blockquoted lines read as headless. Execution previewed a resume it would refuse, ignored a `**Model reason:**` line set off by a blank line, and split oracle files on commas inside code spans. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -140,6 +141,13 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **A refused `phax resume` should leave the run as it was.** Today `RunResumeRequested` moves the
+      run to `running` before the start preflight re-checks it. A refusal (exit 11) then reaches the
+      `RunFailed` guard in `executePlan`, and the run becomes `failed`, which `resume` refuses for
+      good until `phax reset-phase`. This holds for every re-check: MCP file, records clone,
+      provider, plan sections, and since PR #151 the interactive, oracle and Model-reason
+      refusals. Run the preflight before the transition, or treat its refusals as a pause, and
+      assert the state and last error are unchanged.
 - [ ] **The real e2e's Codex and Vibe flows run on Claude.** Found 2026-10-06:
       `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
       provider" for `[codex-cli] (secure)` and `[mistral-vibe] (unsafe)`: both phases ran on

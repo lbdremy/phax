@@ -39,6 +39,9 @@ describe("readHeaderParagraph", () => {
     "**Mode**: interactive",
     "Mode: interactive",
     "MODE: interactive",
+    "*Mode:* interactive",
+    "__Mode:__ interactive",
+    "_Mode_: interactive",
   ])("reads a Mode line written as %s", (line) => {
     expect(readHeaderParagraph(line).mode).toBe("interactive");
   });
@@ -61,6 +64,13 @@ describe("readHeaderParagraph", () => {
     ]);
     expect(readHeaderParagraph("**Oracle files:**").oracleFiles).toEqual([]);
     expect(readHeaderParagraph("**Mode:** interactive").oracleFiles).toBeNull();
+  });
+
+  it("keeps a comma inside a code span as part of its path", () => {
+    expect(readHeaderParagraph("**Oracle files:** `a,b.test.ts`, `c.ts`").oracleFiles).toEqual([
+      "a,b.test.ts",
+      "c.ts",
+    ]);
   });
 
   it("reports repeated declaration labels", () => {
@@ -141,6 +151,16 @@ describe("readPhaseHeaders", () => {
   it("flags a declaration in a second paragraph that carries no Recommended model", () => {
     const header = only(plan([], "Mode: interactive"));
     expect(header.misplaced).toEqual(["Mode"]);
+  });
+
+  it("flags a declaration on a line of a blockquote", () => {
+    const header = only(plan([], "> A note.\n> **Mode:** interactive\n"));
+    expect(header.misplaced).toEqual(["Mode"]);
+  });
+
+  it("reports a Model reason line set off from the header by a blank line", () => {
+    const header = only(plan(["", "**Model reason:** old label"]));
+    expect(header.hasModelReason).toBe(true);
   });
 
   it("treats inline code and code blocks as prose", () => {
