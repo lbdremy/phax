@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610201518-oracle-phases.md
 completes-spec: false
+approved:
+  date: 2026-10-21
+  baseline: a0d1d31
 ---
 # Oracle phases
 
