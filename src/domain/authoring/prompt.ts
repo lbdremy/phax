@@ -17,12 +17,23 @@ export interface AuthoringPromptInput {
   readonly slug: string;
   /** Whether an architecture provider is configured, for a plan; null for a spec. */
   readonly architectureProvider: boolean | null;
+  /** Whether the owner declares assignment bounds, for a plan; null for a spec. */
+  readonly assignmentBounds: boolean | null;
 }
 
 const ARCHITECTURE_CONFIGURED_LINE =
-  "- An architecture provider is configured: before cutting phases, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.";
+  "- An architecture provider is configured: before cutting phases and assigning models, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.";
+const ARCHITECTURE_BOUNDS_SENTENCE =
+  " It lists the assignment bounds (phax.json `assignments`) after the parts: assign each phase against them.";
+const BOUNDS_WITHOUT_PROVIDER_LINE =
+  "- Assignment bounds are declared (phax.json `assignments`), and no architecture provider is configured: before cutting phases and assigning models, run `phax architecture`. It exits 1 with its no-provider line, then lists the bounds; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).";
 const ARCHITECTURE_ABSENT_LINE =
   "- No architecture provider is configured: do not run `phax architecture`; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).";
+
+function architectureLine(provider: boolean, bounds: boolean): string {
+  if (provider) return ARCHITECTURE_CONFIGURED_LINE + (bounds ? ARCHITECTURE_BOUNDS_SENTENCE : "");
+  return bounds ? BOUNDS_WITHOUT_PROVIDER_LINE : ARCHITECTURE_ABSENT_LINE;
+}
 
 // The full prompt of a headless authoring session, in a fixed order: the skill
 // text verbatim, the output contract, the document JSON Schema, the source spec
@@ -41,7 +52,7 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     "",
     ...(input.architectureProvider === null
       ? []
-      : [input.architectureProvider ? ARCHITECTURE_CONFIGURED_LINE : ARCHITECTURE_ABSENT_LINE]),
+      : [architectureLine(input.architectureProvider, input.assignmentBounds === true)]),
     `- Return ONLY a JSON object valid against the ${documentName} JSON Schema below.`,
     "- No code fences, no Markdown, no commentary before or after the JSON.",
     "- Write no files: phax renders the Markdown artifact from your JSON, writes it and commits it.",

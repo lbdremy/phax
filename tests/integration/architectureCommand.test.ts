@@ -178,6 +178,93 @@ describe("phax architecture", () => {
     });
   });
 
+  describe("with assignment bounds", () => {
+    const parts = [
+      {
+        id: "core-decide",
+        name: "core · decide",
+        description: "The pure decision logic.",
+        globs: ["src/core/decide/**"],
+      },
+    ];
+    const assignments = [
+      {
+        kind: "part",
+        part: "core-decide",
+        model: "claude-opus-5-5",
+        effort: { min: "medium", max: "high" },
+      },
+      {
+        kind: "globs",
+        globs: ["src/*/schemas/**"],
+        model: "claude-sonnet-5-5",
+        effort: { min: "medium", max: "high" },
+      },
+    ];
+    const BOUNDS = [
+      "## Bounds (phax.json `assignments`; the first match governs)",
+      "- assignments[0] part core-decide — core · decide (`src/core/decide/**`): claude-opus-5-5, medium–high",
+      "- assignments[1] globs `src/*/schemas/**`: claude-sonnet-5-5, medium–high",
+    ].join("\n");
+
+    it("lists the bounds after the parts and exits 0", async () => {
+      writeConfig(
+        "phax.json",
+        projectConfig({
+          assignments,
+          architecture: { command: providerCommand(BODY, { parts }) },
+        }),
+      );
+      const result = await architecture(mainRoot);
+      expect(result.code).toBe(0);
+      expect(result.stderr).toEqual([]);
+      expect(result.stdout).toHaveLength(3);
+      expect(result.stdout[0]).toContain("## Parts");
+      expect(result.stdout.slice(1)).toEqual(["", BOUNDS]);
+    });
+
+    it("marks a part bound a path-scoped report does not carry", async () => {
+      writeConfig(
+        "phax.json",
+        projectConfig({
+          assignments,
+          architecture: { command: providerCommand(BODY, { parts: [] }) },
+        }),
+      );
+      const result = await architecture(mainRoot, "docs/guide.md");
+      expect(result.code).toBe(0);
+      expect(result.stdout[2]).toContain(
+        "part core-decide — (not in this report: run `phax architecture` with no path for its globs): claude-opus-5-5",
+      );
+    });
+
+    it("prints the no-provider line, then the bounds, and exits 1", async () => {
+      writeConfig("phax.json", projectConfig({ assignments }));
+      const result = await architecture(mainRoot);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toEqual([]);
+      expect(result.stdout[0]).toBe(NO_ARCHITECTURE_PROVIDER);
+      expect(result.stdout[1]).toBe("");
+      expect(result.stdout[2]).toContain(
+        "- assignments[0] part core-decide — (unresolved: no architecture provider): claude-opus-5-5, medium–high",
+      );
+      expect(result.stdout[2]).toContain(
+        "- assignments[1] globs `src/*/schemas/**`: claude-sonnet-5-5, medium–high",
+      );
+    });
+
+    it("prints one stderr line and no bounds when the provider fails", async () => {
+      writeConfig(
+        "phax.json",
+        projectConfig({ assignments, architecture: { command: "node -e process.exit(3)" } }),
+      );
+      const result = await architecture(mainRoot);
+      expect(result.code).toBe(1);
+      expect(result.stdout).toEqual([]);
+      expect(result.stderr).toHaveLength(1);
+    });
+  });
+
   it.each([
     ["a body-only report", {}, "parts"],
     [

@@ -203,6 +203,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     records: RECORDS_OFF,
     publishRemote: "origin",
     architectureProvider: false,
+    assignmentBounds: false,
     output: { warn: () => {} },
     ...overrides,
   };
@@ -553,6 +554,22 @@ describe("authorArtifact — the architecture provider", () => {
     expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toContain(
       "An architecture provider is configured",
     );
+  });
+
+  it("a plan with bounds alone is granted phax architecture, and no provider runs before the session", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+    const result = await run(planInput({ architectureProvider: false, assignmentBounds: true }));
+
+    expect(Either.isRight(result)).toBe(true);
+    const options = backend.runCalls[0]?.options;
+    expect(options?.agentCommands).toEqual(["phax architecture"]);
+    expect(options?.security.agentCommands).toEqual(["git", "phax architecture"]);
+    expect(options?.readOnly).toBe(true);
+    expect(backend.runCalls[0]?.prompt).toContain("Assignment bounds are declared");
+    expect(backend.runCalls[0]?.prompt).not.toContain("assignments[");
+    // The use case gets only the boolean: it has no config to read bounds from and runs no provider.
   });
 
   it("a plan without a provider keeps today's options and is told not to run it", async () => {

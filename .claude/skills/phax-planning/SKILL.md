@@ -48,7 +48,7 @@ create/edit lists walked in phase order against the working tree — an edit of 
 file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
-catalog, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
+catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
 and **oracles** (a malformed `**Mode:**` or oracle line, and any interactive or oracle
 declaration at all, which this release refuses), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
@@ -59,7 +59,9 @@ advisory findings. A `Draft` plan lints like any other — run it while drafting
 not only before approval. The run preflight (`phax run`, `phax resume`) also
 refuses, with exit 11, a phase whose section it cannot locate in plan.md; a phase
 is located by its `## phase-NN` id heading or by its `{#anchor}`. It refuses the same
-`models`, `interactive` and `oracles` errors with exit 11.
+`models`, `interactive` and `oracles` errors with exit 11: a departure from a bound
+without a reason, or an invalid bound, stops the run before it is named
+("Assignment preflight failed"), and `phax plans lint` shows the same findings first.
 
 ## Run title and short name
 
@@ -133,7 +135,7 @@ informational for the executing agent.
 | `title`                  | Section heading after the dash                          | yes        |
 | `model`                  | `**Recommended model:** <model-id>` line                | yes        |
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
-| Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from the default | no         |
+| Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from its governing bound or the default | no         |
 | `mode`                   | `**Mode:** interactive` line in the header paragraph; absent means `headless` | yes        |
 | `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph; absent means `null` | yes        |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
@@ -171,7 +173,7 @@ reconciliation.
 
 **Recommended model:** <model-id>
 **Recommended effort:** low | medium | high
-**Assignment reason:** <why this phase leaves the default — omit the line at the default>
+**Assignment reason:** <why this phase leaves its governing bound or the default — omit the line when it conforms>
 
 <Objective — one short paragraph: the user- or system-visible capability this
 phase adds.>
@@ -322,10 +324,11 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
 
 Read the repository's architecture before cutting phases. Run `phax architecture`,
 or `phax architecture <path>...` for the parts the plan touches: with an
-architecture provider configured, it prints the repository's architecture. Without
-one, it exits 1 with one line saying so. That exit means: read the architecture
-from the code and its documentation (README, CLAUDE.md or equivalent) instead, and
-carry on. It is not a failure of the repository.
+architecture provider configured, it prints the repository's architecture, then the
+owner's assignment bounds when `phax.json` declares any. Without a provider, it
+exits 1 with one line saying so, followed by the bounds when declared. That exit
+means: read the architecture from the code and its documentation (README, CLAUDE.md
+or equivalent) instead, and carry on. It is not a failure of the repository.
 
 Either way, plan against it: its parts, the direction of their dependencies, and
 the boundaries its own checks enforce.
@@ -440,7 +443,11 @@ Cut and write every phase first. Choose its model and effort last, from what the
 <!-- END generated: phase-model-policy -->
 
 - Any other catalog model only for a stated reason.
-- Every phase that leaves the default says why, on the phase: its `assignmentReason` (headless), or an `**Assignment reason:**` line under its model and effort (by hand). A phase at the default has no reason: `assignmentReason: null`, and no line. A departure without a reason, or a default phase with one, is a defect.
+- Read the assignment bounds before assigning: `phax architecture` prints them after the parts, also when it exits 1 with its no-provider line. A bound names the files it covers (an architecture part, or globs), one model and an effort range.
+- The first bound that matches any file the phase plans to create, edit or optionally edit governs it. With no match, the default above stands in.
+- A phase conforms when it takes the governing bound's model (or the default's) at an effort inside the range.
+- A conforming phase has `assignmentReason: null` and no `**Assignment reason:**` line. Any other phase says why: its `assignmentReason` (headless), or an `**Assignment reason:**` line under its model and effort (by hand).
+- `phax plans lint` and the run's start preflight fail an unstated departure from a bound. An unstated departure from the default is a warning. A conforming phase that carries a reason is a defect.
 - A lighter model needs the detail: see "Comprehensive instructions".
 - A plan that changes the catalog itself must name only models already in the shipped catalog: the run-start preflight uses the running binary's catalog, not the one the plan adds.
 
@@ -682,7 +689,7 @@ and the fields that only render the phase:
 - `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
   section is then omitted rather than filled.
 - `testStrategy`, `verification`, `expectedHandoff`: strings.
-- `assignmentReason` — why the phase leaves the default assignment, rendered as an
+- `assignmentReason` — why the phase leaves its governing bound or the default assignment, rendered as an
   `**Assignment reason:**` line under its effort line. Put each departure's reason in that
   phase's `assignmentReason`, and `assignmentReason: null` on every phase at the default. Never put a
   reason in `preamble.technicalArbitrations`.

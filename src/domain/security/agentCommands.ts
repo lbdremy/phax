@@ -24,14 +24,17 @@ function canEnforcePrefix(enforcement: CommandEnforcement): boolean {
   return enforcement === "exact" || enforcement === "prefix";
 }
 
-/** The one command a headless plan authoring session is granted when a provider is configured. */
+/** The one command a headless plan authoring session is granted when a provider or assignment bounds are configured. */
 export const ARCHITECTURE_AGENT_COMMAND = "phax architecture";
 
 export function authoringAgentCommands(input: {
   readonly kind: ArtifactKind;
   readonly architectureProvider: boolean;
+  readonly assignmentBounds: boolean;
 }): readonly string[] {
-  return input.kind === "plan" && input.architectureProvider ? [ARCHITECTURE_AGENT_COMMAND] : [];
+  return input.kind === "plan" && (input.architectureProvider || input.assignmentBounds)
+    ? [ARCHITECTURE_AGENT_COMMAND]
+    : [];
 }
 
 export function computeFrozenAgentCommands(input: {

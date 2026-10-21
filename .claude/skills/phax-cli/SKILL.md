@@ -98,7 +98,7 @@ scope is the boundary.
 
 ## Gate steps, briefs and records
 
-These are `phax.json` keys rather than commands, so `--usage` does not show them. The
+These are `phax.json` keys (`brief`, `architecture`, `assignments`, …) rather than commands, so `--usage` does not show them. The
 README (sections *Gate report steps*, *Gate request*, *Brief provider*, *Architecture
 provider*, *Plan auditor*) holds the exact formats.
 
@@ -125,10 +125,18 @@ provider*, *Plan auditor*) holds the exact formats.
   `phax brief` (source `brief` in `security.json`). Each brief is recorded as
   `brief-NN.json`; `phax records explain <commit> --briefs` prints them.
 - **`architecture`** (`command`, required): a provider that answers `phax architecture
-  [path…]` with the repository's architecture as a Markdown body. With none configured,
-  the command exits 1 with one line telling the agent to read the code and its
-  documentation. It writes nothing, and a headless plan session is granted it when one is
+  [path…]` with an architecture report (`body` plus `parts`: id, name, description, globs)
+  that phax renders to Markdown. The command lists the assignment bounds after the parts.
+  With none configured, it prints one line telling the agent to read the code and its
+  documentation, followed by the bounds when they are declared, and exits 1. It writes
+  nothing, and a headless plan session is granted it when a provider or bounds are
   configured.
+- **`assignments`** (phax.json only, never the user overlay): the owner's ordered bounds,
+  each a `part` (an architecture-report part id) or `globs` bound with one model and an
+  effort range. The first bound matching any file a phase plans to touch governs it; a
+  departure needs an `**Assignment reason:**`. `phax plans lint` and the run's start
+  preflight hold plans to the bounds (exit 11 on a refusal); `phax validate` checks the
+  bounds against the routing catalog (exit 2).
 - **`planAuditor`** (a provider command): advisory findings for `phax plans lint`, never
   during a run.
 

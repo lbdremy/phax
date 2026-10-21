@@ -16,7 +16,7 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### In flight
 
-- [ ] **`assignment-bounds`** — `docs/specs/2610201350-assignment-bounds.md`, approved 2026-10-20.
+- [x] **`assignment-bounds`** — `docs/specs/2610201350-assignment-bounds.md`, approved 2026-10-20.
       It replaces `phase-model-assignment`.
       - The owner writes ordered bounds in `phax.json` (`part` or `globs`, a model and an effort
         range). The first matching bound governs a phase.
@@ -25,7 +25,9 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - Plan 1, the architecture report gaining `parts`, landed (PR #150).
       - Plan 2, the joint plan-document change (`assignmentReason`, `mode`, `oracle`, one lift),
         landed.
-      - Next: the bounds plan.
+      - Plan 3, the bounds (`assignments` in `phax.json`, the shared check in lint and the run
+        preflight, `phax architecture` listing them, the skills and docs), landed. The spec is
+        complete.
 - [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
       (`phax architecture`) landed and the spec is complete.

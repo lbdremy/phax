@@ -2,7 +2,10 @@ import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { pullArchitecture } from "../../app/architectureProvider.js";
 import { loadConfig, locateWorkingTree } from "../../app/loadConfig.js";
-import { renderArchitectureReport } from "../../domain/architecture/render.js";
+import {
+  renderArchitectureReport,
+  renderAssignmentBounds,
+} from "../../domain/architecture/render.js";
 import { NO_ARCHITECTURE_PROVIDER } from "../../domain/architecture/request.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { reportConfigError } from "./reportConfigError.js";
@@ -28,9 +31,13 @@ export async function runArchitecture(
     reportConfigError(configResult.left, out);
     return 2;
   }
-  const { architecture } = configResult.right;
+  const { architecture, assignments } = configResult.right;
   if (architecture === undefined) {
     out.log(NO_ARCHITECTURE_PROVIDER);
+    if (assignments !== undefined) {
+      out.log("");
+      out.log(renderAssignmentBounds(assignments, { kind: "no-provider" }));
+    }
     return 1;
   }
 
@@ -48,5 +55,15 @@ export async function runArchitecture(
     return 1;
   }
   out.log(renderArchitectureReport(result.report));
+  if (assignments !== undefined) {
+    out.log("");
+    out.log(
+      renderAssignmentBounds(assignments, {
+        kind: "report",
+        report: result.report,
+        scoped: paths.length > 0,
+      }),
+    );
+  }
   return 0;
 }

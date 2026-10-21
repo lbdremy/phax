@@ -138,6 +138,14 @@ No architecture provider is configured ("architecture" in phax.json): read the a
 
 The line is meant for the agent: it reads the code and its documentation, and carries on.
 
+When `phax.json` declares [assignment bounds](assignment-bounds.md), the line is followed by a blank line and the bounds, a part bound marked `(unresolved: no architecture provider)`, and the exit is still 1.
+
+## Assignment bounds
+
+When `phax.json` declares `assignments`, `phax architecture` prints a `## Bounds` section after the parts, one `assignments[N]` line per bound in list order. A part bound shows the name and globs of the part whose `id` it names, so **a part's `id` is the name a bound uses**: renaming an id in your report breaks the bounds that name it, and `phax plans lint` reports each one as unresolved. A path-scoped call that does not carry a bound's part marks it `(not in this report: run `phax architecture` with no path for its globs)`; a whole-repository report that lacks the part marks it `(unresolved: the report has no part <id>)`. A provider that fails prints its one stderr line and no bounds. See [Assignment bounds](assignment-bounds.md).
+
+`phax plans lint` and the start of `phax run` and `phax resume` also run the provider, once per call, to resolve part bounds; they do so only when at least one bound names a part.
+
 ## When it fails
 
 A provider that exits non-zero, runs past the limit, prints something that is not JSON or prints a refused report fails with one line on stderr and exit 1. The provider's stderr is folded onto one line.
@@ -155,7 +163,7 @@ A provider that exits non-zero, runs past the limit, prints something that is no
 
 ## In headless plan authoring
 
-`phax artifact new plan --headless` tells the planner whether a provider is configured. With one, the prompt asks it to run `phax architecture`, or `phax architecture <path>...` for the parts the plan touches, before cutting phases, and the session may run that command. On Claude Code the session is read-only: it keeps its reading tools, cannot write a file, and runs no other command. Codex and Mistral Vibe do not restrict a session's commands, so there the grant changes nothing. With none, the prompt tells it not to run the command and to read the code and its documentation. Spec authoring is unchanged.
+`phax artifact new plan --headless` tells the planner whether a provider is configured. With one, the prompt asks it to run `phax architecture`, or `phax architecture <path>...` for the parts the plan touches, before cutting phases, and the session may run that command. On Claude Code the session is read-only: it keeps its reading tools, cannot write a file, and runs no other command. Codex and Mistral Vibe do not restrict a session's commands, so there the grant changes nothing. When bounds are declared, the prompt adds that the command lists them after the parts, and asks the planner to assign each phase against them. With bounds and no provider, the prompt still sends the planner to the command, which exits 1 with its no-provider line and then lists the bounds, and the session is granted it all the same. With neither, the prompt tells it not to run the command and to read the code and its documentation. The prompt lists no bound. Spec authoring is unchanged.
 
 The session runs under limits your provider must live with:
 
