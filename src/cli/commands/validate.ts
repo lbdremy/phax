@@ -22,15 +22,10 @@ export async function runValidate(opts: ValidateOptions, out: OutputPort): Promi
     return 2;
   }
   const config = configResult.right;
-  out.log(`✓ config is valid (project: ${config.namespace})`);
-
   const sources = describeConfigSources(cwd);
-  if (sources !== undefined) {
-    out.log(`  project: ${sources.project}`);
-    out.log(`  local:   ${sources.localOverlay ?? "(none)"}`);
-    out.log(`  global:  ${sources.globalOverlay ?? "(none)"}`);
-  }
 
+  // The bounds are checked before the config is reported valid, so a bad bound
+  // never follows a success line.
   if (config.assignments !== undefined) {
     const checked = await Effect.runPromise(
       Effect.either(
@@ -44,6 +39,15 @@ export async function runValidate(opts: ValidateOptions, out: OutputPort): Promi
       if (at !== undefined) out.error(`  at: ${at}`);
       return 2;
     }
+  }
+
+  out.log(`✓ config is valid (project: ${config.namespace})`);
+  if (sources !== undefined) {
+    out.log(`  project: ${sources.project}`);
+    out.log(`  local:   ${sources.localOverlay ?? "(none)"}`);
+    out.log(`  global:  ${sources.globalOverlay ?? "(none)"}`);
+  }
+  if (config.assignments !== undefined) {
     const parts = config.assignments.filter((bound) => bound.kind === "part").length;
     const globs = config.assignments.length - parts;
     out.log(`  ${config.assignments.length} assignment bounds (${parts} part, ${globs} globs)`);

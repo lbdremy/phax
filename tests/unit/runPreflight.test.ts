@@ -293,6 +293,7 @@ const REFUSALS = {
       "",
       `  phase-01 (${GOOD_MODEL}/medium):`,
       "    - outside assignments[0] (globs src/core/decide/**: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line",
+      "",
       `Check the plan with \`phax plans lint ${PLAN_PATH}\`.`,
     ].join("\n"),
   },
@@ -496,6 +497,7 @@ describe("runPreflights: assignment-bounds", () => {
           "Assignment preflight failed: 1 error(s) from the assignment bounds.",
           "",
           "  assignments[1] (part docs): unresolved: no architecture provider is configured; no phase was compared with the bounds",
+          "",
           `Check the plan with \`phax plans lint ${PLAN_PATH}\`.`,
         ].join("\n"),
       );

@@ -195,7 +195,7 @@ function assignmentRefusalMessage(
   }
   const boundErrors = errors.filter((f) => f.phase === null);
   if (boundErrors.length > 0) lines.push("", ...boundErrors.map((f) => `  ${f.message}`));
-  lines.push(`Check the plan with \`phax plans lint ${planPath}\`.`);
+  lines.push("", `Check the plan with \`phax plans lint ${planPath}\`.`);
   return lines.join("\n");
 }
 

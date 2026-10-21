@@ -142,7 +142,7 @@ When `phax.json` declares [assignment bounds](assignment-bounds.md), the line is
 
 ## Assignment bounds
 
-When `phax.json` declares `assignments`, `phax architecture` prints a `## Bounds` section after the parts, one `assignments[N]` line per bound in list order. A part bound shows the name and globs of the part whose `id` it names, so **a part's `id` is the name a bound uses**: renaming an id in your report breaks the bounds that name it, and `phax plans lint` reports each one as unresolved. A path-scoped call that does not carry a bound's part marks it `(not in this report: run `phax architecture` with no path for its globs)`; a whole-repository report that lacks the part marks it `(unresolved: the report has no part <id>)`. A provider that fails prints its one stderr line and no bounds. See [Assignment bounds](assignment-bounds.md).
+When `phax.json` declares `assignments`, `phax architecture` prints a `## Bounds` section after the parts, one `assignments[N]` line per bound in list order. A part bound shows the name and globs of the part whose `id` it names, so **a part's `id` is the name a bound uses**: renaming an id in your report breaks the bounds that name it, and `phax plans lint` reports each one as unresolved. A path-scoped call that does not carry a bound's part marks it ``(not in this report: run `phax architecture` with no path for its globs)``; a whole-repository report that lacks the part marks it `(unresolved: the report has no part <id>)`. A provider that fails prints its one stderr line and no bounds. See [Assignment bounds](assignment-bounds.md).
 
 `phax plans lint` and the start of `phax run` and `phax resume` also run the provider, once per call, to resolve part bounds; they do so only when at least one bound names a part.
 

@@ -63,6 +63,8 @@ describe("AssignmentsSchema", () => {
     ["a missing max", [{ ...PART, effort: { min: "low" } }]],
     ["a missing model", [{ kind: "part", part: "docs", effort: { min: "low", max: "low" } }]],
     ["an empty list", []],
+    ["a part id that is not a kebab-case slug", [{ ...PART, part: "Core-Decide" }]],
+    ["a part id with a backtick", [{ ...PART, part: "core`decide" }]],
   ])("refuses %s", (_label, assignments) => {
     expect(Either.isLeft(decodeAssignments(assignments))).toBe(true);
   });

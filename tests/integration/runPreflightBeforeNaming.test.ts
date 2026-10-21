@@ -147,6 +147,7 @@ function assignmentRefusal(covers: string): string {
     "",
     "  phase-01 (claude-opus-5-5/medium):",
     `    - outside assignments[0] (${covers}: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line`,
+    "",
     "Check the plan with `phax plans lint plan.md`.",
   ].join("\n");
 }
@@ -309,6 +310,7 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
         "Assignment preflight failed: 1 error(s) from the assignment bounds.",
         "",
         "  assignments[1] (part steps): unresolved: no architecture provider is configured; no phase was compared with the bounds",
+        "",
         "Check the plan with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
@@ -320,6 +322,7 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
         "Assignment preflight failed: 1 error(s) from the assignment bounds.",
         "",
         "  assignments[0].model: claude-opus-9 is not in the catalog",
+        "",
         "Check the plan with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },

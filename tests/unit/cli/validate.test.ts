@@ -510,10 +510,12 @@ describe("runValidate", () => {
 
     it("exits 2 for a model the catalog lacks, naming the bound, the field and phax.json", async () => {
       writeConfig([GLOBS, { ...PART, model: "claude-opus-9" }]);
-      const { out, errors } = makeOutput();
+      const { out, errors, lines } = makeOutput();
       const code = await runValidate({}, out);
 
       expect(code).toBe(2);
+      // A bad bound never follows a success line.
+      expect(lines.some((l) => l.includes("config is valid"))).toBe(false);
       expect(errors).toEqual([
         "Config validation failed: assignments[1].model: claude-opus-9 is not in the catalog",
         `  at: ${join(repoDir, "phax.json")}`,

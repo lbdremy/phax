@@ -4,7 +4,7 @@
 // model and efforts are in the routing catalog is `boundCatalogProblems`
 // (src/domain/plan/assignmentCheck.ts).
 import { Schema } from "effect";
-import { ArchitectureGlobSchema, GLOB_DIALECT } from "./architecture.js";
+import { ArchitectureGlobSchema, ArchitecturePartIdSchema, GLOB_DIALECT } from "./architecture.js";
 import { PlanEffortSchema } from "./phaxPlan.js";
 
 export const EffortRangeSchema = Schema.Struct({
@@ -20,7 +20,7 @@ const BOUND_MODEL_DESCRIPTION =
 
 export const PartBoundSchema = Schema.Struct({
   kind: Schema.Literal("part"),
-  part: Schema.NonEmptyString.annotations({
+  part: ArchitecturePartIdSchema.annotations({
     description:
       "The id of an architecture-report part: the bound covers the files of the part whose id this is, read from the architecture provider.",
   }),

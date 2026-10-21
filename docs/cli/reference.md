@@ -1442,7 +1442,7 @@ Seven checks run: structure — every field the deterministic extraction require
 
 A plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.
 
-The file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).
+The file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail). An invalid config, a malformed bound or a user overlay that carries assignments included, exits 2.
 
 Side effects: none of phax's own; a registered plan auditor is spawned once with the projection on stdin, capped at 30s.
 

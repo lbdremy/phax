@@ -113,8 +113,9 @@ export async function runPlansLint(
 ): Promise<number> {
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
+    // 2, as for every invalid config: exit 1 means the plan has an error.
     out.error(`Config error: ${configResult.left.message}`);
-    return 1;
+    return 2;
   }
   const config = configResult.right;
 
