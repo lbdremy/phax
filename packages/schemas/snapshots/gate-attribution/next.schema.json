@@ -27,35 +27,67 @@
     "steps": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "command",
-          "surface",
-          "result"
-        ],
-        "properties": {
-          "command": {
-            "$ref": "#/$defs/NonEmptyString"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "command",
+              "surface",
+              "result"
+            ],
+            "properties": {
+              "command": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "surface": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "structural",
+                  "product"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "refused"
+                ]
+              }
+            },
+            "additionalProperties": true
           },
-          "surface": {
-            "type": "string",
-            "enum": [
-              "local",
-              "structural",
-              "product",
-              "oracle"
-            ]
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "pass",
-              "fail",
-              "refused"
-            ]
+          {
+            "type": "object",
+            "required": [
+              "command",
+              "surface",
+              "result"
+            ],
+            "properties": {
+              "command": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "surface": {
+                "type": "string",
+                "enum": [
+                  "oracle"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "refused",
+                  "skipped"
+                ]
+              }
+            },
+            "additionalProperties": true
           }
-        },
-        "additionalProperties": true
+        ]
       }
     }
   },

@@ -94,7 +94,7 @@ describe("GateAttributionFileSchema", () => {
     expect(Either.isLeft(decoded)).toBe(true);
   });
 
-  it("rejects a step whose result is outside pass | fail | refused", () => {
+  it("rejects a configured step whose result is skipped", () => {
     const decoded = decodeGateAttributionFile(
       stamped({
         phase: "phase-01",
@@ -103,6 +103,21 @@ describe("GateAttributionFileSchema", () => {
     );
 
     expect(Either.isLeft(decoded)).toBe(true);
+  });
+
+  it("round-trips an oracle step the operator skipped, after a configured step", () => {
+    const record: GateAttribution = {
+      phase: "phase-03",
+      steps: [
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "oracles provider", surface: "oracle", result: "skipped" },
+      ],
+    };
+
+    const encoded = encodeGateAttributionFile(stamped(record));
+
+    expect(encoded.$schema).toMatch(/\/gate-attribution\//);
+    expect(decodeGateAttributionFile(encoded)).toEqual(Either.right(stamped(record)));
   });
 
   it("rejects a missing phase", () => {

@@ -964,7 +964,12 @@ describe("runGatesWithFixLoop", () => {
 
   describe("an oracle step", () => {
     const reportUrl = currentSchemaUrl("gate-report");
-    const oracleStep = { command: "./oracles", request: '{"made-up":"request"}', timeoutMs: 1000 };
+    const oracleStep = {
+      kind: "run",
+      command: "./oracles",
+      request: '{"made-up":"request"}',
+      timeoutMs: 1000,
+    } as const;
     const unmarked = {
       id: "oracle-unmarked tests/refunds.test.ts",
       rule: "an oracle test is marked until its discharging phase",

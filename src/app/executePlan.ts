@@ -218,6 +218,11 @@ export interface ExecutePlanOptions {
   // branch (spec 27). Absent for callers with no lifecycle artifact to complete
   // (most tests); completeRunArtifacts is itself a no-op for loose paths.
   readonly planRepoRelPath?: string | undefined;
+  // Skips the oracle step of the phase at `startIndex`, in this invocation,
+  // when that phase's gate runs: the configured gate and its fix loop still
+  // run. Never persisted and never reaches a later phase. The resume command
+  // sets it after checking the phase's oracle role.
+  readonly skipOracle?: boolean | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -285,6 +290,7 @@ export function executePlan(
     providerConfig = DEFAULT_PROVIDER_CONFIG,
     securityMode: passedSecurityMode,
     allowSkillEdits = false,
+    skipOracle = false,
   } = opts;
 
   // Use the passed securityMode if provided, otherwise fall back to config
@@ -437,6 +443,7 @@ export function executePlan(
   function oracleStepFor(
     phaseFolderPath: string,
     phaseId: string,
+    skip: boolean,
   ): Effect.Effect<
     OracleStep | undefined,
     FsError | OraclePreflightError | OracleCommitMissingError,
@@ -467,9 +474,11 @@ export function executePlan(
       }
       const oracleFolder =
         role.role === "oracle" ? phaseFolderPath : join(runPath, role.pair.oraclePhase);
+      if (skip) return { kind: "skipped", command: config.oracles.command };
       const base = yield* readPhaseBase(oracleFolder);
       const oracleCommit = role.role === "oracle" ? null : yield* oracleCommitOf(role.pair);
       return {
+        kind: "run",
         command: config.oracles.command,
         request: serializeOracleRequest(makeOracleRequest({ role, phaseId, base, oracleCommit })),
         timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
@@ -1122,7 +1131,11 @@ export function executePlan(
         const gateRequest = serializeGateRequest(
           phaseFacts ?? (yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal)),
         );
-        const oracleStep = yield* oracleStepFor(phaseFolderPath, phase.id);
+        const oracleStep = yield* oracleStepFor(
+          phaseFolderPath,
+          phase.id,
+          skipOracle && i === startIndex,
+        );
         const gateOutcome = yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,

@@ -65,7 +65,7 @@ export function recordOracleRole(role: OracleRole | null): RecordOracleRole {
 }
 
 /** The last oracle-step result of one side of a pair, `not run` when it has none. */
-export type OraclePairResult = "pass" | "fail" | "refused" | "not run";
+export type OraclePairResult = "pass" | "fail" | "refused" | "skipped" | "not run";
 
 export interface OraclePairRow {
   readonly oraclePhase: string;

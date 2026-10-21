@@ -15,6 +15,7 @@ import {
   isDecisionRecordManifest,
   type DecisionRecordManifest,
 } from "../schemas/decisionRecord.js";
+import type { OracleStepResult } from "../schemas/gateAttribution.js";
 import { readGateAttributionFile, readRecordManifestFile } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
@@ -44,10 +45,7 @@ export interface ExplainedRecord {
   readonly diffStat?: RecordDiffStat;
   readonly handoffPresent: boolean;
   /** The last step with surface `oracle` in the record's own `gate-attribution.json`, or null. */
-  readonly oracleStep: {
-    readonly command: string;
-    readonly result: "pass" | "fail" | "refused";
-  } | null;
+  readonly oracleStep: Pick<OracleStepResult, "command" | "result"> | null;
   /** Artifact contents by file name (e.g. `"prompt.md"`), excluding `record.json`. */
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
@@ -128,7 +126,7 @@ function lastOracleStep(artifacts: ReadonlyMap<string, Uint8Array>): ExplainedRe
   }
   const read = readGateAttributionFile("gate-attribution.json", parsed);
   if (Either.isLeft(read)) return null;
-  const step = read.right.steps.findLast((s) => s.surface === "oracle");
+  const step = read.right.steps.findLast((s): s is OracleStepResult => s.surface === "oracle");
   return step === undefined ? null : { command: step.command, result: step.result };
 }
 
