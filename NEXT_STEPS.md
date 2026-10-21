@@ -23,8 +23,9 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - Lint and the run preflight share one bounds check (exit 11), and `modelReason` becomes
         `assignmentReason`.
       - Plan 1, the architecture report gaining `parts`, landed (PR #150).
-      - Next: one joint plan-document plan with `interactive-phases` and `oracle-phases` (a frozen
-        0.25.0 copy and one lift), then the bounds plan.
+      - Plan 2, the joint plan-document change (`assignmentReason`, `mode`, `oracle`, one lift),
+        landed.
+      - Next: the bounds plan.
 - [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
       (`phax architecture`) landed and the spec is complete.
@@ -39,7 +40,8 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - The stop exits 13. A handoff the person wrote wins over the closing turn.
       - An unchanged review leaves an empty commit. The transcript goes into the records under
         `records.transcript`, and the person's turns are not costed.
-      - It rides one plan-document lift with `assignment-bounds` and `oracle-phases`.
+      - The phase shape landed. Lint and the run preflight refuse an interactive phase for now,
+        and the runtime plan replaces that refusal.
 - [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
       2026-10-20; the 2026-09-28 spec is abandoned.
       - Any `oracles` provider will do, not only steme. The provider gets a new `oracle-request`
@@ -50,7 +52,8 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - The planner declares oracle phases only when a provider is configured.
       - The `oracle` key sits right after `mode`. Lint and the run preflight share one check,
         which refuses with exit 11. An interactive phase takes no oracle role.
-      - It rides the plan-document lift with `assignment-bounds` and `interactive-phases`.
+      - The phase shape landed. Lint and the run preflight refuse an oracle phase for now, and
+        the runtime plan replaces that refusal.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Reworked and re-approved
       2026-10-19: the review passes go under `## Needs your review` in the short PR body, the PR
       opens as a draft while a review plan or a finding is pending, run completion happens when

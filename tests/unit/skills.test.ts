@@ -105,11 +105,16 @@ describe("phax-planning skill", () => {
     });
   });
 
-  it("directs headless reasons into modelReason, never the arbitrations", () => {
+  it("directs headless reasons into assignmentReason, never the arbitrations", () => {
     const section = sectionOf(content, "## Headless authoring");
-    expect(section).toContain("modelReason");
-    expect(section).toContain("`modelReason: null`");
+    expect(section).toContain("assignmentReason");
+    expect(section).toContain("`assignmentReason: null`");
     expect(section).toContain("preamble.technicalArbitrations");
+  });
+
+  it("no longer names the old model reason", () => {
+    expect(content).not.toContain("modelReason");
+    expect(content).not.toContain("**Model reason:**");
   });
 
   it("never lets a security loss be accepted silently", () => {
