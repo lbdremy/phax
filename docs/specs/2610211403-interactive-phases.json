@@ -689,9 +689,9 @@
     },
     {
       "id": "r-oracle-held-discharge",
-      "title": "A held discharge is judged again at closing",
+      "title": "A held discharge closes on its configured steps",
       "pattern": "event",
-      "statement": "WHEN a held discharging phase closes THE system SHALL run the oracle step with a `discharged` request as the closing gate's last step, naming the same `oracleCommit` as the phase's own gate."
+      "statement": "WHEN a held discharging phase closes THE system SHALL run the gate profile's configured steps, which must all pass as at any phase's closing, and SHALL NOT run the oracle step again, since the discharge was judged before the stop."
     },
     {
       "id": "r-unchanged-plans",
@@ -1535,10 +1535,10 @@
     },
     {
       "id": "ac-oracle-discharge",
-      "name": "A held discharge is judged again at closing",
-      "given": "the four-phase variant run with `--hold phase-03`, whose discharging phase-03 passed its gate with `oracleCommit` C2, and `./fake-oracles` answering a finding for any changed assertion",
-      "when": "the person changes nothing and closes the stop; and, in a second run, the person changes `toBe(120)` to `toBe(100)` in the oracle file and closes the stop",
-      "then": "the first closing gate ends with a `discharged` request naming C2, and the phase closes `unchanged`. In the second, the closing gate's oracle step fails with the finding, no fix attempt runs, nothing is committed, the run stays `awaiting_review` and the exit code is 4.",
+      "name": "A held discharge closes on its configured steps",
+      "given": "the four-phase variant run with `--hold phase-03`, whose discharging phase-03 passed its gate, including a `discharged` verdict naming `oracleCommit` C2, with `./fake-oracles` recording each request it receives",
+      "when": "the person changes nothing and closes the stop; and, in a second run, the person changes `toBe(120)` to `toBe(100)` in the oracle file and closes the stop; and, in a third, the person's change makes a configured step fail",
+      "then": "the first closing gate runs only the configured steps, `./fake-oracles` receives no request, and the phase closes `unchanged`. In the second, the configured steps pass, no oracle request is sent, and the review commit carries the changed assertion. In the third, the red configured step returns the phase to the person: no fix attempt runs, nothing is committed, the run stays `awaiting_review` and the exit code is 4.",
       "refs": [
         "r-oracle-held-discharge",
         "r-red-gate"
@@ -1555,7 +1555,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-hold-config",
       "question": "Can a configuration layer ask for the hold, as well as `phax run --hold`?",
@@ -1572,7 +1573,25 @@
         }
       ],
       "recommendation": "flag-only",
-      "rationale": "A hold is a decision about one run, made by the person who will be there to review it. A config default would make an unattended invocation stop for a person nobody asked, which is what runs-stay-autonomous guards against. The fork's daily user loses only the typing: their UI, or their fork, passes the flag. Adding a key later is cheap. Removing one later would be a breaking schema change."
+      "rationale": "A hold is a decision about one run, made by the person who will be there to review it. A config default would make an unattended invocation stop for a person nobody asked, which is what runs-stay-autonomous guards against. The fork's daily user loses only the typing: their UI, or their fork, passes the flag. Adding a key later is cheap. Removing one later would be a breaking schema change.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "flag-only",
+        "abandoned": [
+          "config-key"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: A hold is a decision about one run, made by the person who will be there to review it. A config default would make an unattended invocation stop for a person nobody asked, which is what runs-stay-autonomous guards against. The fork's daily user loses only the typing: their UI, or their fork, passes the flag. Adding a key later is cheap. Removing one later would be a breaking schema change.",
+        "advocate": "A standing default spares the daily hold user the flag on every run, and their UI or fork the work of passing it.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-hold-resume",
@@ -1590,7 +1609,25 @@
         }
       ],
       "recommendation": "fixed",
-      "rationale": "`--hold` with no value already covers 'I will know when I read it'. Its cost is closing the stops one does not need, which takes a gate run each and leaves no commit when nothing changed. A fixed selection keeps run-status a single fact that a UI and the records can trust. `phax resume --hold` can be added later without changing the recorded shape."
+      "rationale": "`--hold` with no value already covers 'I will know when I read it'. Its cost is closing the stops one does not need, which takes a gate run each and leaves no commit when nothing changed. A fixed selection keeps run-status a single fact that a UI and the records can trust. `phax resume --hold` can be added later without changing the recorded shape.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "fixed",
+        "abandoned": [
+          "replace-on-resume"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: `--hold` with no value already covers 'I will know when I read it'. Its cost is closing the stops one does not need, which takes a gate run each and leaves no commit when nothing changed. A fixed selection keeps run-status a single fact that a UI and the records can trust. `phax resume --hold` can be added later without changing the recorded shape.",
+        "advocate": "A person who learns at phase-03 that phase-05 needs them could add the stop without having held every phase from the start.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-final-hold",
@@ -1608,7 +1645,25 @@
         }
       ],
       "recommendation": "final-excluded",
-      "rationale": "review_open already is the final phase's kept-open review, with `phax enter`, `review-code` and `--append`. `publish.auto` is the setting that decides whether a PR opens before a person looks. A declared stop already cannot be last (r-lint-place), so the two stops follow one rule."
+      "rationale": "review_open already is the final phase's kept-open review, with `phax enter`, `review-code` and `--append`. `publish.auto` is the setting that decides whether a PR opens before a person looks. A declared stop already cannot be last (r-lint-place), so the two stops follow one rule.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "final-excluded",
+        "abandoned": [
+          "final-holdable"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: review_open already is the final phase's kept-open review, with `phax enter`, `review-code` and `--append`. `publish.auto` is the setting that decides whether a PR opens before a person looks. A declared stop already cannot be last (r-lint-place), so the two stops follow one rule.",
+        "advocate": "With publish.auto on, a person could review the final phase before compliance runs and the PR opens.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-held-session",
@@ -1631,7 +1686,26 @@
         }
       ],
       "recommendation": "builder-default",
-      "rationale": "At a held stop the person is the fresh look. The builder session already knows why each choice was made, and resuming it costs nothing until the person types. q-new-session's `--new-session` stays available at both stops for an independent reading. A first turn at every held stop would make `--hold` with no value expensive for exactly the case it exists for."
+      "rationale": "At a held stop the person is the fresh look. The builder session already knows why each choice was made, and resuming it costs nothing until the person types. q-new-session's `--new-session` stays available at both stops for an independent reading. A first turn at every held stop would make `--hold` with no value expensive for exactly the case it exists for.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "builder-default",
+        "abandoned": [
+          "first-turn",
+          "builder-only"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: At a held stop the person is the fresh look. The builder session already knows why each choice was made, and resuming it costs nothing until the person types. q-new-session's `--new-session` stays available at both stops for an independent reading. A first turn at every held stop would make `--hold` with no value expensive for exactly the case it exists for.",
+        "advocate": "A fresh read-only first turn at every held stop would give an independent reading free of the builder's blind spots.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-close-red-gate",
@@ -1649,7 +1723,25 @@
         }
       ],
       "recommendation": "return-to-person",
-      "rationale": "By definition, the person is present at a stop. A fix they did not see would land in a commit attributed to them, which breaks the claim that every changed file is a correction. The repair stays one command away: continue the session and ask it to make the gate green, which keeps the person the author."
+      "rationale": "By definition, the person is present at a stop. A fix they did not see would land in a commit attributed to them, which breaks the claim that every changed file is a correction. The repair stays one command away: continue the session and ask it to make the gate green, which keeps the person the author.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "return-to-person",
+        "abandoned": [
+          "builder-fix-loop"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: By definition, the person is present at a stop. A fix they did not see would land in a commit attributed to them, which breaks the claim that every changed file is a correction. The repair stays one command away: continue the session and ask it to make the gate green, which keeps the person the author.",
+        "advocate": "A format or lint nit the person's own edit introduced would be repaired without them, as the fork does in the builder session.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-review-commit",
@@ -1672,7 +1764,26 @@
         }
       ],
       "recommendation": "review-commit",
-      "rationale": "It keeps both facts: what the agent delivered and passed its gate on, and what the person changed. Records, attribution and `git log` already work per commit. The range costs only a record that names two commits (q-held-record) and a reconciliation of the corrections against the phase commit."
+      "rationale": "It keeps both facts: what the agent delivered and passed its gate on, and what the person changed. Records, attribution and `git log` already work per commit. The range costs only a record that names two commits (q-held-record) and a reconciliation of the corrections against the phase commit.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "review-commit",
+        "abandoned": [
+          "amend",
+          "fixup"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: It keeps both facts: what the agent delivered and passed its gate on, and what the person changed. Records, attribution and `git log` already work per commit. The range costs only a record that names two commits (q-held-record) and a reconciliation of the corrections against the phase commit.",
+        "advocate": "One commit per phase keeps every record, reconciliation and PR line about a single commit, as today.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-held-handoff",
@@ -1690,7 +1801,25 @@
         }
       ],
       "recommendation": "correction-beside",
-      "rationale": "A declared stop and a held stop then produce the same handoff, read in the same section and validated by the same rule, so a UI and the later phases see one shape. q-precedence already settles the ranking: the correction wins where the two disagree, and the plan still binds."
+      "rationale": "A declared stop and a held stop then produce the same handoff, read in the same section and validated by the same rule, so a UI and the later phases see one shape. q-precedence already settles the ranking: the correction wins where the two disagree, and the plan still binds.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "correction-beside",
+        "abandoned": [
+          "rewrite-own"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: A declared stop and a held stop then produce the same handoff, read in the same section and validated by the same rule, so a UI and the later phases see one shape. q-precedence already settles the ranking: the correction wins where the two disagree, and the plan still binds.",
+        "advocate": "One handoff per phase, rewritten to the corrected state, gives the next phase a single account to read.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-held-unchanged",
@@ -1708,7 +1837,25 @@
         }
       ],
       "recommendation": "no-commit",
-      "rationale": "A declared phase needs its empty commit because it has no other commit to carry the review. A held phase already has its commit, and its record, written at closing, names the confirmation. q-unchanged-commit keeps binding the declared stop."
+      "rationale": "A declared phase needs its empty commit because it has no other commit to carry the review. A held phase already has its commit, and its record, written at closing, names the confirmation. q-unchanged-commit keeps binding the declared stop.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "no-commit",
+        "abandoned": [
+          "empty-commit"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: A declared phase needs its empty commit because it has no other commit to carry the review. A held phase already has its commit, and its record, written at closing, names the confirmation. q-unchanged-commit keeps binding the declared stop.",
+        "advocate": "An empty commit would leave the review in git history, where `git log` shows that a person confirmed the phase.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-stop-format",
@@ -1731,7 +1878,26 @@
         }
       ],
       "recommendation": "review-stop-and-run-list",
-      "rationale": "One document describes the stop, and both carriers hold it unchanged. A UI can watch a single file for one run, or poll `phax ls --json` for all of them. run-status stays phax's internal state. The break of ls --json is paid once, in docs/upgrading.md, which is the price of putting a `$schema` on a bare array."
+      "rationale": "One document describes the stop, and both carriers hold it unchanged. A UI can watch a single file for one run, or poll `phax ls --json` for all of them. run-status stays phax's internal state. The break of ls --json is paid once, in docs/upgrading.md, which is the price of putting a `$schema` on a bare array.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "review-stop-and-run-list",
+        "abandoned": [
+          "extend-run-status",
+          "ls-only"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: One document describes the stop, and both carriers hold it unchanged. A UI can watch a single file for one run, or poll `phax ls --json` for all of them. run-status stays phax's internal state. The break of ls --json is paid once, in docs/upgrading.md, which is the price of putting a `$schema` on a bare array.",
+        "advocate": "Leaving `phax ls --json` a bare array spares every script that reads it a one-time change.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-held-discharge",
@@ -1749,7 +1915,29 @@
         }
       ],
       "recommendation": "rerun-discharged",
-      "rationale": "The closing gate is the phase's own gate, and oracle-phases' doctrine is that the discharge changes oracle files only by removing markers. A person who disagrees with an oracle is disagreeing with the spec. The place for that is before the discharge, which `--hold oracle` now makes possible."
+      "rationale": "The closing gate is the phase's own gate, and oracle-phases' doctrine is that the discharge changes oracle files only by removing markers. A person who disagrees with an oracle is disagreeing with the spec. The place for that is before the discharge, which `--hold oracle` now makes possible.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "no-oracle-step",
+        "abandoned": [
+          "rerun-discharged"
+        ],
+        "why": "Decided by the operator on 2026-10-21, against the recommendation (rerun-discharged): a held discharging phase's closing gate runs no oracle step, and its configured gate steps must pass as at any phase's closing. The discharge was judged before the stop. A person who corrects an oracle file at the discharge does so under the configured gate, as at any phase.",
+        "advocate": "The closing gate would prove that the oracles judging the code are still the ones reviewed: a correction that weakens an assertion after its verdict would be refused by the provider.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": [
+          "§5.80",
+          "§8",
+          "§10"
+        ]
+      },
+      "history": []
     },
     {
       "id": "q-held-record",
@@ -1767,10 +1955,27 @@
         }
       ],
       "recommendation": "at-close",
-      "rationale": "A held phase is not finished until its stop closes, as a declared phase is not. One record that names both commits answers `records explain` on either commit the same way. A run abandoned at a hold is unfinished work, which phax already leaves unrecorded."
+      "rationale": "A held phase is not finished until its stop closes, as a declared phase is not. One record that names both commits answers `records explain` on either commit the same way. A run abandoned at a hold is unfinished work, which phax already leaves unrecorded.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "at-close",
+        "abandoned": [
+          "at-commit-and-close"
+        ],
+        "why": "Decided by the operator on 2026-10-21, as recommended: A held phase is not finished until its stop closes, as a declared phase is not. One record that names both commits answers `records explain` on either commit the same way. A run abandoned at a hold is unfinished work, which phax already leaves unrecorded.",
+        "advocate": "A record written at the phase commit records the agent's work even when the stop is never closed.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-21T14:41:28Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Carried over unchanged from 2026-10-20 (the previous spec's §9b), not reopened: q-mode-line `interactive-only`, q-planned-work `review-only`, q-person-handoff `person-first`, q-new-session `new-first-turn`, q-precedence `over-handoffs`, q-exit-code `new-13`, q-unchanged-commit `empty-commit`, q-transcript-records `full`, q-count-interactive `never`. The joint phase-shape decisions J1–J4 stand. J5's handover to oracle-phases is revised by decision 3 of 2026-10-21 (below).",
@@ -1780,11 +1985,11 @@
       "How a phase id and the `oracle` keyword are told apart: a phase id matches `phase-NN` (`phase-` followed by two or more digits), and `oracle` is the one keyword. A value is exactly `oracle`, or a comma-separated list of distinct phase ids, never a mix. Because `phax run` takes an optional positional short name, `phax run --hold invoice-export --plan …` reads `invoice-export` as the selection and refuses it with exit 1, telling the operator to put the name before `--hold` or write `--hold=<selection>`.",
       "The hold check is a run preflight check named `hold`, refusing with exit 11 like the other plan checks (J4). `phax plans lint` does not run it, because a hold belongs to a run, not to a plan. A malformed value is a bad argument (exit 1), refused before the plan is read.",
       "A held phase stops after its commit, its validated handoff and its gate attribution, and before its record and its cleanup commands. Cleanup leaves the worktree on disk, and the next phase already branches off the phase branch's tip, so a review commit is picked up with no change to how phases chain.",
-      "oracle-phases changes that its plans must follow (decision 3):\n- §5.11 is dropped: an interactive phase may sit strictly between an oracle phase and its discharging phase (r-oracle-review). Its criterion 'Lint rejects an interactive phase inside the pair' is inverted, and its first plan's §5.11 finding is removed by this spec's runtime plan, as `unsupportedInteractiveFindings` is.\n- §5.19 and §5.21 are extended: the `authored` oracle step also runs as the closing gate's last step of a stop before the discharge whose corrections change an oracle file (r-oracle-authored).\n- §5.20 is extended: a held discharging phase's closing gate runs the `discharged` step again (r-oracle-held-discharge, under q-held-discharge's recommendation).\n- §5.22's `phase` may name that stopped phase.\n- §5.35 is replaced: the discharge names as `oracleCommit` the latest commit that passed `authored` (r-oracle-commit).\n- §5.36 is extended: a commit that is the pair's current `oracleCommit` is reset only after the discharge.\n- The §10 bullet 'The rule against an interactive phase inside a pair settles … the discharge always judges the oracle phase's own commit' is withdrawn.\n- §5.12 and q-interactive-role stand.\nWhichever runtime lands second, this spec's or oracle-phases', implements r-oracle-authored, r-oracle-commit and r-oracle-held-discharge.",
-      "The review UI reads and acts only through files and phax commands: `review-stop.json`, `phax ls --json`, the seed, the person's handoff file and `phax resume` / `phax reset-phase` / `phax enter-phase`. phax gains no server and no network."
+      "oracle-phases changes that its plans must follow (decision 3):\n- §5.11 is dropped: an interactive phase may sit strictly between an oracle phase and its discharging phase (r-oracle-review). Its criterion 'Lint rejects an interactive phase inside the pair' is inverted, and its first plan's §5.11 finding is removed by this spec's runtime plan, as `unsupportedInteractiveFindings` is.\n- §5.19 and §5.21 are extended: the `authored` oracle step also runs as the closing gate's last step of a stop before the discharge whose corrections change an oracle file (r-oracle-authored).\n- §5.20 stands: a held discharging phase's closing gate runs only the configured steps, which must pass as at any closing, and no oracle step (r-oracle-held-discharge, q-held-discharge).\n- §5.22's `phase` may name that stopped phase.\n- §5.35 is replaced: the discharge names as `oracleCommit` the latest commit that passed `authored` (r-oracle-commit).\n- §5.36 is extended: a commit that is the pair's current `oracleCommit` is reset only after the discharge.\n- The §10 bullet 'The rule against an interactive phase inside a pair settles … the discharge always judges the oracle phase's own commit' is withdrawn.\n- §5.12 and q-interactive-role stand.\nWhichever runtime lands second, this spec's or oracle-phases', implements r-oracle-authored and r-oracle-commit. r-oracle-held-discharge asks only that the closing gate add no oracle step.",
+      "The review UI reads and acts only through files and phax commands: `review-stop.json`, `phax ls --json`, the seed, the person's handoff file and `phax resume` / `phax reset-phase` / `phax enter-phase`. phax gains no server and no network.",
+      "Decided by the operator on 2026-10-21 (§9b): q-hold-config `flag-only`, q-hold-resume `fixed`, q-final-hold `final-excluded`, q-held-session `builder-default`, q-close-red-gate `return-to-person`, q-review-commit `review-commit`, q-held-handoff `correction-beside`, q-held-unchanged `no-commit`, q-stop-format `review-stop-and-run-list`, and q-held-record `at-close`, all as recommended. q-held-discharge was decided `no-oracle-step`, against the recommendation: a held discharge's closing gate runs only the configured steps, which must pass as at any closing."
     ],
     "open": [
-      "The eleven questions in §9, each with a recommended default.",
       "The spelling of the lint, preflight and refusal messages and the run, resume, ls, session-info and enter-phase output (all indicative), and whether `phax run --dry-run`, which returns before the preflight, prints the resolved hold.",
       "The exact flags of each continue and fresh-start command, and how the codex trust and hook prompts are told to the person.",
       "The seed's exact wording and order at each stop, and whether it embeds the full plan or points to the plan file in the worktree.",
