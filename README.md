@@ -248,7 +248,7 @@ phax plans lint docs/plans/2610041201-greet-plan.md
 phax plans estimate <plan>   # its API-list cost, and whether it fits your subscription windows now
 ```
 
-A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, each phase's declaration lines (an interactive or oracle phase is refused until a later release runs it, and a `**Model reason:**` line is an error: the label is `**Assignment reason:**`), and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
+A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, each phase's declaration lines (an interactive phase is refused until a later release runs it, an oracle phase runs with a configured `oracles` provider and is refused without one, and a `**Model reason:**` line is an error: the label is `**Assignment reason:**`), and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
 
 `plans estimate` gives each phase's and the run's cost as P10/P50/P90, calibrated from this machine's cost ledgers, and says whether the plan fits the Claude subscription windows left right now. See [Estimating a plan](docs/plan-estimate.md).
 
@@ -671,6 +671,16 @@ An architecture provider tells a planner how the repository is built:
 ```
 
 `phax architecture [path]…` prints the report the provider answers, the Markdown body then each part (id, name, description, globs), for the whole repository or the parts that hold the paths. When `phax.json` declares `assignments`, it then lists the bounds. With no provider configured it prints one line telling the agent to read the code and its documentation, followed by the bounds when declared, and exits 1; it writes nothing either way. A headless plan authoring session is told whether a provider is configured or bounds are declared, and is granted this command when either is. See [Architecture provider](docs/architecture-provider.md) for the request, the report and the limits a provider runs under.
+
+### Oracle provider
+
+An oracles provider judges the two phases of an oracle pair: the phase that writes tests and the phase that discharges them.
+
+```json
+{ "oracles": { "command": "node tools/vitest-oracles.mjs" } }
+```
+
+At the gate of each of the two phases, after every configured step passed, phax runs the command (split on spaces, no shell, in the phase worktree, 120-second limit) and sends it an `oracle-request` on stdin. The verdict is `authored` at the oracle phase, where every test must carry the runner's expected-failure marker, and `discharged` at the discharging phase, which may only remove those markers; the request then also names the oracle phase's commit. The provider answers a `gate-report` on stdout, judged like any report step: findings go to the fix loop, a refusal pauses the phase with exit 4, and a fix loop that runs out on a failing oracle exits 4 too. The request is saved as `checks-attempt-NN.oracle-request.json`. `phax plans lint` and the run and resume preflight refuse an oracle phase when no provider is configured, with exit 11, and never spawn it. phax knows no test framework: the provider does. See [Oracle phases](docs/oracle-phases.md) for the formats, a worked example and how to write the plan.
 
 ### Assignment bounds
 

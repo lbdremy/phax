@@ -49,8 +49,8 @@ file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
-and **oracles** (a malformed `**Mode:**` or oracle line, and any interactive or oracle
-declaration at all, which this release refuses), and **advisory** (when `phax.json` registers a `planAuditor`, every
+and **oracles** (a malformed `**Mode:**` or oracle line; any interactive declaration, which this release
+refuses; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -139,7 +139,7 @@ informational for the executing agent.
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
 | Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from its governing bound or the default | no         |
 | `mode`                   | `**Mode:** interactive` line in the header paragraph; absent means `headless` | yes        |
-| `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph; absent means `null` | yes        |
+| `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph, after the model, effort and Assignment reason lines; absent means `null` | yes        |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
 | `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
 | `plannedFilesToEdit`     | `### Planned files to edit` list                        | yes        |
@@ -160,8 +160,9 @@ the plan preamble) is **not** per-phase — it applies to the whole run. See
 [Required commands declaration](#required-commands-declaration).
 
 `mode` and `oracle` are read by phax from the header lines, never by the extraction model.
-This phax refuses both kinds of phase (an interactive phase, an oracle phase) until a later
-release runs them, so a plan writes neither the `**Mode:**` line nor the oracle lines.
+An oracle phase runs when an `oracles` provider is configured (see
+[Oracle phases](#oracle-phases)). An interactive phase is still refused until a later
+release runs it, so a plan writes no `**Mode:**` line.
 
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). The extraction pulls
@@ -282,6 +283,27 @@ skill file the phase writes, including new files such as `references/*.md`; unde
 siblings, glob paths, and other `.claude/` paths stay denied. A plan that declares skill
 files must be run with `phax run --allow-skill-edits`, or the preflight refuses it (see
 `docs/security.md`).
+
+## Oracle phases
+
+An oracle phase writes the tests that a later phase discharges; a configured `oracles`
+provider judges both gates.
+
+- **Declare one only when an `oracles` provider is configured.** The headless authoring
+  prompt says so; otherwise check `oracles` in phax.json and its overlays by hand. Without a
+  provider, keep tests and code in one phase: `phax plans lint` and `phax run` refuse an
+  oracle phase with exit 11.
+- **Two header lines** sit after the model, effort and Assignment reason lines of the oracle
+  phase: `**Oracle phase:** yes` (the next phase discharges it) or
+  `**Oracle phase:** discharged by phase-NN`, then `**Oracle files:** <paths>`.
+- **The oracle files are a subset of the oracle phase's planned files** to create or edit.
+  The phase may plan stubs that are not oracles.
+- **The oracle phase marks its tests.** Every test it adds or modifies carries the test
+  runner's expected-failure marker, so the test command stays green; it may delete tests.
+- **The discharging phase** (the next phase, or the one named) removes the markers and writes
+  the code. Removing the markers is its only change to the oracle files.
+- **No phase in between** plans an oracle file, no interactive phase sits in between or takes
+  an oracle role, and one phase discharges one oracle phase.
 
 ## Boundary contracts (informational)
 
@@ -677,7 +699,9 @@ the cache seed:
 - `id` (`phase-NN`), `planMarkdownAnchor` (`#phase-NN-<slug>`, rendered as the heading's
   `{#phase-NN-<slug>}`).
 - `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
-- `mode`, `oracle`: write `mode: "headless"` and `oracle: null` on every phase in this release.
+- `mode`, `oracle`: write `mode: "headless"` on every phase in this release. Write `oracle: null`,
+  or `oracle: { dischargedBy: "phase-NN", files: [...] }` on an oracle phase when the authoring
+  prompt says an `oracles` provider is configured (see [Oracle phases](#oracle-phases)).
 - `commit`: `{ subject, body }`.
 - `model`, `effort` (see the model catalog).
 

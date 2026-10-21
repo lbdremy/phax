@@ -19,7 +19,14 @@ export interface AuthoringPromptInput {
   readonly architectureProvider: boolean | null;
   /** Whether the owner declares assignment bounds, for a plan; null for a spec. */
   readonly assignmentBounds: boolean | null;
+  /** Whether an oracles provider is configured, for a plan; null for a spec. */
+  readonly oraclesProvider: boolean | null;
 }
+
+const ORACLES_CONFIGURED_LINE =
+  '- An oracles provider is configured ("oracles" in phax config): you may declare an oracle phase and its discharging phase, as the skill\'s oracle-phase section says.';
+const ORACLES_ABSENT_LINE =
+  "- No oracles provider is configured: declare no oracle phase; every phase's `oracle` is null.";
 
 const ARCHITECTURE_CONFIGURED_LINE =
   "- An architecture provider is configured: before cutting phases and assigning models, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.";
@@ -53,6 +60,9 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     ...(input.architectureProvider === null
       ? []
       : [architectureLine(input.architectureProvider, input.assignmentBounds === true)]),
+    ...(input.oraclesProvider === null
+      ? []
+      : [input.oraclesProvider ? ORACLES_CONFIGURED_LINE : ORACLES_ABSENT_LINE]),
     `- Return ONLY a JSON object valid against the ${documentName} JSON Schema below.`,
     "- No code fences, no Markdown, no commentary before or after the JSON.",
     "- Write no files: phax renders the Markdown artifact from your JSON, writes it and commits it.",

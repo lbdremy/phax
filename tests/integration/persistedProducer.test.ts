@@ -452,6 +452,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         publishRemote: "origin",
         architectureProvider: false,
         assignmentBounds: false,
+        oraclesProvider: false,
         output: { warn: () => {} },
         ...overrides,
       }),

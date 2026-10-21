@@ -17,7 +17,18 @@ import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ReviewNote } from "../schemas/gateReport.js";
-import { readGateReport, readPhaseFileReconciliationFile } from "../schemas/persisted.js";
+import {
+  readGateAttributionFile,
+  readGateReport,
+  readPhaseFileReconciliationFile,
+  readPhaxPlanFile,
+} from "../schemas/persisted.js";
+import {
+  oraclePairs,
+  renderOraclePairsSection,
+  type OraclePairResult,
+  type OraclePairRow,
+} from "../domain/plan/oraclePairs.js";
 import { SOURCE_SPEC_OUTCOME_FILENAME } from "./completeRunArtifacts.js";
 
 export interface PhaseContent {
@@ -126,6 +137,50 @@ export function loadReviewNotes(
   info: RunReviewInfo,
 ): Effect.Effect<string | undefined, never, FileSystem> {
   return Effect.map(loadReviewNoteGroups(info), renderReviewNotes);
+}
+
+// The last oracle-step result in one phase's gate-attribution.json, or
+// `not run` when the file is missing, unreadable or has no oracle step.
+function loadOracleStepResult(
+  runPath: string,
+  phaseId: string,
+): Effect.Effect<OraclePairResult, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, phaseId, "gate-attribution.json");
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const read = readGateAttributionFile(path, parsed);
+    if (Either.isLeft(read)) return "not run" as const;
+    const last = read.right.steps.findLast((step) => step.surface === "oracle");
+    return last?.result ?? ("not run" as const);
+  }).pipe(Effect.orElseSucceed((): OraclePairResult => "not run"));
+}
+
+// The review handoff's `## Oracle pairs` section, read from the run's
+// phax-plan.json (any shape) and each side's gate-attribution.json, or
+// undefined when the plan declares no oracle phase or cannot be read.
+export function loadOraclePairsSection(
+  info: RunReviewInfo,
+): Effect.Effect<string | undefined, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(info.runPath, "phax-plan.json");
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const read = readPhaxPlanFile(path, parsed);
+    if (Either.isLeft(read)) return undefined;
+    const rows: OraclePairRow[] = [];
+    for (const pair of oraclePairs(read.right.plan.phases)) {
+      rows.push({
+        oraclePhase: pair.oraclePhase,
+        dischargingPhase: pair.dischargingPhase,
+        authored: yield* loadOracleStepResult(info.runPath, pair.oraclePhase),
+        discharged: yield* loadOracleStepResult(info.runPath, pair.dischargingPhase),
+      });
+    }
+    return renderOraclePairsSection(rows);
+  }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
 export function loadPhaseContents(

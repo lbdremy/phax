@@ -6,7 +6,8 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 
 const stateRoot = "/fake-state";
@@ -118,6 +119,118 @@ function setupPhaseFiles(
     phaseHandoffMd ?? `## Phase Handoff for ${phaseId}\n\nAll done.`,
   );
 }
+
+function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
+  return {
+    id,
+    title: `Made-up ${id}`,
+    model: "claude-opus-5-5",
+    effort: "high" as const,
+    planMarkdownAnchor: `#${id}`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    mode: "headless" as const,
+    oracle,
+    commit: { subject: `feat: ${id}`, body: "Made up." },
+  };
+}
+
+function oraclePlanJson(pair: boolean): string {
+  const phase = planPhase;
+  const plan: PhaxPlan = {
+    run: { shortName, title: "Refunds", branch: "feature/test-run", requiredCommands: [] },
+    phases: [
+      phase("phase-01", null),
+      phase(
+        "phase-02",
+        pair ? { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] } : null,
+      ),
+      phase("phase-03", null),
+    ],
+  };
+  return JSON.stringify(withSchemaUrl("phax-plan", plan));
+}
+
+function oracleAttribution(phaseId: string, result: "pass" | "fail"): string {
+  return JSON.stringify(
+    withSchemaUrl("gate-attribution", {
+      phase: phaseId,
+      steps: [
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "node tools/oracles.mjs", surface: "oracle", result },
+      ],
+    }),
+  );
+}
+
+describe("generateReviewHandoff — oracle pairs", () => {
+  it("lists each pair with each side's last oracle-step result, after the unexplained deviations", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01", "phase-02", "phase-03"]);
+    for (const id of ["phase-01", "phase-02", "phase-03"]) {
+      setupPhaseFiles(impl, id, makeEmptyReconciliationJson(id));
+    }
+    impl.setFile(`${runPath}/phax-plan.json`, oraclePlanJson(true));
+    impl.setFile(
+      `${runPath}/phase-02/gate-attribution.json`,
+      oracleAttribution("phase-02", "pass"),
+    );
+    impl.setFile(
+      `${runPath}/phase-03/gate-attribution.json`,
+      oracleAttribution("phase-03", "pass"),
+    );
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).toContain(
+      "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |\n| --- | --- | --- | --- |\n| phase-02 | phase-03 | pass | pass |\n",
+    );
+    expect(handoff.indexOf("## Deviations not explained in any handoff")).toBeLessThan(
+      handoff.indexOf("## Oracle pairs"),
+    );
+    expect(handoff.indexOf("## Oracle pairs")).toBeLessThan(handoff.indexOf("## Phase details"));
+  });
+
+  it("says not run for a side with no oracle step", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01", "phase-02", "phase-03"]);
+    for (const id of ["phase-01", "phase-02", "phase-03"]) {
+      setupPhaseFiles(impl, id, makeEmptyReconciliationJson(id));
+    }
+    impl.setFile(`${runPath}/phax-plan.json`, oraclePlanJson(true));
+    impl.setFile(
+      `${runPath}/phase-02/gate-attribution.json`,
+      oracleAttribution("phase-02", "fail"),
+    );
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    expect(impl.getFile(`${runPath}/review-handoff.md`)).toContain(
+      "| phase-02 | phase-03 | fail | not run |",
+    );
+  });
+
+  it("writes no section when the plan declares no oracle phase", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01", "phase-02", "phase-03"]);
+    for (const id of ["phase-01", "phase-02", "phase-03"]) {
+      setupPhaseFiles(impl, id, makeEmptyReconciliationJson(id));
+    }
+    impl.setFile(`${runPath}/phax-plan.json`, oraclePlanJson(false));
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    expect(impl.getFile(`${runPath}/review-handoff.md`)).not.toContain("## Oracle pairs");
+  });
+});
 
 describe("generateReviewHandoff", () => {
   it("writes review-handoff.md to the run path", async () => {

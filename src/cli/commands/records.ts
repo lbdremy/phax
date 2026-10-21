@@ -381,6 +381,18 @@ function renderFoundRecord(
     `gates    ${manifest.outcome} after ${record.checksAttemptCount} attempt(s)   surfaces  ${surfacesLabel}`,
   );
 
+  if (manifest.oracle !== null) {
+    const role =
+      manifest.oracle.role === "oracle"
+        ? `oracle phase, discharged by ${manifest.oracle.dischargedBy}`
+        : `discharges ${manifest.oracle.oraclePhase}`;
+    const step =
+      record.oracleStep === null
+        ? "not run"
+        : `${record.oracleStep.command}: ${record.oracleStep.result}`;
+    out.log(`oracle   ${role} — ${step}`);
+  }
+
   if (manifest.sourceSha !== undefined) {
     const reachability =
       record.sourceCommitReachable === true ? "reachable" : "not reachable — rebased or squashed";

@@ -4,6 +4,7 @@ import {
   oraclePairs,
   oracleRoleOf,
   recordOracleRole,
+  renderOraclePairsSection,
 } from "../../src/domain/plan/oraclePairs.js";
 
 // A five-phase plan with one pair: phase-02 authors tests/prune.test.ts and
@@ -63,6 +64,40 @@ describe("recordOracleRole", () => {
       oraclePhase: "phase-02",
     });
     expect(recordOracleRole(null)).toBeNull();
+  });
+});
+
+describe("renderOraclePairsSection", () => {
+  it("renders one table row per pair", () => {
+    expect(
+      renderOraclePairsSection([
+        {
+          oraclePhase: "phase-02",
+          dischargingPhase: "phase-03",
+          authored: "pass",
+          discharged: "pass",
+        },
+        {
+          oraclePhase: "phase-04",
+          dischargingPhase: "phase-05",
+          authored: "fail",
+          discharged: "not run",
+        },
+      ]),
+    ).toBe(
+      [
+        "## Oracle pairs",
+        "",
+        "| Oracle phase | Discharged by | Authored | Discharged |",
+        "| --- | --- | --- | --- |",
+        "| phase-02 | phase-03 | pass | pass |",
+        "| phase-04 | phase-05 | fail | not run |",
+      ].join("\n"),
+    );
+  });
+
+  it("renders nothing for no pair", () => {
+    expect(renderOraclePairsSection([])).toBeUndefined();
   });
 });
 

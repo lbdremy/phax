@@ -86,7 +86,16 @@ const base = {
   plan: samplePlan,
   currentPhase: phase03,
   gateCommands: sampleGateCommands,
+  oracleRole: null,
 };
+
+function pairPrompts(project: { oraclePhase: string; dischargingPhase: string; files: string[] }) {
+  const pair = { ...project };
+  return {
+    oracle: buildPhasePrompt({ ...base, oracleRole: { role: "oracle", pair } }),
+    discharging: buildPhasePrompt({ ...base, oracleRole: { role: "discharging", pair } }),
+  };
+}
 
 describe("buildPhasePrompt", () => {
   it("contains the execute-phase heading", () => {
@@ -232,6 +241,53 @@ describe("buildPhasePrompt", () => {
     expect(prompt).toBe(buildPhasePrompt(base));
     expect(prompt).not.toContain("## Brief for this phase");
     expect(prompt).toContain(`${JSON.stringify(phase03, null, 2)}\n\n## Execution rules\n`);
+  });
+
+  it("a null oracle role adds no section", () => {
+    expect(buildPhasePrompt(base)).not.toContain("## Oracle role");
+  });
+
+  it("states the oracle phase's role right after the current phase section", () => {
+    const { oracle } = pairPrompts({
+      oraclePhase: "phase-02",
+      dischargingPhase: "phase-03",
+      files: ["tests/refunds.test.ts", "tests/prune.test.ts"],
+    });
+    expect(oracle).toContain(
+      "## Oracle role\n\nThis phase writes the oracles that phase-03 will discharge. In the oracle files (tests/refunds.test.ts, tests/prune.test.ts), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.\n\n## Previous phase handoff",
+    );
+    expect(oracle.indexOf("## Approved plan: current phase")).toBeLessThan(
+      oracle.indexOf("## Oracle role"),
+    );
+  });
+
+  it("states the discharging phase's role", () => {
+    const { discharging } = pairPrompts({
+      oraclePhase: "phase-02",
+      dischargingPhase: "phase-03",
+      files: ["tests/refunds.test.ts"],
+    });
+    expect(discharging).toContain(
+      "This phase discharges the oracles phase-02 wrote. In the oracle files (tests/refunds.test.ts), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.",
+    );
+  });
+
+  it("names no framework or marker, and differs across projects only by names", () => {
+    const a = pairPrompts({
+      oraclePhase: "phase-02",
+      dischargingPhase: "phase-03",
+      files: ["tests/refunds.test.ts"],
+    });
+    const b = pairPrompts({
+      oraclePhase: "phase-02",
+      dischargingPhase: "phase-03",
+      files: ["tests/prune.test.ts"],
+    });
+    for (const prompt of [a.oracle, a.discharging, b.oracle, b.discharging]) {
+      expect(prompt).not.toMatch(/\bfails\b|xfail|vitest|pytest|jest/i);
+    }
+    expect(a.oracle.replace("refunds", "prune")).toBe(b.oracle);
+    expect(a.discharging.replace("refunds", "prune")).toBe(b.discharging);
   });
 
   it("matches the expected snapshot", () => {
