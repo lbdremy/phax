@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-20
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-21
+  baseline: fce94d7
 ---
 # Oracle phases — a plan declares the phase that writes the tests and the phase that discharges them, and a configured `oracles` provider judges both gates
 
