@@ -37,7 +37,7 @@ Both are already in `security.agentCommands` (`pnpm add` to pin the parser as a 
 - Files at a commit are read with `git cat-file -e <sha>:<path>` (existence) and `git cat-file blob <sha>:<path>` (content) through `execFileSync` with argument arrays and the gated worktree as cwd, never a shell string; working-tree files are read from disk under cwd.
 - phax's own config: phax.json gains the `oracles` block and nothing else. With no oracle phase in a plan, nothing changes for that plan (§5.40); the headless plan-authoring prompt will now tell planners an oracles provider is configured, which is the point of §5.43.
 
-## Open questions
+## Arbitrated questions
 
 ### q-judge-editable — The provider runs from the gated phase's worktree, so a phase agent can edit the example's code (examples/vitest-oracles/) or the worktree's node_modules/oxc-parser and change the verdict on its own oracle. How does phax's own repository live with that?
 
@@ -47,12 +47,23 @@ Both are already in `security.agentCommands` (`pnpm add` to pin the parser as a 
 
 Recommendation: accept-document — Every configured gate step already runs code the phase can edit (package.json scripts, vitest.config.ts, .oxlintrc.json, the test files themselves), so the example adds no reach a phase lacks today, and the oracles command stays out of every grant, so what the agent can run is unchanged. Reconciliation already makes an edit to the example a deviation the agent must explain. The README recipe gives an operator who wants the stronger guarantee the main-checkout override without making it the default. This is a security-relevant loss, so it is the operator's call.
 
+Decision: accept-document — by operator (Rémy Loubradou), 2026-10-21
+Why: Decided by the operator on 2026-10-21, as recommended: Every configured gate step already runs code the phase can edit (package.json scripts, vitest.config.ts, .oxlintrc.json, the test files themselves), so the example adds no reach a phase lacks today, and the oracles command stays out of every grant, so what the agent can run is unchanged. Reconciliation already makes an edit to the example a deviation the agent must explain. The README recipe gives an operator who wants the stronger guarantee the main-checkout override without making it the default. This is a security-relevant loss, so it is the operator's call. Advocate: Running the main checkout's copy, or protecting the example's folder, would give a verdict the judged phase cannot bend on phax's own runs. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-01.
+
 ### q-parser — Which parser does the example use to build the syntax trees it compares? The spec suggests web-tree-sitter with a WebAssembly TypeScript grammar; the lockfile already holds another TypeScript parser.
 
 - oxc-parser — oxc-parser pinned exactly (-E) as a devDependency at the version pnpm-lock.yaml already resolves for knip (0.128.0 today): ESTree output, TypeScript and JSX, prebuilt per-platform binaries plus a wasm32-wasi fallback, no install script — abandons: A parser that is WebAssembly on every platform, as the spec suggests: on common platforms it loads a prebuilt native .node binary (the same binary `pnpm knip` already loads at every phase's gate), and only a platform without a prebuilt binary falls back to the WASI build.
 - web-tree-sitter — web-tree-sitter plus a WebAssembly TypeScript grammar package, both pinned exactly as devDependencies — abandons: Adding no new code to what runs at the gate: two packages from publishers new to the lockfile run at phax's oracle gates, the grammar's .wasm has to match web-tree-sitter's ABI across every upgrade, and tree-sitter's concrete syntax tree keeps punctuation and comments as nodes, so formatting-blindness has to be stripped in by hand.
 
 Recommendation: oxc-parser — It widens nothing: the package and its binaries are already in the lockfile and already run at every gate through knip, so pinning it only adds a direct symlink. It meets the spec's real constraint, installing without a native build: no node-gyp, no install script, nothing added to pnpm-workspace.yaml's onlyBuiltDependencies. Its ESTree drops comments, whitespace and trailing commas by construction. The phase below is written for this option. Choosing web-tree-sitter changes only phase-01's dependency step and syntax.mjs, not the verdict semantics.
+
+Decision: oxc-parser — by operator (Rémy Loubradou), 2026-10-21
+Why: Decided by the operator on 2026-10-21, as recommended: It widens nothing: the package and its binaries are already in the lockfile and already run at every gate through knip, so pinning it only adds a direct symlink. It meets the spec's real constraint, installing without a native build: no node-gyp, no install script, nothing added to pnpm-workspace.yaml's onlyBuiltDependencies. Its ESTree drops comments, whitespace and trailing commas by construction. The phase below is written for this option. Choosing web-tree-sitter changes only phase-01's dependency step and syntax.mjs, not the verdict semantics. Advocate: web-tree-sitter keeps the parser WebAssembly on every platform, as the spec suggested, with no native binary loaded at the oracle gate. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-01.
+
+## Decision log
+
+- 2026-10-21 q-judge-editable decided accept-document — operator (Rémy Loubradou)
+- 2026-10-21 q-parser decided oxc-parser — operator (Rémy Loubradou)
 
 ---
 
