@@ -128,7 +128,11 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
           namespace: "test-project",
           allowSkillEdits: false,
           allowDirty: false,
-        }).pipe(Effect.provide(makeFakeFileSystem().layer), Effect.provide(fakeGit.layer)),
+        }).pipe(
+          Effect.provide(makeFakeFileSystem().layer),
+          Effect.provide(fakeGit.layer),
+          Effect.provide(fakeShell.layer),
+        ),
       ),
     );
     expect(Either.isRight(preflight)).toBe(true);

@@ -11,6 +11,7 @@ import {
 } from "../../src/app/runPreflight.js";
 import { checkCleanWorkingTree } from "../../src/app/worktree.js";
 import {
+  AssignmentPreflightError,
   ConfigValidationError,
   InteractivePreflightError,
   ModelPreflightError,
@@ -33,6 +34,10 @@ import {
 } from "../../src/domain/security/skillEditGrants.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import type { Assignments } from "../../src/schemas/assignments.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -133,9 +138,33 @@ function makeInput(overrides: Partial<RunPreflightInput> = {}): RunPreflightInpu
   };
 }
 
-async function run(input: RunPreflightInput, fs = makeFakeFileSystem()) {
-  return Effect.runPromise(Effect.either(runPreflights(input).pipe(Effect.provide(fs.layer))));
+async function run(input: RunPreflightInput, fs = makeFakeFileSystem(), shell = makeFakeShell()) {
+  return Effect.runPromise(
+    Effect.either(runPreflights(input).pipe(Effect.provide(fs.layer), Effect.provide(shell.layer))),
+  );
 }
+
+// Made-up bounds for an acme-billing repository: one globs bound, which needs
+// no provider, and one part bound, which does.
+const DECIDE_GLOBS: Assignments[number] = {
+  kind: "globs",
+  globs: ["src/core/decide/**"],
+  model: "claude-sonnet-5-5",
+  effort: { min: "medium", max: "high" },
+};
+const DOCS_PART: Assignments[number] = {
+  kind: "part",
+  part: "docs",
+  model: "claude-haiku-5-5",
+  effort: { min: "low", max: "medium" },
+};
+const ARCHITECTURE = "acme-guard architecture";
+const refundPhase = makePhase("phase-01", { plannedFilesToCreate: ["src/core/decide/refund.ts"] });
+const boundsConfig = (assignments: Assignments, provider = false) =>
+  makeConfig({
+    assignments,
+    ...(provider ? { architecture: { command: ARCHITECTURE } } : {}),
+  } as Partial<ResolvedConfig>);
 
 const SKILL_FILE = ".claude/skills/foo/SKILL.md";
 const skillPhase = makePhase("phase-01", { plannedFilesToCreate: [SKILL_FILE] });
@@ -256,6 +285,17 @@ const REFUSALS = {
       `Fix the plan, then check it with \`phax plans lint ${PLAN_PATH}\`.`,
     ].join("\n"),
   },
+  "assignment-bounds": {
+    input: makeInput({ plan: makePlan([refundPhase]), config: boundsConfig([DECIDE_GLOBS]) }),
+    errorClass: AssignmentPreflightError,
+    message: [
+      "Assignment preflight failed: 1 error(s) from the assignment bounds.",
+      "",
+      `  phase-01 (${GOOD_MODEL}/medium):`,
+      "    - outside assignments[0] (globs src/core/decide/**: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line",
+      `Check the plan with \`phax plans lint ${PLAN_PATH}\`.`,
+    ].join("\n"),
+  },
   "interactive-phases": {
     input: makeInput({ planMd: planMdWithHeader(["**Mode:** interactive"]) }),
     errorClass: InteractivePreflightError,
@@ -288,6 +328,7 @@ describe("runPreflights", () => {
       "records-destination",
       "phase-models",
       "phase-sections",
+      "assignment-bounds",
       "interactive-phases",
       "oracle-phases",
     ]);
@@ -440,6 +481,111 @@ describe("runPreflights", () => {
   });
 });
 
+describe("runPreflights: assignment-bounds", () => {
+  const refundPlan = makePlan([refundPhase]);
+
+  it("refuses an unresolved part bound, naming it, with no phase compared", async () => {
+    const result = await run(
+      makeInput({ plan: refundPlan, config: boundsConfig([DECIDE_GLOBS, DOCS_PART]) }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(AssignmentPreflightError);
+      expect(result.left.message).toBe(
+        [
+          "Assignment preflight failed: 1 error(s) from the assignment bounds.",
+          "",
+          "  assignments[1] (part docs): unresolved: no architecture provider is configured; no phase was compared with the bounds",
+          `Check the plan with \`phax plans lint ${PLAN_PATH}\`.`,
+        ].join("\n"),
+      );
+      if (result.left instanceof AssignmentPreflightError) {
+        expect(result.left.findings.map((f) => f.phase)).toEqual([null]);
+        expect(result.left.planPath).toBe(PLAN_PATH);
+      }
+    }
+  });
+
+  it("refuses an invalid bound, naming it, with no phase compared", async () => {
+    const result = await run(
+      makeInput({
+        plan: refundPlan,
+        config: boundsConfig([{ ...DECIDE_GLOBS, model: "claude-opus-9" }]),
+      }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(AssignmentPreflightError);
+      expect(result.left.message).toContain(
+        "\n  assignments[0].model: claude-opus-9 is not in the catalog\n",
+      );
+    }
+  });
+
+  it("runs the provider once, for the whole repository, for a part bound", async () => {
+    const shell = makeFakeShell();
+    shell.impl.setResponse(ARCHITECTURE, {
+      exitCode: 0,
+      stdout: JSON.stringify({
+        $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
+        body: "# Architecture — acme-billing",
+        parts: [{ id: "docs", name: "docs", description: "Pages.", globs: ["docs/**"] }],
+      }),
+      stderr: "",
+    });
+    const result = await run(
+      makeInput({ plan: refundPlan, config: boundsConfig([DOCS_PART, DECIDE_GLOBS], true) }),
+      undefined,
+      shell,
+    );
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(AssignmentPreflightError);
+    expect(shell.impl.calls).toHaveLength(1);
+    expect(JSON.parse(shell.impl.calls[0]!.stdin!)).toMatchObject({ files: null });
+  });
+
+  it("reads the reason from plan.md: the same plan passes with the line", async () => {
+    const without = await run(
+      makeInput({
+        plan: refundPlan,
+        planMd: planMdWithHeader([]),
+        config: boundsConfig([DECIDE_GLOBS]),
+      }),
+    );
+    expect(Either.isLeft(without) && without.left).toBeInstanceOf(AssignmentPreflightError);
+    const stated = await run(
+      makeInput({
+        plan: refundPlan,
+        planMd: planMdWithHeader(["**Assignment reason:** Moves one constant."]),
+        config: boundsConfig([DECIDE_GLOBS]),
+      }),
+    );
+    expect(Either.isRight(stated)).toBe(true);
+  });
+
+  it("passes warnings, and a repository without bounds, with no provider call", async () => {
+    const shell = makeFakeShell();
+    // Off the policy default with no reason: a lint warning, never a refusal.
+    const offDefault = makePlan([
+      makePhase("phase-01", { model: "claude-opus-5-5", effort: "high" }),
+    ]);
+    expect(
+      Either.isRight(
+        await run(
+          makeInput({
+            plan: offDefault,
+            config: makeConfig({
+              architecture: { command: ARCHITECTURE },
+            } as Partial<ResolvedConfig>),
+          }),
+          undefined,
+          shell,
+        ),
+      ),
+    ).toBe(true);
+    expect(shell.impl.calls).toEqual([]);
+  });
+});
+
 describe("checkCleanWorkingTree", () => {
   it("refuses a dirty tree with the unchanged message and only asks isClean", async () => {
     const git = makeFakeGit();
@@ -495,7 +641,11 @@ async function runFresh(
 ) {
   return Effect.runPromise(
     Effect.either(
-      freshRunPreflight(input).pipe(Effect.provide(fs.layer), Effect.provide(git.layer)),
+      freshRunPreflight(input).pipe(
+        Effect.provide(fs.layer),
+        Effect.provide(git.layer),
+        Effect.provide(makeFakeShell().layer),
+      ),
     ),
   );
 }

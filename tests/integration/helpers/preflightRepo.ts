@@ -39,6 +39,10 @@ interface FixtureConfig {
   readonly security?: Record<string, unknown>;
   /** Verbatim `records` block of phax.json. */
   readonly records?: Record<string, unknown>;
+  /** Verbatim `assignments` list of phax.json. */
+  readonly assignments?: readonly unknown[];
+  /** Verbatim `architecture` block of phax.json. */
+  readonly architecture?: Record<string, unknown>;
 }
 
 interface FixturePhase {
@@ -130,6 +134,8 @@ function fixturePhaxJson(roots: PreflightRepo, config: FixtureConfig = {}): stri
         review: { compliance: { enabled: false } },
         ...(config.security !== undefined ? { security: config.security } : {}),
         ...(config.records !== undefined ? { records: config.records } : {}),
+        ...(config.architecture !== undefined ? { architecture: config.architecture } : {}),
+        ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
       },
       null,
       2,

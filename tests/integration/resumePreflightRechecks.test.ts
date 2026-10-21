@@ -230,7 +230,78 @@ const CASES: Record<string, RecheckCase> = {
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),
   },
+  "phax.json gains a bound phase-02 departs from": {
+    change: (roots) => declareBounds(roots, [STEP_02_BOUND]),
+    message: assignmentRefusal,
+  },
+  // The reason is read from the run folder's plan.md: one added to the
+  // repository's plan.md does not reach the resumed run.
+  "phax.json gains a bound and only the repository's plan.md states a reason": {
+    change: (roots) => {
+      declareBounds(roots, [STEP_02_BOUND]);
+      stateReasonInRepositoryPlan(roots);
+    },
+    message: assignmentRefusal,
+  },
+  "phax.json gains a part bound and no architecture provider": {
+    change: (roots) =>
+      declareBounds(roots, [
+        {
+          kind: "part",
+          part: "core-decide",
+          model: FIXTURE_MODEL,
+          effort: { min: "low", max: "high" },
+        },
+      ]),
+    message: (roots) =>
+      [
+        `Assignment preflight failed: 1 error(s) from the assignment bounds.`,
+        "",
+        `  assignments[0] (part core-decide): unresolved: no architecture provider is configured; no phase was compared with the bounds`,
+        `Check the plan with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
+      ].join("\n"),
+  },
 };
+
+// A made-up bound phase-02 departs from (it creates src/step-02.ts at the
+// fixture model), declared in phax.json after the stop.
+const STEP_02_BOUND = {
+  kind: "globs",
+  globs: ["src/step-02.ts"],
+  model: "claude-sonnet-5-5",
+  effort: { min: "medium", max: "high" },
+};
+
+function declareBounds(roots: PreflightRepo, assignments: readonly unknown[]): void {
+  const path = join(roots.repo, "phax.json");
+  const config = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  writeFileSync(path, JSON.stringify({ ...config, assignments }, null, 2));
+}
+
+function assignmentRefusal(roots: PreflightRepo): string {
+  return [
+    `Assignment preflight failed: 1 error(s) from the assignment bounds.`,
+    "",
+    `  phase-02 (${FIXTURE_MODEL}/${FIXTURE_EFFORT}):`,
+    `    - outside assignments[0] (globs src/step-02.ts: claude-sonnet-5-5, medium–high) with no **Assignment reason:** line`,
+    `Check the plan with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
+  ].join("\n");
+}
+
+/** Adds a reason line to phase-02 in the repository's plan.md, not the run's copy. */
+function stateReasonInRepositoryPlan(roots: PreflightRepo): void {
+  const planMdPath = join(roots.repo, "plan.md");
+  const planMd = readFileSync(planMdPath, "utf8");
+  const effortLine = `**Recommended effort:** ${FIXTURE_EFFORT}`;
+  const phase02 = planMd.indexOf("## phase-02");
+  writeFileSync(
+    planMdPath,
+    planMd.slice(0, phase02) +
+      planMd
+        .slice(phase02)
+        .replace(effortLine, `${effortLine}\n**Assignment reason:** Moves one constant.`),
+  );
+}
 
 /** Adds header lines to phase-01 in the paused run's own plan.md. */
 function addHeaderLines(roots: PreflightRepo, lines: readonly string[]): void {

@@ -76,8 +76,17 @@ describe("getPhaxConfigJsonSchema", () => {
         "gateProfiles",
         "workspaces",
         "records",
+        "assignments",
       ].toSorted(),
     );
+  });
+
+  it("restates the glob dialect for the globs bound, and says where assignments are accepted", () => {
+    const text = JSON.stringify(getPhaxConfigJsonSchema());
+    expect(text).toContain(
+      "The files the bound covers, as globs: working-tree-root-relative POSIX paths, matched case-sensitively",
+    );
+    expect(text).toContain("Accepted in phax.json only");
   });
 
   it("has exactly the contract's top-level properties in the user schema", () => {
@@ -99,6 +108,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "workspaces",
       ].toSorted(),
     );
+    expect(Object.keys(schema["properties"] as object)).not.toContain("assignments");
   });
 
   it("commits root schema files equal to the generated ones", () => {

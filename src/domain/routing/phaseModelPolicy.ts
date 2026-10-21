@@ -15,9 +15,10 @@ export interface PhaseModelPolicy {
 }
 
 // Guidance rendered into the phax-planning skill by `pnpm gen:model-catalog`.
-// phax never applies it to a phase: a plan's phases carry their own model and
-// effort. The later `phase-model-assignment` built-in default must reuse this
-// constant rather than restate it.
+// The bounds check (src/domain/plan/assignmentCheck.ts) compares a phase no
+// assignment bound governs with `defaultAssignment`, as lint warnings; phax
+// never applies it to a phase: a plan's phases carry their own model and
+// effort.
 export const PHASE_MODEL_POLICY: PhaseModelPolicy = {
   defaultAssignment: { model: "claude-sonnet-5-5", effort: "medium" },
   stronger: { model: "claude-opus-5-5" },

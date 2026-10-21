@@ -1,7 +1,8 @@
 import { JSONSchema, Schema, type Types } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 
-const EffortSchema = Schema.Literal(
+/** phax's effort vocabulary: a plan phase's `effort`, and a bound's `effort.min` and `effort.max`. */
+export const PlanEffortSchema = Schema.Literal(
   "none",
   "off",
   "low",
@@ -43,7 +44,7 @@ export const PhaseOracleSchema = Schema.NullOr(
 export const ExtractedPhaseFields = {
   id: PhaseIdSchema,
   model: Schema.NonEmptyString,
-  effort: EffortSchema,
+  effort: PlanEffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
   plannedFilesToCreate: Schema.Array(Schema.String),
   plannedFilesToEdit: Schema.Array(Schema.String),
@@ -122,7 +123,7 @@ export type ExtractionAnswer = Schema.Schema.Type<typeof ExtractionAnswerSchema>
 /** A run's plan in memory: never a `version`, never a `$schema`. */
 export type PhaxPlan = Types.Simplify<Schema.Struct.Type<typeof phaxPlanFields>>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
-export type Effort = Schema.Schema.Type<typeof EffortSchema>;
+export type Effort = Schema.Schema.Type<typeof PlanEffortSchema>;
 export type PhaseMode = Schema.Schema.Type<typeof PhaseModeSchema>;
 export type PhaseOracle = Schema.Schema.Type<typeof PhaseOracleSchema>;
 

@@ -12,6 +12,7 @@
  */
 import { Effect, Either } from "effect";
 import {
+  AssignmentPreflightError,
   type ConfigValidationError,
   InteractivePreflightError,
   ModelPreflightError,
@@ -37,10 +38,12 @@ import { checkRequiredCommands } from "../domain/security/agentCommands.js";
 import type { McpMode } from "../domain/security/types.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git, GitError } from "../ports/git.js";
+import type { Shell } from "../ports/shell.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
+import { assignmentBoundFindings } from "./assignmentBounds.js";
 import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { checkRecordsRunPreflight } from "./recordsSync.js";
@@ -55,6 +58,7 @@ export const RUN_PREFLIGHT_CHECKS = [
   "records-destination",
   "phase-models",
   "phase-sections",
+  "assignment-bounds",
   "interactive-phases",
   "oracle-phases",
 ] as const;
@@ -85,6 +89,7 @@ export type RunPreflightRefusal =
   | RecordsSyncRequiredError
   | ModelPreflightError
   | PlanSectionsPreflightError
+  | AssignmentPreflightError
   | InteractivePreflightError
   | OraclePreflightError;
 
@@ -164,6 +169,34 @@ function declarationRefusalMessage(
     ...findings.map((f) => `  ${f.phase ?? "-"}  ${f.message}`),
     `Fix the plan, then check it with \`phax plans lint ${planPath}\`.`,
   ].join("\n");
+}
+
+// The phase errors grouped under `phase-NN (model/effort):`, each without the
+// `<model> / <effort>: ` its lint message opens with, then the bound errors
+// one per line.
+function assignmentRefusalMessage(
+  errors: readonly LintFinding[],
+  plan: PhaxPlan,
+  planPath: string,
+): string {
+  const lines = [
+    `Assignment preflight failed: ${errors.length} error(s) from the assignment bounds.`,
+  ];
+  for (const phase of plan.phases) {
+    const own = errors.filter((f) => f.phase === phase.id);
+    if (own.length === 0) continue;
+    const taken = `${phase.model} / ${phase.effort}: `;
+    lines.push(`\n  ${phase.id} (${phase.model}/${phase.effort}):`);
+    for (const f of own) {
+      lines.push(
+        `    - ${f.message.startsWith(taken) ? f.message.slice(taken.length) : f.message}`,
+      );
+    }
+  }
+  const boundErrors = errors.filter((f) => f.phase === null);
+  if (boundErrors.length > 0) lines.push("", ...boundErrors.map((f) => `  ${f.message}`));
+  lines.push(`Check the plan with \`phax plans lint ${planPath}\`.`);
+  return lines.join("\n");
 }
 
 type ModelFailure = ReturnType<typeof preflightPhaseModels>["failures"][number];
@@ -315,6 +348,28 @@ const checks = {
   // to run. The prompt builder reads the sections located here.
   "phase-sections": (_input, _gateSteps, planSections) => Effect.asVoid(planSections),
 
+  // The owner's assignment bounds: exactly the errors lint reports from them.
+  // The reasons are read from the plan.md the run reads; warnings are neither
+  // printed nor refusing. Without bounds no provider runs and nothing refuses.
+  "assignment-bounds": (input, _gateSteps, _planSections, headers) =>
+    Effect.gen(function* () {
+      const findings = yield* assignmentBoundFindings({
+        config: input.config,
+        phases: input.plan.phases,
+        headers,
+        providerConfig: input.providerConfig,
+      });
+      const errors = findings.filter((f) => f.severity === "error");
+      if (errors.length === 0) return;
+      return yield* Effect.fail(
+        new AssignmentPreflightError({
+          message: assignmentRefusalMessage(errors, input.plan, input.planPath),
+          findings: errors,
+          planPath: input.planPath,
+        }),
+      );
+    }),
+
   // A malformed Mode line, or an interactive phase this phax cannot run yet.
   "interactive-phases": (input, _gateSteps, _planSections, headers) => {
     const findings = interactiveFindings(headers);
@@ -347,20 +402,21 @@ const checks = {
     gateSteps: GateSteps,
     planSections: LocatedSections,
     headers: readonly PhaseHeader[],
-  ) => Effect.Effect<void, RunPreflightError, FileSystem>
+  ) => Effect.Effect<void, RunPreflightError, FileSystem | Shell>
 >;
 
 /**
  * Run every check in RUN_PREFLIGHT_CHECKS order, stopping at the first refusal.
- * Reads only through the FileSystem port and writes nothing. On success yields
- * the resolved gate steps and the located plan sections.
+ * Reads only through the FileSystem port, runs only the architecture provider
+ * (through the Shell port, when a part bound is declared), and writes nothing.
+ * On success yields the resolved gate steps and the located plan sections.
  */
 export function runPreflights(
   input: RunPreflightInput,
 ): Effect.Effect<
   { readonly gateSteps: readonly GateStep[]; readonly planSections: PlanSections },
   RunPreflightError,
-  FileSystem
+  FileSystem | Shell
 > {
   return Effect.gen(function* () {
     // Each resolved once, by the first check that needs it, and shared with the rest.
@@ -408,7 +464,7 @@ export function freshRunPreflight(
 ): Effect.Effect<
   { readonly routing: ModelRouting; readonly providerConfig: ProviderConfig },
   RunPreflightError | ConfigValidationError | GitError,
-  FileSystem | Git
+  FileSystem | Git | Shell
 > {
   return Effect.gen(function* () {
     const refusal = skillEditConsentRefusal(input.plan.phases, input.allowSkillEdits);

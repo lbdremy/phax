@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
@@ -19,6 +19,16 @@ vi.mock("../../../src/app/loadConfig.js", () => ({
 vi.mock("../../../src/app/loadPlan.js", () => ({
   loadPlan: vi.fn(),
 }));
+
+// The default catalog, so the bounds check never reads ~/.phax/providers.json.
+vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
+  const { Effect } = await import("effect");
+  const { DEFAULT_PROVIDER_CONFIG } = await import("../../../src/domain/routing/defaults.js");
+  return {
+    ...(await importOriginal<typeof import("../../../src/app/loadRouting.js")>()),
+    loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG),
+  };
+});
 
 function makeOutput() {
   const lines: string[] = [];
@@ -118,7 +128,7 @@ describe("runValidate", () => {
     });
 
     const { out, lines } = makeOutput();
-    const code = runValidate({}, out);
+    const code = await runValidate({}, out);
 
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("config is valid") && l.includes("myproject"))).toBe(true);
@@ -138,7 +148,7 @@ describe("runValidate", () => {
     );
 
     const { out, errors } = makeOutput();
-    const code = runValidate({}, out);
+    const code = await runValidate({}, out);
 
     expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Config validation failed"))).toBe(true);
@@ -160,7 +170,7 @@ describe("runValidate", () => {
     loadPlan.mockReturnValue(Either.right(makePlan("myrun", 3)));
 
     const { out, lines } = makeOutput();
-    const code = runValidate({ plan: "phax-plan.json" }, out);
+    const code = await runValidate({ plan: "phax-plan.json" }, out);
 
     expect(code).toBe(0);
     expect(
@@ -184,7 +194,7 @@ describe("runValidate", () => {
     );
 
     const { out, errors } = makeOutput();
-    const code = runValidate({ plan: "phax-plan.json" }, out);
+    const code = await runValidate({ plan: "phax-plan.json" }, out);
 
     expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Plan validation failed"))).toBe(true);
@@ -220,7 +230,7 @@ describe("runValidate", () => {
       );
 
       const { out, errors } = makeOutput();
-      const code = runValidate({ plan: planPath }, out);
+      const code = await runValidate({ plan: planPath }, out);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -241,7 +251,7 @@ describe("runValidate", () => {
     describeConfigSources.mockReturnValue(undefined);
 
     const { out, lines } = makeOutput();
-    const code = runValidate({}, out);
+    const code = await runValidate({}, out);
 
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("config is valid"))).toBe(true);
@@ -265,7 +275,7 @@ describe("runValidate", () => {
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/some/other/dir");
 
       const { out, lines } = makeOutput();
-      const code = runValidate({ plan: "sub/phax-plan.json" }, out);
+      const code = await runValidate({ plan: "sub/phax-plan.json" }, out);
 
       expect(code).toBe(0);
       expect(loadPlan).toHaveBeenCalledWith(resolve("/some/other/dir", "sub/phax-plan.json"));
@@ -292,7 +302,7 @@ describe("runValidate", () => {
       );
 
       const { out, errors } = makeOutput();
-      const code = runValidate({ plan: "phax-plan.json" }, out);
+      const code = await runValidate({ plan: "phax-plan.json" }, out);
 
       expect(code).toBe(2);
       expect(loadPlan).toHaveBeenCalledWith(resolvedPath);
@@ -355,7 +365,7 @@ describe("runValidate", () => {
       }
 
       const { out, errors } = makeOutput();
-      const code = runValidate({}, out);
+      const code = await runValidate({}, out);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -383,7 +393,7 @@ describe("runValidate", () => {
       }
 
       const { out, errors } = makeOutput();
-      const code = runValidate({}, out);
+      const code = await runValidate({}, out);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -393,7 +403,7 @@ describe("runValidate", () => {
       expect(combined).toContain("at: gateProfiles.standard");
     });
 
-    it("accepts a workspace profile with a declaring log step", () => {
+    it("accepts a workspace profile with a declaring log step", async () => {
       mkdirSync(join(repoDir, "packages", "app"), { recursive: true });
       writeConfig({
         version: 1,
@@ -412,11 +422,138 @@ describe("runValidate", () => {
       });
 
       const { out, lines, errors } = makeOutput();
-      const code = runValidate({}, out);
+      const code = await runValidate({}, out);
 
       expect(errors).toEqual([]);
       expect(code).toBe(0);
       expect(lines.some((l) => l.includes("config is valid"))).toBe(true);
+    });
+  });
+
+  // phax.json `assignments`, through the real config loader in a made-up
+  // acme-billing repository, against the default catalog (loadProviderConfig
+  // is mocked, so ~/.phax is never read).
+  describe("assignment bounds", () => {
+    let repoDir: string;
+    let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-bounds-")));
+      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      vi.stubEnv("HOME", repoDir);
+      cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
+      const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
+        "../../../src/app/loadConfig.js",
+      );
+      const { loadConfig, describeConfigSources } = vi.mocked(
+        await import("../../../src/app/loadConfig.js"),
+      );
+      loadConfig.mockImplementation(actual.loadConfig);
+      describeConfigSources.mockImplementation(actual.describeConfigSources);
+    });
+
+    afterEach(() => {
+      cwdSpy.mockRestore();
+      vi.unstubAllEnvs();
+      rmSync(repoDir, { recursive: true, force: true });
+    });
+
+    const PART = {
+      kind: "part",
+      part: "core-decide",
+      model: "claude-opus-5-5",
+      effort: { min: "medium", max: "high" },
+    };
+    const GLOBS = {
+      kind: "globs",
+      globs: ["src/*/schemas/**"],
+      model: "claude-sonnet-5-5",
+      effort: { min: "medium", max: "high" },
+    };
+    const DOCS = {
+      kind: "part",
+      part: "docs",
+      model: "claude-haiku-5-5",
+      effort: { min: "low", max: "medium" },
+    };
+
+    function writeConfig(assignments: unknown): void {
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "acme-billing",
+          gateProfiles: {
+            standard: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          ...(assignments !== undefined ? { assignments } : {}),
+        }),
+      );
+    }
+
+    it("counts the example bounds and exits 0", async () => {
+      writeConfig([PART, GLOBS, DOCS]);
+      const { out, lines, errors } = makeOutput();
+      const code = await runValidate({}, out);
+
+      expect(errors).toEqual([]);
+      expect(code).toBe(0);
+      expect(lines).toContain("  3 assignment bounds (2 part, 1 globs)");
+    });
+
+    it("prints no count line without bounds", async () => {
+      writeConfig(undefined);
+      const { out, lines } = makeOutput();
+      expect(await runValidate({}, out)).toBe(0);
+      expect(lines.some((l) => l.includes("assignment bounds"))).toBe(false);
+    });
+
+    it("exits 2 for a model the catalog lacks, naming the bound, the field and phax.json", async () => {
+      writeConfig([GLOBS, { ...PART, model: "claude-opus-9" }]);
+      const { out, errors } = makeOutput();
+      const code = await runValidate({}, out);
+
+      expect(code).toBe(2);
+      expect(errors).toEqual([
+        "Config validation failed: assignments[1].model: claude-opus-9 is not in the catalog",
+        `  at: ${join(repoDir, "phax.json")}`,
+      ]);
+    });
+
+    it("exits 2 for a min after max, naming the bound, the field and phax.json", async () => {
+      writeConfig([{ ...PART, effort: { min: "high", max: "medium" } }]);
+      const { out, errors } = makeOutput();
+      const code = await runValidate({}, out);
+
+      expect(code).toBe(2);
+      expect(errors).toEqual([
+        'Config validation failed: assignments[0].effort: min "high" comes after max "medium" for claude-opus-5-5',
+        `  at: ${join(repoDir, "phax.json")}`,
+      ]);
+    });
+
+    it("exits 2 for a malformed bound, naming phax.json, the bound and the field", async () => {
+      writeConfig([PART, { ...PART, kind: "path" }]);
+      const { out, errors } = makeOutput();
+      const code = await runValidate({}, out);
+
+      expect(code).toBe(2);
+      const combined = errors.join("\n");
+      expect(combined).toContain(join(repoDir, "phax.json"));
+      expect(combined).toContain('assignments[1].kind: Expected "part" | "globs", actual "path"');
+    });
+
+    it("exits 2 for bounds declared in phax.local.json, naming it", async () => {
+      writeConfig([PART]);
+      writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify({ assignments: [GLOBS] }));
+      const { out, errors } = makeOutput();
+      const code = await runValidate({}, out);
+
+      expect(code).toBe(2);
+      expect(errors).toEqual([
+        'Config validation failed: "assignments" is accepted only in phax.json',
+        `  at: ${join(repoDir, "phax.local.json")}`,
+      ]);
     });
   });
 });

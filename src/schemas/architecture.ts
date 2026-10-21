@@ -34,7 +34,7 @@ export const decodeArchitectureRequestFile = Schema.decodeUnknownEither(
 // ── architecture report
 
 // The first rule a glob breaks, as a message, or undefined for a glob in phax's
-// dialect. Syntax only: matching ships with the bounds that use it.
+// dialect. Syntax only: src/domain/architecture/glob.ts matches it.
 function globProblem(glob: string): string | undefined {
   const quoted = JSON.stringify(glob);
   if (glob.startsWith("/")) return `${quoted} starts with /`;
@@ -54,7 +54,15 @@ function globProblem(glob: string): string | undefined {
   return undefined;
 }
 
-const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
+/**
+ * phax's glob dialect, in words: both JSON Schemas that admit globs (the
+ * report's parts and phax.json's globs bounds) restate it.
+ */
+export const GLOB_DIALECT =
+  "working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory.";
+
+/** One glob in phax's dialect: a report part's globs and a phax.json globs bound share it. */
+export const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
   Schema.filter((glob) => globProblem(glob), {
     jsonSchema: {
       description:
@@ -89,8 +97,7 @@ const ArchitecturePartSchema = Schema.Struct({
     description: "One sentence on what the part holds.",
   }),
   globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotations({
-    description:
-      "The files the part holds, as globs: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory.",
+    description: `The files the part holds, as globs: ${GLOB_DIALECT}`,
   }),
 });
 
