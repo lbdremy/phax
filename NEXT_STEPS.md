@@ -36,25 +36,40 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       2026-10-20; the 2026-09-28 spec is abandoned.
       - Any `oracles` provider will do. The provider gets a new `oracle-request` and answers a
         `gate-report`, both with `$schema`.
-      - Plan 1 of 2 has landed: the provider block, the shared `oracles` check in lint and the
-        run preflight, the oracle step in the gate loop, the formats, and the surfaces around the
-        run (handoff, records, prompts, skills, docs).
-      - Plan 2 follows: an example Vitest provider that lives in the repository only (built on
+      - Plan 1 of 3 landed (PR #154): the provider block, the shared `oracles` check in lint and
+        the run preflight, the oracle step in the gate loop, the formats, and the surfaces around
+        the run (handoff, records, prompts, skills, docs).
+      - Plan 2 follows: `phax resume <run> --skip-oracle` (§5.49, §5.50), added 2026-10-21 after
+        PR #154's review found that `reset-phase` never resets a committed oracle phase. A wrong
+        oracle is corrected in the stopped phase and closed with the configured gate green and the
+        oracle step recorded `skipped`.
+      - Plan 3: an example Vitest provider that lives in the repository only (built on
         tree-sitter, comparing syntax trees so reformatting never changes a verdict), and phax's
         own `oracles` declaration in phax.json.
 
 ### Approved, not yet planned
 
-- [ ] **`interactive-phases`** — `docs/specs/2610190947-interactive-phases.md`. Approved 2026-10-20,
-      with every question decided. It adds a plan-declared stop where a person corrects the pattern
-      a phase set.
-      - `mode` sits right after `optionalFilesToEdit`. A phase is review-only, and lint and the run
-        preflight share one check that refuses with exit 11.
-      - The stop exits 13. A handoff the person wrote wins over the closing turn.
-      - An unchanged review leaves an empty commit. The transcript goes into the records under
-        `records.transcript`, and the person's turns are not costed.
-      - The phase shape landed. Lint and the run preflight refuse an interactive phase for now,
-        and the runtime plan replaces that refusal.
+- [ ] **`interactive-phases`** — `docs/specs/2610211403-interactive-phases.md`. Re-authored and
+      approved 2026-10-21, after a friend's fork showed the need for a stop chosen at run time; the
+      2026-10-20 spec is abandoned.
+      - Two ways into one `awaiting_review` state (exit 13): a phase the plan declares interactive,
+        and `phax run --hold [phase-NN,…|oracle]`, which holds the selected headless phases after
+        they commit. The final phase never holds.
+      - At a held phase the builder's session continues by default. Closing is `phax resume`: the
+        gate first, with a red gate returned to the person; then one review commit on top of the
+        phase commit, and an interactive handoff beside the phase's own.
+      - A review may sit inside an oracle pair. It re-runs the `authored` verdict when it changes an
+        oracle file; a held discharge closes on its configured steps only.
+      - `review-stop.json` and a versioned `phax ls --json` (`run-list`) are the surface a review UI
+        reads.
+      - The phase shape landed. Lint and the run preflight refuse an interactive phase until the
+        runtime plans replace that refusal.
+- [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`.
+      Approved 2026-10-19. A headless verdicts mode for decide: a verdicts file is transcribed by a
+      headless writer under the doctrine, checked deterministically and committed, the artifact
+      staying Draft. It replaces the hand-edited sidecar used today to record decisions. Its format
+      changes (the `other` option, the decision record's mode, a new `decide-verdicts` input) land
+      in the open release.
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Reworked and re-approved
       2026-10-19: the review passes go under `## Needs your review` in the short PR body, the PR
       opens as a draft while a review plan or a finding is pending, run completion happens when
@@ -63,11 +78,7 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Drafts
 
-- [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`, worked
-      on in another session; its questions are arbitrated. A verdicts mode for decide, for callers
-      without a terminal. Its format changes (the `other` option, the decision record's mode, a new
-      `decide-verdicts` input) now land after 0.25.0, so each changed format needs a frozen copy and
-      a lift.
+(none)
 
 ## Model policy tracking
 
