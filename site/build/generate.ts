@@ -153,7 +153,8 @@ function frontmatter(
 
 /**
  * The Rspress home's frontmatter: the hero, the feature cards, the install
- * command above the hero's actions, and the run the hero plays where Rspress
+ * command above the hero's actions, the video the control under them plays
+ * (site/theme/WatchVideo.tsx), and the run the hero plays where Rspress
  * would show an image (site/theme/LiveRun.tsx).
  */
 function homeFrontmatter(home: Home): ReadonlyArray<string> {
@@ -176,6 +177,7 @@ function homeFrontmatter(home: Home): ReadonlyArray<string> {
     `hero: ${JSON.stringify(hero)}`,
     `features: ${JSON.stringify(features)}`,
     `install: ${JSON.stringify(home.install)}`,
+    `video: ${JSON.stringify(home.video)}`,
     `liveRun: ${JSON.stringify(liveRun())}`,
   ];
 }
@@ -351,6 +353,10 @@ export function generateSite(input: GenerateInput): GeneratedSite {
       findings.push(
         `✗ page map: the home's install command "${page.home.install}" is not in README.md`,
       );
+    }
+    const video = page.home === undefined ? [] : [page.home.video.src, page.home.video.poster];
+    for (const path of video.filter((file) => input.assets?.has(file) !== true)) {
+      findings.push(`✗ page map: the home's video names ${path}, which site/public does not hold`);
     }
   }
   const schemas = input.schemas === undefined ? undefined : publicSchemas(input.schemas, version);

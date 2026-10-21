@@ -21,6 +21,7 @@ export default definePageMap({
           { text: "How phax works", link: "/guide/concepts", theme: "alt" },
         ],
         install: "npm install -g @lbdremy/phax",
+        video: { label: "Watch the 26-second tour", src: "/tour.mp4", poster: "/tour.jpg" },
         features: [
           {
             key: "gates",

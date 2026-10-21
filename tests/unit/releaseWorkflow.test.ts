@@ -347,11 +347,17 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     for (const s of steps) expect(s.run ?? "").not.toContain("inputs.");
   });
 
-  it("checks out the tag", () => {
+  it("checks out the tag with its LFS objects", () => {
     const checkout =
       steps[indexOf(steps, (s) => s.uses?.startsWith("actions/checkout@") === true)]!;
-    expect(checkout.with).toEqual({ ref: "${{ inputs.tag }}" });
+    expect(checkout.with).toEqual({ ref: "${{ inputs.tag }}", lfs: true });
     expect(steps.indexOf(checkout)).toBe(0);
+  });
+
+  it("matches release.yml in checking out LFS objects, whose pointers the deploy guard refuses", () => {
+    const checkout =
+      releaseSteps[indexOf(releaseSteps, (s) => s.uses?.startsWith("actions/checkout@") === true)]!;
+    expect(checkout.with).toEqual({ lfs: true });
   });
 
   it("pins checkout, pnpm and setup-node 24 to release.yml's SHAs", () => {

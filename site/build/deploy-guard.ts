@@ -1,14 +1,17 @@
 // The deploy guard: the release and docs-deploy workflows run it before any
-// upload. A deploy must never remove a schema URL docs.phax.run serves, so it
-// reads the live schema index and refuses a build that lacks any listed path.
+// upload. A deploy must never serve a Git LFS pointer in place of the file it
+// stands for (site/public's video, from a checkout without LFS), so it
+// refuses a build holding one. A deploy must never remove a schema URL
+// docs.phax.run serves, so it reads the live schema index and refuses a build
+// that lacks any listed path.
 //   404                          first deploy: passes
 //   200 with a { releases, paths } index
 //                                passes only if the build serves every path
 //   any other status, a network error or a malformed body
 //                                refuses (strict over loose)
 // It reads no credential and uploads nothing. Exits 1 on refusal.
-import { existsSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSchemaIndex, type SchemaIndex } from "./schemas.js";
 
@@ -37,6 +40,36 @@ export function guardServedSchemas(
     : `✗ deploy guard: this build does not serve ${missing}, which docs.phax.run serves`;
 }
 
+/** How a Git LFS pointer file begins; a pointer is well under 1 KiB. */
+const LFS_POINTER = "version https://git-lfs.github.com/spec/v1";
+const LFS_POINTER_MAX_BYTES = 1024;
+
+/**
+ * The finding naming the first file in `buildDir` that is a Git LFS pointer,
+ * or undefined when the build holds none.
+ */
+export function guardLfsPointers(buildDir: string): string | undefined {
+  const pointers: Array<string> = [];
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (
+        entry.isFile() &&
+        statSync(path).size <= LFS_POINTER_MAX_BYTES &&
+        readFileSync(path, "utf8").startsWith(LFS_POINTER)
+      ) {
+        pointers.push(`/${relative(buildDir, path).split("\\").join("/")}`);
+      }
+    }
+  };
+  if (existsSync(buildDir)) walk(buildDir);
+  const first = pointers.toSorted()[0];
+  return first === undefined
+    ? undefined
+    : `✗ deploy guard: ${first} is a Git LFS pointer, not the file; check out with LFS (actions/checkout lfs: true)`;
+}
+
 /** A served path: `/schemas/…` with no empty, `.` or `..` segment. */
 function isServedPath(path: string): boolean {
   const segments = path.split("/").slice(1);
@@ -54,6 +87,8 @@ export async function runGuard(options: {
 }): Promise<GuardResult> {
   const indexUrl = options.indexUrl ?? LIVE_INDEX_URL;
   const buildDir = options.buildDir ?? BUILD_DIR;
+  const pointer = guardLfsPointers(buildDir);
+  if (pointer !== undefined) return { pass: false, finding: pointer };
   let response: Response;
   let body: string;
   try {

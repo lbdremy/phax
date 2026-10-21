@@ -44,6 +44,12 @@ const FILES = new Map([
 
 const DESCRIBED = "A page of the made-up tool these tests build, said in one sentence.";
 
+/** The site/public files the test homes' video names. */
+const VIDEO_ASSETS = new Map([
+  ["/tour.mp4", new Uint8Array()],
+  ["/tour.jpg", new Uint8Array()],
+]);
+
 const MAP = definePageMap({
   repository: "https://github.com/example/tool",
   readme: [
@@ -206,6 +212,7 @@ describe("generateSite", () => {
             tagline: "Runs plans.",
             actions: [{ text: "Run", link: "/guide/run", theme: "brand" }],
             install: "Install it",
+            video: { label: "Watch it", src: "/tour.mp4", poster: "/tour.jpg" },
             features: [
               { key: "gates", title: "Gated", details: "Green first.", link: "/guide/run" },
             ],
@@ -215,7 +222,12 @@ describe("generateSite", () => {
         MAP.readme[2]!,
       ],
     });
-    const result = generateSite({ files: FILES, pageMap: map, version: "0.17.0" });
+    const result = generateSite({
+      files: FILES,
+      pageMap: map,
+      version: "0.17.0",
+      assets: VIDEO_ASSETS,
+    });
     expect(result.findings).toEqual([]);
     const page = result.files.get("docs/index.md") ?? "";
     const frontmatter = page.slice(0, page.indexOf("\n---\n", 4) + 5).split("\n");
@@ -244,6 +256,7 @@ describe("generateSite", () => {
       },
     ]);
     expect(value("install")).toBe("Install it");
+    expect(value("video")).toEqual({ label: "Watch it", src: "/tour.mp4", poster: "/tour.jpg" });
     expect(value("description")).toBe("Tool runs plans <name> by name.");
     expect(value("liveRun")).toEqual(liveRun());
     expect(page).toContain("## Quickstart \\{#quickstart\\}");
@@ -256,15 +269,39 @@ describe("generateSite", () => {
       tagline: "Runs plans.",
       actions: [],
       install: "npm install -g other-tool",
+      video: { label: "Watch it", src: "/tour.mp4", poster: "/tour.jpg" },
       features: [],
     };
     const map = definePageMap({
       ...MAP,
       readme: [{ ...(MAP.readme[0] as ReadmePage), home }, MAP.readme[1]!, MAP.readme[2]!],
     });
-    expect(generateSite({ files: FILES, pageMap: map, version: "0.17.0" }).findings).toEqual([
+    expect(
+      generateSite({ files: FILES, pageMap: map, version: "0.17.0", assets: VIDEO_ASSETS })
+        .findings,
+    ).toEqual([
       '✗ page map: the home\'s install command "npm install -g other-tool" is not in README.md',
     ]);
+  });
+
+  it("refuses a home whose video or poster site/public does not hold", () => {
+    const home = {
+      name: "tool",
+      text: "Plans, gated.",
+      tagline: "Runs plans.",
+      actions: [],
+      install: "Install it",
+      video: { label: "Watch it", src: "/tour.mp4", poster: "/tour.jpg" },
+      features: [],
+    };
+    const map = definePageMap({
+      ...MAP,
+      readme: [{ ...(MAP.readme[0] as ReadmePage), home }, MAP.readme[1]!, MAP.readme[2]!],
+    });
+    const assets = new Map([["/tour.jpg", new Uint8Array()]]);
+    expect(
+      generateSite({ files: FILES, pageMap: map, version: "0.17.0", assets }).findings,
+    ).toEqual(["✗ page map: the home's video names /tour.mp4, which site/public does not hold"]);
   });
 
   it("refuses a page title whose heading id a section already uses", () => {
