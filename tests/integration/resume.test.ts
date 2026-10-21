@@ -606,4 +606,18 @@ describe("phax resume — a phax-plan.json an older phax wrote", () => {
       existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${runShortName}`, "phase-02")),
     ).toBe(false);
   });
+
+  it("refuses on the preview too, never promising a resume it would refuse", async () => {
+    const r = createPreflightRepo({ plan: { phases: [{}, {}] } });
+    roots = r;
+    process.chdir(r.repo);
+    const runShortName = await pauseWithOlderPlan(r);
+
+    const out = recordingOutput();
+    const code = await runResume(runShortName, { yes: false }, out.port);
+
+    expect(code).toBe(2);
+    expect(out.errors.join("\n")).toContain("an older phax wrote it");
+    expect(out.logs.join("\n")).not.toContain("would resume");
+  });
 });

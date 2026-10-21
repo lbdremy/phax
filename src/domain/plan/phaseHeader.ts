@@ -4,8 +4,8 @@
  *
  * One line grammar, shared by lint, the run preflight and both extraction
  * paths (`phaseKinds`): a label is recognised at the start of a line, bold or not
- * (`**Mode:**`, `**Mode**:` or `Mode:`), case-insensitively, the tolerance the
- * model and effort lines get. Its value is the rest of the line, trimmed.
+ * (`**Mode:**`, `**Mode**:` or `Mode:`, with `*`/`_` emphasis and after
+ * blockquote markers), case-insensitively. Its value is the rest of the line, trimmed.
  * Inline code and code blocks are prose and never declare anything.
  */
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -59,9 +59,12 @@ const LABELS: readonly LineLabel[] = [
 ];
 const DECLARATION_LABELS: readonly DeclarationLabel[] = ["Mode", "Oracle phase", "Oracle files"];
 
-// `**Label:** value`, `**Label**: value` or `Label: value`.
+// `**Label:** value`, `**Label**: value` or `Label: value`, with `*` or `_`
+// emphasis of one or two markers in place of `**`, and after any blockquote
+// markers: a typo in the emphasis must never hide a declaration.
+const EMPHASIS = "(?:\\*{1,2}|_{1,2})";
 const LINE_RE = new RegExp(
-  `^\\s*(?:\\*\\*\\s*)?(${LABELS.map((l) => l.replace(" ", "\\s+")).join("|")})\\s*(?::\\s*\\*\\*|\\*\\*\\s*:|:)(.*)$`,
+  `^\\s*(?:>\\s*)*(?:${EMPHASIS}\\s*)?(${LABELS.map((l) => l.replace(" ", "\\s+")).join("|")})\\s*(?::\\s*${EMPHASIS}|${EMPHASIS}\\s*:|:)(.*)$`,
   "i",
 );
 
@@ -97,11 +100,23 @@ function unwrapBackticks(entry: string): string {
     : entry;
 }
 
+// Split on the commas outside code spans, so a path with a comma, rendered as
+// one code span, reads back whole.
 function splitEntries(value: string): string[] {
-  return value
-    .split(",")
-    .map((entry) => unwrapBackticks(entry.trim()))
-    .filter((entry) => entry.length > 0);
+  const entries: string[] = [];
+  let current = "";
+  let inCode = false;
+  for (const char of value) {
+    if (char === "`") inCode = !inCode;
+    if (char === "," && !inCode) {
+      entries.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  entries.push(current);
+  return entries.map((entry) => unwrapBackticks(entry.trim())).filter((entry) => entry.length > 0);
 }
 
 /**
@@ -163,17 +178,22 @@ export function readPhaseBlock(
   );
   const header = readHeaderParagraph(headerNode === undefined ? "" : sourceOf(body, headerNode));
   const misplaced = new Set<DeclarationLabel>();
+  // The old label is refused wherever it sits in the phase, so a reason set
+  // off by a blank line is never dropped without a word.
+  let modelReasonElsewhere = false;
   for (const node of nodes) {
     for (const paragraph of paragraphsOf(node)) {
       if (paragraph === headerNode) continue;
       for (const line of labelledLines(sourceOf(body, paragraph))) {
         if (isDeclaration(line.label)) misplaced.add(line.label);
+        if (line.label === "Model reason") modelReasonElsewhere = true;
       }
     }
   }
   return {
     phase,
     ...header,
+    hasModelReason: header.hasModelReason || modelReasonElsewhere,
     misplaced: DECLARATION_LABELS.filter((label) => misplaced.has(label)),
   };
 }
