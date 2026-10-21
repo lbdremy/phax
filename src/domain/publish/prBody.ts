@@ -1,5 +1,5 @@
 import type { ComplianceReview } from "../../schemas/complianceReview.js";
-import type { Surface } from "../../schemas/surface.js";
+import type { RecordedSurface } from "../../schemas/surface.js";
 import {
   findUnexplainedGlobalDeviations,
   type UnexplainedDeviation,
@@ -33,7 +33,7 @@ export interface ShortPrBodyInput {
     readonly title: string;
     readonly status: PrBodyPhaseStatus;
   }>;
-  readonly verifiedSurfaces: readonly Surface[];
+  readonly verifiedSurfaces: readonly RecordedSurface[];
   readonly compliance:
     | { readonly kind: "reviewed"; readonly review: ComplianceReview }
     | { readonly kind: "not-reviewed" };

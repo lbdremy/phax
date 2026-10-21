@@ -41,6 +41,7 @@ import {
   architectureReportFormat,
   architectureRequestFormat,
 } from "../../../packages/schemas/src/formats/architecture.js";
+import { oracleRequestFormat } from "../../../packages/schemas/src/formats/oracleRequest.js";
 import {
   complianceReviewFormat,
   costLedgerFormat,
@@ -111,6 +112,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "cost-ledger": costLedgerFormat.current.shape.decode,
   "architecture-request": architectureRequestFormat.current.shape.decode,
   "architecture-report": architectureReportFormat.current.shape.decode,
+  "oracle-request": oracleRequestFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -175,6 +177,7 @@ describe("the JSON Schema table", () => {
       costLedgerFormat,
       architectureRequestFormat,
       architectureReportFormat,
+      oracleRequestFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -197,10 +200,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 26 files and no failure", () => {
+  it("renders 27 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(26);
+    expect(rendered.files.size).toBe(27);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

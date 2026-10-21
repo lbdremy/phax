@@ -16,9 +16,9 @@ export const CURRENT_SHAPES = {
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",
   "spec-approvals": "0.17.0",
-  "phase-record-manifest": "0.17.0",
+  "phase-record-manifest": "next",
   "authoring-record-manifest": "0.23.0",
-  "gate-attribution": "0.21.0",
+  "gate-attribution": "next",
   "phase-file-reconciliation": "0.17.0",
   "spec-document": "0.25.0",
   "plan-document": "next",
@@ -34,4 +34,5 @@ export const CURRENT_SHAPES = {
   "cost-ledger": "0.25.0",
   "architecture-request": "next",
   "architecture-report": "next",
+  "oracle-request": "next",
 } as const;

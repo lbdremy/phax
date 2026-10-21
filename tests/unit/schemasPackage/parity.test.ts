@@ -4,6 +4,7 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import {
   parseArchitectureReport,
   parseArchitectureRequest,
+  parseOracleRequest,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -42,6 +43,7 @@ import {
   decodeArchitectureReportFile,
   decodeArchitectureRequestFile,
 } from "../../../src/schemas/architecture.js";
+import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -298,6 +300,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeArchitectureReportFile,
     wrongType: ["body", {}],
     required: "body",
+    excess: "error",
+  },
+  "oracle-request": {
+    id: "oracle-request",
+    parse: parseOracleRequest,
+    phax: decodeOracleRequestFile,
+    wrongType: ["files", {}],
+    required: "files",
     excess: "error",
   },
 };

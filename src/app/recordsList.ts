@@ -13,7 +13,7 @@ import { isDecisionRecordManifest, type DecisionRecordOutcome } from "../schemas
 import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import type { Surface } from "../schemas/surface.js";
+import type { RecordedSurface } from "../schemas/surface.js";
 
 export type RecordListEntry =
   | {
@@ -23,7 +23,7 @@ export type RecordListEntry =
       readonly shape: RecordShape;
       readonly outcome: RecordPhaseOutcome;
       readonly recordCommitSha: string;
-      readonly verifiedSurfaces: readonly Surface[];
+      readonly verifiedSurfaces: readonly RecordedSurface[];
     }
   | {
       readonly kind: "authoring";

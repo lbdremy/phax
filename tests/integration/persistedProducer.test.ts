@@ -550,6 +550,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       model: "example-model",
       effort: "medium",
       outcome: "committed",
+      oracle: null,
       records: RECORDS_IN_REPO,
       sourceSha: "abc1234",
     }),
@@ -691,6 +692,10 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // the architecture provider's stdin and the report is its stdout, printed.
   "architecture-request",
   "architecture-report",
+  // phax never writes the oracle request yet: the oracle step that puts it on
+  // the oracles provider's stdin lands in phase-03 of oracle-phases, which
+  // removes this entry.
+  "oracle-request",
   // phax never writes a hand decision answer: it is a decide session's final
   // message, from which phax writes the artifact itself.
   "hand-decision-answer",

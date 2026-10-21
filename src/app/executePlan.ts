@@ -121,6 +121,7 @@ import {
   readAgentBinding,
 } from "./agentBinding.js";
 import { providerToAdapter } from "../domain/providerAdapter.js";
+import { oracleRoleOf, recordOracleRole } from "../domain/plan/oraclePairs.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -314,6 +315,7 @@ export function executePlan(
         model: args.model,
         effort: args.effort,
         outcome: args.outcome,
+        oracle: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
         records: config.records,
         ...(config.records.destination.kind === "repo"
           ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }

@@ -69,6 +69,31 @@ describe("GateAttributionFileSchema", () => {
     );
   });
 
+  it("decodes a step of the oracle surface", () => {
+    const record: GateAttribution = {
+      phase: "phase-02",
+      steps: [
+        { command: "pnpm test", surface: "local", result: "pass" },
+        { command: "oracles provider", surface: "oracle", result: "pass" },
+      ],
+    };
+
+    expect(decodeGateAttributionFile(encodeGateAttributionFile(stamped(record)))).toEqual(
+      Either.right(stamped(record)),
+    );
+  });
+
+  it("rejects a step whose surface is outside local | structural | product | oracle", () => {
+    const decoded = decodeGateAttributionFile(
+      stamped({
+        phase: "phase-01",
+        steps: [{ command: "pnpm test", surface: "unit", result: "pass" }],
+      }),
+    );
+
+    expect(Either.isLeft(decoded)).toBe(true);
+  });
+
   it("rejects a step whose result is outside pass | fail | refused", () => {
     const decoded = decodeGateAttributionFile(
       stamped({

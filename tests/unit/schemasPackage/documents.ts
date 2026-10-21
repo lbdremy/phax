@@ -94,6 +94,7 @@ import {
   SpecDocumentPreSchemaSchema,
   type SpecDocumentPreSchema,
 } from "../../../src/schemas/history/spec-document/pre-schema.js";
+import { OracleRequestFileSchema } from "../../../src/schemas/oracleRequest.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
@@ -734,7 +735,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "phase-record-manifest": encoded(
     RunRecordManifestFileSchema,
-    withSchemaUrl("phase-record-manifest", stepped(phaseRecordManifest)),
+    withSchemaUrl("phase-record-manifest", { ...stepped(phaseRecordManifest), oracle: null }),
   ),
   "authoring-record-manifest": encoded(
     AuthoringRecordManifestFileSchema,
@@ -811,6 +812,16 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           globs: ["src/core/decide/**"],
         },
       ],
+    }),
+  ),
+  "oracle-request": encoded(
+    OracleRequestFileSchema,
+    withSchemaUrl("oracle-request", {
+      verdict: "authored",
+      phase: "phase-02",
+      oraclePhase: "phase-02",
+      base: EXAMPLE_BASE,
+      files: ["tests/prune.test.ts"],
     }),
   ),
 };

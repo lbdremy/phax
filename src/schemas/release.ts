@@ -13,9 +13,9 @@ export const CURRENT_STAMPS = {
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",
   "spec-approvals": "0.17.0",
-  "phase-record-manifest": "0.17.0",
+  "phase-record-manifest": "0.26.0",
   "authoring-record-manifest": "0.23.0",
-  "gate-attribution": "0.21.0",
+  "gate-attribution": "0.26.0",
   "phase-file-reconciliation": "0.17.0",
   "spec-document": "0.25.0",
   "plan-document": "0.26.0",
@@ -31,4 +31,5 @@ export const CURRENT_STAMPS = {
   "cost-ledger": "0.25.0",
   "architecture-request": "0.26.0",
   "architecture-report": "0.26.0",
+  "oracle-request": "0.26.0",
 } as const;

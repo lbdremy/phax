@@ -70,6 +70,7 @@ export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManife
         },
       },
       verifiedSurfaces: ["local", "structural"],
+      oracle: null,
     } as const),
   );
 }

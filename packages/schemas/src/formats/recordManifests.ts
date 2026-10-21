@@ -28,6 +28,11 @@ import {
   type AuthoringRecordManifestPreSchema,
 } from "../../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import {
+  PhaseRecordManifestV0_17_0Schema,
+  decodePhaseRecordManifestV0_17_0,
+  type PhaseRecordManifestV0_17_0,
+} from "../../../../src/schemas/history/phase-record-manifest/0.17.0.js";
+import {
   PhaseRecordManifestPreSchemaSchema,
   decodePhaseRecordManifestPreSchema,
   type PhaseRecordManifestPreSchema,
@@ -63,7 +68,10 @@ import {
 export const PhaseRecordManifestSchema = RunRecordManifestFileSchema;
 export type PhaseRecordManifest = RunRecordManifestFile;
 
-export type PhaseRecordManifestShapes = { "pre-schema": PhaseRecordManifestPreSchema } & {
+export type PhaseRecordManifestShapes = {
+  "pre-schema": PhaseRecordManifestPreSchema;
+  "0.17.0": PhaseRecordManifestV0_17_0;
+} & {
   [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
 
@@ -77,7 +85,12 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
     schema: PhaseRecordManifestPreSchemaSchema,
     decode: decodePhaseRecordManifestPreSchema,
   },
-  releases: [],
+  releases: [
+    [
+      "0.17.0",
+      { schema: PhaseRecordManifestV0_17_0Schema, decode: decodePhaseRecordManifestV0_17_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["phase-record-manifest"],
     shape: { schema: RunRecordManifestFileSchema, decode: decodeRunRecordManifestFile },
@@ -91,16 +104,25 @@ export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseReco
 /** The latest phase record manifest: phax's in-memory value, with no `version` and no `$schema`. */
 export type LatestPhaseRecordManifest = RunRecordManifest;
 
-/** Upgrades a parsed manifest in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed manifest in memory. Keeps every recorded fact; never
+ * invents one: a shape older than `oracle` gets `oracle: null`, because no
+ * phax that wrote it could run an oracle phase. Its recorded surfaces are
+ * kept as they are.
+ */
 export function toLatestPhaseRecordManifest(
-  value: PhaseRecordManifestPreSchema | PhaseRecordManifest,
+  value: PhaseRecordManifestPreSchema | PhaseRecordManifestV0_17_0 | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
-  if ("$schema" in value) {
+  if ("oracle" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, oracle: null };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, oracle: null };
 }
 
 // ── authoring record manifest

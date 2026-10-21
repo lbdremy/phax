@@ -1,11 +1,12 @@
 import type { ProviderId } from "../../schemas/providerId.js";
 import type {
+  RecordOracleRole,
   RecordPhaseOutcome,
   RecordShape,
   RunRecordManifest,
   TokenUsage,
 } from "../../schemas/runRecord.js";
-import type { Surface } from "../../schemas/surface.js";
+import type { RecordedSurface } from "../../schemas/surface.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
 
@@ -23,7 +24,9 @@ export interface AssembleRecordInput {
   readonly provider: ProviderId;
   readonly outcome: RecordPhaseOutcome;
   readonly usage: TokenUsage;
-  readonly verifiedSurfaces: readonly Surface[];
+  readonly verifiedSurfaces: readonly RecordedSurface[];
+  /** The phase's role in an oracle pair, or null when it is in none. */
+  readonly oracle: RecordOracleRole;
 }
 
 export interface AssembledRecord {
@@ -80,6 +83,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     outcome: input.outcome,
     usage: input.usage,
     verifiedSurfaces: input.verifiedSurfaces,
+    oracle: input.oracle,
   };
 
   return { manifest, artifactPaths };

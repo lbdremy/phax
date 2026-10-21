@@ -74,6 +74,7 @@ import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-reco
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
+import { decodePhaseRecordManifestV0_17_0 } from "./history/phase-record-manifest/0.17.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
@@ -833,11 +834,9 @@ export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
   Either.map(readPlanDocumentSidecar(file, input), (sidecar) => sidecar.document);
 
-type GateStepResult = GateAttribution["steps"][number];
-
-function isPassOrFail(step: { readonly result: string }): step is GateStepResult & {
-  readonly result: "pass" | "fail";
-} {
+function isPassOrFail<S extends { readonly result: string }>(
+  step: S,
+): step is S & { readonly result: "pass" | "fail" } {
   return step.result === "pass" || step.result === "fail";
 }
 
@@ -1074,17 +1073,32 @@ function isStampedBelowCurrent(
   );
 }
 
+// A phase manifest written before `oracle` (pre-schema, or stamped below the
+// format's current stamp and read by the frozen 0.17.0 decoder) is upgraded
+// with `oracle: null`: no phax before it could run an oracle phase.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
-  return (file, input) =>
-    readPersisted(input, {
+  return (file, input) => {
+    if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
+      const older = decodePhaseRecordManifestV0_17_0(input);
+      if (Either.isLeft(older)) {
+        return Either.left(
+          readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+        );
+      }
+      const { $schema: _schema, ...manifest } = older.right;
+      return Either.right({ ...manifest, oracle: null });
+    }
+    return readPersisted(input, {
       format: "phase-record-manifest",
       label,
       file,
       decodeCurrent: decodeRecordManifestFile,
       decodePreSchema: decodePhaseRecordManifestPreSchema,
       fromCurrent: fromRecordManifestFile,
-      fromPreSchema: ({ version: _version, ...manifest }) => Either.right(manifest),
+      fromPreSchema: ({ version: _version, ...manifest }) =>
+        Either.right({ ...manifest, oracle: null }),
     });
+  };
 }
 
 const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest");

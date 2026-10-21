@@ -1,10 +1,10 @@
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
-import { SurfaceSchema } from "./surface.js";
+import { RecordedSurfaceSchema } from "./surface.js";
 
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
-  surface: SurfaceSchema,
+  surface: RecordedSurfaceSchema,
   result: Schema.Literal("pass", "fail", "refused"),
 });
 

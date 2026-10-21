@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax oracle request",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "verdict",
+        "phase",
+        "oraclePhase",
+        "base",
+        "files"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The oracle-request format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/oracle-request/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/oracle-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "authored"
+          ],
+          "description": "Which judgment the provider gives: the oracle phase's tests are authored."
+        },
+        "phase": {
+          "type": "string",
+          "description": "The gated phase.",
+          "pattern": "^phase-\\d{2}$"
+        },
+        "oraclePhase": {
+          "type": "string",
+          "description": "The pair's oracle phase.",
+          "pattern": "^phase-\\d{2}$"
+        },
+        "base": {
+          "type": "string",
+          "description": "The full object name of the commit the oracle phase's branch was created from.",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "description": "The oracle files the pair declares, working-tree-root-relative paths in declaration order."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "$schema",
+        "verdict",
+        "phase",
+        "oraclePhase",
+        "base",
+        "oracleCommit",
+        "files"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "The oracle-request format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/oracle-request/<X.Y.Z>.json",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/oracle-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "discharged"
+          ],
+          "description": "Which judgment the provider gives: the discharging phase left no oracle marker."
+        },
+        "phase": {
+          "type": "string",
+          "description": "The gated phase, the pair's discharger.",
+          "pattern": "^phase-\\d{2}$"
+        },
+        "oraclePhase": {
+          "type": "string",
+          "description": "The pair's oracle phase.",
+          "pattern": "^phase-\\d{2}$"
+        },
+        "base": {
+          "type": "string",
+          "description": "The full object name of the commit the oracle phase's branch was created from.",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "oracleCommit": {
+          "type": "string",
+          "description": "The full object name of the oracle phase's commit, the one to judge against.",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "description": "The oracle files the pair declares, working-tree-root-relative paths in declaration order."
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

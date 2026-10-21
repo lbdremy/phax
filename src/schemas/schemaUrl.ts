@@ -15,9 +15,10 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * then the gate report and brief report of spec guarantee-reports, then the
  * hand decision answer and the decision record manifest of spec
  * artifact-decide, then the cost ledger of spec cost-ledger, then the
- * architecture request and report of spec planning-skill-defaults, appended so
- * existing order stays stable. `code-review` joins with the headless-review
- * plan, which ships that document.
+ * architecture request and report of spec planning-skill-defaults, then the
+ * oracle request of spec oracle-phases, appended so existing order stays
+ * stable. `code-review` joins with the headless-review plan, which ships that
+ * document.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -45,6 +46,7 @@ export const FORMAT_IDS = [
   "cost-ledger",
   "architecture-request",
   "architecture-report",
+  "oracle-request",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -63,7 +65,8 @@ export function isFormatId(value: string): value is FormatId {
  * the manifest of a decide session's decision record, and a run's cost
  * ledger. So are the architecture request phax writes on an architecture
  * provider's stdin and the architecture report the provider prints, of spec
- * planning-skill-defaults.
+ * planning-skill-defaults, and the oracle request phax writes on the oracles
+ * provider's stdin, of spec oracle-phases.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -78,6 +81,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "cost-ledger",
   "architecture-request",
   "architecture-report",
+  "oracle-request",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

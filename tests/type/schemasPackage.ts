@@ -10,6 +10,11 @@ import type {
   parseArchitectureRequest,
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
+  LatestOracleRequest,
+  OracleRequest,
+  OracleRequestShape,
+  parseOracleRequest,
+  toLatestOracleRequest,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
   AuthoringRecordManifestV0_17_0,
@@ -83,6 +88,8 @@ import type {
   PlanDocumentV0_25_0,
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
+  GateAttributionV0_21_0,
+  PhaseRecordManifestV0_17_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -187,6 +194,10 @@ import type {
   ArchitectureRequestFile as PhaxArchitectureRequestFile,
 } from "../../src/schemas/architecture.js";
 import type {
+  OracleRequest as PhaxOracleRequest,
+  OracleRequestFile as PhaxOracleRequestFile,
+} from "../../src/schemas/oracleRequest.js";
+import type {
   CostLedger as PhaxCostLedger,
   CostLedgerFile as PhaxCostLedgerFile,
 } from "../../src/schemas/costLedger.js";
@@ -264,6 +275,8 @@ import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../
 import type { GateAttributionV0_20_0 as FrozenGateAttributionV0_20_0 } from "../../src/schemas/history/gate-attribution/0.20.0.js";
 import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
 import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
+import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
@@ -309,14 +322,21 @@ void phaxToPackage;
 
 // parsePhaseRecordManifest is a union over shapes, assignable to Parsed over their values
 const parsed = parsePhaseRecordManifest({});
-const asParsed: Parsed<FrozenPhaseRecordManifest | PhaseRecordManifest> = parsed;
+const asParsed: Parsed<
+  FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | PhaseRecordManifest
+> = parsed;
 void asParsed;
 
 // Narrowing on success yields the frozen pre-schema type or phax's own type
 if (parsed.ok) {
-  const shape: Equals<typeof parsed.shape, "pre-schema" | Current<"phase-record-manifest">> = true;
-  const exact: Equals<typeof parsed.value, FrozenPhaseRecordManifest | RunRecordManifestFile> =
-    true;
+  const shape: Equals<
+    typeof parsed.shape,
+    "pre-schema" | "0.17.0" | Current<"phase-record-manifest">
+  > = true;
+  const exact: Equals<
+    typeof parsed.value,
+    FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
+  > = true;
   void shape;
   void exact;
   if (parsed.shape === "pre-schema") {
@@ -452,6 +472,7 @@ const formats: Equals<
   | "cost-ledger"
   | "architecture-request"
   | "architecture-report"
+  | "oracle-request"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -537,7 +558,8 @@ const shapeIds: Equals<
   | DecisionRecordManifestShape
   | CostLedgerShape
   | ArchitectureRequestShape
-  | ArchitectureReportShape,
+  | ArchitectureReportShape
+  | OracleRequestShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -554,12 +576,15 @@ const eachShapeId: [
     PlanDocumentShape,
     "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | Current<"plan-document">
   >,
-  Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
+  Equals<PhaseRecordManifestShape, "pre-schema" | "0.17.0" | Current<"phase-record-manifest">>,
   Equals<
     AuthoringRecordManifestShape,
     "pre-schema" | "0.17.0" | Current<"authoring-record-manifest">
   >,
-  Equals<GateAttributionShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"gate-attribution">>,
+  Equals<
+    GateAttributionShape,
+    "pre-schema" | "0.17.0" | "0.20.0" | "0.21.0" | Current<"gate-attribution">
+  >,
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
   Equals<PlanApprovalRecordShape, "0.19.0" | Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, "0.19.0" | Current<"spec-approval-record">>,
@@ -620,7 +645,10 @@ const parseValues: [
     | FrozenPlanDocumentV0_25_0
     | PhaxPlanDocumentFile
   >,
-  Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifestFile>,
+  Equals<
+    Value<typeof parsePhaseRecordManifest>,
+    FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
+  >,
   Equals<
     Value<typeof parseAuthoringRecordManifest>,
     | FrozenAuthoringRecordManifest
@@ -632,6 +660,7 @@ const parseValues: [
     | FrozenGateAttribution
     | FrozenGateAttributionV0_17_0
     | FrozenGateAttributionV0_20_0
+    | FrozenGateAttributionV0_21_0
     | PhaxGateAttributionFile
   >,
   Equals<
@@ -946,6 +975,19 @@ void architectureTypes;
 declare const latestArchitectureReport: LatestArchitectureReport;
 // @ts-expect-error: the in-memory architecture report carries no $schema
 void latestArchitectureReport.$schema;
+// The oracle request is born with $schema too: phax's own file type, one
+// current shape, and an in-memory value without $schema
+const oracleRequestTypes: [
+  Equals<OracleRequest, PhaxOracleRequestFile>,
+  Equals<OracleRequestShape, Current<"oracle-request">>,
+  Equals<Value<typeof parseOracleRequest>, PhaxOracleRequestFile>,
+  Equals<LatestOracleRequest, PhaxOracleRequest>,
+  Equals<Parameters<typeof toLatestOracleRequest>, [value: PhaxOracleRequestFile]>,
+] = [true, true, true, true, true];
+void oracleRequestTypes;
+declare const latestOracleRequest: LatestOracleRequest;
+// @ts-expect-error: the in-memory oracle request carries no $schema
+void latestOracleRequest.$schema;
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
   const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;
@@ -1088,7 +1130,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestPhaseRecordManifest>,
-    [value: FrozenPhaseRecordManifest | RunRecordManifestFile]
+    [value: FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile]
   >,
   Equals<
     Parameters<typeof toLatestAuthoringRecordManifest>,
@@ -1106,6 +1148,7 @@ const toLatestParameters: [
         | FrozenGateAttribution
         | FrozenGateAttributionV0_17_0
         | FrozenGateAttributionV0_20_0
+        | FrozenGateAttributionV0_21_0
         | PhaxGateAttributionFile,
     ]
   >,
@@ -1223,6 +1266,7 @@ void recordManifestFormats;
 const anyManifest = parseRecordManifest({});
 const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifest
+  | FrozenPhaseRecordManifestV0_17_0
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
@@ -1256,7 +1300,7 @@ if (anyManifest.ok) {
   } else {
     const exact: Equals<
       typeof anyManifest.value,
-      FrozenPhaseRecordManifest | RunRecordManifestFile
+      FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
     > = true;
     void exact;
   }
@@ -1277,6 +1321,14 @@ void gateAttributionIsPhax;
 void reconciliationIsPhax;
 void gateAttributionV0_17_0IsFrozen;
 void gateAttributionV0_20_0IsFrozen;
+const gateAttributionV0_21_0IsFrozen: Equals<GateAttributionV0_21_0, FrozenGateAttributionV0_21_0> =
+  true;
+void gateAttributionV0_21_0IsFrozen;
+const phaseRecordManifestV0_17_0IsFrozen: Equals<
+  PhaseRecordManifestV0_17_0,
+  FrozenPhaseRecordManifestV0_17_0
+> = true;
+void phaseRecordManifestV0_17_0IsFrozen;
 // The current gate attribution upgrades to the latest value.
 declare const phaxGateAttribution: PhaxGateAttributionFile;
 const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);

@@ -531,8 +531,10 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/compliance-review/pre-schema.ts",
   "src/schemas/history/gate-attribution/0.17.0.ts",
   "src/schemas/history/gate-attribution/0.20.0.ts",
+  "src/schemas/history/gate-attribution/0.21.0.ts",
   "src/schemas/history/gate-attribution/pre-schema.ts",
   "src/schemas/history/phase-file-reconciliation/pre-schema.ts",
+  "src/schemas/history/phase-record-manifest/0.17.0.ts",
   "src/schemas/history/phase-record-manifest/pre-schema.ts",
   "src/schemas/history/phase-status/0.17.0.ts",
   "src/schemas/history/phase-status/pre-schema.ts",
@@ -550,6 +552,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/spec-approvals/pre-schema.ts",
   "src/schemas/history/spec-document/0.17.0.ts",
   "src/schemas/history/spec-document/pre-schema.ts",
+  "src/schemas/oracleRequest.ts",
   "src/schemas/phaxPlan.ts",
   "src/schemas/planDocument.ts",
   "src/schemas/providerId.ts",
@@ -796,6 +799,7 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "decision-record-manifest": ["decodeDecisionRecordManifestFile", "decodeRecordManifestFile"],
   "cost-ledger": ["decodeCostLedgerFile"],
   "architecture-request": ["decodeArchitectureRequestFile"],
+  "oracle-request": ["decodeOracleRequestFile"],
   "architecture-report": ["decodeArchitectureReportFile"],
 };
 

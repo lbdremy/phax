@@ -52,6 +52,7 @@ const phaseManifest = {
   outcome: "committed",
   usage: { available: false },
   verifiedSurfaces: ["local"],
+  oracle: null,
 };
 
 describe("AuthoringRecordManifestSchema", () => {

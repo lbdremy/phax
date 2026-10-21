@@ -199,6 +199,7 @@ describe("records explain and list (real git)", () => {
         },
       },
       verifiedSurfaces: ["local", "product"],
+      oracle: null,
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "a".repeat(100),
@@ -310,6 +311,7 @@ describe("records explain and list (real git)", () => {
         },
       },
       verifiedSurfaces: [],
+      oracle: null,
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "prompt",
@@ -345,6 +347,7 @@ describe("records explain and list (real git)", () => {
       outcome: "failed",
       usage: { available: false },
       verifiedSurfaces: [],
+      oracle: null,
     };
     await writeFullRecordCommit(repoDir, failedManifest, {
       "checks-attempt-01.log": "log",
@@ -504,6 +507,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
+        oracle: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "brief-10.json": '{"n":10}',
@@ -547,6 +551,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
+        oracle: null,
       };
       await writeFullRecordCommit(repoDir, manifest, { "checks-attempt-01.log": "gate log one" });
 
@@ -571,6 +576,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
+        oracle: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "checks-attempt-02.request.json": '{"attempt":2}',
@@ -613,6 +619,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
+        oracle: null,
       };
       // Made-up reports, pretty-printed with a trailing newline as a step
       // might print them; explain shows the stored bytes unchanged.
@@ -681,6 +688,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
+        oracle: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "prompt.md": prompt,
@@ -960,6 +968,7 @@ describe("records explain and list (real git)", () => {
           outcome: "committed",
           usage: { available: false },
           verifiedSurfaces: ["local"],
+          oracle: null,
         },
         { "prompt.md": "p" },
       );
