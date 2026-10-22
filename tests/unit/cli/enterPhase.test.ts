@@ -20,6 +20,14 @@ vi.mock("../../../src/infra/session.js", () => ({
   makeNodeSessionLayer: vi.fn(),
 }));
 
+// No test reads ~/.phax: providers.json is the built-in catalog.
+vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../../src/app/loadRouting.js")>();
+  const { Effect } = await import("effect");
+  const { DEFAULT_PROVIDER_CONFIG } = await import("../../../src/domain/routing/defaults.js");
+  return { ...original, loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG) };
+});
+
 function makeOutput() {
   const lines: string[] = [];
   const errors: string[] = [];

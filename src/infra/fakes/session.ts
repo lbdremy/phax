@@ -5,6 +5,7 @@ export interface FakeSessionInvocation {
   readonly executable: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  readonly env: Readonly<Record<string, string>>;
 }
 
 export class FakeSessionImpl implements SessionOps {
@@ -15,6 +16,7 @@ export class FakeSessionImpl implements SessionOps {
     executable: string;
     args: readonly string[];
     cwd: string;
+    env: Readonly<Record<string, string>>;
   }): Effect.Effect<number, SessionError> {
     this.invocations.push(invocation);
     return Effect.succeed(this.exitCode);

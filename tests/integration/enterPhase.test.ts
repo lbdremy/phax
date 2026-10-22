@@ -17,6 +17,14 @@ vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
 }));
 
+// No test reads ~/.phax: providers.json is the built-in catalog.
+vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../src/app/loadRouting.js")>();
+  const { Effect } = await import("effect");
+  const { DEFAULT_PROVIDER_CONFIG } = await import("../../src/domain/routing/defaults.js");
+  return { ...original, loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG) };
+});
+
 const now = new Date().toISOString();
 const SHORT_NAME = Either.getOrThrow(decodeShortName("my-run"));
 
@@ -103,6 +111,31 @@ async function writeAgentBindingFixture(
       cwd: opts.worktreePath,
       launchedAt: now,
       status: "running",
+    }),
+  );
+}
+
+// The posture a phase recorded in security.json: what a re-entered session carries.
+async function writeSecurityFixture(
+  phaseDir: string,
+  provider: string,
+  worktreePath: string,
+): Promise<void> {
+  await writeFile(
+    join(phaseDir, "security.json"),
+    JSON.stringify({
+      version: 1,
+      mode: "secure",
+      provider,
+      sandboxEnabled: true,
+      filesystem: { allowRead: [worktreePath], allowWrite: [worktreePath] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      downgraded: false,
+      marks: [],
+      agentCommands: [],
+      skillEditGrants: [],
+      providerSkippedForSecurity: [],
     }),
   );
 }
@@ -234,6 +267,7 @@ describe("runEnterPhase", () => {
       sessionId: "sess-xyz",
       worktreePath,
     });
+    await writeSecurityFixture(phaseDir, "claude-code", worktreePath);
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const logs: string[] = [];
@@ -246,13 +280,25 @@ describe("runEnterPhase", () => {
     const exitCode = await runEnterPhase("my-run", "phase-01", out);
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-xyz"], {
-      cwd: worktreePath,
-      stdio: "inherit",
-    });
+    // The session is resumed under the phase's own posture (carry-posture).
+    expect(spawnSync).toHaveBeenCalledWith(
+      "claude",
+      expect.arrayContaining(["--resume", "sess-xyz", "--permission-mode", "acceptEdits"]),
+      { cwd: worktreePath, stdio: "inherit" },
+    );
+    const args = vi.mocked(spawnSync).mock.calls[0]![1] as string[];
+    expect(args.slice(0, 6)).toEqual([
+      "--resume",
+      "sess-xyz",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "low",
+    ]);
   });
 
-  it("returns 1 with unsupported message for codex binding", async () => {
+  it("resumes a codex binding interactively with codex resume, under the phase's posture", async () => {
+    const { spawnSync } = await import("node:child_process");
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
@@ -265,6 +311,35 @@ describe("runEnterPhase", () => {
       sessionId: "sess-codex",
       worktreePath,
     });
+    await writeSecurityFixture(phaseDir, "codex-cli", worktreePath);
+
+    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+    const output = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
+
+    const exitCode = await runEnterPhase("my-run", "phase-01", output);
+
+    expect(exitCode).toBe(0);
+    expect(output.error).not.toHaveBeenCalled();
+    expect(spawnSync).toHaveBeenCalledWith(
+      "codex",
+      expect.arrayContaining(["resume", "sess-codex", 'approval_policy="on-request"']),
+      { cwd: worktreePath, stdio: "inherit" },
+    );
+  });
+
+  it("refuses to re-enter a phase whose security.json is missing, opening nothing", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const runPath = await buildFakeRunFolder(stateRoot, [
+      { id: "phase-01", index: 0, state: "rate_limited", sessionId: "sess-xyz", worktreePath },
+    ]);
+    await writeAgentBindingFixture(join(runPath, "phase-01"), {
+      provider: "claude-code",
+      adapter: "claude",
+      sessionId: "sess-xyz",
+      worktreePath,
+    });
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const errors: string[] = [];
@@ -273,7 +348,9 @@ describe("runEnterPhase", () => {
     const exitCode = await runEnterPhase("my-run", "phase-01", out);
 
     expect(exitCode).toBe(1);
-    expect(errors.some((e) => e.toLowerCase().includes("codex"))).toBe(true);
+    expect(errors.join("\n")).toContain("security.json");
+    expect(errors.join("\n")).toContain("will not open its session unconfined");
+    expect(spawnSync).not.toHaveBeenCalled();
   });
 
   it("returns 1 with a no-binding error when agent-binding.json is absent", async () => {

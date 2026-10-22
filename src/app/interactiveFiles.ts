@@ -4,11 +4,16 @@
 // versions, and review-stop.json (live or parked). Every document read here is
 // decoded at the schema boundary; a document phax cannot read is an FsError
 // naming it.
-import { Effect, Either } from "effect";
+import { Effect, Either, Schema } from "effect";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { PERSON_HANDOFF_PATH } from "../domain/interactive/worktreeChange.js";
+import { policyFromPosture } from "../domain/security/postureToPolicy.js";
+import type { SecurityPolicy } from "../domain/security/types.js";
 import { FileSystem, FsError } from "../ports/fs.js";
+import { formatParseError } from "../schemas/formatError.js";
+import { ProviderIdSchema, type ProviderId } from "../schemas/providerId.js";
+import { decodeSecurityPosture } from "../schemas/securityPosture.js";
 import {
   encodeInteractiveSessionFile,
   type InteractiveSession,
@@ -320,5 +325,75 @@ export function refreshReviewStop(
       JSON.stringify(encodeReviewStopFile(withSchemaUrl("review-stop", reviewStop)), null, 2),
     );
     return true;
+  });
+}
+
+// Only the part of model-resolution.json the later turns read.
+const ModelResolutionSelectionSchema = Schema.Struct({
+  selected: Schema.Struct({
+    provider: ProviderIdSchema,
+    concreteModel: Schema.NonEmptyString,
+    thinking: Schema.optional(Schema.NonEmptyString),
+  }),
+});
+
+/** The provider, model and effort a phase resolved to, from its `model-resolution.json`. */
+export interface PhaseModel {
+  readonly provider: ProviderId;
+  readonly model: string;
+  /** The resolved thinking level; undefined when the resolution named none. */
+  readonly effort: string | undefined;
+}
+
+export function readModelResolution(
+  phaseFolder: string,
+): Effect.Effect<PhaseModel, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(phaseFolder, "model-resolution.json");
+    if (!(yield* fs.exists(path))) {
+      return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
+    }
+    const parsed = yield* parseJson(path, yield* fs.readText(path));
+    const decoded = Schema.decodeUnknownEither(ModelResolutionSelectionSchema)(parsed);
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(
+        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+      );
+    }
+    const { provider, concreteModel, thinking } = decoded.right.selected;
+    return { provider, model: concreteModel, effort: thinking };
+  });
+}
+
+/**
+ * The phase's policy and frozen agent commands, rebuilt from its
+ * `security.json`: what a continue or fresh-start command carries. A missing
+ * or unreadable file is an FsError naming it.
+ */
+export function readPhasePosture(
+  phaseFolder: string,
+): Effect.Effect<
+  { readonly policy: SecurityPolicy; readonly agentCommands: readonly string[] },
+  FsError,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(phaseFolder, "security.json");
+    if (!(yield* fs.exists(path))) {
+      return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
+    }
+    const parsed = yield* parseJson(path, yield* fs.readText(path));
+    const decoded = decodeSecurityPosture(parsed);
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(
+        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+      );
+    }
+    return {
+      policy: policyFromPosture(decoded.right),
+      agentCommands: decoded.right.agentCommands.map((c) => c.command),
+    };
   });
 }

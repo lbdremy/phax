@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { prepareAdjustPlanSession } from "../../src/app/adjustPlan.js";
+import { landedRunRefusal, prepareAdjustPlanSession } from "../../src/app/adjustPlan.js";
 import { ADJUST_PLAN_PROMPT_FILENAME } from "../../src/domain/planOverlap/adjustPrompt.js";
 import { planCacheKey, EXTRACTOR_VERSION } from "../../src/domain/planCache/key.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -323,4 +323,19 @@ describe("prepareAdjustPlanSession", () => {
     expect(fs.impl.getFile(sessionRecordPath)).toBeUndefined();
     expect(fs.impl.getFile(promptPath)).toBeUndefined();
   });
+});
+
+describe("landedRunRefusal", () => {
+  it("refuses a run awaiting review, naming its state and how to close the stop", () => {
+    expect(landedRunRefusal("example.invoice-export", "awaiting_review")).toBe(
+      'Cannot adjust a plan against run "example.invoice-export": it is awaiting_review, stopped at an interactive phase, so it has not landed. Close the stop with `phax resume example.invoice-export` and let the run finish first.',
+    );
+  });
+
+  it.each(["review_open", "completed", "running", "failed", "archived"])(
+    "leaves a %s run to the existing checks",
+    (state) => {
+      expect(landedRunRefusal("example.invoice-export", state)).toBeNull();
+    },
+  );
 });

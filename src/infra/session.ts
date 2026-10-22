@@ -4,10 +4,18 @@ import { Session, SessionError } from "../ports/session.js";
 
 export function makeNodeSessionLayer(): Layer.Layer<Session> {
   return Layer.succeed(Session, {
-    resume: ({ executable, args, cwd }) =>
+    resume: ({ executable, args, cwd, env }) =>
       Effect.try({
         try: () => {
-          const result = spawnSync(executable, [...args], { cwd, stdio: "inherit" });
+          // An empty `env` spawns with the options it always had, so the
+          // person's own environment is inherited untouched.
+          const result = spawnSync(
+            executable,
+            [...args],
+            Object.keys(env).length === 0
+              ? { cwd, stdio: "inherit" }
+              : { cwd, stdio: "inherit", env: { ...process.env, ...env } },
+          );
           if (result.error) throw result.error;
           return result.status ?? 0;
         },

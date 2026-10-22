@@ -204,6 +204,32 @@ describe("runLs — qualified names", () => {
     expect(errors.join("")).toContain("Config error");
   });
 
+  it("--awaiting-review keeps only the runs awaiting review", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig()));
+
+    const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
+    readRegistry.mockReturnValue(
+      Effect.succeed({
+        version: 1 as const,
+        runs: [
+          makeRegistryEntry("myproject", "invoice-export", "awaiting_review"),
+          makeRegistryEntry("myproject", "credit-notes", "failed"),
+          makeRegistryEntry("myproject", "payments-fix", "interrupted"),
+        ],
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runLs({ awaitingReview: true }, out);
+
+    expect(code).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("myproject.invoice-export");
+    expect(text).not.toContain("credit-notes");
+    expect(text).not.toContain("payments-fix");
+  });
+
   it("returns 0 with (no runs) when registry is empty", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig()));

@@ -4,7 +4,7 @@ import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
-import { resetPhase } from "../../app/resetPhase.js";
+import { previewResetPhase, resetPhase } from "../../app/resetPhase.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import {
@@ -69,12 +69,39 @@ export async function runResetPhase(
   const shortName = shortNameResult.right;
 
   if (!opts.yes) {
+    const previewResult = await Effect.runPromise(
+      Effect.either(
+        previewResetPhase({
+          namespace,
+          shortName,
+          phaseId: phaseIdArg,
+          stateRoot: config.stateRoot,
+          repoRoot: config.repoRoot,
+        }).pipe(Effect.provide(buildLayer(config))),
+      ),
+    );
+    if (Either.isLeft(previewResult)) {
+      out.error(`phax reset-phase failed: ${previewResult.left.message}`);
+      return 1;
+    }
+    const preview = previewResult.right;
     const phaseHint = phaseIdArg !== undefined ? ` "${phaseIdArg}"` : "";
     out.log(
       `Would reset phase${phaseHint} of run "${qualifiedName}". ` +
         `This archives the phase folder and removes its worktree and branch. ` +
         `Pass --yes to proceed.`,
     );
+    if (preview.atStop) {
+      out.log(
+        preview.corrections.length === 0
+          ? `"${preview.phaseId}" is the stopped phase; its worktree holds no uncommitted correction.`
+          : `"${preview.phaseId}" is the stopped phase; its worktree holds ${preview.corrections.length} uncommitted correction(s) that the reset discards:`,
+      );
+      for (const change of preview.corrections) {
+        out.log(`  ${change.status} ${change.path}`);
+      }
+      out.log(`phax resume ${qualifiedName} will set the phase up again and stop there.`);
+    }
     return 0;
   }
 
@@ -104,6 +131,10 @@ export async function runResetPhase(
   if (r.branchDeleted) {
     out.log(`  Branch deleted.`);
   }
-  out.log(`Run is now resumable. Use \`phax resume ${qualifiedName} --yes\` to re-run the phase.`);
+  out.log(
+    r.wasStopped
+      ? `Run is now resumable. \`phax resume ${qualifiedName} --yes\` sets the phase up again and stops there.`
+      : `Run is now resumable. Use \`phax resume ${qualifiedName} --yes\` to re-run the phase.`,
+  );
   return 0;
 }

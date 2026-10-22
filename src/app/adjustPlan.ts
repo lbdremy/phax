@@ -40,6 +40,19 @@ function slugify(path: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/**
+ * Why `--landed <run>` cannot drive an adjustment yet, or null. A run in
+ * `awaiting_review` has not landed: its stopped phase is not committed, so
+ * what it changed is not final. Checked before any session starts.
+ */
+export function landedRunRefusal(runKey: string, runState: string): string | null {
+  if (runState !== "awaiting_review") return null;
+  return (
+    `Cannot adjust a plan against run "${runKey}": it is awaiting_review, stopped at an interactive phase, ` +
+    `so it has not landed. Close the stop with \`phax resume ${runKey}\` and let the run finish first.`
+  );
+}
+
 export interface PrepareAdjustResultReady {
   readonly kind: "ready";
   readonly invocation: {
