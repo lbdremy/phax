@@ -14,9 +14,16 @@
     "site/pages.ts",
     "site/build/*.ts",
     "site/theme/index.tsx",
-    "site/theme/css.d.ts"
+    "site/theme/css.d.ts",
+    "examples/vitest-oracles/main.mjs"
   ],
-  "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts", "site/**/*.{ts,tsx}"],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "packages/schemas/**/*.ts",
+    "site/**/*.{ts,tsx}",
+    "examples/vitest-oracles/**/*.mjs"
+  ],
   "ignore": ["site/generated/**", "site/doc_build/**"],
   "ignoreDependencies": [
     "@effect/platform",
