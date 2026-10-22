@@ -370,7 +370,7 @@ The command carries the phase's filesystem, network and MCP posture, but a step 
 ```bash
 phax ls --awaiting-review                # the runs waiting for a person, with the stopped phase
 phax session-info invoice-export         # the stop's worktree, seed and current session
-phax enter-phase invoice-export phase-02 # continue the session, or print the fresh-start command
+phax enter-phase invoice-export phase-02 # continue the session, or start a fresh one
 phax enter-phase --new-session invoice-export phase-02   # a new read-only first turn; its session becomes current
 phax path invoice-export                 # phax shell and phax open take the same worktree
 ```
