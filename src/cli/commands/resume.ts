@@ -6,10 +6,12 @@ import { decodeRunId, decodeShortName } from "../../domain/branded.js";
 import { decodePublication } from "../../schemas/publication.js";
 import {
   AgentInvocationError,
+  AwaitingReviewStopError,
   GateAttemptsExhaustedError,
   GateStepRefusedError,
   PhaseHadNoChangesError,
   RateLimitError,
+  StopCloseRefusedError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
@@ -40,6 +42,7 @@ import {
   renderAgentInvocationError,
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
+import { renderDeclaredStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -260,6 +263,9 @@ export async function runResume(
         ...(runStatus.planRepoRelPath !== undefined
           ? { planRepoRelPath: runStatus.planRepoRelPath }
           : {}),
+        onStopClosed: (closed) => {
+          for (const line of renderStopClosed(closed)) out.log(line);
+        },
       }),
     );
 
@@ -269,6 +275,15 @@ export async function runResume(
 
     if (Either.isLeft(result)) {
       const err = result.left;
+      if (err instanceof AwaitingReviewStopError) {
+        for (const line of renderDeclaredStop(err.report)) out.log(line);
+        return exitCodeForError(err);
+      }
+      if (err instanceof StopCloseRefusedError) {
+        out.warn(renderStopCloseRefused(err.phase, err.lastClose));
+        out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
         out.warn(`Run "${qualifiedName}" paused again: ${err.message}`);
         out.warn(

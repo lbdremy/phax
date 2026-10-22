@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
 import type { PublicationRecord } from "../domain/publish/types.js";
@@ -41,6 +41,24 @@ function tryReadSecurityPosture(runPath: string, phaseId: string): SecurityPostu
     // Ignore parse/read errors
   }
   return null;
+}
+
+const TURN_STREAM = /^(first|closing)-turn-\d{2}(-retry)?\.jsonl$/;
+
+// An interactive phase's first-turn and closing-turn streams, first turns first.
+function turnStreams(phaseFolder: string): string[] {
+  try {
+    // A turn's stream sorts before its `-retry` stream.
+    const streams = readdirSync(phaseFolder)
+      .filter((entry) => TURN_STREAM.test(entry))
+      .toSorted((a, b) => a.replace(".jsonl", "").localeCompare(b.replace(".jsonl", "")));
+    return [
+      ...streams.filter((s) => s.startsWith("first-")),
+      ...streams.filter((s) => s.startsWith("closing-")),
+    ];
+  } catch {
+    return [];
+  }
 }
 
 function formatSecurityPosture(phaseId: string, posture: SecurityPosture): string {
@@ -165,9 +183,12 @@ function buildFinalReportMarkdown(
   const phaseRows = info.phaseStatuses
     .map((p) => {
       const planPhase = info.planPhases.find((pp) => pp.id === p.phaseId);
-      const title = planPhase?.title ?? p.phaseId;
+      const planTitle = planPhase?.title ?? p.phaseId;
+      // No agent session built an interactive phase: its row names no session.
+      const interactive = p.mode === "interactive";
+      const title = interactive ? `${planTitle} (interactive)` : planTitle;
       const commit = p.commitHash ? p.commitHash.slice(0, 8) : "-";
-      const session = p.claudeSessionId ? `${p.claudeSessionId.slice(0, 8)}…` : "-";
+      const session = !interactive && p.claudeSessionId ? `${p.claudeSessionId.slice(0, 8)}…` : "-";
       const duration = formatDuration(p.createdAt, p.updatedAt);
       return `| ${p.phaseId} | ${title} | ${p.state} | ${p.model} | ${p.effort} | ${commit} | ${session} | ${duration} |`;
     })
@@ -176,6 +197,17 @@ function buildFinalReportMarkdown(
   const artifactLinks = info.phaseStatuses
     .map((p) => {
       const base = `${info.runPath}/${p.phaseId}`;
+      if (p.mode === "interactive") {
+        const turns = turnStreams(join(info.runPath, p.phaseId));
+        return [
+          `### ${p.phaseId}`,
+          `- Status: \`${base}/status.json\``,
+          ...(turns.length > 0
+            ? turns.map((stream) => `- Turn: \`${base}/${stream}\``)
+            : ["- Turns: (none)"]),
+          `- Security: \`${base}/security.json\``,
+        ].join("\n");
+      }
       return [
         `### ${p.phaseId}`,
         `- Status: \`${base}/status.json\``,

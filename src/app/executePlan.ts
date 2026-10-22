@@ -18,6 +18,7 @@ import {
   AgentInvocationError,
   AgentSessionIdMissingError,
   ArtifactCompletionPausedError,
+  AwaitingReviewStopError,
   CleanupPausedError,
   CommitPausedError,
   GateAttemptsExhaustedError,
@@ -27,7 +28,8 @@ import {
   ModelPreflightError,
   PhaseHadNoChangesError,
   type AssignmentPreflightError,
-  type InteractivePreflightError,
+  InteractivePreflightError,
+  type InvalidTransitionError,
   OracleCommitMissingError,
   OraclePreflightError,
   type PlanSectionsPreflightError,
@@ -39,6 +41,7 @@ import {
   SecurityPreflightError,
   SetupCommandFailedError,
   SkillEditConsentError,
+  StopCloseRefusedError,
   UnsafeGitStateError,
   UsageLimitError,
   WorktreeCreationError,
@@ -72,7 +75,7 @@ import {
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { encodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
-import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
@@ -107,7 +110,14 @@ import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./p
 import { closePulledBriefs } from "./pullBrief.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
-import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
+import {
+  readPreviousHandoff,
+  readPreviousReconciliation,
+  readReviewCorrections,
+} from "./handoffInjection.js";
+import { readExecutedHandoffs } from "./interactiveFiles.js";
+import { stopAtDeclaredPhase } from "./interactiveStop.js";
+import { closeDeclaredStop, type CloseReport } from "./closeStop.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
@@ -174,6 +184,19 @@ function isArtifactCompletionPausedError(e: unknown): e is ArtifactCompletionPau
   return e instanceof ArtifactCompletionPausedError;
 }
 
+// A stop reached or a close refused leaves the run awaiting review: the
+// reducer already moved it there, so nothing more is dispatched.
+function isReviewStopError(e: unknown): e is AwaitingReviewStopError | StopCloseRefusedError {
+  return e instanceof AwaitingReviewStopError || e instanceof StopCloseRefusedError;
+}
+
+/** A declared stop this invocation closed, for the CLI to print. */
+export interface ClosedStop {
+  readonly phaseId: string;
+  readonly phaseTitle: string;
+  readonly report: CloseReport;
+}
+
 // The phase request file `phax brief` reads its phase from (spec §5.13). A
 // write failure is a warning: a brief never blocks the phase.
 function writeBriefRequestOrWarn(
@@ -223,6 +246,9 @@ export interface ExecutePlanOptions {
   // run. Never persisted and never reaches a later phase. The resume command
   // sets it after checking the phase's oracle role.
   readonly skipOracle?: boolean | undefined;
+  // Called once a declared stop's close has committed, before its cleanup and
+  // the next phase, so the caller can print the close as it happens.
+  readonly onStopClosed?: ((closed: ClosedStop) => void) | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -265,7 +291,10 @@ export type ExecutePlanError =
   | OracleCommitMissingError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
-  | RecordsSyncRequiredError;
+  | RecordsSyncRequiredError
+  | AwaitingReviewStopError
+  | StopCloseRefusedError
+  | InvalidTransitionError;
 
 export function executePlan(
   opts: ExecutePlanOptions,
@@ -397,7 +426,8 @@ export function executePlan(
       isHandoffPausedError(e) ||
       isCommitPausedError(e) ||
       isCleanupPausedError(e) ||
-      isArtifactCompletionPausedError(e)
+      isArtifactCompletionPausedError(e) ||
+      isReviewStopError(e)
     );
   }
 
@@ -508,6 +538,187 @@ export function executePlan(
     });
   }
 
+  // The model resolution and the security posture of a phase entered fresh,
+  // headless or interactive: writes model-resolution.json and security.json,
+  // which an interactive phase's later turns read.
+  function resolvePhaseAgent(args: {
+    readonly phase: PhaxPlanPhase;
+    readonly worktreePath: string;
+    readonly phaseFolderPath: string;
+    readonly gateCommands: readonly string[];
+    readonly briefCommands: readonly string[];
+    readonly skillEditGrants: readonly string[];
+  }) {
+    return Effect.gen(function* () {
+      const telemetry = yield* SystemTelemetry;
+      const fs = yield* FileSystem;
+      const { phase, phaseFolderPath } = args;
+      // The resolved policy is provider-independent (filesystem/network/mcp
+      // come from config + worktree, not the provider), so compute it once
+      // and reuse it for both the routing security filter and the selected
+      // run.
+      const securityPolicy = resolveSecurityPolicy({
+        mode: securityMode,
+        worktreePath: args.worktreePath,
+        config: config.security,
+      });
+      const resolution = resolveModel(
+        { model: phase.model, effort: phase.effort },
+        routing,
+        providerConfig,
+        securityFilterFor(securityPolicy),
+      );
+
+      yield* telemetry.recordEvent(
+        makeModelResolvedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          requestedFamily: resolution.requested.family,
+          requestedEffort: resolution.requested.effort,
+          selectedProvider: resolution.selected.provider,
+          selectedFamily: resolution.selected.family,
+          selectedConcreteModel: resolution.selected.concreteModel,
+          ...(resolution.selected.thinking !== undefined
+            ? { selectedThinking: resolution.selected.thinking }
+            : {}),
+          relationship: resolution.relationship,
+          reason: resolution.reason,
+        }),
+      );
+
+      yield* fs.writeAtomic(
+        join(phaseFolderPath, "model-resolution.json"),
+        JSON.stringify(resolution, null, 2),
+      );
+
+      // Build and write security posture artifact
+      const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
+      const frozenResult = computeFrozenAgentCommands({
+        configCommands: securityPolicy.agentCommands,
+        gateCommands: args.gateCommands,
+        briefCommands: args.briefCommands,
+        requiredCommands: plan.run.requiredCommands,
+        provider: resolution.selected.provider,
+      });
+      const postureMarks: Array<"partial-filesystem" | "mcp-unenforced" | "command-precision"> = [
+        ...evaluation.marks,
+      ];
+      if (frozenResult.degraded) {
+        postureMarks.push("command-precision");
+        process.stderr.write(
+          `[phax] Warning: phase "${phase.id}" — command-precision enforcement is degraded for provider "${resolution.selected.provider}". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.\n`,
+        );
+      }
+      const securityPosture: SecurityPosture = {
+        version: 1,
+        mode: securityPolicy.mode,
+        provider: resolution.selected.provider,
+        sandboxEnabled: securityPolicy.mode === "secure",
+        filesystem: {
+          allowRead: securityPolicy.filesystem.allowRead,
+          allowWrite: securityPolicy.filesystem.allowWrite,
+        },
+        network: {
+          profile: securityPolicy.network.profile,
+        },
+        mcp: {
+          mode: securityPolicy.mcp.mode,
+          allow: securityPolicy.mcp.allow,
+        },
+        downgraded: evaluation.downgraded,
+        marks: postureMarks,
+        agentCommands: frozenResult.records,
+        skillEditGrants: [...args.skillEditGrants],
+        providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
+      };
+      yield* fs.writeAtomic(
+        join(phaseFolderPath, "security.json"),
+        JSON.stringify(encodeSecurityPosture(securityPosture), null, 2),
+      );
+
+      // Emit security.policy.applied telemetry event
+      yield* telemetry.recordEvent(
+        makeSecurityPolicyAppliedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          mode: securityPosture.mode,
+          provider: securityPosture.provider,
+          sandboxEnabled: securityPosture.sandboxEnabled,
+          networkProfile: securityPosture.network.profile,
+          mcpMode: securityPosture.mcp.mode,
+          downgraded: securityPosture.downgraded,
+          skippedForSecurity: securityPosture.providerSkippedForSecurity,
+        }),
+      );
+      return { resolution, securityPolicy, frozenResult };
+    });
+  }
+
+  // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
+  // If cleanup fails (dirty worktree, setup command failure, git error), dispatch
+  // CleanupFailed to pause the run as `interrupted` with the phase in `cleaning_up`,
+  // then re-raise as CleanupPausedError so the top-level guard skips RunFailed.
+  function cleanupCommittedPhase(args: {
+    readonly phase: PhaxPlanPhase;
+    readonly worktreePath: WorktreePath;
+    readonly phaseFolderPath: string;
+    readonly cleanupCommands: readonly string[];
+  }) {
+    const { phase, worktreePath, phaseFolderPath } = args;
+    return cleanupPhase({
+      worktreePath,
+      phaseFolderPath,
+      cleanupCommands: args.cleanupCommands,
+      repoRoot: config.repoRoot,
+      isFinalPhase: false,
+      runPath,
+      shortName: shortName as string,
+      phaseId: phase.id,
+    }).pipe(
+      Effect.catchAll((e) =>
+        Effect.gen(function* () {
+          const reason = e instanceof Error ? e.message : String(e);
+          yield* dispatch(
+            {
+              ...eventBase(phase.id),
+              type: "CleanupFailed" as const,
+              phaseId: phase.id as PhaseId,
+              worktreePath,
+              reason,
+            },
+            dispatchCtx(phaseFolderPath, phase.id),
+          );
+          return yield* Effect.fail(
+            new CleanupPausedError({
+              message: `Cleanup step failed for phase "${phase.id}": ${reason}`,
+              phaseId: phase.id,
+              cause: e,
+            }),
+          );
+        }),
+      ),
+    );
+  }
+
+  // The closed stops before phase `i`, read from disk so a resumed run sees
+  // the stops an earlier invocation closed. A plan with no interactive phase
+  // before `i` reads nothing, so its prompts stay as they were.
+  function reviewCorrectionsFor(i: number) {
+    return Effect.gen(function* () {
+      if (!plan.phases.slice(0, i).some((p) => p.mode === "interactive")) return [];
+      const infoResult = resolveRun(namespace, shortName, config.stateRoot);
+      if (Either.isLeft(infoResult)) {
+        return yield* Effect.fail(
+          new RegistryCorruptionError({
+            message: `Failed to resolve run "${shortName}" for its review corrections: ${infoResult.left}`,
+            registryPath: join(config.stateRoot, "registry.json"),
+          }),
+        );
+      }
+      return yield* readReviewCorrections(runPath, plan.phases, i, infoResult.right.phaseStatuses);
+    });
+  }
+
   const program = Effect.gen(function* () {
     const telemetry = yield* SystemTelemetry;
     const git = yield* Git;
@@ -587,6 +798,8 @@ export function executePlan(
     let resumeFromCommit = false;
     let resumeFromCleanup = false;
     let resumeFromCompletion = false;
+    // An interactive phase awaiting review: the resume closes its stop.
+    let resumeFromStop = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     if (resumePhase !== undefined) {
@@ -619,6 +832,12 @@ export function executePlan(
           // distinguishes this re-entry.
           resumeFromCompletion = true;
           resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (phaseStatus?.state === "awaiting_review") {
+          // Read before RunResumeRequested parks review-stop.json. A crashed
+          // close left the run `running`, its phase still awaiting_review, so
+          // it re-enters here too.
+          resumeFromStop = true;
           resumeWorktreePath = phaseStatus.worktreePath;
         }
       }
@@ -668,6 +887,169 @@ export function executePlan(
             message: `Invalid phase id "${phase.id}": must match phase-NN`,
             branch,
             path: "",
+          }),
+        );
+      }
+
+      if (phase.mode === "interactive") {
+        // A phase no agent builds: no work session, gate, fix loop, handoff
+        // turn or record. Entered fresh, it stops after a read-only first
+        // turn; a resume closes the stop, runs the cleanup and goes on.
+        currentPhaseId = phase.id;
+        currentWorktreePath = undefined;
+        currentSessionId = undefined;
+        currentProvider = undefined;
+        currentModel = undefined;
+        currentEffort = undefined;
+        const isResumeFromStop = i === startIndex && resumeFromStop;
+
+        if (isResumeFromStop || isResumeFromCleanup) {
+          // Only the recorded worktree is needed: an interactive phase has no
+          // claudeSessionId and no agent-binding.json.
+          if (resumeWorktreePath === undefined || !existsSync(resumeWorktreePath)) {
+            return yield* Effect.fail(
+              new WorktreeCreationError({
+                message: `Cannot resume phase "${phase.id}" of run "${shortName}": worktree "${resumeWorktreePath ?? "<unknown>"}" no longer exists`,
+                branch,
+                path: resumeWorktreePath ?? "",
+              }),
+            );
+          }
+          const reentryBranchStr = `${plan.run.branch}--${phase.id}`;
+          const reentryBranch = decodeBranchName(reentryBranchStr);
+          if (Either.isLeft(reentryBranch)) {
+            return yield* Effect.fail(
+              new UnsafeGitStateError({
+                message: `Invalid phase branch "${reentryBranchStr}"`,
+                repoPath: config.repoRoot,
+              }),
+            );
+          }
+          const reentryWorktree = decodeWorktreePath(resumeWorktreePath);
+          if (Either.isLeft(reentryWorktree)) {
+            return yield* Effect.fail(
+              new WorktreeCreationError({
+                message: `Invalid worktree path "${resumeWorktreePath}"`,
+                branch: reentryBranch.right,
+                path: resumeWorktreePath,
+              }),
+            );
+          }
+          const stopFolder = join(runPath, phase.id);
+          currentPhaseFolderPath = stopFolder;
+          currentWorktreePath = reentryWorktree.right as string;
+
+          if (isResumeFromStop) {
+            const report = yield* closeDeclaredStop({
+              runId,
+              shortName: shortName as string,
+              runPath,
+              phase,
+              phaseFolder: stopFolder,
+              worktree: reentryWorktree.right as string,
+              gateSteps,
+              gateRequest: serializeGateRequest(yield* phaseFactsFor(stopFolder, phase.id, false)),
+              fileReconciliationMode: config.fileReconciliationMode,
+            });
+            committedPhases.push(phase.id);
+            opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
+          }
+          // The lint keeps an interactive phase off the last place, so it
+          // always has a cleanup.
+          yield* cleanupCommittedPhase({
+            phase,
+            worktreePath: reentryWorktree.right,
+            phaseFolderPath: stopFolder,
+            cleanupCommands,
+          });
+          previousPhaseBranch = reentryBranch.right;
+          continue;
+        }
+
+        const preparedStopBranch = yield* preparePhaseBranch(
+          branch,
+          phaseIdResult.right,
+          previousPhaseBranch,
+          config.repoRoot,
+        );
+        const stopFolder = yield* createPhaseFolder(
+          runPath,
+          phase,
+          i,
+          preparedStopBranch,
+          config.repoRoot,
+        );
+        currentPhaseFolderPath = stopFolder;
+        const stopCtx = dispatchCtx(stopFolder, phase.id);
+        yield* dispatch(
+          { ...eventBase(phase.id), type: "PhaseStartRequested", phaseId: phase.id as PhaseId },
+          stopCtx,
+        );
+        const stopWorktree = yield* createPhaseWorktree(
+          namespace,
+          shortName,
+          phaseIdResult.right,
+          preparedStopBranch.branch,
+          config.stateRoot,
+          config.repoRoot,
+        );
+        currentWorktreePath = stopWorktree as string;
+        yield* recordPhaseWorktreeAndBranch(stopFolder, stopWorktree, preparedStopBranch.branch);
+        yield* telemetry.recordEvent(
+          makeAdapterCallSucceededTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            adapter: "git",
+            operation: "worktree.create",
+          }),
+        );
+        yield* dispatch(
+          { ...eventBase(phase.id), type: "WorktreeCreated", path: stopWorktree },
+          stopCtx,
+        );
+        yield* setupPhase({
+          worktreePath: stopWorktree,
+          phaseFolderPath: stopFolder,
+          setupCommands,
+        });
+        yield* writePhasePlanFile(stopWorktree as string, planMd);
+
+        const { resolution, securityPolicy, frozenResult } = yield* resolvePhaseAgent({
+          phase,
+          worktreePath: stopWorktree as string,
+          phaseFolderPath: stopFolder,
+          gateCommands: gateCommandStrings,
+          briefCommands,
+          skillEditGrants,
+        });
+
+        const executedHandoffs = yield* readExecutedHandoffs(runPath, plan.phases, i);
+        const report = yield* stopAtDeclaredPhase({
+          runId,
+          shortName: shortName as string,
+          runPath,
+          mainCheckout: config.repoRoot,
+          phases: plan.phases,
+          phase,
+          phaseIndex: i,
+          phaseFolder: stopFolder,
+          worktree: stopWorktree as string,
+          provider: resolution.selected.provider,
+          model: resolution.selected.concreteModel,
+          effort: resolution.selected.thinking ?? phase.effort,
+          providerEntry: providerConfig.providers[resolution.selected.provider],
+          policy: securityPolicy,
+          agentCommands: frozenResult.records.map((r) => r.command),
+          gateCommands: selectGateSteps(gateSteps, false).map((s) => s.command),
+          planSections: planSections.sections,
+          executedHandoffs,
+        });
+        return yield* Effect.fail(
+          new AwaitingReviewStopError({
+            message: `Run "${shortName}" awaits review at ${phase.id} (declared: interactive phase)`,
+            run: shortName as string,
+            phase: phase.id,
+            report,
           }),
         );
       }
@@ -858,6 +1240,7 @@ export function executePlan(
 
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
+        const reviewCorrections = yield* reviewCorrectionsFor(i);
 
         const fs = yield* FileSystem;
 
@@ -890,6 +1273,7 @@ export function executePlan(
           currentPhase: phase,
           previousHandoff,
           previousReconciliation,
+          reviewCorrections,
           gateCommands: gateCommandStrings,
           briefSection,
           oracleRole: oracleRoleOf(plan.phases, phase.id),
@@ -897,103 +1281,14 @@ export function executePlan(
 
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
-        // The resolved policy is provider-independent (filesystem/network/mcp
-        // come from config + worktree, not the provider), so compute it once
-        // and reuse it for both the routing security filter and the selected
-        // run.
-        const securityPolicy = resolveSecurityPolicy({
-          mode: securityMode,
+        const { resolution, securityPolicy, frozenResult } = yield* resolvePhaseAgent({
+          phase,
           worktreePath: worktreePath as string,
-          config: config.security,
-        });
-        const resolution = resolveModel(
-          { model: phase.model, effort: phase.effort },
-          routing,
-          providerConfig,
-          securityFilterFor(securityPolicy),
-        );
-
-        yield* telemetry.recordEvent(
-          makeModelResolvedTelemetryEvent({
-            runId,
-            operationId: phase.id,
-            requestedFamily: resolution.requested.family,
-            requestedEffort: resolution.requested.effort,
-            selectedProvider: resolution.selected.provider,
-            selectedFamily: resolution.selected.family,
-            selectedConcreteModel: resolution.selected.concreteModel,
-            ...(resolution.selected.thinking !== undefined
-              ? { selectedThinking: resolution.selected.thinking }
-              : {}),
-            relationship: resolution.relationship,
-            reason: resolution.reason,
-          }),
-        );
-
-        yield* fs.writeAtomic(
-          join(phaseFolderPath, "model-resolution.json"),
-          JSON.stringify(resolution, null, 2),
-        );
-
-        // Build and write security posture artifact
-        const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
-        const frozenResult = computeFrozenAgentCommands({
-          configCommands: securityPolicy.agentCommands,
+          phaseFolderPath,
           gateCommands: gateCommandStrings,
           briefCommands,
-          requiredCommands: plan.run.requiredCommands,
-          provider: resolution.selected.provider,
-        });
-        const postureMarks: Array<"partial-filesystem" | "mcp-unenforced" | "command-precision"> = [
-          ...evaluation.marks,
-        ];
-        if (frozenResult.degraded) {
-          postureMarks.push("command-precision");
-          process.stderr.write(
-            `[phax] Warning: phase "${phase.id}" — command-precision enforcement is degraded for provider "${resolution.selected.provider}". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.\n`,
-          );
-        }
-        const securityPosture: SecurityPosture = {
-          version: 1,
-          mode: securityPolicy.mode,
-          provider: resolution.selected.provider,
-          sandboxEnabled: securityPolicy.mode === "secure",
-          filesystem: {
-            allowRead: securityPolicy.filesystem.allowRead,
-            allowWrite: securityPolicy.filesystem.allowWrite,
-          },
-          network: {
-            profile: securityPolicy.network.profile,
-          },
-          mcp: {
-            mode: securityPolicy.mcp.mode,
-            allow: securityPolicy.mcp.allow,
-          },
-          downgraded: evaluation.downgraded,
-          marks: postureMarks,
-          agentCommands: frozenResult.records,
           skillEditGrants,
-          providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
-        };
-        yield* fs.writeAtomic(
-          join(phaseFolderPath, "security.json"),
-          JSON.stringify(encodeSecurityPosture(securityPosture), null, 2),
-        );
-
-        // Emit security.policy.applied telemetry event
-        yield* telemetry.recordEvent(
-          makeSecurityPolicyAppliedTelemetryEvent({
-            runId,
-            operationId: phase.id,
-            mode: securityPosture.mode,
-            provider: securityPosture.provider,
-            sandboxEnabled: securityPosture.sandboxEnabled,
-            networkProfile: securityPosture.network.profile,
-            mcpMode: securityPosture.mcp.mode,
-            downgraded: securityPosture.downgraded,
-            skippedForSecurity: securityPosture.providerSkippedForSecurity,
-          }),
-        );
+        });
 
         yield* Effect.tryPromise({
           try: () =>
@@ -1492,43 +1787,7 @@ export function executePlan(
         }
       } else {
         yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "completed"));
-        // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
-        // If cleanup fails (dirty worktree, setup command failure, git error), dispatch
-        // CleanupFailed to pause the run as `interrupted` with the phase in `cleaning_up`,
-        // then re-raise as CleanupPausedError so the top-level guard skips RunFailed.
-        yield* cleanupPhase({
-          worktreePath,
-          phaseFolderPath,
-          cleanupCommands,
-          repoRoot: config.repoRoot,
-          isFinalPhase: false,
-          runPath,
-          shortName: shortName as string,
-          phaseId: phase.id,
-        }).pipe(
-          Effect.catchAll((e) =>
-            Effect.gen(function* () {
-              const reason = e instanceof Error ? e.message : String(e);
-              yield* dispatch(
-                {
-                  ...eventBase(phase.id),
-                  type: "CleanupFailed" as const,
-                  phaseId: phase.id as PhaseId,
-                  worktreePath,
-                  reason,
-                },
-                ctx,
-              );
-              return yield* Effect.fail(
-                new CleanupPausedError({
-                  message: `Cleanup step failed for phase "${phase.id}": ${reason}`,
-                  phaseId: phase.id,
-                  cause: e,
-                }),
-              );
-            }),
-          ),
-        );
+        yield* cleanupCommittedPhase({ phase, worktreePath, phaseFolderPath, cleanupCommands });
       }
 
       // Advance the chain: the next phase branches off this phase's branch.
@@ -1565,6 +1824,10 @@ export function executePlan(
     Effect.tapError((e) =>
       Effect.gen(function* () {
         if (isResumablePauseError(e) || currentPhaseId === undefined) return;
+        // No agent session built an interactive phase, so it gets no record
+        // (plan 3 records the stop).
+        const failedPhaseId = currentPhaseId;
+        if (plan.phases.find((p) => p.id === failedPhaseId)?.mode === "interactive") return;
         if (
           config.brief !== undefined &&
           currentWorktreePath !== undefined &&
@@ -1683,8 +1946,10 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // The interactive preflight refusal leaves an existing run's state and last
+    // error as they were (spec §5.9): the plan is fixed, then resumed again.
     Effect.tapError((e) =>
-      isResumablePauseError(e)
+      isResumablePauseError(e) || e instanceof InteractivePreflightError
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {

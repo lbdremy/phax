@@ -99,9 +99,14 @@ const REQUIRED_COMMANDS_MESSAGE = [
 const INTERACTIVE_LINE = "**Mode:** interactive";
 const ORACLE_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"];
 const LINT_HINT = "Fix the plan, then check it with `phax plans lint plan.md`.";
+// A plan whose last phase is interactive and plans nothing: one placement error.
+const LAST_INTERACTIVE_PHASES = [
+  {},
+  { headerLines: [INTERACTIVE_LINE], plannedFilesToCreate: [] },
+] as const;
 const INTERACTIVE_MESSAGE = [
   "Interactive preflight failed: 1 error(s).",
-  "  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
+  "  phase-02  an interactive phase cannot be the last phase (the final phase is already kept open)",
   LINT_HINT,
 ].join("\n");
 const NO_PROVIDER_ROW =
@@ -265,7 +270,7 @@ const SCENARIOS = {
     errorLine: () => `phax run failed: ${assignmentRefusal("globs src/step-01.ts")}`,
   },
   "interactive-phases": {
-    fixture: { plan: { phases: [{ headerLines: [INTERACTIVE_LINE] }] } },
+    fixture: { plan: { phases: LAST_INTERACTIVE_PHASES } },
     exitCode: 11,
     errorLine: () => `phax run failed: ${INTERACTIVE_MESSAGE}`,
   },
@@ -610,6 +615,29 @@ describe("phax run — a preflight refusal precedes naming", () => {
       expect(snapshotRepo(r).runs).toEqual([]);
     },
   );
+
+  it("lint exits with the interactive error the run preflight refuses on", async () => {
+    const r = enter({ plan: { phases: LAST_INTERACTIVE_PHASES } });
+    const config = Either.getOrThrow(loadConfig(r.repo));
+    const report = await Effect.runPromise(
+      lintPlan({
+        planMdPath: join(r.repo, "plan.md"),
+        reportPath: "plan.md",
+        repoRelPath: "plan.md",
+        config,
+      }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeShell().layer))),
+    );
+    const lintRows = report.findings
+      .filter((f) => f.check === "interactive" && f.severity === "error")
+      .map((f) => `  ${f.phase ?? "-"}  ${f.message}`);
+    expect(lintRows).toEqual([INTERACTIVE_MESSAGE.split("\n")[1]]);
+    const out = recordingOutput();
+
+    expect(await runRun({ plan: "plan.md" }, out.port)).toBe(11);
+    expect(out.errors).toEqual([`phax run failed: ${INTERACTIVE_MESSAGE}`]);
+    const after = snapshotRepo(r);
+    expect(after.runs).toEqual([]);
+  });
 
   it("several refusals at once report only the first, in today's order", async () => {
     const r = enter({

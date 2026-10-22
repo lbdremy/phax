@@ -7,6 +7,7 @@ import { runKey, nextAvailableShortName } from "../../domain/runRef.js";
 import { readRegistryFile } from "../../schemas/persisted.js";
 import {
   AgentInvocationError,
+  AwaitingReviewStopError,
   ConfigValidationError,
   GateAttemptsExhaustedError,
   GateStepRefusedError,
@@ -48,6 +49,7 @@ import {
   renderAgentInvocationError,
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
+import { renderDeclaredStop } from "./stopOutput.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -449,6 +451,10 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     if (Either.isLeft(result)) {
       const err = result.left;
       const qualName = runKey(namespace, shortName);
+      if (err instanceof AwaitingReviewStopError) {
+        for (const line of renderDeclaredStop(err.report)) out.log(line);
+        return exitCodeForError(err);
+      }
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
         out.warn(`Run "${qualName}" paused: ${err.message}`);
         out.warn(

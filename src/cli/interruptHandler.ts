@@ -1,10 +1,22 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Either } from "effect";
 import { activeInvocationCost, COST_LEDGER_FILE, nextLedger } from "../app/costLedger.js";
+import { reviewStopPaths } from "../app/interactiveFiles.js";
+import { composePhaxState } from "../app/phaxState.js";
+import type { PhaseId, RunId } from "../domain/branded.js";
+import { interpret } from "../domain/reducer.js";
 import type { CostLedger } from "../schemas/costLedger.js";
-import { readCostLedgerFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
-import type { RunStatus } from "../schemas/status.js";
+import {
+  readCostLedgerFile,
+  readPhaseStatusFile,
+  readReviewStopFile,
+  readRunStatusFile,
+  withSchemaUrl,
+} from "../schemas/persisted.js";
+import { encodeReviewStopFile, type LastClose } from "../schemas/reviewStop.js";
+import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { runKey } from "../domain/runRef.js";
 
 interface RunInterruptContext {
@@ -27,32 +39,91 @@ export function clearRunInterruptContext(): void {
   activeRunContext = undefined;
 }
 
+/** What the interrupt path saved: the run state written, and the stop a close was closing. */
+export interface SavedInterrupt {
+  readonly state: RunStatus["state"];
+  /** The phase whose stop an interrupted close returned to, or null. */
+  readonly stopPhaseId: string | null;
+}
+
+const PHASE_FOLDER = /^phase-\d{2}$/;
+
+// The run's current phase when its status is awaiting_review: a running run
+// with such a phase is closing that phase's stop.
+function closingPhase(runPath: string, run: RunStatus): PhaseStatus | undefined {
+  for (const entry of readdirSync(runPath)) {
+    if (!PHASE_FOLDER.test(entry)) continue;
+    const path = join(runPath, entry, "status.json");
+    if (!existsSync(path)) continue;
+    const decoded = readPhaseStatusFile(path, JSON.parse(readFileSync(path, "utf8")) as unknown);
+    if (Either.isLeft(decoded) || decoded.right.state !== "awaiting_review") continue;
+    if (run.currentPhaseIndex !== undefined && decoded.right.phaseIndex !== run.currentPhaseIndex) {
+      continue;
+    }
+    return decoded.right;
+  }
+  return undefined;
+}
+
+// RestoreReviewStop, synchronously: the parked document (or the live one when
+// the close never parked it) back at the run folder with `lastClose` set and
+// every other field, `closeBase` included, kept.
+function syncRestoreReviewStop(runPath: string, phaseFolder: string, lastClose: LastClose): void {
+  const { live, parked } = reviewStopPaths(runPath, phaseFolder);
+  const source = existsSync(parked) ? parked : live;
+  if (!existsSync(source)) return;
+  const decoded = readReviewStopFile(source, JSON.parse(readFileSync(source, "utf8")) as unknown);
+  if (Either.isLeft(decoded)) return;
+  const restored = withSchemaUrl("review-stop", { ...decoded.right, lastClose });
+  writeFileSync(live, JSON.stringify(encodeReviewStopFile(restored), null, 2));
+  if (source === parked) rmSync(parked);
+}
+
 // Sanctioned bypass of the dispatcher single-writer invariant: SIGINT/SIGTERM
 // handlers run in a synchronous context where Effect / await are unavailable,
 // so the interrupt path writes run-status.json directly with the synchronous
 // fs API. The architectural guard test allows this file to import the status
-// schemas for the same reason.
-function syncWriteInterruptedState(ctx: RunInterruptContext): void {
-  const statusPath = join(
-    ctx.stateRoot,
-    "runs",
-    runKey(ctx.namespace, ctx.shortName),
-    "run-status.json",
-  );
-  if (!existsSync(statusPath)) return;
+// schemas for the same reason. A run that is not running is left as it is.
+// A running run whose current phase awaits review is closing its stop: the
+// reducer's verdict for RunInterruptRequested on that state is written,
+// awaiting_review with review-stop.json restored, lastClose `interrupted`.
+export function syncSaveInterruptedRun(ctx: RunInterruptContext): SavedInterrupt | null {
+  const runPath = join(ctx.stateRoot, "runs", runKey(ctx.namespace, ctx.shortName));
+  const statusPath = join(runPath, "run-status.json");
+  if (!existsSync(statusPath)) return null;
   try {
     const raw = JSON.parse(readFileSync(statusPath, "utf8")) as unknown;
     const decoded = readRunStatusFile(statusPath, raw);
-    if (Either.isRight(decoded) && decoded.right.state === "running") {
-      const updated: RunStatus = {
-        ...decoded.right,
-        state: "interrupted",
-        updatedAt: new Date().toISOString(),
-      };
+    if (Either.isLeft(decoded) || decoded.right.state !== "running") return null;
+    const run = decoded.right;
+    const write = (state: RunStatus["state"]): void => {
+      const updated: RunStatus = { ...run, state, updatedAt: new Date().toISOString() };
       writeFileSync(statusPath, JSON.stringify(withSchemaUrl("run-status", updated), null, 2));
+    };
+
+    const stopped = closingPhase(runPath, run);
+    if (stopped === undefined) {
+      write("interrupted");
+      return { state: "interrupted", stopPhaseId: null };
     }
+    const verdict = interpret(composePhaxState(run.state, run.lastError, stopped), {
+      type: "RunInterruptRequested",
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      run: ctx.shortName as unknown as RunId,
+      phase: stopped.phaseId as PhaseId,
+    });
+    if (verdict.kind !== "Handled") return null;
+    for (const effect of verdict.effects) {
+      if (effect.type === "RestoreReviewStop") {
+        syncRestoreReviewStop(runPath, join(runPath, stopped.phaseId), effect.lastClose);
+      }
+    }
+    write(verdict.nextState.run);
+    return { state: verdict.nextState.run, stopPhaseId: stopped.phaseId };
   } catch {
     // Best-effort; do not throw inside a signal handler
+    return null;
   }
 }
 
@@ -95,10 +166,12 @@ export function setupInterruptHandlers(): void {
     syncRecordInterruptedInvocation();
     const ctx = activeRunContext;
     if (ctx !== undefined) {
-      syncWriteInterruptedState(ctx);
+      const saved = syncSaveInterruptedRun(ctx);
       const name = runKey(ctx.namespace, ctx.shortName);
       process.stderr.write(
-        `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes\n`,
+        saved?.stopPhaseId !== null && saved?.stopPhaseId !== undefined
+          ? `\nRun "${name}": the close of ${saved.stopPhaseId} was interrupted — the stop is still waiting. Close it with: phax resume ${ctx.shortName} --yes\n`
+          : `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes\n`,
       );
     }
     process.exit(130);

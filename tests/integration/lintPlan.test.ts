@@ -125,6 +125,14 @@ function architectureReportJson(parts: readonly object[]): string {
 }
 
 const oracleRows = (report: LintReport) => report.findings.filter((f) => f.check === "oracles");
+const interactiveRows = (report: LintReport) =>
+  report.findings.filter((f) => f.check === "interactive");
+const interactiveRow = (phase: string, message: string) => ({
+  severity: "error",
+  check: "interactive",
+  phase,
+  message,
+});
 const modelFindingsOf = (report: LintReport) => report.findings.filter((f) => f.check === "models");
 
 /** The error of a part bound the architecture report does not resolve. */
@@ -387,18 +395,114 @@ describe("lintPlan", () => {
     expect(hasLintErrors(report.findings)).toBe(true);
   });
 
-  it("fails lint for an interactive declaration", async () => {
-    const report = await runLint(planMd({ header: ["**Mode:** interactive"] }));
+  describe("interactive", () => {
+    // A made-up invoice-export plan of `count` phases; the listed ones carry
+    // `**Mode:** interactive`, and `edits` gives a phase a planned edit.
+    const invoicePlan = (
+      count: number,
+      interactive: readonly number[],
+      opts: { edits?: Readonly<Record<number, string>>; optional?: string } = {},
+    ) =>
+      [
+        `${DRAFT_FRONTMATTER}# Invoice export`,
+        "",
+        "## Required commands",
+        "",
+        "- (none)",
+        "",
+        ...Array.from({ length: count }, (_, i) => {
+          const n = i + 1;
+          const isInteractive = interactive.includes(n);
+          return [
+            `## phase-0${n} — Phase ${n} {#phase-0${n}}`,
+            "",
+            "**Recommended model:** claude-sonnet-5-5",
+            "**Recommended effort:** medium",
+            ...(isInteractive ? ["**Mode:** interactive"] : []),
+            "",
+            "### Planned files to create",
+            "",
+            isInteractive ? "- (none)" : `- src/export/p${n}.ts`,
+            "",
+            "### Planned files to edit",
+            "",
+            opts.edits?.[n] !== undefined ? `- ${opts.edits[n]}` : "- (none)",
+            "",
+            "### Optional files that may be edited",
+            "",
+            isInteractive && opts.optional !== undefined ? `- ${opts.optional}` : "- (none)",
+            "",
+            "### Commit subject",
+            "",
+            `feat(export): phase ${n}`,
+            "",
+            "### Commit body",
+            "",
+            `Does phase ${n}.`,
+            "",
+          ].join("\n");
+        }),
+      ].join("\n");
 
-    expect(report.findings).toEqual([
-      {
-        severity: "error",
-        check: "interactive",
-        phase: "phase-01",
-        message:
-          "declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
-      },
-    ]);
+    it("accepts an interactive phase between two headless phases", async () => {
+      const report = await runLint(invoicePlan(3, [2], { optional: "src/export/p1.ts" }), {
+        "/repo/src/export/p1.ts": "export {}",
+      });
+      expect(interactiveRows(report)).toEqual([]);
+    });
+
+    it.each([
+      [
+        "the first phase",
+        invoicePlan(3, [1]),
+        interactiveRow(
+          "phase-01",
+          "an interactive phase cannot be the first phase (no earlier phase has set a pattern to review)",
+        ),
+      ],
+      [
+        "the last phase",
+        invoicePlan(6, [6]),
+        interactiveRow(
+          "phase-06",
+          "an interactive phase cannot be the last phase (the final phase is already kept open)",
+        ),
+      ],
+      [
+        "a phase right after another",
+        invoicePlan(6, [3, 4]),
+        interactiveRow("phase-04", "directly follows interactive phase-03"),
+      ],
+    ])("fails lint for an interactive phase at %s", async (_label, plan, expected) => {
+      const report = await runLint(plan);
+      expect(interactiveRows(report)).toEqual([expected]);
+      expect(hasLintErrors(report.findings)).toBe(true);
+      for (const f of report.findings) {
+        expect(f.message).not.toMatch(/cannot run an interactive phase/);
+      }
+    });
+
+    it("names each file an interactive phase plans to edit", async () => {
+      const report = await runLint(invoicePlan(3, [2], { edits: { 2: "src/export/csv.ts" } }), {
+        "/repo/src/export/csv.ts": "export {}",
+      });
+      expect(interactiveRows(report)).toEqual([
+        interactiveRow(
+          "phase-02",
+          "plans src/export/csv.ts to edit; an interactive phase plans no work",
+        ),
+      ]);
+    });
+
+    it("reports a malformed Mode line on the interactive check", async () => {
+      const report = await runLint(planMd({ header: ["**Mode:** review"] }));
+      expect(interactiveRows(report)).toEqual([
+        expect.objectContaining({
+          phase: "phase-01",
+          message: expect.stringContaining('"review"'),
+        }),
+      ]);
+    });
   });
 
   describe("oracles", () => {

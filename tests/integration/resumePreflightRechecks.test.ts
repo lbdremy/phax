@@ -162,6 +162,8 @@ function modelFailure(phaseId: string): string {
 interface RecheckCase {
   readonly change: (roots: PreflightRepo) => void;
   readonly message: (roots: PreflightRepo) => string;
+  /** The refusal leaves the interrupted run's state and last error as they were (spec §5.9). */
+  readonly keepsRunState?: true;
 }
 
 const CASES: Record<string, RecheckCase> = {
@@ -212,14 +214,18 @@ const CASES: Record<string, RecheckCase> = {
         `    - **Model reason:** is no longer read: write **Assignment reason:**`,
       ].join("\n"),
   },
-  "the run folder's plan.md gains an interactive declaration": {
-    change: (roots) => addHeaderLines(roots, ["**Mode:** interactive"]),
+  // The run's phax-plan.json still plans phase-02's file, which the
+  // planned-work rule reports once phase-02 reads as interactive.
+  "the run folder's plan.md makes its last phase interactive": {
+    change: (roots) => addLastPhaseHeaderLines(roots, ["**Mode:** interactive"]),
     message: (roots) =>
       [
-        `Interactive preflight failed: 1 error(s).`,
-        `  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line`,
+        `Interactive preflight failed: 2 error(s).`,
+        `  phase-02  an interactive phase cannot be the last phase (the final phase is already kept open)`,
+        `  phase-02  plans src/step-02.ts to create; an interactive phase plans no work`,
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),
+    keepsRunState: true,
   },
   "the run folder's plan.md gains an oracle declaration": {
     change: (roots) =>
@@ -314,6 +320,18 @@ function addHeaderLines(roots: PreflightRepo, lines: readonly string[]): void {
   writeFileSync(planMdPath, planMd.replace(effortLine, [effortLine, ...lines].join("\n")));
 }
 
+/** `addHeaderLines` on the last phase's header paragraph. */
+function addLastPhaseHeaderLines(roots: PreflightRepo, lines: readonly string[]): void {
+  const planMdPath = runPlanMdPath(roots);
+  const effortLine = `**Recommended effort:** ${FIXTURE_EFFORT}`;
+  const planMd = readFileSync(planMdPath, "utf8");
+  const at = planMd.lastIndexOf(effortLine);
+  writeFileSync(
+    planMdPath,
+    `${planMd.slice(0, at)}${[effortLine, ...lines].join("\n")}${planMd.slice(at + effortLine.length)}`,
+  );
+}
+
 /** The paused run's own copy of plan.md, which `phax resume` reads. */
 function runPlanMdPath(roots: PreflightRepo): string {
   return join(roots.stateRoot, "runs", `${roots.namespace}.foo`, "plan.md");
@@ -364,6 +382,13 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     expect(probe.errors).toEqual([]);
 
     const worktreesBefore = git(["worktree", "list", "--porcelain"], r.repo);
+    const runStatusPath = join(
+      r.stateRoot,
+      "runs",
+      `${r.namespace}.${shortName}`,
+      "run-status.json",
+    );
+    const statusBefore = JSON.parse(readFileSync(runStatusPath, "utf8")) as Record<string, unknown>;
     recheck.change(r);
     const out = recordingOutput();
 
@@ -371,6 +396,14 @@ describe("phax resume — re-checks the inputs that can change before any worktr
 
     expect(code).toBe(11);
     expect(out.errors).toEqual([`phax resume failed: ${recheck.message(r)}`]);
+    if (recheck.keepsRunState === true) {
+      const statusAfter = JSON.parse(readFileSync(runStatusPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      expect(statusAfter["state"]).toBe(statusBefore["state"]);
+      expect(statusAfter["lastError"]).toBe(statusBefore["lastError"]);
+    }
     expect(
       existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${shortName}`, "phase-02")),
     ).toBe(false);
