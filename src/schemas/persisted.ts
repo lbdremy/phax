@@ -378,9 +378,19 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
  * stamp is read by the frozen 0.20.0 decoder, so one written by 0.17.0–0.19.x,
  * which lacks `base`, is refused too; one it reads is lifted with
  * `mode: "headless"` and `stop: null`, because no phax before it could run an
- * interactive phase or stop.
+ * interactive phase or stop. A phase awaiting review enters that state only
+ * with its waiting stop recorded, so one without it is refused.
  */
-export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) => {
+export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
+  Either.flatMap(readPhaseStatusShape(file, input), (status) =>
+    status.state === "awaiting_review" && status.stop?.status !== "waiting"
+      ? Either.left(
+          readError(file, "phase-status", "a phase awaiting review records no waiting stop"),
+        )
+      : Either.right(status),
+  );
+
+const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phase-status", input)) {
     const older = decodePhaseStatusV0_20_0(input);
     if (Either.isLeft(older)) {
