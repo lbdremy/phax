@@ -157,7 +157,7 @@ phax session-info usage-cli --debug
 
 - **Usage**: `phax shell <short-name>`
 
-Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session.
+Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree.
 
 ### Arguments
 
@@ -175,7 +175,7 @@ phax shell usage-cli
 
 - **Usage**: `phax path <short-name>`
 
-Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools.
+Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree.
 
 ### Arguments
 
@@ -197,7 +197,7 @@ cd $(phax path usage-cli)
 
 - **Usage**: `phax open <short-name>`
 
-Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
+Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.
 
 ### Arguments
 
@@ -404,6 +404,8 @@ Extraction results are cached by content hash under ~/.phax/cache/plans/; a repe
 The start preflight also holds every phase to the owner's assignment bounds (phax.json "assignments"): a bound that names an unknown model or effort, or a phase that departs from its governing bound without an **Assignment reason:** line, refuses before the run is named, with exit 11 and "Assignment preflight failed". A part bound makes the preflight run the architecture provider.
 
 The preflight also checks the plan's oracle phases: a malformed declaration, a broken pair, or an oracle phase with no "oracles" provider configured refuses before the run is named, with exit 11 and "Oracle preflight failed". The provider is never spawned by the preflight.
+
+A phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop. A held stop, run-time holds and transcripts are not part of this release.
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
@@ -739,6 +741,8 @@ A discharging phase whose oracle phase was skipped (it produced no changes, so i
 
 --skip-oracle applies only to the phase this resume restarts at, and only in this invocation. That phase's configured gate steps run and must pass, with the usual fix loop; its oracle step does not run, and is recorded as skipped in its gate-attribution, so oracle is then not among that phase's verified surfaces, nor the run's. At a phase that is neither an oracle phase nor a discharging phase, it is refused with exit 1 and nothing changes. A committed oracle phase is never reset, so a wrong oracle is corrected in the stopped phase (phax enter-phase <run> <phase>) and closed this way.
 
+A run in awaiting_review (stopped at a declared interactive phase, exit 13) is closed by resume, which re-checks the preflight and then runs the gate first: a red gate returns the phase to the person (exit 4) and the run stays in awaiting_review. The handoff is the person's .phax-context/correction-handoff.md when it exists (four sections, checked before anything runs), otherwise the handoff a read-only closing turn writes from the diff of the corrections; a closing turn that edits the worktree, or an answer still invalid after one corrective resume, exits 5. phax then commits exactly the gated tree with an Interactive-Phase: trailer (an empty commit when nothing changed) and continues with the next phase, whose prompt carries the correction under ## Review corrections. A refused close puts the run back in awaiting_review with the reason in review-stop.json; an interrupt during a close does the same.
+
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
 ### Arguments
@@ -787,7 +791,9 @@ phax resume refunds --yes --skip-oracle
 
 - **Usage**: `phax reset-phase [FLAGS] <short-name> [phase-id]`
 
-Reset a stuck or failed phase so phax resume re-runs it from scratch
+Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
+
+A run in awaiting_review (stopped at a declared interactive phase) can reset only the stopped phase: the preview lists the uncommitted corrections in its worktree, the reset discards review-stop.json, and phax resume then runs the phase again from the start, first turn included. An earlier phase is committed work the stop sits on, and a later one has not started, so both are refused.
 
 ### Arguments
 
@@ -812,6 +818,16 @@ Print human-readable progress and system events
 #### `--trace`
 
 Write structured JSONL trace events to the run folder
+
+### Examples
+
+```
+phax reset-phase usage-cli
+```
+
+```
+phax reset-phase usage-cli phase-02 --yes
+```
 
 ## `phax agent`
 
@@ -1474,7 +1490,7 @@ phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md
 
 Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.
 
-Seven checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused, each assignment bound of phax.json against the catalog, and each phase against the first bound that matches a file it plans to touch (or the policy default when none does): a departure without an **Assignment reason:** line is an error against a bound and a warning against the default, and a **Model reason:** line is an error (the label is now **Assignment reason:**); when a bound names an architecture part, the architecture provider runs once to resolve it; interactive and oracles — a malformed **Mode:** or oracle line is an error; so is any interactive declaration, which this release does not run yet; and so are the oracle-phase rules: an **Oracle phase:** line without **Oracle files:** (or the reverse), a discharging phase that is not later in the plan or does not exist, a phase that is both an oracle phase and a discharging phase or discharges more than one oracle phase, an oracle file that is not a planned file of the oracle phase or that a phase in between plans, an interactive phase between the pair or in a role, and an oracle phase when no oracles provider is configured (the provider is never spawned by lint); advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.
+Seven checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused, each assignment bound of phax.json against the catalog, and each phase against the first bound that matches a file it plans to touch (or the policy default when none does): a departure without an **Assignment reason:** line is an error against a bound and a warning against the default, and a **Model reason:** line is an error (the label is now **Assignment reason:**); when a bound names an architecture part, the architecture provider runs once to resolve it; interactive and oracles — a malformed **Mode:** or oracle line is an error; so are the interactive-phase rules: an interactive phase that is the first or the last phase, one that directly follows another interactive phase, and one that plans a file to create or edit (its optional files name what the person may touch); and so are the oracle-phase rules: an **Oracle phase:** line without **Oracle files:** (or the reverse), a discharging phase that is not later in the plan or does not exist, a phase that is both an oracle phase and a discharging phase or discharges more than one oracle phase, an oracle file that is not a planned file of the oracle phase or that a phase in between plans, an interactive phase between the pair or in a role, and an oracle phase when no oracles provider is configured (the provider is never spawned by lint); advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.
 
 A plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.
 

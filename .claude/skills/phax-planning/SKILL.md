@@ -49,8 +49,7 @@ file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
-and **oracles** (a malformed `**Mode:**` or oracle line; any interactive declaration, which this release
-refuses; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured), and **advisory** (when `phax.json` registers a `planAuditor`, every
+and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -138,7 +137,7 @@ informational for the executing agent.
 | `model`                  | `**Recommended model:** <model-id>` line                | yes        |
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
 | Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from its governing bound or the default | no         |
-| `mode`                   | `**Mode:** interactive` line in the header paragraph; absent means `headless` | yes        |
+| `mode`                   | `**Mode:** interactive` line in the header paragraph, after the model, effort and Assignment reason lines; absent means `headless` | yes        |
 | `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph, after the model, effort and Assignment reason lines; absent means `null` | yes        |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
 | `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
@@ -161,8 +160,9 @@ the plan preamble) is **not** per-phase — it applies to the whole run. See
 
 `mode` and `oracle` are read by phax from the header lines, never by the extraction model.
 An oracle phase runs when an `oracles` provider is configured (see
-[Oracle phases](#oracle-phases)). An interactive phase is still refused until a later
-release runs it, so a plan writes no `**Mode:**` line.
+[Oracle phases](#oracle-phases)). An interactive phase stops the run for a person's review
+(see [Interactive phases](#interactive-phases)); a plan writes a `**Mode:** interactive`
+line only on such a phase, and no `**Mode:**` line on any other.
 
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). The extraction pulls
@@ -304,6 +304,27 @@ provider judges both gates.
   the code. Removing the markers is its only change to the oracle files.
 - **No phase in between** plans an oracle file, no interactive phase sits in between or takes
   an oracle role, and one phase discharges one oracle phase.
+
+## Interactive phases
+
+An interactive phase stops the run after the phase so a person can review the work and
+correct the pattern before later phases repeat it. `phax run` sets the phase up, runs one
+read-only first turn, then stops in `awaiting_review` (exit 13); `phax resume` closes the stop
+with the gate and a commit of the person's correction.
+
+- **Declare one directly after the first phase that sets a pattern at least one later phase
+  repeats**, and never by default. A plan with nothing to review writes no `**Mode:**` line.
+- **One header line**, `**Mode:** interactive`, sits after the model, effort and Assignment
+  reason lines of the phase.
+- **It plans no file to create or edit.** Its optional files name what the person may touch;
+  its Detailed instructions name what to review, the pattern at stake and the later phases
+  that repeat it. Lint reports a planned file to create or edit as an error.
+- **Placement.** It is never the first phase (no earlier phase has set a pattern), never the
+  last (the final phase is already kept open for review), and never directly follows another
+  interactive phase.
+- **Bounds.** It is held to the assignment bounds through its optional files, like any phase.
+- **Oracles.** In this release it may not sit inside an oracle pair, and it never takes an
+  oracle role.
 
 ## Boundary contracts (informational)
 
@@ -699,7 +720,8 @@ the cache seed:
 - `id` (`phase-NN`), `planMarkdownAnchor` (`#phase-NN-<slug>`, rendered as the heading's
   `{#phase-NN-<slug>}`).
 - `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
-- `mode`, `oracle`: write `mode: "headless"` on every phase in this release. Write `oracle: null`,
+- `mode`, `oracle`: write `mode: "interactive"` only on a phase meant for review (see
+  [Interactive phases](#interactive-phases)), and `mode: "headless"` everywhere else. Write `oracle: null`,
   or `oracle: { dischargedBy: "phase-NN", files: [...] }` on an oracle phase when the authoring
   prompt says an `oracles` provider is configured (see [Oracle phases](#oracle-phases)).
 - `commit`: `{ subject, body }`.

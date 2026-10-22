@@ -248,7 +248,7 @@ phax plans lint docs/plans/2610041201-greet-plan.md
 phax plans estimate <plan>   # its API-list cost, and whether it fits your subscription windows now
 ```
 
-A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, each phase's declaration lines (an interactive phase is refused until a later release runs it, an oracle phase runs with a configured `oracles` provider and is refused without one, and a `**Model reason:**` line is an error: the label is `**Assignment reason:**`), and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
+A read-only check, with no model: the plan's structure, its planned files against the working tree and against earlier phases, the commands it needs against `phax.json`, each phase's model and effort against the catalog, each phase's declaration lines (an interactive phase must not be the first or the last phase, must not directly follow another interactive phase and plans no file to create or edit; an oracle phase runs with a configured `oracles` provider and is refused without one, and a `**Model reason:**` line is an error: the label is `**Assignment reason:**`), and the findings of your [plan auditor](#extend-phax) if you have one. It exits 1 on any error; the auditor's findings are only warnings.
 
 `plans estimate` gives each phase's and the run's cost as P10/P50/P90, calibrated from this machine's cost ledgers, and says whether the plan fits the Claude subscription windows left right now. See [Estimating a plan](docs/plan-estimate.md).
 
@@ -343,7 +343,52 @@ phax session-info <run>               # state, phase, worktree, agent session id
 phax unlock <run>                     # remove a stale lock left by a process that died
 ```
 
-`resume` never re-runs a committed phase. A run stopped by a provider rate or usage limit (exit 8) or by a phase with no changes (exit 9) is meant to be resumed. A run already at review is not resumed: use `phax enter`.
+`resume` never re-runs a committed phase. A run stopped by a provider rate or usage limit (exit 8), by a phase with no changes (exit 9) or at an interactive phase (exit 13, see [Interactive phases](#interactive-phases)) is meant to be resumed. A run already at review is not resumed: use `phax enter`.
+
+### Interactive phases
+
+A plan can ask for a person to review the work after a phase, before the phases that repeat its pattern begin. Say so on the phase, after its model, effort and assignment-reason lines:
+
+```markdown
+## phase-02 — Invoice export, the first exporter {#phase-02-invoice-export}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+**Mode:** interactive
+```
+
+Declare one directly after the first phase that sets a pattern, never by default. It plans no file to create or edit: its optional files name what the person may touch, and its instructions name what to review. It is never the first or the last phase, and never directly follows another interactive phase. This release does not allow one between the two phases of an [oracle pair](docs/oracle-phases.md).
+
+When `phax run` reaches the phase, it sets up the worktree as for any phase, writes a seed into `.phax-context/` (the phase's instructions, the handoffs so far and the plan's later phases) and runs one read-only first turn: the agent reads the work and reports the pattern it found. Then the run stops with the state `awaiting_review`, writes `review-stop.json` in the run folder and exits 13. It does not wait for input, so the person can leave and come back. The output names the worktree, the first reading and a command that continues the agent session phax started (or starts a fresh one when there is none to continue):
+
+```bash
+cd ~/.phax/worktrees/phax.invoice-export/phase-02 && claude --resume 6f1c… --permission-mode acceptEdits …
+```
+
+The command carries the phase's filesystem, network and MCP posture, but a step outside it asks you first. The first time codex opens the worktree, it asks you to trust the directory, then to review its hooks. You can also work by hand, in any editor, or with any other agent.
+
+```bash
+phax ls --awaiting-review                # the runs waiting for a person, with the stopped phase
+phax session-info invoice-export         # the stop's worktree, seed and current session
+phax enter-phase invoice-export phase-02 # continue the session, or print the fresh-start command
+phax enter-phase --new-session invoice-export phase-02   # a new read-only first turn; its session becomes current
+phax path invoice-export                 # phax shell and phax open take the same worktree
+```
+
+`phax path`, `phax shell` and `phax open` target the stopped phase's worktree. While the stop's close is running, `enter-phase` refuses the phase until the close ends.
+
+To close the stop, run `phax resume invoice-export` from the main checkout. phax:
+
+1. runs the phase's gate first. A red gate returns the phase to you (exit 4): fix the worktree, resume again;
+2. takes the handoff: your `.phax-context/correction-handoff.md` when it exists, with the sections `## What was corrected`, `## The pattern to follow from now on`, `## Guards` and `## What the next phases need to know` (one guard per correction); otherwise a read-only closing turn writes it from the diff of your corrections. A closing turn that edits the worktree, or an answer still invalid after one corrective resume, is refused (exit 5);
+3. commits exactly the gated tree, with an `Interactive-Phase: <phase-id>` trailer and no model or session trailers, because no agent session wrote it. A review that changed nothing commits an empty commit;
+4. continues with the next phase, whose prompt carries your correction under `## Review corrections`, after the previous phase's handoff.
+
+A refused close puts the run back to `awaiting_review`; so does an interrupt during the close. `phax reset-phase` at a stop discards the phase's worktree so that `phax resume` runs it again, first turn included. `phax archive --force` archives the run. `phax adjust-plan --landed` is refused until the run lands.
+
+A user interface reads `review-stop.json` for the stopped phase, its worktree, the current session, the last refused close and the commands above, each as `{ cwd, argv, env }`; its format is under [Persisted formats](#persisted-formats).
+
+Not part of this release: holding a phase at run time (`--hold`), a stop inside an oracle pair, the versioned `phax ls --json` run list, captured transcripts, and the records, compliance review and PR body of a stop. A declared phase writes no phase record yet, and the cost ledger covers Claude Code turns only.
 
 ### See what it is doing
 
@@ -870,9 +915,9 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax enter <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-phase [--new-session] <short-name> <phase-id>` — Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
 - `phax session-info [--debug] <short-name>` — Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. For a run in awaiting_review it prints the stop's cause, the stopped phase, its worktree, the seed and the current session with the phax enter-phase command that continues it. Read-only — no side effects.
-- `phax shell <short-name>` — Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session.
-- `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools.
-- `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
+- `phax shell <short-name>` — Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree.
+- `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree.
+- `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.
 - `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) and its PHASE column names the stopped phase. Use --json for machine-readable output.
 - `phax archive [--force] <short-name>` — Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.
 - `phax prune [FLAGS] [short-name]…` — Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.
@@ -890,7 +935,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 - `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
-- `phax reset-phase [FLAGS] <short-name> [phase-id]` — Reset a stuck or failed phase so phax resume re-runs it from scratch
+- `phax reset-phase [FLAGS] <short-name> [phase-id]` — Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
 - `phax agent models` — Print the routing table and provider priority
 - `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model

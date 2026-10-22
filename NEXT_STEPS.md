@@ -49,9 +49,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         and shipped in no package. It is built on oxc-parser (q-parser chose it over tree-sitter,
         which the spec suggested) and compares syntax trees so reformatting never changes a
         verdict. phax's own `oracles` declaration in phax.json runs it. The spec is complete.
-
-### Approved, not yet planned
-
 - [ ] **`interactive-phases`** — `docs/specs/2610211403-interactive-phases.md`. Re-authored and
       approved 2026-10-21, after a friend's fork showed the need for a stop chosen at run time; the
       2026-10-20 spec is abandoned.
@@ -65,8 +62,19 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         oracle file; a held discharge closes on its configured steps only.
       - `review-stop.json` and a versioned `phax ls --json` (`run-list`) are the surface a review UI
         reads.
-      - The phase shape landed. Lint and the run preflight refuse an interactive phase until the
-        runtime plans replace that refusal.
+      - Plan 1 of 3, the declared stop, lands with this run
+        (`docs/plans/2610220954-interactive-phases-plan.md`): `**Mode:** interactive`, the read-only first turn, `awaiting_review`
+        with exit 13, `phax resume` closing the stop with the gate and a commit of the gated tree,
+        `## Review corrections` in later prompts, and `review-stop.json`. Lint and the run
+        preflight no longer refuse a declared phase.
+      - Next: plan 2 (`phax run --hold`, the held stop and the oracle-pair rules), then plan 3 (the
+        versioned `phax ls --json` run list, transcript capture, and the records, compliance review
+        and PR body around a stop).
+      - Gaps until then: no phase record for a declared phase, no review inside an oracle pair
+        until plan 2, and a cost ledger that covers Claude Code turns only.
+
+### Approved, not yet planned
+
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`.
       Approved 2026-10-19. A headless verdicts mode for decide: a verdicts file is transcribed by a
       headless writer under the doctrine, checked deterministically and committed, the artifact
