@@ -23,6 +23,7 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -210,6 +211,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
           Effect.provide(layers2),
           // resetPhase requires Shell too; provide a shell that never gets called.
           Effect.provide(makeFakeShell().layer),
+          Effect.provide(makeFakeLock().layer),
         ),
       ),
     );

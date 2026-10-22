@@ -19,6 +19,7 @@ import {
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -2593,7 +2594,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
           phaseId: "phase-02",
           stateRoot,
           repoRoot: stateRoot,
-        }).pipe(Effect.provide(s.layers)),
+        }).pipe(Effect.provide(s.layers), Effect.provide(makeFakeLock().layer)),
       ),
     );
     expect(Either.isRight(reset)).toBe(true);

@@ -8,17 +8,24 @@ import {
   type RunId,
   type ShortName,
 } from "../domain/branded.js";
-import type { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
+import type {
+  LockConflictError,
+  RegistryCorruptionError,
+  SetupCommandFailedError,
+} from "../domain/errors.js";
 import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { interpret } from "../domain/reducer.js";
+import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import type { Lock } from "../ports/lock.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { readPhaxPlanFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import { oracleRoleOf } from "../domain/plan/oraclePairs.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
+import { withRunLock } from "./lock.js";
 import { composePhaxState } from "./phaxState.js";
 import { resolveRun } from "./resolveRunInfo.js";
 
@@ -106,12 +113,33 @@ function archiveTimestamp(): string {
 /**
  * Reset a single phase so the run becomes resumable and the phase re-runs fresh.
  *
+ * It holds the run lock from its first read to its last write, as a run, a
+ * resume and `phax enter-phase --new-session` do, so it never removes a
+ * worktree a turn is running in; a held lock fails with the lock conflict and
+ * nothing changes.
+ *
  * Order of effects: dispatch first to update on-disk status while the phase
  * folder still exists, then archive the folder, remove the worktree, delete the
  * branch, and finally clear `lastError` from run-status.json (the reducer patch
  * only sets `stoppedReason`).
  */
 export function resetPhase(
+  opts: ResetPhaseOptions,
+): Effect.Effect<
+  ResetPhaseResult,
+  | ResetPhaseError
+  | LockConflictError
+  | FsError
+  | GitError
+  | ShellError
+  | SetupCommandFailedError
+  | RegistryCorruptionError,
+  FileSystem | Git | Lock | Shell | SystemTelemetry
+> {
+  return withRunLock(runKey(opts.namespace, opts.shortName), resetPhaseLocked(opts));
+}
+
+function resetPhaseLocked(
   opts: ResetPhaseOptions,
 ): Effect.Effect<
   ResetPhaseResult,

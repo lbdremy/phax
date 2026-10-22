@@ -6,11 +6,14 @@ import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { previewResetPhase, resetPhase } from "../../app/resetPhase.js";
 import { NodeGitLayer } from "../../infra/git.js";
+import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import {
+  exitCodeForError,
   makeRepoRootedFileSystemLayer,
   makeGlobalTelemetryJournalLayerOrNoop,
 } from "./runLayers.js";
+import { LockConflictError } from "../../domain/errors.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { reportConfigError } from "./reportConfigError.js";
 
@@ -111,13 +114,13 @@ export async function runResetPhase(
     phaseId: phaseIdArg,
     stateRoot: config.stateRoot,
     repoRoot: config.repoRoot,
-  }).pipe(Effect.provide(buildLayer(config)));
+  }).pipe(Effect.provide(Layer.merge(buildLayer(config), makeNodeLockLayer(config.stateRoot))));
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
     const err = result.left;
     out.error(`phax reset-phase failed: ${err instanceof Error ? err.message : String(err)}`);
-    return 1;
+    return err instanceof LockConflictError ? exitCodeForError(err) : 1;
   }
 
   const r = result.right;

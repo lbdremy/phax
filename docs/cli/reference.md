@@ -795,6 +795,8 @@ Resets a stuck or failed phase: its folder is archived, its worktree and branch 
 
 A run in awaiting_review (stopped at a declared interactive phase) can reset only the stopped phase: the preview lists the uncommitted corrections in its worktree, the reset discards review-stop.json, and phax resume then runs the phase again from the start, first turn included. An earlier phase is committed work the stop sits on, and a later one has not started, so both are refused.
 
+The reset takes the run lock: while a run, a resume or an enter-phase --new-session turn holds it, the reset is refused with exit 7 and nothing changes.
+
 ### Arguments
 
 #### `<short-name>`
