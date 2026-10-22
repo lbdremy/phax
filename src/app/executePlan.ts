@@ -746,7 +746,7 @@ export function executePlan(
     // A configured brief provider grants the in-phase agent `phax brief`.
     const briefCommands = config.brief !== undefined ? ["phax brief"] : [];
 
-    let branch;
+    let branch: BranchName;
     if (startIndex === 0) {
       branch = yield* prepareRunBranch(shortName, plan.run.branch, config.repoRoot, allowDirty);
       yield* dispatch({ ...eventBase(), type: "RunStarted" }, dispatchCtx());
@@ -843,6 +843,57 @@ export function executePlan(
       }
     }
 
+    // An interactive phase's re-entry: only its recorded worktree is needed,
+    // since it has no claudeSessionId and no agent-binding.json. Fails, with
+    // nothing changed, when the worktree is gone or a name does not decode.
+    function interactiveReentry(
+      phaseId: string,
+      worktreePath: string | undefined,
+    ): Effect.Effect<
+      { readonly branch: BranchName; readonly worktree: WorktreePath },
+      WorktreeCreationError | UnsafeGitStateError
+    > {
+      return Effect.gen(function* () {
+        if (worktreePath === undefined || !existsSync(worktreePath)) {
+          return yield* Effect.fail(
+            new WorktreeCreationError({
+              message: `Cannot resume phase "${phaseId}" of run "${shortName}": worktree "${worktreePath ?? "<unknown>"}" no longer exists`,
+              branch,
+              path: worktreePath ?? "",
+            }),
+          );
+        }
+        const branchStr = `${plan.run.branch}--${phaseId}`;
+        const phaseBranch = decodeBranchName(branchStr);
+        if (Either.isLeft(phaseBranch)) {
+          return yield* Effect.fail(
+            new UnsafeGitStateError({
+              message: `Invalid phase branch "${branchStr}"`,
+              repoPath: config.repoRoot,
+            }),
+          );
+        }
+        const worktree = decodeWorktreePath(worktreePath);
+        if (Either.isLeft(worktree)) {
+          return yield* Effect.fail(
+            new WorktreeCreationError({
+              message: `Invalid worktree path "${worktreePath}"`,
+              branch: phaseBranch.right,
+              path: worktreePath,
+            }),
+          );
+        }
+        return { branch: phaseBranch.right, worktree: worktree.right };
+      });
+    }
+
+    // A stop's worktree is checked before RunResumeRequested, so a stop whose
+    // worktree is gone is refused with the run still awaiting review.
+    const stopReentry =
+      resumeFromStop && resumePhase !== undefined
+        ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
+        : undefined;
+
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
     // it transitions both the run and the in-flight phase to `running` so the
@@ -904,40 +955,18 @@ export function executePlan(
         const isResumeFromStop = i === startIndex && resumeFromStop;
 
         if (isResumeFromStop || isResumeFromCleanup) {
-          // Only the recorded worktree is needed: an interactive phase has no
-          // claudeSessionId and no agent-binding.json.
-          if (resumeWorktreePath === undefined || !existsSync(resumeWorktreePath)) {
-            return yield* Effect.fail(
-              new WorktreeCreationError({
-                message: `Cannot resume phase "${phase.id}" of run "${shortName}": worktree "${resumeWorktreePath ?? "<unknown>"}" no longer exists`,
-                branch,
-                path: resumeWorktreePath ?? "",
-              }),
-            );
+          // A stop's re-entry was checked before RunResumeRequested.
+          const reentry = isResumeFromStop
+            ? stopReentry
+            : yield* interactiveReentry(phase.id, resumeWorktreePath);
+          if (reentry === undefined) {
+            return yield* Effect.dieMessage(`No checked re-entry for the stop at ${phase.id}`);
           }
-          const reentryBranchStr = `${plan.run.branch}--${phase.id}`;
-          const reentryBranch = decodeBranchName(reentryBranchStr);
-          if (Either.isLeft(reentryBranch)) {
-            return yield* Effect.fail(
-              new UnsafeGitStateError({
-                message: `Invalid phase branch "${reentryBranchStr}"`,
-                repoPath: config.repoRoot,
-              }),
-            );
-          }
-          const reentryWorktree = decodeWorktreePath(resumeWorktreePath);
-          if (Either.isLeft(reentryWorktree)) {
-            return yield* Effect.fail(
-              new WorktreeCreationError({
-                message: `Invalid worktree path "${resumeWorktreePath}"`,
-                branch: reentryBranch.right,
-                path: resumeWorktreePath,
-              }),
-            );
-          }
+          const reentryBranch = reentry.branch;
+          const reentryWorktree = reentry.worktree;
           const stopFolder = join(runPath, phase.id);
           currentPhaseFolderPath = stopFolder;
-          currentWorktreePath = reentryWorktree.right as string;
+          currentWorktreePath = reentryWorktree as string;
 
           if (isResumeFromStop) {
             const report = yield* closeDeclaredStop({
@@ -946,9 +975,11 @@ export function executePlan(
               runPath,
               phase,
               phaseFolder: stopFolder,
-              worktree: reentryWorktree.right as string,
+              worktree: reentryWorktree as string,
               gateSteps,
-              gateRequest: serializeGateRequest(yield* phaseFactsFor(stopFolder, phase.id, false)),
+              gateRequest: phaseFactsFor(stopFolder, phase.id, false).pipe(
+                Effect.map(serializeGateRequest),
+              ),
               fileReconciliationMode: config.fileReconciliationMode,
             });
             committedPhases.push(phase.id);
@@ -958,11 +989,11 @@ export function executePlan(
           // always has a cleanup.
           yield* cleanupCommittedPhase({
             phase,
-            worktreePath: reentryWorktree.right,
+            worktreePath: reentryWorktree,
             phaseFolderPath: stopFolder,
             cleanupCommands,
           });
-          previousPhaseBranch = reentryBranch.right;
+          previousPhaseBranch = reentryBranch;
           continue;
         }
 
