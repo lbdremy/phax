@@ -100,7 +100,7 @@ phase-08 edits `.claude/skills/phax-planning/SKILL.md`, so run this plan with `p
 - `phax enter-phase --new-session` takes the run lock for its first turn and file writes, and releases it before the interactive session starts. A new turn that fails or is refused leaves the previous current session, `first-reading.md` and review-stop.json as they were.
 - Message and output wording follows the spec's §6 indicative examples.
 
-## Open questions
+## Arbitrated questions
 
 ### q-turn-shell — phax's own first turn and closing turn run read-only where the provider allows it. On Claude Code, does that read-only turn get a shell for the phase's frozen agent commands, or no shell at all?
 
@@ -108,6 +108,9 @@ phase-08 edits `.claude/skills/phax-planning/SKILL.md`, so run this plan with `p
 - phase-commands — Claude Code gets its reading tools plus Bash for exactly the phase's frozen agent commands, as headless plan authoring grants `phax architecture` — abandons: A turn that cannot run code. The frozen set holds this repository's `node`, `pnpm exec tsx` and `pnpm format`, so the turn can run any script with the user's rights and no write sandbox: Claude's read-only flags carry none. It can write anywhere outside the worktree, where no comparison checks, and it can reach the network.
 
 Recommendation: no-shell — These turns only read and report. The person is about to work in the worktree and can run the gate themselves, and closing runs the gate anyway. Granting the phase's commands would turn a read-only turn into code execution outside any sandbox. The before/after comparison only sees the worktree, so it cannot catch an edit made elsewhere.
+
+Decision: no-shell — by operator (Rémy Loubradou), 2026-10-22
+Why: Decided by the operator on 2026-10-22, as recommended: These turns only read and report. The person is about to work in the worktree and can run the gate themselves, and closing runs the gate anyway. Granting the phase's commands would turn a read-only turn into code execution outside any sandbox. The before/after comparison only sees the worktree, so it cannot catch an edit made elsewhere. Advocate: A turn with the phase's commands could confirm the pattern it reports by running the gate or a test. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-04.
 
 ### q-vibe-turns — mistral-vibe has no read-only mode that phax has verified. How do phax's first turn and closing turn run on a vibe phase?
 
@@ -117,12 +120,18 @@ Recommendation: no-shell — These turns only read and report. The person is abo
 
 Recommendation: phase-posture — A vibe turn under the phase posture can do no more than the vibe phase it reviews already did. The comparison and the handoff-file check refuse and restore every edit that would reach the commit or the closing. The plan-agent narrowing is unverified, and refuse-vibe breaks the spec. Revisit once an e2e run verifies vibe's `plan` agent.
 
+Decision: phase-posture — by operator (Rémy Loubradou), 2026-10-22
+Why: Decided by the operator on 2026-10-22, as recommended: A vibe turn under the phase posture can do no more than the vibe phase it reviews already did. The comparison and the handoff-file check refuse and restore every edit that would reach the commit or the closing. The plan-agent narrowing is unverified, and refuse-vibe breaks the spec. Revisit once an e2e run verifies vibe's `plan` agent. Advocate: Refusing vibe, or narrowing it with its plan agent, would keep an unconfined turn from running at a stop. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-04.
+
 ### q-enter-phase-posture — Today `phax enter-phase` resumes a headless phase's session with no posture flags (`claude --resume <id>`), so the re-entered session runs under the user's own provider defaults. Now that codex phases resume too (§5.42), should a re-entered headless session carry the phase's posture, as the stop's continue command does (§5.37)?
 
-- carry-posture — Rebuild the phase's filesystem, network, MCP and allowed-command flags from its `security.json`, with the same builder and approval policy as the stop's continue command (q-continue-approvals), on Claude Code and codex — abandons: The user's own interactive defaults in a re-entered session, which the phase's flags override. Also, a phase whose `security.json` is missing or unreadable can no longer be re-entered: phax refuses it rather than open it unconfined.
-- provider-defaults — `claude --resume <id>` and `codex resume <id>` with the phase's model and effort only, as on Claude Code today — abandons: The phase's confinement once it is re-entered. Under the user's defaults, the agent that built the phase can write outside the worktree, reach the network and run any command. On codex those defaults may be `danger-full-access` with `approval_policy="never"`; on Claude Code, whatever permission mode the user's settings name. It does so inside a session that phax started under its sandbox.
+- carry-posture — Rebuild the phase's filesystem, network and MCP flags from its `security.json`, and on Claude Code its allowed-command flags too (codex has none), with the same builder and approval policy as the stop's continue command (q-continue-approvals), on Claude Code and codex — abandons: The user's own interactive defaults in a re-entered session, which the phase's flags override. Also, a phase whose `security.json` is missing or unreadable can no longer be re-entered: phax refuses it rather than open it unconfined.
+- provider-defaults — `claude --resume <id>` and `codex resume <id>` with the phase's model and effort only. Today Claude Code resumes with no flag at all; this option adds the model and effort and nothing else — abandons: The phase's confinement once it is re-entered. Under the user's defaults, the agent that built the phase can write outside the worktree, reach the network and run any command. On codex those defaults may be `danger-full-access` with `approval_policy="never"`; on Claude Code, whatever permission mode the user's settings name. It does so inside a session that phax started under its sandbox.
 
 Recommendation: carry-posture — A re-entered session is the same agent, with the same context, that phax confined while it built the phase. Carrying the posture keeps one rule for every interactive session phax opens, at a stop or not. The only things lost are defaults the person can still apply by running the provider by hand.
+
+Decision: carry-posture — by operator (Rémy Loubradou), 2026-10-22
+Why: Decided by the operator on 2026-10-22, as recommended: A re-entered session is the same agent, with the same context, that phax confined while it built the phase. Carrying the posture keeps one rule for every interactive session phax opens, at a stop or not. The only things lost are defaults the person can still apply by running the provider by hand. Advocate: Resuming with the provider's defaults keeps the person's own interactive settings in a re-entered session. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-05.
 
 ### q-continue-approvals — The continue and fresh-start commands carry the phase's filesystem and network posture (§5.37). Which approval policy do they carry, and can the continued session therefore step outside the posture with the person's approval?
 
@@ -130,6 +139,16 @@ Recommendation: carry-posture — A re-entered session is the same agent, with t
 - sealed — Claude Code: `--permission-mode dontAsk` with the phase's `--add-dir` and an allowlist of the frozen commands plus Edit and Write, a mode phax has not verified interactively. codex: the same flags with `approval_policy="never"`, as headless runs use — abandons: A person approving a one-off command through the agent: they must run it in another shell. On Claude Code the seal also rests on an interactive no-prompt mode that phax has never run, which may deny edits the person asks for.
 
 Recommendation: provider-prompts — At a stop the person is present and is the approver, and plan 3 records that their work, a continued session included, ran outside phax's enforcement (§5.70). A sealed command promises a boundary that the person can drop by editing the printed line, and on Claude Code it depends on an unverified mode. With prompts on, every step outside the posture still needs the person's explicit yes. Under either option, a phase in unsafe mode carries its unsafe flags.
+
+Decision: provider-prompts — by operator (Rémy Loubradou), 2026-10-22
+Why: Decided by the operator on 2026-10-22, as recommended: At a stop the person is present and is the approver, and plan 3 records that their work, a continued session included, ran outside phax's enforcement (§5.70). A sealed command promises a boundary that the person can drop by editing the printed line, and on Claude Code it depends on an unverified mode. With prompts on, every step outside the posture still needs the person's explicit yes. Under either option, a phase in unsafe mode carries its unsafe flags. Advocate: A sealed command would keep a continued session inside the phase's sandbox even with the person's approval. Principles: none. Reversibility: cheap. Revised: none. Phase: phase-03.
+
+## Decision log
+
+- 2026-10-22 q-turn-shell decided no-shell — operator (Rémy Loubradou)
+- 2026-10-22 q-vibe-turns decided phase-posture — operator (Rémy Loubradou)
+- 2026-10-22 q-enter-phase-posture decided carry-posture — operator (Rémy Loubradou)
+- 2026-10-22 q-continue-approvals decided provider-prompts — operator (Rémy Loubradou)
 
 ---
 
@@ -144,14 +163,16 @@ Define every document a declared stop reads or writes: the first-reading and int
 
 - Create `src/schemas/firstReading.ts` with the shape `{ $schema, pattern: NonEmptyArray<NonEmptyString>, copiedBy: Array<{ phase: phase-NN, what: NonEmptyString }>, toCheck: Array<NonEmptyString> }`, refusing unknown keys. Export the file schema, its type and the in-memory type without `$schema`.
 - Create `src/schemas/interactiveHandoff.ts` with the shape `{ $schema, corrections: NonEmptyArray<{ what: NonEmptyString, guard }>, patternFromNowOn: Array<NonEmptyString>, nextPhasesNeedToKnow: Array<NonEmptyString> }`. `guard` is exactly `{ kind: "test" | "lint" | "gate-step", ref: NonEmptyString }` or `{ kind: "none", reason: NonEmptyString }`. Refuse unknown keys.
-- Create `src/schemas/interactiveSession.ts` with the shape `{ $schema, phaseId, provider (ProviderIdSchema), interactiveResume: "verified" | "unverified", current: Session | null, history: Session[], firstTurns: FirstTurn[] }`.
+- Create `src/schemas/interactiveSession.ts` with the shape `{ $schema, phaseId, provider (ProviderIdSchema), interactiveResume: "verified" | "unverified", current: Session | null, history: Session[], firstTurns: FirstTurn[], turnInProgress: TurnInProgress | null }`.
   - `Session` is `{ provider, model, effort, sessionId, startedAt, origin: "first-turn" | "new-session" }`.
   - `FirstTurn` has one variant per outcome, each with `origin`, `startedAt` and `endedAt`:
     - `{ outcome: "answered", sessionId }`;
     - `{ outcome: "refused-change", changedPaths: NonEmptyArray<string>, keptAt: NonEmptyString }`, where `keptAt` is the folder holding the turn's versions of those paths. It has no session id, because a refused turn records no session;
-    - `{ outcome: "failed", reason: "rate-limit" | "usage-limit" | "provider-error" | "invalid-answer", detail: NonEmptyString, resetAt: string | null }`.
+    - `{ outcome: "failed", reason: "rate-limit" | "usage-limit" | "provider-error" | "invalid-answer" | "interrupted", detail: NonEmptyString, resetAt: string | null }`.
+  - `TurnInProgress` is `{ turn: NN, origin, beforeTree, personHandoffBefore: sha256 | null, startedAt }`. It is set while a first turn runs, and null otherwise.
   - Refuse unknown keys on every variant.
-- Create `src/schemas/reviewStop.ts`, with the declared variant only. Its shape is `{ $schema, run (qualified name), state: "awaiting_review", cause: "declared", phase: { id, title, mode: "interactive", position, of }, firstReading: string | null, worktree, seed, session: { provider, sessionId, origin, interactiveResume } | null, commands: { continue: Command | null, freshStart: Command, enterPhase: Command, close: Command, reset: Command }, lastClose: LastClose | null }`.
+- Create `src/schemas/reviewStop.ts`, with the declared variant only. Its shape is `{ $schema, run (qualified name), state: "awaiting_review", cause: "declared", phase: { id, title, mode: "interactive", position, of }, firstReading: string | null, worktree, seed, session: { provider, sessionId, origin, interactiveResume } | null, commands: { continue: Command | null, freshStart: Command, enterPhase: Command, close: Command, reset: Command }, lastClose: LastClose | null, closeBase: string | null }`.
+  - `closeBase` is the HEAD sha a close recorded before its gate, or null before any close.
   - `Command` is `{ cwd, argv: NonEmptyArray<string>, env: Record<string, string> }`.
   - `LastClose` has one variant per result, each with `at` and its exit code as a literal:
     - `gate-failed`: 4, with `log`;
@@ -160,10 +181,11 @@ Define every document a declared stop reads or writes: the first-reading and int
     - `handoff-invalid`: 1, with `defects`;
     - `closing-answer-invalid`: 5, with `reason`;
     - `limit`: 8, with `resetAt: string | null`;
+    - `close-error`, with `step` and `detail`: 5 when `step` is `closing-turn` (a provider error in the closing session), 1 when it is `gate`, `commit` or `files` (a Git, file or shell error);
     - `interrupted`: 130.
   - Refuse unknown keys, so the declared variant refuses a `phaseCommit` key.
 - In `src/schemas/schemaUrl.ts`, append `first-reading`, `interactive-handoff`, `interactive-session` and `review-stop` to `FORMAT_IDS` and `SCHEMA_BORN_FORMAT_IDS`, and extend both doc comments. In `src/schemas/persisted.ts`:
-  - add `readInteractiveSessionFile` and `readReviewStopFile`, both through `readSchemaBornPersisted`;
+  - add `readInteractiveSessionFile` and `readReviewStopFile`, both through `readSchemaBornPersisted`. The new modules export the file decoders `decodeFirstReadingFile`, `decodeInteractiveHandoffFile`, `decodeInteractiveSessionFile` and `decodeReviewStopFile`, and only `src/schemas/persisted.ts` names them;
   - add `readFirstReadingAnswer` and `readInteractiveHandoffAnswer`, written like `readGateReport` with `AnswerBounds`. They refuse an answer with no `$schema`, of another format, or of a release outside the bounds, with a message naming the format.
 - Publish the four formats:
   - create `packages/schemas/src/formats/interactive.ts` with one `defineFormat` per format, written like `packages/schemas/src/formats/oracleRequest.ts` (`preSchema: null`, `releases: []`);
@@ -185,6 +207,10 @@ Define every document a declared stop reads or writes: the first-reading and int
   - `ledgerEntryFor` prices a `closing-turn` stream from its own deduplicated assistant messages (`partialModels`), whether or not the stream has a result. It never prices from the result's `modelUsage`, and never subtracts earlier entries. The entry is `complete` when the stream has a result, and its `agentMs` is the result's duration.
   - `runStreamsInOrder` picks up `first-turn-NN.jsonl`, `first-turn-NN-retry.jsonl`, `closing-turn-NN.jsonl` and `closing-turn-NN-retry.jsonl` in a phase folder, under their roles.
   - Freeze today's ledger as `src/schemas/history/cost-ledger/0.25.0.ts`, read lifted unchanged, and register it in `packages/schemas/src/formats/runDirectory.ts`.
+- Keep the tests keyed by format whole, as the oracle-request format did (commit b9b54692):
+  - in `tests/unit/architecturalGuards.test.ts`, add the four formats and their decoders to `BRIDGE_ONLY_DECODERS`, and add the six new `src/schemas/` modules (the four formats and the two frozen shapes) to `CLOSURE_SRC_ALLOWLIST`, in its sorted order;
+  - add the four decoders to `PHAX_DECODERS` in `tests/unit/schemasPackage/documents.test.ts`, and the four formats to the per-format maps of `tests/unit/schemasPackage/parity.test.ts` and `tests/unit/schemasPackage/currentShapes.test.ts`;
+  - the typed `GlobalFileEntry` literals in `tests/unit/publish/prBody.test.ts`, `tests/unit/review/codeReviewWorklist.test.ts` and `tests/unit/reconciliation/explained.test.ts` gain `reviewCorrectedInPhases: []`.
 - Create `tests/helpers/reconciliationFixture.ts`, which exports `reconciliationResult(overrides)` and `phaseReconciliationFile(phaseId, overrides)`, the latter stamped with `currentSchemaUrl`. Use it in every test whose reconciliation literal or persisted fixture breaks on the new required field. `pnpm test:type` names every literal left.
 - Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes the `next.schema.json` snapshots of the four new formats, phase-file-reconciliation and cost-ledger, and updates `packages/schemas/src/generated/index.ts` and `src/schemas/release.ts`. Then:
   - record the two frozen modules in `packages/schemas/history.lock.json`, with the hashes the frozen-history test expects;
@@ -241,6 +267,13 @@ Define every document a declared stop reads or writes: the first-reading and int
 - `tests/integration/reviewHandoff.test.ts`
 - `tests/integration/reviewHandoffCommand.test.ts`
 - `tests/integration/loadReviewHandoffInputs.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/publish/prBody.test.ts`
+- `tests/unit/review/codeReviewWorklist.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/reconciliation/explained.test.ts`
 
 ### Optional files that may be edited
 
@@ -251,12 +284,9 @@ Define every document a declared stop reads or writes: the first-reading and int
 - `src/app/costLedger.ts`
 - `src/domain/cost/history.ts`
 - `packages/schemas/README.md`
-- `tests/unit/reconciliation/explained.test.ts`
 - `tests/unit/persisted.test.ts`
 - `tests/unit/schemaUrl.test.ts`
-- `tests/unit/schemasPackage/parity.test.ts`
 - `tests/unit/schemasPackage/jsonSchemas.test.ts`
-- `tests/unit/schemasPackage/currentShapes.test.ts`
 - `tests/unit/schemasPackage/recordTimeline.test.ts`
 - `tests/unit/schemasPackage/exports.test.ts`
 - `tests/unit/schemasPackage/preSchemaModules.test.ts`
@@ -284,7 +314,8 @@ Write `tests/unit/schemas/interactiveFormats.test.ts` first. For each new format
 - a missing `$schema`, an unknown release, an unknown key, or a value outside any enum is refused;
 - a `none` guard without `reason` is refused;
 - a review-stop with `phaseCommit` is refused;
-- each first-turn and lastClose variant decodes with exactly its own keys and refuses the keys of another variant.
+- each first-turn and lastClose variant decodes with exactly its own keys and refuses the keys of another variant;
+- `turnInProgress` and `closeBase` decode both null and set, and `close-error` refuses a `step` outside its list.
 Write `tests/unit/costLedgerTurnRoles.test.ts`:
 - a closing-turn stream whose result reports a cumulative $1.40, over assistant messages priced at $0.30, gives an entry of $0.30;
 - a first-turn entry is priced like a complete entry;
@@ -365,7 +396,7 @@ Give phax a real state for a run that waits for a person. Through the reducer on
   In `src/app/effectRunner.ts`, apply them through the FileSystem port. Paths come from the dispatch context: `<run>/review-stop.json`, and `<run>/<phase>/review-stop.closing.json` for the parked copy.
   - `WriteReviewStop` writes the document stamped with `withSchemaUrl("review-stop")`.
   - `ParkReviewStop` moves it to the phase folder.
-  - `RestoreReviewStop` reads the parked copy (through `readReviewStopFile`), sets `lastClose`, writes it back to the run folder and removes the parked copy.
+  - `RestoreReviewStop` reads the parked copy (through `readReviewStopFile`), sets `lastClose`, keeps every other field (`closeBase` included), writes it back to the run folder and removes the parked copy.
   - `DiscardReviewStop` removes both files when present.
 - Add these arms to `src/domain/reducer.ts`:
   - `ReviewStopReached` on running/{running} → awaiting_review/{awaiting_review, cause}. Effects: PersistState (run `stoppedReason: "awaiting_review"`; phase state `awaiting_review` and `stop: { cause, status: "waiting" }`), WriteReviewStop, WriteResumeInstructions with kind `awaiting_review`, EmitTrace `review.stop.reached`.
@@ -393,7 +424,7 @@ Give phax a real state for a run that waits for a person. Through the reducer on
   - create `src/schemas/history/run-status/0.17.0.ts`, `src/schemas/history/phase-status/0.20.0.ts` and `src/schemas/history/registry/0.17.0.ts`, each a self-contained copy of today's schema, written like the frozen modules beside them;
   - in `src/schemas/persisted.ts`, route a document stamped at that release to its frozen decoder, as the phax-plan reader routes its 0.17.0 shape, and lift it in memory. A 0.20.0 phase status gets `mode: "headless"` and `stop: null`, because no earlier binary could run an interactive phase or stop; run-status and registry are lifted unchanged;
   - keep refusing a phase status without `base`;
-  - register the frozen shapes in `packages/schemas/src/formats/runDirectory.ts` (`releases` and the upgrade to latest).
+  - register the frozen shapes in `packages/schemas/src/formats/runDirectory.ts` (`releases` and the upgrade to latest), and add the three modules to `CLOSURE_SRC_ALLOWLIST` in `tests/unit/architecturalGuards.test.ts`, in its sorted order.
 - Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/{run-status,phase-status,registry}/next.schema.json` and updates `packages/schemas/src/generated/index.ts` and `src/schemas/release.ts`. Record the three frozen modules in `packages/schemas/history.lock.json` and update the current-shape fixtures in `tests/unit/schemasPackage/documents.ts`.
 - Create `tests/helpers/phaseStatusFixture.ts`. It exports `phaseStatus(fields)`, the in-memory value with `mode: "headless"` and `stop: null` unless given, and `phaseStatusFile(fields)`, the same value stamped with `currentSchemaUrl("phase-status")`. Use it in every test that writes a phase status at the current stamp or builds a `PhaseStatus` literal. The planned edit list names those that write `currentSchemaUrl("phase-status")` or a typed literal, and `pnpm test:type` names any literal left in the optional list.
 
@@ -461,6 +492,11 @@ Give phax a real state for a run that waits for a person. Through the reducer on
 - `tests/integration/executePlan.test.ts`
 - `tests/integration/telemetry/adapterFailures.test.ts`
 - `tests/integration/enter.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/integration/reviewHandoff.test.ts`
+- `tests/unit/cli/resume.test.ts`
+- `tests/integration/finalReport.test.ts`
+- `tests/integration/publishRun.test.ts`
 
 ### Optional files that may be edited
 
@@ -480,7 +516,6 @@ Give phax a real state for a run that waits for a person. Through the reducer on
 - `tests/unit/reducerGateRefusal.test.ts`
 - `tests/integration/stateMachineContract.test.ts`
 - `tests/integration/runFolder.test.ts`
-- `tests/integration/finalReport.test.ts`
 - `tests/integration/loadReviewHandoffInputs.test.ts`
 - `tests/integration/plansOverlapLanded.test.ts`
 - `tests/integration/recordsPush.test.ts`
@@ -488,7 +523,6 @@ Give phax a real state for a run that waits for a person. Through the reducer on
 - `tests/integration/reviewCompliance.test.ts`
 - `tests/integration/skillEditConsent.test.ts`
 - `tests/integration/persistedProducer.test.ts`
-- `tests/integration/publishRun.test.ts`
 - `tests/unit/reviewHandoffContent.test.ts`
 - `tests/unit/cli/enterPhase.test.ts`
 - `tests/unit/cli/publishPr.test.ts`
@@ -604,8 +638,8 @@ Also give each provider adapter its interactive resume support and its continue 
   - `validateInteractiveHandoff(markdown)` returns the validated text, or a list of defects: a missing section, a section out of order, or a count mismatch. `## Guards` must hold exactly one list entry per `## What was corrected` entry, in order, each naming a ref or starting `no guard:`.
   - `renderInteractiveHandoff(answer)` renders an interactive-handoff document in those sections, with a `none` guard as `no guard: <reason>`.
   - `REVIEWED_WITHOUT_CHANGE_HANDOFF` is the fixed text for an unchanged stop, and itself passes validation.
-- Create `src/domain/interactive/worktreeChange.ts` with `worktreeChangeVerdict({ before, after, changed, personHandoffBefore, personHandoffAfter })`. `before` and `after` are snapshot tree ids, `changed` is the name-status list between them, and each `personHandoff*` is a sha256 or null. It returns `{ kind: "unchanged" }`, or `{ kind: "changed", paths, personHandoff }`, where `paths` is sorted and never holds a path under `.phax-context/`, and `personHandoff` is `"unchanged" | "created" | "modified" | "deleted"`. Any change to the person's handoff file makes the verdict `changed`.
-- Create `src/domain/interactive/reviewStop.ts` with `buildDeclaredReviewStop(input)`, which returns the in-memory review-stop value (the shape of `src/schemas/reviewStop.ts` without `$schema`).
+- Create `src/domain/interactive/worktreeChange.ts` with `worktreeChangeVerdict({ before, after, changed, personHandoffBefore, personHandoffAfter })`. `before` and `after` are snapshot tree ids, `changed` is the name-status list between them, and each `personHandoff*` is a sha256 or null. It returns `{ kind: "unchanged" }`, or `{ kind: "changed", paths, personHandoff }`, where `paths` is sorted and never empty, and holds no path under `.phax-context/` except `.phax-context/correction-handoff.md` when the person's handoff file changed, and `personHandoff` is `"unchanged" | "created" | "modified" | "deleted"`. Any change to the person's handoff file makes the verdict `changed`.
+- Create `src/domain/interactive/reviewStop.ts` with `buildDeclaredReviewStop(input)`, which returns the in-memory review-stop value (the shape of `src/schemas/reviewStop.ts` without `$schema`), with `closeBase: null`.
   - It takes the qualified run name, the phase (id, title, position, of), the worktree, the seed path, the first-reading path or null, the current session or null, the interactive resume support, the continue command or null, the fresh-start command and `lastClose`.
   - `enterPhase` is `phax enter-phase <run> <phase>`, `close` is `phax resume <run>` and `reset` is `phax reset-phase <run> <phase>`, each with the main checkout as `cwd` and an empty `env`.
   - `continue` is null when there is no current session or the provider is unverified.
@@ -627,9 +661,10 @@ Also give each provider adapter its interactive resume support and its continue 
   - No skill-edit grant settings are ever added.
 - codex (`src/domain/session/codex.ts`) is `verified`.
   - Move `buildCodexSecurityFlags` and `mapReasoningEffort` from `src/infra/providers/codexCli.ts` into a new pure `src/domain/session/codexFlags.ts`, and make codexCli import them. Its headless argv must stay byte-identical.
+  - Move the model id lookup there too, as `codexModelId(entry, model)`: the provider entry's first `openai-gpt` model id when `providers.json` names one, else the resolved model. `buildCodexArgs`, `buildCodexCompletionArgs` and the callers of the continue and fresh-start builders all use it, so a continued session runs the model the headless phase ran.
   - Continue is `codex resume <id> -m <model> -c model_reasoning_effort="<effort>"`, then the posture flags. Under provider-prompts, `approval_policy` is `"on-request"`; under sealed, it is `"never"`. An unsafe posture keeps `--dangerously-bypass-approvals-and-sandbox`.
   - Fresh start is `codex -m <model> -c model_reasoning_effort=… <posture flags> <prompt>`.
-  - Leave `buildResumeInvocation` unchanged in this phase: phase-05 switches `phax enter-phase` to the continue command.
+  - Leave `buildResumeInvocation` and `describe` unchanged. `phax enter` (`src/cli/commands/enter.ts`) uses them, and this plan does not change `phax enter`; phase-05 moves `phax enter-phase` to the continue command.
 - mistral-vibe (`src/domain/session/mistral.ts`) is `unverified`.
   - `buildContinueCommand` answers `unsupported`, naming `vibe --resume <session-id>` as unverified.
   - Fresh start is `vibe --workdir <cwd>`, then the posture's `--add-dir` flags, then the prompt, with `env: { <modelEnvVar>: <model> }`. `modelEnvVar` is an option that defaults to `VIBE_ACTIVE_MODEL`.
@@ -681,13 +716,13 @@ Unit tests only, written before the builders.
 - Seed: every section the spec lists, in order, for the made-up invoice-export plan, and no text about stopping a run.
 - Prompts: each says to change nothing and to answer only the schema. A diff over the limit is cut, marked as cut, and lists every path.
 - Handoff: each defect (a missing `## Guards`, sections out of order, three corrections with two guards) and a valid handoff. Both the rendered answer and the fixed text validate.
-- Worktree verdict: unchanged; changed; `.phax-context/` filtered; a created or modified person's handoff file read as a change.
+- Worktree verdict: unchanged; changed; `.phax-context/` filtered; a created or modified person's handoff file read as a change, with its path in `paths`, so a turn that only writes it gives exactly `.phax-context/correction-handoff.md`.
 - Review-stop: `continue` is null with no session and with an unverified provider; the enterPhase, close and reset argv.
 - Review corrections: none gives null; two stops keep plan order; the precedence sentence is present.
 - Command line: quoting of spaces, quotes and env.
 - Posture to policy: round-trips a secure and an unsafe posture.
 In `tests/unit/continueCommands.test.ts`:
-- the claude and codex argv carry the model, the effort and the posture flags of the decided approval policy;
+- the claude and codex argv carry the model, the effort and the posture flags of the decided approval policy, and codex's model comes from `codexModelId`;
 - posture `none` carries none;
 - vibe's fresh start carries the env and the prompt, and vibe's continue is unsupported.
 The existing codexCli argv tests must pass unchanged.
@@ -714,7 +749,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-List every exported function and constant with its module path under `src/domain/interactive/`, `src/domain/security/postureToPolicy.ts` and `src/domain/session/`. Give the new `SessionAdapter` members with their option and return shapes. Say which q-continue-approvals verdict the argv implements, and give the exact argv per provider for a secure posture. Confirm that codexCli's headless argv is unchanged and that `buildResumeInvocation` is untouched. Explain any deviation from the planned file lists.
+List every exported function and constant with its module path under `src/domain/interactive/`, `src/domain/security/postureToPolicy.ts` and `src/domain/session/`. Give the new `SessionAdapter` members with their option and return shapes. Say which q-continue-approvals verdict the argv implements, and give the exact argv per provider for a secure posture. Confirm that codexCli's headless argv is unchanged and that `buildResumeInvocation` and `describe` are untouched. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
@@ -747,7 +782,7 @@ Add the use case that stops a run at a declared interactive phase. It writes the
   - `snapshotWorktree(path)`: in a temporary index file (`GIT_INDEX_FILE` in a temporary directory, removed afterwards), run `git read-tree HEAD`, then `git add -A -- . ':(exclude).phax-context'`, then `git write-tree`, and return the tree id. It never touches the real index.
   - `changedPathsBetween(path, fromTree, toTree)`: name-status entries from `git diff-tree -r --name-status --no-renames`.
   - `restorePaths(path, tree, paths)`: in another temporary index, run `git read-tree <tree>`, then `git checkout-index -f -- <each path present in tree>`, and delete each path absent from the tree. It never touches the real index, ignored files or `.phax-context/`.
-- codex read-only, in `src/infra/providers/codexCli.ts`: when `AgentRunOptions.readOnly` is true, both `exec` and `exec resume` use `-c sandbox_mode="read-only"` and `-c approval_policy="never"`, with no writable roots and no network override, whatever the policy (unsafe included). Claude Code already honours `readOnly` with `claudeReadOnlyFlags`.
+- codex read-only, in `src/infra/providers/codexCli.ts`: when `AgentRunOptions.readOnly` is true, both `exec` and `exec resume` use `-c sandbox_mode="read-only"` and `-c approval_policy="never"`, with no writable roots and no network override, whatever the policy (unsafe included). Claude Code already honours `readOnly` with `claudeReadOnlyFlags`. A read-only turn carries no posture flag beyond its provider's read-only set: that set is narrower than any phase posture, which is how phax's turns meet §5.26.
 - Apply the operator's decision on q-turn-shell: with `no-shell`, phax's turns pass no agent commands; with `phase-commands`, they pass the phase's frozen agent commands. Apply q-vibe-turns:
   - `phase-posture`: a vibe turn runs under the phase posture, guarded by the comparison and the handoff-file check.
   - `plan-agent`: `src/infra/providers/mistralVibe.ts` maps `readOnly` to `--agent plan`.
@@ -756,23 +791,23 @@ Add the use case that stops a run at a declared interactive phase. It writes the
   - the seed paths: `.phax-context/interactive-review.md` in the worktree and `review-seed.md` in the phase folder;
   - reading and writing `interactive-session.json`, stamped with `withSchemaUrl` and read with `readInteractiveSessionFile`;
   - writing `first-reading.md`;
-  - the sha256 fingerprint of `.phax-context/correction-handoff.md`, or null when absent;
+  - the sha256 fingerprint of `.phax-context/correction-handoff.md` with a copy of its bytes, or null when absent;
   - copying a refused turn's versions of its changed paths to `<phase folder>/refused-turn-NN/`;
   - reading review-stop.json from the run folder or its parked copy;
   - `refreshReviewStop`, used only by `--new-session` while the file exists.
-- Create `src/app/interactiveStop.ts` with `runFirstTurn(input)`. Its input: the run and phase folders, the worktree, the phase, the resolved provider, model and effort, the policy, the agent commands, `origin` and the turn number NN. In order:
-  1. Fingerprint the person's handoff file and snapshot the worktree.
+- Create `src/app/interactiveStop.ts` with `runFirstTurn(input)`. Its input: the run and phase folders, the worktree, the phase, the resolved provider, model and effort, the policy, the agent commands and `origin`. The turn number NN is one past the highest `first-turn-NN.jsonl` in the phase folder. A `turnInProgress` left by an interrupted or crashed turn is settled first: snapshot, compare with its before-tree, keep and restore any change as below, and record that turn as `refused-change`, or as `failed` with reason `interrupted` when nothing changed. In order:
+  1. Fingerprint the person's handoff file and snapshot the worktree, then record the turn as `turnInProgress`.
   2. Run `Backend.runAgent` with `firstTurnPrompt`, `readOnly: true` and output `first-turn-NN.jsonl`, wrapped in `withInvocationCost` with role `first-turn`.
   3. Decode the final message with `parseFinalMessageJson` and `readFirstReadingAnswer`. On an invalid answer, run one corrective `resumeAgentSession` to `first-turn-NN-retry.jsonl`.
   4. Snapshot and fingerprint again, and compute `worktreeChangeVerdict`.
-  Then record the outcome:
-  - A change keeps the turn's versions in `refused-turn-NN/`, restores the worktree with `restorePaths` (the person's handoff file is restored, or deleted when the turn created it), records `refused-change` with the paths and `keptAt`, and keeps no session.
+  Step 4 and the outcome run whatever the turn's outcome, a failure included (an Effect finalizer). Then record the outcome:
+  - A change keeps the turn's versions in `refused-turn-NN/`, restores the worktree with `restorePaths` (the person's handoff file is restored from its copy, or deleted when the turn created it; `restorePaths` never gets its path), records `refused-change` with the paths and `keptAt`, and keeps no session.
   - A rate or usage limit, a provider error, or a still-invalid answer records `failed` with its reason and keeps no session.
   - `answered` makes the session current (moving the previous current one into `history`) and writes `first-reading.md`.
-  Every outcome rewrites the worktree seed from its run-folder copy and writes `interactive-session.json`. The session id always comes from the turn's stream (`AgentRunResult.sessionId`), never from `--session-id`.
+  Every outcome rewrites the worktree seed from its run-folder copy and writes `interactive-session.json` with `turnInProgress: null`. The session id always comes from the turn's stream (`AgentRunResult.sessionId`), never from `--session-id`.
 - In the same module, add `stopAtDeclaredPhase(input)`, for a phase whose worktree, setup commands, `.phax-context/plan.md`, `model-resolution.json` and `security.json` are already in place. It takes the run identity, the run path, the main checkout path, the plan phases, the phase and its index, the phase folder, the worktree, the resolved provider, model and effort, the policy, the agent commands, the gate commands, the located plan sections and the executed phases' handoffs (read from `<run>/<phase>/phase-handoff.md`). In order:
   1. Build the seed with `buildDeclaredSeed` and write both copies.
-  2. Run `runFirstTurn` with origin `first-turn` and turn 01.
+  2. Run `runFirstTurn` with origin `first-turn`.
   3. Build the continue command (when there is a current session and the provider is verified) and the fresh-start command with the adapters, with the posture from the policy.
   4. Build the review-stop value with `buildDeclaredReviewStop`.
   5. Dispatch `ReviewStopReached` with cause `declared` and that value.
@@ -835,11 +870,12 @@ Write `tests/integration/gitWorktreeSnapshot.test.ts` first, against a temporary
 - review-stop.json holds `$schema` (by format id and release pattern), cause `declared`, phase-03, the worktree, the seed, the session, a `continue` command naming it, and the `enterPhase`, `close` and `reset` commands.
 - The run and phase are `awaiting_review` with cause `declared`, and `resume-instructions.md` is written.
 - A turn that edits a file is restored and kept in `refused-turn-01/`, recorded `refused-change` with no session, and gets the fresh-start command only.
-- A turn that writes `.phax-context/correction-handoff.md` is refused, and the file is removed.
+- A turn that writes `.phax-context/correction-handoff.md` is refused as `refused-change` naming that path, and the file is removed.
+- A turn interrupted after it edited a file is settled on the next call: the edit is kept in `refused-turn-01/` and restored, that turn is recorded `refused-change`, and the new turn writes `first-turn-02.jsonl`.
 - A rate limit, a provider error, and two answers without `$schema` each record `failed` with no session, with exactly one corrective resume in the last case.
 - A mistral-vibe phase gets the unverified flag and no `continue`.
 - No stdin is read.
-`tests/integration/declaredStopProviderArgv.test.ts` runs the first turn through the fake `claude` and `codex` CLIs with the real backend. The claude argv carries `--tools Read,Grep,Glob` (or the shell rules, per q-turn-shell) and `--strict-mcp-config`, with the phase's model and effort. The codex argv carries `sandbox_mode="read-only"`. A runLayers test maps the error to 13.
+`tests/integration/declaredStopProviderArgv.test.ts` runs the first turn through the fake `claude` and `codex` CLIs with the real backend. The test asserts the whole claude argv: `--permission-mode default`, `--tools Read,Grep,Glob` (or the shell rules, per q-turn-shell), `--strict-mcp-config` and the phase's model and effort, with no `--add-dir` and no other posture flag. The codex argv carries `sandbox_mode="read-only"`, with no writable roots and no network override. A runLayers test maps the error to 13.
 
 ### Implementation order
 
@@ -898,14 +934,14 @@ Make a run in `awaiting_review` visible and workable from the CLI:
 
 ### Detailed instructions
 
-- The Session port gains `env`: `SessionOps.resume({ executable, args, cwd, env })`. `src/infra/session.ts` merges `env` over `process.env`, and the fake records it.
+- The Session port gains a required `env`: `SessionOps.resume({ executable, args, cwd, env })`. Its other callers pass `env: {}`: `src/cli/commands/enter.ts`, `src/cli/commands/reviewCode.ts`, `src/cli/commands/adjustPlan.ts` and `src/app/decideArtifact.ts`. `src/infra/session.ts` merges a non-empty `env` over `process.env`. With an empty one it spawns with today's options (`{ cwd, stdio: "inherit" }`), which the existing spawn assertions expect. The fake records `env`.
 - Create `src/app/enterPhase.ts` with the enter-phase use case, and make `src/cli/commands/enterPhase.ts` a thin caller: it renders the result's notices through the OutputPort, then spawns its command through the Session port. The use case handles five cases:
-  - **The stopped phase of a run in `awaiting_review`.** Read the stop with `src/app/interactiveFiles.ts`, the provider, model and effort from `model-resolution.json`, and the policy from `security.json` (`policyFromPosture`). With `newSession`, first acquire the run lock (Lock port, the run's key), run `runFirstTurn` with origin `new-session` and the next turn number, refresh review-stop.json when it answers, and release the lock. Then return the continue command when a session is current and its provider is verified, and the fresh-start command otherwise, with the notices: the first-turn outcome, the unverified warning, the codex trust note, and the `refused-turn-NN/` folder.
+  - **The stopped phase of a run in `awaiting_review`.** Read the stop with `src/app/interactiveFiles.ts`, the provider, model and effort from `model-resolution.json`, and the policy from `security.json` (`policyFromPosture`). With `newSession`, first acquire the run lock (Lock port, the run's key) and read the run's state again under it: a run that is no longer `awaiting_review` (a close started meanwhile) releases the lock and is refused as in the next case. Then run `runFirstTurn` with origin `new-session`, refresh review-stop.json when it answers, and release the lock. Then return the continue command when a session is current and its provider is verified, and the fresh-start command otherwise, with the notices: the first-turn outcome, the unverified warning, the codex trust note, and the `refused-turn-NN/` folder.
   - **A phase in `awaiting_review` whose run is not.** Refuse with exit 1, naming the close in progress and `phax resume <run>`.
   - **A closed interactive phase.** Continue its current recorded session from `interactive-session.json` when its provider is verified, or refuse, naming why.
-  - **A headless phase.** Read its `agent-binding.json` and build `buildContinueCommand` with the binding's session, model and effort. Under q-enter-phase-posture `carry-posture`, it carries the posture from `security.json` and refuses when that file is missing or unreadable. Under `provider-defaults` it carries none. codex resumes with `codex resume <id>` (§5.42); vibe stays unsupported.
+  - **A headless phase.** Read its `agent-binding.json` and build `buildContinueCommand` with the binding's session, model and effort. Under q-enter-phase-posture `carry-posture`, it carries the posture from `security.json` and refuses when that file is missing or unreadable. Under `provider-defaults` it carries none. codex resumes with `codex resume <id>` (§5.42), its model id from `codexModelId`; vibe stays unsupported.
   - **`--new-session` on a phase that is not stopped.** Refuse with exit 1, naming the phase's state.
-- Update `src/domain/session/codex.ts` so that `describe` no longer calls interactive resume unsupported and `buildResumeInvocation` returns `codex resume <id>` in the binding's worktree, so that session-info's resume check stays truthful.
+- Leave `buildResumeInvocation`, `describe` and `phax enter` (`src/cli/commands/enter.ts`) unchanged. `phax enter` is outside the spec, and `tests/integration/enter.test.ts` expects a codex binding to exit 1 as unsupported. enter-phase builds every command, codex's resume included, with the continue and fresh-start builders. `src/app/enterPhase.ts` exports `planEnterPhase(input)`, which returns the command and its notices, or the refusal, without spawning. `phax session-info` takes its `Resume:` line and its suggested `phax enter-phase` from `planEnterPhase`, never from `buildResumeInvocation`, so a headless codex phase reads as enterable.
 - Add `--new-session` to `enter-phase` and `--awaiting-review` to `ls` in `src/cli/program.ts`, and describe both in `src/cli/cliDocs.ts`. Regenerate `phax.usage.kdl` with `pnpm gen:usage-spec` and the CLI docs with `pnpm docs:cli`.
 - Create `src/app/stopInfo.ts` with `readStopInfo(info)`. It returns null for a run that is not `awaiting_review`. Otherwise it returns `{ cause, phaseId, phaseTitle, position, of, worktree, seed, session | null, enterPhase }`, read from review-stop.json through the readers. `ls` and `session-info` take everything they print about a stop from it.
 - In `src/cli/commands/ls.ts`:
@@ -935,7 +971,9 @@ Make a run in `awaiting_review` visible and workable from the CLI:
 - `src/ports/session.ts`
 - `src/infra/session.ts`
 - `src/infra/fakes/session.ts`
-- `src/domain/session/codex.ts`
+- `src/cli/commands/enter.ts`
+- `src/cli/commands/reviewCode.ts`
+- `src/app/decideArtifact.ts`
 - `src/cli/commands/enterPhase.ts`
 - `src/cli/commands/ls.ts`
 - `src/cli/commands/sessionInfo.ts`
@@ -953,13 +991,12 @@ Make a run in `awaiting_review` visible and workable from the CLI:
 - `tests/integration/archive.test.ts`
 - `tests/integration/adjustPlan.test.ts`
 - `tests/unit/cli/ls.test.ts`
-- `tests/unit/sessionAdapters.test.ts`
+- `src/cli/commands/adjustPlan.ts`
 
 ### Optional files that may be edited
 
 - `src/app/archive.ts`
 - `src/cli/commands/archive.ts`
-- `src/cli/commands/adjustPlan.ts`
 - `src/cli/commands/path.ts`
 - `src/cli/commands/shell.ts`
 - `src/cli/commands/open.ts`
@@ -983,7 +1020,7 @@ Integration tests use a fake Session port, a fake shell and a fake editor that r
 - spawns the fresh-start command for a stop whose first turn failed;
 - spawns `codex resume X9` in phase-01's worktree for a committed headless codex phase with binding session X9, carrying the posture under carry-posture;
 - refuses a run whose close is in progress.
-None of these refuses as unsupported. `--new-session` runs a new read-only first turn under the run lock (a held lock refuses it with exit 7), makes X2 current with origin `new-session` while keeping X1 in history, and refreshes review-stop.json. A failing new turn keeps X1 and review-stop.json unchanged. A vibe stop prints the warning that a fresh-start session will not be captured.
+None of these refuses as unsupported. `phax enter` on a codex binding still exits 1 as unsupported, and session-info suggests `phax enter-phase` for a committed headless codex phase. `--new-session` runs a new read-only first turn under the run lock (a held lock refuses it with exit 7, and a run whose close started before the lock was taken is refused), makes X2 current with origin `new-session` while keeping X1 in history, and refreshes review-stop.json. A failing new turn keeps X1 and review-stop.json unchanged. A vibe stop prints the warning that a fresh-start session will not be captured.
 `tests/integration/stoppedRunCommands.test.ts` covers:
 - ls lists the waiting run with `awaiting_review (declared)` and `phase-03`, `--awaiting-review` lists it alone, and a failed and an interrupted run do not show as waiting;
 - session-info prints the state, cause, phase, worktree, seed and session;
@@ -998,7 +1035,7 @@ None of these refuses as unsupported. `--new-session` runs a new read-only first
 
 1. the Session port env
 2. the stopInfo helper
-3. the enterPhase use case, the thin CLI command and the codex adapter update
+3. the enterPhase use case, the thin CLI command and session-info's resume line
 4. program flags, cliDocs and usage regeneration
 5. the ls and session-info views
 6. reset-phase at a stop
@@ -1017,7 +1054,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-Give the signature of `src/app/enterPhase.ts` and its result variants, and the shape `readStopInfo` returns. Give the exact text of the new refusals: a reset before the stop, archive without force, adjust-plan, a close in progress, and `--new-session` on a phase that is not stopped. Say how the q-enter-phase-posture decision was applied, and whether path, shell or open needed a code change. Explain any deviation from the planned file lists.
+Give the signature of `src/app/enterPhase.ts` and its result variants, and the shape `readStopInfo` returns. Give the exact text of the new refusals: a reset before the stop, archive without force, adjust-plan, a close in progress, and `--new-session` on a phase that is not stopped. Say how the q-enter-phase-posture decision was applied, and whether path, shell or open needed a code change. Give `planEnterPhase`'s signature, and confirm that `buildResumeInvocation`, `describe` and `phax enter`'s behaviour are unchanged. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
@@ -1039,7 +1076,7 @@ adjust-plan waits for the run to land.
 
 **Recommended model:** claude-opus-5-5
 **Recommended effort:** high
-**Assignment reason:** The phase designs a close sequence that no code in the repository shows yet: gate, handoff, re-check and commit of a snapshotted tree through new Git plumbing, with a refusal path at every step.
+**Assignment reason:** The phase designs a close sequence that no code in the repository shows yet: gate, handoff, re-check and commit of a snapshotted tree through a temporary index, with a return to the stop at every step.
 
 Add the use case that closes a declared stop. It gates the worktree first and returns a red gate to the person. It then takes the person's handoff, or a read-only closing turn's, given the corrections' content diff. It commits exactly the gated tree with an `Interactive-Phase:` trailer, or an empty commit when nothing changed, and reconciles every changed file as a review correction. Every refusal leaves the stop as it was. It is tested at the use-case level; executePlan calls it in phase-07.
 
@@ -1047,24 +1084,25 @@ Add the use case that closes a declared stop. It gates the worktree first and re
 
 - The Git port, Node adapter and fake gain two operations:
   - `diffTrees(repo, fromTree, toTree)`: the output of `git diff-tree -p -r --no-color --no-ext-diff --no-textconv --no-renames`.
-  - `commitTree(worktree, tree, message)`: run `git commit-tree <tree> -p HEAD -m <message>` under the checkout's git identity, advance the checked-out branch with `git update-ref HEAD <new> <old HEAD>`, reset the real index to the new HEAD with `git read-tree HEAD`, and return the new sha.
+  - `commitTree(worktree, tree, subject, body)`: in a temporary index (`GIT_INDEX_FILE` in a temporary directory, removed afterwards), run `git read-tree <tree>`, then `git commit --allow-empty -m <subject> -m <body>` with that index. The repository's pre-commit and commit-msg hooks and its signing config run as they do for `commit` in `src/infra/git.ts`. Then compare the new commit's tree with `<tree>`. When a hook changed it, move the branch back with `git update-ref HEAD <old HEAD> <new>` and fail with a `GitError` naming the paths. Otherwise reset the real index to the new HEAD with `git read-tree HEAD` and return the new sha.
 - In `src/app/commit.ts`, add `buildInteractiveCommitBody(opts)`: the plan's commit body, then `---` and the trailers `Run-Id`, `Short-Name`, `Phase-Id`, `Phase-Title`, `Interactive-Phase: <phase id>`, `Worktree` and `Gate-Log: <closing gate log>`, with no `Model`, `Effort` or `Session-Id`. Leave `commitPhase` and `buildCommitBody` unchanged for headless phases.
 - In `src/domain/reconciliation/reconcile.ts`, add `reconcileReview(entries)`. It returns a `ReconciliationResult` whose planned and unplanned lists are empty, whose `reviewCorrections` lists every changed path (both paths of a rename) and whose `hasDeviations` is false. In `src/app/reconcilePhaseFiles.ts`, add a `review` kind that uses it, so file-reconciliation.json and .md list the stop's files as review corrections.
-- Add `StopCloseRefusedError { lastClose }` to `src/domain/errors.ts`. In `src/cli/commands/runLayers.ts`, map it to its `lastClose.exitCode`.
+- Add `StopCloseRefusedError { lastClose }` to `src/domain/errors.ts`, where `lastClose` is any variant but `interrupted`: an interrupted close never raises it, so it carries no exit 130. In `src/cli/commands/runLayers.ts`, map it to its `lastClose.exitCode`.
 - Create `src/app/closeStop.ts` with `closeDeclaredStop(input)`. It is called after `RunResumeRequested` has made the run `running`, with the phase still `awaiting_review` and review-stop.json parked. It reads the provider, model and effort from `model-resolution.json`, the policy from `security.json`, and the sessions from `interactive-session.json`. In order:
-  1. **Gate.** Run the phase's gate profile once with `runGates` (`src/app/gates.ts`), on its non-terminal steps, with the gate request and the next free `checks-attempt-NN.log`, and no fix loop. A red or refused step dispatches `StopCloseRefused` (`gate-failed`, with the log) and fails with exit 4.
-  2. **Gated tree.** `gated = snapshotWorktree`, `head = headTree`, and the changed paths come from `changedPathsBetween`.
-  3. **Handoff.** If `.phax-context/correction-handoff.md` exists, validate it with `validateInteractiveHandoff` and use it verbatim. If invalid: `handoff-invalid` with the defects, exit 1. Otherwise, with no change, use `REVIEWED_WITHOUT_CHANGE_HANDOFF` with no turn. Otherwise, run the closing turn (next instruction).
-  4. **Check.** Snapshot again. On a difference from `gated`, refuse: `closing-turn-edited` (exit 5) when a closing turn ran, `worktree-changed` (exit 1) otherwise, naming the paths.
-  5. **Handoff file.** Write the handoff to `<run>/<phase>/phase-handoff.md`.
-  6. **Commit.** `commitTree(worktree, changed ? gated : head, message)` with the plan's subject and `buildInteractiveCommitBody`, then save `diffTrees(head, gated)` as `diff.patch`. Never raise `PhaseHadNoChangesError`.
-  7. **State.** Dispatch `StopCommitted` with outcome `corrected` or `unchanged`. Its effect discards the parked review-stop.
-  8. **Reconcile** with the `review` kind.
-  No step writes the run's `phax-plan.json` or plan.md. Every refusal dispatches `StopCloseRefused` with its lastClose and commits nothing.
+  1. **Close base.** When the parked document's `closeBase` is null, write HEAD into it. When it is set and HEAD has moved, check HEAD: its parent must be `closeBase`, and its message (read with `git log -1 --format=%B`, as `src/app/recordsExplain.ts` reads one) must carry this run's `Run-Id` and `Interactive-Phase: <phase>`. Then the commit landed before an interruption: rewrite `diff.patch` and skip to step 7, with outcome `unchanged` when HEAD's tree equals `closeBase`'s tree. Any other move is a `close-error` (`commit`).
+  2. **Gate.** Run the phase's gate profile once with `runGates` (`src/app/gates.ts`), on its non-terminal steps, with the gate request and the next free `checks-attempt-NN.log`, and no fix loop. A red or refused step dispatches `StopCloseRefused` (`gate-failed`, with the log) and fails with exit 4.
+  3. **Gated tree.** `gated = snapshotWorktree`, `head = headTree`, and the changed paths come from `changedPathsBetween`.
+  4. **Handoff.** If `.phax-context/correction-handoff.md` exists, validate it with `validateInteractiveHandoff` and use it verbatim. If invalid: `handoff-invalid` with the defects, exit 1. Otherwise, with no change, use `REVIEWED_WITHOUT_CHANGE_HANDOFF` with no turn. Otherwise, run the closing turn (next instruction).
+  5. **Check.** Snapshot again. On a difference from `gated`, refuse: `closing-turn-edited` (exit 5) when a closing turn ran, `worktree-changed` (exit 1) otherwise, naming the paths.
+  6. **Commit.** Write the handoff to `<run>/<phase>/phase-handoff.md`. Then `commitTree(worktree, changed ? gated : head, subject, body)`, with the plan's subject and `buildInteractiveCommitBody`, and save `diffTrees(head, gated)` as `diff.patch`. Never raise `PhaseHadNoChangesError`.
+  7. **Reconcile** with the `review` kind.
+  8. **State.** Dispatch `StopCommitted` with outcome `corrected` or `unchanged`. Its effect discards the parked review-stop.
+  No step writes the run's `phax-plan.json` or plan.md. Every failure before step 8 returns the run to the stop by dispatching `StopCloseRefused`. A listed refusal carries its own lastClose. Any other failure carries `close-error`, with its `step` and the error's message: a provider error in a new closing session, a Git, file or shell error in the gate, the commit or the close's files, or a hook that changed the committed tree. No failure dispatches `RunFailed`, and none restores or resets the worktree, so the person's corrections stay in place. A failure after `commitTree` leaves its commit, which the next close finishes through step 1.
+- A closing turn records a `turnInProgress` entry before it starts, as a first turn does. When the next close finds one, a vibe closing turn (the only closing turn that can write) was interrupted: restore its edits from the before-snapshot through a temporary index, as a refused first turn's are, before the gate runs, so its edits are never committed as the person's corrections. Test it with the fake vibe CLI.
 - The closing turn, in `closeDeclaredStop`:
   - Fingerprint the person's handoff file, then cut `diffTrees(head, gated)` with `cutDiff`.
   - When a session is current, run `Backend.resumeAgentSession(current.sessionId, closingTurnPrompt(diff, null), { readOnly: true, … })` to `closing-turn-NN.jsonl`, wrapped in `withInvocationCost` with role `closing-turn`.
-  - With no current session, or when the resume fails for any reason but a rate or usage limit, run `Backend.runAgent` with `closingTurnPrompt(diff, seedPath)` instead: a new read-only session of the phase's provider, model and effort.
+  - With no current session, or when the resume fails for any reason but a rate or usage limit, run `Backend.runAgent` with `closingTurnPrompt(diff, seedPath)` instead: a new read-only session of the phase's provider, model and effort. A provider error in that session is a `close-error` (`closing-turn`), exit 5.
   - A rate or usage limit is refused as `limit` with the reset time, exit 8.
   - Decode the answer with `readInteractiveHandoffAnswer`, with one corrective resume to `closing-turn-NN-retry.jsonl`. Still invalid: `closing-answer-invalid`, exit 5.
   - Render the answer with `renderInteractiveHandoff`.
@@ -1103,13 +1141,14 @@ Add the use case that closes a declared stop. It gates the worktree first and re
 
 ### Boundary contracts
 
-App → Git port: the close commits only through `commitTree`, with a tree id it snapshotted, never `git add -A`. The corrections reach the closing turn only through `diffTrees`. App → Backend port: the closing turn resumes the current session read-only, or starts a new read-only session, and its answer is decoded at the boundary. App → reducer: the close transitions only through `StopCloseRefused` and `StopCommitted`. Close → reconciliation: the stop's files reach every reconciliation reader as `reviewCorrections`.
+App → Git port: the close commits only through `commitTree`, with a tree id it snapshotted, never `git add -A`, and through `git commit`, so the repository's hooks and signing apply. The corrections reach the closing turn only through `diffTrees`. App → Backend port: the closing turn resumes the current session read-only, or starts a new read-only session, and its answer is decoded at the boundary. App → reducer: the close transitions only through `StopCloseRefused` and `StopCommitted`. Close → reconciliation: the stop's files reach every reconciliation reader as `reviewCorrections`.
 
 ### Test strategy
 
 Write `tests/integration/gitCommitTree.test.ts` first, against a temporary repository whose config names `Ada Example`:
 - `commitTree` commits exactly the given tree, with HEAD as parent and Ada Example as author;
 - it advances the checked-out branch and leaves the index at the new HEAD;
+- it runs the repository's pre-commit and commit-msg hooks: a pre-commit hook that exits 1 fails it with HEAD and the real index unchanged, and one that rewrites and stages a file fails it with the branch back at the old HEAD;
 - given HEAD's own tree, it lands an empty commit;
 - `diffTrees` returns the content diff of a modified, an added and a deleted file.
 `tests/integration/declaredStopClose.test.ts` drives `closeDeclaredStop` on stops built with `stopAtDeclaredPhase` and the fake backend:
@@ -1123,20 +1162,22 @@ Write `tests/integration/gitCommitTree.test.ts` first, against a temporary repos
 - a red gate exits 4, keeps its log, commits nothing and returns review-stop.json with `lastClose`;
 - an invalid person's file exits 1, naming the missing section or the uncovered correction;
 - a closing answer invalid twice exits 5 after exactly one corrective resume;
-- a closing turn that writes `src/export/labels.ts` exits 5 and leaves the file in place, and one that writes the person's handoff file has it moved aside;
+- a closing turn that writes `src/export/labels.ts` exits 5 and leaves the file in place, and one that writes the person's handoff file has it moved aside, with its path in lastClose's `paths`;
 - an edit made after the gate is refused as `worktree-changed`;
-- a usage limit exits 8 with its reset time.
+- a usage limit exits 8 with its reset time;
+- a pre-commit hook that rejects the commit gives `close-error` (`commit`), exit 1, with the worktree byte-identical and no `RunFailed`; a provider error in a new closing session gives `close-error` (`closing-turn`), exit 5;
+- a close whose parked `closeBase` is HEAD's parent, with HEAD the stop's `Interactive-Phase:` commit, lands `StopCommitted` with no new commit.
 In every refused case the run stays `awaiting_review` and review-stop.json exists again. A corrected close lists the files under `reviewCorrections`, with no unplanned edit and `hasDeviations` false, and review-stop.json no longer exists anywhere.
 §5.44: two identical stops, one corrected directly by the test and one through `src/app/enterPhase.ts` with a fake session that writes the same bytes, closed with the same person's handoff file, give commits with the same tree and equal reconciliations.
 `tests/integration/declaredStopProviderArgv.test.ts` gains the closing turn through the fake `claude` and `codex` CLIs: read-only argv, with the phase's model and effort.
 
 ### Implementation order
 
-1. diffTrees and commitTree, with their integration tests
+1. diffTrees and commitTree, hooks included, with their integration tests
 2. the interactive commit body
 3. reconcileReview and the review reconciliation kind
 4. StopCloseRefusedError and its exit mapping
-5. closeDeclaredStop's gate, handoff and commit sequence
+5. closeDeclaredStop's close base, gate, handoff and commit sequence, and its close errors
 6. the closing turn with its fallbacks and refusals
 7. the close tests and the provider argv tests
 
@@ -1153,7 +1194,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-Give the signatures of `diffTrees`, `commitTree`, `buildInteractiveCommitBody`, `reconcileReview` and `closeDeclaredStop`, and the shape of its close report. Give `StopCloseRefusedError`, with each lastClose result and its exit code, and the exact trailer block of an interactive commit. Say where the closing turn's streams are written and how the fallback to a new session is decided. Explain any deviation from the planned file lists.
+Give the signatures of `diffTrees`, `commitTree`, `buildInteractiveCommitBody`, `reconcileReview` and `closeDeclaredStop`, and the shape of its close report. Give `StopCloseRefusedError`, with each lastClose result and its exit code (the `close-error` steps included), and the exact trailer block of an interactive commit. Say how `closeBase` finishes a close interrupted after its commit, and how `commitTree` refuses a hook that changed the tree. Say where the closing turn's streams are written and how the fallback to a new session is decided. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
@@ -1164,10 +1205,11 @@ Give the signatures of `diffTrees`, `commitTree`, `buildInteractiveCommitBody`, 
 closeDeclaredStop runs the gate before any agent turn and returns a red
 gate to the person. It takes the person's correction-handoff.md, or a
 read-only closing turn given the corrections' content diff, and commits
-exactly the tree the gate passed through git commit-tree, with an
-Interactive-Phase trailer and no agent session claimed. An unchanged stop
-leaves an empty commit. Every changed file is reconciled as a review
-correction, and every refusal returns the run to awaiting_review.
+exactly the tree the gate passed with git commit from a temporary index,
+so the repository's hooks still run, with an Interactive-Phase trailer
+and no agent session claimed. An unchanged stop leaves an empty commit.
+Every changed file is reconciled as a review correction, and every
+failure of a close returns the run to awaiting_review.
 
 ---
 
@@ -1194,6 +1236,8 @@ Make a plan-declared interactive phase run end to end. `phax run` stops at it wi
   - call `closeDeclaredStop`;
   - then run the cleanup commands as for a committed phase (`CleanupStarted`, `CleanupCompleted`);
   - continue with the next phase in the same invocation, branched from the interactive phase's branch.
+  The cleanup re-entry branches on the phase's `mode`. An interactive phase whose cleanup fails pauses as `cleaning_up` with no `claudeSessionId` and no `agent-binding.json`. Today's re-entry would then fail with `AgentSessionIdMissingError` or `RegistryCorruptionError`, and reset-phase refuses that state, so the run would be stuck. For an interactive phase, the cleanup re-entry needs only the recorded worktree: it reads no session id, binding or agent options, runs the cleanup commands and continues with the next phase.
+  An interactive phase interrupted before its stop (status `running`) re-enters through the fresh-phase path, which reuses its branch and worktree, and `stopAtDeclaredPhase` settles the first turn left in progress.
   Add `AwaitingReviewStopError` and `StopCloseRefusedError` to the pause errors, so the top-level guard never dispatches `RunFailed` for them. Skip `writeRecordForPhase` for an interactive phase, both after its commit and on the failed-phase path.
 - In `src/app/handoffInjection.ts`:
   - `readPreviousHandoff` and `readPreviousReconciliation` take the plan phases with their `mode` and skip back over interactive phases to the nearest earlier headless phase;
@@ -1208,7 +1252,7 @@ Make a plan-declared interactive phase run end to end. `phax run` stops at it wi
   Use it in `src/cli/commands/run.ts` and `src/cli/commands/resume.ts` on `AwaitingReviewStopError`, exiting 13. On `StopCloseRefusedError`, print the reason and that the phase stays awaiting review, and exit with its code. On a close, print the gate lines, the handoff source and `committed <hash> (corrected|unchanged)`. Neither command reads stdin at a stop, with or without a terminal, and the run lock is released before the exit.
 - In `src/cli/interruptHandler.ts`, when the run is `running` and its current phase's status is `awaiting_review` (a close in progress), synchronously:
   - write run state `awaiting_review`;
-  - move the parked `<run>/<phase>/review-stop.closing.json` back to `<run>/review-stop.json` with lastClose `interrupted`;
+  - move the parked `<run>/<phase>/review-stop.closing.json` back to `<run>/review-stop.json` with lastClose `interrupted`, keeping `closeBase`;
   - print that the stop is still waiting.
   The state written must equal the reducer's verdict for `RunInterruptRequested` on that state.
 - In `src/app/finalReport.ts`, an interactive phase's row reads `<title> (interactive)` and shows `-` for its session, and its artifact links list its first-turn and closing-turn streams instead of `output.jsonl`.
@@ -1273,7 +1317,8 @@ Integration tests run executePlan with the fake backend on temporary repositorie
 - `phax reset-phase invoice-export phase-03 --yes`, then `phax resume --yes`, recreates phase-03 at phase-02's commit, rewrites the seed, runs a new first turn and exits 13.
 - A plan with no interactive phase never stops, keeps the same prompts (no `## Review corrections`), states and exit codes, and writes `mode: "headless"` and `stop: null` on every phase status.
 - A plan whose phase-02 agent ends its handoff with a question to a person never stops.
-- With a `phax.json` declaring one globs bound on `src/export/**` at `claude-opus-5-5` from `medium` to `high`: an interactive phase-03 at `gpt-6-luna` `medium` gets a `models` error naming `assignments[0]`. A conforming phase-03 at `claude-opus-5-5` `high` has its first and closing turns run, through the fake `claude` CLI, with `--model claude-opus-5-5 --effort high`.
+- With a `phax.json` declaring one globs bound on `src/export/**` at `claude-opus-5-5` from `medium` to `high`: an interactive phase-03 at `gpt-6-luna` `medium` gets a `models` error naming `assignments[0]`. A conforming phase-03 at `claude-opus-5-5` `high` has its first and closing turns run, through the fake `claude` CLI, with `--model claude-opus-5-5 --effort high`. The run's `cost-ledger.json` then holds exactly one `first-turn` and one `closing-turn` entry for phase-03 (§5.71).
+- A cleanup command that fails after phase-03's close pauses the run with phase-03 `cleaning_up`. Once the command passes, `phax resume --yes` runs only the cleanup and starts phase-04.
 - final-report.md labels phase-03 interactive with no session.
 `tests/integration/reviewCorrectionsPrompt.test.ts` uses a plan whose phase-03 and phase-05 are both interactive: phase-06's prompt holds phase-03's handoff, then phase-05's, with their changed files and the precedence sentence.
 `tests/unit/interruptDuringClose.test.ts` checks that the handler's write equals the reducer's verdict and that review-stop.json is restored with lastClose `interrupted`.
@@ -1300,7 +1345,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-Give the new `interactiveFindings` input and its exact messages. Say where executePlan calls the stop and the close, and which errors are pauses. Say how review corrections reach a later prompt, and which phase `## Previous phase handoff` and the previous reconciliation read after an interactive phase. Confirm that no record is written for an interactive phase, and give the interrupt handler's rule. Explain any deviation from the planned file lists.
+Give the new `interactiveFindings` input and its exact messages. Say where executePlan calls the stop and the close, and which errors are pauses. Say how review corrections reach a later prompt, and which phase `## Previous phase handoff` and the previous reconciliation read after an interactive phase. Confirm that no record is written for an interactive phase, and give the interrupt handler's rule and how the cleanup re-entry handles an interactive phase. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
@@ -1331,7 +1376,7 @@ Tell planners, operators and review-UI authors how a declared interactive stop w
 
 ### Detailed instructions
 
-- In README.md, add `### Interactive phases` under `## Run a plan`, after `### When a run stops`, for the declared stop only. Use the made-up invoice-export example. Cover:
+- In README.md, add `### Interactive phases` under `## Run a plan`, after `### When a run stops`, for the declared stop only. The README has no Resume section, so closing a stop is explained here. Use the made-up invoice-export example. Cover:
   - when a plan declares one, with the `**Mode:** interactive` line;
   - what the run does at it: worktree, seed, read-only first turn, `awaiting_review`, exit 13, no waiting for input;
   - the continue or fresh-start command, and codex's trust and hooks prompts;
@@ -1360,6 +1405,7 @@ Tell planners, operators and review-UI authors how a declared interactive stop w
   - `run` and `resume`: stopping at and closing an interactive phase, exit 13;
   - `enter-phase`: the continue command and `--new-session`;
   - `ls`: `--awaiting-review`;
+  - `plans lint`: replace `so is any interactive declaration, which this release does not run yet` with the placement and planned-work rules;
   - `session-info`, `path`, `shell`, `open`, `reset-phase`, `archive` and `adjust-plan`: a run awaiting review.
   Regenerate `phax.usage.kdl` with `pnpm gen:usage-spec` and the CLI docs with `pnpm docs:cli`.
 - In NEXT_STEPS.md, move `interactive-phases` from `Approved, not yet planned` to `In flight`. Record:
@@ -1411,7 +1457,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-List the README and skill sections added or changed, and every stale not-yet-supported statement removed, with its location. Confirm that the usage spec and the CLI docs were regenerated, and that the skill does not mention `--hold`. Explain any deviation from the planned file lists.
+List the README and skill sections added or changed, and every stale not-yet-supported statement removed, with its location. Confirm that the usage spec and the CLI docs were regenerated, that the `plans lint` help no longer calls an interactive declaration unsupported, and that the skill does not mention `--hold`. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
