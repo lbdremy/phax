@@ -63,7 +63,7 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       - `review-stop.json` and a versioned `phax ls --json` (`run-list`) are the surface a review UI
         reads.
       - Plan 1 of 3, the declared stop, lands with this run
-        (`docs/plans/2610220954-interactive-phases-plan.md`): `**Mode:** interactive`, the read-only first turn, `awaiting_review`
+        (`docs/plans/archive/2610220954-interactive-phases-plan.md`): `**Mode:** interactive`, the read-only first turn, `awaiting_review`
         with exit 13, `phax resume` closing the stop with the gate and a commit of the gated tree,
         `## Review corrections` in later prompts, and `review-stop.json`. Lint and the run
         preflight no longer refuse a declared phase.
