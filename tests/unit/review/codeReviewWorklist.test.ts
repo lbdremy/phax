@@ -11,6 +11,7 @@ function makeEntry(overrides: Partial<GlobalFileEntry>): GlobalFileEntry {
     plannedInPhases: [],
     touchedInPhases: [],
     optionalInPhases: [],
+    reviewCorrectedInPhases: [],
     expectedActions: [],
     actualActions: [],
     status: "unplanned",

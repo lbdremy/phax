@@ -86,7 +86,10 @@ function makePhaseJson(phaseId: string, overrides: Record<string, unknown> = {})
 // The same reconciliation as phax writes it today: `$schema` first.
 function makeStampedPhaseJson(phaseId: string, overrides: Record<string, unknown> = {}): string {
   return JSON.stringify(
-    withSchemaUrl("phase-file-reconciliation", JSON.parse(makePhaseJson(phaseId, overrides))),
+    withSchemaUrl("phase-file-reconciliation", {
+      reviewCorrections: [],
+      ...JSON.parse(makePhaseJson(phaseId, overrides)),
+    }),
   );
 }
 

@@ -1246,6 +1246,7 @@ export function executePlan(
                 optionalTouched: [],
                 deletions: [],
                 renames: [],
+                reviewCorrections: [],
                 hasDeviations: false,
               };
         } else {

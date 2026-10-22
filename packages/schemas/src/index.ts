@@ -4,6 +4,16 @@ import {
   type ArchitectureReportShapes,
   type ArchitectureRequestShapes,
 } from "./formats/architecture.js";
+import {
+  firstReadingFormat,
+  interactiveHandoffFormat,
+  interactiveSessionFormat,
+  reviewStopFormat,
+  type FirstReadingShapes,
+  type InteractiveHandoffShapes,
+  type InteractiveSessionShapes,
+  type ReviewStopShapes,
+} from "./formats/interactive.js";
 import { oracleRequestFormat, type OracleRequestShapes } from "./formats/oracleRequest.js";
 import {
   briefRecordFormat,
@@ -309,6 +319,45 @@ export {
   type OracleRequestShape,
 } from "./formats/oracleRequest.js";
 
+// The documents of a declared interactive stop: the first reading and the
+// interactive handoff a phase's turns answer, and the interactive session and
+// review stop phax writes. Each schema and type is phax's own file schema and
+// type.
+export {
+  FirstReadingFileSchema as FirstReadingSchema,
+  type FirstReadingFile as FirstReading,
+} from "../../../src/schemas/firstReading.js";
+export {
+  InteractiveHandoffFileSchema as InteractiveHandoffSchema,
+  type InteractiveHandoffFile as InteractiveHandoff,
+} from "../../../src/schemas/interactiveHandoff.js";
+export {
+  InteractiveSessionFileSchema as InteractiveSessionSchema,
+  type InteractiveSessionFile as InteractiveSession,
+} from "../../../src/schemas/interactiveSession.js";
+export {
+  ReviewStopFileSchema as ReviewStopSchema,
+  type ReviewStopFile as ReviewStop,
+} from "../../../src/schemas/reviewStop.js";
+export {
+  parseFirstReading,
+  parseInteractiveHandoff,
+  parseInteractiveSession,
+  parseReviewStop,
+  toLatestFirstReading,
+  toLatestInteractiveHandoff,
+  toLatestInteractiveSession,
+  toLatestReviewStop,
+  type FirstReadingShape,
+  type InteractiveHandoffShape,
+  type InteractiveSessionShape,
+  type LatestFirstReading,
+  type LatestInteractiveHandoff,
+  type LatestInteractiveSession,
+  type LatestReviewStop,
+  type ReviewStopShape,
+} from "./formats/interactive.js";
+
 // The answer a decide session returns for a hand-authored spec or plan. Its
 // schema and type are phax's own file schema and type.
 export {
@@ -382,6 +431,14 @@ export {
   SpecDocumentV0_17_0Schema,
   type SpecDocumentV0_17_0,
 } from "../../../src/schemas/history/spec-document/0.17.0.js";
+export {
+  PhaseFileReconciliationV0_17_0Schema,
+  type PhaseFileReconciliationV0_17_0,
+} from "../../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
+export {
+  CostLedgerV0_25_0Schema,
+  type CostLedgerV0_25_0,
+} from "../../../src/schemas/history/cost-ledger/0.25.0.js";
 export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
@@ -467,6 +524,10 @@ type DocumentShapes = EveryFormat<{
   "architecture-request": ArchitectureRequestShapes;
   "architecture-report": ArchitectureReportShapes;
   "oracle-request": OracleRequestShapes;
+  "first-reading": FirstReadingShapes;
+  "interactive-handoff": InteractiveHandoffShapes;
+  "interactive-session": InteractiveSessionShapes;
+  "review-stop": ReviewStopShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
   "cost-ledger": CostLedgerShapes;
 }>;
@@ -508,6 +569,10 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "architecture-request": architectureRequestFormat,
     "architecture-report": architectureReportFormat,
     "oracle-request": oracleRequestFormat,
+    "first-reading": firstReadingFormat,
+    "interactive-handoff": interactiveHandoffFormat,
+    "interactive-session": interactiveSessionFormat,
+    "review-stop": reviewStopFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
     "cost-ledger": costLedgerFormat,
   });

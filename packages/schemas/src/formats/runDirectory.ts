@@ -19,6 +19,11 @@ import {
   type CostLedgerFile,
 } from "../../../../src/schemas/costLedger.js";
 import {
+  CostLedgerV0_25_0Schema,
+  decodeCostLedgerV0_25_0,
+  type CostLedgerV0_25_0,
+} from "../../../../src/schemas/history/cost-ledger/0.25.0.js";
+import {
   ComplianceReviewPreSchemaSchema,
   decodeComplianceReviewPreSchema,
   type ComplianceReviewPreSchema,
@@ -309,7 +314,7 @@ export function toLatestComplianceReview(
 // Born with `$schema`: no pre-schema shape, and a document without `$schema`
 // is unreadable. It refuses a key it does not name, at any level.
 
-export type CostLedgerShapes = {
+export type CostLedgerShapes = { "0.25.0": CostLedgerV0_25_0 } & {
   [K in CurrentShapeName<"cost-ledger">]: CostLedgerFile;
 };
 
@@ -320,7 +325,7 @@ export const costLedgerFormat = defineFormat<CostLedgerShapes>({
   id: "cost-ledger",
   label: "cost ledger",
   preSchema: null,
-  releases: [],
+  releases: [["0.25.0", { schema: CostLedgerV0_25_0Schema, decode: decodeCostLedgerV0_25_0 }]],
   current: {
     name: CURRENT_SHAPES["cost-ledger"],
     shape: { schema: CostLedgerFileSchema, decode: decodeCostLedgerFile },
@@ -334,8 +339,11 @@ export const parseCostLedger: (input: unknown) => ParsedShape<CostLedgerShapes> 
 /** The latest cost ledger: phax's in-memory value, with no `$schema`. */
 export type LatestCostLedger = CostLedger;
 
-/** Upgrades a parsed cost ledger in memory: drops `$schema`, keeps every other fact. */
-export function toLatestCostLedger(value: CostLedgerFile): LatestCostLedger {
+/**
+ * Upgrades a parsed cost ledger in memory: drops `$schema`, keeps every other
+ * fact. A 0.25.0 ledger's entries are valid current entries as they are.
+ */
+export function toLatestCostLedger(value: CostLedgerFile | CostLedgerV0_25_0): LatestCostLedger {
   const { $schema: _schema, ...ledger } = value;
   return ledger;
 }

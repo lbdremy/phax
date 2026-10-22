@@ -16,8 +16,9 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * hand decision answer and the decision record manifest of spec
  * artifact-decide, then the cost ledger of spec cost-ledger, then the
  * architecture request and report of spec planning-skill-defaults, then the
- * oracle request of spec oracle-phases, appended so existing order stays
- * stable. `code-review` joins with the headless-review plan, which ships that
+ * oracle request of spec oracle-phases, then the first reading, interactive
+ * handoff, interactive session and review stop of spec interactive-phases,
+ * appended so existing order stays stable. `code-review` joins with the headless-review plan, which ships that
  * document.
  */
 export const FORMAT_IDS = [
@@ -47,6 +48,10 @@ export const FORMAT_IDS = [
   "architecture-request",
   "architecture-report",
   "oracle-request",
+  "first-reading",
+  "interactive-handoff",
+  "interactive-session",
+  "review-stop",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -66,7 +71,10 @@ export function isFormatId(value: string): value is FormatId {
  * ledger. So are the architecture request phax writes on an architecture
  * provider's stdin and the architecture report the provider prints, of spec
  * planning-skill-defaults, and the oracle request phax writes on the oracles
- * provider's stdin, of spec oracle-phases.
+ * provider's stdin, of spec oracle-phases. So are the first reading and the
+ * interactive handoff a declared phase's turns answer, which phax reads but
+ * never writes, and the interactive session and review stop phax writes, of
+ * spec interactive-phases.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -82,6 +90,10 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "architecture-request",
   "architecture-report",
   "oracle-request",
+  "first-reading",
+  "interactive-handoff",
+  "interactive-session",
+  "review-stop",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

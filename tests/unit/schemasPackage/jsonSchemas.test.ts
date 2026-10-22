@@ -41,6 +41,12 @@ import {
   architectureReportFormat,
   architectureRequestFormat,
 } from "../../../packages/schemas/src/formats/architecture.js";
+import {
+  firstReadingFormat,
+  interactiveHandoffFormat,
+  interactiveSessionFormat,
+  reviewStopFormat,
+} from "../../../packages/schemas/src/formats/interactive.js";
 import { oracleRequestFormat } from "../../../packages/schemas/src/formats/oracleRequest.js";
 import {
   complianceReviewFormat,
@@ -113,6 +119,10 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "architecture-request": architectureRequestFormat.current.shape.decode,
   "architecture-report": architectureReportFormat.current.shape.decode,
   "oracle-request": oracleRequestFormat.current.shape.decode,
+  "first-reading": firstReadingFormat.current.shape.decode,
+  "interactive-handoff": interactiveHandoffFormat.current.shape.decode,
+  "interactive-session": interactiveSessionFormat.current.shape.decode,
+  "review-stop": reviewStopFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -178,6 +188,10 @@ describe("the JSON Schema table", () => {
       architectureRequestFormat,
       architectureReportFormat,
       oracleRequestFormat,
+      firstReadingFormat,
+      interactiveHandoffFormat,
+      interactiveSessionFormat,
+      reviewStopFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -200,10 +214,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 27 files and no failure", () => {
+  it("renders 31 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(27);
+    expect(rendered.files.size).toBe(31);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

@@ -94,7 +94,11 @@ import {
   SpecDocumentPreSchemaSchema,
   type SpecDocumentPreSchema,
 } from "../../../src/schemas/history/spec-document/pre-schema.js";
+import { FirstReadingFileSchema } from "../../../src/schemas/firstReading.js";
+import { InteractiveHandoffFileSchema } from "../../../src/schemas/interactiveHandoff.js";
+import { InteractiveSessionFileSchema } from "../../../src/schemas/interactiveSession.js";
 import { OracleRequestFileSchema } from "../../../src/schemas/oracleRequest.js";
+import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
@@ -695,6 +699,7 @@ export function latestPreSchema(id: PreSchemaFormatId): Doc {
     }));
     return { ...rest, phases };
   }
+  if (id === "phase-file-reconciliation") return { ...rest, reviewCorrections: [] };
   return rest;
 }
 
@@ -750,7 +755,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "phase-file-reconciliation": encoded(
     PhaseFileReconciliationFileSchema,
-    withSchemaUrl("phase-file-reconciliation", phaseFileReconciliation),
+    withSchemaUrl("phase-file-reconciliation", {
+      ...phaseFileReconciliation,
+      reviewCorrections: [],
+    }),
   ),
   "spec-document": encoded(
     SpecDocumentFileSchema,
@@ -822,6 +830,107 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       oraclePhase: "phase-02",
       base: EXAMPLE_BASE,
       files: ["tests/prune.test.ts"],
+    }),
+  ),
+  "first-reading": encoded(
+    FirstReadingFileSchema,
+    withSchemaUrl("first-reading", {
+      pattern: ["Each export row is built by one pure function over the invoice."],
+      copiedBy: [{ phase: "phase-02", what: "the credit-note rows copy the row builder" }],
+      toCheck: ["Whether the credit-note rows should round per line or per invoice."],
+    }),
+  ),
+  "interactive-handoff": encoded(
+    InteractiveHandoffFileSchema,
+    withSchemaUrl("interactive-handoff", {
+      corrections: [
+        {
+          what: "Rounded per line, not per invoice.",
+          guard: { kind: "test", ref: "tests/unit/exportRows.test.ts" },
+        },
+        {
+          what: "Renamed the row builder.",
+          guard: { kind: "none", reason: "A rename the typechecker already guards." },
+        },
+      ],
+      patternFromNowOn: ["Round each line, then sum."],
+      nextPhasesNeedToKnow: ["The credit-note rows follow the per-line rounding."],
+    }),
+  ),
+  "interactive-session": encoded(
+    InteractiveSessionFileSchema,
+    withSchemaUrl("interactive-session", {
+      phaseId: "phase-03",
+      provider: "claude-code",
+      interactiveResume: "verified",
+      current: {
+        provider: "claude-code",
+        model: "claude-sonnet-5-5",
+        effort: "medium",
+        sessionId: "4f6c1a52-0000-4000-8000-000000000001",
+        startedAt: "2026-01-01T09:10:00.000Z",
+        origin: "first-turn",
+      },
+      history: [],
+      firstTurns: [
+        {
+          outcome: "answered",
+          origin: "first-turn",
+          startedAt: "2026-01-01T09:10:00.000Z",
+          endedAt: "2026-01-01T09:12:00.000Z",
+          sessionId: "4f6c1a52-0000-4000-8000-000000000001",
+        },
+      ],
+      turnInProgress: null,
+    }),
+  ),
+  "review-stop": encoded(
+    ReviewStopFileSchema,
+    withSchemaUrl("review-stop", {
+      run: "example.invoice-export",
+      state: "awaiting_review",
+      cause: "declared",
+      phase: {
+        id: "phase-03",
+        title: "Export the credit notes",
+        mode: "interactive",
+        position: 3,
+        of: 4,
+      },
+      firstReading: "/example/runs/invoice-export/phase-03/first-reading.md",
+      worktree: "/example/worktrees/invoice-export/phase-03",
+      seed: "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+      session: {
+        provider: "claude-code",
+        sessionId: "4f6c1a52-0000-4000-8000-000000000001",
+        origin: "first-turn",
+        interactiveResume: "verified",
+      },
+      commands: {
+        continue: {
+          cwd: "/example/worktrees/invoice-export/phase-03",
+          argv: ["claude", "--resume", "4f6c1a52-0000-4000-8000-000000000001"],
+          env: {},
+        },
+        freshStart: {
+          cwd: "/example/worktrees/invoice-export/phase-03",
+          argv: ["claude"],
+          env: {},
+        },
+        enterPhase: {
+          cwd: "/example/repo",
+          argv: ["phax", "enter-phase", "invoice-export", "phase-03"],
+          env: {},
+        },
+        close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export"], env: {} },
+        reset: {
+          cwd: "/example/repo",
+          argv: ["phax", "reset-phase", "invoice-export", "phase-03"],
+          env: {},
+        },
+      },
+      lastClose: null,
+      closeBase: null,
     }),
   ),
 };

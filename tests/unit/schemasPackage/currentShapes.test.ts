@@ -21,6 +21,10 @@ import {
   parseArchitectureReport,
   parseArchitectureRequest,
   parseOracleRequest,
+  parseFirstReading,
+  parseInteractiveHandoff,
+  parseInteractiveSession,
+  parseReviewStop,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -47,6 +51,10 @@ import {
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
   toLatestOracleRequest,
+  toLatestFirstReading,
+  toLatestInteractiveHandoff,
+  toLatestInteractiveSession,
+  toLatestReviewStop,
   toLatestAuthoringRecordManifest,
   toLatestBriefRecord,
   toLatestBriefReport,
@@ -77,6 +85,8 @@ import {
   readComplianceReviewFile,
   readCostLedgerFile,
   readGateAttributionFile,
+  readInteractiveSessionFile,
+  readReviewStopFile,
   readPhaseFileReconciliationFile,
   readPhaseStatusFile,
   readPhaxPlanFile,
@@ -231,6 +241,10 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
   "oracle-request": latest(parseOracleRequest, toLatestOracleRequest),
+  "first-reading": latest(parseFirstReading, toLatestFirstReading),
+  "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
+  "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
+  "review-stop": latest(parseReviewStop, toLatestReviewStop),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -272,6 +286,13 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   // phax writes the oracle request on the oracles provider's stdin and never
   // reads it back.
   "oracle-request": undefined,
+  // phax reads the first reading and the interactive handoff only as a turn's
+  // answer, through readFirstReadingAnswer and readInteractiveHandoffAnswer,
+  // which name no file.
+  "first-reading": undefined,
+  "interactive-handoff": undefined,
+  "interactive-session": readInteractiveSessionFile,
+  "review-stop": readReviewStopFile,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

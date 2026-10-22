@@ -90,6 +90,16 @@ export function renderReconciliationMarkdown(
     lines.push("");
   }
 
+  // Review corrections
+  if (result.reviewCorrections.length > 0) {
+    lines.push("### Review corrections");
+    lines.push("> Changed by a person at an interactive stop: not a deviation.");
+    for (const f of result.reviewCorrections) {
+      lines.push(`- ${f}`);
+    }
+    lines.push("");
+  }
+
   // Summary
   if (result.hasDeviations) {
     lines.push("**Summary:** Deviations detected — see sections above.");

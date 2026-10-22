@@ -11,7 +11,11 @@ import {
   decodeArchitectureReportFile,
   decodeArchitectureRequestFile,
 } from "../../../src/schemas/architecture.js";
+import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
+import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
+import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
 import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
@@ -94,6 +98,10 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,
   "oracle-request": decodeOracleRequestFile,
+  "first-reading": decodeFirstReadingFile,
+  "interactive-handoff": decodeInteractiveHandoffFile,
+  "interactive-session": decodeInteractiveSessionFile,
+  "review-stop": decodeReviewStopFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

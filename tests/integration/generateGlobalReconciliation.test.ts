@@ -5,7 +5,8 @@ import { ReviewHandoffArtifactMissingError } from "../../src/domain/errors.js";
 import type { GlobalFileReconciliation } from "../../src/domain/reconciliation/global.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { phaseReconciliationFile } from "../helpers/reconciliationFixture.js";
 
 const RUN_PATH = "/runs/test-run";
 const RUN_ID = "run-id-001";
@@ -54,12 +55,7 @@ describe("generateGlobalReconciliation", () => {
 
     impl.setFile(
       `${RUN_PATH}/phase-01/file-reconciliation.json`,
-      JSON.stringify(
-        withSchemaUrl(
-          "phase-file-reconciliation",
-          JSON.parse(makePhaseJson("phase-01", { createdAsPlanned: ["src/foo.ts"] })) as object,
-        ),
-      ),
+      JSON.stringify(phaseReconciliationFile("phase-01", { createdAsPlanned: ["src/foo.ts"] })),
     );
     // Pre-schema: no $schema and no version, as 0.16.0 wrote it.
     impl.setFile(
@@ -82,6 +78,48 @@ describe("generateGlobalReconciliation", () => {
     if (!Either.isRight(result)) return;
     expect(result.right.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
     expect(result.right.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
+  });
+
+  it("reads a 0.17.0 reconciliation and a stop's review corrections", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+
+    // Stamped 0.17.0: written before `reviewCorrections` existed.
+    impl.setFile(
+      `${RUN_PATH}/phase-01/file-reconciliation.json`,
+      JSON.stringify({
+        $schema: schemaUrl("phase-file-reconciliation", "0.17.0"),
+        ...JSON.parse(makePhaseJson("phase-01", { createdAsPlanned: ["src/credit.ts"] })),
+      }),
+    );
+    impl.setFile(
+      `${RUN_PATH}/phase-02/file-reconciliation.json`,
+      JSON.stringify(
+        phaseReconciliationFile("phase-02", {
+          reviewCorrections: ["src/credit.ts", "src/invoice.ts"],
+        }),
+      ),
+    );
+
+    const layers = Layer.mergeAll(layer, NoopSystemTelemetryLayer);
+    const result = await runWith(
+      generateGlobalReconciliation({
+        runPath: RUN_PATH,
+        phaseIds: ["phase-01", "phase-02"],
+        allowPartial: false,
+        runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
+      }).pipe(Effect.provide(layers)),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    const credit = result.right.files.find((f) => f.path === "src/credit.ts");
+    expect(credit?.status).toBe("matched");
+    expect(credit?.reviewCorrectedInPhases).toEqual(["phase-02"]);
+    const invoice = result.right.files.find((f) => f.path === "src/invoice.ts");
+    expect(invoice?.status).toBe("review-corrected");
+    expect(invoice?.attention).toBe("ok");
+    expect(result.right.unplanned).toEqual([]);
   });
 
   it("happy path: aggregates phases and writes both global artifacts", async () => {

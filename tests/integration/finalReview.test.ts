@@ -10,6 +10,7 @@ import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 
 const stateRoot = "/fake-state";
 const shortName = "my-run";
@@ -71,21 +72,7 @@ function makePhaseStatusJson(state: string): string {
 
 function makePhaseReconciliationJson(): string {
   return JSON.stringify(
-    encodePhaseFileReconciliation({
-      phaseId: "phase-01",
-      createdAsPlanned: [],
-      editedAsPlanned: [],
-      missingPlannedCreate: [],
-      missingPlannedEdit: [],
-      createdButPlannedEdit: [],
-      editedButPlannedCreate: [],
-      unplannedCreated: [],
-      unplannedEdited: [],
-      optionalTouched: [],
-      deletions: [],
-      renames: [],
-      hasDeviations: false,
-    }),
+    encodePhaseFileReconciliation({ phaseId: "phase-01", ...reconciliationResult() }),
   );
 }
 

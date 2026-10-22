@@ -9,6 +9,11 @@ const planned: PlannedFiles = {
 };
 
 describe("reconcile", () => {
+  it("reports no review corrections: only a closed stop fills them", () => {
+    const result = reconcile(planned, [{ status: "added", path: "src/new.ts" }]);
+    expect(result.reviewCorrections).toEqual([]);
+  });
+
   it("identifies files created as planned", () => {
     const entries: NameStatusEntry[] = [
       { status: "added", path: "src/new.ts" },
