@@ -101,6 +101,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-21 | `assignment-bounds` (#152) | 1 × opus-5-5 / high (with a reason), 1 × sonnet-5-5 / medium | $11.27 | 1 / 3 | The plan had `phax validate` print its success line before checking the bounds. Execution on the Opus phase left `phax plans lint` exiting 1 on an invalid config and wrote a glob matcher that backtracks exponentially; on the Sonnet phase it left the headless skill tying a null reason to the default. |
 | 2026-10-21 | `oracle-phases` plan 1 (#154) | 3 × sonnet-5-5 / medium, 1 × opus-5-5 / medium (with a reason) | $14.85 | 2 / 5 | The plan promised a reset-the-pair recovery that `reset-phase` cannot do (now `phax resume --skip-oracle`, its own plan), and missed an oracle phase skipped for no changes. Execution told the agent to run the ungranted oracles provider, gave two frozen modules a wrong release range, documented lint as exiting 11, left phax-decide-plan's P3 unconditioned on a provider, and missed four §8 tests. |
 | 2026-10-21 | `oracle-phases` plan 2, skip-oracle (#155) | 2 × sonnet-5-5 / medium | $2.88 ($0.97 of it before a usage-limit pause) | 0 / 1 | Execution named the `--skip-oracle` recovery in the reset refusal even when the discharge was already past its gate, where a resume would skip another phase's oracle step. |
+| 2026-10-22 | `oracle-phases` plan 3, Vitest oracles example (#156) | 1 × sonnet-5-5 / high | $1.69 ($1.43 for the phase) | 2 / 3 | The plan let a marked test that never runs (`test.fails.skip`, `describe.skip`, no test function) pass both verdicts, against the spec's "no skip or todo takes a marker's place", and dropped a tagged template's raw text. Execution read `1e999` as `null`, gave a file named twice duplicate finding ids, and left the README's request stamp stale. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -159,6 +160,10 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **`phax plans lint` accepts an oracle file listed twice.** The `**Oracle files:**` line takes a
+  repeated path, and phax sends it twice in the `oracle-request`. The Vitest example judges it once;
+  another provider may report duplicate finding ids, which phax refuses. Lint should report it on the
+  `oracles` check.
 - [ ] **`phax reset-phase` without `--yes` previews a reset it would refuse.** The preview prints
       "Would reset …" before the use case runs its refusals (a later committed phase, an oracle phase
       whose discharge has started), so the refusal only shows with `--yes`. Run the refusals first, as

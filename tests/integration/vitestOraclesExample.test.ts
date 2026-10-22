@@ -286,6 +286,46 @@ describe("examples/vitest-oracles, authored verdict", () => {
     expect(status).toBe(0);
   });
 
+  it.each([
+    ["test.fails.skip('refunds', () => {});", "carries .skip"],
+    ["test.skip.fails('refunds', () => {});", "carries .skip"],
+    ["test.fails.todo('refunds');", "carries .todo"],
+    ["test.fails('refunds');", "has no test function"],
+    ["test.fails.skipIf(true)('refunds', () => {});", "carries .skipIf"],
+    ["test.fails.only('refunds', () => {});", "carries .only"],
+    ["describe.skip('refund', () => { test.fails('refunds', () => {}); });", 'block "refund"'],
+  ])("finds a marked test that never runs: %s", (code, reason) => {
+    const cwd = makeRepo();
+    const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
+    edit(cwd, { [REFUNDS]: code });
+    const { report, status } = authored(cwd, base, [REFUNDS]);
+    const findings = checkedFindings(report);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.id).toMatch(new RegExp(`^oracle-not-run:${REFUNDS}:`));
+    expect(findings[0]?.message).toContain(reason);
+    expect(status).toBe(1);
+  });
+
+  it("leaves a test that never runs alone when it is unchanged since the base", () => {
+    const cwd = makeRepo();
+    const base = commit(cwd, { [REFUNDS]: "test.skip('voids a refund', () => {});\n" });
+    edit(cwd, {
+      [REFUNDS]: lines(
+        "test.skip('voids a refund', () => {});",
+        "test.fails('refunds', () => {});",
+      ),
+    });
+    expect(checkedFindings(authored(cwd, base, [REFUNDS]).report)).toEqual([]);
+  });
+
+  it("judges a file declared twice once", () => {
+    const cwd = makeRepo();
+    const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
+    edit(cwd, { [REFUNDS]: "test('refunds', () => {});\n" });
+    const ids = checkedFindings(authored(cwd, base, [REFUNDS, REFUNDS]).report).map((f) => f.id);
+    expect(ids).toEqual([`oracle-unmarked:${REFUNDS}:refunds`]);
+  });
+
   it("reports an unparsable oracle file as a finding, not a refusal", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
@@ -324,6 +364,11 @@ function dischargeRepo() {
   const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
   const oracleCommit = commit(cwd, { [REFUNDS]: REFUNDS_ORACLE });
   return { cwd, base, oracleCommit };
+}
+
+/** A one-test oracle expecting `value`. */
+function oracle(value: string): string {
+  return `test.fails('refunds', () => { expect(f()).toBe(${value}); });\n`;
 }
 
 describe("examples/vitest-oracles, discharged verdict", () => {
@@ -400,6 +445,19 @@ describe("examples/vitest-oracles, discharged verdict", () => {
       location: { file: REFUNDS },
       message: expect.stringContaining(names),
     });
+    expect(status).toBe(1);
+  });
+
+  it.each([
+    ["a tagged template's raw text", "String.raw`a\\nb`", "String.raw`a\nb`"],
+    ["a number beyond JavaScript's range", "1e999", "null"],
+  ])("finds the file changed when %s changes", (_what, before, after) => {
+    const cwd = makeRepo();
+    const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
+    const oracleCommit = commit(cwd, { [REFUNDS]: oracle(before) });
+    edit(cwd, { [REFUNDS]: oracle(after).replace("test.fails(", "test(") });
+    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    expect(checkedFindings(report).map((f) => f.id)).toEqual([`oracle-changed:${REFUNDS}`]);
     expect(status).toBe(1);
   });
 

@@ -8,6 +8,8 @@ import { parse, strippedProgram, testsOf } from "./syntax.mjs";
 const RULES = {
   "oracle-unmarked":
     "In the oracle phase, every test added or modified in an oracle file carries the runner's expected-failure marker",
+  "oracle-not-run":
+    "In the oracle phase, every test added or modified in an oracle file runs: no skip, todo, only, skipIf or runIf on it or an enclosing block, and a test function",
   "oracle-marker-left":
     "After the oracle phase, no test of an oracle file keeps the runner's expected-failure marker",
   "oracle-changed":
@@ -56,8 +58,21 @@ export function authoredFindings(cwd, request) {
         : testsOf(baseParsed.program, baseText).map((test) => [test.identity, test.tree]),
     );
     for (const test of testsOf(parsed.program, now)) {
-      if (test.marked || baseTrees.get(test.identity) === test.tree) continue;
+      if (baseTrees.get(test.identity) === test.tree) continue;
       const how = baseTrees.has(test.identity) ? "modified" : "new";
+      // A marked test that never runs passes both verdicts and judges no code.
+      if (test.notRun !== null) {
+        findings.push(
+          finding(
+            "oracle-not-run",
+            file,
+            test.identity,
+            [test.start, test.end],
+            `Test "${test.identity}" is ${how} since the base commit and ${test.notRun}, so it never judges the code`,
+          ),
+        );
+      }
+      if (test.marked) continue;
       findings.push(
         finding(
           "oracle-unmarked",
