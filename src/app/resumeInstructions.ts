@@ -107,9 +107,17 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `# Resume Instructions: ${input.shortName}`,
     "",
     `This run paused because the gate step \`${refusal.command}\` refused to run.`,
-    ...(failedStep === "oracle" ? [OracleSkipSentence] : []),
-    "No fix attempt was made. Fix the cause, then resume — the gate is re-run first,",
-    "with the full fix budget.",
+    ...(failedStep === "oracle"
+      ? [
+          "No fix attempt was made. Fix the cause and resume — the gate, oracle step included, is",
+          "re-run first, with the full fix budget — or, if the oracle itself is wrong, correct it in",
+          "the phase worktree and resume with --skip-oracle: the phase's configured gate still runs,",
+          "with the usual fix loop, and the oracle step is recorded as skipped.",
+        ]
+      : [
+          "No fix attempt was made. Fix the cause, then resume — the gate is re-run first,",
+          "with the full fix budget.",
+        ]),
     "",
     "## Why it stopped",
     "",

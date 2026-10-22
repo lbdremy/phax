@@ -118,6 +118,9 @@ describe("buildResumeInstructions — oracle step stops", () => {
     const md = buildResumeInstructions({ ...refused, failedStep: "oracle" });
     expect(md).toContain("refused to run");
     expect(md).toContain("resume with --skip-oracle: the phase's configured gate still runs");
+    // One paragraph names both ways on; the resume advice is not repeated.
+    expect(md).not.toContain("Either resume as is");
+    expect(md.split("No fix attempt was made.")).toHaveLength(2);
     expect(md).toContain("phax resume refunds --yes --skip-oracle");
   });
 

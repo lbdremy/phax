@@ -615,6 +615,33 @@ describe("oracle phases in a run", () => {
       ]);
     });
 
+    it("skips the authored verdict at the oracle phase, and the discharge is still judged against its commit", async () => {
+      const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), {
+        answer: (request) => (request["verdict"] === "authored" ? unmarked : passing),
+      });
+      const first = await h.execute();
+      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      await h.noteSession("phase-02");
+      const callsBefore = h.providerCalls.length;
+
+      const resumed = await h.execute(1, { skipOracle: true });
+
+      expect(Either.isRight(resumed)).toBe(true);
+      const steps = (await h.readJson("phase-02", "gate-attribution.json"))["steps"];
+      expect((steps as GateAttribution["steps"]).at(-1)).toEqual({
+        command: ORACLES,
+        surface: "oracle",
+        result: "skipped",
+      });
+      const phase02 = await h.readJson("phase-02", "status.json");
+      const later = h.providerCalls.slice(callsBefore);
+      expect(later.map((c) => [basename(c.cwd), c.request["verdict"]])).toEqual([
+        ["phase-03", "discharged"],
+      ]);
+      expect(later[0]?.request["oracleCommit"]).toBe(phase02["commitHash"]);
+    });
+
     it("reaches no later phase", async () => {
       const second = { oracle: 3, discharging: 4, files: ["tests/prune.test.ts"] };
       const h = await setup(planOf(4, [{ oracle: 1, discharging: 2 }, second]), {
