@@ -24,6 +24,8 @@ export interface ReconciliationResult {
   readonly optionalTouched: readonly string[];
   readonly deletions: readonly string[];
   readonly renames: readonly { from: string; to: string }[];
+  /** Paths a person changed at an interactive stop: never a deviation. */
+  readonly reviewCorrections: readonly string[];
   readonly hasDeviations: boolean;
 }
 

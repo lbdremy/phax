@@ -1,10 +1,11 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { withSchemaUrl } from "../../../src/schemas/persisted.js";
+import { readPhaseFileReconciliationFile, withSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
   decodePhaseFileReconciliationFile,
   encodePhaseFileReconciliationFile,
 } from "../../../src/schemas/reconciliation.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 function stamped<T extends object>(value: T) {
   return withSchemaUrl("phase-file-reconciliation", value);
@@ -23,6 +24,7 @@ const validPersistedRecon = {
   optionalTouched: [],
   deletions: [],
   renames: [],
+  reviewCorrections: [],
   hasDeviations: false,
 } as const;
 
@@ -55,6 +57,11 @@ describe("decodePhaseFileReconciliationFile", () => {
     expect(Either.isLeft(decodePhaseFileReconciliationFile(stamped(noHasDeviation)))).toBe(true);
   });
 
+  it("rejects an object missing reviewCorrections", () => {
+    const { reviewCorrections: _, ...noCorrections } = validPersistedRecon;
+    expect(Either.isLeft(decodePhaseFileReconciliationFile(stamped(noCorrections)))).toBe(true);
+  });
+
   it("round-trips encode/decode, $schema first", () => {
     const encoded = encodePhaseFileReconciliationFile(stamped(validPersistedRecon));
     expect(Object.keys(encoded)[0]).toBe("$schema");
@@ -72,5 +79,38 @@ describe("decodePhaseFileReconciliationFile", () => {
     const encoded = encodePhaseFileReconciliationFile(stamped(withRenames));
     const decoded = Either.getOrThrow(decodePhaseFileReconciliationFile(encoded));
     expect(decoded.renames).toEqual([{ from: "src/old.ts", to: "src/new.ts" }]);
+  });
+});
+
+describe("readPhaseFileReconciliationFile", () => {
+  const { reviewCorrections: _corrections, ...beforeCorrections } = validPersistedRecon;
+
+  it("reads a 0.17.0 reconciliation lifted with reviewCorrections: []", () => {
+    const read = readPhaseFileReconciliationFile("file-reconciliation.json", {
+      $schema: schemaUrl("phase-file-reconciliation", "0.17.0"),
+      ...beforeCorrections,
+    });
+    expect(Either.getOrThrow(read)).toEqual({ ...validPersistedRecon, reviewCorrections: [] });
+  });
+
+  it("reads a pre-schema reconciliation lifted with reviewCorrections: []", () => {
+    const read = readPhaseFileReconciliationFile("file-reconciliation.json", beforeCorrections);
+    expect(Either.getOrThrow(read).reviewCorrections).toEqual([]);
+  });
+
+  it("reads the current shape with its corrections", () => {
+    const read = readPhaseFileReconciliationFile(
+      "file-reconciliation.json",
+      stamped({ ...validPersistedRecon, reviewCorrections: ["src/invoice.ts"] }),
+    );
+    expect(Either.getOrThrow(read).reviewCorrections).toEqual(["src/invoice.ts"]);
+  });
+
+  it("refuses the current stamp without reviewCorrections", () => {
+    expect(
+      Either.isLeft(
+        readPhaseFileReconciliationFile("file-reconciliation.json", stamped(beforeCorrections)),
+      ),
+    ).toBe(true);
   });
 });

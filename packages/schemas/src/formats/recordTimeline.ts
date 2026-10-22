@@ -37,6 +37,11 @@ import {
   type GateAttributionV0_21_0,
 } from "../../../../src/schemas/history/gate-attribution/0.21.0.js";
 import {
+  PhaseFileReconciliationV0_17_0Schema,
+  decodePhaseFileReconciliationV0_17_0,
+  type PhaseFileReconciliationV0_17_0,
+} from "../../../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
+import {
   PhaseFileReconciliationPreSchemaSchema,
   decodePhaseFileReconciliationPreSchema,
   type PhaseFileReconciliationPreSchema,
@@ -146,7 +151,10 @@ export function toLatestGateAttribution(
 
 // ── phase file reconciliation
 
-export type PhaseFileReconciliationShapes = { "pre-schema": PhaseFileReconciliationPreSchema } & {
+export type PhaseFileReconciliationShapes = {
+  "pre-schema": PhaseFileReconciliationPreSchema;
+  "0.17.0": PhaseFileReconciliationV0_17_0;
+} & {
   [K in CurrentShapeName<"phase-file-reconciliation">]: PhaseFileReconciliationFile;
 };
 
@@ -160,7 +168,15 @@ export const phaseFileReconciliationFormat = defineFormat<PhaseFileReconciliatio
     schema: PhaseFileReconciliationPreSchemaSchema,
     decode: decodePhaseFileReconciliationPreSchema,
   },
-  releases: [],
+  releases: [
+    [
+      "0.17.0",
+      {
+        schema: PhaseFileReconciliationV0_17_0Schema,
+        decode: decodePhaseFileReconciliationV0_17_0,
+      },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["phase-file-reconciliation"],
     shape: {
@@ -178,15 +194,26 @@ export const parsePhaseFileReconciliation: (
 /** The latest phase file reconciliation: phax's in-memory value, with no `$schema`. */
 export type LatestPhaseFileReconciliation = PhaseFileReconciliation;
 
-/** Upgrades a parsed file reconciliation in memory: drops `$schema`, keeps every other fact. */
+/**
+ * Upgrades a parsed file reconciliation in memory: drops `$schema`, keeps every
+ * other fact. A shape written before `reviewCorrections` gets `[]`, as phax's
+ * reader lifts it: no phax before it could run an interactive stop.
+ */
 export function toLatestPhaseFileReconciliation(
-  value: PhaseFileReconciliationPreSchema | PhaseFileReconciliationFile,
+  value:
+    | PhaseFileReconciliationPreSchema
+    | PhaseFileReconciliationV0_17_0
+    | PhaseFileReconciliationFile,
 ): LatestPhaseFileReconciliation {
-  if ("$schema" in value) {
+  if ("reviewCorrections" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
-  return value;
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, reviewCorrections: [] };
+  }
+  return { ...value, reviewCorrections: [] };
 }
 
 // ── gate request

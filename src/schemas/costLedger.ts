@@ -65,7 +65,7 @@ const entryFields = {
 };
 
 const PhaseEntrySchema = Schema.Struct({
-  role: Schema.Literal("phase", "fix", "handoff"),
+  role: Schema.Literal("phase", "fix", "handoff", "first-turn", "closing-turn"),
   phase: PhaseIdSchema,
   ...entryFields,
 });
@@ -96,7 +96,10 @@ export type CostLedger = Omit<CostLedgerFile, "$schema">;
 /** One invocation's entry. */
 export type CostLedgerEntry = Schema.Schema.Type<typeof CostLedgerEntrySchema>;
 
-/** What the invocation was: a phase turn, a fix attempt, a handoff or the compliance review. */
+/**
+ * What the invocation was: a phase turn, a fix attempt, a handoff, an
+ * interactive phase's first or closing turn, or the compliance review.
+ */
 export type CostLedgerRole = CostLedgerEntry["role"];
 
 /** One reading of a subscription window. */

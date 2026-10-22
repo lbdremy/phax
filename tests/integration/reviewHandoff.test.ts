@@ -9,6 +9,7 @@ import type { BranchName } from "../../src/domain/branded.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -57,41 +58,19 @@ function makeRunReviewInfo(phaseIds: readonly string[]): RunReviewInfo {
 }
 
 function makeEmptyReconciliationJson(phaseId: string): string {
-  return JSON.stringify(
-    encodePhaseFileReconciliation({
-      phaseId,
-      createdAsPlanned: [],
-      editedAsPlanned: [],
-      missingPlannedCreate: [],
-      missingPlannedEdit: [],
-      createdButPlannedEdit: [],
-      editedButPlannedCreate: [],
-      unplannedCreated: [],
-      unplannedEdited: [],
-      optionalTouched: [],
-      deletions: [],
-      renames: [],
-      hasDeviations: false,
-    }),
-  );
+  return JSON.stringify(encodePhaseFileReconciliation({ phaseId, ...reconciliationResult() }));
 }
 
 function makeReconciliationJsonWithDeviation(phaseId: string): string {
   return JSON.stringify(
     encodePhaseFileReconciliation({
       phaseId,
-      createdAsPlanned: ["src/planned.ts"],
-      editedAsPlanned: [],
-      missingPlannedCreate: [],
-      missingPlannedEdit: ["src/missing-edit.ts"],
-      createdButPlannedEdit: [],
-      editedButPlannedCreate: [],
-      unplannedCreated: ["src/unplanned.ts"],
-      unplannedEdited: [],
-      optionalTouched: [],
-      deletions: [],
-      renames: [],
-      hasDeviations: true,
+      ...reconciliationResult({
+        createdAsPlanned: ["src/planned.ts"],
+        missingPlannedEdit: ["src/missing-edit.ts"],
+        unplannedCreated: ["src/unplanned.ts"],
+        hasDeviations: true,
+      }),
     }),
   );
 }

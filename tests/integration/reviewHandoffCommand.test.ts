@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runReviewHandoff } from "../../src/cli/commands/reviewHandoff.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 
 interface TestOutput {
   logs: string[];
@@ -60,23 +61,7 @@ function makePhaseStatusJson(phaseId: string): string {
 }
 
 function makePhaseReconJson(phaseId: string): string {
-  return JSON.stringify(
-    encodePhaseFileReconciliation({
-      phaseId,
-      createdAsPlanned: [],
-      editedAsPlanned: [],
-      missingPlannedCreate: [],
-      missingPlannedEdit: [],
-      createdButPlannedEdit: [],
-      editedButPlannedCreate: [],
-      unplannedCreated: [],
-      unplannedEdited: [],
-      optionalTouched: [],
-      deletions: [],
-      renames: [],
-      hasDeviations: false,
-    }),
-  );
+  return JSON.stringify(encodePhaseFileReconciliation({ phaseId, ...reconciliationResult() }));
 }
 
 describe("runReviewHandoff command", () => {

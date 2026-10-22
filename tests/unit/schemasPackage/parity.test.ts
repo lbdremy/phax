@@ -5,6 +5,10 @@ import {
   parseArchitectureReport,
   parseArchitectureRequest,
   parseOracleRequest,
+  parseFirstReading,
+  parseInteractiveHandoff,
+  parseInteractiveSession,
+  parseReviewStop,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -43,7 +47,11 @@ import {
   decodeArchitectureReportFile,
   decodeArchitectureRequestFile,
 } from "../../../src/schemas/architecture.js";
+import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
+import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
+import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
 import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -308,6 +316,38 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeOracleRequestFile,
     wrongType: ["files", {}],
     required: "files",
+    excess: "error",
+  },
+  "first-reading": {
+    id: "first-reading",
+    parse: parseFirstReading,
+    phax: decodeFirstReadingFile,
+    wrongType: ["pattern", {}],
+    required: "pattern",
+    excess: "error",
+  },
+  "interactive-handoff": {
+    id: "interactive-handoff",
+    parse: parseInteractiveHandoff,
+    phax: decodeInteractiveHandoffFile,
+    wrongType: ["corrections", {}],
+    required: "corrections",
+    excess: "error",
+  },
+  "interactive-session": {
+    id: "interactive-session",
+    parse: parseInteractiveSession,
+    phax: decodeInteractiveSessionFile,
+    wrongType: ["history", {}],
+    required: "history",
+    excess: "error",
+  },
+  "review-stop": {
+    id: "review-stop",
+    parse: parseReviewStop,
+    phax: decodeReviewStopFile,
+    wrongType: ["commands", []],
+    required: "commands",
     excess: "error",
   },
 };

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { publishRun } from "../../src/app/publishRun.js";
 import { generateReviewHandoff } from "../../src/app/reviewHandoff.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -553,18 +554,11 @@ describe("publishRun", () => {
       JSON.stringify(
         encodePhaseFileReconciliation({
           phaseId: "phase-01",
-          createdAsPlanned: ["src/greet.ts"],
-          editedAsPlanned: [],
-          missingPlannedCreate: [],
-          missingPlannedEdit: [],
-          createdButPlannedEdit: [],
-          editedButPlannedCreate: [],
-          unplannedCreated: ["src/colors.ts"],
-          unplannedEdited: [],
-          optionalTouched: [],
-          deletions: [],
-          renames: [],
-          hasDeviations: true,
+          ...reconciliationResult({
+            createdAsPlanned: ["src/greet.ts"],
+            unplannedCreated: ["src/colors.ts"],
+            hasDeviations: true,
+          }),
         }),
       ),
     );

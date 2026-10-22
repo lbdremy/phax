@@ -760,8 +760,9 @@ describe("format readers", () => {
       "hasDeviations",
     ],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file, wrongKey) => {
-    // The pre-schema file never carried a version: it is the in-memory value as it is.
-    const expected = preSchemaDocuments[id];
+    // The pre-schema file never carried a version: it is the in-memory value as
+    // it is, but for the facts a later shape added (`reviewCorrections: []`).
+    const expected = latestPreSchema(id);
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);

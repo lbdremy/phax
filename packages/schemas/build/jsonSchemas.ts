@@ -28,6 +28,12 @@ import {
   architectureReportFormat,
   architectureRequestFormat,
 } from "../src/formats/architecture.js";
+import {
+  firstReadingFormat,
+  interactiveHandoffFormat,
+  interactiveSessionFormat,
+  reviewStopFormat,
+} from "../src/formats/interactive.js";
 import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import { handDecisionAnswerFormat } from "../src/formats/answers.js";
@@ -105,6 +111,10 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
   "oracle-request": oracleRequestFormat,
+  "first-reading": firstReadingFormat,
+  "interactive-handoff": interactiveHandoffFormat,
+  "interactive-session": interactiveSessionFormat,
+  "review-stop": reviewStopFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -137,6 +147,10 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "architecture-request": "error",
   "architecture-report": "error",
   "oracle-request": "error",
+  "first-reading": "error",
+  "interactive-handoff": "error",
+  "interactive-session": "error",
+  "review-stop": "error",
   "record-manifest": "error",
 };
 

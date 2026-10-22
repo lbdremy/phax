@@ -10,6 +10,7 @@ export type GlobalFileStatus =
   | "action-mismatch"
   | "deleted"
   | "renamed"
+  | "review-corrected"
   | "unknown";
 
 export interface GlobalFileEntry {
@@ -17,6 +18,8 @@ export interface GlobalFileEntry {
   readonly plannedInPhases: readonly string[];
   readonly touchedInPhases: readonly string[];
   readonly optionalInPhases: readonly string[];
+  /** Phases whose interactive stop changed the file. Never part of `touchedInPhases`. */
+  readonly reviewCorrectedInPhases: readonly string[];
   readonly expectedActions: readonly ("create" | "edit")[];
   readonly actualActions: readonly ("added" | "modified" | "deleted" | "renamed")[];
   readonly status: GlobalFileStatus;
@@ -38,6 +41,7 @@ type Accumulator = {
   plannedInPhases: Set<string>;
   touchedInPhases: Set<string>;
   optionalInPhases: Set<string>;
+  reviewCorrectedInPhases: Set<string>;
   expectedActions: Set<"create" | "edit">;
   actualActions: Set<"added" | "modified" | "deleted" | "renamed">;
 };
@@ -49,6 +53,7 @@ function getAcc(map: Map<string, Accumulator>, path: string): Accumulator {
       plannedInPhases: new Set(),
       touchedInPhases: new Set(),
       optionalInPhases: new Set(),
+      reviewCorrectedInPhases: new Set(),
       expectedActions: new Set(),
       actualActions: new Set(),
     };
@@ -187,6 +192,11 @@ export function aggregateGlobalReconciliation(
       acc.touchedInPhases.add(phaseId);
       acc.actualActions.add("renamed");
     }
+
+    // A review correction is never a touch: it cannot make a file unplanned or an extra touch.
+    for (const f of phase.reviewCorrections) {
+      getAcc(accMap, f).reviewCorrectedInPhases.add(phaseId);
+    }
   }
 
   const entries: GlobalFileEntry[] = [];
@@ -195,6 +205,7 @@ export function aggregateGlobalReconciliation(
     const plannedInPhases = [...acc.plannedInPhases].toSorted();
     const touchedInPhases = [...acc.touchedInPhases].toSorted();
     const optionalInPhases = [...acc.optionalInPhases].toSorted();
+    const reviewCorrectedInPhases = [...acc.reviewCorrectedInPhases].toSorted();
     const expectedActions = [...acc.expectedActions].toSorted() as ("create" | "edit")[];
     const actualActions = [...acc.actualActions].toSorted() as (
       | "added"
@@ -207,22 +218,27 @@ export function aggregateGlobalReconciliation(
     const isTouched = touchedInPhases.length > 0;
     const isOptional = optionalInPhases.length > 0;
 
-    const status = deriveStatus(
-      isPlanned,
-      isTouched,
-      isOptional,
-      plannedInPhases,
-      touchedInPhases,
-      optionalInPhases,
-      acc.expectedActions,
-      acc.actualActions,
-    );
+    // A file that only a stop changed has no other entry at all.
+    const status: GlobalFileStatus =
+      !isPlanned && !isTouched && reviewCorrectedInPhases.length > 0
+        ? "review-corrected"
+        : deriveStatus(
+            isPlanned,
+            isTouched,
+            isOptional,
+            plannedInPhases,
+            touchedInPhases,
+            optionalInPhases,
+            acc.expectedActions,
+            acc.actualActions,
+          );
 
     entries.push({
       path,
       plannedInPhases,
       touchedInPhases,
       optionalInPhases,
+      reviewCorrectedInPhases,
       expectedActions,
       actualActions,
       status,
@@ -230,7 +246,10 @@ export function aggregateGlobalReconciliation(
       unplanned: isTouched && !isPlanned && !isOptional,
       missing: isPlanned && !isTouched,
       extraTouch: status === "extra-touch",
-      attention: status === "matched" || status === "optional-touched" ? "ok" : "review",
+      attention:
+        status === "matched" || status === "optional-touched" || status === "review-corrected"
+          ? "ok"
+          : "review",
     });
   }
 
@@ -263,16 +282,28 @@ export function renderGlobalReconciliationMarkdown(
       ...entry.optionalInPhases.map((p) => `${p} (optional)`),
     ];
     const plannedIn = plannedInParts.length > 0 ? plannedInParts.join(", ") : "—";
-    const touchedIn = entry.touchedInPhases.length > 0 ? entry.touchedInPhases.join(", ") : "—";
-    const notes = deriveNotes(entry);
+    const touchedInParts = [
+      ...entry.touchedInPhases,
+      ...entry.reviewCorrectedInPhases.map((p) => `${p} (review)`),
+    ];
+    const touchedIn = touchedInParts.length > 0 ? touchedInParts.join(", ") : "—";
+    const notes = withReviewNote(entry, deriveNotes(entry));
     lines.push(`| ${entry.path} | ${plannedIn} | ${touchedIn} | ${entry.status} | ${notes} |`);
   }
 
   return lines.join("\n");
 }
 
+function withReviewNote(entry: GlobalFileEntry, notes: string): string {
+  if (entry.reviewCorrectedInPhases.length === 0) return notes;
+  const reviewNote = `corrected by review in: ${entry.reviewCorrectedInPhases.join(", ")}`;
+  return notes === "—" ? reviewNote : `${notes}; ${reviewNote}`;
+}
+
 function deriveNotes(entry: GlobalFileEntry): string {
   switch (entry.status) {
+    case "review-corrected":
+      return "—";
     case "matched":
       return "—";
     case "missing":

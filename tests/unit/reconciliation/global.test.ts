@@ -6,6 +6,7 @@ import {
   renderGlobalReconciliationMarkdown,
 } from "../../../src/domain/reconciliation/global.js";
 import type { PhaseFileReconciliation } from "../../../src/domain/reconciliation/types.js";
+import { reconciliationResult } from "../../helpers/reconciliationFixture.js";
 
 // Type-level assertions: verify the public shapes are correct
 expectTypeOf<GlobalFileStatus>().toMatchTypeOf<string>();
@@ -13,18 +14,7 @@ expectTypeOf<GlobalFileEntry["attention"]>().toMatchTypeOf<"ok" | "review">();
 
 const emptyPhase = (phaseId: string): PhaseFileReconciliation => ({
   phaseId,
-  createdAsPlanned: [],
-  editedAsPlanned: [],
-  missingPlannedCreate: [],
-  missingPlannedEdit: [],
-  createdButPlannedEdit: [],
-  editedButPlannedCreate: [],
-  unplannedCreated: [],
-  unplannedEdited: [],
-  optionalTouched: [],
-  deletions: [],
-  renames: [],
-  hasDeviations: false,
+  ...reconciliationResult(),
 });
 
 describe("aggregateGlobalReconciliation", () => {
@@ -412,6 +402,58 @@ describe("aggregateGlobalReconciliation", () => {
       expect(row).toBeDefined();
       expect(row).toContain("phase-01 (optional)");
       expect(md).toContain("optional in: phase-01");
+    });
+  });
+
+  describe("review corrections", () => {
+    it("reads a file that only a stop changed as review-corrected with attention ok", () => {
+      const global = aggregateGlobalReconciliation([
+        { ...emptyPhase("phase-03"), reviewCorrections: ["src/invoice.ts"] },
+      ]);
+      const entry = global.files.find((f) => f.path === "src/invoice.ts")!;
+      expect(entry.status).toBe("review-corrected");
+      expect(entry.attention).toBe("ok");
+      expect(entry.reviewCorrectedInPhases).toEqual(["phase-03"]);
+      expect(entry.touchedInPhases).toEqual([]);
+      expect(entry.unplanned).toBe(false);
+      expect(global.unplanned).toHaveLength(0);
+      expect(global.attentionPoints).toHaveLength(0);
+    });
+
+    it("keeps matched for a file planned in phase-02 and corrected in phase-03", () => {
+      const global = aggregateGlobalReconciliation([
+        { ...emptyPhase("phase-02"), createdAsPlanned: ["src/credit.ts"] },
+        { ...emptyPhase("phase-03"), reviewCorrections: ["src/credit.ts"] },
+      ]);
+      const entry = global.files.find((f) => f.path === "src/credit.ts")!;
+      expect(entry.status).toBe("matched");
+      expect(entry.touchedInPhases).toEqual(["phase-02"]);
+      expect(entry.reviewCorrectedInPhases).toEqual(["phase-03"]);
+      expect(entry.extraTouch).toBe(false);
+    });
+
+    it("keeps unplanned for a file an agent touched and a stop corrected", () => {
+      const global = aggregateGlobalReconciliation([
+        { ...emptyPhase("phase-02"), unplannedCreated: ["src/extra.ts"] },
+        { ...emptyPhase("phase-03"), reviewCorrections: ["src/extra.ts"] },
+      ]);
+      expect(global.files[0]?.status).toBe("unplanned");
+      expect(global.files[0]?.attention).toBe("review");
+    });
+
+    it("shows <phase> (review) in the Touched-in column and the note", () => {
+      const global = aggregateGlobalReconciliation([
+        { ...emptyPhase("phase-02"), createdAsPlanned: ["src/credit.ts"] },
+        { ...emptyPhase("phase-03"), reviewCorrections: ["src/credit.ts", "src/note.ts"] },
+      ]);
+      const md = renderGlobalReconciliationMarkdown(global, "acme.invoice-export");
+      const credit = md.split("\n").find((l) => l.includes("src/credit.ts"))!;
+      expect(credit).toContain("phase-02, phase-03 (review)");
+      expect(credit).toContain("corrected by review in: phase-03");
+      const note = md.split("\n").find((l) => l.includes("src/note.ts"))!;
+      expect(note).toContain(
+        "| — | phase-03 (review) | review-corrected | corrected by review in: phase-03 |",
+      );
     });
   });
 

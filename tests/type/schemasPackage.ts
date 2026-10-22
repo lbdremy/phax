@@ -15,6 +15,28 @@ import type {
   OracleRequestShape,
   parseOracleRequest,
   toLatestOracleRequest,
+  FirstReading,
+  FirstReadingShape,
+  InteractiveHandoff,
+  InteractiveHandoffShape,
+  InteractiveSession,
+  InteractiveSessionShape,
+  LatestFirstReading,
+  LatestInteractiveHandoff,
+  LatestInteractiveSession,
+  LatestReviewStop,
+  ReviewStop,
+  ReviewStopShape,
+  parseFirstReading,
+  parseInteractiveHandoff,
+  parseInteractiveSession,
+  parseReviewStop,
+  toLatestFirstReading,
+  toLatestInteractiveHandoff,
+  toLatestInteractiveSession,
+  toLatestReviewStop,
+  CostLedgerV0_25_0,
+  PhaseFileReconciliationV0_17_0,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
   AuthoringRecordManifestV0_17_0,
@@ -198,6 +220,22 @@ import type {
   OracleRequestFile as PhaxOracleRequestFile,
 } from "../../src/schemas/oracleRequest.js";
 import type {
+  FirstReading as PhaxFirstReading,
+  FirstReadingFile as PhaxFirstReadingFile,
+} from "../../src/schemas/firstReading.js";
+import type {
+  InteractiveHandoff as PhaxInteractiveHandoff,
+  InteractiveHandoffFile as PhaxInteractiveHandoffFile,
+} from "../../src/schemas/interactiveHandoff.js";
+import type {
+  InteractiveSession as PhaxInteractiveSession,
+  InteractiveSessionFile as PhaxInteractiveSessionFile,
+} from "../../src/schemas/interactiveSession.js";
+import type {
+  ReviewStop as PhaxReviewStop,
+  ReviewStopFile as PhaxReviewStopFile,
+} from "../../src/schemas/reviewStop.js";
+import type {
   CostLedger as PhaxCostLedger,
   CostLedgerFile as PhaxCostLedgerFile,
 } from "../../src/schemas/costLedger.js";
@@ -275,6 +313,8 @@ import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../
 import type { GateAttributionV0_20_0 as FrozenGateAttributionV0_20_0 } from "../../src/schemas/history/gate-attribution/0.20.0.js";
 import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
 import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+import type { PhaseFileReconciliationV0_17_0 as FrozenPhaseFileReconciliationV0_17_0 } from "../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
+import type { CostLedgerV0_25_0 as FrozenCostLedgerV0_25_0 } from "../../src/schemas/history/cost-ledger/0.25.0.js";
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
@@ -473,6 +513,10 @@ const formats: Equals<
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
+  | "first-reading"
+  | "interactive-handoff"
+  | "interactive-session"
+  | "review-stop"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -559,7 +603,11 @@ const shapeIds: Equals<
   | CostLedgerShape
   | ArchitectureRequestShape
   | ArchitectureReportShape
-  | OracleRequestShape,
+  | OracleRequestShape
+  | FirstReadingShape
+  | InteractiveHandoffShape
+  | InteractiveSessionShape
+  | ReviewStopShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -585,7 +633,10 @@ const eachShapeId: [
     GateAttributionShape,
     "pre-schema" | "0.17.0" | "0.20.0" | "0.21.0" | Current<"gate-attribution">
   >,
-  Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
+  Equals<
+    PhaseFileReconciliationShape,
+    "pre-schema" | "0.17.0" | Current<"phase-file-reconciliation">
+  >,
   Equals<PlanApprovalRecordShape, "0.19.0" | Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, "0.19.0" | Current<"spec-approval-record">>,
   Equals<GateRequestShape, Current<"gate-request">>,
@@ -665,7 +716,9 @@ const parseValues: [
   >,
   Equals<
     Value<typeof parsePhaseFileReconciliation>,
-    FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile
+    | FrozenPhaseFileReconciliation
+    | FrozenPhaseFileReconciliationV0_17_0
+    | PhaxPhaseFileReconciliationFile
   >,
   Equals<
     Value<typeof parsePlanApprovalRecord>,
@@ -942,18 +995,22 @@ if (document.ok && document.format === "decision-record-manifest") {
 // shape, and an in-memory value without $schema
 const costLedgerTypes: [
   Equals<CostLedger, PhaxCostLedgerFile>,
-  Equals<CostLedgerShape, Current<"cost-ledger">>,
-  Equals<Value<typeof parseCostLedger>, PhaxCostLedgerFile>,
+  Equals<CostLedgerShape, "0.25.0" | Current<"cost-ledger">>,
+  Equals<Value<typeof parseCostLedger>, FrozenCostLedgerV0_25_0 | PhaxCostLedgerFile>,
   Equals<LatestCostLedger, PhaxCostLedger>,
-  Equals<Parameters<typeof toLatestCostLedger>, [value: PhaxCostLedgerFile]>,
-] = [true, true, true, true, true];
+  Equals<
+    Parameters<typeof toLatestCostLedger>,
+    [value: PhaxCostLedgerFile | FrozenCostLedgerV0_25_0]
+  >,
+  Equals<CostLedgerV0_25_0, FrozenCostLedgerV0_25_0>,
+] = [true, true, true, true, true, true];
 void costLedgerTypes;
 declare const latestCostLedger: LatestCostLedger;
 // @ts-expect-error: the in-memory cost ledger carries no $schema
 void latestCostLedger.$schema;
 if (document.ok && document.format === "cost-ledger") {
-  const exact: Equals<typeof document.value, PhaxCostLedgerFile> = true;
-  const ledgerShape: Equals<typeof document.shape, Current<"cost-ledger">> = true;
+  const exact: Equals<typeof document.value, FrozenCostLedgerV0_25_0 | PhaxCostLedgerFile> = true;
+  const ledgerShape: Equals<typeof document.shape, "0.25.0" | Current<"cost-ledger">> = true;
   void exact;
   void ledgerShape;
 }
@@ -988,6 +1045,56 @@ void oracleRequestTypes;
 declare const latestOracleRequest: LatestOracleRequest;
 // @ts-expect-error: the in-memory oracle request carries no $schema
 void latestOracleRequest.$schema;
+// The four documents of a declared interactive stop are born with $schema
+// too: phax's own file types, one current shape each, and an in-memory value
+// without $schema
+const interactiveTypes: [
+  Equals<FirstReading, PhaxFirstReadingFile>,
+  Equals<FirstReadingShape, Current<"first-reading">>,
+  Equals<Value<typeof parseFirstReading>, PhaxFirstReadingFile>,
+  Equals<LatestFirstReading, PhaxFirstReading>,
+  Equals<Parameters<typeof toLatestFirstReading>, [value: PhaxFirstReadingFile]>,
+  Equals<InteractiveHandoff, PhaxInteractiveHandoffFile>,
+  Equals<InteractiveHandoffShape, Current<"interactive-handoff">>,
+  Equals<Value<typeof parseInteractiveHandoff>, PhaxInteractiveHandoffFile>,
+  Equals<LatestInteractiveHandoff, PhaxInteractiveHandoff>,
+  Equals<Parameters<typeof toLatestInteractiveHandoff>, [value: PhaxInteractiveHandoffFile]>,
+  Equals<InteractiveSession, PhaxInteractiveSessionFile>,
+  Equals<InteractiveSessionShape, Current<"interactive-session">>,
+  Equals<Value<typeof parseInteractiveSession>, PhaxInteractiveSessionFile>,
+  Equals<LatestInteractiveSession, PhaxInteractiveSession>,
+  Equals<Parameters<typeof toLatestInteractiveSession>, [value: PhaxInteractiveSessionFile]>,
+  Equals<ReviewStop, PhaxReviewStopFile>,
+  Equals<ReviewStopShape, Current<"review-stop">>,
+  Equals<Value<typeof parseReviewStop>, PhaxReviewStopFile>,
+  Equals<LatestReviewStop, PhaxReviewStop>,
+  Equals<Parameters<typeof toLatestReviewStop>, [value: PhaxReviewStopFile]>,
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
+void interactiveTypes;
+declare const latestReviewStop: LatestReviewStop;
+// @ts-expect-error: the in-memory review stop carries no $schema
+void latestReviewStop.$schema;
 if (document.ok && document.format === "gate-report") {
   const exact: Equals<typeof document.value, PhaxGateReportFile> = true;
   const reportShape: Equals<typeof document.shape, Current<"gate-report">> = true;
@@ -1154,7 +1261,12 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestPhaseFileReconciliation>,
-    [value: FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile]
+    [
+      value:
+        | FrozenPhaseFileReconciliation
+        | FrozenPhaseFileReconciliationV0_17_0
+        | PhaxPhaseFileReconciliationFile,
+    ]
   >,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true];
 void toLatestParameters;
@@ -1324,6 +1436,11 @@ void gateAttributionV0_20_0IsFrozen;
 const gateAttributionV0_21_0IsFrozen: Equals<GateAttributionV0_21_0, FrozenGateAttributionV0_21_0> =
   true;
 void gateAttributionV0_21_0IsFrozen;
+const phaseFileReconciliationV0_17_0IsFrozen: Equals<
+  PhaseFileReconciliationV0_17_0,
+  FrozenPhaseFileReconciliationV0_17_0
+> = true;
+void phaseFileReconciliationV0_17_0IsFrozen;
 const phaseRecordManifestV0_17_0IsFrozen: Equals<
   PhaseRecordManifestV0_17_0,
   FrozenPhaseRecordManifestV0_17_0

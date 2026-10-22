@@ -24,6 +24,7 @@ function entry(
     plannedInPhases: [],
     touchedInPhases: [],
     optionalInPhases: [],
+    reviewCorrectedInPhases: [],
     expectedActions: [],
     actualActions: [],
     planned: false,

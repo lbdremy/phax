@@ -23,6 +23,7 @@ import {
 } from "../../../src/schemas/schemaUrl.js";
 import {
   belowOwnReleaseMessage,
+  latestPreSchema,
   preSchemaDocuments,
   validDocuments,
   withKey,
@@ -91,8 +92,10 @@ describe.each(FORMATS)("$id", (format) => {
     const pre = format.parse(preSchema);
     const current = format.parse(written);
     if (!pre.ok || !current.ok) throw new Error("document rejected");
-    expect(format.toLatest(pre.value as never)).toBe(pre.value);
-    expect(format.toLatest(current.value as never)).toEqual(pre.value);
+    // A pre-schema document is its own latest value, but for the facts a later
+    // shape added: a reconciliation written before `reviewCorrections` gets [].
+    expect(format.toLatest(pre.value as never)).toEqual(latestPreSchema(format.id));
+    expect(format.toLatest(current.value as never)).toEqual(latestPreSchema(format.id));
     expect(format.toLatest(current.value as never)).not.toHaveProperty("$schema");
   });
 

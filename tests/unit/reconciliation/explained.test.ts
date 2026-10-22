@@ -9,23 +9,10 @@ import type {
   GlobalFileReconciliation,
 } from "../../../src/domain/reconciliation/global.js";
 import type { ReconciliationResult } from "../../../src/domain/reconciliation/types.js";
+import { reconciliationResult } from "../../helpers/reconciliationFixture.js";
 
 function makeResult(overrides: Partial<ReconciliationResult> = {}): ReconciliationResult {
-  return {
-    createdAsPlanned: [],
-    editedAsPlanned: [],
-    missingPlannedCreate: [],
-    missingPlannedEdit: [],
-    createdButPlannedEdit: [],
-    editedButPlannedCreate: [],
-    unplannedCreated: [],
-    unplannedEdited: [],
-    optionalTouched: [],
-    deletions: [],
-    renames: [],
-    hasDeviations: false,
-    ...overrides,
-  };
+  return reconciliationResult(overrides);
 }
 
 describe("deviationPaths", () => {
@@ -112,6 +99,7 @@ function entry(
     plannedInPhases: [],
     touchedInPhases: [],
     optionalInPhases: [],
+    reviewCorrectedInPhases: [],
     expectedActions: [],
     actualActions: [],
     planned: false,

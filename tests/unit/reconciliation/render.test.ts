@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderReconciliationMarkdown } from "../../../src/domain/reconciliation/render.js";
+import { reconciliationResult } from "../../helpers/reconciliationFixture.js";
 import type {
   PlannedFiles,
   ReconciliationResult,
@@ -25,6 +26,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: false,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -44,6 +46,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: true,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -65,6 +68,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: true,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -86,6 +90,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: true,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -107,6 +112,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: ["src/maybe.ts"],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: false,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -126,6 +132,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: false,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -145,6 +152,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: true,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -164,6 +172,7 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: false,
     };
     const md = renderReconciliationMarkdown(result, planned);
@@ -184,10 +193,30 @@ describe("renderReconciliationMarkdown", () => {
       optionalTouched: [],
       deletions: [],
       renames: [],
+      reviewCorrections: [],
       hasDeviations: false,
     };
     const md = renderReconciliationMarkdown(result, planned);
     expect(md).toContain("[x] src/new.ts");
     expect(md).toContain("modified though planned as create");
+  });
+
+  it("renders a Review corrections section before the summary, as not a deviation", () => {
+    const md = renderReconciliationMarkdown(
+      reconciliationResult({ reviewCorrections: ["src/invoice.ts", "tests/invoice.test.ts"] }),
+      planned,
+    );
+    expect(md).toContain("### Review corrections");
+    expect(md).toContain("> Changed by a person at an interactive stop: not a deviation.");
+    expect(md).toContain("- src/invoice.ts");
+    expect(md).toContain("- tests/invoice.test.ts");
+    expect(md.indexOf("### Review corrections")).toBeLessThan(md.indexOf("**Summary:**"));
+    expect(md).toContain("No deviations from the planned file lists.");
+  });
+
+  it("renders no Review corrections section when there are none", () => {
+    expect(renderReconciliationMarkdown(reconciliationResult(), planned)).not.toContain(
+      "Review corrections",
+    );
   });
 });

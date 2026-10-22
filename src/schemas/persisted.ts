@@ -65,6 +65,7 @@ import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
+import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
@@ -72,7 +73,9 @@ import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDec
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
+import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
+import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestV0_17_0 } from "./history/phase-record-manifest/0.17.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
@@ -105,6 +108,8 @@ import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
 } from "./history/spec-document/pre-schema.js";
+import { decodeInteractiveHandoffFile, type InteractiveHandoffFile } from "./interactiveHandoff.js";
+import { decodeInteractiveSessionFile, type InteractiveSession } from "./interactiveSession.js";
 import { decodePhaxPlanFile, type PhaxPlan, type PhaxPlanFile } from "./phaxPlan.js";
 import {
   decodePlanDocumentFile,
@@ -119,6 +124,7 @@ import {
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
+import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -870,8 +876,17 @@ export interface AnswerBounds {
   readonly running: string;
 }
 
-/** The three report formats, each read only under its own `$schema`. */
-export type ReportFormatId = "gate-report" | "brief-report" | "architecture-report";
+/**
+ * The report and answer formats a provider prints, each read only under its
+ * own `$schema`: the three reports, and the two answers of a declared
+ * interactive phase's turns.
+ */
+export type ReportFormatId =
+  | "gate-report"
+  | "brief-report"
+  | "architecture-report"
+  | "first-reading"
+  | "interactive-handoff";
 
 /**
  * Why a gate, brief or architecture report was not read. `reads` is the `$schema`
@@ -971,6 +986,29 @@ export function readArchitectureReport(
 }
 
 /**
+ * Reads the parsed document a declared interactive phase's first turn
+ * answered as a `first-reading`. See `readReport` for the checks, in order.
+ */
+export function readFirstReadingAnswer(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["first-reading"], running: PHAX_RELEASE },
+): Either.Either<FirstReadingFile, ReportError> {
+  return readReport("first-reading", decodeFirstReadingFile, input, bounds);
+}
+
+/**
+ * Reads the parsed document a declared interactive phase's closing turn
+ * answered as an `interactive-handoff`. See `readReport` for the checks, in
+ * order.
+ */
+export function readInteractiveHandoffAnswer(
+  input: unknown,
+  bounds: AnswerBounds = { current: CURRENT_STAMPS["interactive-handoff"], running: PHAX_RELEASE },
+): Either.Either<InteractiveHandoffFile, ReportError> {
+  return readReport("interactive-handoff", decodeInteractiveHandoffFile, input, bounds);
+}
+
+/**
  * The one-line reason a report was not read. It always ends by naming the
  * URL the reader reads: a refused other format and an older shape already
  * do, and every other reason gets it appended.
@@ -1003,30 +1041,76 @@ export const readBriefRecordFile: Reader<BriefRecord> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...record }) => record,
   });
 
-/** Reads a run's `cost-ledger.json`. Born with `$schema`. */
-export const readCostLedgerFile: Reader<CostLedger> = (file, input) =>
+/** Reads a declared interactive phase's `interactive-session.json`. Born with `$schema`. */
+export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, input) =>
   readSchemaBornPersisted(input, {
+    format: "interactive-session",
+    label: "interactive session",
+    file,
+    decodeCurrent: decodeInteractiveSessionFile,
+    fromCurrent: ({ $schema: _schema, ...session }) => session,
+  });
+
+/** Reads a run's `review-stop.json`. Born with `$schema`. */
+export const readReviewStopFile: Reader<ReviewStop> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "review-stop",
+    label: "review stop",
+    file,
+    decodeCurrent: decodeReviewStopFile,
+    fromCurrent: ({ $schema: _schema, ...stop }) => stop,
+  });
+
+// A cost ledger stamped below the format's current stamp is read by the
+// frozen 0.25.0 decoder and lifted unchanged: the roles it names are a subset
+// of the current ones.
+/** Reads a run's `cost-ledger.json`. Born with `$schema`. */
+export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("cost-ledger", input)) {
+    const older = decodeCostLedgerV0_25_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "cost-ledger", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...ledger } = older.right;
+    return Either.right(ledger);
+  }
+  return readSchemaBornPersisted(input, {
     format: "cost-ledger",
     label: "cost ledger",
     file,
     decodeCurrent: decodeCostLedgerFile,
     fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
   });
+};
 
 /**
  * Reads a phase's `file-reconciliation.json`. It never carried a `version`:
- * the pre-schema reconciliation is the in-memory value as it is.
+ * the pre-schema reconciliation is the in-memory value as it is. One written
+ * before `reviewCorrections` (pre-schema, or stamped below the format's
+ * current stamp and read by the frozen 0.17.0 decoder) is upgraded with
+ * `reviewCorrections: []`: no phax before it could run an interactive stop.
  */
-export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = (file, input) =>
-  readPersisted(input, {
+export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("phase-file-reconciliation", input)) {
+    const older = decodePhaseFileReconciliationV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(
+        readError(file, "phase-file-reconciliation", formatFirstViolation(older.left)),
+      );
+    }
+    const { $schema: _schema, ...reconciliation } = older.right;
+    return Either.right({ ...reconciliation, reviewCorrections: [] });
+  }
+  return readPersisted(input, {
     format: "phase-file-reconciliation",
     label: "phase file reconciliation",
     file,
     decodeCurrent: decodePhaseFileReconciliationFile,
     decodePreSchema: decodePhaseFileReconciliationPreSchema,
     fromCurrent: ({ $schema: _schema, ...reconciliation }) => reconciliation,
-    fromPreSchema: Either.right,
+    fromPreSchema: (reconciliation) => Either.right({ ...reconciliation, reviewCorrections: [] }),
   });
+};
 
 function fromRecordManifestFile({ $schema: _schema, ...manifest }: RecordManifestFile) {
   return manifest;

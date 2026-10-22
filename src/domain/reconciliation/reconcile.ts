@@ -66,6 +66,7 @@ export function reconcile(
     optionalTouched,
     deletions: deleted,
     renames,
+    reviewCorrections: [],
     hasDeviations,
   };
 }

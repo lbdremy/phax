@@ -2,7 +2,9 @@
 // stream with a result event gives a complete entry, read from its per-model
 // usage and corrected when Claude Code reports a resumed session
 // cumulatively; a stream without one gives a partial entry, priced from its
-// assistant messages. Every rate-limit reading becomes a sample of the run's
+// assistant messages. A closing turn is always priced from its own stream's
+// messages: the person may have continued its session, and the result then
+// reports cost cumulatively, including turns the ledger never saw. Every rate-limit reading becomes a sample of the run's
 // cost so far. The reference is the spike spikes/plan-estimate/phax_estimate.py
 // (`scan_streams`, `per_invocation`).
 import type {
@@ -39,9 +41,15 @@ export function messageCostUsd(usage: StreamMessageUsage, price: ModelListPrice)
   );
 }
 
-/** Which invocation an entry records: a phase's turn, fix or handoff, or the run's compliance review. */
+/**
+ * Which invocation an entry records: a phase's turn, fix, handoff, or an
+ * interactive phase's first or closing turn, or the run's compliance review.
+ */
 export type InvocationRole =
-  | { readonly role: "phase" | "fix" | "handoff"; readonly phase: string }
+  | {
+      readonly role: "phase" | "fix" | "handoff" | "first-turn" | "closing-turn";
+      readonly phase: string;
+    }
   | { readonly role: "compliance"; readonly phase: null };
 
 type LedgerEntryInput = InvocationRole & {
@@ -211,8 +219,11 @@ function samples(
  * usage, less the per-model sums of the earlier entries of the same session
  * when Claude Code reports cumulatively (each field floored at 0, an all-zero
  * model dropped). Partial otherwise: its assistant messages, deduplicated by
- * id and priced with `priceFor` (an unpriced model counts $0). USD values are
- * rounded to 6 decimals.
+ * id and priced with `priceFor` (an unpriced model counts $0). A closing-turn
+ * stream is priced that way whether or not it has a result, and never
+ * subtracts earlier entries; it is complete when it has a result, and its
+ * `agentMs` is then the result's duration. USD values are rounded to 6
+ * decimals.
  */
 export function ledgerEntryFor(input: LedgerEntryInput): CostLedgerEntry | null {
   const { facts, earlier, partialAgentMs, endedAt } = input;
@@ -222,7 +233,13 @@ export function ledgerEntryFor(input: LedgerEntryInput): CostLedgerEntry | null 
 
   let models: Record<string, ModelCost>;
   let agentMs: number;
-  if (facts.result !== null) {
+  if (input.role === "closing-turn") {
+    models = partialModels(facts, priceFor);
+    agentMs =
+      facts.result !== null
+        ? Math.round(facts.result.durationMs)
+        : Math.max(0, Math.round(partialAgentMs));
+  } else if (facts.result !== null) {
     const sameSession = earlier.filter((entry) => entry.sessionId === sessionId);
     const previous =
       reportsCumulative(facts.claudeCodeVersion) && sameSession.length > 0
@@ -270,6 +287,7 @@ export type RunStream = InvocationRole & { readonly relativePath: string };
 
 const PHASE_FOLDER = /^phase-(\d{2,})(?:\.reset-(.+))?$/;
 const FIX_STREAM = /^fix-attempt-(\d{2,})\.jsonl$/;
+const TURN_STREAM = /^(first-turn|closing-turn)-(\d{2,})(-retry)?\.jsonl$/;
 const COMPLIANCE_STREAM = "compliance-review.session.jsonl";
 
 /** Whether a run folder entry is a phase folder, live (`phase-01`) or reset (`phase-01.reset-<stamp>`). */
@@ -281,9 +299,32 @@ function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** A phase folder's streams in run order: its turn, its fix attempts ascending, its handoff. */
+/**
+ * An interactive phase's turn streams of one role, in the order they ran:
+ * turn number ascending, each turn's corrective `-retry` stream after it.
+ */
+function turnStreams(
+  folder: string,
+  phase: string,
+  names: readonly string[],
+  role: "first-turn" | "closing-turn",
+): RunStream[] {
+  return names
+    .flatMap((name) => {
+      const match = TURN_STREAM.exec(name);
+      if (match?.[1] !== role || match[2] === undefined) return [];
+      return [{ name, turn: Number(match[2]), retry: match[3] !== undefined }];
+    })
+    .toSorted((a, b) => a.turn - b.turn || Number(a.retry) - Number(b.retry))
+    .map(({ name }) => ({ role, phase, relativePath: `${folder}/${name}` }));
+}
+
+/**
+ * A phase folder's streams in run order: an interactive phase's first turns,
+ * its turn, its fix attempts ascending, its handoff, then its closing turns.
+ */
 function phaseFolderStreams(folder: string, phase: string, names: readonly string[]): RunStream[] {
-  const streams: RunStream[] = [];
+  const streams: RunStream[] = turnStreams(folder, phase, names, "first-turn");
   if (names.includes("output.jsonl")) {
     streams.push({ role: "phase", phase, relativePath: `${folder}/output.jsonl` });
   }
@@ -299,6 +340,7 @@ function phaseFolderStreams(folder: string, phase: string, names: readonly strin
   if (names.includes("handoff-generation.jsonl")) {
     streams.push({ role: "handoff", phase, relativePath: `${folder}/handoff-generation.jsonl` });
   }
+  streams.push(...turnStreams(folder, phase, names, "closing-turn"));
   return streams;
 }
 

@@ -738,6 +738,15 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a hand decision answer: it is a decide session's final
   // message, from which phax writes the artifact itself.
   "hand-decision-answer",
+  // phax never writes the first reading or the interactive handoff as a file:
+  // each is a declared interactive phase's turn answer, read at the boundary.
+  "first-reading",
+  "interactive-handoff",
+  // No writer of the interactive session or the review stop exists yet: the
+  // declared stop writes both in phase-04 of plan declared-interactive-stop,
+  // which removes these two entries.
+  "interactive-session",
+  "review-stop",
 ];
 
 describe("every persisted file phax writes", () => {
