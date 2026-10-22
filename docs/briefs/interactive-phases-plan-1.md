@@ -135,4 +135,39 @@ Phase shape: as few phases as the gates allow, from the core outwards, with ever
 4. closing, with the refusal lifted and lint placement;
 5. the docs and the skill.
 
+A first draft of this plan (`docs/plans/archive/2610220924-interactive-phases-plan.md`, abandoned) was reviewed against the code. Read it: its phase order, its persisted-shape analysis, its three open questions (q-turn-shell, q-vibe-turns, q-continue-approvals) and most of its arbitrations were sound, so keep what holds. Fix what the review found:
+1. **The closing turn needs the corrections' content diff** (§5.50, §5.51). No Git port operation diffs two trees' content, and a read-only Claude turn has no shell to run `git diff`. Add one, in the phase that first needs it.
+2. **Snapshots and restores.** A snapshot built by `git add -A` into an empty temporary index leaves out tracked files that match an ignore pattern, so an unchanged review reads as corrected, with phantom deletions. Seed the temporary index from `HEAD` first. Restore a first turn's edits through a temporary index too, never the real one, which holds the person's staged state at `--new-session`. Do not destroy edits the person made at the same time.
+3. **The commit must not credit an agent with the person's correction.** `buildCommitBody` in `src/app/commit.ts` always writes `Model:`, `Effort:` and `Session-Id:`. Specify the interactive commit's own trailer set: `Interactive-Phase:`, the closing gate's log, and no agent session claimed as the author.
+4. **The commit is the gated tree.** Commit exactly the snapshot the closing gate passed, or re-snapshot and refuse on a difference. Never commit edits made after the gate.
+5. **interactive-session.json holds what is recorded**, each first turn's outcome with its own per-variant fields, for example the changed paths of `refused-change` and the reason of `failed`.
+6. **review-stop.json exists exactly while the run is `awaiting_review`** (§5.33, §5.34). Define the close in progress, an interrupt or crash mid-close, and `archive --force`. Define what `enter-phase` does on such a run, where an interactive phase has no `agent-binding.json`.
+7. **Review corrections are visible everywhere a reconciliation is read:**
+   - the global reconciliation (`src/domain/reconciliation/global.ts`), which `plans overlap --landed`, adjust-plan and review-code read;
+   - `file-reconciliation.md`, through `render.ts`;
+   - the previous-reconciliation lookup, which skips back over an interactive phase as the previous-handoff lookup does.
+8. **File lists are complete.** The event disposition matrix (`src/domain/matrix.ts`) gains the new state and events. Every test file whose phase-status or reconciliation fixtures break once `mode`, `stop` or `reviewCorrections` are required is listed, or a shared fixture helper is planned and listed. The session port and its adapter are planned edits if a phase changes `SessionOps.resume`. Do not list files that do not exist (`src/app/modelResolution.ts`).
+9. **Security choices are open questions, not arbitrations:**
+   - `phax enter-phase` on a headless codex phase (§5.42) and on a Claude phase today resumes with no posture flags, so the session runs under the user's own provider defaults. Either carry the phase's posture, as the stop's continue command does, or ask.
+   - Under q-vibe-turns' phase-posture option, a vibe turn can write `.phax-context/correction-handoff.md`, which the comparison excludes; at closing that file would win as the person's handoff. Guard it, for example by checking that the file is absent or unchanged after each phax turn, and say so in the question. Consider a narrower vibe agent as an option if vibe has one.
+   - State that codex read-only turns keep the user's configured MCP servers, if they do.
+   - q-continue-approvals: make each option's argv match its words. On Claude, `acceptEdits` already prompts for commands outside the allowlist, so "provider-prompts" must not swap it for `default` without a reason. Say what the codex fresh-start command carries under each option (`approval_policy`).
+   - Quote the printed continue command for the shell, and say how codex's trust and hooks prompts are told to the person.
+10. **Tests for every in-scope §8 criterion:**
+   - §5.7: the bound governs an interactive phase, and the turns run at the bound's model and effort;
+   - §5.26: the read-only argv of first and closing turns on Claude and codex, with the posture carried, through fake CLIs, not only the fake backend;
+   - §5.38: the "session will not be captured" warning, and a vibe close resuming the vibe session headless;
+   - §5.44: the same stop edited directly or through a session gives the same tree and reconciliation;
+   - §5.73: reset then resume recreates the phase, runs a new first turn and exits 13;
+   - §5.63: two declared phases in one plan;
+   - §5.33/§5.34: review-stop.json's content and its removal;
+   - the lock released at 13, and the commit author being the checkout's git identity.
+11. **`--new-session`** takes the run lock, and a failed new turn keeps the previous current session.
+12. **Smaller points:**
+   - session-info's new logic goes through an app helper;
+   - lifting `mode: "headless"` into an older phase status is justified in the plan (no older run could be interactive);
+   - §5.71 covers only Claude Code's ledger: state that loss;
+   - phase-07 sweeps README's "an interactive phase is refused until a later release" and documents path, shell, open and adjust-plan;
+   - the skill does not announce `--hold` before plan 2.
+
 Output: your final message is the plan document JSON and nothing else — no sentence before or after it, no code fence.
