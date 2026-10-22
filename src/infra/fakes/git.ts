@@ -8,6 +8,7 @@ import {
   type GitWorktreeEntry,
   type WriteTreeCommitInput,
 } from "../../ports/git.js";
+import type { ChangedPath } from "../../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
 
 // Deterministic 40-hex object id derived from bytes, so the fake round-trips
@@ -75,7 +76,11 @@ export type GitCall =
     }
   | { method: "listWorktrees"; repo: string }
   | { method: "commitBefore"; repo: string; instant: string }
-  | { method: "blobSizes"; repo: string; commit: string; paths: readonly string[] };
+  | { method: "blobSizes"; repo: string; commit: string; paths: readonly string[] }
+  | { method: "headTree"; path: string }
+  | { method: "snapshotWorktree"; path: string }
+  | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
+  | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -600,6 +605,54 @@ export class FakeGitImpl implements GitOps {
     }
     const known = this.blobSizesByCommit.get(commit) ?? {};
     return Effect.succeed(Object.fromEntries(paths.map((p) => [p, known[p] ?? 0])));
+  }
+
+  /** HEAD's tree id per worktree path; a path absent here answers `headTreeDefault`. */
+  readonly headTrees = new Map<string, string>();
+  headTreeDefault = "e".repeat(40);
+  /** Queued snapshot tree ids per worktree path (FIFO); an empty queue answers HEAD's tree. */
+  private readonly snapshotQueue = new Map<string, string[]>();
+  /** The changed paths between two trees, keyed `<from>..<to>`; absent means none. */
+  readonly treeChanges = new Map<string, readonly ChangedPath[]>();
+
+  enqueueSnapshots(path: string, ...trees: string[]): void {
+    const queue = this.snapshotQueue.get(path) ?? [];
+    queue.push(...trees);
+    this.snapshotQueue.set(path, queue);
+  }
+
+  setTreeChanges(fromTree: string, toTree: string, changes: readonly ChangedPath[]): void {
+    this.treeChanges.set(`${fromTree}..${toTree}`, changes);
+  }
+
+  headTree(path: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "headTree", path });
+    return Effect.succeed(this.headTrees.get(path) ?? this.headTreeDefault);
+  }
+
+  snapshotWorktree(path: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "snapshotWorktree", path });
+    const queued = this.snapshotQueue.get(path)?.shift();
+    return Effect.succeed(queued ?? this.headTrees.get(path) ?? this.headTreeDefault);
+  }
+
+  changedPathsBetween(
+    path: string,
+    fromTree: string,
+    toTree: string,
+  ): Effect.Effect<readonly ChangedPath[], GitError> {
+    this.calls.push({ method: "changedPathsBetween", path, fromTree, toTree });
+    if (fromTree === toTree) return Effect.succeed([]);
+    return Effect.succeed(this.treeChanges.get(`${fromTree}..${toTree}`) ?? []);
+  }
+
+  restorePaths(
+    path: string,
+    tree: string,
+    paths: readonly string[],
+  ): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "restorePaths", path, tree, paths: [...paths] });
+    return Effect.void;
   }
 }
 

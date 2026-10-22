@@ -1,9 +1,10 @@
 import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve as resolvePath, sep } from "node:path";
 import { Git, GitError } from "../ports/git.js";
+import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
 import {
@@ -162,6 +163,139 @@ function writeTreeCommitEffect(
         return commit;
       }),
     (scratchDir) => Effect.promise(() => rm(scratchDir, { recursive: true, force: true })),
+  );
+}
+
+// A temporary index file for `use`, in its own temporary directory that is
+// removed afterwards whatever the outcome. Every git run inside `use` that
+// passes the returned env reads and writes that index, never the real one.
+function withTempIndex<A>(
+  prefix: string,
+  use: (env: Record<string, string>) => Effect.Effect<A, GitError>,
+): Effect.Effect<A, GitError> {
+  return Effect.acquireUseRelease(
+    Effect.tryPromise({
+      try: () => mkdtemp(join(tmpdir(), prefix)),
+      catch: (err) =>
+        new GitError({
+          message: `Could not create a temporary index directory: ${String(err)}`,
+          command: "mkdtemp",
+        }),
+    }),
+    (dir) => use({ GIT_INDEX_FILE: join(dir, "index") }),
+    (dir) => Effect.promise(() => rm(dir, { recursive: true, force: true })),
+  );
+}
+
+const PHAX_CONTEXT_DIR = ".phax-context";
+
+function parseTreeId(stdout: string, command: string): Effect.Effect<string, GitError> {
+  const tree = stdout.trim();
+  return /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(tree)
+    ? Effect.succeed(tree)
+    : Effect.fail(new GitError({ message: `Could not parse a tree id: "${tree}"`, command }));
+}
+
+// `git diff-tree -r -z --name-status` prints `<status>\0<path>\0` per entry.
+// Without rename or copy detection, a status is one of A, M, D or T; any other
+// is refused rather than guessed at.
+function parseDiffTreeNameStatusZ(
+  stdout: string,
+  command: string,
+): Effect.Effect<readonly ChangedPath[], GitError> {
+  const fields = stdout.split("\0");
+  if (fields.at(-1) === "") fields.pop();
+  const entries: ChangedPath[] = [];
+  for (let i = 0; i + 1 < fields.length; i += 2) {
+    const status = fields[i]!;
+    const path = fields[i + 1]!;
+    if (status !== "A" && status !== "M" && status !== "D" && status !== "T") {
+      return Effect.fail(
+        new GitError({ message: `Unexpected diff-tree status "${status}" for ${path}`, command }),
+      );
+    }
+    entries.push({ status, path });
+  }
+  if (fields.length % 2 !== 0) {
+    return Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
+  }
+  return Effect.succeed(entries);
+}
+
+function isInsidePhaxContext(path: string): boolean {
+  return path === PHAX_CONTEXT_DIR || path.startsWith(`${PHAX_CONTEXT_DIR}/`);
+}
+
+// Delete a path the restored tree does not hold, then each parent directory
+// it leaves empty, up to (never including) the worktree root. A path that
+// would leave the worktree is refused.
+function deleteFromWorktree(worktree: string, path: string): Effect.Effect<void, GitError> {
+  const root = resolvePath(worktree);
+  const target = resolvePath(root, path);
+  if (!target.startsWith(`${root}${sep}`)) {
+    return Effect.fail(
+      new GitError({ message: `Refusing to delete ${path}: outside the worktree`, command: "rm" }),
+    );
+  }
+  return Effect.tryPromise({
+    try: async () => {
+      await rm(target, { force: true });
+      for (let dir = dirname(target); dir !== root && dir.startsWith(root); dir = dirname(dir)) {
+        try {
+          await rmdir(dir);
+        } catch {
+          break;
+        }
+      }
+    },
+    catch: (err) =>
+      new GitError({ message: `Could not delete ${path}: ${String(err)}`, command: "rm" }),
+  });
+}
+
+function snapshotWorktreeEffect(worktree: string): Effect.Effect<string, GitError> {
+  return withTempIndex("phax-snapshot-index-", (env) =>
+    Effect.gen(function* () {
+      // Seeded from HEAD so a tracked file matching an ignore pattern keeps
+      // its entry; `add -A` then records every change. `.phax-context/` is
+      // put back to HEAD's entries afterwards rather than excluded by a
+      // pathspec: `add` exits 1 on an exclude naming an ignored directory,
+      // which `.phax-context/` is in every phase worktree.
+      yield* gitRun(["read-tree", "HEAD"], worktree, { env });
+      yield* gitRun(["add", "-A", "--", "."], worktree, { env });
+      yield* gitRun(["reset", "-q", "HEAD", "--", PHAX_CONTEXT_DIR], worktree, { env });
+      const { stdout } = yield* gitRun(["write-tree"], worktree, { env });
+      return yield* parseTreeId(stdout, "git write-tree");
+    }),
+  );
+}
+
+function restorePathsEffect(
+  worktree: string,
+  tree: string,
+  paths: readonly string[],
+): Effect.Effect<void, GitError> {
+  const wanted = [...new Set(paths)].filter((p) => !isInsidePhaxContext(p));
+  if (wanted.length === 0) return Effect.void;
+  return withTempIndex("phax-restore-index-", (indexEnv) =>
+    Effect.gen(function* () {
+      // Literal pathspecs: a path holding `*` or `:` names that file only.
+      const env = { ...indexEnv, GIT_LITERAL_PATHSPECS: "1" };
+      yield* gitRun(["read-tree", tree], worktree, { env });
+      const { stdout } = yield* gitRun(["ls-files", "-z", "--cached", "--", ...wanted], worktree, {
+        env,
+      });
+      const inTree = new Set(stdout.split("\0").filter((p) => p.length > 0));
+      // Deletions first, so a directory a turn put where a file was is gone
+      // before that file is checked out again.
+      for (const path of wanted.filter((p) => !inTree.has(p))) {
+        yield* deleteFromWorktree(worktree, path);
+      }
+      const present = wanted.filter((p) => inTree.has(p));
+      if (present.length > 0) {
+        yield* gitRun(["checkout-index", "-f", "--", ...present], worktree, { env });
+      }
+    }),
   );
 }
 
@@ -466,6 +600,22 @@ export const NodeGitLayer = Layer.succeed(Git, {
       }),
     );
   },
+
+  headTree: (path) =>
+    gitRun(["rev-parse", "--verify", "HEAD^{tree}"], path).pipe(
+      Effect.flatMap(({ stdout }) => parseTreeId(stdout, "git rev-parse HEAD^{tree}")),
+    ),
+
+  snapshotWorktree: (path) => snapshotWorktreeEffect(path),
+
+  changedPathsBetween: (path, fromTree, toTree) => {
+    const args = ["diff-tree", "-r", "-z", "--name-status", "--no-renames", fromTree, toTree];
+    return gitRun(args, path).pipe(
+      Effect.flatMap(({ stdout }) => parseDiffTreeNameStatusZ(stdout, `git ${args.join(" ")}`)),
+    );
+  },
+
+  restorePaths: (path, tree, paths) => restorePathsEffect(path, tree, paths),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {

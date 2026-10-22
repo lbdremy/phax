@@ -825,6 +825,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 | 10   | Registry corruption                                         |
 | 11   | Security or preflight refusal                               |
 | 12   | Artifact lifecycle refusal                                  |
+| 13   | Awaiting review at an interactive phase (resumable)         |
 
 `phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 
