@@ -3,8 +3,8 @@ status: Approved
 source-spec: docs/specs/2610201518-oracle-phases.md
 completes-spec: true
 approved:
-  date: 2026-10-21
-  baseline: 273050a
+  date: 2026-10-22
+  baseline: f559ad6
 ---
 # Vitest oracles example
 
