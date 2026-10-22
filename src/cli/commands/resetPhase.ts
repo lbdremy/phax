@@ -103,6 +103,9 @@ export async function runResetPhase(
       for (const change of preview.corrections) {
         out.log(`  ${change.status} ${change.path}`);
       }
+      if (preview.personHandoff !== null) {
+        out.log(`The reset also discards your handoff file: ${preview.personHandoff}`);
+      }
       out.log(`phax resume ${qualifiedName} will set the phase up again and stop there.`);
     }
     return 0;
