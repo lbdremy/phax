@@ -597,7 +597,26 @@ describe("resetPhase", () => {
           { status: "A", path: "src/creditNote.ts" },
           { status: "D", path: "docs/notes.md" },
         ],
+        personHandoff: null,
       });
+    });
+
+    it("previews the person's handoff file as something the reset discards", async () => {
+      const { stopped } = await seedStoppedRun(stateRoot);
+      const { layers } = stopLayers(stopped);
+      await mkdir(join(stopped, ".phax-context"), { recursive: true });
+      await writeFile(join(stopped, ".phax-context", "correction-handoff.md"), "## Ada's\n");
+
+      const preview = await Effect.runPromise(
+        previewResetPhase({
+          shortName: shortName(),
+          namespace: NAMESPACE,
+          stateRoot,
+          repoRoot: stateRoot,
+        }).pipe(Effect.provide(layers)),
+      );
+
+      expect(preview.personHandoff).toBe(join(stopped, ".phax-context", "correction-handoff.md"));
     });
 
     it("resets the stopped phase, which discards review-stop.json", async () => {

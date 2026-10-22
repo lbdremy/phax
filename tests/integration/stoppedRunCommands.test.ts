@@ -252,6 +252,19 @@ describe("phax reset-phase on a waiting run", () => {
     expect(readJson(statePath(run))["state"]).toBe("awaiting_review");
   });
 
+  it("names the person's handoff file the reset would discard", async () => {
+    const run = await stopRun(world);
+    const handoff = join(run.worktree, ".phax-context", "correction-handoff.md");
+    writeFileSync(handoff, "## What was corrected\n- Nothing yet.\n");
+    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
+    const { out, logs } = makeOutput();
+
+    expect(await runResetPhase(run.shortName, "phase-03", {}, out)).toBe(0);
+
+    expect(logs).toContain(`The reset also discards your handoff file: ${handoff}`);
+    expect(existsSync(handoff)).toBe(true);
+  });
+
   it("with --yes removes the worktree, the branch and the session files, and discards review-stop.json", async () => {
     const run = await stopRun(world);
     makeCorrections(run);

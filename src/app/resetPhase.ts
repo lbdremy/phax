@@ -13,7 +13,7 @@ import type {
   RegistryCorruptionError,
   SetupCommandFailedError,
 } from "../domain/errors.js";
-import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
+import { PERSON_HANDOFF_PATH, type ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { interpret } from "../domain/reducer.js";
 import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -65,6 +65,11 @@ export interface ResetPreview {
   readonly atStop: boolean;
   /** The uncommitted corrections in the stopped phase's worktree; empty away from a stop. */
   readonly corrections: readonly ChangedPath[];
+  /**
+   * The person's handoff file in the stopped phase's worktree, which no
+   * snapshot sees, when it exists; null when it does not or away from a stop.
+   */
+  readonly personHandoff: string | null;
 }
 
 const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
@@ -311,7 +316,8 @@ function resetPhaseLocked(
 /**
  * What `resetPhase` would discard, without changing anything: at the stopped
  * phase of a run awaiting review, every uncommitted correction in its
- * worktree (the worktree as it stands against HEAD's tree). The same refusals
+ * worktree (the worktree as it stands against HEAD's tree) and the person's
+ * handoff file, which the snapshot leaves out with `.phax-context/`. The same refusals
  * as the reset apply to a phase that is not the stopped one.
  */
 export function previewResetPhase(
@@ -342,17 +348,21 @@ export function previewResetPhase(
     const stopped = stoppedPhaseOf(info);
     const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
     if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
-    if (stopped === undefined) return { phaseId: target.phaseId, atStop: false, corrections: [] };
+    if (stopped === undefined) {
+      return { phaseId: target.phaseId, atStop: false, corrections: [], personHandoff: null };
+    }
 
     const worktree = target.worktreePath;
     if (worktree === undefined || !(yield* fs.exists(worktree))) {
-      return { phaseId: target.phaseId, atStop: true, corrections: [] };
+      return { phaseId: target.phaseId, atStop: true, corrections: [], personHandoff: null };
     }
     const head = yield* git.headTree(worktree);
     const snapshot = yield* git.snapshotWorktree(worktree);
     const corrections =
       snapshot === head ? [] : yield* git.changedPathsBetween(worktree, head, snapshot);
-    return { phaseId: target.phaseId, atStop: true, corrections };
+    const handoffPath = join(worktree, PERSON_HANDOFF_PATH);
+    const personHandoff = (yield* fs.exists(handoffPath)) ? handoffPath : null;
+    return { phaseId: target.phaseId, atStop: true, corrections, personHandoff };
   });
 }
 
