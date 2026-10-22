@@ -225,6 +225,30 @@ function planMdWithHeader(headerLines: readonly string[]): string {
   ].join("\n");
 }
 
+/** A plan.md whose interactive phases (mode `interactive`) carry `**Mode:** interactive`. */
+function modePlanMd(plan: PhaxPlan): string {
+  const lines = ["# Foo", "", "## Required commands", "", "- (none)", ""];
+  for (const phase of plan.phases) {
+    lines.push(
+      `## ${phase.id} — ${phase.title} {#${phase.id}}`,
+      "",
+      `**Recommended model:** ${GOOD_MODEL}`,
+      "**Recommended effort:** medium",
+      ...(phase.mode === "interactive" ? ["**Mode:** interactive"] : []),
+      "",
+      `Carry out ${phase.id}'s made-up instructions.`,
+      "",
+    );
+  }
+  return lines.join("\n");
+}
+
+const lastInteractivePlan = makePlan([
+  makePhase("phase-01", { mode: "headless" }),
+  makePhase("phase-02", { mode: "headless" }),
+  makePhase("phase-03", { mode: "interactive" }),
+]);
+
 const LINT_HINT = `Fix the plan, then check it with \`phax plans lint ${PLAN_PATH}\`.`;
 
 interface RefusalCase {
@@ -302,11 +326,11 @@ const REFUSALS = {
     ].join("\n"),
   },
   "interactive-phases": {
-    input: makeInput({ planMd: planMdWithHeader(["**Mode:** interactive"]) }),
+    input: makeInput({ plan: lastInteractivePlan, planMd: modePlanMd(lastInteractivePlan) }),
     errorClass: InteractivePreflightError,
     message: [
       "Interactive preflight failed: 1 error(s).",
-      "  phase-01  declared interactive (**Mode:** interactive): this phax cannot run an interactive phase yet; remove the line",
+      "  phase-03  an interactive phase cannot be the last phase (the final phase is already kept open)",
       LINT_HINT,
     ].join("\n"),
   },
@@ -383,6 +407,35 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ planMd: planMdWithHeader(["**Mode:** review"]) }));
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(InteractivePreflightError);
+  });
+
+  it("interactive-phases passes an interactive phase between two headless phases", async () => {
+    const plan = makePlan([
+      makePhase("phase-01", { mode: "headless" }),
+      makePhase("phase-02", { mode: "interactive", optionalFilesToEdit: ["src/a.ts"] }),
+      makePhase("phase-03", { mode: "headless" }),
+    ]);
+    expect(Either.isRight(await run(makeInput({ plan, planMd: modePlanMd(plan) })))).toBe(true);
+  });
+
+  it("interactive-phases refuses each planned file of an interactive phase", async () => {
+    const plan = makePlan([
+      makePhase("phase-01", { mode: "headless" }),
+      makePhase("phase-02", { mode: "interactive", plannedFilesToEdit: ["src/export/csv.ts"] }),
+      makePhase("phase-03", { mode: "headless" }),
+    ]);
+    const result = await run(makeInput({ plan, planMd: modePlanMd(plan) }));
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(InteractivePreflightError);
+      expect(result.left.message).toBe(
+        [
+          "Interactive preflight failed: 1 error(s).",
+          "  phase-02  plans src/export/csv.ts to edit; an interactive phase plans no work",
+          LINT_HINT,
+        ].join("\n"),
+      );
+    }
   });
 
   it("oracle-phases passes a well-formed pair once a provider is configured", async () => {

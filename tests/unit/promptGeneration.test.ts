@@ -228,6 +228,36 @@ describe("buildPhasePrompt", () => {
     expect(prompt).toContain("No deviations.");
   });
 
+  it("leaves the prompt byte-identical without a closed stop", () => {
+    expect(buildPhasePrompt({ ...base, reviewCorrections: [] })).toBe(buildPhasePrompt(base));
+    expect(buildPhasePrompt(base)).not.toContain("## Review corrections");
+  });
+
+  it("puts the review corrections right after the previous phase handoff", () => {
+    const prompt = buildPhasePrompt({
+      ...base,
+      previousHandoff: "phase-02 handoff text",
+      previousReconciliation: "## PHAX File Reconciliation\n\nNo deviations.",
+      reviewCorrections: [
+        {
+          phaseId: "phase-03",
+          handoff: "## What was corrected\n\nThe header reads invoice_no.\n",
+          changedFiles: ["src/export/invoiceRow.ts"],
+        },
+      ],
+    });
+    const handoffAt = prompt.indexOf("phase-02 handoff text");
+    const correctionsAt = prompt.indexOf("## Review corrections");
+    expect(handoffAt).toBeGreaterThan(prompt.indexOf("## Previous phase handoff"));
+    expect(correctionsAt).toBeGreaterThan(handoffAt);
+    expect(prompt.indexOf("## Previous phase file reconciliation")).toBeGreaterThan(correctionsAt);
+    expect(prompt).toContain(
+      "Where this section disagrees with an earlier phase's handoff, this section wins. Your own plan section still binds.",
+    );
+    expect(prompt).toContain("### phase-03 (interactive)\n\n## What was corrected");
+    expect(prompt).toContain("- src/export/invoiceRow.ts");
+  });
+
   it("places the brief section between the current phase JSON and the execution rules", () => {
     const briefSection = "## Brief for this phase\n\nA made-up brief.";
     const prompt = buildPhasePrompt({ ...base, briefSection });

@@ -370,9 +370,10 @@ const checks = {
       );
     }),
 
-  // A malformed Mode line, or an interactive phase this phax cannot run yet.
+  // A malformed Mode line, an ill-placed interactive phase, or one that plans
+  // work: exactly the `interactive` errors lint reports.
   "interactive-phases": (input, _gateSteps, _planSections, headers) => {
-    const findings = interactiveFindings(headers);
+    const findings = interactiveFindings({ headers, phases: input.plan.phases });
     if (findings.length === 0) return Effect.void;
     return Effect.fail(
       new InteractivePreflightError({

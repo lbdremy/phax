@@ -4,6 +4,10 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { renderPlanOutline } from "../domain/plan/outline.js";
 import type { OracleRole } from "../domain/plan/oraclePairs.js";
+import {
+  renderReviewCorrectionsSection,
+  type ReviewCorrectionStop,
+} from "../domain/interactive/reviewCorrections.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 import { PHASE_PLAN_FILE } from "./worktree.js";
 
@@ -17,6 +21,8 @@ export interface BuildPhasePromptOptions {
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
+  /** The run's closed stops before this phase, in plan order; none leaves no section. */
+  readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
   readonly gateCommands: string[];
   /** The `## Brief for this phase` section, present exactly when a brief provider is configured. */
   readonly briefSection?: string | undefined;
@@ -46,11 +52,16 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     currentPhase,
     previousHandoff,
     previousReconciliation,
+    reviewCorrections,
     gateCommands,
     briefSection,
     oracleRole,
   } = opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
+
+  const reviewCorrectionsSection = renderReviewCorrectionsSection(reviewCorrections ?? []);
+  const reviewCorrectionsLines =
+    reviewCorrectionsSection !== null ? [reviewCorrectionsSection, ""] : [];
 
   const reconciliationSection =
     previousReconciliation !== undefined
@@ -97,6 +108,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     handoffSection,
     "",
+    ...reviewCorrectionsLines,
     ...reconciliationSection,
     "## Current phase",
     "",
@@ -165,6 +177,7 @@ export interface GeneratePhasePromptOptions {
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
+  readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
   readonly gateCommands: string[];
   readonly briefSection?: string | undefined;
   readonly oracleRole: OracleRole | null;
