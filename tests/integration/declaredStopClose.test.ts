@@ -585,10 +585,13 @@ describe("a refused close", () => {
     expectBackAtStop(run, "closing-answer-invalid");
   });
 
-  it("refuses a closing turn that writes in the worktree, leaving the file in place: exit 5", async () => {
+  it("refuses a closing turn that writes in the worktree, moving its edits aside: exit 5", async () => {
     const run = await stopRun(world);
     correct(run);
-    const onResume = () => write(run, "src/export/labels.ts", "export const labels = {};\n");
+    const onResume = () => {
+      write(run, "src/export/labels.ts", "export const labels = {};\n");
+      write(run, "src/invoiceRow.ts", "export const header = 'Turn header';\n");
+    };
 
     const error = refusal((await close(run, { backend: answering(), onResume })).result);
 
@@ -596,11 +599,24 @@ describe("a refused close", () => {
     expect(error.lastClose).toMatchObject({
       result: "closing-turn-edited",
       exitCode: 5,
-      paths: ["src/export/labels.ts"],
+      paths: ["src/export/labels.ts", "src/invoiceRow.ts"],
     });
-    expect(read(run, "src/export/labels.ts")).toBe("export const labels = {};\n");
+    // The worktree is the gated tree again: the person's correction, no more.
+    expect(existsSync(join(run.worktree, "src/export/labels.ts"))).toBe(false);
     expect(read(run, "src/invoiceRow.ts")).toBe(CORRECTED_HEADER);
+    const keptAt = join(run.phaseFolder, "refused-turn-01");
+    expect(readFileSync(join(keptAt, "src/export/labels.ts"), "utf8")).toBe(
+      "export const labels = {};\n",
+    );
+    expect(readFileSync(join(keptAt, "src/invoiceRow.ts"), "utf8")).toBe(
+      "export const header = 'Turn header';\n",
+    );
     expectBackAtStop(run, "closing-turn-edited");
+
+    // The next close commits the person's correction only.
+    const next = report((await close(run, { backend: answering() })).result);
+    expect(next.changedPaths).toEqual(["src/invoiceRow.ts"]);
+    expect(gitIn(run.worktree, "show", "HEAD:src/invoiceRow.ts")).toBe(CORRECTED_HEADER);
   });
 
   it("moves aside a person's handoff file a closing turn wrote, naming it", async () => {
