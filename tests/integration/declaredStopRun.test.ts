@@ -666,6 +666,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
               NodeGitLayer,
               scriptedShell([]),
               NoopSystemTelemetryLayer,
+              harness.lock.layer,
             ),
           ),
         ),

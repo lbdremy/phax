@@ -19,6 +19,7 @@ import {
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { Shell, type ShellRunOptions, type ShellRunResult } from "../../src/ports/shell.js";
@@ -339,7 +340,7 @@ describe("oracle phases in a run", () => {
             phaseId,
             stateRoot,
             repoRoot: stateRoot,
-          }).pipe(Effect.provide(layer)),
+          }).pipe(Effect.provide(layer), Effect.provide(makeFakeLock().layer)),
         ),
       );
     const readJson = async (...segments: string[]) =>

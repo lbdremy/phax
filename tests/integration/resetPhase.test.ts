@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ResetPhaseError, previewResetPhase, resetPhase } from "../../src/app/resetPhase.js";
 import { decodeShortName, type ShortName } from "../../src/domain/branded.js";
+import { LockConflictError } from "../../src/domain/errors.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
@@ -141,6 +143,7 @@ function stopLayers(stopped: string) {
     layers: Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     ),
@@ -188,6 +191,7 @@ describe("resetPhase", () => {
     const layers = Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -263,6 +267,7 @@ describe("resetPhase", () => {
     const layers = Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -349,6 +354,7 @@ describe("resetPhase", () => {
       const layers = Layer.mergeAll(
         fakeGit.layer,
         makeFakeShell().layer,
+        makeFakeLock().layer,
         NodeFileSystemLayer,
         NoopSystemTelemetryLayer,
       );
@@ -456,6 +462,7 @@ describe("resetPhase", () => {
     const layers = Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -500,6 +507,7 @@ describe("resetPhase", () => {
     const layers = Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -614,6 +622,44 @@ describe("resetPhase", () => {
       expect(existsSync(join(runPath, "phase-03"))).toBe(false);
     });
 
+    it("refuses while the run lock is held, as by an enter-phase turn, and changes nothing", async () => {
+      const { runPath, stopped } = await seedStoppedRun(stateRoot);
+      const { fakeGit } = stopLayers(stopped);
+      const lock = makeFakeLock();
+      lock.impl.setStatus(`${NAMESPACE}.${SHORT_NAME}`, {
+        kind: "active",
+        pid: 4242,
+        updatedAt: nowIso(),
+      });
+      const before = await snapshot(runPath);
+
+      const result = await Effect.runPromise(
+        Effect.either(
+          resetPhase({
+            shortName: shortName(),
+            namespace: NAMESPACE,
+            stateRoot,
+            repoRoot: stateRoot,
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                fakeGit.layer,
+                makeFakeShell().layer,
+                lock.layer,
+                NodeFileSystemLayer,
+                NoopSystemTelemetryLayer,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(Either.isLeft(result) && result.left).toBeInstanceOf(LockConflictError);
+      expect(await snapshot(runPath)).toEqual(before);
+      expect(fakeGit.impl.calls.filter((c) => c.method === "removeWorktree")).toEqual([]);
+      expect(fakeGit.impl.deletedBranches).toHaveLength(0);
+    });
+
     it("refuses a phase before the stopped one, naming the stopped phase, and changes nothing", async () => {
       const { runPath, stopped } = await seedStoppedRun(stateRoot);
       const { layers, fakeGit } = stopLayers(stopped);
@@ -648,6 +694,7 @@ describe("resetPhase", () => {
     const layers = Layer.mergeAll(
       fakeGit.layer,
       makeFakeShell().layer,
+      makeFakeLock().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
