@@ -51,6 +51,14 @@ vi.mock("../../src/infra/session.js", () => ({
 vi.mock("../../src/infra/editor.js", () => ({
   makeNodeEditorLayer: () => fakes.editor.layer,
 }));
+// No test reads ~/.phax: providers.json is the built-in catalog.
+vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../src/app/loadRouting.js")>();
+  const { Effect: E } = await import("effect");
+  const { DEFAULT_PROVIDER_CONFIG: defaults } =
+    await import("../../src/domain/routing/defaults.js");
+  return { ...original, loadProviderConfig: () => E.succeed(defaults) };
+});
 // The journal would write under ~/.phax: telemetry is off in these tests.
 vi.mock("../../src/cli/commands/runLayers.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../src/cli/commands/runLayers.js")>();
