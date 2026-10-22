@@ -2,22 +2,27 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { Effect, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { closeDeclaredStop } from "../../src/app/closeStop.js";
+import { dispatch } from "../../src/app/dispatcher.js";
 import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
 import { runFirstTurn, type FirstTurnInput } from "../../src/app/interactiveStop.js";
 import { exitCodeForError, EXIT_CODE_MEANINGS } from "../../src/cli/commands/runLayers.js";
-import type { RunId } from "../../src/domain/branded.js";
+import type { PhaseId, RunId } from "../../src/domain/branded.js";
 import { AwaitingReviewStopError } from "../../src/domain/errors.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { makeNodeBackendLayer } from "../../src/infra/claudeCli.js";
+import { NodeShellLayer } from "../../src/infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
+import { createWorld, stopRun, type StoppedRun } from "../helpers/stoppedRunFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // A first turn through fake `claude` and `codex` executables and the real
@@ -217,6 +222,166 @@ describe("a read-only first turn on codex", () => {
     const result = await firstTurn({ provider: "codex-cli", model: "gpt-6" });
     expect(result.turn).toMatchObject({ outcome: "failed", reason: "rate-limit" });
     expect(result.session.current).toBeNull();
+  });
+});
+
+// A closing turn: the made-up invoice-export run stopped at phase-03 (its
+// first turn played by the fake backend), corrected, then closed through the
+// real backend and the fake CLIs. The gate is a real, passing git command.
+
+const handoffAnswer = JSON.stringify({
+  $schema: currentSchemaUrl("interactive-handoff"),
+  corrections: [
+    {
+      what: "The invoice header reads `Invoice number`",
+      guard: { kind: "none", reason: "a one-word label" },
+    },
+  ],
+  patternFromNowOn: [],
+  nextPhasesNeedToKnow: [],
+});
+
+async function closeThroughCli(run: StoppedRun) {
+  writeFileSync(
+    join(run.worktree, "src", "invoiceRow.ts"),
+    "export const header = 'Invoice number';\n",
+  );
+  const program = Effect.gen(function* () {
+    yield* dispatch(
+      {
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        run: run.shortName as unknown as RunId,
+        phase: "phase-03" as PhaseId,
+        type: "RunResumeRequested",
+      },
+      {
+        runPath: run.runPath,
+        shortName: run.shortName,
+        phaseFolderPath: run.phaseFolder,
+        phaseId: "phase-03",
+      },
+    );
+    return yield* closeDeclaredStop({
+      runId: run.runId as RunId,
+      shortName: run.shortName,
+      runPath: run.runPath,
+      phase: {
+        id: "phase-03",
+        title: "Review the export record",
+        model: "claude-sonnet-5-5",
+        effort: "medium",
+        planMarkdownAnchor: "#phase-03",
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        mode: "interactive",
+        oracle: null,
+        commit: { subject: "feat(export): review the export record", body: "Made-up body." },
+      },
+      phaseFolder: run.phaseFolder,
+      worktree: run.worktree,
+      gateSteps: [
+        { command: "git status", surface: "local", firing: "every-phase", output: "log" },
+      ],
+      gateRequest: "{}",
+      fileReconciliationMode: "report_only",
+    });
+  });
+  return Effect.runPromise(
+    program.pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          makeNodeBackendLayer(providerConfig()),
+          NodeFileSystemLayer,
+          NodeGitLayer,
+          NodeShellLayer,
+          NoopSystemTelemetryLayer,
+        ),
+      ),
+    ),
+  );
+}
+
+describe("a read-only closing turn through the provider CLIs", () => {
+  it("resumes the claude session with its reading tools only, the phase's model and effort", async () => {
+    const world = createWorld();
+    try {
+      const run = await stopRun(world, { sessionId: SESSION });
+      cli.setScript({ sessionId: SESSION, finalText: handoffAnswer });
+
+      const report = await closeThroughCli(run);
+
+      const [call, ...more] = cli.invocations();
+      expect(more).toEqual([]);
+      expect(call).toEqual({
+        executable: "claude",
+        cwd: run.worktree,
+        argv: [
+          "--print",
+          "--output-format",
+          "stream-json",
+          "--verbose",
+          "--permission-mode",
+          "default",
+          "--tools",
+          "Read,Grep,Glob",
+          "--strict-mcp-config",
+          "--model",
+          "claude-sonnet-5-5",
+          "--effort",
+          "medium",
+          "--resume",
+          SESSION,
+        ],
+      });
+      expect(report).toMatchObject({ outcome: "corrected", handoffSource: "closing-turn-resumed" });
+      expect(readFileSync(join(run.phaseFolder, "closing-turn-01.jsonl"), "utf8")).toContain(
+        `"session_id":"${SESSION}"`,
+      );
+    } finally {
+      world.cleanup();
+    }
+  });
+
+  it("resumes the codex session under the read-only sandbox, with the phase's model and effort", async () => {
+    const world = createWorld();
+    try {
+      const run = await stopRun(world, {
+        provider: "codex-cli",
+        model: "gpt-6",
+        sessionId: SESSION,
+      });
+      cli.setScript({ sessionId: SESSION, finalText: handoffAnswer });
+
+      const report = await closeThroughCli(run);
+
+      const [call, ...more] = cli.invocations();
+      expect(more).toEqual([]);
+      expect(call).toEqual({
+        executable: "codex",
+        cwd: run.worktree,
+        argv: [
+          "exec",
+          "resume",
+          SESSION,
+          "--json",
+          "--skip-git-repo-check",
+          "-c",
+          `sandbox_mode="read-only"`,
+          "-c",
+          `approval_policy="never"`,
+          "-m",
+          "gpt-6-luna",
+          "-c",
+          `model_reasoning_effort="medium"`,
+        ],
+      });
+      expect(call!.argv.join(" ")).not.toContain("writable_roots");
+      expect(report).toMatchObject({ outcome: "corrected", handoffSource: "closing-turn-resumed" });
+    } finally {
+      world.cleanup();
+    }
   });
 });
 

@@ -26,6 +26,8 @@ import type { RecordedSurface } from "../schemas/surface.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
+  /** The steps that ran, in order, each with its result: the attempt's step record. */
+  readonly steps: readonly GateStepResult[];
 }
 
 /** A report step's stdout that is no JSON document at all, as the reader's malformed error. */
@@ -401,7 +403,7 @@ export function runGates(
 
     yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
     yield* writeAttribution();
-    return { attemptLogPath };
+    return { attemptLogPath, steps: stepResults };
   });
 }
 

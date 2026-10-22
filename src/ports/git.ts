@@ -165,6 +165,25 @@ export interface GitOps {
    * and `.phax-context/` are never touched.
    */
   restorePaths(path: string, tree: string, paths: readonly string[]): Effect.Effect<void, GitError>;
+  /**
+   * The content diff between two trees (`git diff-tree -p -r --no-color
+   * --no-ext-diff --no-textconv --no-renames`): empty when they are equal.
+   */
+  diffTrees(repo: string, fromTree: string, toTree: string): Effect.Effect<string, GitError>;
+  /**
+   * Commit exactly `tree` onto HEAD of the worktree at `worktree`, through
+   * `git commit --allow-empty` from a temporary index holding `tree`, so the
+   * repository's hooks and signing config run as for any commit. A hook that
+   * changes the committed tree fails it, with the branch moved back to the old
+   * HEAD and the changed paths named. On success the real index is reset to
+   * the new HEAD. Returns the new commit sha.
+   */
+  commitTree(
+    worktree: string,
+    tree: string,
+    subject: string,
+    body: string,
+  ): Effect.Effect<string, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

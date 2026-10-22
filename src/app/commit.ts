@@ -54,6 +54,37 @@ function buildCommitBody(opts: CommitPhaseOptions): string {
   return lines.join("\n");
 }
 
+export interface InteractiveCommitBodyOptions {
+  readonly phase: Pick<PhaxPlanPhase, "id" | "title" | "commit">;
+  readonly runId: string;
+  readonly shortName: string;
+  readonly worktreePath: string;
+  /** The log of the closing gate attempt whose tree the commit holds. */
+  readonly gateLogPath: string;
+}
+
+/**
+ * The body of a declared interactive phase's commit: the plan's body, then
+ * the trailers. No `Model`, `Effort` or `Session-Id`: no agent session wrote
+ * the correction. `Phase-Id` stays, as `phax records explain` finds a phase's
+ * commits by it.
+ */
+export function buildInteractiveCommitBody(opts: InteractiveCommitBodyOptions): string {
+  return [
+    opts.phase.commit.body,
+    "",
+    "---",
+    "",
+    `Run-Id: ${opts.runId}`,
+    `Short-Name: ${opts.shortName}`,
+    `Phase-Id: ${opts.phase.id}`,
+    `Phase-Title: ${opts.phase.title}`,
+    `Interactive-Phase: ${opts.phase.id}`,
+    `Worktree: ${opts.worktreePath}`,
+    `Gate-Log: ${opts.gateLogPath}`,
+  ].join("\n");
+}
+
 function getCommitHash(worktreePath: WorktreePath): Effect.Effect<string, ShellError, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;

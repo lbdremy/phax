@@ -135,6 +135,14 @@ export class FakeBackendImpl implements BackendOps {
     this.resumeRateLimitKnob = knob;
   }
 
+  /** When set, the next `resumeAgentSession` call fails with an invocation error carrying it. */
+  private resumeFailure: string | undefined;
+
+  /** Simulate a provider failure (a session not found, say) on the next `resumeAgentSession` call. */
+  failNextResume(message: string): void {
+    this.resumeFailure = message;
+  }
+
   /** Simulate a rate/usage-limit failure on the `resumeAgentSession` call at a chosen index. */
   failResumeWithRateLimit(resumeIndex: number, knob: RateLimitKnob): void {
     this.rateLimitAtResumeIndex = resumeIndex;
@@ -225,6 +233,11 @@ export class FakeBackendImpl implements BackendOps {
       const knob = this.resumeRateLimitKnob;
       this.resumeRateLimitKnob = undefined;
       return Effect.fail(this.limitError(knob));
+    }
+    if (this.resumeFailure !== undefined) {
+      const message = this.resumeFailure;
+      this.resumeFailure = undefined;
+      return Effect.fail(new AgentInvocationError({ message }));
     }
     // If configured, write the handoff file so generatePhaseHandoff can read it.
     // By the time resumeAgentSession is called, ensurePhaxContextIgnored has

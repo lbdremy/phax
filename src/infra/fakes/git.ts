@@ -80,7 +80,9 @@ export type GitCall =
   | { method: "headTree"; path: string }
   | { method: "snapshotWorktree"; path: string }
   | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
-  | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] };
+  | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] }
+  | { method: "diffTrees"; repo: string; fromTree: string; toTree: string }
+  | { method: "commitTree"; worktree: string; tree: string; subject: string; body: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -653,6 +655,47 @@ export class FakeGitImpl implements GitOps {
   ): Effect.Effect<void, GitError> {
     this.calls.push({ method: "restorePaths", path, tree, paths: [...paths] });
     return Effect.void;
+  }
+
+  /** What `diffTrees` returns for two different trees: a scripted diff, empty by default. */
+  diffTreesValue = "";
+
+  diffTrees(repo: string, fromTree: string, toTree: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "diffTrees", repo, fromTree, toTree });
+    return Effect.succeed(fromTree === toTree ? "" : this.diffTreesValue);
+  }
+
+  private nextCommitTreeError: string | undefined;
+
+  failNextCommitTree(stderr: string): void {
+    this.nextCommitTreeError = stderr;
+  }
+
+  /** Commits `tree` onto the worktree's HEAD: HEAD moves to a derived sha whose tree is `tree`. */
+  commitTree(
+    worktree: string,
+    tree: string,
+    subject: string,
+    body: string,
+  ): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "commitTree", worktree, tree, subject, body });
+    if (this.nextCommitTreeError !== undefined) {
+      const stderr = this.nextCommitTreeError;
+      this.nextCommitTreeError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git commit failed: ${stderr}`,
+          command: `git commit --allow-empty -m ${subject}`,
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    const sha = fakeOidFromString(`commit-tree:${this.headCommitValue}:${tree}:${subject}`);
+    this.setHeadCommit(sha);
+    this.headTrees.set(worktree, tree);
+    return Effect.succeed(sha);
   }
 }
 
