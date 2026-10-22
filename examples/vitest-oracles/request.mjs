@@ -96,5 +96,6 @@ export function readRequest(text) {
       );
     }
   }
-  return { request: value };
+  // A file declared twice is judged once, so every finding id stays unique.
+  return { request: { ...value, files: [...new Set(value.files)] } };
 }

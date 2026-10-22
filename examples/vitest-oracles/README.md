@@ -17,7 +17,7 @@ The only dependency is [`oxc-parser`](https://www.npmjs.com/package/oxc-parser),
 Try it by hand, in a Git repository, with a request on stdin:
 
 ```sh
-echo '{"$schema":"https://docs.phax.run/schemas/oracle-request/0.21.0.json","verdict":"authored","phase":"phase-01","oraclePhase":"phase-01","base":"<full commit hash>","files":["tests/refunds.test.ts"]}' \
+echo '{"$schema":"https://docs.phax.run/schemas/oracle-request/0.26.0.json","verdict":"authored","phase":"phase-01","oraclePhase":"phase-01","base":"<full commit hash>","files":["tests/refunds.test.ts"]}' \
   | node examples/vitest-oracles/main.mjs
 ```
 
@@ -28,7 +28,8 @@ The output is one `gate-report` JSON line. The exit code is 0 only for a checked
 An oracle phase writes tests before the code, and a later phase writes the code that makes them pass. The oracles are judged apart from the code: the first phase may only add failing tests marked as expected to fail, and the second may only remove those markers.
 
 - **`authored`**, at the oracle phase. Every test now in an oracle file that is new since `base` or modified since `base` must carry the marker. Each test that does not is one finding, `oracle-unmarked:<file>:<test>`.
-  - A deleted test, a marked test and an unchanged test are never findings.
+  - Every test that is new or modified must also run. One that carries `skip`, `todo`, `only`, `skipIf` or `runIf`, sits in a `describe` that carries one, or has no test function, is one finding, `oracle-not-run:<file>:<test>`. Such a test passes both verdicts: removing its marker leaves a test that still never runs, and the oracle never judges the code. `.only` runs the test but silences every other one.
+  - A deleted test and an unchanged test are never findings.
   - Changes outside tests (imports, helpers, hooks) are not judged. An unmarked test they break turns the configured `pnpm test` step red first.
   - A file absent at `base` counts all its tests as new. A file absent now has no test and no finding.
   - A file that does not parse in the working tree is one finding, `oracle-unparsable:<file>`, not a refusal, so the fix loop can repair it. A file that does not parse at `base` counts as absent.
@@ -37,7 +38,7 @@ An oracle phase writes tests before the code, and a later phase writes the code 
   - One `oracle-changed:<file>` when the file, with its markers removed, no longer equals the file at `oracleCommit`, also with its markers removed. Both sides are stripped, so a marker left behind is reported once, as a marker. The finding names the first test that differs, was added or was deleted, or says the change lies outside any test. A file present at `oracleCommit` and absent now, or the reverse, is a changed finding. A file absent at both is no finding.
   - A file that does not parse in the working tree is an `oracle-unparsable` finding. A file that does not parse at `oracleCommit` is a refusal, because the discharge's fix loop cannot repair a committed oracle.
 
-Findings follow the request's file order, then source order, and every id is unique within a report.
+Findings follow the request's file order, then source order, and every id is unique within a report: a file the request names twice is judged once.
 
 ## The rules
 
@@ -47,7 +48,7 @@ Findings follow the request's file order, then source order, and every id is uni
 
 **Marker.** A non-computed `fails` member in a test's callee chain: `test.fails`, `it.fails`, `test.concurrent.fails`, `test.fails.each(…)`. Only those positions are markers. A `.fails` elsewhere, such as `result.fails` in an assertion, is ordinary code.
 
-**Normalization.** A file is parsed with `oxc-parser` (`parseSync`, `preserveParens: false`) to ESTree. The tree is normalized by dropping `start`, `end`, `range`, `loc` and `raw`, and then serialized. Equality is equality of the serializations, and a marker is stripped by replacing the `fails` member with its object. Parentheses and comments are not part of the tree, so whitespace, line breaks, trailing commas, quote style, numeric separators, parentheses and comments never change a verdict. A reworded comment inside an oracle therefore never reaches the reviewer through this provider.
+**Normalization.** A file is parsed with `oxc-parser` (`parseSync`, `preserveParens: false`) to ESTree. The tree is normalized by dropping `start`, `end`, `range` and `loc`, and a literal's `raw`, and then serialized. A template's raw text is kept, since a tag such as `String.raw` reads it, and a number beyond JavaScript's range is serialized as `Infinity`, not as JSON's `null`. Equality is equality of the serializations, and a marker is stripped by replacing the `fails` member with its object. Parentheses and comments are not part of the tree, so whitespace, line breaks, trailing commas, quote style, numeric separators, parentheses and comments never change a verdict. A reworded comment inside an oracle therefore never reaches the reviewer through this provider.
 
 ## Refusals
 
@@ -80,7 +81,10 @@ Modules: `main.mjs` (stdin, wiring, printing), `request.mjs` (reading the reques
   { "oracles": { "command": "node /path/to/your/main/checkout/examples/vitest-oracles/main.mjs" } }
   ```
 
-  That path is per operator, a plan that changes the example is then judged by the main checkout's old copy, and a fresh clone runs the editable worktree copy until the override is written.
+  That path is per operator, a plan that changes the example is then judged by the main checkout's old copy, and a fresh clone runs the editable worktree copy until the override is written. phax splits the command on spaces, with no shell, so the path must contain none.
+
+- **Only the declared oracle files are judged.** A discharging phase can still keep an oracle from judging its code outside those files: through a helper the oracle imports, a Vitest setup file, or an `exclude` in `vitest.config`. The reviewer reads those changes; reconciliation flags any the plan did not declare.
+- **Some tests are not recognized.** Only calls rooted at the identifiers `test`, `it`, `describe` and `suite` count. A renamed import (`import { test as t }`), an alias (`const t = test`), `globalThis.test`, `test.extend` fixtures and helper wrappers are not seen, so a new unmarked test written that way passes `authored`; the configured `pnpm test` step still turns red when it fails. A test inside dead code (`if (false) { … }`) counts as running, and a new row in a `describe.each` table is not a new test.
 
 - **A changed table row cannot be told apart from a changed body.** Both are a modification.
 - **A reworded comment is invisible**, since comments are not part of the tree.

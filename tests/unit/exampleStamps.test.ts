@@ -1,4 +1,4 @@
-// Every `$schema` literal the hello-world scripts print and the README shows
+// Every `$schema` literal the example scripts print and the READMEs show
 // names its format's current stamp, so gate-step and brief-provider authors
 // copy a stamp phax reads. A format change must update them in the same
 // commit; a release cut or an opening never does, since neither changes a
@@ -16,6 +16,7 @@ const FILES = [
   "examples/hello-world/audit.mjs",
   "examples/hello-world/brief.mjs",
   "examples/vitest-oracles/main.mjs",
+  "examples/vitest-oracles/README.md",
   "README.md",
 ];
 

@@ -83,7 +83,7 @@ phax records the step under the `oracle` surface in the phase's `gate-attributio
 
 [`examples/vitest-oracles/`](../examples/vitest-oracles/) is a Vitest provider that phax's own repository declares as `node examples/vitest-oracles/main.mjs`. It lives in the repository only: no package ships it, so copy it and adapt it to your runner.
 
-- **`authored`.** Every test the oracle files add or modify since `base` must carry `.fails`. A deleted test, a marked test and an unchanged test are never findings, and an oracle file that does not parse is one finding.
+- **`authored`.** Every test the oracle files add or modify since `base` must carry `.fails` and must run: a `skip`, `todo`, `only`, `skipIf` or `runIf` on the test or an enclosing `describe`, or a test with no function, is a finding, since such a test passes both verdicts and never judges the code. A deleted test and an unchanged test are never findings, and an oracle file that does not parse is one finding.
 - **`discharged`.** No `.fails` is left in the oracle files, and each file's syntax tree, with its markers removed, equals its tree at `oracleCommit`. Removing the markers is the only change allowed; the finding for any other change names the first test that differs.
 
 It compares syntax trees, not text, so reformatting, re-indenting, trailing commas, quote style and comments never change its answer. A request it cannot read is refused with a reason and a remedy.
