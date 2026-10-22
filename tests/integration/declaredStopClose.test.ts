@@ -468,7 +468,17 @@ describe("closing a declared stop", () => {
   it("falls back to a new session when the resume reports the session not found", async () => {
     const run = await stopRun(world);
     correct(run);
-    const backend = makeFakeBackend().impl;
+    // The turn interactive-session.json records in progress while the new session runs.
+    const recorded: unknown[] = [];
+    class Observing extends FakeBackendImpl {
+      override runAgent(prompt: string, options: AgentRunOptions) {
+        recorded.push(
+          readJson(join(run.phaseFolder, "interactive-session.json"))["turnInProgress"],
+        );
+        return super.runAgent(prompt, options);
+      }
+    }
+    const backend = new Observing();
     backend.failNextResume("No conversation found with session ID: X1");
     backend.addRunResponse({
       sessionId: "X6" as ClaudeSessionId,
@@ -486,6 +496,9 @@ describe("closing a declared stop", () => {
     expect(backend.runCalls[0]!.options.outputJsonlPath).toBe(
       join(run.phaseFolder, "closing-turn-02.jsonl"),
     );
+    expect(recorded).toEqual([
+      expect.objectContaining({ kind: "closing-turn", turn: 2, origin: "new-session" }),
+    ]);
   });
 
   it("closes a vibe stop with a headless resume of V1 on mistral-vibe", async () => {
