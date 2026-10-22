@@ -10,6 +10,7 @@ import {
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 
 const RUN_PATH = "/runs/test-run";
 
@@ -30,7 +31,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
     claudeSessionId: undefined,
     gateProfileId: "full",
     phaseStatuses: [
-      {
+      phaseStatus({
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "passed",
@@ -38,10 +39,10 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
         effort: "medium",
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
-        branchName: "phax/test-run--phase-01" as BranchName,
+        branchName: "phax/test-run--phase-01",
         base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-      },
-      {
+      }),
+      phaseStatus({
         phaseId: "phase-02",
         phaseIndex: 1,
         state: "passed",
@@ -49,9 +50,9 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
         effort: "high",
         createdAt: "2026-01-01T00:01:00Z",
         updatedAt: "2026-01-01T00:01:00Z",
-        branchName: "phax/test-run--phase-02" as BranchName,
+        branchName: "phax/test-run--phase-02",
         base: "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
-      },
+      }),
     ],
     planPhases: [
       { id: "phase-01", title: "Phase One" },
@@ -333,7 +334,7 @@ describe("loadPhaseContents", () => {
     // phaseStatuses in reverse index order to test sorting
     const infoReversed = makeInfo({
       phaseStatuses: [
-        {
+        phaseStatus({
           phaseId: "phase-02",
           phaseIndex: 1,
           state: "passed",
@@ -341,10 +342,10 @@ describe("loadPhaseContents", () => {
           effort: "high",
           createdAt: "2026-01-01T00:01:00Z",
           updatedAt: "2026-01-01T00:01:00Z",
-          branchName: "phax/test-run--phase-02" as BranchName,
+          branchName: "phax/test-run--phase-02",
           base: "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
-        },
-        {
+        }),
+        phaseStatus({
           phaseId: "phase-01",
           phaseIndex: 0,
           state: "passed",
@@ -352,9 +353,9 @@ describe("loadPhaseContents", () => {
           effort: "medium",
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
-          branchName: "phax/test-run--phase-01" as BranchName,
+          branchName: "phax/test-run--phase-01",
           base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        },
+        }),
       ],
     });
 

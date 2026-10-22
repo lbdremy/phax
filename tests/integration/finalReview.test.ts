@@ -10,6 +10,7 @@ import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { phaseStatus as makePhaseStatus } from "../helpers/phaseStatusFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 
 const stateRoot = "/fake-state";
@@ -17,19 +18,19 @@ const shortName = "my-run";
 const runPath = `${stateRoot}/runs/${shortName}`;
 const now = "2024-01-01T00:00:00.000Z";
 
-const phaseStatus: PhaseStatus = {
+const phaseStatus: PhaseStatus = makePhaseStatus({
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "committed",
   model: "claude-sonnet-4-6",
   effort: "low",
-  branchName: "feature/my-run--phase-01" as BranchName,
+  branchName: "feature/my-run--phase-01",
   base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
   createdAt: now,
   updatedAt: now,
   worktreePath: "/fake/worktrees/my-run/phase-01",
   claudeSessionId: "sess-abc123",
-};
+});
 
 const runReviewInfo: RunReviewInfo = {
   namespace: "test-project",

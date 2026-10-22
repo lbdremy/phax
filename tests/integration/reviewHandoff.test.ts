@@ -9,6 +9,7 @@ import type { BranchName } from "../../src/domain/branded.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 
 const stateRoot = "/fake-state";
@@ -17,19 +18,19 @@ const runPath = `${stateRoot}/runs/${shortName}`;
 const now = "2024-01-01T00:00:00.000Z";
 
 function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
-  return {
+  return phaseStatus({
     phaseId,
     phaseIndex,
     state: "committed",
     model: "claude-sonnet-4-6",
     effort: "low",
-    branchName: `feature/test-run--${phaseId}` as BranchName,
+    branchName: `feature/test-run--${phaseId}`,
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
     worktreePath: `/fake/worktrees/test-run/${phaseId}`,
     claudeSessionId: "sess-abc",
-  };
+  });
 }
 
 function makeRunReviewInfo(phaseIds: readonly string[]): RunReviewInfo {

@@ -102,6 +102,8 @@ function refusalMessageForRunState(shortName: string, runState: RunStatus["state
       return `Run "${shortName}" has not been started yet and cannot be resumed.`;
     case "failed":
       return `Run "${shortName}" failed and cannot be resumed. Use \`phax reset-phase ${shortName}\` to recover a specific phase, or create a new run to try again.`;
+    // interrupted, rate_limited and awaiting_review (whose resume closes the
+    // stop) are resumable, so they have no refusal message of their own.
     default:
       return `Run "${shortName}" cannot be resumed from state "${runState}".`;
   }

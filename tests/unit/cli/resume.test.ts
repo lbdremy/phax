@@ -9,6 +9,7 @@ import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import type { PhaseState } from "../../../src/domain/state.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { PhaseStatus } from "../../../src/schemas/status.js";
+import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
@@ -102,17 +103,17 @@ function makeConfig(stateRoot: string): ResolvedConfig {
 
 function makePhaseStatus(state: PhaseState, index = 0): PhaseStatus {
   const now = new Date().toISOString();
-  return {
+  return phaseStatus({
     phaseId: `phase-0${index + 1}`,
     phaseIndex: index,
     state,
     model: "claude-sonnet-4-6",
     effort: "low",
-    branchName: `ai/my-run--phase-0${index + 1}` as BranchName,
+    branchName: `ai/my-run--phase-0${index + 1}`,
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 function makeReviewOpenRefusal() {

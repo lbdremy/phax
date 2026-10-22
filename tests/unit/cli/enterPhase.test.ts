@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Either } from "effect";
 import { runEnterPhase } from "../../../src/cli/commands/enterPhase.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -97,7 +98,7 @@ function makeRunInfo(
     claudeSessionId: undefined,
     gateProfileId: undefined,
     phaseStatuses: [
-      {
+      phaseStatus({
         phaseId,
         phaseIndex: 0,
         state: "review_open",
@@ -105,10 +106,10 @@ function makeRunInfo(
         effort: "medium",
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
-        branchName: `phax/${shortName}--${phaseId}` as never,
+        branchName: `phax/${shortName}--${phaseId}`,
         base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         worktreePath: `/fake-worktrees/${shortName}/${phaseId}`,
-      },
+      }),
     ],
     planPhases: [{ id: phaseId, title: "Phase 01" }],
     updatedAt: "2026-01-01T00:00:00Z",

@@ -30,7 +30,10 @@
 // below its current stamp is read by the frozen 0.25.0 decoder when stamped
 // 0.25.0 or later (its `modelReason` carried over as `assignmentReason`), and
 // by the frozen 0.20.0 decoder below that, lifted with empty preamble
-// questions and `assignmentReason: null`. `readDocumentSidecar`
+// questions and `assignmentReason: null`. A run status or registry stamped
+// below its current stamp is read by its frozen 0.17.0 decoder, and a phase
+// status by its frozen 0.20.0 decoder, lifted with `mode: "headless"` and
+// `stop: null`. `readDocumentSidecar`
 // also reports the shape a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
@@ -79,6 +82,7 @@ import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-recon
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestV0_17_0 } from "./history/phase-record-manifest/0.17.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
+import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
@@ -96,7 +100,9 @@ import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
 } from "./history/plan-document/pre-schema.js";
+import { decodeRegistryV0_17_0 } from "./history/registry/0.17.0.js";
 import { decodeRegistryPreSchema } from "./history/registry/pre-schema.js";
+import { decodeRunStatusV0_17_0 } from "./history/run-status/0.17.0.js";
 import { decodeRunStatusPreSchema } from "./history/run-status/pre-schema.js";
 import { decodeSpecApprovalRecordV0_19_0 } from "./history/spec-approval-record/0.19.0.js";
 import { decodeSpecApprovalsPreSchema } from "./history/spec-approvals/pre-schema.js";
@@ -313,9 +319,22 @@ export function withSchemaUrl<T extends object>(
   return { $schema: currentSchemaUrl(formatId), ...value };
 }
 
-/** Reads `~/.phax/registry.json`. The pre-schema registry carries every fact phax needs. */
-export const readRegistryFile: Reader<Registry> = (file, input) =>
-  readPersisted(input, {
+/**
+ * Reads `~/.phax/registry.json`. The pre-schema registry carries every fact
+ * phax needs. One stamped below the format's current stamp is read by the
+ * frozen 0.17.0 decoder and lifted unchanged: its run states are a subset of
+ * the current ones.
+ */
+export const readRegistryFile: Reader<Registry> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("registry", input)) {
+    const older = decodeRegistryV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "registry", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...registry } = older.right;
+    return Either.right(registry);
+  }
+  return readPersisted(input, {
     format: "registry",
     label: "run registry",
     file,
@@ -324,10 +343,24 @@ export const readRegistryFile: Reader<Registry> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...registry }) => registry,
     fromPreSchema: ({ version: _version, ...registry }) => Either.right(registry),
   });
+};
 
-/** Reads a run's `run-status.json`. The pre-schema run status carries every fact phax needs. */
-export const readRunStatusFile: Reader<RunStatus> = (file, input) =>
-  readPersisted(input, {
+/**
+ * Reads a run's `run-status.json`. The pre-schema run status carries every
+ * fact phax needs. One stamped below the format's current stamp is read by
+ * the frozen 0.17.0 decoder and lifted unchanged: its states are a subset of
+ * the current ones.
+ */
+export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("run-status", input)) {
+    const older = decodeRunStatusV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "run-status", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...status } = older.right;
+    return Either.right(status);
+  }
+  return readPersisted(input, {
     format: "run-status",
     label: "run status",
     file,
@@ -336,16 +369,27 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...status }) => status,
     fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
   });
+};
 
 /**
  * Reads a phase's `status.json`. A pre-schema phase status never recorded
  * `base`, the commit its branch was created from, so it is refused rather than
- * given one re-derived from git. A `$schema` status is read by the current
- * decoder only, so one written by 0.17.0–0.19.x, which lacks `base`, is
- * refused too.
+ * given one re-derived from git. A status stamped below the format's current
+ * stamp is read by the frozen 0.20.0 decoder, so one written by 0.17.0–0.19.x,
+ * which lacks `base`, is refused too; one it reads is lifted with
+ * `mode: "headless"` and `stop: null`, because no phax before it could run an
+ * interactive phase or stop.
  */
-export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
-  readPersisted(input, {
+export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("phase-status", input)) {
+    const older = decodePhaseStatusV0_20_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "phase-status", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...status } = older.right;
+    return Either.right({ ...status, mode: "headless", stop: null });
+  }
+  return readPersisted(input, {
     format: "phase-status",
     label: "phase status",
     file,
@@ -354,6 +398,7 @@ export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...status }) => status,
     fromPreSchema: () => Either.left({ fact: "base" }),
   });
+};
 
 /** The shape a run's `phax-plan.json` was read in, beside the plan at the current shape. */
 export type PhaxPlanShape = "current" | "0.17.0" | "pre-schema";

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { publishRun } from "../../src/app/publishRun.js";
 import { generateReviewHandoff } from "../../src/app/reviewHandoff.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -120,17 +121,17 @@ const complianceReviewJson = JSON.stringify({
 });
 
 function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
-  return {
+  return phaseStatus({
     phaseId,
     phaseIndex,
     state: "committed",
     model: "claude-opus-5-5",
     effort: "medium",
-    branchName: `feature/test-run--${phaseId}` as BranchName,
+    branchName: `feature/test-run--${phaseId}`,
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 describe("publishRun", () => {

@@ -6,6 +6,7 @@ import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const now = new Date().toISOString();
 
@@ -23,8 +24,7 @@ function makeRunStatus(namespace: string, shortName: string, state = "running"):
 }
 
 function makePhaseStatus(shortName: string): object {
-  return {
-    $schema: currentSchemaUrl("phase-status"),
+  return phaseStatusFile({
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "running",
@@ -34,7 +34,7 @@ function makePhaseStatus(shortName: string): object {
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 function writeRun(stateRoot: string, namespace: string, shortName: string): void {

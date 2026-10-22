@@ -6,9 +6,9 @@ export const PHAX_RELEASE = "0.26.0";
 // format's latest release-named snapshot, or PHAX_RELEASE while
 // packages/schemas/snapshots/<format id>/next.schema.json exists.
 export const CURRENT_STAMPS = {
-  registry: "0.17.0",
-  "run-status": "0.17.0",
-  "phase-status": "0.20.0",
+  registry: "0.26.0",
+  "run-status": "0.26.0",
+  "phase-status": "0.26.0",
   "phax-plan": "0.26.0",
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",

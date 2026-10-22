@@ -25,6 +25,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const NAMESPACE = "example";
 const SHORT_NAME = "example-run";
@@ -44,8 +45,7 @@ const preSchemaRunStatus = {
   planRepoRelPath: "docs/plans/example.md",
 };
 
-const phaseStatus = {
-  $schema: currentSchemaUrl("phase-status"),
+const phaseStatus = phaseStatusFile({
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",
@@ -57,7 +57,7 @@ const phaseStatus = {
   base: "0123456789abcdef0123456789abcdef01234567",
   worktreePath: "/work/example-repo/worktrees/phase-01",
   claudeSessionId: "session-0001",
-};
+});
 
 function readJson(path: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;

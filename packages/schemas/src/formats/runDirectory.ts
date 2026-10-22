@@ -4,7 +4,10 @@
 // named by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own
 // schema and decoder. The package declares none of its own. phax-plan also
 // lists its 0.17.0 shape, written before phases carried `mode` and `oracle`,
-// as a release, and lifts it as phax's reader does.
+// as a release, and lifts it as phax's reader does. The registry and run
+// status list their 0.17.0 shapes, and phase status its 0.20.0 shape, written
+// before `awaiting_review`; a phase status that old is lifted with
+// `mode: "headless"` and `stop: null`.
 import { Array as Arr } from "effect";
 import {
   ComplianceReviewFileSchema,
@@ -34,6 +37,11 @@ import {
   type PhaseStatusPreSchema,
 } from "../../../../src/schemas/history/phase-status/pre-schema.js";
 import {
+  PhaseStatusV0_20_0Schema,
+  decodePhaseStatusV0_20_0,
+  type PhaseStatusV0_20_0,
+} from "../../../../src/schemas/history/phase-status/0.20.0.js";
+import {
   PhaseStatusV0_17_0Schema,
   decodePhaseStatusV0_17_0,
   type PhaseStatusV0_17_0,
@@ -49,10 +57,20 @@ import {
   type PhaxPlanPreSchema,
 } from "../../../../src/schemas/history/phax-plan/pre-schema.js";
 import {
+  RegistryV0_17_0Schema,
+  decodeRegistryV0_17_0,
+  type RegistryV0_17_0,
+} from "../../../../src/schemas/history/registry/0.17.0.js";
+import {
   RegistryPreSchemaSchema,
   decodeRegistryPreSchema,
   type RegistryPreSchema,
 } from "../../../../src/schemas/history/registry/pre-schema.js";
+import {
+  RunStatusV0_17_0Schema,
+  decodeRunStatusV0_17_0,
+  type RunStatusV0_17_0,
+} from "../../../../src/schemas/history/run-status/0.17.0.js";
 import {
   RunStatusPreSchemaSchema,
   decodeRunStatusPreSchema,
@@ -91,7 +109,7 @@ import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../s
 
 // ── registry
 
-export type RegistryShapes = { "pre-schema": RegistryPreSchema } & {
+export type RegistryShapes = { "pre-schema": RegistryPreSchema; "0.17.0": RegistryV0_17_0 } & {
   [K in CurrentShapeName<"registry">]: RegistryFile;
 };
 
@@ -102,7 +120,7 @@ export const registryFormat = defineFormat<RegistryShapes>({
   id: "registry",
   label: "run registry",
   preSchema: { schema: RegistryPreSchemaSchema, decode: decodeRegistryPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: RegistryV0_17_0Schema, decode: decodeRegistryV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES.registry,
     shape: { schema: RegistryFileSchema, decode: decodeRegistryFile },
@@ -116,13 +134,15 @@ export const parseRegistry: (input: unknown) => ParsedShape<RegistryShapes> = re
 export type LatestRegistry = Registry;
 
 /** Upgrades a parsed registry in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRegistry(value: RegistryPreSchema | RegistryFile): LatestRegistry {
+export function toLatestRegistry(
+  value: RegistryPreSchema | RegistryV0_17_0 | RegistryFile,
+): LatestRegistry {
   return { runs: value.runs };
 }
 
 // ── run status
 
-export type RunStatusShapes = { "pre-schema": RunStatusPreSchema } & {
+export type RunStatusShapes = { "pre-schema": RunStatusPreSchema; "0.17.0": RunStatusV0_17_0 } & {
   [K in CurrentShapeName<"run-status">]: RunStatusFile;
 };
 
@@ -133,7 +153,7 @@ export const runStatusFormat = defineFormat<RunStatusShapes>({
   id: "run-status",
   label: "run status",
   preSchema: { schema: RunStatusPreSchemaSchema, decode: decodeRunStatusPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: RunStatusV0_17_0Schema, decode: decodeRunStatusV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES["run-status"],
     shape: { schema: RunStatusFileSchema, decode: decodeRunStatusFile },
@@ -148,7 +168,9 @@ export const parseRunStatus: (input: unknown) => ParsedShape<RunStatusShapes> =
 export type LatestRunStatus = RunStatus;
 
 /** Upgrades a parsed run status in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRunStatus(value: RunStatusPreSchema | RunStatusFile): LatestRunStatus {
+export function toLatestRunStatus(
+  value: RunStatusPreSchema | RunStatusV0_17_0 | RunStatusFile,
+): LatestRunStatus {
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
@@ -162,6 +184,7 @@ export function toLatestRunStatus(value: RunStatusPreSchema | RunStatusFile): La
 export type PhaseStatusShapes = {
   "pre-schema": PhaseStatusPreSchema;
   "0.17.0": PhaseStatusV0_17_0;
+  "0.20.0": PhaseStatusV0_20_0;
 } & {
   [K in CurrentShapeName<"phase-status">]: PhaseStatusFile;
 };
@@ -173,7 +196,10 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   id: "phase-status",
   label: "phase status",
   preSchema: { schema: PhaseStatusPreSchemaSchema, decode: decodePhaseStatusPreSchema },
-  releases: [["0.17.0", { schema: PhaseStatusV0_17_0Schema, decode: decodePhaseStatusV0_17_0 }]],
+  releases: [
+    ["0.17.0", { schema: PhaseStatusV0_17_0Schema, decode: decodePhaseStatusV0_17_0 }],
+    ["0.20.0", { schema: PhaseStatusV0_20_0Schema, decode: decodePhaseStatusV0_20_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["phase-status"],
     shape: { schema: PhaseStatusFileSchema, decode: decodePhaseStatusFile },
@@ -195,21 +221,28 @@ export type LatestPhaseStatus =
 
 /**
  * Upgrades a parsed phase status in memory. Keeps every recorded fact; never
- * invents one: an older shape's `base` is `Unknown`.
+ * invents one: a shape older than `base` has an `Unknown` base. A shape older
+ * than `mode` gets `mode: "headless"` and `stop: null`, because no phax that
+ * wrote it could run an interactive phase or stop.
  */
 export function toLatestPhaseStatus(
-  value: PhaseStatusPreSchema | PhaseStatusV0_17_0 | PhaseStatusFile,
+  value: PhaseStatusPreSchema | PhaseStatusV0_17_0 | PhaseStatusV0_20_0 | PhaseStatusFile,
 ): LatestPhaseStatus {
-  if ("base" in value) {
+  if ("mode" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  const headless = { mode: "headless", stop: null } as const;
+  if ("base" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, ...headless };
+  }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, base: UNKNOWN };
+    return { ...recorded, base: UNKNOWN, ...headless };
   }
   const { version: _version, ...recorded } = value;
-  return { ...recorded, base: UNKNOWN };
+  return { ...recorded, base: UNKNOWN, ...headless };
 }
 
 // ── phax-plan

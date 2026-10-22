@@ -368,6 +368,8 @@ describe("decodePhaseStatusFile", () => {
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
+    mode: "headless",
+    stop: null,
   };
 
   it("accepts a valid phase status", () => {

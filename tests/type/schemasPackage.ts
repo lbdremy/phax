@@ -95,6 +95,7 @@ import type {
   PhaseStatus,
   PhaseStatusShape,
   PhaseStatusV0_17_0,
+  PhaseStatusV0_20_0,
   PhaxPlan,
   PhaxPlanShape,
   PhaxPlanV0_17_0,
@@ -119,8 +120,10 @@ import type {
   ReportGuide,
   ReportLocation,
   RegistryShape,
+  RegistryV0_17_0,
   RunStatus,
   RunStatusShape,
+  RunStatusV0_17_0,
   SpecApprovalRecord,
   SpecApprovalRecordShape,
   SpecApprovalRecordV0_19_0,
@@ -319,6 +322,7 @@ import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
+import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
 import type { PhaxPlanV0_17_0 as FrozenPhaxPlanV0_17_0 } from "../../src/schemas/history/phax-plan/0.17.0.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
@@ -330,7 +334,9 @@ import type { PlanDocumentV0_20_0 as FrozenPlanDocumentV0_20_0 } from "../../src
 import type { PlanDocumentV0_25_0 as FrozenPlanDocumentV0_25_0 } from "../../src/schemas/history/plan-document/0.25.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
+import type { RegistryV0_17_0 as FrozenRegistryV0_17_0 } from "../../src/schemas/history/registry/0.17.0.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
+import type { RunStatusV0_17_0 as FrozenRunStatusV0_17_0 } from "../../src/schemas/history/run-status/0.17.0.js";
 import type { RunStatusPreSchema as FrozenRunStatus } from "../../src/schemas/history/run-status/pre-schema.js";
 import type { SpecApprovalsPreSchema as FrozenSpecApprovals } from "../../src/schemas/history/spec-approvals/pre-schema.js";
 import type { SpecDocumentPreSchema as FrozenSpecDocument } from "../../src/schemas/history/spec-document/pre-schema.js";
@@ -612,9 +618,9 @@ const shapeIds: Equals<
 > = true;
 void shapeIds;
 const eachShapeId: [
-  Equals<RegistryShape, "pre-schema" | Current<"registry">>,
-  Equals<RunStatusShape, "pre-schema" | Current<"run-status">>,
-  Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | Current<"phase-status">>,
+  Equals<RegistryShape, "pre-schema" | "0.17.0" | Current<"registry">>,
+  Equals<RunStatusShape, "pre-schema" | "0.17.0" | Current<"run-status">>,
+  Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"phase-status">>,
   Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | Current<"phax-plan">>,
   Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
@@ -674,11 +680,14 @@ type ShapeValue<P extends (input: unknown) => unknown, S extends string> =
 
 // Each parse function's success value is the frozen type or phax's type
 const parseValues: [
-  Equals<Value<typeof parseRegistry>, FrozenRegistry | PhaxRegistryFile>,
-  Equals<Value<typeof parseRunStatus>, FrozenRunStatus | PhaxRunStatusFile>,
+  Equals<Value<typeof parseRegistry>, FrozenRegistry | FrozenRegistryV0_17_0 | PhaxRegistryFile>,
+  Equals<
+    Value<typeof parseRunStatus>,
+    FrozenRunStatus | FrozenRunStatusV0_17_0 | PhaxRunStatusFile
+  >,
   Equals<
     Value<typeof parsePhaseStatus>,
-    FrozenPhaseStatus | FrozenPhaseStatusV0_17_0 | PhaxPhaseStatusFile
+    FrozenPhaseStatus | FrozenPhaseStatusV0_17_0 | FrozenPhaseStatusV0_20_0 | PhaxPhaseStatusFile
   >,
   Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | PhaxPhaxPlanFile>,
   Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReviewFile>,
@@ -1198,11 +1207,23 @@ void upgradedFrozenSpecDocument;
 void upgradedFrozenReconciliation;
 void upgradedFrozenManifest;
 const toLatestParameters: [
-  Equals<Parameters<typeof toLatestRegistry>, [value: FrozenRegistry | PhaxRegistryFile]>,
-  Equals<Parameters<typeof toLatestRunStatus>, [value: FrozenRunStatus | PhaxRunStatusFile]>,
+  Equals<
+    Parameters<typeof toLatestRegistry>,
+    [value: FrozenRegistry | FrozenRegistryV0_17_0 | PhaxRegistryFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestRunStatus>,
+    [value: FrozenRunStatus | FrozenRunStatusV0_17_0 | PhaxRunStatusFile]
+  >,
   Equals<
     Parameters<typeof toLatestPhaseStatus>,
-    [value: FrozenPhaseStatus | FrozenPhaseStatusV0_17_0 | PhaxPhaseStatusFile]
+    [
+      value:
+        | FrozenPhaseStatus
+        | FrozenPhaseStatusV0_17_0
+        | FrozenPhaseStatusV0_20_0
+        | PhaxPhaseStatusFile,
+    ]
   >,
   Equals<
     Parameters<typeof toLatestPhaxPlan>,
@@ -1281,6 +1302,9 @@ const runStatusIsPhax: Equals<RunStatus, PhaxRunStatusFile> = true;
 const phaseStatusIsPhax: Equals<PhaseStatus, PhaxPhaseStatusFile> = true;
 // A released shape that is no longer current is its frozen module's type.
 const phaseStatusV0_17_0IsFrozen: Equals<PhaseStatusV0_17_0, FrozenPhaseStatusV0_17_0> = true;
+const phaseStatusV0_20_0IsFrozen: Equals<PhaseStatusV0_20_0, FrozenPhaseStatusV0_20_0> = true;
+const runStatusV0_17_0IsFrozen: Equals<RunStatusV0_17_0, FrozenRunStatusV0_17_0> = true;
+const registryV0_17_0IsFrozen: Equals<RegistryV0_17_0, FrozenRegistryV0_17_0> = true;
 const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlanFile> = true;
 const phaxPlanV0_17_0IsFrozen: Equals<PhaxPlanV0_17_0, FrozenPhaxPlanV0_17_0> = true;
 const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReviewFile> = true;
@@ -1288,6 +1312,9 @@ void registryIsPhax;
 void runStatusIsPhax;
 void phaseStatusIsPhax;
 void phaseStatusV0_17_0IsFrozen;
+void phaseStatusV0_20_0IsFrozen;
+void runStatusV0_17_0IsFrozen;
+void registryV0_17_0IsFrozen;
 void phaxPlanIsPhax;
 void phaxPlanV0_17_0IsFrozen;
 void complianceReviewIsPhax;

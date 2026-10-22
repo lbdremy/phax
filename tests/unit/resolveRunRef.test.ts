@@ -9,9 +9,10 @@ import {
   resolveCodeReviewConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { resolveSecurityConfig } from "../../src/schemas/securityConfig.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 
 const now = new Date().toISOString();
 
@@ -28,9 +29,8 @@ function makeRunStatus(namespace: string, shortName: string, state = "running"):
   };
 }
 
-function makePhaseStatus(shortName: string, state = "running"): object {
-  return {
-    $schema: currentSchemaUrl("phase-status"),
+function makePhaseStatus(shortName: string, state: PhaseStatus["state"] = "running"): object {
+  return phaseStatusFile({
     phaseId: "phase-01",
     phaseIndex: 0,
     state,
@@ -40,7 +40,7 @@ function makePhaseStatus(shortName: string, state = "running"): object {
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 function makeRegistryEntry(namespace: string, shortName: string, state = "running"): object {

@@ -212,12 +212,12 @@ describe("schemas-check findings", () => {
   });
 
   it("fails a stamp that no longer follows a format's snapshots, naming that format", () => {
-    // The made-up snapshots say registry gained a next shape: its stamp becomes
-    // the package version, and the committed module still names its release.
-    const currentShapes = { ...state.currentShapes, registry: "next" };
+    // The made-up snapshots say compliance-review gained a next shape: its stamp
+    // becomes the package version, and the committed module still names its release.
+    const currentShapes = { ...state.currentShapes, "compliance-review": "next" };
     const findings = checkSchemas({ ...state, currentShapes });
     expect(findings).toContain(
-      `✗ src/schemas/release.ts stamps registry with ${CURRENT_STAMPS.registry}, but its ` +
+      `✗ src/schemas/release.ts stamps compliance-review with ${CURRENT_STAMPS["compliance-review"]}, but its ` +
         `current stamp is ${state.packageVersion} — run ${WRITE_COMMAND}`,
     );
   });

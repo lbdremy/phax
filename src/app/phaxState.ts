@@ -1,5 +1,5 @@
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
-import type { PhaseSubState, PhaxState } from "../domain/state.js";
+import type { PhaseSubState, PhaxState, StopCause } from "../domain/state.js";
 
 export function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
   switch (status.state) {
@@ -33,7 +33,15 @@ export function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
       return { state: "failed", cause: "unknown" };
     case "review_open":
       return { state: "review_open" };
+    case "awaiting_review":
+      return { state: "awaiting_review", cause: stopCauseOf(status) };
   }
+}
+
+// A phase only enters awaiting_review with its stop recorded; the declared
+// cause is the only one, so a status missing it still reads as declared.
+function stopCauseOf(status: PhaseStatus): StopCause {
+  return status.stop?.cause ?? "declared";
 }
 
 export function composePhaxState(
@@ -68,6 +76,13 @@ export function composePhaxState(
       return {
         run: "interrupted",
         phase: phase ? phaseSubStateFromStatus(phase) : { state: "pending" },
+      };
+    // The stopped phase's status names the cause. A run that is `running` with
+    // its phase awaiting_review is a close in progress, composed above.
+    case "awaiting_review":
+      return {
+        run: "awaiting_review",
+        phase: { state: "awaiting_review", cause: phase ? stopCauseOf(phase) : "declared" },
       };
   }
 }

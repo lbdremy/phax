@@ -1,3 +1,4 @@
+import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 
@@ -17,7 +18,8 @@ export interface ResumeContext {
     | "Gate step refused"
     | "Commit failed"
     | "Cleanup failed"
-    | "Artifact completion failed";
+    | "Artifact completion failed"
+    | "Awaiting review";
   readonly kind:
     | "rate_limit"
     | "usage_limit"
@@ -26,7 +28,8 @@ export interface ResumeContext {
     | "gate_refused"
     | "commit_failed"
     | "cleanup_failed"
-    | "artifact_completion_failed";
+    | "artifact_completion_failed"
+    | "awaiting_review";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;
@@ -90,6 +93,29 @@ export interface RecordCommitMetadata {
   readonly hash: string;
 }
 
+// review-stop.json exists exactly while the run is awaiting_review. These four
+// commands are its only lifecycle: written at the stop, parked in the phase
+// folder while a close runs, restored when the close is refused or
+// interrupted, and discarded when the stop commits, resets or is archived.
+
+export interface WriteReviewStop {
+  readonly type: "WriteReviewStop";
+  readonly reviewStop: ReviewStop;
+}
+
+export interface ParkReviewStop {
+  readonly type: "ParkReviewStop";
+}
+
+export interface RestoreReviewStop {
+  readonly type: "RestoreReviewStop";
+  readonly lastClose: LastClose;
+}
+
+export interface DiscardReviewStop {
+  readonly type: "DiscardReviewStop";
+}
+
 export type PhaxCommand =
   | PersistState
   | EmitTrace
@@ -98,6 +124,10 @@ export type PhaxCommand =
   | WriteAtomic
   | OpenRunReview
   | MoveRunToArchive
-  | RecordCommitMetadata;
+  | RecordCommitMetadata
+  | WriteReviewStop
+  | ParkReviewStop
+  | RestoreReviewStop
+  | DiscardReviewStop;
 
 export type PhaxCommandType = PhaxCommand["type"];

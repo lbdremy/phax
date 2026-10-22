@@ -10,6 +10,7 @@ import type { BranchName } from "../../src/domain/branded.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { encodeSecurityPosture, type SecurityPosture } from "../../src/schemas/securityPosture.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -18,18 +19,18 @@ const finalBranch = "feature/test-run--phase-02" as BranchName;
 const now = "2026-06-12T12:00:00.000Z";
 
 function makePhaseStatus(overrides: Partial<PhaseStatus> = {}): PhaseStatus {
-  return {
+  return phaseStatus({
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "review_open",
     model: "claude-sonnet-4-6",
     effort: "low",
-    branchName: "ai/test-run--phase-01" as BranchName,
+    branchName: "ai/test-run--phase-01",
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
     ...overrides,
-  };
+  });
 }
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
