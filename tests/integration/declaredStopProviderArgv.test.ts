@@ -284,7 +284,7 @@ async function closeThroughCli(run: StoppedRun) {
       gateSteps: [
         { command: "git status", surface: "local", firing: "every-phase", output: "log" },
       ],
-      gateRequest: "{}",
+      gateRequest: Effect.succeed("{}"),
       fileReconciliationMode: "report_only",
     });
   });

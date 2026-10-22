@@ -21,6 +21,7 @@ import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../../src/ports/backend.js";
+import { FsError } from "../../src/ports/fs.js";
 import { Git, type GitOps } from "../../src/ports/git.js";
 import { Session } from "../../src/ports/session.js";
 import { Shell } from "../../src/ports/shell.js";
@@ -204,7 +205,7 @@ const closeInput = (run: StoppedRun) => ({
   phaseFolder: run.phaseFolder,
   worktree: run.worktree,
   gateSteps: GATE_STEPS,
-  gateRequest: "{}",
+  gateRequest: Effect.succeed("{}"),
   fileReconciliationMode: "report_only" as const,
 });
 
@@ -544,6 +545,34 @@ describe("a refused close", () => {
     expect(backend.resumeCalls).toEqual([]);
     expect(expectBackAtStop(run, "gate-failed")).toMatchObject({ exitCode: 4, log });
     expect(read(run, "src/invoiceRow.ts")).toBe(CORRECTED_HEADER);
+  });
+
+  it("refuses a gate request it cannot build as close-error (gate), back at the stop", async () => {
+    const run = await stopRun(world);
+    correct(run);
+    const order: string[] = [];
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* resumeRequested(run);
+        return yield* Effect.either(
+          closeDeclaredStop({
+            ...closeInput(run),
+            gateRequest: Effect.fail(new FsError({ message: "status.json: not valid JSON" })),
+          }),
+        );
+      }).pipe(Effect.provide(layers({}, order, makeFakeBackend().impl))),
+    );
+    const error = refusal(result);
+
+    expect(order).toEqual([]);
+    expect(error.lastClose).toMatchObject({
+      result: "close-error",
+      exitCode: 1,
+      step: "gate",
+      detail: "status.json: not valid JSON",
+    });
+    expect(read(run, "src/invoiceRow.ts")).toBe(CORRECTED_HEADER);
+    expectBackAtStop(run, "close-error");
   });
 
   it("refuses a person's handoff file missing a section: exit 1, naming it", async () => {

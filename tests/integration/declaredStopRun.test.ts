@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -29,6 +30,7 @@ import {
   AssignmentPreflightError,
   AwaitingReviewStopError,
   CleanupPausedError,
+  WorktreeCreationError,
 } from "../../src/domain/errors.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -615,6 +617,32 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     expect(artifacts).toContain("phase-03/first-turn-01.jsonl");
     expect(artifacts).toContain("phase-03/closing-turn-01.jsonl");
     expect(artifacts).not.toContain("output.jsonl");
+  });
+
+  it("refuses a stop whose worktree is gone before anything changes, still awaiting review", async () => {
+    const { harness, result } = await startRun();
+    stopError(result);
+    const stopTree = worktreeOf("phase-03");
+    const reviewStop = readFileSync(join(harness.runPath, "review-stop.json"), "utf8");
+    // The worktree goes after the resume command's own check passed.
+    const decision = inspectResume(NAMESPACE, harness.shortName, world.stateRoot);
+    if (Either.isLeft(decision)) throw new Error(decision.left.message);
+    renameSync(stopTree, `${stopTree}.moved`);
+
+    const refused = await execute(harness, decision.right.nextPhaseIndex);
+
+    expect(Either.isLeft(refused) && refused.left).toBeInstanceOf(WorktreeCreationError);
+    expect(runState(harness)).toBe("awaiting_review");
+    expect(phaseStatus(harness, "phase-03")["state"]).toBe("awaiting_review");
+    expect(readFileSync(join(harness.runPath, "review-stop.json"), "utf8")).toBe(reviewStop);
+    expect(existsSync(join(harness.runPath, "phase-03", "review-stop.closing.json"))).toBe(false);
+    expect(harness.closed).toEqual([]);
+
+    // Put back, the worktree closes as usual.
+    renameSync(`${stopTree}.moved`, stopTree);
+    correct();
+    expectSucceeded(await resume(harness));
+    expect(harness.closed).toHaveLength(1);
   });
 
   it("a reset at the stop sets phase-03 up again and stops after a new first turn", async () => {

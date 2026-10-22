@@ -101,8 +101,11 @@ export interface CloseStopInput {
   readonly worktree: string;
   /** The phase's gate profile: the close runs its non-terminal steps once, with no fix loop. */
   readonly gateSteps: readonly GateStep[];
-  /** The phase's serialized gate request (`serializeGateRequest`). */
-  readonly gateRequest: string;
+  /**
+   * The phase's serialized gate request (`serializeGateRequest`), computed as
+   * part of the close's gate step: a failure there returns the run to the stop.
+   */
+  readonly gateRequest: Effect.Effect<string, FsError, FileSystem>;
   readonly fileReconciliationMode: "report_only" | "warn";
 }
 
@@ -339,6 +342,7 @@ function runCloseGate(
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const gateRequest = yield* at("gate", input.gateRequest);
     const names = yield* at("gate", fs.list(input.phaseFolder));
     const log = join(input.phaseFolder, attemptLogName(nextAttemptNumber(names)));
     const outcome = yield* Effect.either(
@@ -348,7 +352,7 @@ function runCloseGate(
         attemptLogPath: log,
         attributionPath: join(input.phaseFolder, "gate-attribution.json"),
         phaseId: input.phase.id,
-        gateRequest: input.gateRequest,
+        gateRequest,
       }),
     );
     if (Either.isRight(outcome)) return { log, steps: outcome.right.steps };
