@@ -73,6 +73,7 @@ import {
   SpecEditedSinceApprovalError,
   SpecNotApprovedError,
   SpecRetirementBlockedError,
+  StopCloseRefusedError,
   UnsafeGitStateError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -169,6 +170,8 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
 ];
 
 export function exitCodeForError(err: unknown): number {
+  // A refused close carries its own code: 4, 5, 1 or 8.
+  if (err instanceof StopCloseRefusedError) return err.lastClose.exitCode;
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
   if (err instanceof UnsafeGitStateError) return 3;
   if (

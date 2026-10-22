@@ -50,8 +50,10 @@ import type { ReviewStopCommand } from "../schemas/reviewStop.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import {
+  clearClosingTurnMark,
   dropPersonHandoffCopy,
   fingerprintPersonHandoff,
+  isClosingTurn,
   keepPersonHandoffCopy,
   keepRefusedTurn,
   readInteractiveSession,
@@ -314,6 +316,112 @@ function settleTurn(
   });
 }
 
+/** A closing turn's label (`closing-turn-01`): its streams' and its kept files' prefix. */
+export const closingTurnLabel = (turn: number): string =>
+  `closing-turn-${String(turn).padStart(2, "0")}`;
+
+/**
+ * Whether phax's turns on `provider` can write: only mistral-vibe's, which
+ * run under the phase's posture (q-vibe-turns). Claude Code and codex turns
+ * run read-only.
+ */
+export const turnsCanWrite = (provider: ProviderId): boolean => provider === "mistral-vibe";
+
+/** What settling a turn a crash or an interruption left in progress came to. */
+export interface LeftoverSettlement {
+  /** The interactive-session document as it now stands, null when none exists. */
+  readonly session: InteractiveSession | null;
+  /** The first turn settled, 0 when none was (no turn, or a closing turn). */
+  readonly settledFirstTurn: number;
+  /** A writing closing turn's edits, restored: the paths and where its versions were kept. */
+  readonly restoredClosingTurn: {
+    readonly paths: readonly string[];
+    readonly keptAt: string;
+  } | null;
+}
+
+// A closing turn left in progress. Only a turn that can write (vibe) had its
+// edits restored, kept aside first; a read-only turn wrote nothing, so any
+// change since is the person's and stays. The seed is rewritten either way.
+function settleLeftoverClosingTurn(
+  input: FirstTurnInput,
+  session: InteractiveSession,
+  leftOver: TurnInProgress,
+): Effect.Effect<LeftoverSettlement, FsError | GitError, FileSystem | Git> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const label = closingTurnLabel(leftOver.turn);
+    let restored: LeftoverSettlement["restoredClosingTurn"] = null;
+    if (turnsCanWrite(session.provider)) {
+      const afterTree = yield* git.snapshotWorktree(input.worktree);
+      const afterHandoff = yield* fingerprintPersonHandoff(input.worktree);
+      const verdict = worktreeChangeVerdict({
+        before: leftOver.beforeTree,
+        after: afterTree,
+        changed:
+          afterTree === leftOver.beforeTree
+            ? []
+            : yield* git.changedPathsBetween(input.worktree, leftOver.beforeTree, afterTree),
+        personHandoffBefore: leftOver.personHandoffBefore,
+        personHandoffAfter: afterHandoff?.sha256 ?? null,
+      });
+      if (verdict.kind === "changed") {
+        const keptAt = yield* keepRefusedTurn(input.worktree, input.phaseFolder, verdict.paths);
+        yield* git.restorePaths(
+          input.worktree,
+          leftOver.beforeTree,
+          verdict.paths.filter((p) => p !== PERSON_HANDOFF_PATH),
+        );
+        if (verdict.personHandoff !== "unchanged") {
+          yield* restorePersonHandoff(input.worktree, input.phaseFolder, label);
+        }
+        restored = { paths: verdict.paths, keptAt };
+      }
+    }
+    yield* dropPersonHandoffCopy(input.phaseFolder, label);
+    yield* restoreWorktreeSeed(seedPaths(input.worktree, input.phaseFolder));
+    const settled: InteractiveSession = { ...session, turnInProgress: null };
+    yield* writeInteractiveSession(input.phaseFolder, settled);
+    yield* clearClosingTurnMark(input.phaseFolder);
+    return { session: settled, settledFirstTurn: 0, restoredClosingTurn: restored };
+  });
+}
+
+/**
+ * Settle the turn interactive-session.json records in progress, if any: a
+ * first turn as `refused-change` when it changed anything, else as `failed`
+ * with reason `interrupted`; a closing turn (told apart by its marker) by
+ * restoring a writing turn's edits, with no record. Either way the seed is
+ * rewritten and `turnInProgress` cleared.
+ */
+export function settleLeftoverTurn(
+  input: FirstTurnInput,
+): Effect.Effect<LeftoverSettlement, FsError | GitError, FileSystem | Git> {
+  return Effect.gen(function* () {
+    const stored = yield* readInteractiveSession(input.phaseFolder);
+    const leftOver = stored?.turnInProgress ?? null;
+    if (stored === null || leftOver === null) {
+      return { session: stored, settledFirstTurn: 0, restoredClosingTurn: null };
+    }
+    if (yield* isClosingTurn(input.phaseFolder, leftOver.startedAt)) {
+      return yield* settleLeftoverClosingTurn(input, stored, leftOver);
+    }
+    const settled = yield* settleTurn(
+      input,
+      seedPaths(input.worktree, input.phaseFolder),
+      stored,
+      leftOver,
+      {
+        kind: "failed",
+        reason: "interrupted",
+        detail: "the turn was interrupted before it ended",
+        resetAt: null,
+      },
+    );
+    return { session: settled.session, settledFirstTurn: leftOver.turn, restoredClosingTurn: null };
+  });
+}
+
 function nextTurnNumber(
   phaseFolder: string,
   settledTurn: number,
@@ -350,26 +458,14 @@ export function runFirstTurn(
   return Effect.gen(function* () {
     const git = yield* Git;
     const seeds = seedPaths(input.worktree, input.phaseFolder);
-    const stored = yield* readInteractiveSession(input.phaseFolder);
-    let session: InteractiveSession = {
-      ...(stored ?? emptySession(input)),
+    const leftOver = yield* settleLeftoverTurn(input);
+    const session: InteractiveSession = {
+      ...(leftOver.session ?? emptySession(input)),
       provider: input.provider,
       interactiveResume: getSessionAdapter(input.provider).interactiveResume,
     };
 
-    let settledTurn = 0;
-    if (session.turnInProgress !== null) {
-      const leftOver = session.turnInProgress;
-      settledTurn = leftOver.turn;
-      session = (yield* settleTurn(input, seeds, session, leftOver, {
-        kind: "failed",
-        reason: "interrupted",
-        detail: "the turn was interrupted before it ended",
-        resetAt: null,
-      })).session;
-    }
-
-    const turn = yield* nextTurnNumber(input.phaseFolder, settledTurn);
+    const turn = yield* nextTurnNumber(input.phaseFolder, leftOver.settledFirstTurn);
     const personHandoff = yield* fingerprintPersonHandoff(input.worktree);
     yield* keepPersonHandoffCopy(input.phaseFolder, turnLabel(turn), personHandoff);
     const inProgress: TurnInProgress = {

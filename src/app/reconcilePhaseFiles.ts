@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { join } from "node:path";
 import type { RunId, WorktreePath } from "../domain/branded.js";
-import { reconcile } from "../domain/reconciliation/reconcile.js";
+import { reconcile, reconcileReview } from "../domain/reconciliation/reconcile.js";
 import { renderReconciliationMarkdown } from "../domain/reconciliation/render.js";
 import type { PlannedFiles, ReconciliationResult } from "../domain/reconciliation/types.js";
 import { makeArtifactGeneratedTelemetryEvent } from "../domain/telemetry/events.js";
@@ -22,6 +22,10 @@ export interface ReconcilePhaseFilesOptions {
    *  as optional files: removing a marker is never an unplanned edit, and an
    *  untouched oracle file is never a missing edit. */
   readonly oracleFiles: readonly string[];
+  /** `agent` (the default): the phase's commit against its planned files.
+   *  `review`: a closed interactive stop's commit, every changed file a
+   *  review correction (`reconcileReview`). */
+  readonly kind?: "agent" | "review" | undefined;
 }
 
 export function reconcilePhaseFiles(
@@ -39,7 +43,7 @@ export function reconcilePhaseFiles(
     };
 
     const entries = yield* git.diffNameStatus(opts.worktreePath);
-    const result = reconcile(planned, entries);
+    const result = opts.kind === "review" ? reconcileReview(entries) : reconcile(planned, entries);
     const markdown = renderReconciliationMarkdown(result, planned);
 
     if (opts.fileReconciliationMode === "warn" && result.hasDeviations) {

@@ -70,3 +70,31 @@ export function reconcile(
     hasDeviations,
   };
 }
+
+/**
+ * The reconciliation of a closed interactive stop: every changed path (both
+ * paths of a rename) is a review correction, in first-seen order, and none is
+ * a deviation. The planned and unplanned lists stay empty.
+ */
+export function reconcileReview(entries: readonly NameStatusEntry[]): ReconciliationResult {
+  const corrections = new Set<string>();
+  for (const entry of entries) {
+    if (entry.oldPath !== undefined) corrections.add(entry.oldPath);
+    corrections.add(entry.path);
+  }
+  return {
+    createdAsPlanned: [],
+    editedAsPlanned: [],
+    missingPlannedCreate: [],
+    missingPlannedEdit: [],
+    createdButPlannedEdit: [],
+    editedButPlannedCreate: [],
+    unplannedCreated: [],
+    unplannedEdited: [],
+    optionalTouched: [],
+    deletions: [],
+    renames: [],
+    reviewCorrections: [...corrections],
+    hasDeviations: false,
+  };
+}

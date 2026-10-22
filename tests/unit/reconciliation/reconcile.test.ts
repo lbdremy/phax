@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcile } from "../../../src/domain/reconciliation/reconcile.js";
+import { reconcile, reconcileReview } from "../../../src/domain/reconciliation/reconcile.js";
 import type { NameStatusEntry, PlannedFiles } from "../../../src/domain/reconciliation/types.js";
 
 const planned: PlannedFiles = {
@@ -189,5 +189,47 @@ describe("reconcile", () => {
       const result = reconcile(planned, entries);
       expect(result.hasDeviations).toBe(false);
     });
+  });
+});
+
+describe("reconcileReview", () => {
+  it("lists every changed path as a review correction, with no deviation", () => {
+    const result = reconcileReview([
+      { status: "modified", path: "src/export/invoiceRow.ts" },
+      { status: "added", path: "src/export/labels.ts" },
+      { status: "deleted", path: "src/export/legacy.ts" },
+    ]);
+    expect(result.reviewCorrections).toEqual([
+      "src/export/invoiceRow.ts",
+      "src/export/labels.ts",
+      "src/export/legacy.ts",
+    ]);
+    expect(result).toMatchObject({
+      createdAsPlanned: [],
+      editedAsPlanned: [],
+      missingPlannedCreate: [],
+      missingPlannedEdit: [],
+      unplannedCreated: [],
+      unplannedEdited: [],
+      optionalTouched: [],
+      deletions: [],
+      renames: [],
+      hasDeviations: false,
+    });
+  });
+
+  it("lists both paths of a rename", () => {
+    const result = reconcileReview([
+      { status: "renamed", oldPath: "src/export/row.ts", path: "src/export/invoiceRow.ts" },
+    ]);
+    expect(result.reviewCorrections).toEqual(["src/export/row.ts", "src/export/invoiceRow.ts"]);
+    expect(result.renames).toEqual([]);
+    expect(result.hasDeviations).toBe(false);
+  });
+
+  it("is empty for an unchanged stop", () => {
+    const result = reconcileReview([]);
+    expect(result.reviewCorrections).toEqual([]);
+    expect(result.hasDeviations).toBe(false);
   });
 });

@@ -299,6 +299,60 @@ function restorePathsEffect(
   );
 }
 
+// The tree is read into a temporary index and committed with `git commit`, so
+// the hooks see exactly that tree staged (GIT_INDEX_FILE reaches them too) and
+// signing applies. The real index is reset to the new HEAD only once the
+// committed tree is known to be `tree`.
+function commitTreeEffect(
+  worktree: string,
+  tree: string,
+  subject: string,
+  body: string,
+): Effect.Effect<string, GitError> {
+  return Effect.gen(function* () {
+    const oldHead = yield* resolveRefEffect(worktree, "HEAD");
+    if (oldHead === null) {
+      return yield* Effect.fail(
+        new GitError({
+          message: `${worktree}: HEAD names no commit`,
+          command: "git rev-parse HEAD",
+        }),
+      );
+    }
+    const newHead = yield* withTempIndex("phax-commit-index-", (env) =>
+      Effect.gen(function* () {
+        yield* gitRun(["read-tree", tree], worktree, { env });
+        yield* gitRun(["commit", "--allow-empty", "-m", subject, "-m", body], worktree, { env });
+        const head = yield* resolveRefEffect(worktree, "HEAD");
+        if (head === null || head === oldHead) {
+          return yield* Effect.fail(
+            new GitError({ message: "git commit left HEAD where it was", command: "git commit" }),
+          );
+        }
+        return head;
+      }),
+    );
+    const { stdout } = yield* gitRun(["rev-parse", "--verify", `${newHead}^{tree}`], worktree);
+    const committed = yield* parseTreeId(stdout, `git rev-parse ${newHead}^{tree}`);
+    if (committed !== tree) {
+      const { stdout: names } = yield* gitRun(
+        ["diff-tree", "-r", "-z", "--name-only", "--no-renames", tree, committed],
+        worktree,
+      );
+      const paths = names.split("\0").filter((p) => p.length > 0);
+      yield* gitRun(["update-ref", "HEAD", oldHead, newHead], worktree);
+      return yield* Effect.fail(
+        new GitError({
+          message: `A commit hook changed the committed tree (${paths.join(", ") || "no path listed"}); the commit was undone`,
+          command: "git commit",
+        }),
+      );
+    }
+    yield* gitRun(["read-tree", "HEAD"], worktree);
+    return newHead;
+  });
+}
+
 // Rename both sides of a one-file diff's header (the `diff --git`, `---` and
 // `+++` lines before the first hunk) to `label`, so the diff never names the
 // scratch files it was computed from. Hunk lines are left as they are.
@@ -616,6 +670,24 @@ export const NodeGitLayer = Layer.succeed(Git, {
   },
 
   restorePaths: (path, tree, paths) => restorePathsEffect(path, tree, paths),
+
+  diffTrees: (repo, fromTree, toTree) =>
+    gitRun(
+      [
+        "diff-tree",
+        "-p",
+        "-r",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-renames",
+        fromTree,
+        toTree,
+      ],
+      repo,
+    ).pipe(Effect.map(({ stdout }) => stdout)),
+
+  commitTree: (worktree, tree, subject, body) => commitTreeEffect(worktree, tree, subject, body),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {

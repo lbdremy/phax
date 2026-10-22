@@ -2,7 +2,7 @@ import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
-import type { ReviewStop } from "../schemas/reviewStop.js";
+import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
 
@@ -188,6 +188,21 @@ export class AwaitingReviewStopError extends Data.TaggedError("AwaitingReviewSto
   run: string;
   phase: string;
   report: DeclaredStopReport;
+}> {}
+
+/** How a refused close of a stop ended: any lastClose but `interrupted`. */
+export type RefusedClose = Exclude<LastClose, { readonly result: "interrupted" }>;
+
+/**
+ * A close of a stop was refused: the run is back in awaiting_review, with
+ * review-stop.json restored carrying `lastClose`. It exits with
+ * `lastClose.exitCode` (4, 5, 1 or 8). An interrupted close never raises it.
+ */
+export class StopCloseRefusedError extends Data.TaggedError("StopCloseRefusedError")<{
+  message: string;
+  run: string;
+  phase: string;
+  lastClose: RefusedClose;
 }> {}
 
 /**
