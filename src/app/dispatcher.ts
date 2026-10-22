@@ -92,11 +92,15 @@ function diffPatch(before: PhaxState, after: PhaxState): StatePatch {
   }
 
   let phasePatch: Partial<PhaseStatus> | undefined;
-  if (afterPhase !== undefined && beforePhase !== afterPhase) {
+  if (afterPhase !== undefined && beforePhase !== afterPhase && "phase" in after) {
+    // A phase enters awaiting_review with its waiting stop in the same write:
+    // the status reader refuses one without it.
     phasePatch =
-      "phase" in after && after.phase.state === "committed"
+      after.phase.state === "committed"
         ? { state: afterPhase, commitHash: after.phase.hash }
-        : { state: afterPhase };
+        : after.phase.state === "awaiting_review"
+          ? { state: afterPhase, stop: { cause: after.phase.cause, status: "waiting" } }
+          : { state: afterPhase };
   }
 
   return {

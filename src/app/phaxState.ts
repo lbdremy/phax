@@ -38,10 +38,13 @@ export function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
   }
 }
 
-// A phase only enters awaiting_review with its stop recorded; the declared
-// cause is the only one, so a status missing it still reads as declared.
+// A phase only enters awaiting_review with its stop recorded, and the status
+// reader refuses one without it: a missing stop is a defect, never a default.
 function stopCauseOf(status: PhaseStatus): StopCause {
-  return status.stop?.cause ?? "declared";
+  if (status.stop === null) {
+    throw new Error(`Phase ${status.phaseId} is awaiting review with no stop recorded`);
+  }
+  return status.stop.cause;
 }
 
 export function composePhaxState(

@@ -1,5 +1,6 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
+import { composePhaxState } from "../../src/app/phaxState.js";
 import {
   currentSchemaUrl,
   readPhaseStatusFile,
@@ -85,6 +86,21 @@ describe("phase status readers", () => {
     expect(read).toEqual(Either.right(status));
   });
 
+  it.each([
+    ["no stop", null],
+    ["a closed stop", { cause: "declared", status: "closed", outcome: "corrected" }],
+  ] as const)("refuses a current status awaiting review with %s", (_name, stop) => {
+    const document = phaseStatusFile({
+      ...fields,
+      state: "awaiting_review",
+      mode: "interactive",
+      stop,
+    });
+    expect(message(readPhaseStatusFile("status.json", JSON.parse(JSON.stringify(document))))).toBe(
+      "status.json: a phase awaiting review records no waiting stop",
+    );
+  });
+
   it("refuses a stop with an unknown cause", () => {
     const document = {
       ...phaseStatusFile({ ...fields, state: "awaiting_review", mode: "interactive" }),
@@ -114,6 +130,33 @@ describe("phase status readers", () => {
     expect(message(readPhaseStatusFile("status.json", older))).toContain("base");
     const preSchema = { version: 1, ...noBase };
     expect(Either.isLeft(readPhaseStatusFile("status.json", preSchema))).toBe(true);
+  });
+});
+
+describe("composePhaxState at a stop", () => {
+  it("reads the stopped phase's cause from its stop", () => {
+    const stopped = phaseStatus({
+      ...fields,
+      state: "awaiting_review",
+      mode: "interactive",
+      stop: { cause: "declared", status: "waiting" },
+    });
+    expect(composePhaxState("running", undefined, stopped)).toEqual({
+      run: "running",
+      phase: { state: "awaiting_review", cause: "declared" },
+    });
+  });
+
+  it("refuses a phase awaiting review with no stop instead of defaulting its cause", () => {
+    const stopped = phaseStatus({
+      ...fields,
+      state: "awaiting_review",
+      mode: "interactive",
+      stop: null,
+    });
+    expect(() => composePhaxState("awaiting_review", undefined, stopped)).toThrow(
+      "Phase phase-03 is awaiting review with no stop recorded",
+    );
   });
 });
 
