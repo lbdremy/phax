@@ -388,7 +388,6 @@ describe("closing a declared stop", () => {
       readInteractiveSession(run.phaseFolder).pipe(Effect.provide(NodeFileSystemLayer)),
     );
     expect(session?.turnInProgress).toBeNull();
-    expect(existsSync(join(run.phaseFolder, "closing-turn.in-progress"))).toBe(false);
   });
 
   it("uses the person's handoff file byte for byte, with no turn", async () => {
@@ -821,7 +820,10 @@ describe("a close taken up again", () => {
         yield* Fiber.interrupt(fiber);
       }).pipe(Effect.provide(layers({}, [], new HangingBackend()))),
     );
-    expect(existsSync(join(run.phaseFolder, "closing-turn.in-progress"))).toBe(true);
+    const interrupted = await Effect.runPromise(
+      readInteractiveSession(run.phaseFolder).pipe(Effect.provide(NodeFileSystemLayer)),
+    );
+    expect(interrupted?.turnInProgress).toMatchObject({ kind: "closing-turn", turn: 1 });
     expect(read(run, "src/export/labels.ts")).toBe("export const labels = {};\n");
 
     // `phax resume` takes the close up again: the turn's edit is restored
@@ -844,7 +846,10 @@ describe("a close taken up again", () => {
     expect(gitIn(run.worktree, "show", "--name-only", "--format=", "HEAD").trim()).toBe(
       "src/invoiceRow.ts",
     );
-    expect(existsSync(join(run.phaseFolder, "closing-turn.in-progress"))).toBe(false);
+    const settled = await Effect.runPromise(
+      readInteractiveSession(run.phaseFolder).pipe(Effect.provide(NodeFileSystemLayer)),
+    );
+    expect(settled?.turnInProgress).toBeNull();
   });
 });
 

@@ -249,6 +249,7 @@ describe("interactive-session", () => {
 
   it("decodes turnInProgress both null and set", () => {
     const inProgress = {
+      kind: "first-turn",
       turn: 1,
       origin: "first-turn",
       beforeTree: HEAD,
@@ -258,6 +259,7 @@ describe("interactive-session", () => {
     expect(accepted(decodeInteractiveSessionFile(stampedSession(interactiveSession)))).toBe(true);
     for (const turnInProgress of [
       inProgress,
+      { ...inProgress, kind: "closing-turn" },
       { ...inProgress, personHandoffBefore: "a".repeat(64) },
     ]) {
       expect(
@@ -276,6 +278,14 @@ describe("interactive-session", () => {
         ),
       ),
     ).toBe(false);
+    const { kind: _kind, ...noKind } = inProgress;
+    for (const turnInProgress of [noKind, { ...inProgress, kind: "fix-turn" }]) {
+      expect(
+        accepted(
+          decodeInteractiveSessionFile(stampedSession({ ...interactiveSession, turnInProgress })),
+        ),
+      ).toBe(false);
+    }
   });
 
   it.each([

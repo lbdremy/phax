@@ -346,46 +346,6 @@ export function rewriteReviewStopAt(
   });
 }
 
-// interactive-session.json's `turnInProgress` has no closing-turn origin, so a
-// closing turn also leaves this marker, holding its `startedAt`: a turn in
-// progress whose `startedAt` matches it is a closing turn, any other a first turn.
-const CLOSING_TURN_MARKER_FILE = "closing-turn.in-progress";
-
-/** Mark the turn starting at `startedAt` as a closing turn, before it is recorded in progress. */
-export function markClosingTurn(
-  phaseFolder: string,
-  startedAt: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    yield* fs.writeAtomic(join(phaseFolder, CLOSING_TURN_MARKER_FILE), startedAt);
-  });
-}
-
-/** Whether the turn in progress that started at `startedAt` is a closing turn. */
-export function isClosingTurn(
-  phaseFolder: string,
-  startedAt: string,
-): Effect.Effect<boolean, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(phaseFolder, CLOSING_TURN_MARKER_FILE);
-    if (!(yield* fs.exists(path))) return false;
-    return (yield* fs.readText(path)).trim() === startedAt;
-  });
-}
-
-/** Remove the closing-turn marker once its turn is no longer in progress. */
-export function clearClosingTurnMark(
-  phaseFolder: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(phaseFolder, CLOSING_TURN_MARKER_FILE);
-    if (yield* fs.exists(path)) yield* fs.remove(path);
-  });
-}
-
 // Only the part of model-resolution.json the later turns read.
 const ModelResolutionSelectionSchema = Schema.Struct({
   selected: Schema.Struct({

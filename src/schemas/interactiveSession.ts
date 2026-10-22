@@ -64,6 +64,10 @@ const FirstTurnSchema = Schema.Union(
 );
 
 const TurnInProgressSchema = Schema.Struct({
+  kind: Schema.Literal("first-turn", "closing-turn").annotations({
+    description:
+      "Which of phax's turns is in progress: a read-only first turn, or a stop's closing turn.",
+  }),
   turn: Schema.Int.pipe(Schema.between(1, 99)),
   origin: OriginSchema,
   beforeTree: Schema.NonEmptyString.annotations({
