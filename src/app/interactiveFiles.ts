@@ -211,11 +211,12 @@ export function dropPersonHandoffCopy(
 const REFUSED_TURN = /^refused-turn-(\d{2})$/;
 
 /**
- * Copy a refused turn's versions of `paths` from the worktree to the next
+ * Move a refused turn's versions of `paths` out of the worktree into the next
  * free `<phase folder>/refused-turn-NN/`, keeping each path's place under it;
- * a path the turn deleted has no version and is not copied. Returns the
- * folder. The copies go through the text port: a binary file's bytes are not
- * kept exactly.
+ * a path the turn deleted has no version and is not moved. Returns the
+ * folder. Each file is renamed, so its bytes are kept exactly (the worktree
+ * and the run folder share the state root). Every caller then puts the
+ * worktree's paths back as they stood before the turn.
  */
 export function keepRefusedTurn(
   worktree: string,
@@ -236,7 +237,7 @@ export function keepRefusedTurn(
       if (!(yield* fs.exists(source))) continue;
       const target = join(folder, path);
       yield* fs.mkdirp(dirname(target));
-      yield* fs.writeAtomic(target, yield* fs.readText(source));
+      yield* fs.rename(source, target);
     }
     return folder;
   });

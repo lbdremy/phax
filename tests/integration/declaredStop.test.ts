@@ -452,6 +452,17 @@ describe("stopAtDeclaredPhase — a first turn that edits", () => {
     expect(git("status", "--porcelain")).toBe("");
   });
 
+  it("keeps a binary file the turn wrote byte for byte", async () => {
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe, 0x80, 0x0a, 0xc3]);
+    const backend = answering();
+    backend.impl.setOnRunAgent((_prompt, options) => {
+      writeFileSync(join(options.cwd, "src", "logo.png"), bytes);
+    });
+    await stop(backend);
+    expect(existsSync(join(worktree, "src", "logo.png"))).toBe(false);
+    expect(readFileSync(join(phaseFolder, "refused-turn-01", "src", "logo.png"))).toEqual(bytes);
+  });
+
   it("refuses a turn that writes the person's handoff file, and removes it", async () => {
     const backend = answering();
     backend.impl.setOnRunAgent((_prompt, options) => {
