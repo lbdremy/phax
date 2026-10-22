@@ -5,7 +5,8 @@
 // `running`, with the phase still `awaiting_review` and review-stop.json
 // parked. It transitions only through `StopCloseRefused` and `StopCommitted`:
 // every failure before the commit's state returns the run to the stop, and
-// none restores or resets the worktree, so the person's corrections stay.
+// none restores or resets the person's corrections: only a closing turn's own
+// edits are moved aside and put back.
 import { Effect, Either, JSONSchema } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -537,11 +538,12 @@ function nextClosingTurnNumber(phaseFolder: string): Effect.Effect<number, FsErr
  * The read-only closing turn, given the corrections between HEAD's tree and
  * the gated tree. It is recorded in progress (with its marker) before it
  * starts; an interruption leaves it so, and the next close restores a
- * writing turn's edits. Once it ends, the person's handoff file is checked:
- * a turn that changed it has its version moved to `refused-turn-NN/` and the
- * file put back. The worktree's seed is rewritten from its run-folder copy.
- * A turn that changed the worktree or the handoff file is refused as
- * `closing-turn-edited`, its worktree edits left in place.
+ * writing turn's edits. Once it ends, the worktree and the person's handoff
+ * file are compared with how they stood before it: a turn that changed
+ * either has its versions moved to `refused-turn-NN/`, the worktree put back
+ * to the gated tree and the handoff file to its kept copy, and is refused as
+ * `closing-turn-edited`. The worktree's seed is rewritten from its
+ * run-folder copy.
  */
 function runClosingTurn(
   input: CloseStopInput,
@@ -614,13 +616,25 @@ function runClosingTurn(
       personHandoffBefore: personBefore?.sha256 ?? null,
       personHandoffAfter: personAfter?.sha256 ?? null,
     });
-    if (verdict.kind === "changed" && verdict.personHandoff !== "unchanged") {
-      // Left in place, the turn's file would become the person's handoff.
-      yield* at("files", keepRefusedTurn(input.worktree, input.phaseFolder, [PERSON_HANDOFF_PATH]));
-      yield* at("files", restorePersonHandoff(input.worktree, input.phaseFolder, label));
-    } else {
-      yield* at("files", dropPersonHandoffCopy(input.phaseFolder, label));
+    if (verdict.kind === "changed") {
+      // Left in place, the turn's edits would pass as the person's at the
+      // next close: its versions are moved aside and the gated tree put back.
+      // The person's handoff file is never given to restorePaths: snapshots
+      // leave `.phax-context/` out, so its kept copy restores it.
+      yield* at("files", keepRefusedTurn(input.worktree, input.phaseFolder, verdict.paths));
+      yield* at(
+        "commit",
+        git.restorePaths(
+          input.worktree,
+          args.gated,
+          verdict.paths.filter((p) => p !== PERSON_HANDOFF_PATH),
+        ),
+      );
+      if (verdict.personHandoff !== "unchanged") {
+        yield* at("files", restorePersonHandoff(input.worktree, input.phaseFolder, label));
+      }
     }
+    yield* at("files", dropPersonHandoffCopy(input.phaseFolder, label));
     yield* at("files", restoreWorktreeSeed(seedPaths(input.worktree, input.phaseFolder)));
     yield* at(
       "files",

@@ -380,7 +380,7 @@ phax path invoice-export                 # phax shell and phax open take the sam
 To close the stop, run `phax resume invoice-export` from the main checkout. phax:
 
 1. runs the phase's gate first. A red gate returns the phase to you (exit 4): fix the worktree, resume again;
-2. takes the handoff: your `.phax-context/correction-handoff.md` when it exists, with the sections `## What was corrected`, `## The pattern to follow from now on`, `## Guards` and `## What the next phases need to know` (one guard per correction); otherwise a read-only closing turn writes it from the diff of your corrections. A closing turn that edits the worktree, or an answer still invalid after one corrective resume, is refused (exit 5);
+2. takes the handoff: your `.phax-context/correction-handoff.md` when it exists, with the sections `## What was corrected`, `## The pattern to follow from now on`, `## Guards` and `## What the next phases need to know` (one guard per correction); otherwise a read-only closing turn writes it from the diff of your corrections. A closing turn that edits the worktree is refused (exit 5): its edits are set aside in the phase's `refused-turn-NN/` folder and the worktree put back to the tree the gate passed. An answer still invalid after one corrective resume is refused too (exit 5);
 3. commits exactly the gated tree, with an `Interactive-Phase: <phase-id>` trailer and no model or session trailers, because no agent session wrote it. A review that changed nothing commits an empty commit;
 4. continues with the next phase, whose prompt carries your correction under `## Review corrections`, after the previous phase's handoff.
 
