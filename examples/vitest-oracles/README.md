@@ -86,6 +86,7 @@ Modules: `main.mjs` (stdin, wiring, printing), `request.mjs` (reading the reques
 - **Only the declared oracle files are judged.** A discharging phase can still keep an oracle from judging its code outside those files: through a helper the oracle imports, a Vitest setup file, or an `exclude` in `vitest.config`. The reviewer reads those changes; reconciliation flags any the plan did not declare.
 - **Some tests are not recognized.** Only calls rooted at the identifiers `test`, `it`, `describe` and `suite` count. A renamed import (`import { test as t }`), an alias (`const t = test`), `globalThis.test`, `test.extend` fixtures and helper wrappers are not seen, so a new unmarked test written that way passes `authored`; the configured `pnpm test` step still turns red when it fails. A test inside dead code (`if (false) { … }`) counts as running, and a new row in a `describe.each` table is not a new test.
 
+- **Tests that share an identity are matched by position.** A test added above others with the same identity (`refunds`, `refunds #2`…) renumbers them, so `authored` compares each with a different test at `base` and asks a marker of an unchanged one. Give tests in one block distinct titles.
 - **A changed table row cannot be told apart from a changed body.** Both are a modification.
 - **A reworded comment is invisible**, since comments are not part of the tree.
 - **No typecheck.** The folder is plain `.mjs`, which the repository's `tsconfig` does not cover; its tests run in `pnpm test` and are typechecked by `pnpm test:type`.
