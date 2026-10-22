@@ -448,7 +448,7 @@ export function detailedInstructionsOf(section: string): string {
   return (end === -1 ? rest : rest.slice(0, end)).join("\n").trim();
 }
 
-function asReviewStopCommand(command: StopCommand): ReviewStopCommand {
+export function asReviewStopCommand(command: StopCommand): ReviewStopCommand {
   return { cwd: command.cwd, argv: [command.executable, ...command.args], env: { ...command.env } };
 }
 

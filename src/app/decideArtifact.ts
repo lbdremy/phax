@@ -731,7 +731,7 @@ export function decideArtifact(
 
     // The interactive session: its exit status says nothing about the document.
     // A launch failure ends the decide here: no session spawned, no record.
-    yield* (yield* Session).resume(invocation).pipe(
+    yield* (yield* Session).resume({ ...invocation, env: {} }).pipe(
       Effect.mapError(
         (e) =>
           new AgentInvocationError({

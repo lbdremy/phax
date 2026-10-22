@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ResetPhaseError, resetPhase } from "../../src/app/resetPhase.js";
+import { ResetPhaseError, previewResetPhase, resetPhase } from "../../src/app/resetPhase.js";
 import { decodeShortName, type ShortName } from "../../src/domain/branded.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -25,12 +25,14 @@ function nowIso(): string {
 async function seedRun(
   stateRoot: string,
   opts: {
-    runState: "failed" | "running" | "interrupted";
+    runState: "failed" | "running" | "interrupted" | "awaiting_review";
     lastError?: string;
     phases: ReadonlyArray<{
       id: string;
       index: number;
       state: PhaseStatus["state"];
+      /** The phase is a declared interactive one; at `awaiting_review` it is waiting at its stop. */
+      interactive?: boolean;
       worktreePath?: string;
       branchName: string;
       commitHash?: string;
@@ -51,7 +53,14 @@ async function seedRun(
     gateProfileId: "full",
   };
   if (opts.lastError !== undefined) runStatus["lastError"] = opts.lastError;
-  await writeFile(join(runPath, "run-status.json"), JSON.stringify(runStatus));
+  // `awaiting_review` is newer than the pre-schema shape, so its run status is stamped.
+  const { version: _version, ...current } = runStatus;
+  await writeFile(
+    join(runPath, "run-status.json"),
+    JSON.stringify(
+      opts.runState === "awaiting_review" ? withSchemaUrl("run-status", current) : runStatus,
+    ),
+  );
 
   for (const phase of opts.phases) {
     const phaseFolderPath = join(runPath, phase.id);
@@ -66,6 +75,15 @@ async function seedRun(
       base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
       createdAt: nowIso(),
       updatedAt: nowIso(),
+      ...(phase.interactive === true
+        ? {
+            mode: "interactive" as const,
+            stop:
+              phase.state === "awaiting_review"
+                ? ({ cause: "declared", status: "waiting" } as const)
+                : null,
+          }
+        : {}),
     });
     if (phase.worktreePath !== undefined) status["worktreePath"] = phase.worktreePath;
     if (phase.commitHash !== undefined) status["commitHash"] = phase.commitHash;
@@ -105,6 +123,28 @@ async function snapshot(runPath: string) {
 
 function shortName(): ShortName {
   return Either.getOrThrow(decodeShortName(SHORT_NAME));
+}
+
+// A fake Git whose stopped worktree holds a modified, an added and a deleted file.
+function stopLayers(stopped: string) {
+  const fakeGit = makeFakeGit();
+  fakeGit.impl.addExistingBranch("ai/my-run--phase-03");
+  fakeGit.impl.headTrees.set(stopped, "a".repeat(40));
+  fakeGit.impl.enqueueSnapshots(stopped, "b".repeat(40));
+  fakeGit.impl.setTreeChanges("a".repeat(40), "b".repeat(40), [
+    { status: "M", path: "src/invoiceRow.ts" },
+    { status: "A", path: "src/creditNote.ts" },
+    { status: "D", path: "docs/notes.md" },
+  ]);
+  return {
+    fakeGit,
+    layers: Layer.mergeAll(
+      fakeGit.layer,
+      makeFakeShell().layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    ),
+  };
 }
 
 describe("resetPhase", () => {
@@ -487,6 +527,120 @@ describe("resetPhase", () => {
     expect(runStatus["state"]).toBe("interrupted");
     const entries = await readdir(runPath);
     expect(entries.some((e) => e.startsWith("phase-01.reset-"))).toBe(true);
+  });
+
+  describe("at a stop", () => {
+    const worktree = (root: string, id: string) =>
+      join(root, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, id);
+
+    async function seedStoppedRun(root: string) {
+      const stopped = worktree(root, "phase-03");
+      const seeded = await seedRun(root, {
+        runState: "awaiting_review",
+        phases: [
+          {
+            id: "phase-01",
+            index: 0,
+            state: "committed",
+            branchName: "ai/my-run--phase-01",
+            commitHash: "aabbccdd",
+          },
+          {
+            id: "phase-02",
+            index: 1,
+            state: "committed",
+            branchName: "ai/my-run--phase-02",
+            commitHash: "eeff0011",
+          },
+          {
+            id: "phase-03",
+            index: 2,
+            state: "awaiting_review",
+            interactive: true,
+            worktreePath: stopped,
+            branchName: "ai/my-run--phase-03",
+          },
+        ],
+      });
+      await writeFile(join(seeded.runPath, "review-stop.json"), "{}");
+      return { ...seeded, stopped };
+    }
+
+    it("previews every uncommitted correction of the stopped phase", async () => {
+      const { stopped } = await seedStoppedRun(stateRoot);
+      const { layers } = stopLayers(stopped);
+      // The preview reads the worktree from disk before it asks Git.
+      await mkdir(stopped, { recursive: true });
+
+      const preview = await Effect.runPromise(
+        previewResetPhase({
+          shortName: shortName(),
+          namespace: NAMESPACE,
+          stateRoot,
+          repoRoot: stateRoot,
+        }).pipe(Effect.provide(layers)),
+      );
+
+      expect(preview).toEqual({
+        phaseId: "phase-03",
+        atStop: true,
+        corrections: [
+          { status: "M", path: "src/invoiceRow.ts" },
+          { status: "A", path: "src/creditNote.ts" },
+          { status: "D", path: "docs/notes.md" },
+        ],
+      });
+    });
+
+    it("resets the stopped phase, which discards review-stop.json", async () => {
+      const { runPath, stopped } = await seedStoppedRun(stateRoot);
+      const { layers } = stopLayers(stopped);
+
+      const result = await Effect.runPromise(
+        resetPhase({
+          shortName: shortName(),
+          namespace: NAMESPACE,
+          stateRoot,
+          repoRoot: stateRoot,
+        }).pipe(Effect.provide(layers)),
+      );
+
+      expect(result).toMatchObject({
+        phaseId: "phase-03",
+        wasStopped: true,
+        worktreeRemoved: true,
+      });
+      expect(existsSync(join(runPath, "review-stop.json"))).toBe(false);
+      expect(existsSync(join(runPath, "phase-03"))).toBe(false);
+    });
+
+    it("refuses a phase before the stopped one, naming the stopped phase, and changes nothing", async () => {
+      const { runPath, stopped } = await seedStoppedRun(stateRoot);
+      const { layers, fakeGit } = stopLayers(stopped);
+      const before = await snapshot(runPath);
+
+      const result = await Effect.runPromise(
+        Effect.either(
+          resetPhase({
+            shortName: shortName(),
+            namespace: NAMESPACE,
+            phaseId: "phase-02",
+            stateRoot,
+            repoRoot: stateRoot,
+          }).pipe(Effect.provide(layers)),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) throw new Error("unreachable");
+      expect(result.left).toBeInstanceOf(ResetPhaseError);
+      expect((result.left as ResetPhaseError).reason).toBe("phase_not_at_stop");
+      expect(result.left.message).toBe(
+        'Cannot reset "phase-02" of run "my-run": the run is awaiting review at "phase-03". Reset "phase-03" first (`phax reset-phase my-run phase-03`).',
+      );
+      expect(await snapshot(runPath)).toEqual(before);
+      expect(fakeGit.impl.deletedBranches).toHaveLength(0);
+    });
   });
 
   it("rejects when the run does not exist", async () => {

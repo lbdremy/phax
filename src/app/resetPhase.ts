@@ -9,6 +9,7 @@ import {
   type ShortName,
 } from "../domain/branded.js";
 import type { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
+import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { interpret } from "../domain/reducer.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -27,6 +28,7 @@ export class ResetPhaseError extends Data.TaggedError("ResetPhaseError")<{
     | "phase_not_found"
     | "phase_blocked_by_discharge"
     | "phase_blocked_by_later_committed"
+    | "phase_not_at_stop"
     | "not_resettable";
   readonly message: string;
 }> {}
@@ -45,6 +47,17 @@ export interface ResetPhaseResult {
   readonly archivedPath: string | undefined;
   readonly worktreeRemoved: boolean;
   readonly branchDeleted: boolean;
+  /** True when the phase was the stopped phase of a run awaiting review. */
+  readonly wasStopped: boolean;
+}
+
+/** What a reset of the phase would discard, for the preview printed without `--yes`. */
+export interface ResetPreview {
+  readonly phaseId: string;
+  /** True when the phase is the stopped phase of a run awaiting review. */
+  readonly atStop: boolean;
+  /** The uncommitted corrections in the stopped phase's worktree; empty away from a stop. */
+  readonly corrections: readonly ChangedPath[];
 }
 
 const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
@@ -55,6 +68,35 @@ const STOPPED_AT_GATE_STATES = new Set<PhaseStatus["state"]>([
   "gates_failed",
   "failed",
 ]);
+
+/** The phase a run in `awaiting_review` waits at; undefined for any other run. */
+function stoppedPhaseOf(info: {
+  readonly runState: string;
+  readonly phaseStatuses: readonly PhaseStatus[];
+}): PhaseStatus | undefined {
+  if (info.runState !== "awaiting_review") return undefined;
+  return info.phaseStatuses
+    .filter((p) => p.state === "awaiting_review")
+    .toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
+}
+
+// While a run awaits review, only the stopped phase can be reset: an earlier
+// phase is committed work the stop sits on, and a later one has not started.
+function checkTargetAtStop(
+  shortName: string,
+  target: PhaseStatus,
+  stopped: PhaseStatus | undefined,
+): ResetPhaseError | undefined {
+  if (stopped === undefined || target.phaseId === stopped.phaseId) return undefined;
+  const why =
+    target.phaseIndex < stopped.phaseIndex
+      ? `Reset "${stopped.phaseId}" first (\`phax reset-phase ${shortName} ${stopped.phaseId}\`).`
+      : `"${target.phaseId}" has not started.`;
+  return new ResetPhaseError({
+    reason: "phase_not_at_stop",
+    message: `Cannot reset "${target.phaseId}" of run "${shortName}": the run is awaiting review at "${stopped.phaseId}". ${why}`,
+  });
+}
 
 function archiveTimestamp(): string {
   // ISO timestamp with colons swapped for hyphens so it is a safe path segment.
@@ -104,6 +146,10 @@ export function resetPhase(
           : `Run "${opts.shortName}" has no resettable phase`;
       return yield* Effect.fail(new ResetPhaseError({ reason: "phase_not_found", message: msg }));
     }
+
+    const stopped = stoppedPhaseOf(info);
+    const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
+    if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
 
     // An oracle phase is not reset once its discharge has started: the
     // discharge judges this phase's commit, which a reset would discard. A
@@ -229,7 +275,56 @@ export function resetPhase(
       archivedPath,
       worktreeRemoved,
       branchDeleted,
+      wasStopped: stopped !== undefined,
     };
+  });
+}
+
+/**
+ * What `resetPhase` would discard, without changing anything: at the stopped
+ * phase of a run awaiting review, every uncommitted correction in its
+ * worktree (the worktree as it stands against HEAD's tree). The same refusals
+ * as the reset apply to a phase that is not the stopped one.
+ */
+export function previewResetPhase(
+  opts: ResetPhaseOptions,
+): Effect.Effect<ResetPreview, ResetPhaseError | FsError | GitError, FileSystem | Git> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const git = yield* Git;
+
+    const infoResult = resolveRun(opts.namespace, opts.shortName, opts.stateRoot);
+    if (Either.isLeft(infoResult)) {
+      return yield* Effect.fail(
+        new ResetPhaseError({
+          reason: "run_not_found",
+          message: `Run "${opts.shortName}" not found: ${infoResult.left}`,
+        }),
+      );
+    }
+    const info = infoResult.right;
+    const target = selectTargetPhase(info.phaseStatuses, opts.phaseId);
+    if (target === undefined) {
+      const msg =
+        opts.phaseId !== undefined
+          ? `Phase "${opts.phaseId}" not found in run "${opts.shortName}"`
+          : `Run "${opts.shortName}" has no resettable phase`;
+      return yield* Effect.fail(new ResetPhaseError({ reason: "phase_not_found", message: msg }));
+    }
+    const stopped = stoppedPhaseOf(info);
+    const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
+    if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
+    if (stopped === undefined) return { phaseId: target.phaseId, atStop: false, corrections: [] };
+
+    const worktree = target.worktreePath;
+    if (worktree === undefined || !(yield* fs.exists(worktree))) {
+      return { phaseId: target.phaseId, atStop: true, corrections: [] };
+    }
+    const head = yield* git.headTree(worktree);
+    const snapshot = yield* git.snapshotWorktree(worktree);
+    const corrections =
+      snapshot === head ? [] : yield* git.changedPathsBetween(worktree, head, snapshot);
+    return { phaseId: target.phaseId, atStop: true, corrections };
   });
 }
 

@@ -124,8 +124,12 @@ export function buildProgram(): Command {
     .description("Resume a specific phase's agent session interactively")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
     .argument("<phase-id>", "Phase identifier, e.g. phase-02")
-    .action(async (shortName: string, phaseId: string) => {
-      const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput);
+    .option(
+      "--new-session",
+      "At a stopped phase, run a new read-only first turn and continue its session",
+    )
+    .action(async (shortName: string, phaseId: string, opts: { newSession?: boolean }) => {
+      const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput, opts);
       process.exit(exitCode);
     });
 
@@ -172,6 +176,7 @@ export function buildProgram(): Command {
     .option("--active", "Show only active runs (created or running)")
     .option("--failed", "Show only failed runs")
     .option("--review-open", "Show only review_open runs")
+    .option("--awaiting-review", "Show only runs awaiting_review at an interactive phase")
     .option("--archived", "Show only archived runs")
     .option("--json", "Output as JSON")
     .option("--complete", "Print run short-names for shell completion")
@@ -180,6 +185,7 @@ export function buildProgram(): Command {
         active?: boolean;
         failed?: boolean;
         reviewOpen?: boolean;
+        awaitingReview?: boolean;
         archived?: boolean;
         json?: boolean;
         complete?: boolean;

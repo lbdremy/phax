@@ -7,7 +7,7 @@ import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { prepareAdjustPlanSession } from "../../app/adjustPlan.js";
+import { landedRunRefusal, prepareAdjustPlanSession } from "../../app/adjustPlan.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -66,6 +66,12 @@ export async function runAdjustPlan(
   const qualifiedName = runKey(namespace, shortName);
   if (crossProject) {
     out.log(`Target: ${qualifiedName}`);
+  }
+
+  const notLanded = landedRunRefusal(qualifiedName, info.runState);
+  if (notLanded !== null) {
+    out.error(notLanded);
+    return 1;
   }
 
   let planMarkdown: string;
@@ -135,7 +141,7 @@ export async function runAdjustPlan(
 
   const sessionEffect = Effect.gen(function* () {
     const s = yield* Session;
-    return yield* s.resume(invocation);
+    return yield* s.resume({ ...invocation, env: {} });
   }).pipe(Effect.provide(makeNodeSessionLayer()));
 
   const sessionResult = await Effect.runPromise(Effect.either(sessionEffect));

@@ -10,6 +10,8 @@ export interface SessionOps {
     executable: string;
     args: readonly string[];
     cwd: string;
+    /** Variables merged over the person's own; `{}` adds none. */
+    env: Readonly<Record<string, string>>;
   }): Effect.Effect<number, SessionError>;
 }
 

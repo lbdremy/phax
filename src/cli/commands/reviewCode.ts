@@ -104,7 +104,7 @@ export async function runReviewCode(
 
   const sessionEffect = Effect.gen(function* () {
     const s = yield* Session;
-    return yield* s.resume(invocation);
+    return yield* s.resume({ ...invocation, env: {} });
   }).pipe(Effect.provide(makeNodeSessionLayer()));
 
   const sessionResult = await Effect.runPromise(Effect.either(sessionEffect));

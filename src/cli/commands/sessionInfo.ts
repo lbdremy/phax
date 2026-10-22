@@ -1,21 +1,69 @@
-import { Either } from "effect";
+import { Effect, Either, type Layer } from "effect";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { loadProviderConfig } from "../../app/loadRouting.js";
 import { findCurrentPhase } from "../../app/resolveRunInfo.js";
 import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { getSessionAdapter } from "../../domain/session/index.js";
+import { planEnterPhase, type EnterPhaseResult } from "../../app/enterPhase.js";
+import { readStopInfo } from "../../app/stopInfo.js";
 import { canResume } from "../../app/resume.js";
 import { composePhaxState } from "../../app/phaxState.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
+import type { FileSystem } from "../../ports/fs.js";
+import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import type { RunStatus } from "../../schemas/status.js";
 import type { PhaseAgentBinding } from "../../schemas/phaseAgentBinding.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
+
+interface SessionInfoTarget {
+  readonly namespace: string;
+  readonly shortName: string;
+  readonly stateRoot: string;
+  readonly fsLayer: Layer.Layer<FileSystem>;
+}
+
+// What `phax enter-phase` would do for the phase, without running it: only
+// whether it can, and why not. providers.json is read for the command's
+// flags alone, so a file that cannot be read falls back to the defaults.
+async function planEnter(
+  target: SessionInfoTarget,
+  info: RunReviewInfo,
+  phaseId: string,
+): Promise<EnterPhaseResult> {
+  const providerConfig: ProviderConfig = await Effect.runPromise(
+    loadProviderConfig().pipe(
+      Effect.provide(target.fsLayer),
+      Effect.orElseSucceed(() => DEFAULT_PROVIDER_CONFIG),
+    ),
+  );
+  const planned = await Effect.runPromise(
+    Effect.either(
+      planEnterPhase({
+        namespace: target.namespace,
+        shortName: target.shortName,
+        info,
+        phaseId,
+        newSession: false,
+        stateRoot: target.stateRoot,
+        providerConfig,
+      }).pipe(Effect.provide(target.fsLayer)),
+    ),
+  );
+  return Either.isRight(planned)
+    ? planned.right
+    : { kind: "refused", message: planned.left.message };
+}
 
 async function printSessionInfo(
+  target: SessionInfoTarget,
   info: RunReviewInfo,
   qualifiedName: string,
   out: OutputPort,
@@ -24,7 +72,6 @@ async function printSessionInfo(
   const currentPhase = findCurrentPhase(info.phaseStatuses);
 
   out.log(`Run:              ${qualifiedName} (${info.runId})`);
-  out.log(`Status:           ${info.runState}`);
 
   const finalPhaseId = currentPhase?.phaseId ?? info.finalPhaseId;
   const phaseFolderPath = join(info.runPath, finalPhaseId);
@@ -32,6 +79,14 @@ async function printSessionInfo(
   const phaseName = phasePlan?.title ?? info.finalPhaseTitle;
   const phaseState = currentPhase?.state ?? "review_open";
 
+  const stopResult = await Effect.runPromise(
+    Effect.either(readStopInfo(info).pipe(Effect.provide(target.fsLayer))),
+  );
+  const stop = Either.isRight(stopResult) ? stopResult.right : null;
+
+  out.log(
+    `Status:           ${stop !== null ? `${info.runState} (${stop.cause})` : info.runState}`,
+  );
   out.log(`Phase:            ${finalPhaseId} — ${phaseName} (${phaseState})`);
 
   const bindingResult = await readAgentBinding(phaseFolderPath);
@@ -41,11 +96,23 @@ async function printSessionInfo(
     binding = bindingResult.right;
   }
 
-  let resumeSupported = false;
-  if (binding) {
-    const invocation = getSessionAdapter(binding.provider).buildResumeInvocation(binding);
-    resumeSupported = !("unsupported" in invocation);
+  const entered = await planEnter(target, info, finalPhaseId);
+  const canEnter = entered.kind === "command";
 
+  if (stop !== null) {
+    out.log(
+      `Stopped phase:    ${stop.phaseId} — ${stop.phaseTitle} (interactive, ${stop.position}/${stop.of})`,
+    );
+    out.log(`Worktree:         ${stop.worktree}`);
+    out.log(`Seed:             ${stop.seed}`);
+    out.log(
+      `Session:          ${
+        stop.session === null
+          ? "none"
+          : `${stop.session.provider} ${stop.session.sessionId} (${stop.session.origin}; continue: ${stop.enterPhase})`
+      }`,
+    );
+  } else if (binding) {
     out.log(`Provider:         ${binding.provider}`);
     out.log(`Adapter:          ${binding.adapter}`);
     out.log(`Model:            ${binding.model}`);
@@ -55,8 +122,8 @@ async function printSessionInfo(
     out.log(`Worktree:         ${binding.worktreePath}`);
     out.log(`Launched:         ${binding.launchedAt}`);
     out.log(`Binding status:   ${binding.status}`);
-    if (!resumeSupported && "unsupported" in invocation) {
-      out.log(`Resume:           ${invocation.unsupported}`);
+    if (entered.kind === "refused") {
+      out.log(`Resume:           ${entered.message}`);
     }
   } else {
     out.log(
@@ -66,7 +133,7 @@ async function printSessionInfo(
 
   out.log(
     `Suggested enter:  ${
-      resumeSupported
+      canEnter
         ? `phax enter-phase ${qualifiedName} ${finalPhaseId}`
         : "(interactive resume not available for this provider/session)"
     }`,
@@ -118,7 +185,9 @@ export async function runSessionInfo(
   opts: { debug?: boolean } = {},
 ): Promise<number> {
   const configResult = loadConfig(process.cwd());
-  const config = Either.isRight(configResult) ? configResult.right : undefined;
+  const config: ResolvedConfig | undefined = Either.isRight(configResult)
+    ? configResult.right
+    : undefined;
   const stateRoot = effectiveStateRoot(config);
 
   const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
@@ -132,5 +201,16 @@ export async function runSessionInfo(
     out.log(`Target: ${qualifiedName}`);
   }
 
-  return printSessionInfo(info, qualifiedName, out, opts);
+  // Every path read here is absolute: a run of another project needs no project config.
+  const fsLayer =
+    config !== undefined
+      ? makeRepoRootedFileSystemLayer(config)
+      : makeRootedNodeFileSystemLayer(process.cwd());
+  return printSessionInfo(
+    { namespace, shortName, stateRoot, fsLayer },
+    info,
+    qualifiedName,
+    out,
+    opts,
+  );
 }

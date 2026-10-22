@@ -12,6 +12,14 @@ vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
 }));
 
+// No test reads ~/.phax: providers.json is the built-in catalog.
+vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../src/app/loadRouting.js")>();
+  const { Effect } = await import("effect");
+  const { DEFAULT_PROVIDER_CONFIG } = await import("../../src/domain/routing/defaults.js");
+  return { ...original, loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG) };
+});
+
 const now = new Date().toISOString();
 
 async function buildFakeRunFolder(
@@ -278,11 +286,65 @@ describe("runSessionInfo", () => {
     expect(lines.some((l) => l.includes("Adapter:") && l.includes("codex"))).toBe(true);
     expect(lines.some((l) => l.includes("Model:") && l.includes("gpt-4o"))).toBe(true);
     expect(lines.some((l) => l.includes("Session ID:") && l.includes("codex-sess-xyz"))).toBe(true);
-    // codex has no interactive resume: the suggestion must NOT point at enter-phase,
-    // even though a session id is present.
+    // This phase recorded no security.json, so enter-phase would refuse to open
+    // its session unconfined: no enter-phase is suggested, and the line says why.
     expect(lines.some((l) => l.includes("Suggested enter:") && l.includes("enter-phase"))).toBe(
       false,
     );
+    expect(lines.some((l) => l.startsWith("Resume:") && l.includes("security.json"))).toBe(true);
+  });
+
+  it("suggests phax enter-phase for a committed headless codex phase", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "codex-cli",
+      adapter: "codex",
+      model: "gpt-6-sol",
+      effort: "high",
+      sessionId: "codex-sess-xyz",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      status: "completed",
+    });
+    await writeFile(
+      join(phaseFolderPath, "security.json"),
+      JSON.stringify({
+        version: 1,
+        mode: "secure",
+        provider: "codex-cli",
+        sandboxEnabled: true,
+        filesystem: { allowRead: [worktreePath], allowWrite: [worktreePath] },
+        network: { profile: "provider-only" },
+        mcp: { mode: "disabled", allow: [] },
+        downgraded: false,
+        marks: [],
+        agentCommands: [],
+        skillEditGrants: [],
+        providerSkippedForSecurity: [],
+      }),
+    );
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
+
+    expect(await runSessionInfo("my-run", out)).toBe(0);
+
+    expect(lines).toContain("Suggested enter:  phax enter-phase test.my-run phase-01");
+    expect(lines.some((l) => l.startsWith("Resume:"))).toBe(false);
   });
 
   it("shows mistral binding after routing config changes (AC-6 regression)", async () => {

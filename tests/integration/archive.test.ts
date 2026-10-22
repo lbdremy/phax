@@ -16,6 +16,7 @@ import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.j
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import type { ShortName } from "../../src/domain/branded.js";
 import type { PhaxState } from "../../src/domain/state.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
@@ -45,6 +46,7 @@ type RunState =
   | "stopped"
   | "review_open"
   | "completed"
+  | "awaiting_review"
   | "archived";
 
 function seedFs(opts: {
@@ -56,10 +58,14 @@ function seedFs(opts: {
 }) {
   const fakeFs = makeFakeFileSystem();
 
+  // `awaiting_review` is newer than the pre-schema shape, so its run status is stamped.
+  const { version: _version, ...currentShape } = runStatusBase;
   fakeFs.impl.setFile(
     join(runPath, "run-status.json"),
     JSON.stringify({
-      ...runStatusBase,
+      ...(opts.runState === "awaiting_review"
+        ? { $schema: currentSchemaUrl("run-status"), ...currentShape }
+        : runStatusBase),
       state: opts.runState,
       ...(opts.stoppedReason !== undefined ? { stoppedReason: opts.stoppedReason } : {}),
       ...(opts.lastError !== undefined ? { lastError: opts.lastError } : {}),
@@ -70,7 +76,9 @@ function seedFs(opts: {
   fakeFs.impl.setFile(
     join(stateRoot, "registry.json"),
     JSON.stringify({
-      version: 1,
+      ...(opts.runState === "awaiting_review"
+        ? { $schema: currentSchemaUrl("registry") }
+        : { version: 1 }),
       runs: [
         {
           namespace: "fake-project",
@@ -612,5 +620,63 @@ describe("archive — unfinished runs", () => {
     } finally {
       rmSync(tempStateRoot, { recursive: true, force: true });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A run waiting at a declared stop
+// ---------------------------------------------------------------------------
+
+describe("archive — a run awaiting review", () => {
+  function seedWaiting() {
+    const seed = seedFs({ runState: "awaiting_review", withWorktrees: true });
+    seed.fakeFs.impl.setFile(join(runPath, "review-stop.json"), "{}");
+    // An uncommitted correction in the stopped phase's worktree.
+    seed.fakeFs.impl.setFile(
+      join(stateRoot, "worktrees", qualifiedKey, "phase-01", "src", "creditNote.ts"),
+      "export const credit = true;\n",
+    );
+    return seed;
+  }
+
+  it("is refused without --force, naming the state and the flag", async () => {
+    const seed = seedWaiting();
+    const { layer } = makeLayers(seed);
+
+    const result = await Effect.runPromise(
+      archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(
+        Effect.provide(layer),
+        Effect.either,
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (!Either.isLeft(result)) return;
+    expect(result.left).toBeInstanceOf(ArchiveRefusedError);
+    expect(result.left.message).toContain("awaiting_review");
+    expect(result.left.message).toContain("--force");
+    expect(seed.fakeFs.impl.getFile(join(runPath, "review-stop.json"))).toBeDefined();
+  });
+
+  it("with --force leaves no review-stop.json and moves the worktrees with their corrections", async () => {
+    const seed = seedWaiting();
+    const { layer } = makeLayers(seed);
+
+    await Effect.runPromise(
+      archive(namespace, shortName, stateRoot, repoRoot, { force: true }).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    const archived = join(stateRoot, "archive", qualifiedKey);
+    expect(seed.fakeFs.impl.getFile(join(runPath, "review-stop.json"))).toBeUndefined();
+    expect(seed.fakeFs.impl.getFile(join(archived, "runs", "review-stop.json"))).toBeUndefined();
+    expect(
+      seed.fakeFs.impl.getFile(join(archived, "worktrees", "phase-01", "src", "creditNote.ts")),
+    ).toBe("export const credit = true;\n");
+    const status = JSON.parse(
+      seed.fakeFs.impl.getFile(join(archived, "runs", "run-status.json"))!,
+    ) as { state: string };
+    expect(status.state).toBe("archived");
   });
 });

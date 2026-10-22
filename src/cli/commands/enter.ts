@@ -35,7 +35,7 @@ async function enterRun(
 
   const effect = Effect.gen(function* () {
     const s = yield* Session;
-    return yield* s.resume(invocation);
+    return yield* s.resume({ ...invocation, env: {} });
   }).pipe(Effect.provide(makeNodeSessionLayer()));
 
   const result = await Effect.runPromise(Effect.either(effect));

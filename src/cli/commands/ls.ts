@@ -2,7 +2,8 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
-import { resolveRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { resolveRun, findCurrentPhase, type RunReviewInfo } from "../../app/resolveRunInfo.js";
+import { readStopInfo, type StopInfo } from "../../app/stopInfo.js";
 import { computeRecordsPending, pendingCountsByRunId } from "../../app/recordsStatus.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
@@ -17,6 +18,7 @@ export interface LsOptions {
   active?: boolean;
   failed?: boolean;
   reviewOpen?: boolean;
+  awaitingReview?: boolean;
   archived?: boolean;
   json?: boolean;
   complete?: boolean;
@@ -49,7 +51,10 @@ interface LsRow {
  * When the run folder is gone (archived runs are moved out of `runs/`) we fall
  * back to the registry values, where the recorded state is already correct.
  */
-function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
+function reconcileEntry(
+  entry: RegistryEntry,
+  stateRoot: string,
+): { readonly row: LsRow; readonly info: RunReviewInfo | undefined } {
   const fallback: LsRow = {
     namespace: entry.namespace,
     shortName: entry.shortName,
@@ -63,10 +68,10 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
   };
 
   const shortNameResult = decodeShortName(entry.shortName);
-  if (Either.isLeft(shortNameResult)) return fallback;
+  if (Either.isLeft(shortNameResult)) return { row: fallback, info: undefined };
 
   const infoResult = resolveRun(entry.namespace, shortNameResult.right, stateRoot);
-  if (Either.isLeft(infoResult)) return fallback;
+  if (Either.isLeft(infoResult)) return { row: fallback, info: undefined };
 
   const info = infoResult.right;
   const total = info.planPhases.length || entry.phasesCount;
@@ -74,25 +79,30 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
   const reached = current ?? info.phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 
   return {
-    namespace: entry.namespace,
-    shortName: entry.shortName,
-    state: info.runState,
-    branch: info.branch !== "(unknown)" ? info.branch : entry.branch,
-    currentPhase: reached ? `${reached.phaseIndex + 1}/${total}` : "-",
-    gateProfile: info.gateProfileId ?? "-",
-    updatedAt: formatTimestamp(info.updatedAt),
-    lockState: "none",
-    recordsPending: undefined,
+    row: {
+      namespace: entry.namespace,
+      shortName: entry.shortName,
+      state: info.runState,
+      branch: info.branch !== "(unknown)" ? info.branch : entry.branch,
+      currentPhase: reached ? `${reached.phaseIndex + 1}/${total}` : "-",
+      gateProfile: info.gateProfileId ?? "-",
+      updatedAt: formatTimestamp(info.updatedAt),
+      lockState: "none",
+      recordsPending: undefined,
+    },
+    info,
   };
 }
 
 function matchesFilter(state: string, opts: LsOptions): boolean {
-  const hasFilter = opts.active || opts.failed || opts.reviewOpen || opts.archived;
+  const hasFilter =
+    opts.active || opts.failed || opts.reviewOpen || opts.awaitingReview || opts.archived;
   if (!hasFilter) return true;
 
   if (opts.active && (state === "created" || state === "running")) return true;
   if (opts.failed && state === "failed") return true;
   if (opts.reviewOpen && state === "review_open") return true;
+  if (opts.awaitingReview && state === "awaiting_review") return true;
   if (opts.archived && state === "archived") return true;
   return false;
 }
@@ -105,17 +115,24 @@ function pad(s: string, width: number): string {
   return s.length >= width ? s : s + " ".repeat(width - s.length);
 }
 
-function getDisplayValue(row: LsRow, header: keyof LsRow): string {
-  if (header === "shortName") return runKey(row.namespace, row.shortName);
+// What the text table adds for a run waiting at a stop; `ls --json` is left as it was.
+type StopLabels = ReadonlyMap<string, Pick<StopInfo, "cause" | "phaseId">>;
+
+function getDisplayValue(row: LsRow, header: keyof LsRow, stops: StopLabels): string {
+  const key = runKey(row.namespace, row.shortName);
+  if (header === "shortName") return key;
   if (header === "recordsPending")
     return row.recordsPending === undefined ? "-" : String(row.recordsPending);
+  const stop = stops.get(key);
+  if (stop !== undefined && header === "state") return `${row.state} (${stop.cause})`;
+  if (stop !== undefined && header === "currentPhase") return `${row.currentPhase} ${stop.phaseId}`;
   return String(row[header]);
 }
 
 // The RECORDS column only appears when this project's records are configured
 // (`showRecords`) — an unconfigured project's `ls` output is byte-for-byte
 // unchanged from before records existed.
-function formatTable(rows: LsRow[], showRecords: boolean): string {
+function formatTable(rows: LsRow[], showRecords: boolean, stops: StopLabels): string {
   if (rows.length === 0) return "(no runs)";
 
   const headers: (keyof LsRow)[] = [
@@ -141,13 +158,13 @@ function formatTable(rows: LsRow[], showRecords: boolean): string {
   };
 
   const widths = headers.map((h) =>
-    Math.max(labels[h].length, ...rows.map((r) => getDisplayValue(r, h).length)),
+    Math.max(labels[h].length, ...rows.map((r) => getDisplayValue(r, h, stops).length)),
   );
 
   const header = headers.map((h, i) => pad(labels[h], widths[i]!)).join("  ");
   const separator = widths.map((w) => "-".repeat(w)).join("  ");
   const rowLines = rows.map((r) =>
-    headers.map((h, i) => pad(getDisplayValue(r, h), widths[i]!)).join("  "),
+    headers.map((h, i) => pad(getDisplayValue(r, h, stops), widths[i]!)).join("  "),
   );
 
   return [header, separator, ...rowLines].join("\n");
@@ -173,7 +190,7 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
   // Reconcile every entry against its run-status.json first, then filter on the
   // authoritative state so `--review-open` and friends see the real states.
   const reconciled = registryResult.right.runs
-    .map((entry) => ({ entry, row: reconcileEntry(entry, stateRoot) }))
+    .map((entry) => ({ entry, ...reconcileEntry(entry, stateRoot) }))
     .filter(({ row }) => matchesFilter(row.state, opts));
 
   if (opts.complete) {
@@ -258,7 +275,19 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
       ),
     );
   } else {
-    out.log(formatTable(rows, config.records.enabled));
+    // The stop of each waiting run, read from its review-stop.json. A run
+    // whose document cannot be read keeps its plain state.
+    const stops = new Map<string, Pick<StopInfo, "cause" | "phaseId">>();
+    for (const { entry, info } of reconciled) {
+      if (info === undefined || info.runState !== "awaiting_review") continue;
+      const stop = await Effect.runPromise(
+        Effect.either(readStopInfo(info).pipe(Effect.provide(fsLayer))),
+      );
+      if (Either.isRight(stop) && stop.right !== null) {
+        stops.set(runKey(entry.namespace, entry.shortName), stop.right);
+      }
+    }
+    out.log(formatTable(rows, config.records.enabled, stops));
   }
 
   return 0;
