@@ -28,6 +28,7 @@ import {
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
+  AwaitingReviewStopError,
   AgentInvocationError,
   AgentSessionIdMissingError,
   ArtifactArbiterRefusedError,
@@ -164,6 +165,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   { code: 10, meaning: "Registry corruption" },
   { code: 11, meaning: "Security or preflight refusal" },
   { code: 12, meaning: "Artifact lifecycle refusal" },
+  { code: 13, meaning: "Awaiting review at an interactive phase (resumable)" },
 ];
 
 export function exitCodeForError(err: unknown): number {
@@ -223,6 +225,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof DocumentMigrationRefusedError
   )
     return 12;
+  if (err instanceof AwaitingReviewStopError) return 13;
   return 1;
 }
 

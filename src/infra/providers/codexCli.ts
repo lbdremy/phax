@@ -44,13 +44,27 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
+// A read-only turn (phax's own turns at a stop): codex's read-only sandbox and
+// no approvals, whatever the phase's policy, unsafe included. It grants no
+// writable root and no network override: `sandbox_workspace_write.*` only
+// applies under `workspace-write`. `codex exec resume` takes the same keys.
+const CODEX_READ_ONLY_FLAGS = [
+  "-c",
+  `sandbox_mode="read-only"`,
+  "-c",
+  `approval_policy="never"`,
+] as const;
+
 export function buildCodexArgs(
   entry: CodexProviderEntry,
   options: AgentRunOptions,
   resumeSessionId?: string,
 ): string[] {
   const model = codexModelId(entry, options.model);
-  const securityFlags = buildCodexSecurityFlags(options.security);
+  const securityFlags =
+    options.readOnly === true
+      ? [...CODEX_READ_ONLY_FLAGS]
+      : buildCodexSecurityFlags(options.security);
   const commonFlags: string[] = [
     "--json",
     "--skip-git-repo-check",

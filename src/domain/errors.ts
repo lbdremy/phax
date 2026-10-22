@@ -1,6 +1,8 @@
 import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
+import type { InteractiveSession } from "../schemas/interactiveSession.js";
+import type { ReviewStop } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
 
@@ -156,6 +158,36 @@ export class HandoffPausedError extends Data.TaggedError("HandoffPausedError")<{
   message: string;
   phaseId: string;
   cause: unknown;
+}> {}
+
+/** A first turn at a stop that did not answer: refused for an edit, or failed. */
+export type FirstTurnProblem = Exclude<
+  InteractiveSession["firstTurns"][number],
+  { readonly outcome: "answered" }
+>;
+
+/** What a run that stopped at a declared interactive phase reports. */
+export interface DeclaredStopReport {
+  /** The review-stop value the reducer's effect wrote, and where. */
+  readonly reviewStop: ReviewStop;
+  readonly reviewStopPath: string;
+  /** The first reading's markdown, or null when no first turn answered. */
+  readonly firstReading: string | null;
+  /** The first turn's refusal (with `keptAt`) or failure, or null when it answered. */
+  readonly firstTurnProblem: FirstTurnProblem | null;
+  /** True when phax has not verified the provider's interactive resume. */
+  readonly unverifiedProvider: boolean;
+}
+
+/**
+ * A run stopped at an interactive phase and waits for a person. A pause, like
+ * a rate limit: no RunFailed and no record; it exits 13.
+ */
+export class AwaitingReviewStopError extends Data.TaggedError("AwaitingReviewStopError")<{
+  message: string;
+  run: string;
+  phase: string;
+  report: DeclaredStopReport;
 }> {}
 
 /**

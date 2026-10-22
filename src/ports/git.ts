@@ -1,5 +1,6 @@
 import { Context, Data, Effect } from "effect";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
+import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../domain/reconciliation/types.js";
 
 export class GitError extends Data.TaggedError("GitError")<{
@@ -141,6 +142,29 @@ export interface GitOps {
     commit: string,
     paths: readonly string[],
   ): Effect.Effect<Readonly<Record<string, number>>, GitError>;
+
+  /** The tree id of HEAD in the worktree at `path` (`git rev-parse HEAD^{tree}`). */
+  headTree(path: string): Effect.Effect<string, GitError>;
+  /**
+   * The tree id of the worktree at `path` as it stands, `.phax-context/` left
+   * out. Built in a temporary index seeded from HEAD, so a tracked file that
+   * matches an ignore pattern keeps its HEAD entry; the real index is never
+   * touched. An untracked ignored file is never seen.
+   */
+  snapshotWorktree(path: string): Effect.Effect<string, GitError>;
+  /** The paths that differ between two trees, with no rename detection. */
+  changedPathsBetween(
+    path: string,
+    fromTree: string,
+    toTree: string,
+  ): Effect.Effect<readonly ChangedPath[], GitError>;
+  /**
+   * Bring `paths` in the worktree at `path` back to their content in `tree`:
+   * a path present in `tree` is checked out of it, a path absent from it is
+   * deleted. Done through a temporary index; the real index, ignored files
+   * and `.phax-context/` are never touched.
+   */
+  restorePaths(path: string, tree: string, paths: readonly string[]): Effect.Effect<void, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}
