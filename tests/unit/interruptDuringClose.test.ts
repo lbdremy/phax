@@ -152,6 +152,30 @@ describe("an interrupt while a close runs", () => {
   });
 });
 
+describe("an interrupt while a close runs with no review stop to restore", () => {
+  it("saves the run as interrupted, not awaiting a review it has no document for", () => {
+    writeJson(join(runPath, "run-status.json"), withSchemaUrl("run-status", runStatus("running")));
+    writeJson(
+      join(phaseFolder, "status.json"),
+      withSchemaUrl("phase-status", phase03("awaiting_review")),
+    );
+
+    expect(syncSaveInterruptedRun(ctx())).toEqual({ state: "interrupted", stopPhaseId: null });
+    expect(savedRunStatus().state).toBe("interrupted");
+    expect(existsSync(stopPath())).toBe(false);
+  });
+
+  it("leaves an unreadable parked copy in place and saves the run as interrupted", () => {
+    seed(runStatus("running"), phase03("awaiting_review"), true);
+    writeFileSync(parkedPath(), JSON.stringify({ $schema: "made-up" }));
+
+    expect(syncSaveInterruptedRun(ctx())).toEqual({ state: "interrupted", stopPhaseId: null });
+    expect(savedRunStatus().state).toBe("interrupted");
+    expect(existsSync(parkedPath())).toBe(true);
+    expect(existsSync(stopPath())).toBe(false);
+  });
+});
+
 describe("an interrupt away from a close", () => {
   it("interrupts a running phase as before and leaves no review stop", () => {
     writeJson(join(runPath, "run-status.json"), withSchemaUrl("run-status", runStatus("running")));

@@ -67,16 +67,22 @@ function closingPhase(runPath: string, run: RunStatus): PhaseStatus | undefined 
 
 // RestoreReviewStop, synchronously: the parked document (or the live one when
 // the close never parked it) back at the run folder with `lastClose` set and
-// every other field, `closeBase` included, kept.
-function syncRestoreReviewStop(runPath: string, phaseFolder: string, lastClose: LastClose): void {
+// every other field, `closeBase` included, kept. Returns false, writing
+// nothing, when there is no document it can read.
+function syncRestoreReviewStop(
+  runPath: string,
+  phaseFolder: string,
+  lastClose: LastClose,
+): boolean {
   const { live, parked } = reviewStopPaths(runPath, phaseFolder);
   const source = existsSync(parked) ? parked : live;
-  if (!existsSync(source)) return;
+  if (!existsSync(source)) return false;
   const decoded = readReviewStopFile(source, JSON.parse(readFileSync(source, "utf8")) as unknown);
-  if (Either.isLeft(decoded)) return;
+  if (Either.isLeft(decoded)) return false;
   const restored = withSchemaUrl("review-stop", { ...decoded.right, lastClose });
   writeFileSync(live, JSON.stringify(encodeReviewStopFile(restored), null, 2));
   if (source === parked) rmSync(parked);
+  return true;
 }
 
 // Sanctioned bypass of the dispatcher single-writer invariant: SIGINT/SIGTERM
@@ -87,6 +93,8 @@ function syncRestoreReviewStop(runPath: string, phaseFolder: string, lastClose: 
 // A running run whose current phase awaits review is closing its stop: the
 // reducer's verdict for RunInterruptRequested on that state is written,
 // awaiting_review with review-stop.json restored, lastClose `interrupted`.
+// A run awaits review only with its review-stop.json, so when no review stop
+// can be restored the run is saved as any other interrupted run.
 export function syncSaveInterruptedRun(ctx: RunInterruptContext): SavedInterrupt | null {
   const runPath = join(ctx.stateRoot, "runs", runKey(ctx.namespace, ctx.shortName));
   const statusPath = join(runPath, "run-status.json");
@@ -115,8 +123,12 @@ export function syncSaveInterruptedRun(ctx: RunInterruptContext): SavedInterrupt
     });
     if (verdict.kind !== "Handled") return null;
     for (const effect of verdict.effects) {
-      if (effect.type === "RestoreReviewStop") {
-        syncRestoreReviewStop(runPath, join(runPath, stopped.phaseId), effect.lastClose);
+      if (
+        effect.type === "RestoreReviewStop" &&
+        !syncRestoreReviewStop(runPath, join(runPath, stopped.phaseId), effect.lastClose)
+      ) {
+        write("interrupted");
+        return { state: "interrupted", stopPhaseId: null };
       }
     }
     write(verdict.nextState.run);
