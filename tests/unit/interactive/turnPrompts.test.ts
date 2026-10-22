@@ -10,6 +10,9 @@ import {
 } from "../../../src/domain/interactive/turnPrompts.js";
 
 const schemaJson = '{"type":"object","title":"schema-marker"}';
+// A made-up release: the prompts carry whatever URL they are given.
+const readingUrl = "https://docs.phax.run/schemas/first-reading/9.8.7.json";
+const handoffUrl = "https://docs.phax.run/schemas/interactive-handoff/9.8.7.json";
 const STOPPING =
   /phax stop|abort|interrupt|ctrl-?c|SIGINT|kill |exit 13|stop the run|stop this run/i;
 
@@ -17,6 +20,7 @@ describe("firstTurnPrompt", () => {
   const prompt = firstTurnPrompt({
     seedPath: "/wt/phase-03/.phax-context/interactive-review.md",
     schemaJson,
+    schemaUrl: readingUrl,
   });
 
   it("points at the seed, says to change nothing and answer only the schema", () => {
@@ -26,15 +30,20 @@ describe("firstTurnPrompt", () => {
     expect(prompt).toContain(schemaJson);
   });
 
+  it("names the exact $schema URL the answer carries first", () => {
+    expect(prompt).toContain(`with \`$schema\` first, set to \`${readingUrl}\``);
+  });
+
   it("never mentions stopping a run", () => {
     expect(prompt).not.toMatch(STOPPING);
   });
 });
 
 describe("correctivePrompt", () => {
-  const prompt = correctivePrompt("the final message is not JSON");
+  const prompt = correctivePrompt("the final message is not JSON", readingUrl);
 
-  it("names the defect and allows one retry with nothing changed", () => {
+  it("names the defect, the exact $schema URL and allows one retry with nothing changed", () => {
+    expect(prompt).toContain(`with \`$schema\` first, set to \`${readingUrl}\``);
     expect(prompt).toContain("Refusal: the final message is not JSON");
     expect(prompt).toContain("Change nothing");
     expect(prompt).toContain("This is your only retry");
@@ -70,11 +79,12 @@ describe("closingTurnPrompt", () => {
   const diff = cutDiff("diff --git a/src/a.ts b/src/a.ts\n+changed\n", ["src/a.ts"]);
 
   it("embeds the diff, says to change nothing and answer only the schema", () => {
-    const prompt = closingTurnPrompt({ diff, seedPath: null, schemaJson });
+    const prompt = closingTurnPrompt({ diff, seedPath: null, schemaJson, schemaUrl: handoffUrl });
     expect(prompt).toContain("diff --git a/src/a.ts b/src/a.ts");
     expect(prompt).toContain("Change nothing");
     expect(prompt).toContain("Answer only with an interactive-handoff document");
     expect(prompt).toContain(schemaJson);
+    expect(prompt).toContain(`with \`$schema\` first, set to \`${handoffUrl}\``);
     expect(prompt).not.toContain("Read /");
     expect(prompt).not.toMatch(STOPPING);
   });
@@ -84,6 +94,7 @@ describe("closingTurnPrompt", () => {
       diff,
       seedPath: "/wt/.phax-context/interactive-review.md",
       schemaJson,
+      schemaUrl: handoffUrl,
     });
     expect(prompt).toContain("Read /wt/.phax-context/interactive-review.md");
   });
@@ -91,7 +102,12 @@ describe("closingTurnPrompt", () => {
   it("lists every path and says the diff was cut when it is over the limit", () => {
     const paths = ["src/a.ts", "src/z.ts"];
     const cut = cutDiff("y".repeat(CLOSING_DIFF_LIMIT_BYTES + 1), paths);
-    const prompt = closingTurnPrompt({ diff: cut, seedPath: null, schemaJson });
+    const prompt = closingTurnPrompt({
+      diff: cut,
+      seedPath: null,
+      schemaJson,
+      schemaUrl: handoffUrl,
+    });
     expect(prompt).toContain(`cut after ${CLOSING_DIFF_LIMIT_BYTES} bytes`);
     expect(prompt).toContain("- src/a.ts");
     expect(prompt).toContain("- src/z.ts");
@@ -99,14 +115,19 @@ describe("closingTurnPrompt", () => {
   });
 
   it("does not mark an uncut diff as cut", () => {
-    const prompt = closingTurnPrompt({ diff, seedPath: null, schemaJson });
+    const prompt = closingTurnPrompt({ diff, seedPath: null, schemaJson, schemaUrl: handoffUrl });
     expect(prompt).not.toContain("(diff cut)");
     expect(prompt).not.toContain("These are all the changed paths");
   });
 
   it("fences a diff that itself holds backtick fences with a longer fence", () => {
     const withFence = cutDiff("+```ts\n+code\n+```\n", ["README.md"]);
-    const prompt = closingTurnPrompt({ diff: withFence, seedPath: null, schemaJson });
+    const prompt = closingTurnPrompt({
+      diff: withFence,
+      seedPath: null,
+      schemaJson,
+      schemaUrl: handoffUrl,
+    });
     expect(prompt).toContain("````diff\n+```ts");
   });
 });

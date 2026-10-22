@@ -1,7 +1,8 @@
 // The prompts of phax's own turns at a declared stop: the read-only first
 // turn, the one corrective resume after an invalid answer, the read-only
 // closing turn, and the first message of a fresh session. Every turn prompt
-// tells the session to change nothing and to answer one document. Pure.
+// tells the session to change nothing and to answer one document, named by
+// the exact `$schema` URL it must carry first. Pure.
 
 /** The most of the corrections' diff a closing prompt embeds, in bytes. */
 export const CLOSING_DIFF_LIMIT_BYTES = 200_000;
@@ -34,10 +35,10 @@ function fenceFor(text: string): string {
   return "`".repeat(Math.max(3, longest + 1));
 }
 
-function answerRules(documentName: string): string[] {
+function answerRules(documentName: string, schemaUrl: string): string[] {
   return [
     "Change nothing: this turn is read-only. Edit no file, create none and delete none.",
-    `Answer only with ${/^[aeiou]/.test(documentName) ? "an" : "a"} ${documentName} document: one JSON object valid against the JSON Schema below, with no code fence and no commentary.`,
+    `Answer only with ${/^[aeiou]/.test(documentName) ? "an" : "a"} ${documentName} document: one JSON object valid against the JSON Schema below, with \`$schema\` first, set to \`${schemaUrl}\`, and no code fence and no commentary.`,
   ];
 }
 
@@ -50,29 +51,32 @@ function schemaBlock(documentName: string, schemaJson: string): string[] {
 export function firstTurnPrompt(input: {
   readonly seedPath: string;
   readonly schemaJson: string;
+  /** The `first-reading` document's current `$schema` URL. */
+  readonly schemaUrl: string;
 }): string {
   return [
     `Read ${input.seedPath}. It describes a phase of a plan that a person is about to review, and the phases that follow it.`,
     "",
     "Report the pattern the phase introduces, what each upcoming phase copies from it, and what the person should check first.",
     "",
-    ...answerRules("first-reading"),
+    ...answerRules("first-reading", input.schemaUrl),
     ...schemaBlock("first-reading", input.schemaJson),
   ].join("\n");
 }
 
 /**
  * The one corrective resume after an answer that was not valid: it names the
- * defect and asks for the whole document again. It repeats neither the seed
- * nor the schema, which the resumed session already holds.
+ * defect and asks for the whole document again, with its exact `$schema`
+ * URL. It repeats neither the seed nor the schema, which the resumed session
+ * already holds.
  */
-export function correctivePrompt(defect: string): string {
+export function correctivePrompt(defect: string, schemaUrl: string): string {
   return [
     "Your final message was refused, and phax kept nothing from it.",
     "",
     `Refusal: ${defect}`,
     "",
-    "Change nothing. Answer again with the whole document: one JSON object valid against the JSON Schema you were given, with no code fence and no commentary. This is your only retry.",
+    `Change nothing. Answer again with the whole document: one JSON object valid against the JSON Schema you were given, with \`$schema\` first, set to \`${schemaUrl}\`, and no code fence and no commentary. This is your only retry.`,
     "",
   ].join("\n");
 }
@@ -86,6 +90,8 @@ export function closingTurnPrompt(input: {
   readonly diff: ClosingDiff;
   readonly seedPath: string | null;
   readonly schemaJson: string;
+  /** The `interactive-handoff` document's current `$schema` URL. */
+  readonly schemaUrl: string;
 }): string {
   const { diff } = input;
   const diffFence = fenceFor(diff.text);
@@ -110,7 +116,7 @@ export function closingTurnPrompt(input: {
     "",
     "Describe what was corrected, the pattern to follow from now on, and for each correction what guards it: a test, a lint rule or a gate step, or why nothing does. Give exactly one guard per correction, in the same order.",
     "",
-    ...answerRules("interactive-handoff"),
+    ...answerRules("interactive-handoff", input.schemaUrl),
     ...schemaBlock("interactive-handoff", input.schemaJson),
   ].join("\n");
 }

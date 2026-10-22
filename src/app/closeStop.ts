@@ -53,7 +53,11 @@ import {
   type InteractiveHandoff,
 } from "../schemas/interactiveHandoff.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
-import { describeReportError, readInteractiveHandoffAnswer } from "../schemas/persisted.js";
+import {
+  currentSchemaUrl,
+  describeReportError,
+  readInteractiveHandoffAnswer,
+} from "../schemas/persisted.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { buildInteractiveCommitBody } from "./commit.js";
@@ -382,6 +386,7 @@ function attemptClosingTurn(
     const { input } = ctx;
     const label = closingTurnLabel(ctx.turn);
     const schemaJson = handoffSchemaJson();
+    const schemaUrl = currentSchemaUrl("interactive-handoff");
     // No agent commands (q-turn-shell, no-shell); no `phaseFolderPath`, so
     // the provider never patches a claudeSessionId into the phase's status.
     const options = (stream: string, binding: Binding): AgentRunOptions => ({
@@ -424,7 +429,7 @@ function attemptClosingTurn(
       const resumed = yield* costed(
         backend.resumeAgentSession(
           current.sessionId as ClaudeSessionId,
-          closingTurnPrompt({ diff: ctx.diff, seedPath: null, schemaJson }),
+          closingTurnPrompt({ diff: ctx.diff, seedPath: null, schemaJson, schemaUrl }),
           options(stream, binding),
         ),
         stream,
@@ -444,7 +449,12 @@ function attemptClosingTurn(
       const stream = `${newLabel}.jsonl`;
       const started = yield* costed(
         backend.runAgent(
-          closingTurnPrompt({ diff: ctx.diff, seedPath: SEED_WORKTREE_PATH, schemaJson }),
+          closingTurnPrompt({
+            diff: ctx.diff,
+            seedPath: SEED_WORKTREE_PATH,
+            schemaJson,
+            schemaUrl,
+          }),
           options(stream, ctx.phaseBinding),
         ),
         stream,
@@ -479,7 +489,7 @@ function attemptClosingTurn(
     const retry = yield* costed(
       backend.resumeAgentSession(
         first.result.sessionId,
-        correctivePrompt(answer.left),
+        correctivePrompt(answer.left, schemaUrl),
         options(retryStream, first.binding),
       ),
       retryStream,
