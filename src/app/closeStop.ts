@@ -36,6 +36,7 @@ import {
   cutDiff,
   type ClosingDiff,
 } from "../domain/interactive/turnPrompts.js";
+import { shellQuote } from "../domain/interactive/commandLine.js";
 import {
   PERSON_HANDOFF_PATH,
   worktreeChangeVerdict,
@@ -87,6 +88,7 @@ import {
   type FirstTurnInput,
   type LeftoverSettlement,
 } from "./interactiveStop.js";
+import { readPhaseBase } from "./phaseStatusUpdates.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 
 export interface CloseStopInput {
@@ -238,10 +240,21 @@ function readCommitMessage(worktree: string, sha: string): Effect.Effect<string,
 }
 
 /**
+ * What a person does about a commit of their own in the stopped worktree:
+ * phax never rewrites history, so they put HEAD back to `base`, keeping the
+ * commit's changes in the worktree, and resume.
+ */
+function ownCommitRemedy(input: CloseStopInput, base: string): string {
+  return `run git -C ${shellQuote(input.worktree)} reset --soft ${base} to keep its changes uncommitted, then phax resume ${input.shortName}`;
+}
+
+/**
  * HEAD moved since the close recorded `closeBase`. It is this stop's commit
  * when its parent is `closeBase` and its message carries this run's `Run-Id`
- * and `Interactive-Phase: <phase>`: the close is then finished from it. Any
- * other move is refused.
+ * and `Interactive-Phase: <phase>`: the close is then finished from it,
+ * unless the worktree changed since that commit, which is refused as
+ * `worktree-changed` so the person decides about those edits. Any other move
+ * is refused, naming the remedy.
  */
 function finishLandedCommit(
   input: CloseStopInput,
@@ -262,16 +275,28 @@ function finishLandedCommit(
         closeError(
           "commit",
           new Error(
-            `HEAD moved from ${closeBase} to ${head}, and ${head} is not this stop's Interactive-Phase commit`,
+            `HEAD moved from ${closeBase} to ${head}, and ${head} is not this stop's Interactive-Phase commit: ${ownCommitRemedy(input, closeBase)}`,
           ),
         ),
       );
+    }
+    const headTree = yield* at("commit", git.headTree(input.worktree));
+    const worktreeTree = yield* at("commit", git.snapshotWorktree(input.worktree));
+    if (worktreeTree !== headTree) {
+      const moved = yield* at(
+        "commit",
+        git.changedPathsBetween(input.worktree, headTree, worktreeTree),
+      );
+      return yield* refuse({
+        result: "worktree-changed",
+        exitCode: 1,
+        paths: nonEmpty(moved.map((c) => c.path).toSorted()),
+      });
     }
     const baseTree = yield* at("commit", git.resolveRef(input.worktree, `${closeBase}^{tree}`));
     if (baseTree === null) {
       return yield* refuse(closeError("commit", new Error(`${closeBase} names no tree`)));
     }
-    const headTree = yield* at("commit", git.headTree(input.worktree));
     const changed =
       baseTree === headTree
         ? []
@@ -693,6 +718,19 @@ function closeSteps(
     const head = yield* at("commit", git.headCommit(input.worktree));
     const closeBase = stop.reviewStop.closeBase;
     if (closeBase === null) {
+      // The first close: HEAD is still the phase's base unless the person
+      // committed in the worktree, which would pass their correction as the base.
+      const base = yield* at("files", readPhaseBase(input.phaseFolder));
+      if (head !== base) {
+        return yield* refuse(
+          closeError(
+            "commit",
+            new Error(
+              `HEAD moved from the phase's base ${base} to ${head}, a commit made in the stopped worktree: ${ownCommitRemedy(input, base)}`,
+            ),
+          ),
+        );
+      }
       yield* at("files", rewriteReviewStopAt(stop.path, { ...stop.reviewStop, closeBase: head }));
     } else if (head !== closeBase) {
       return yield* finishLandedCommit(input, closeBase, head);

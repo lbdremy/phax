@@ -788,6 +788,45 @@ describe("a close taken up again", () => {
     expect(existsSync(parkedPath(run))).toBe(false);
   });
 
+  it("refuses to finish a landed close while the worktree changed since its commit", async () => {
+    const run = await stopRun(world);
+    const base = head(run);
+    correct(run);
+    const landed = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* resumeRequested(run);
+        const parked = readJson(parkedPath(run));
+        writeFileSync(parkedPath(run), JSON.stringify({ ...parked, closeBase: base }, null, 2));
+        const tree = yield* realGit.snapshotWorktree(run.worktree);
+        return yield* realGit.commitTree(
+          run.worktree,
+          tree,
+          PHASE_03.commit.subject,
+          buildInteractiveCommitBody({
+            phase: PHASE_03,
+            runId: run.runId,
+            shortName: run.shortName,
+            worktreePath: run.worktree,
+            gateLogPath: join(run.phaseFolder, "checks-attempt-01.log"),
+          }),
+        );
+      }).pipe(Effect.provide(layers({}, [], makeFakeBackend().impl))),
+    );
+    // An edit made after the commit landed, before the next close.
+    write(run, "src/invoiceRow.ts", "export const header = 'Invoice no.';\n");
+
+    const error = refusal((await close(run, { resume: false })).result);
+
+    expect(error.lastClose).toMatchObject({
+      result: "worktree-changed",
+      exitCode: 1,
+      paths: ["src/invoiceRow.ts"],
+    });
+    expect(head(run)).toBe(landed);
+    expect(read(run, "src/invoiceRow.ts")).toBe("export const header = 'Invoice no.';\n");
+    expectBackAtStop(run, "worktree-changed");
+  });
+
   it("refuses a HEAD that moved to a commit that is not the stop's", async () => {
     const run = await stopRun(world);
     const base = head(run);
@@ -798,11 +837,44 @@ describe("a close taken up again", () => {
     writeFileSync(parkedPath(run), JSON.stringify({ ...parked, closeBase: base }, null, 2));
     correct(run);
     gitIn(run.worktree, "commit", "-am", "wip: by hand");
+    const moved = head(run);
 
     const error = refusal((await close(run, { resume: false })).result);
 
     expect(error.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "commit" });
+    const detail = (error.lastClose as Extract<RefusedClose, { result: "close-error" }>).detail;
+    expect(detail).toContain(`HEAD moved from ${base} to ${moved}`);
+    expect(detail).toContain(`git -C '${run.worktree}' reset --soft ${base}`);
+    // phax rewrites no history: the person's commit stays.
+    expect(head(run)).toBe(moved);
     expectBackAtStop(run, "close-error");
+  });
+
+  it("refuses a commit the person made before the first close, naming the soft reset", async () => {
+    const run = await stopRun(world);
+    const base = head(run);
+    correct(run);
+    gitIn(run.worktree, "commit", "-am", "wip: by hand");
+    const moved = head(run);
+
+    const { result, order } = await close(run);
+    const error = refusal(result);
+
+    expect(order).toEqual([]);
+    expect(error.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "commit" });
+    const detail = (error.lastClose as Extract<RefusedClose, { result: "close-error" }>).detail;
+    expect(detail).toContain(`HEAD moved from the phase's base ${base} to ${moved}`);
+    expect(detail).toContain(`git -C '${run.worktree}' reset --soft ${base}`);
+    expect(head(run)).toBe(moved);
+    const lastClose = expectBackAtStop(run, "close-error");
+    expect(lastClose["step"]).toBe("commit");
+    expect(readJson(reviewStopPath(run))["closeBase"]).toBeNull();
+
+    // Following the remedy, the next close takes the correction as the person's.
+    gitIn(run.worktree, "reset", "--soft", base);
+    writePersonHandoff(run);
+    const closed = report((await close(run)).result);
+    expect(closed).toMatchObject({ outcome: "corrected", changedPaths: ["src/invoiceRow.ts"] });
   });
 
   it("restores an interrupted vibe closing turn's edits before the gate", async () => {

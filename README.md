@@ -384,6 +384,8 @@ To close the stop, run `phax resume invoice-export` from the main checkout. phax
 3. commits exactly the gated tree, with an `Interactive-Phase: <phase-id>` trailer and no model or session trailers, because no agent session wrote it. A review that changed nothing commits an empty commit;
 4. continues with the next phase, whose prompt carries your correction under `## Review corrections`, after the previous phase's handoff.
 
+Leave your corrections uncommitted: phax commits the gated tree itself. A commit you make in the stopped worktree is refused (exit 1) with the `git -C <worktree> reset --soft <base>` that keeps its changes uncommitted; phax never rewrites the history itself.
+
 A refused close puts the run back to `awaiting_review`; so does an interrupt during the close. `phax reset-phase` at a stop discards the phase's worktree so that `phax resume` runs it again, first turn included. `phax archive --force` archives the run. `phax adjust-plan --landed` is refused until the run lands.
 
 A user interface reads `review-stop.json` for the stopped phase, its worktree, the current session, the last refused close and the commands above, each as `{ cwd, argv, env }`; its format is under [Persisted formats](#persisted-formats).
