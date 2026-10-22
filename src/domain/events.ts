@@ -1,6 +1,8 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
 import type { RateLimitError, UsageLimitError } from "./errors.js";
+import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
+import type { StopCause } from "./state.js";
 
 export interface PhaxEventBase {
   readonly eventId: string;
@@ -200,6 +202,33 @@ export interface PhaseResetRequested extends PhaxEventBase {
   readonly phaseId: PhaseId;
 }
 
+// The run reached a stop at a phase and waits for a person: run and phase
+// enter awaiting_review, and review-stop.json is written.
+export interface ReviewStopReached extends PhaxEventBase {
+  readonly type: "ReviewStopReached";
+  readonly phaseId: PhaseId;
+  readonly cause: StopCause;
+  readonly worktreePath: WorktreePath;
+  readonly reviewStop: ReviewStop;
+}
+
+// A close of the stop was refused: the run returns to awaiting_review, and
+// review-stop.json is restored with `lastClose`.
+export interface StopCloseRefused extends PhaxEventBase {
+  readonly type: "StopCloseRefused";
+  readonly phaseId: PhaseId;
+  readonly lastClose: LastClose;
+}
+
+// A close of the stop committed the gated tree: the phase is committed and
+// review-stop.json is discarded.
+export interface StopCommitted extends PhaxEventBase {
+  readonly type: "StopCommitted";
+  readonly phaseId: PhaseId;
+  readonly hash: string;
+  readonly outcome: "corrected" | "unchanged";
+}
+
 export type PhaxEvent =
   | RunStarted
   | RunResumeRequested
@@ -230,6 +259,9 @@ export type PhaxEvent =
   | PhaseHadNoChanges
   | ArtifactCompletionFailed
   | RateLimitDetected
-  | PhaseResetRequested;
+  | PhaseResetRequested
+  | ReviewStopReached
+  | StopCloseRefused
+  | StopCommitted;
 
 export type PhaxEventType = PhaxEvent["type"];

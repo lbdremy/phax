@@ -1,7 +1,8 @@
 import type { Disposition } from "./disposition.js";
 import type { PhaxCommand } from "./effects.js";
 import type { PhaxEvent } from "./events.js";
-import type { PhaxState } from "./state.js";
+import type { PhaxState, StopCause } from "./state.js";
+import type { LastClose } from "../schemas/reviewStop.js";
 import { AgentInvocationError } from "./errors.js";
 
 const handled = (
@@ -58,6 +59,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot start run from ${state.run}`);
+        case "awaiting_review":
+          return rejected(`cannot start run from ${state.run}`);
         default:
           return assertNever(state);
       }
@@ -71,6 +74,16 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
             return handled({ run: "running", phase: { state: "running" } });
           }
           return handled({ run: "running", phase: state.phase });
+        // A close of the stop starts: the phase stays awaiting_review until
+        // StopCommitted, so an interruption before the commit returns to the stop.
+        case "awaiting_review":
+          return handled({ run: "running", phase: state.phase }, [
+            {
+              type: "PersistState",
+              patch: { phase: { stop: { cause: state.phase.cause, status: "waiting" } } },
+            },
+            { type: "ParkReviewStop" },
+          ]);
         case "running":
           return ignored("run is already running");
         case "created":
@@ -87,10 +100,21 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
     case "RunInterruptRequested":
       switch (state.run) {
         case "running":
+          // An interrupted close returns to the stop it was closing.
+          if (state.phase.state === "awaiting_review") {
+            return stopReturned(state.phase, event.phase, {
+              result: "interrupted",
+              at: event.occurredAt,
+              exitCode: 130,
+            });
+          }
+          return handled({ run: "interrupted", phase: state.phase });
         case "rate_limited":
           return handled({ run: "interrupted", phase: state.phase });
         case "interrupted":
           return ignored("run is already interrupted");
+        case "awaiting_review":
+          return ignored("nothing is running while the run awaits review");
         case "created":
         case "review_open":
         case "failed":
@@ -127,6 +151,11 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return event.force
             ? handled({ run: "archived" }, archiveEffects)
             : rejected(`run is ${state.run}, not finished; pass --force to archive it anyway`);
+        // review-stop.json goes before the run folder moves.
+        case "awaiting_review":
+          return event.force
+            ? handled({ run: "archived" }, [{ type: "DiscardReviewStop" }, ...archiveEffects])
+            : rejected(`run is ${state.run}, not finished; pass --force to archive it anyway`);
         case "archived":
           return rejected("run is already archived");
         case "running":
@@ -149,6 +178,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "completed":
         case "stopped":
         case "archived":
+          return rejected(`cannot fail run from ${state.run}`);
+        case "awaiting_review":
           return rejected(`cannot fail run from ${state.run}`);
         default:
           return assertNever(state);
@@ -182,6 +213,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`final review cannot reopen from ${state.run}`);
+        case "awaiting_review":
+          return rejected(`final review cannot open from ${state.run}`);
         default:
           return assertNever(state);
       }
@@ -200,6 +233,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "failed":
         case "stopped":
         case "archived":
+          return rejected(`cannot complete run from ${state.run}`);
+        case "awaiting_review":
           return rejected(`cannot complete run from ${state.run}`);
         default:
           return assertNever(state);
@@ -227,6 +262,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`phase start requested on ${state.run} run`);
+        case "awaiting_review":
+          return rejected(`cannot start phase while run is ${state.run}`);
         default:
           return assertNever(state);
       }
@@ -253,6 +290,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`worktree creation event on ${state.run} run`);
+        case "awaiting_review":
+          return stale("WorktreeCreated while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -278,6 +317,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`agent invocation started on ${state.run} run`);
+        case "awaiting_review":
+          return stale("AgentInvocationStarted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -302,6 +343,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`agent invocation completed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("AgentInvocationCompleted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -327,6 +370,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate started on ${state.run} run`);
+        case "awaiting_review":
+          return stale("GateStarted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -351,6 +396,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate passed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("GatePassed while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -378,6 +425,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("GateFailed while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -406,6 +455,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix started on ${state.run} run`);
+        case "awaiting_review":
+          return stale("FixStarted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -430,6 +481,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix completed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("FixCompleted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -499,6 +552,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix attempts exhausted on ${state.run} run`);
+        case "awaiting_review":
+          return stale("FixAttemptsExhausted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -577,6 +632,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate step refused on ${state.run} run`);
+        case "awaiting_review":
+          return stale("GateStepRefused while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -602,6 +659,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff requested on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HandoffRequested while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -627,6 +686,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff validated on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HandoffValidated while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -668,6 +729,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff missing on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HandoffMissing while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -696,6 +759,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`commit created on ${state.run} run`);
+        case "awaiting_review":
+          return stale("CommitCreated while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -752,6 +817,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`commit failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("CommitFailed while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -807,6 +874,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("CleanupFailed while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -865,6 +934,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`artifact completion failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("ArtifactCompletionFailed while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -895,6 +966,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup started on ${state.run} run`);
+        case "awaiting_review":
+          return stale("CleanupStarted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -919,6 +992,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup completed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("CleanupCompleted while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -975,6 +1050,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`phase had no changes on ${state.run} run`);
+        case "awaiting_review":
+          return stale("PhaseHadNoChanges while the run awaits review");
         default:
           return assertNever(state);
       }
@@ -983,6 +1060,10 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "running": {
           const ps = state.phase.state;
+          // A close reports a limit with StopCloseRefused.
+          if (ps === "awaiting_review") {
+            return unexpected("rate limit detected while a close of the stop runs");
+          }
           if (ps === "running" || ps === "fixing") {
             const reason: "Rate limit" | "Usage limit" =
               event.kind === "usage_limit" ? "Usage limit" : "Rate limit";
@@ -1035,19 +1116,23 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`rate limit on ${state.run} run`);
+        case "awaiting_review":
+          return stale("RateLimitDetected while the run awaits review");
         default:
           return assertNever(state);
       }
 
     case "PhaseResetRequested": {
-      const resetResult = handled({ run: "interrupted", phase: { state: "pending" } }, [
+      const resetState: PhaxState = { run: "interrupted", phase: { state: "pending" } };
+      const resetEffects: readonly PhaxCommand[] = [
         {
           type: "PersistState",
           patch: {
             run: { stoppedReason: "phase_reset" },
           },
         },
-      ]);
+      ];
+      const resetResult = handled(resetState, resetEffects);
       switch (state.run) {
         case "failed":
           return resetResult;
@@ -1055,6 +1140,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           const ps = state.phase.state;
           if (ps === "gates_exhausted" || ps === "gates_failed" || ps === "handoff_failed") {
             return resetResult;
+          }
+          if (ps === "awaiting_review") {
+            return rejected("a close of the stop is in progress");
           }
           return rejected(`cannot reset phase while it is ${ps}`);
         }
@@ -1065,6 +1153,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           }
           return rejected(`cannot reset phase while it is ${ps}`);
         }
+        case "awaiting_review":
+          return handled(resetState, [...resetEffects, { type: "DiscardReviewStop" }]);
         case "created":
         case "rate_limited":
         case "review_open":
@@ -1076,5 +1166,160 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return assertNever(state);
       }
     }
+
+    case "ReviewStopReached":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "running") {
+            return handled(
+              { run: "awaiting_review", phase: { state: "awaiting_review", cause: event.cause } },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: { stoppedReason: "awaiting_review" },
+                    phase: {
+                      state: "awaiting_review",
+                      stop: { cause: event.cause, status: "waiting" },
+                    },
+                  },
+                },
+                { type: "WriteReviewStop", reviewStop: event.reviewStop },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Awaiting review",
+                    kind: "awaiting_review",
+                    phaseId: event.phaseId,
+                    worktreePath: event.worktreePath as string,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "review.stop.reached",
+                  status: "info",
+                  boundary: "review-stop.json",
+                  details: { phaseId: event.phaseId, cause: event.cause },
+                },
+              ],
+            );
+          }
+          return unexpected(`review stop reached while phase is ${ps}`);
+        }
+        case "awaiting_review":
+          return ignored("run already awaits review");
+        case "rate_limited":
+          return unexpected("review stop reached while run is rate_limited");
+        case "interrupted":
+          return stale("review stop reached on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`review stop reached while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`review stop reached on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
+
+    case "StopCloseRefused":
+      switch (state.run) {
+        case "running": {
+          if (state.phase.state === "awaiting_review") {
+            return stopReturned(state.phase, event.phaseId, event.lastClose);
+          }
+          return unexpected(`stop close refused while phase is ${state.phase.state}`);
+        }
+        case "awaiting_review":
+          return stale("stop close refused while no close runs");
+        case "rate_limited":
+          return unexpected("stop close refused while run is rate_limited");
+        case "interrupted":
+          return stale("stop close refused on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`stop close refused while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`stop close refused on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
+
+    case "StopCommitted":
+      switch (state.run) {
+        case "running": {
+          if (state.phase.state === "awaiting_review") {
+            return handled({ run: "running", phase: { state: "committed", hash: event.hash } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  phase: {
+                    state: "committed",
+                    commitHash: event.hash,
+                    stop: { cause: state.phase.cause, status: "closed", outcome: event.outcome },
+                  },
+                },
+              },
+              { type: "RecordCommitMetadata", hash: event.hash },
+              { type: "DiscardReviewStop" },
+            ]);
+          }
+          return unexpected(`stop committed while phase is ${state.phase.state}`);
+        }
+        case "awaiting_review":
+          return stale("stop committed while no close runs");
+        case "rate_limited":
+          return unexpected("stop committed while run is rate_limited");
+        case "interrupted":
+          return stale("stop committed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`stop committed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`stop committed on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
   }
+}
+
+/**
+ * A close of the stop that did not commit, refused or interrupted: the run
+ * returns to awaiting_review, and review-stop.json comes back with `lastClose`.
+ * Only a refusal records `lastError`; an interruption leaves run-status.json to
+ * the interrupt handler's own write.
+ */
+function stopReturned(
+  phase: { readonly state: "awaiting_review"; readonly cause: StopCause },
+  phaseId: string | undefined,
+  lastClose: LastClose,
+): Disposition<PhaxState> {
+  const closeError =
+    lastClose.result === "interrupted"
+      ? `Close of the stop interrupted (exit ${lastClose.exitCode})`
+      : `Close of the stop refused: ${lastClose.result} (exit ${lastClose.exitCode})`;
+  return handled({ run: "awaiting_review", phase }, [
+    ...(lastClose.result === "interrupted"
+      ? []
+      : [
+          {
+            type: "PersistState" as const,
+            patch: { run: { stoppedReason: "awaiting_review", lastError: closeError } },
+          },
+        ]),
+    { type: "RestoreReviewStop", lastClose },
+    {
+      type: "WriteResumeInstructions",
+      ctx: { reason: "Awaiting review", kind: "awaiting_review", phaseId, rawMessage: closeError },
+    },
+  ]);
 }

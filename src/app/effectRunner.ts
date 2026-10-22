@@ -13,7 +13,13 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { toKeepAwakePlatform } from "../domain/whatsNext.js";
-import { readPhaseStatusFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
+import {
+  readPhaseStatusFile,
+  readReviewStopFile,
+  readRunStatusFile,
+  withSchemaUrl,
+} from "../schemas/persisted.js";
+import { encodeReviewStopFile, type LastClose, type ReviewStop } from "../schemas/reviewStop.js";
 import { encodePhaseStatus, encodeRunStatus } from "../schemas/status.js";
 import { setRunStatus } from "./registry.js";
 import { writeResumeInstructions } from "./resumeInstructions.js";
@@ -82,6 +88,103 @@ function recordCommitMetadata(
     type: "PersistState",
     patch: { phase: { commitHash: hash } },
   });
+}
+
+// review-stop.json lives in the run folder while the run is awaiting_review;
+// while a close runs it is parked in the stopped phase's folder.
+const REVIEW_STOP_FILE = "review-stop.json";
+const PARKED_REVIEW_STOP_FILE = "review-stop.closing.json";
+
+function parkedReviewStopPath(ctx: EffectRunnerContext): Effect.Effect<string, FsError> {
+  return ctx.phaseFolderPath === undefined
+    ? Effect.fail(
+        new FsError({
+          message: `${join(ctx.runPath, REVIEW_STOP_FILE)}: no phase folder to park the review stop in`,
+        }),
+      )
+    : Effect.succeed(join(ctx.phaseFolderPath, PARKED_REVIEW_STOP_FILE));
+}
+
+function writeReviewStop(
+  ctx: EffectRunnerContext,
+  reviewStop: ReviewStop,
+): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* fs.writeAtomic(
+      join(ctx.runPath, REVIEW_STOP_FILE),
+      JSON.stringify(encodeReviewStopFile(withSchemaUrl("review-stop", reviewStop)), null, 2),
+    );
+  });
+}
+
+// A close re-entered after a crash finds the document already parked.
+function parkReviewStop(ctx: EffectRunnerContext): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const parked = yield* parkedReviewStopPath(ctx);
+    const live = join(ctx.runPath, REVIEW_STOP_FILE);
+    if (!(yield* fs.exists(live))) return;
+    yield* fs.rename(live, parked);
+  });
+}
+
+// Reads the parked copy, or the live one when the close never parked it, and
+// writes it back to the run folder with `lastClose` set and every other field kept.
+function restoreReviewStop(
+  ctx: EffectRunnerContext,
+  lastClose: LastClose,
+): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const parked = yield* parkedReviewStopPath(ctx);
+    const live = join(ctx.runPath, REVIEW_STOP_FILE);
+    const source = (yield* fs.exists(parked)) ? parked : live;
+    const raw = yield* fs.readText(source);
+    const parsed = yield* Effect.try({
+      try: () => JSON.parse(raw) as unknown,
+      catch: () => new FsError({ message: `${source}: not valid JSON` }),
+    });
+    const decoded = readReviewStopFile(source, parsed);
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    }
+    yield* writeReviewStop(ctx, { ...decoded.right, lastClose });
+    if (source === parked) yield* fs.remove(parked);
+  });
+}
+
+// Without a phase folder (an archive), every phase folder is searched for a parked copy.
+function discardReviewStop(ctx: EffectRunnerContext): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const parked =
+      ctx.phaseFolderPath !== undefined
+        ? [join(ctx.phaseFolderPath, PARKED_REVIEW_STOP_FILE)]
+        : (yield* fs.list(ctx.runPath)).map((entry) =>
+            join(ctx.runPath, entry, PARKED_REVIEW_STOP_FILE),
+          );
+    for (const path of [join(ctx.runPath, REVIEW_STOP_FILE), ...parked]) {
+      if (yield* fs.exists(path)) yield* fs.remove(path);
+    }
+  });
+}
+
+// The stop's resume instructions name the worktree; a refused or interrupted
+// close carries none, so it is read from the stopped phase's status.
+function stoppedPhaseWorktree(
+  ctx: EffectRunnerContext,
+): Effect.Effect<string | undefined, never, FileSystem> {
+  return Effect.gen(function* () {
+    if (ctx.phaseFolderPath === undefined) return undefined;
+    const fs = yield* FileSystem;
+    const path = join(ctx.phaseFolderPath, "status.json");
+    if (!(yield* fs.exists(path))) return undefined;
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const decoded = readPhaseStatusFile(path, parsed);
+    return Either.isRight(decoded) ? decoded.right.worktreePath : undefined;
+  }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
 function mapEmitTraceToSemantic(
@@ -172,22 +275,36 @@ export function run(
       });
     case "WriteResumeInstructions": {
       const platform = toKeepAwakePlatform(process.platform);
-      return writeResumeInstructions({
-        runPath: ctx.runPath,
-        shortName: ctx.shortName,
-        reason: cmd.ctx.reason,
-        kind: cmd.ctx.kind,
-        resetAt: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.resetAt,
-        phaseId: cmd.ctx.phaseId,
-        worktreePath: cmd.ctx.worktreePath,
-        sessionId: cmd.ctx.sessionId,
-        rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
-        refusal: cmd.ctx.refusal,
-        failedStep: cmd.ctx.failedStep,
-        now: new Date(),
-        platform,
-      }).pipe(Effect.asVoid);
+      return Effect.gen(function* () {
+        const worktreePath =
+          cmd.ctx.worktreePath === undefined && cmd.ctx.kind === "awaiting_review"
+            ? yield* stoppedPhaseWorktree(ctx)
+            : cmd.ctx.worktreePath;
+        yield* writeResumeInstructions({
+          runPath: ctx.runPath,
+          shortName: ctx.shortName,
+          reason: cmd.ctx.reason,
+          kind: cmd.ctx.kind,
+          resetAt: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.resetAt,
+          phaseId: cmd.ctx.phaseId,
+          worktreePath,
+          sessionId: cmd.ctx.sessionId,
+          rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
+          refusal: cmd.ctx.refusal,
+          failedStep: cmd.ctx.failedStep,
+          now: new Date(),
+          platform,
+        });
+      });
     }
+    case "WriteReviewStop":
+      return writeReviewStop(ctx, cmd.reviewStop);
+    case "ParkReviewStop":
+      return parkReviewStop(ctx);
+    case "RestoreReviewStop":
+      return restoreReviewStop(ctx, cmd.lastClose);
+    case "DiscardReviewStop":
+      return discardReviewStop(ctx);
     case "RunCleanupShell":
       return runCleanupShell(cmd);
     case "WriteAtomic":

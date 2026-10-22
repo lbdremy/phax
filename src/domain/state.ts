@@ -10,7 +10,8 @@ export type RunState =
   | "stopped"
   | "archived"
   | "interrupted"
-  | "rate_limited";
+  | "rate_limited"
+  | "awaiting_review";
 
 export type PhaseState =
   | "pending"
@@ -27,7 +28,11 @@ export type PhaseState =
   | "review_open"
   | "handoff_failed"
   | "skipped"
-  | "rate_limited";
+  | "rate_limited"
+  | "awaiting_review";
+
+/** Why a run waits for a person at a phase: the plan declared the phase interactive. */
+export type StopCause = "declared";
 
 // Hierarchical state model. The dispatcher (phase-03) composes a PhaxState
 // from the flat RunStatus + PhaseStatus persisted on disk; the reducer
@@ -48,7 +53,8 @@ export type PhaseSubState =
   | { readonly state: "failed"; readonly cause: string }
   | { readonly state: "skipped" }
   | { readonly state: "rate_limited" }
-  | { readonly state: "review_open" };
+  | { readonly state: "review_open" }
+  | { readonly state: "awaiting_review"; readonly cause: StopCause };
 
 export type PhaseSubStateName = PhaseSubState["state"];
 
@@ -58,6 +64,10 @@ export type PhaxState =
   | { readonly run: "rate_limited"; readonly phase: PhaseSubState }
   | { readonly run: "interrupted"; readonly phase: PhaseSubState }
   | { readonly run: "review_open"; readonly phase: { readonly state: "review_open" } }
+  | {
+      readonly run: "awaiting_review";
+      readonly phase: { readonly state: "awaiting_review"; readonly cause: StopCause };
+    }
   | { readonly run: "failed"; readonly cause: string }
   | { readonly run: "completed" }
   | { readonly run: "stopped" }

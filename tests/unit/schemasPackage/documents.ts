@@ -712,7 +712,12 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "run-status": encoded(RunStatusFileSchema, withSchemaUrl("run-status", stepped(runStatus))),
   "phase-status": encoded(
     PhaseStatusFileSchema,
-    withSchemaUrl("phase-status", { ...stepped(phaseStatus), base: EXAMPLE_BASE }),
+    withSchemaUrl("phase-status", {
+      ...stepped(phaseStatus),
+      base: EXAMPLE_BASE,
+      mode: "headless" as const,
+      stop: null,
+    }),
   ),
   "phax-plan": encoded(
     PhaxPlanFileSchema,

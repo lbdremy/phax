@@ -23,7 +23,7 @@ import {
 } from "../../src/app/eventAdapter.js";
 import type { CommitPhaseOptions } from "../../src/app/commit.js";
 import type { CleanupPhaseOptions } from "../../src/app/cleanup.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -59,18 +59,19 @@ const base: PhaxEventBase = {
   phase: phaseId,
 };
 
-const phaseStatusSeed = JSON.stringify({
-  $schema: currentSchemaUrl("phase-status"),
-  phaseId: "phase-01",
-  phaseIndex: 0,
-  model: "claude-sonnet-4-6",
-  effort: "low",
-  state: "passed",
-  branchName: "ai/my-run--phase-01",
-  base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-  createdAt: "2026-05-21T00:00:00.000Z",
-  updatedAt: "2026-05-21T00:00:00.000Z",
-});
+const phaseStatusSeed = JSON.stringify(
+  phaseStatusFile({
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    state: "passed",
+    branchName: "ai/my-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    createdAt: "2026-05-21T00:00:00.000Z",
+    updatedAt: "2026-05-21T00:00:00.000Z",
+  }),
+);
 
 // ─── adaptAgentRun ────────────────────────────────────────────────────────────
 
@@ -428,19 +429,20 @@ describe("adaptCleanup", () => {
   };
 
   // Cleanup transitions phase committed → cleaning_up → cleaned_up via dispatch.
-  const committedPhaseSeed = JSON.stringify({
-    $schema: currentSchemaUrl("phase-status"),
-    phaseId: "phase-01",
-    phaseIndex: 0,
-    model: "claude-sonnet-4-6",
-    effort: "low",
-    state: "committed",
-    branchName: "ai/my-run--phase-01",
-    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-    commitHash: "deadbeef",
-    createdAt: "2026-05-21T00:00:00.000Z",
-    updatedAt: "2026-05-21T00:00:00.000Z",
-  });
+  const committedPhaseSeed = JSON.stringify(
+    phaseStatusFile({
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      state: "committed",
+      branchName: "ai/my-run--phase-01",
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      commitHash: "deadbeef",
+      createdAt: "2026-05-21T00:00:00.000Z",
+      updatedAt: "2026-05-21T00:00:00.000Z",
+    }),
+  );
 
   it("non-final phase, clean worktree → CleanupCompleted", async () => {
     const fakeGit = makeFakeGit();

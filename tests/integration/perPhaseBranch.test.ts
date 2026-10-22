@@ -41,12 +41,9 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import {
-  currentSchemaUrl,
-  readPhaseStatusFile,
-  readPhaxPlanFile,
-} from "../../src/schemas/persisted.js";
+import { readPhaseStatusFile, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 // Made-up full commit shas for the fake git's branch tips.
 const RUN_TIP = "1111111111111111111111111111111111111111";
@@ -548,20 +545,21 @@ describe("executePlan — per-phase branch regression", () => {
     await mkdir(phase01FolderPath, { recursive: true });
     await writeFile(
       join(phase01FolderPath, "status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: "phase-01",
-        phaseIndex: 0,
-        state: "committed",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        branchName: "ai/my-run--phase-01",
-        base: RUN_TIP,
-        createdAt: now,
-        updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
-        commitHash: "aabbccdd",
-      }),
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: "phase-01",
+          phaseIndex: 0,
+          state: "committed",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          branchName: "ai/my-run--phase-01",
+          base: RUN_TIP,
+          createdAt: now,
+          updatedAt: now,
+          worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
+          commitHash: "aabbccdd",
+        }),
+      ),
     );
     await writeFile(
       join(phase01FolderPath, "file-reconciliation.json"),

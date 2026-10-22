@@ -7,6 +7,8 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -30,9 +32,8 @@ function makeRunStatus(state: string, extra: Record<string, unknown> = {}): obje
   };
 }
 
-function makePhaseStatus(state: string): object {
-  return {
-    $schema: currentSchemaUrl("phase-status"),
+function makePhaseStatus(state: PhaseStatus["state"]): object {
+  return phaseStatusFile({
     phaseId: "phase-01",
     phaseIndex: 0,
     state,
@@ -42,7 +43,7 @@ function makePhaseStatus(state: string): object {
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 function makePlanPhase(id: string) {
@@ -261,18 +262,19 @@ describe("inspectResume", () => {
     );
 
     const makeSkippedStatus = (id: string, index: number) =>
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: id,
-        phaseIndex: index,
-        state: "skipped",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        branchName: `ai/test-run--${id}`,
-        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        createdAt: now,
-        updatedAt: now,
-      });
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: id,
+          phaseIndex: index,
+          state: "skipped",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          branchName: `ai/test-run--${id}`,
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
 
     mkdirSync(join(runPath, "phase-02"), { recursive: true });
     writeFileSync(join(runPath, "phase-01", "status.json"), makeSkippedStatus("phase-01", 0));

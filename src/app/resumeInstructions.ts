@@ -264,7 +264,49 @@ function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInpu
   return lines.join("\n");
 }
 
+function buildAwaitingReviewInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    `This run waits for a person at ${phaseId}. Nothing runs until you close the stop.`,
+    "Work in the phase worktree with any editor or agent, then close the stop from the",
+    "main checkout: the gate runs first, and if it passes the phase commits and the run",
+    "continues.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not recorded)"}`,
+    ...(input.rawMessage !== undefined ? [`- **Last close:** ${input.rawMessage}`] : []),
+    "",
+    "## Open the phase",
+    "",
+    "```bash",
+    `phax enter-phase ${input.shortName} ${phaseId}`,
+    "```",
+    "",
+    "## Close the stop (from the main checkout)",
+    "",
+    "```bash",
+    `phax resume ${input.shortName}`,
+    "```",
+    "",
+    "## Start the phase over",
+    "",
+    "```bash",
+    `phax reset-phase ${input.shortName} ${phaseId}`,
+    "```",
+    "",
+  ];
+  return lines.join("\n");
+}
+
 export function buildResumeInstructions(input: ResumeInstructionsInput): string {
+  if (input.kind === "awaiting_review") {
+    return buildAwaitingReviewInstructions(input);
+  }
   if (input.kind === "gates_exhausted") {
     return buildGateExhaustionInstructions(input);
   }

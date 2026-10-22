@@ -1,5 +1,6 @@
 import { Schema, type Types } from "effect";
 import { BranchNameSchema } from "../domain/branded.js";
+import { PhaseModeSchema } from "./phaxPlan.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 const RunStateSchema = Schema.Union(
@@ -12,6 +13,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
+  Schema.Literal("awaiting_review"),
 );
 
 const PhaseStateSchema = Schema.Union(
@@ -30,6 +32,7 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("handoff_failed"),
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
+  Schema.Literal("awaiting_review"),
 );
 
 const EffortSchema = Schema.Union(
@@ -91,6 +94,27 @@ export const FullCommitShaSchema = Schema.String.pipe(
   }),
 );
 
+/**
+ * A phase's stop: null for a phase that never stopped; `waiting` while it
+ * waits for a person or its close runs; `closed` once the close committed,
+ * with whether the person changed anything.
+ */
+export const PhaseStopSchema = Schema.NullOr(
+  Schema.Union(
+    Schema.Struct({
+      cause: Schema.Literal("declared"),
+      status: Schema.Literal("waiting"),
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("declared"),
+      status: Schema.Literal("closed"),
+      outcome: Schema.Literal("corrected", "unchanged"),
+    }),
+  ),
+);
+
+export type PhaseStop = Schema.Schema.Type<typeof PhaseStopSchema>;
+
 const phaseStatusFields = {
   phaseId: Schema.NonEmptyString,
   phaseIndex: Schema.Number,
@@ -107,6 +131,9 @@ const phaseStatusFields = {
   worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  // Copied from the plan phase when the status is first written.
+  mode: PhaseModeSchema,
+  stop: PhaseStopSchema,
 };
 
 /** A phase's status in memory: never a `version`, never a `$schema`. */

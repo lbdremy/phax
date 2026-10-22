@@ -10,6 +10,7 @@ import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import { RateLimitError } from "../../src/domain/errors.js";
 import { Either } from "effect";
+import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -172,6 +173,21 @@ const samples = {
     kind: "rate_limit",
     cause: rateLimitError,
   },
+  ReviewStopReached: {
+    ...base,
+    type: "ReviewStopReached",
+    phaseId,
+    cause: "declared",
+    worktreePath,
+    reviewStop: reviewStop(),
+  },
+  StopCloseRefused: {
+    ...base,
+    type: "StopCloseRefused",
+    phaseId,
+    lastClose: { result: "interrupted", at: base.occurredAt, exitCode: 130 },
+  },
+  StopCommitted: { ...base, type: "StopCommitted", phaseId, hash: "abc123", outcome: "unchanged" },
 } satisfies { readonly [K in PhaxEventType]: PhaxEvent & { type: K } };
 
 function assertNever(x: never): never {
@@ -228,6 +244,12 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.phaseId}`;
     case "RateLimitDetected":
       return `${event.type}:${event.kind}`;
+    case "ReviewStopReached":
+      return `${event.type}:${event.phaseId}:${event.cause}`;
+    case "StopCloseRefused":
+      return `${event.type}:${event.lastClose.result}`;
+    case "StopCommitted":
+      return `${event.type}:${event.hash}:${event.outcome}`;
     default:
       return assertNever(event);
   }

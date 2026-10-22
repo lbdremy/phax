@@ -8,25 +8,26 @@ import {
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { FsError } from "../../src/ports/fs.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const phaseFolderPath = "/fake/runs/my-run/phase-01";
 const now = new Date().toISOString();
 
 function makePhaseStatusJson(extra: Record<string, unknown> = {}): string {
-  return JSON.stringify({
-    $schema: currentSchemaUrl("phase-status"),
-    phaseId: "phase-01",
-    phaseIndex: 0,
-    state: "setting_up_worktree",
-    model: "claude-sonnet-4-6",
-    effort: "low",
-    branchName: "ai/my-run--phase-01",
-    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-    createdAt: now,
-    updatedAt: now,
-    ...extra,
-  });
+  return JSON.stringify(
+    phaseStatusFile({
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      state: "setting_up_worktree",
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      branchName: "ai/my-run--phase-01",
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      createdAt: now,
+      updatedAt: now,
+      ...extra,
+    }),
+  );
 }
 
 describe("readPhaseBase", () => {

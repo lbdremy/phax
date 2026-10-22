@@ -15,6 +15,7 @@ import { CODE_REVIEW_PROMPT_FILENAME } from "../../src/domain/review/codeReviewP
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -518,19 +519,21 @@ describe("review info from a phax-plan.json written before $schema", () => {
     });
     // A phase status written before $schema never noted its branch's base and
     // is refused, so the phase status here is a current one.
-    write("phase-02/status.json", {
-      $schema: currentSchemaUrl("phase-status"),
-      phaseId: "phase-02",
-      phaseIndex: 1,
-      state: "review_open",
-      model: "example-model",
-      effort: "medium",
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      branchName: "phax/example-run--phase-02",
-      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-      worktreePath: "/work/example-repo/worktrees/phase-02",
-    });
+    write(
+      "phase-02/status.json",
+      phaseStatusFile({
+        phaseId: "phase-02",
+        phaseIndex: 1,
+        state: "review_open",
+        model: "example-model",
+        effort: "medium",
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        branchName: "phax/example-run--phase-02",
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        worktreePath: "/work/example-repo/worktrees/phase-02",
+      }),
+    );
     write("phax-plan.json", {
       version: 1,
       run: {

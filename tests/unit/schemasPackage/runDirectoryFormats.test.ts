@@ -64,7 +64,8 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parsePhaseStatus,
     phax: decodePhaseStatusFile,
     toLatest: toLatestPhaseStatus,
-    unrecorded: { base: UNKNOWN },
+    // No phax that wrote a pre-schema status could run an interactive phase or stop.
+    unrecorded: { base: UNKNOWN, mode: "headless", stop: null },
   },
   {
     id: "phax-plan",
@@ -252,10 +253,24 @@ describe("the phax-plan's mode and oracle history", () => {
 
 describe("the phase status's base history", () => {
   const current = validDocuments["phase-status"];
+  /** A status as phax 0.20.0 through 0.26.x wrote it: `$schema` and base, no mode or stop. */
+  const withBase = withoutKey(withoutKey(current, "mode"), "stop");
   /** A status as phax 0.17.0 through 0.19.x wrote it: `$schema`, no base. */
   function older(release: string): Doc {
-    return withKey(withoutKey(current, "base"), "$schema", schemaUrl("phase-status", release));
+    return withKey(withoutKey(withBase, "base"), "$schema", schemaUrl("phase-status", release));
   }
+
+  it("parses a 0.20.0 document as shape 0.20.0 and lifts it as headless and never stopped", () => {
+    const document = withKey(withBase, "$schema", schemaUrl("phase-status", "0.20.0"));
+    const result = parsePhaseStatus(document);
+    expect(result).toEqual({ ok: true, shape: "0.20.0", value: document });
+    if (!result.ok) return;
+    expect(toLatestPhaseStatus(result.value)).toEqual({
+      ...withoutKey(document, "$schema"),
+      mode: "headless",
+      stop: null,
+    });
+  });
 
   it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
     const document = older("0.17.0");

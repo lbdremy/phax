@@ -9,9 +9,9 @@ export const FIRST_SUPPORTED_RELEASE: string | null = "0.17.0";
 // packages/schemas/snapshots/<format id>/next.schema.json exists, else its
 // highest release-named snapshot. A release renames `next` to itself.
 export const CURRENT_SHAPES = {
-  registry: "0.17.0",
-  "run-status": "0.17.0",
-  "phase-status": "0.20.0",
+  registry: "next",
+  "run-status": "next",
+  "phase-status": "next",
   "phax-plan": "next",
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",

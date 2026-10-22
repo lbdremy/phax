@@ -32,6 +32,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -73,8 +74,7 @@ async function seedGatesExhaustedRun(opts: {
 
   const phaseFolder = join(opts.runPath, "phase-01");
   await mkdir(phaseFolder, { recursive: true });
-  const phaseStatus: Record<string, unknown> = {
-    $schema: currentSchemaUrl("phase-status"),
+  const phaseStatus: Record<string, unknown> = phaseStatusFile({
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "gates_exhausted",
@@ -85,7 +85,7 @@ async function seedGatesExhaustedRun(opts: {
     branchName: "ai/my-run--phase-01",
     base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     worktreePath: opts.worktreePath,
-  };
+  });
   if (opts.claudeSessionId !== undefined) {
     phaseStatus["claudeSessionId"] = opts.claudeSessionId;
   }

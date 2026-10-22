@@ -94,6 +94,8 @@ export function createPhaseFolder(
       base: prepared.base,
       createdAt: now,
       updatedAt: now,
+      mode: phase.mode,
+      stop: null,
     });
 
     return phasePath;

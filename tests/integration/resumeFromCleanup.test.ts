@@ -21,8 +21,9 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -142,21 +143,22 @@ async function seedCleanupFailedRun(opts: {
 
   await writeFile(
     join(phaseFolder, "status.json"),
-    JSON.stringify({
-      $schema: currentSchemaUrl("phase-status"),
-      phaseId: "phase-01",
-      phaseIndex: 0,
-      state: "cleaning_up",
-      model: "claude-sonnet-4-6",
-      effort: "low",
-      createdAt: now,
-      updatedAt: now,
-      branchName: "ai/my-run--phase-01",
-      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-      worktreePath: opts.phase01WorktreePath,
-      claudeSessionId: opts.claudeSessionId,
-      commitHash: opts.commitHash,
-    }),
+    JSON.stringify(
+      phaseStatusFile({
+        phaseId: "phase-01",
+        phaseIndex: 0,
+        state: "cleaning_up",
+        model: "claude-sonnet-4-6",
+        effort: "low",
+        createdAt: now,
+        updatedAt: now,
+        branchName: "ai/my-run--phase-01",
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        worktreePath: opts.phase01WorktreePath,
+        claudeSessionId: opts.claudeSessionId,
+        commitHash: opts.commitHash,
+      }),
+    ),
   );
 
   // Agent-binding.json must exist so the resume path can read the locked

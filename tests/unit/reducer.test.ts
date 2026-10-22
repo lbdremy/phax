@@ -14,6 +14,7 @@ import { phaxDispositionMatrix } from "../../src/domain/matrix.js";
 import { interpret } from "../../src/domain/reducer.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { PhaxState, PhaxStateName } from "../../src/domain/state.js";
+import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -177,6 +178,30 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     phaseId,
   },
+  ReviewStopReached: {
+    ...base,
+    type: "ReviewStopReached",
+    phase: phaseId,
+    phaseId,
+    cause: "declared",
+    worktreePath,
+    reviewStop: reviewStop(),
+  },
+  StopCloseRefused: {
+    ...base,
+    type: "StopCloseRefused",
+    phase: phaseId,
+    phaseId,
+    lastClose: { result: "gate-failed", at: base.occurredAt, exitCode: 4, log: "/tmp/gate.log" },
+  },
+  StopCommitted: {
+    ...base,
+    type: "StopCommitted",
+    phase: phaseId,
+    phaseId,
+    hash: "abc123",
+    outcome: "corrected",
+  },
 };
 
 /** Canonical PhaxState per run-state name — used by the matrix consistency walker. */
@@ -190,6 +215,10 @@ const representativeState: { readonly [K in PhaxStateName]: PhaxState } = {
   completed: { run: "completed" },
   stopped: { run: "stopped" },
   archived: { run: "archived" },
+  awaiting_review: {
+    run: "awaiting_review",
+    phase: { state: "awaiting_review", cause: "declared" },
+  },
 };
 
 /** Events a running run handles only from one phase substate — walked from that substate. */
@@ -197,6 +226,9 @@ const runningStateFor: Partial<Record<PhaxEventType, PhaxState>> = {
   CommitFailed: { run: "running", phase: { state: "passed" } },
   CleanupFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
   ArtifactCompletionFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
+  // A close of the stop runs with the phase still awaiting_review.
+  StopCloseRefused: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
+  StopCommitted: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
 };
 
 const runStateNames = Object.keys(representativeState) as readonly PhaxStateName[];

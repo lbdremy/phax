@@ -10,8 +10,10 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 
 const SHORT_NAME = "my-run";
 const NAMESPACE = "test-project";
@@ -28,7 +30,7 @@ async function seedRun(
     phases: ReadonlyArray<{
       id: string;
       index: number;
-      state: string;
+      state: PhaseStatus["state"];
       worktreePath?: string;
       branchName: string;
       commitHash?: string;
@@ -54,8 +56,7 @@ async function seedRun(
   for (const phase of opts.phases) {
     const phaseFolderPath = join(runPath, phase.id);
     await mkdir(phaseFolderPath, { recursive: true });
-    const status: Record<string, unknown> = {
-      $schema: currentSchemaUrl("phase-status"),
+    const status: Record<string, unknown> = phaseStatusFile({
       phaseId: phase.id,
       phaseIndex: phase.index,
       state: phase.state,
@@ -65,7 +66,7 @@ async function seedRun(
       base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
       createdAt: nowIso(),
       updatedAt: nowIso(),
-    };
+    });
     if (phase.worktreePath !== undefined) status["worktreePath"] = phase.worktreePath;
     if (phase.commitHash !== undefined) status["commitHash"] = phase.commitHash;
     await writeFile(join(phaseFolderPath, "status.json"), JSON.stringify(status));
@@ -270,7 +271,7 @@ describe("resetPhase", () => {
       );
     }
 
-    function seedPair(phase03State: string, phase03Commit?: string) {
+    function seedPair(phase03State: PhaseStatus["state"], phase03Commit?: string) {
       const worktree = (id: string) =>
         join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, id);
       return seedRun(stateRoot, {

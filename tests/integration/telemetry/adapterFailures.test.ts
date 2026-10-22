@@ -15,7 +15,7 @@ import { adaptWorktreeCreate } from "../../../src/app/eventAdapter.js";
 import { runGatesWithFixLoop } from "../../../src/app/fixLoop.js";
 import { reportAgentFailure } from "../../../src/app/telemetry/reportBuilders.js";
 import type { ClaudeSessionId } from "../../../src/domain/branded.js";
-import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../../helpers/phaseStatusFixture.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -45,18 +45,19 @@ const runStatusJson = JSON.stringify({
   currentPhaseIndex: 0,
 });
 
-const phaseStatusJson = JSON.stringify({
-  $schema: currentSchemaUrl("phase-status"),
-  phaseId: "phase-01",
-  phaseIndex: 0,
-  state: "running",
-  model: "claude-sonnet-4-6",
-  effort: "low",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  branchName: "ai/my-run--phase-01",
-  base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-});
+const phaseStatusJson = JSON.stringify(
+  phaseStatusFile({
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    state: "running",
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    branchName: "ai/my-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+  }),
+);
 
 const base: PhaxEventBase = {
   eventId: "evt-1",

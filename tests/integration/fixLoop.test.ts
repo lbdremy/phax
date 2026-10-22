@@ -12,24 +12,26 @@ import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.j
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
 const phaseFolderPath = `${runPath}/phase-01`;
 const sessionId = "sess-abc123" as ClaudeSessionId;
 
-const phaseStatusJson = JSON.stringify({
-  $schema: currentSchemaUrl("phase-status"),
-  phaseId: "phase-01",
-  phaseIndex: 0,
-  state: "running",
-  model: "claude-sonnet-4-6",
-  effort: "low",
-  branchName: "ai/my-run--phase-01",
-  base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-});
+const phaseStatusJson = JSON.stringify(
+  phaseStatusFile({
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    state: "running",
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    branchName: "ai/my-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }),
+);
 
 const runStatusJson = JSON.stringify({
   version: 1,

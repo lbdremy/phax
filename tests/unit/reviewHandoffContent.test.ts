@@ -3,6 +3,7 @@ import { buildReviewHandoffContent } from "../../src/app/reviewHandoff.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import type { GlobalFileReconciliation } from "../../src/domain/reconciliation/global.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 
 const globalEmpty: GlobalFileReconciliation = {
   files: [],
@@ -30,7 +31,7 @@ const info: RunReviewInfo = {
   claudeSessionId: undefined,
   gateProfileId: "full",
   phaseStatuses: [
-    {
+    phaseStatus({
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "passed",
@@ -38,9 +39,9 @@ const info: RunReviewInfo = {
       effort: "medium",
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
-      branchName: "phax/run--phase-01" as BranchName,
+      branchName: "phax/run--phase-01",
       base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-    },
+    }),
   ],
   planPhases: [{ id: "phase-01", title: "Phase 01" }],
   updatedAt: "2026-01-01T00:00:00Z",

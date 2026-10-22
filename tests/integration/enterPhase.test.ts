@@ -6,7 +6,8 @@ import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -24,7 +25,7 @@ async function buildFakeRunFolder(
   phases: Array<{
     id: string;
     index: number;
-    state: string;
+    state: PhaseStatus["state"];
     sessionId?: string;
     worktreePath?: string;
   }>,
@@ -53,20 +54,21 @@ async function buildFakeRunFolder(
     await mkdir(phaseDir, { recursive: true });
     await writeFile(
       join(phaseDir, "status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: phase.id,
-        phaseIndex: phase.index,
-        state: phase.state,
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        branchName: `ai/my-run--${phase.id}`,
-        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        createdAt: now,
-        updatedAt: now,
-        ...(phase.worktreePath ? { worktreePath: phase.worktreePath } : {}),
-        ...(phase.sessionId ? { claudeSessionId: phase.sessionId } : {}),
-      }),
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: phase.id,
+          phaseIndex: phase.index,
+          state: phase.state,
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          branchName: `ai/my-run--${phase.id}`,
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          createdAt: now,
+          updatedAt: now,
+          ...(phase.worktreePath ? { worktreePath: phase.worktreePath } : {}),
+          ...(phase.sessionId ? { claudeSessionId: phase.sessionId } : {}),
+        }),
+      ),
     );
   }
 

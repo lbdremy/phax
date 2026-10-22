@@ -16,7 +16,7 @@ import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.j
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import type { ShortName } from "../../src/domain/branded.js";
 import type { PhaxState } from "../../src/domain/state.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
 const repoRoot = "/fake-repo";
@@ -535,19 +535,20 @@ describe("archive — unfinished runs", () => {
       );
       writeFileSync(
         join(tempRunPath, "phase-01", "status.json"),
-        JSON.stringify({
-          $schema: currentSchemaUrl("phase-status"),
-          phaseId: "phase-01",
-          phaseIndex: 0,
-          state: "review_open",
-          model: "claude-sonnet-4-6",
-          effort: "low",
-          branchName: `phax/${String(shortName)}--phase-01`,
-          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-          worktreePath,
-          createdAt: runStatusBase.createdAt,
-          updatedAt: runStatusBase.updatedAt,
-        }),
+        JSON.stringify(
+          phaseStatusFile({
+            phaseId: "phase-01",
+            phaseIndex: 0,
+            state: "review_open",
+            model: "claude-sonnet-4-6",
+            effort: "low",
+            branchName: `phax/${String(shortName)}--phase-01`,
+            base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+            worktreePath,
+            createdAt: runStatusBase.createdAt,
+            updatedAt: runStatusBase.updatedAt,
+          }),
+        ),
       );
 
       const fakeFs = makeFakeFileSystem();

@@ -24,7 +24,6 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import {
   createPreflightRepo,
@@ -35,6 +34,7 @@ import {
   recordingOutput,
   removePreflightRepo,
 } from "./helpers/preflightRepo.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 // Telemetry off: resume's run telemetry is not under test here.
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
@@ -114,20 +114,21 @@ async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
   await mkdir(phase01, { recursive: true });
   await writeFile(
     join(phase01, "status.json"),
-    JSON.stringify({
-      $schema: currentSchemaUrl("phase-status"),
-      phaseId: "phase-01",
-      phaseIndex: 0,
-      state: "committed",
-      model: FIXTURE_MODEL,
-      effort: FIXTURE_EFFORT,
-      branchName: `${plan.run.branch}--phase-01`,
-      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-      createdAt: now,
-      updatedAt: now,
-      worktreePath: join(roots.stateRoot, "worktrees", `${roots.namespace}.foo`, "phase-01"),
-      commitHash: "aabbccdd11223344",
-    }),
+    JSON.stringify(
+      phaseStatusFile({
+        phaseId: "phase-01",
+        phaseIndex: 0,
+        state: "committed",
+        model: FIXTURE_MODEL,
+        effort: FIXTURE_EFFORT,
+        branchName: `${plan.run.branch}--phase-01`,
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        createdAt: now,
+        updatedAt: now,
+        worktreePath: join(roots.stateRoot, "worktrees", `${roots.namespace}.foo`, "phase-01"),
+        commitHash: "aabbccdd11223344",
+      }),
+    ),
   );
   await writeFile(join(phase01, "phase-handoff.md"), HANDOFF_CONTENT);
 

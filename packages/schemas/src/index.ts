@@ -444,6 +444,18 @@ export {
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";
 export {
+  PhaseStatusV0_20_0Schema,
+  type PhaseStatusV0_20_0,
+} from "../../../src/schemas/history/phase-status/0.20.0.js";
+export {
+  RunStatusV0_17_0Schema,
+  type RunStatusV0_17_0,
+} from "../../../src/schemas/history/run-status/0.17.0.js";
+export {
+  RegistryV0_17_0Schema,
+  type RegistryV0_17_0,
+} from "../../../src/schemas/history/registry/0.17.0.js";
+export {
   PhaxPlanV0_17_0Schema,
   type PhaxPlanV0_17_0,
 } from "../../../src/schemas/history/phax-plan/0.17.0.js";

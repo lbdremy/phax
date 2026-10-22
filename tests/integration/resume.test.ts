@@ -19,7 +19,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import {
@@ -30,6 +30,7 @@ import {
   recordingOutput,
   removePreflightRepo,
 } from "./helpers/preflightRepo.js";
+import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 // Telemetry off: `phax resume` would otherwise scaffold ~/.phax/telemetry.json.
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
@@ -163,20 +164,21 @@ describe("executePlan — resume from startIndex: 1", () => {
     await mkdir(phase01FolderPath, { recursive: true });
     await writeFile(
       join(phase01FolderPath, "status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: "phase-01",
-        phaseIndex: 0,
-        state: "committed",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        branchName: "ai/my-run--phase-01",
-        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        createdAt: now,
-        updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
-        commitHash: "aabbccdd11223344",
-      }),
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: "phase-01",
+          phaseIndex: 0,
+          state: "committed",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          branchName: "ai/my-run--phase-01",
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          createdAt: now,
+          updatedAt: now,
+          worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
+          commitHash: "aabbccdd11223344",
+        }),
+      ),
     );
     await writeFile(
       join(phase01FolderPath, "file-reconciliation.json"),
@@ -362,20 +364,21 @@ describe("executePlan — resume from startIndex: 1", () => {
     await mkdir(phase01FolderPath, { recursive: true });
     await writeFile(
       join(phase01FolderPath, "status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: "phase-01",
-        phaseIndex: 0,
-        state: "committed",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        branchName: "ai/my-run--phase-01",
-        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        createdAt: now,
-        updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
-        commitHash: "aabbccdd",
-      }),
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: "phase-01",
+          phaseIndex: 0,
+          state: "committed",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          branchName: "ai/my-run--phase-01",
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          createdAt: now,
+          updatedAt: now,
+          worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
+          commitHash: "aabbccdd",
+        }),
+      ),
     );
     await writeFile(
       join(phase01FolderPath, "file-reconciliation.json"),
@@ -527,20 +530,21 @@ describe("phax resume — a phax-plan.json an older phax wrote", () => {
     await mkdir(phase01, { recursive: true });
     await writeFile(
       join(phase01, "status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("phase-status"),
-        phaseId: "phase-01",
-        phaseIndex: 0,
-        state: "committed",
-        model: FIXTURE_MODEL,
-        effort: FIXTURE_EFFORT,
-        branchName: `${plan.run.branch}--phase-01`,
-        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-        createdAt: now,
-        updatedAt: now,
-        worktreePath: join(r.stateRoot, "worktrees", `${r.namespace}.foo`, "phase-01"),
-        commitHash: "aabbccdd11223344",
-      }),
+      JSON.stringify(
+        phaseStatusFile({
+          phaseId: "phase-01",
+          phaseIndex: 0,
+          state: "committed",
+          model: FIXTURE_MODEL,
+          effort: FIXTURE_EFFORT,
+          branchName: `${plan.run.branch}--phase-01`,
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          createdAt: now,
+          updatedAt: now,
+          worktreePath: join(r.stateRoot, "worktrees", `${r.namespace}.foo`, "phase-01"),
+          commitHash: "aabbccdd11223344",
+        }),
+      ),
     );
     await writeFile(join(phase01, "phase-handoff.md"), HANDOFF_CONTENT);
 
