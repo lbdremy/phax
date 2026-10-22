@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610220954-interactive-phases-plan.md",
+  "planFingerprint": "2a2571d129745b0abec7cb4d4204654d685c6e4d3d59c4d4371bb1554bbc2753",
+  "approvedAt": "2026-10-22T11:18:27.054Z",
+  "baseline": "c37458e619fc8470958a3280f8b015b786cf5811",
+  "sourceSpec": {
+    "path": "docs/specs/2610211403-interactive-phases.md",
+    "fingerprint": "ca7ad6e1bc5e39e72e0f5ff8204c49c51a0c927b1defff7c54dc6277afdd191d"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
