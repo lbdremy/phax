@@ -292,6 +292,9 @@ describe("stopAtDeclaredPhase — a valid first turn", () => {
     expect(options.phaseFolderPath).toBeUndefined();
     expect(prompt).toContain("Read .phax-context/interactive-review.md");
     expect(prompt).toContain("first-reading JSON Schema");
+    expect(prompt).toMatch(
+      /`\$schema` first, set to `https:\/\/docs\.phax\.run\/schemas\/first-reading\/\d+\.\d+\.\d+\.json`/,
+    );
     expect(backend.impl.resumeCalls).toHaveLength(0);
   });
 
@@ -612,7 +615,9 @@ describe("stopAtDeclaredPhase — a first turn that fails", () => {
       sessionId: SESSION,
       options: { readOnly: true, outputJsonlPath: join(phaseFolder, "first-turn-01-retry.jsonl") },
     });
-    expect(backend.impl.resumeCalls[0]?.prompt).toContain("$schema");
+    expect(backend.impl.resumeCalls[0]?.prompt).toMatch(
+      /`\$schema` first, set to `https:\/\/docs\.phax\.run\/schemas\/first-reading\/\d+\.\d+\.\d+\.json`/,
+    );
     expect(report.firstTurnProblem).toMatchObject({ outcome: "failed", reason: "invalid-answer" });
     expect(readSession().current).toBeNull();
   });

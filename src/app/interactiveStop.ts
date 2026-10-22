@@ -43,7 +43,11 @@ import type { Shell, ShellError } from "../ports/shell.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { FirstReadingFileSchema, type FirstReading } from "../schemas/firstReading.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
-import { describeReportError, readFirstReadingAnswer } from "../schemas/persisted.js";
+import {
+  currentSchemaUrl,
+  describeReportError,
+  readFirstReadingAnswer,
+} from "../schemas/persisted.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import type { ReviewStopCommand } from "../schemas/reviewStop.js";
@@ -192,7 +196,11 @@ function attemptTurn(
     const first = yield* Effect.either(
       costed(
         backend.runAgent(
-          firstTurnPrompt({ seedPath: SEED_WORKTREE_PATH, schemaJson: firstReadingSchemaJson() }),
+          firstTurnPrompt({
+            seedPath: SEED_WORKTREE_PATH,
+            schemaJson: firstReadingSchemaJson(),
+            schemaUrl: currentSchemaUrl("first-reading"),
+          }),
           options(firstStream),
         ),
         firstStream,
@@ -209,7 +217,7 @@ function attemptTurn(
       costed(
         backend.resumeAgentSession(
           first.right.sessionId,
-          correctivePrompt(answer.left),
+          correctivePrompt(answer.left, currentSchemaUrl("first-reading")),
           options(retryStream),
         ),
         retryStream,

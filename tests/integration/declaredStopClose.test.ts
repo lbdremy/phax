@@ -320,6 +320,9 @@ describe("closing a declared stop", () => {
     expect(resume!.prompt).toContain("-export const header = 'invoice_no';");
     expect(resume!.prompt).toContain("+export const header = 'Invoice number';");
     expect(resume!.prompt).not.toContain("interactive-review.md");
+    expect(resume!.prompt).toMatch(
+      /`\$schema` first, set to `https:\/\/docs\.phax\.run\/schemas\/interactive-handoff\/\d+\.\d+\.\d+\.json`/,
+    );
 
     expect(closed).toMatchObject({
       outcome: "corrected",
