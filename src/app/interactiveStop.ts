@@ -54,10 +54,8 @@ import type { ReviewStopCommand } from "../schemas/reviewStop.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import {
-  clearClosingTurnMark,
   dropPersonHandoffCopy,
   fingerprintPersonHandoff,
-  isClosingTurn,
   keepPersonHandoffCopy,
   keepRefusedTurn,
   readInteractiveSession,
@@ -390,7 +388,6 @@ function settleLeftoverClosingTurn(
     yield* restoreWorktreeSeed(seedPaths(input.worktree, input.phaseFolder));
     const settled: InteractiveSession = { ...session, turnInProgress: null };
     yield* writeInteractiveSession(input.phaseFolder, settled);
-    yield* clearClosingTurnMark(input.phaseFolder);
     return { session: settled, settledFirstTurn: 0, restoredClosingTurn: restored };
   });
 }
@@ -398,8 +395,8 @@ function settleLeftoverClosingTurn(
 /**
  * Settle the turn interactive-session.json records in progress, if any: a
  * first turn as `refused-change` when it changed anything, else as `failed`
- * with reason `interrupted`; a closing turn (told apart by its marker) by
- * restoring a writing turn's edits, with no record. Either way the seed is
+ * with reason `interrupted`; a closing turn by restoring a writing turn's
+ * edits, with no record. Either way the seed is
  * rewritten and `turnInProgress` cleared.
  */
 export function settleLeftoverTurn(
@@ -411,7 +408,7 @@ export function settleLeftoverTurn(
     if (stored === null || leftOver === null) {
       return { session: stored, settledFirstTurn: 0, restoredClosingTurn: null };
     }
-    if (yield* isClosingTurn(input.phaseFolder, leftOver.startedAt)) {
+    if (leftOver.kind === "closing-turn") {
       return yield* settleLeftoverClosingTurn(input, stored, leftOver);
     }
     const settled = yield* settleTurn(
@@ -477,6 +474,7 @@ export function runFirstTurn(
     const personHandoff = yield* fingerprintPersonHandoff(input.worktree);
     yield* keepPersonHandoffCopy(input.phaseFolder, turnLabel(turn), personHandoff);
     const inProgress: TurnInProgress = {
+      kind: "first-turn",
       turn,
       origin: input.origin,
       beforeTree: yield* git.snapshotWorktree(input.worktree),

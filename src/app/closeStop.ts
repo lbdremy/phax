@@ -66,12 +66,10 @@ import { withInvocationCost } from "./costLedger.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { runGates } from "./gates.js";
 import {
-  clearClosingTurnMark,
   dropPersonHandoffCopy,
   fingerprintPersonHandoff,
   keepPersonHandoffCopy,
   keepRefusedTurn,
-  markClosingTurn,
   readModelResolution,
   readPhasePosture,
   readReviewStop,
@@ -536,7 +534,7 @@ function nextClosingTurnNumber(phaseFolder: string): Effect.Effect<number, FsErr
 
 /**
  * The read-only closing turn, given the corrections between HEAD's tree and
- * the gated tree. It is recorded in progress (with its marker) before it
+ * the gated tree. It is recorded in progress, as a closing turn, before it
  * starts; an interruption leaves it so, and the next close restores a
  * writing turn's edits. Once it ends, the worktree and the person's handoff
  * file are compared with how they stood before it: a turn that changed
@@ -580,12 +578,12 @@ function runClosingTurn(
       firstTurns: [],
       turnInProgress: null,
     };
-    yield* at("files", markClosingTurn(input.phaseFolder, startedAt));
     yield* at(
       "files",
       writeInteractiveSession(input.phaseFolder, {
         ...base,
         turnInProgress: {
+          kind: "closing-turn",
           turn,
           origin: current?.origin ?? "new-session",
           beforeTree: args.gated,
@@ -640,7 +638,6 @@ function runClosingTurn(
       "files",
       writeInteractiveSession(input.phaseFolder, { ...base, turnInProgress: null }),
     );
-    yield* at("files", clearClosingTurnMark(input.phaseFolder));
 
     if (verdict.kind === "changed") {
       return yield* refuse({

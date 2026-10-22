@@ -523,6 +523,7 @@ describe("stopAtDeclaredPhase — a first turn that edits", () => {
       history: [],
       firstTurns: [],
       turnInProgress: {
+        kind: "first-turn",
         turn: 1,
         origin: "first-turn",
         beforeTree,
@@ -574,6 +575,7 @@ describe("stopAtDeclaredPhase — a first turn that edits", () => {
         history: [],
         firstTurns: [],
         turnInProgress: {
+          kind: "first-turn",
           turn: 1,
           origin: "first-turn",
           beforeTree,
