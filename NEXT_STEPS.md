@@ -32,8 +32,9 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
       (`phax architecture`) landed and the spec is complete.
 
-- [ ] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
-      2026-10-20; the 2026-09-28 spec is abandoned.
+- [x] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
+      2026-10-20; the 2026-09-28 spec is abandoned. All three plans landed and the spec is
+      complete.
       - Any `oracles` provider will do. The provider gets a new `oracle-request` and answers a
         `gate-report`, both with `$schema`.
       - Plan 1 of 3 landed (PR #154): the provider block, the shared `oracles` check in lint and
@@ -44,9 +45,10 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         wrong oracle is corrected in the stopped phase and closed with the configured gate green
         and the oracle step recorded `skipped` (never a verified surface). The reset refusal, the
         next steps, resume-instructions.md, the help and the docs name this recovery.
-      - Plan 3: an example Vitest provider that lives in the repository only (built on
-        tree-sitter, comparing syntax trees so reformatting never changes a verdict), and phax's
-        own `oracles` declaration in phax.json.
+      - Plan 3 landed: the example Vitest provider in `examples/vitest-oracles/`, repository only
+        and shipped in no package. It is built on oxc-parser (q-parser chose it over tree-sitter,
+        which the spec suggested) and compares syntax trees so reformatting never changes a
+        verdict. phax's own `oracles` declaration in phax.json runs it. The spec is complete.
 
 ### Approved, not yet planned
 

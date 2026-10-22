@@ -12,7 +12,12 @@ import { isFormatId, isRelease, schemaUrl } from "../../src/schemas/schemaUrl.js
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 
-const FILES = ["examples/hello-world/audit.mjs", "examples/hello-world/brief.mjs", "README.md"];
+const FILES = [
+  "examples/hello-world/audit.mjs",
+  "examples/hello-world/brief.mjs",
+  "examples/vitest-oracles/main.mjs",
+  "README.md",
+];
 
 const LITERAL =
   /"?\$schema"?\s*:\s*"https:\/\/docs\.phax\.run\/schemas\/([^/"\s]+)\/([^/"\s]+)\.json"/g;

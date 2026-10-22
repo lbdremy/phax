@@ -79,6 +79,15 @@ The provider prints a `gate-report` on stdout, and phax judges it like any repor
 
 phax records the step under the `oracle` surface in the phase's `gate-attribution.json`. A `phax.json` gate step cannot claim that surface.
 
+## An example provider
+
+[`examples/vitest-oracles/`](../examples/vitest-oracles/) is a Vitest provider that phax's own repository declares as `node examples/vitest-oracles/main.mjs`. It lives in the repository only: no package ships it, so copy it and adapt it to your runner.
+
+- **`authored`.** Every test the oracle files add or modify since `base` must carry `.fails`. A deleted test, a marked test and an unchanged test are never findings, and an oracle file that does not parse is one finding.
+- **`discharged`.** No `.fails` is left in the oracle files, and each file's syntax tree, with its markers removed, equals its tree at `oracleCommit`. Removing the markers is the only change allowed; the finding for any other change names the first test that differs.
+
+It compares syntax trees, not text, so reformatting, re-indenting, trailing commas, quote style and comments never change its answer. A request it cannot read is refused with a reason and a remedy.
+
 ## Write an oracle-first plan
 
 Declare an oracle phase only when a provider is configured. In `plan.md`, phase-02 of an `acme-billing` plan carries two header lines after the model, effort and Assignment reason lines:
