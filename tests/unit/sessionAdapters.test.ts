@@ -280,6 +280,20 @@ describe("getSessionAdapter (registry exhaustiveness)", () => {
   });
 });
 
+describe("interactive resume support", () => {
+  it("is verified for claude-code and codex, unverified for mistral-vibe", () => {
+    expect(getSessionAdapter("claude-code").interactiveResume).toBe("verified");
+    expect(getSessionAdapter("codex-cli").interactiveResume).toBe("verified");
+    expect(getSessionAdapter("mistral-vibe").interactiveResume).toBe("unverified");
+  });
+
+  it("leaves buildResumeInvocation unsupported for codex and vibe, which `phax enter` still uses", () => {
+    const binding: PhaseAgentBinding = { ...baseBinding, provider: "codex-cli", adapter: "codex" };
+    expect("unsupported" in codexSessionAdapter.buildResumeInvocation(binding)).toBe(true);
+    expect("unsupported" in mistralSessionAdapter.buildResumeInvocation(binding)).toBe(true);
+  });
+});
+
 describe("buildDecideInvocation", () => {
   const security = resolveReviewSecurityPolicy({
     mode: "secure",

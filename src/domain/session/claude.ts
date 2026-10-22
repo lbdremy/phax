@@ -1,5 +1,14 @@
 import type { PhaseAgentBinding } from "../../schemas/phaseAgentBinding.js";
-import type { PrePromptedInvocationOpts, ResumeInvocation, SessionAdapter } from "./types.js";
+import { claudePermissionFlags } from "./claudePermissionFlags.js";
+import type {
+  ContinueCommandOpts,
+  FreshStartCommandOpts,
+  PrePromptedInvocationOpts,
+  ResumeInvocation,
+  SessionAdapter,
+  StopCommandResult,
+  StopPosture,
+} from "./types.js";
 
 export interface DecideInvocationInput {
   readonly cwd: string;
@@ -47,7 +56,60 @@ export function buildDecideInvocation(input: DecideInvocationInput): {
   };
 }
 
+// The posture flags of a stop command: the phase's own permission flags,
+// unchanged (q-continue-approvals, provider-prompts). Edits inside the working
+// directories are auto-approved and anything else prompts the person. No
+// skill-edit grant settings: Claude Code asks the person before any `.claude/`
+// edit.
+function postureFlags(posture: StopPosture, cwd: string): readonly string[] {
+  if (posture === "none") return [];
+  return claudePermissionFlags({
+    security: posture.policy,
+    cwd,
+    agentCommands: posture.agentCommands,
+    grantSettings: undefined,
+  });
+}
+
 export const claudeSessionAdapter: SessionAdapter = {
+  interactiveResume: "verified",
+
+  buildContinueCommand(opts: ContinueCommandOpts): StopCommandResult {
+    return {
+      executable: "claude",
+      args: [
+        "--resume",
+        opts.sessionId,
+        "--model",
+        opts.model,
+        "--effort",
+        opts.effort,
+        ...postureFlags(opts.posture, opts.cwd),
+      ],
+      cwd: opts.cwd,
+      env: {},
+    };
+  },
+
+  buildFreshStartCommand(opts: FreshStartCommandOpts): StopCommandResult {
+    return {
+      executable: "claude",
+      args: [
+        "--model",
+        opts.model,
+        "--effort",
+        opts.effort,
+        ...postureFlags(opts.posture, opts.cwd),
+        // The permission flags may end on a variadic option: `--` keeps the
+        // prompt from joining its values.
+        "--",
+        opts.prompt,
+      ],
+      cwd: opts.cwd,
+      env: {},
+    };
+  },
+
   buildResumeInvocation(binding: PhaseAgentBinding): ResumeInvocation {
     if (!binding.sessionId) {
       return {
