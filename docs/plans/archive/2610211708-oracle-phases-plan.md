@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610201518-oracle-phases.md
 completes-spec: true
 approved:
