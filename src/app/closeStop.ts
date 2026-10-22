@@ -133,6 +133,8 @@ export interface CloseReport {
 
 type CloseStep = "gate" | "commit" | "files" | "closing-turn";
 
+type Origin = NonNullable<InteractiveSession["current"]>["origin"];
+
 // A refusal before its instant is stamped.
 type Refusal = RefusedClose extends infer T ? (T extends unknown ? Omit<T, "at"> : never) : never;
 
@@ -370,6 +372,8 @@ interface ClosingTurnContext {
   readonly current: InteractiveSession["current"];
   readonly phaseBinding: Binding;
   readonly diff: ClosingDiff;
+  /** Record `turn` as the closing turn in progress, before a new session takes it. */
+  readonly advanceTurn: (turn: number) => Effect.Effect<void, FsError, FileSystem>;
 }
 
 // The provider part: the current session resumed read-only, or a new
@@ -443,8 +447,16 @@ function attemptClosingTurn(
 
     if (first === null) {
       // The failed resume keeps its own stream; the new session is the next
-      // closing turn, so the ledger reads both under `closing-turn-NN.jsonl`.
-      const newLabel = current === null ? label : closingTurnLabel(ctx.turn + 1);
+      // closing turn, so the ledger reads both under `closing-turn-NN.jsonl`,
+      // and interactive-session.json records that turn in progress.
+      const newTurn = current === null ? ctx.turn : ctx.turn + 1;
+      if (newTurn !== ctx.turn) {
+        const advanced = yield* Effect.either(ctx.advanceTurn(newTurn));
+        if (Either.isLeft(advanced)) {
+          return { kind: "refused", refusal: closeError("files", advanced.left) };
+        }
+      }
+      const newLabel = closingTurnLabel(newTurn);
       const stream = `${newLabel}.jsonl`;
       const started = yield* costed(
         backend.runAgent(
@@ -563,7 +575,8 @@ function runClosingTurn(
     const diffText = yield* at("files", git.diffTrees(input.worktree, args.headTree, args.gated));
     const diff = cutDiff(diffText, args.changedPaths);
     const turn = yield* at("files", nextClosingTurnNumber(input.phaseFolder));
-    const label = closingTurnLabel(turn);
+    // The turn in progress: a new session after a failed resume takes the next number.
+    let label = closingTurnLabel(turn);
     const personBefore = yield* at("files", fingerprintPersonHandoff(input.worktree));
     yield* at("files", keepPersonHandoffCopy(input.phaseFolder, label, personBefore));
 
@@ -578,20 +591,29 @@ function runClosingTurn(
       firstTurns: [],
       turnInProgress: null,
     };
-    yield* at(
-      "files",
+    const recordInProgress = (n: number, origin: Origin) =>
       writeInteractiveSession(input.phaseFolder, {
         ...base,
         turnInProgress: {
           kind: "closing-turn",
-          turn,
-          origin: current?.origin ?? "new-session",
+          turn: n,
+          origin,
           beforeTree: args.gated,
           personHandoffBefore: personBefore?.sha256 ?? null,
           startedAt,
         },
-      }),
-    );
+      });
+    yield* at("files", recordInProgress(turn, current?.origin ?? "new-session"));
+    // The handoff copy moves to the new turn's label once that turn is
+    // recorded, so a crash at any point finds the copy its record names.
+    const advanceTurn = (next: number) =>
+      Effect.gen(function* () {
+        const nextLabel = closingTurnLabel(next);
+        yield* keepPersonHandoffCopy(input.phaseFolder, nextLabel, personBefore);
+        yield* recordInProgress(next, "new-session");
+        yield* dropPersonHandoffCopy(input.phaseFolder, label);
+        label = nextLabel;
+      });
 
     const attempt = yield* attemptClosingTurn({
       input,
@@ -600,6 +622,7 @@ function runClosingTurn(
       current,
       phaseBinding: args.phaseBinding,
       diff,
+      advanceTurn,
     });
 
     const afterTree = yield* at("commit", git.snapshotWorktree(input.worktree));
