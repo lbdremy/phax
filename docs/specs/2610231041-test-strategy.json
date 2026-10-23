@@ -1,0 +1,696 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.25.0.json",
+  "kind": "spec",
+  "title": "Test strategy as data, and the plan overview",
+  "ground": [
+    {
+      "path": ".claude/skills/phax-planning/SKILL.md",
+      "note": "The Test strategy section (one line per guarantee on size · technique · oracle · loop, optional criterion id), What makes a good oracle, the defaults table, and the headless section that describes testStrategy as a string of `- ` lines."
+    },
+    {
+      "path": "src/schemas/planDocument.ts",
+      "note": "testStrategy: Schema.NonEmptyString on every phase; projectExtractedPlan builds phax-plan.json key by key and carries no test strategy."
+    },
+    {
+      "path": "src/domain/authoring/renderPlan.ts",
+      "note": "Renders the string as is under `### Test strategy`."
+    },
+    {
+      "path": "src/domain/artifact/documentMigration.ts",
+      "note": "migrate-documents decides per sidecar from text alone, migrates only while the body is its own shape's rendering, and refuses with a problem and a remedy."
+    },
+    {
+      "path": "src/schemas/release.ts",
+      "note": "plan-document is stamped 0.26.0; earlier shapes are frozen under src/schemas/history/plan-document/."
+    },
+    {
+      "path": "docs/plans/2610230951-interactive-phases-plan.json",
+      "note": "The only live plan sidecar. Its seven testStrategy strings are prose and lists of test file names, none in the line format."
+    },
+    {
+      "path": "src/app/lintPlan.ts",
+      "note": "Lint is read-only and has no Backend, but it already spawns the architecture provider to resolve part bounds, and the plan auditor."
+    },
+    {
+      "path": "src/domain/plan/lint.ts",
+      "note": "Findings carry severity error|warning and a check from a closed set (structure, files, commands, models, interactive, oracles, advisory)."
+    },
+    {
+      "path": "src/domain/plan/lintRender.ts",
+      "note": "Report header `<plan>: N errors, M warnings`, then `severity  check  phase  message` columns."
+    },
+    {
+      "path": "src/schemas/architecture.ts",
+      "note": "An architecture report's parts: id, name, description, globs in phax's dialect."
+    },
+    {
+      "path": "src/schemas/specDocument.ts",
+      "note": "Each acceptance criterion has an id; renderSpec writes only the criterion's name into the .md, so ids live in the spec's JSON sidecar alone."
+    },
+    {
+      "path": "src/cli/commands/plans.ts",
+      "note": "`phax plans` has status, overlap, lint and estimate; lint and estimate take <plan> and --json."
+    },
+    {
+      "path": "docs/acceptance-coverage.md",
+      "note": "A hand-maintained criterion → phase table: the coverage this spec derives from the plan instead."
+    },
+    {
+      "path": "docs/upgrading.md",
+      "note": "Every sidecar shape change so far ships with a migrate-documents step and an entry here."
+    }
+  ],
+  "context": "The phax-planning skill (revised in commit a08d93cb) already holds a phase's `### Test strategy` to a strict line format: `- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]`, with size `small` | `medium` | `large`, technique `example` | `table` | `property` | `metamorphic` | `stateful` | `fuzz` | `contract` | `smoke`, a named oracle, and the loop that owns the test: `oracle` (frozen in an oracle pair) or `in-phase`. The format is prose only. In the plan document, `testStrategy` is a free non-empty string that the renderer writes as is; the deterministic plan.md parser shared by `phax plans lint`, `phax plans estimate` and extraction skips the section; `phax-plan.json` carries no test strategy. The one live plan sidecar, `interactive-phases`, holds seven prose test strategies, none in the line format.\n\nAround it: oracle phases declare `oracle: { dischargedBy, files }` and share an `oracles` check between lint and the run preflight. A spec document's acceptance criteria each carry an `id`, but only in the spec's JSON sidecar: the rendered .md shows the criterion's name. A plan names its spec in `source-spec`. An architecture provider reports the repository's parts, each with globs; lint already spawns it to resolve assignment bounds. `phax run --dry-run` lists execution mechanics (worktrees, commands, security) and `phax plans estimate` lists cost per phase. `docs/acceptance-coverage.md` maps criteria to phases by hand.",
+  "problem": "Nothing reads a plan's test strategy, so nothing can check it. A plan can leave an acceptance criterion of its spec untested, name a criterion the spec does not have, or put an oracle-loop line on a phase that is no oracle phase. Today nothing reports any of these, and the operator finds out during the run or in review. A coordinate outside the skill's values (`unit`, `integration`, `e2e`) passes because the field is a free string.\n\nThe operator also cannot see a plan whole before running it. The questions that matter before `phax run` are: what each phase builds, with which model, in which part of the architecture, which phases form oracle pairs, and which guarantees test which criteria. Answering them means reading the whole plan.md and running `phax architecture` to match globs by eye. Dry-run answers how the plan executes, and estimate answers what it costs. No command lays out the plan's shape.",
+  "productGoal": {
+    "statement": "A plan's test strategy becomes data. Every phase carries a list of test lines, each placed on the four closed coordinates the planning skill defines, plus an optional criterion id. Lint holds the lines to the oracle pairs and to the source spec's criteria. A new read-only, model-free `phax plans overview` lays the plan out phase by phase before it runs, and ends with which lines cover each acceptance criterion and which criteria no line covers.",
+    "guidingRule": "The overview shows what the plan says, read without a model, and it never writes or starts anything."
+  },
+  "terminology": [
+    {
+      "term": "test line",
+      "definition": "One guarantee of a phase's test strategy, placed on four coordinates: size, technique, oracle and loop. It can name one acceptance criterion."
+    },
+    {
+      "term": "size",
+      "definition": "What the test touches: `small` (one process, memory only), `medium` (one machine), `large` (anything beyond). Closed set."
+    },
+    {
+      "term": "technique",
+      "definition": "How inputs are chosen: `example`, `table`, `property`, `metamorphic`, `stateful`, `fuzz`, `contract` or `smoke`. Closed set."
+    },
+    {
+      "term": "oracle (coordinate)",
+      "definition": "What judges the test's result, as a non-empty string. Different from an oracle phase."
+    },
+    {
+      "term": "loop",
+      "definition": "Which loop owns the test: `oracle` (written in an oracle phase, frozen until discharged) or `in-phase` (written with the code). Closed set."
+    },
+    {
+      "term": "criterion id",
+      "definition": "The `id` of one of the source spec's acceptance criteria, read from the spec's JSON sidecar. Optional per line."
+    },
+    {
+      "term": "oracle role",
+      "definition": "A phase's place in an oracle pair: oracle phase (with the phase that discharges it), discharging phase (with the oracle phase it discharges), or none."
+    },
+    {
+      "term": "plan overview",
+      "definition": "The read-only report of `phax plans overview`: every phase's layout, in plan order, then the coverage of the source spec's criteria."
+    },
+    {
+      "term": "coverage",
+      "definition": "For each acceptance criterion of the source spec, the test lines that name it, with their phase and loop. A criterion with no such line is uncovered."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-lines",
+      "title": "Test lines with closed coordinates",
+      "pattern": "ubiquitous",
+      "statement": "The system shall hold each phase's test strategy as a list of test lines, each with a guarantee, a size, a technique, an oracle, a loop and a criterion id or none, where size, technique and loop take only the values the terminology lists."
+    },
+    {
+      "id": "r-doc-refuse",
+      "title": "Refusing a malformed test line in a plan document",
+      "pattern": "unwanted",
+      "statement": "IF a plan document carries a test line with a missing coordinate, a value outside its closed set, or an unknown key THEN the system SHALL refuse the document, naming the phase, the line's position and the coordinate."
+    },
+    {
+      "id": "r-render",
+      "title": "Rendering test lines",
+      "pattern": "ubiquitous",
+      "statement": "The system shall render each test line under the phase's `### Test strategy` heading in the skill's line format, with ` · <criterion id>` appended only when the line names a criterion."
+    },
+    {
+      "id": "r-parse",
+      "title": "Parsing test lines from any plan.md",
+      "pattern": "event",
+      "statement": "WHEN the deterministic parser reads a plan.md THE system SHALL read each phase's `### Test strategy` list into test lines, whether the plan was authored headless or by hand."
+    },
+    {
+      "id": "r-parse-departure",
+      "title": "A line that departs from the format",
+      "pattern": "unwanted",
+      "statement": "IF a `### Test strategy` entry departs from the line format THEN `phax plans lint` SHALL report an error naming the phase and the first departing line."
+    },
+    {
+      "id": "r-run-untouched",
+      "title": "The run does not read test lines",
+      "pattern": "ubiquitous",
+      "statement": "The system shall keep test lines out of `phax-plan.json`, the extraction cache seed and the run preflight."
+    },
+    {
+      "id": "r-lint-oracle-loop",
+      "title": "Oracle-loop lines only on oracle phases",
+      "pattern": "unwanted",
+      "statement": "IF a test line in the `oracle` loop sits on a phase that is not an oracle phase THEN `phax plans lint` SHALL report an error naming the phase and the line."
+    },
+    {
+      "id": "r-lint-oracle-phase",
+      "title": "An oracle phase states its oracles",
+      "pattern": "unwanted",
+      "statement": "IF an oracle phase carries no test line in the `oracle` loop THEN `phax plans lint` SHALL report an error naming the phase."
+    },
+    {
+      "id": "r-lint-unknown-criterion",
+      "title": "A line naming no real criterion",
+      "pattern": "unwanted",
+      "statement": "IF a test line names a criterion id that the source spec's acceptance criteria do not have THEN `phax plans lint` SHALL report an error naming the phase, the line and the id."
+    },
+    {
+      "id": "r-lint-uncovered",
+      "title": "An uncovered criterion",
+      "pattern": "unwanted",
+      "statement": "IF an acceptance criterion of the source spec is named by no test line of the plan THEN `phax plans lint` SHALL report a warning naming the criterion id."
+    },
+    {
+      "id": "r-lint-empty-phase",
+      "title": "A phase that tests nothing",
+      "pattern": "ubiquitous",
+      "statement": "The system shall report no lint finding for a phase whose test strategy has no line."
+    },
+    {
+      "id": "r-criteria-no-ids",
+      "title": "A source spec without criterion ids",
+      "pattern": "unwanted",
+      "statement": "IF the plan's source spec has no JSON sidecar to read criterion ids from THEN `phax plans lint` and `phax plans overview` SHALL each say so in one line and check no criterion."
+    },
+    {
+      "id": "r-overview-readonly",
+      "title": "The overview is read-only and model-free",
+      "pattern": "ubiquitous",
+      "statement": "The system shall produce `phax plans overview <plan>` from the deterministic parser alone, starting no model session and writing no file, for a plan in any status."
+    },
+    {
+      "id": "r-overview-phase",
+      "title": "Per-phase layout",
+      "pattern": "ubiquitous",
+      "statement": "The system shall show, for each phase in plan order, its id, title, model, effort, mode, oracle role, placement and test lines."
+    },
+    {
+      "id": "r-overview-parts",
+      "title": "Placement by architecture part",
+      "pattern": "optional",
+      "statement": "WHERE an architecture provider is configured THE overview SHALL run it once and show each phase's planned files to create and edit under every part whose globs match them, and under `(no part)` when none does."
+    },
+    {
+      "id": "r-overview-no-provider",
+      "title": "Placement without a provider",
+      "pattern": "state",
+      "statement": "WHILE no architecture provider is configured THE overview SHALL show each phase's planned files to create and edit, with one header line saying no provider is configured."
+    },
+    {
+      "id": "r-overview-provider-fail",
+      "title": "A failing architecture provider",
+      "pattern": "unwanted",
+      "statement": "IF the architecture provider fails or its report does not decode THEN the overview SHALL show planned files as without a provider, print one warning line naming the failure on stderr, and exit 0."
+    },
+    {
+      "id": "r-overview-coverage",
+      "title": "Criterion coverage",
+      "pattern": "optional",
+      "statement": "WHERE the plan names a source spec THE overview SHALL end with each of its acceptance criteria and the phase and loop of every line that names it, then the criteria no line names."
+    },
+    {
+      "id": "r-overview-json",
+      "title": "JSON output",
+      "pattern": "event",
+      "statement": "WHEN `phax plans overview` runs with `--json` THE system SHALL print one JSON document on stdout carrying the same content as the rendered overview."
+    },
+    {
+      "id": "r-overview-unparsable",
+      "title": "A plan that does not parse",
+      "pattern": "unwanted",
+      "statement": "IF the plan does not parse THEN `phax plans overview` SHALL exit 1 with one line naming `phax plans lint <plan>`."
+    },
+    {
+      "id": "r-migrate",
+      "title": "Migrating a live string test strategy",
+      "pattern": "event",
+      "statement": "WHEN `phax artifact migrate-documents` meets a live plan sidecar whose `testStrategy` is a string THE system SHALL lift it into test lines if every line follows the line format, and otherwise refuse the sidecar, naming the phase, the first departing line and the remedy."
+    },
+    {
+      "id": "r-schema-description",
+      "title": "The format in the plan document schema",
+      "pattern": "ubiquitous",
+      "statement": "The system shall describe the test line's format and each coordinate's allowed values in the plan document JSON Schema that `phax artifact schema plan` prints and the headless plan authoring prompt carries."
+    },
+    {
+      "id": "r-skill",
+      "title": "The planning skill follows the data",
+      "pattern": "ubiquitous",
+      "statement": "The system shall ship the phax-planning skill with its Test strategy section pointing to the test line data and its headless section documenting `testStrategy` as an array of test lines."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy`",
+      "binding": "indicative",
+      "before": "\"testStrategy\": \"- a run folder is created with its layout, and a second create of the same name is refused — medium · example · expected tree and typed error · in-phase\\n- an interrupted write leaves the previous file whole — medium · example · file content before and after · in-phase\"",
+      "after": "\"testStrategy\": [\n  {\n    \"guarantee\": \"every (state, transition) pair is accepted or refused as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"transition table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-transitions\"\n  },\n  {\n    \"guarantee\": \"a gate-report decodes or is refused with a typed error, never a crash\",\n    \"size\": \"small\",\n    \"technique\": \"fuzz\",\n    \"oracle\": \"the decoder's refusal\",\n    \"loop\": \"in-phase\",\n    \"criterion\": null\n  }\n]\n\nKey spellings are indicative. The values of size, technique and loop are normative: exactly the skill's sets. Every key is required, `criterion` is a string or null, and an empty array is a phase with no line."
+    },
+    {
+      "surface": "file: plan.md `### Test strategy` section",
+      "binding": "normative",
+      "before": "### Test strategy\n\n<any text; not parsed>",
+      "after": "### Test strategy\n\n- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · oracle · ac-transitions\n- a gate-report decodes or is refused with a typed error, never a crash — small · fuzz · the decoder's refusal · in-phase\n\nOne `- ` entry per line, separated by ` — ` then ` · `. A section with no entry is a phase with no line."
+    },
+    {
+      "surface": "cli: phax plans lint <plan> — new test line findings",
+      "binding": "indicative",
+      "before": "docs/plans/2610240900-invoice-export-plan.md: no findings",
+      "after": "docs/plans/2610240900-invoice-export-plan.md: 3 errors, 1 warning\nerror    tests      phase-01  test line 2 departs from the format: \"add unit tests for the exporter\"\nerror    tests      phase-03  test line 1 is in the oracle loop, but phase-03 is not an oracle phase\nerror    tests      phase-02  test line 3 names criterion \"ac-retry\", which invoice-export does not have\nwarning  tests      -         criterion \"ac-empty-month\" of invoice-export is named by no test line\n\nThe check name `tests` and the wording are indicative; severities follow §5."
+    },
+    {
+      "surface": "cli: phax plans overview <plan> [--json]",
+      "binding": "normative",
+      "before": null,
+      "after": "phax plans overview docs/plans/2610240900-invoice-export-plan.md\nphax plans overview docs/plans/2610240900-invoice-export-plan.md --json\n\n$? = 0   overview shown (architecture provider failure included)\n$? = 1   the plan does not parse: \"run phax plans lint docs/plans/…-plan.md\"\n$? = 2   invalid config"
+    },
+    {
+      "surface": "cli: phax plans overview — rendered layout",
+      "binding": "indicative",
+      "before": null,
+      "after": "invoice-export — Monthly invoice export  (Draft · source spec invoice-export)\narchitecture: parts from the configured provider\n\nphase-01 — Export decision rules     claude-sonnet-5-5 · medium · headless\n  oracle role  oracle phase, discharged by phase-02\n  domain       src/domain/invoice/export.ts\n  tests        tests/unit/invoiceExport.test.ts\n  - every month boundary rounds as the table says — small · table · boundary table · oracle · ac-month-boundary\n\nphase-02 — Export use case           claude-sonnet-5-5 · high · headless\n  oracle role  discharges phase-01\n  app          src/app/exportInvoices.ts\n  (no part)    scripts/export-fixture.sh\n  - a failed write leaves no partial export — small · example · fake fs state · in-phase · ac-atomic\n\nphase-03 — Docs                      claude-haiku-5-5 · low · headless\n  oracle role  none\n  docs         docs/invoice-export.md\n  (no test lines)\n\nacceptance criteria of invoice-export\n  ac-month-boundary   phase-01 oracle\n  ac-atomic           phase-02 in-phase\n  uncovered           ac-empty-month\n\nWithout a provider, the architecture line reads `architecture: no provider configured — planned files shown`, and each phase lists `files` in place of parts."
+    },
+    {
+      "surface": "cli: phax plans overview --json",
+      "binding": "indicative",
+      "before": null,
+      "after": "{\n  \"plan\": \"docs/plans/2610240900-invoice-export-plan.md\",\n  \"sourceSpec\": \"docs/specs/2610231100-invoice-export.md\",\n  \"architecture\": { \"kind\": \"parts\" },\n  \"phases\": [\n    {\n      \"id\": \"phase-01\",\n      \"title\": \"Export decision rules\",\n      \"model\": \"claude-sonnet-5-5\",\n      \"effort\": \"medium\",\n      \"mode\": \"headless\",\n      \"oracleRole\": { \"kind\": \"oracle\", \"dischargedBy\": \"phase-02\" },\n      \"placement\": [\n        { \"part\": \"domain\", \"files\": [\"src/domain/invoice/export.ts\"] },\n        { \"part\": null, \"files\": [] }\n      ],\n      \"testLines\": [\n        { \"guarantee\": \"every month boundary rounds as the table says\", \"size\": \"small\", \"technique\": \"table\", \"oracle\": \"boundary table\", \"loop\": \"oracle\", \"criterion\": \"ac-month-boundary\" }\n      ]\n    }\n  ],\n  \"coverage\": {\n    \"kind\": \"criteria\",\n    \"criteria\": [ { \"id\": \"ac-month-boundary\", \"lines\": [ { \"phase\": \"phase-01\", \"loop\": \"oracle\" } ] } ],\n    \"uncovered\": [\"ac-empty-month\"]\n  }\n}\n\n`architecture.kind` is one of `parts` | `none` | `failed` (with `message`). `oracleRole.kind` is one of `oracle` | `discharging` | `none`. `coverage.kind` is one of `criteria` | `no-source-spec` | `no-criterion-ids`."
+    },
+    {
+      "surface": "cli: phax artifact migrate-documents — refusing a prose test strategy",
+      "binding": "indicative",
+      "before": null,
+      "after": "✗ docs/plans/2610230951-interactive-phases-plan.md phase-01 testStrategy line 1 departs from the test line format: \"Write `tests/unit/hold.test.ts` first.\"\n  Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun."
+    },
+    {
+      "surface": "file: .claude/skills/phax-planning/SKILL.md",
+      "binding": "indicative",
+      "before": "- `testStrategy`, `verification`, `expectedHandoff`: strings. `testStrategy` holds the guarantee lines of [Test strategy](#test-strategy-informational), one `- ` line each, separated by newlines.",
+      "after": "- `testStrategy`: an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }` (see [Test strategy](#test-strategy)); `[]` for a phase that tests nothing.\n- `verification`, `expectedHandoff`: strings.\n\nThe `## Test strategy (informational)` heading loses \"(informational)\" and says that lint checks the lines and that `phax plans overview` shows them."
+    }
+  ],
+  "nonGoals": [
+    "Changes to the oracles provider (failing for the right reason, frozen generators, fixed seeds): a separate spec.",
+    "Adding a property-based testing or mutation library to phax's own tests.",
+    "A graphical view of the overview.",
+    "Making `phax run`, its preflight, the phase prompt or the records act on test lines.",
+    "Folding the cost estimate into the overview: `phax plans estimate` keeps that.",
+    "Checking that a test line's test exists, runs or passes, or linking a line to a test file.",
+    "Judging whether a line's oracle is a good oracle.",
+    "Changing the coordinates or their values, or inferring coordinates from a prose test strategy.",
+    "Reading criterion ids from a spec's Markdown body: ids come from its JSON sidecar only.",
+    "Replacing or regenerating `docs/acceptance-coverage.md`."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-closed-values",
+      "name": "Only the skill's values are accepted",
+      "given": "a headless plan document whose test lines use every size, technique and loop value of the skill",
+      "when": "phax decodes it",
+      "then": "it is accepted, and the same document with size `unit` on one line is refused",
+      "refs": [
+        "r-lines",
+        "r-doc-refuse"
+      ]
+    },
+    {
+      "id": "ac-refusal-names",
+      "name": "A refusal names where the line is wrong",
+      "given": "a plan document whose phase-02 second test line has no `loop` key",
+      "when": "phax decodes it",
+      "then": "it is refused with a message naming phase-02, line 2 and `loop`",
+      "refs": [
+        "r-doc-refuse"
+      ]
+    },
+    {
+      "id": "ac-render-roundtrip",
+      "name": "Rendered lines parse back to the same lines",
+      "given": "a plan document with lines with and without a criterion id, and a phase with no line",
+      "when": "it is rendered to plan.md and the deterministic parser reads that plan.md",
+      "then": "each `### Test strategy` entry is in the line format, ` · <criterion id>` appears only on lines naming one, and the parsed lines equal the document's",
+      "refs": [
+        "r-render",
+        "r-parse"
+      ]
+    },
+    {
+      "id": "ac-hand-plan-parsed",
+      "name": "A hand-authored plan is parsed too",
+      "given": "a hand-written plan.md with no sidecar whose phases list lines in the format",
+      "when": "`phax plans overview` runs on it",
+      "then": "each phase shows its lines with their coordinates",
+      "refs": [
+        "r-parse",
+        "r-overview-phase"
+      ]
+    },
+    {
+      "id": "ac-departure",
+      "name": "A prose line is a lint error",
+      "given": "a plan.md whose phase-01 Test strategy has the entry `- add unit tests for the exporter`",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an error naming phase-01 and that line",
+      "refs": [
+        "r-parse-departure"
+      ]
+    },
+    {
+      "id": "ac-run-untouched",
+      "name": "phax-plan.json is unchanged",
+      "given": "two plans that differ only in their test lines",
+      "when": "each is extracted",
+      "then": "their `phax-plan.json` and cache seed are identical, and the run preflight accepts both",
+      "refs": [
+        "r-run-untouched"
+      ]
+    },
+    {
+      "id": "ac-oracle-loop-misplaced",
+      "name": "An oracle line on an ordinary phase is an error",
+      "given": "a plan whose discharging phase lists a line in the `oracle` loop",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an error naming that phase and line",
+      "refs": [
+        "r-lint-oracle-loop"
+      ]
+    },
+    {
+      "id": "ac-oracle-phase-silent",
+      "name": "An oracle phase with no oracle line is an error",
+      "given": "an oracle phase whose lines are all `in-phase`",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an error naming the oracle phase",
+      "refs": [
+        "r-lint-oracle-phase"
+      ]
+    },
+    {
+      "id": "ac-unknown-criterion",
+      "name": "A line naming a missing criterion is an error",
+      "given": "a plan whose source spec sidecar has criteria `ac-a` and `ac-b`, and a line naming `ac-c`",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 1 with an error naming the phase, the line and `ac-c`",
+      "refs": [
+        "r-lint-unknown-criterion"
+      ]
+    },
+    {
+      "id": "ac-uncovered-warning",
+      "name": "An uncovered criterion is a warning",
+      "given": "a plan whose lines name `ac-a` and never `ac-b`, and no other defect",
+      "when": "`phax plans lint` runs",
+      "then": "it exits 0 and reports one warning naming `ac-b`",
+      "refs": [
+        "r-lint-uncovered"
+      ]
+    },
+    {
+      "id": "ac-empty-phase",
+      "name": "A docs-only phase is not flagged",
+      "given": "a plan whose last phase has an empty Test strategy and no other defect",
+      "when": "`phax plans lint` runs",
+      "then": "it reports no finding for that phase",
+      "refs": [
+        "r-lint-empty-phase"
+      ]
+    },
+    {
+      "id": "ac-no-ids",
+      "name": "A spec without a sidecar is named, not checked",
+      "given": "a plan whose source spec is a hand-written .md with no JSON sidecar, and a line naming `ac-a`",
+      "when": "`phax plans lint` and `phax plans overview` run",
+      "then": "each prints one line saying the spec has no criterion ids, lint reports no criterion finding, and the overview's coverage is `no-criterion-ids`",
+      "refs": [
+        "r-criteria-no-ids"
+      ]
+    },
+    {
+      "id": "ac-readonly",
+      "name": "The overview writes and spawns nothing it should not",
+      "given": "a Draft plan in a clean repository and a backend that fails the test on any call",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "it exits 0, the backend is never called, and `git status` shows no change",
+      "refs": [
+        "r-overview-readonly"
+      ]
+    },
+    {
+      "id": "ac-phase-layout",
+      "name": "Every phase is laid out in order",
+      "given": "a plan of three phases: an oracle phase, its discharging phase and an interactive phase",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "the phases appear in plan order, each with its id, title, model, effort, mode, oracle role (`oracle phase, discharged by phase-02`, `discharges phase-01`, `none`) and test lines",
+      "refs": [
+        "r-overview-phase"
+      ]
+    },
+    {
+      "id": "ac-parts",
+      "name": "Planned files fall in architecture parts",
+      "given": "a configured architecture provider reporting parts `domain` (`src/domain/**`) and `app` (`src/app/**`), and a phase planning `src/domain/x.ts` and `scripts/y.sh`",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "the provider runs once, `src/domain/x.ts` shows under `domain` and `scripts/y.sh` under `(no part)`",
+      "refs": [
+        "r-overview-parts"
+      ]
+    },
+    {
+      "id": "ac-no-provider",
+      "name": "Without a provider, files are listed",
+      "given": "no architecture provider configured",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "its header says no provider is configured and each phase lists its planned files to create and edit",
+      "refs": [
+        "r-overview-no-provider"
+      ]
+    },
+    {
+      "id": "ac-provider-fails",
+      "name": "A failing provider degrades to files",
+      "given": "an architecture provider that exits non-zero",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "it exits 0, lists planned files per phase, and prints one warning line on stderr naming the failure",
+      "refs": [
+        "r-overview-provider-fail"
+      ]
+    },
+    {
+      "id": "ac-coverage",
+      "name": "Coverage ends the overview",
+      "given": "a plan whose source spec has `ac-a`, `ac-b` and `ac-c`, with `ac-a` named on an oracle line of phase-01 and an in-phase line of phase-02, `ac-b` on phase-03, and `ac-c` on no line",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "it ends with `ac-a` against phase-01 oracle and phase-02 in-phase, `ac-b` against phase-03, and `ac-c` as uncovered",
+      "refs": [
+        "r-overview-coverage"
+      ]
+    },
+    {
+      "id": "ac-json",
+      "name": "JSON carries the same overview",
+      "given": "any plan that parses",
+      "when": "`phax plans overview <plan> --json` runs",
+      "then": "stdout is one JSON document whose phases, placement, test lines and coverage match the rendered overview, and nothing else is on stdout",
+      "refs": [
+        "r-overview-json"
+      ]
+    },
+    {
+      "id": "ac-unparsable",
+      "name": "An unparsable plan points to lint",
+      "given": "a plan.md with a phase heading missing its anchor",
+      "when": "`phax plans overview <plan>` runs",
+      "then": "it exits 1 with one line naming `phax plans lint <plan>`",
+      "refs": [
+        "r-overview-unparsable"
+      ]
+    },
+    {
+      "id": "ac-migrate-lift",
+      "name": "A formatted string is lifted",
+      "given": "a live plan sidecar at the previous shape whose every testStrategy string is lines in the format, and a body that is its own rendering",
+      "when": "`phax artifact migrate-documents` runs",
+      "then": "the sidecar's testStrategy becomes the equivalent test lines, the body is unchanged, and the result is committed",
+      "refs": [
+        "r-migrate"
+      ]
+    },
+    {
+      "id": "ac-migrate-refuse",
+      "name": "A prose string is refused",
+      "given": "the `interactive-phases` plan sidecar as it stands today",
+      "when": "`phax artifact migrate-documents` runs",
+      "then": "the sidecar is refused with a message naming phase-01, its first departing line and the remedy, and the sidecar is left as it was",
+      "refs": [
+        "r-migrate"
+      ]
+    },
+    {
+      "id": "ac-schema-describes",
+      "name": "The schema states the format",
+      "given": "the current phax",
+      "when": "`phax artifact schema plan` runs",
+      "then": "the `testStrategy` item schema lists size, technique and loop as enums of exactly the skill's values, and its description states the line format",
+      "refs": [
+        "r-schema-description",
+        "r-lines"
+      ]
+    },
+    {
+      "id": "ac-skill",
+      "name": "The skill documents the data",
+      "given": "the shipped phax-planning skill",
+      "when": "the skills test reads it",
+      "then": "its headless section describes `testStrategy` as an array of test lines with the coordinate keys, and its Test strategy section names `phax plans lint` and `phax plans overview`",
+      "refs": [
+        "r-skill"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-where",
+      "question": "Where does the test line structure live: only in the plan document, also parsed from any plan.md, and does it join `phax-plan.json`? (§5 follows the recommendation.)",
+      "options": [
+        {
+          "id": "document-only",
+          "label": "Only in the plan document; a hand-authored plan.md shows no lines in the overview and lint skips it",
+          "abandons": "every hand-authored plan: no overview lines, no coverage, no oracle-loop check. It also contradicts the overview reading the deterministic parser, because the lines would come from the sidecar instead."
+        },
+        {
+          "id": "parsed-informational",
+          "label": "Parsed from `### Test strategy` in any plan.md by the deterministic parser, kept out of `phax-plan.json`",
+          "abandons": "run-time use of the lines. The phase prompt, the records and the review handoff cannot see them without re-reading plan.md, and a departing line is a lint error that the run itself does not refuse."
+        },
+        {
+          "id": "parsed-extracted",
+          "label": "Parsed from any plan.md and carried into `phax-plan.json`",
+          "abandons": "runs in flight and the extraction contract. Every older `phax-plan.json` is refused on resume, the model-fallback extraction must emit coordinates, and all of it serves no reader in the run."
+        }
+      ],
+      "recommendation": "parsed-informational",
+      "rationale": "The overview and lint must work on every plan, so the parser has to read the lines. No part of the run reads them yet, so moving them into `phax-plan.json` costs runs in flight and the extraction contract for nothing. If a later spec gives the run a reader, it can carry them then."
+    },
+    {
+      "id": "q-migrate",
+      "question": "What does `phax artifact migrate-documents` write for a live plan sidecar whose `testStrategy` is a string?",
+      "options": [
+        {
+          "id": "refuse",
+          "label": "Always refuse, naming re-authoring",
+          "abandons": "every live sidecar whose strings already follow the format. It is refused even though a deterministic lift was possible, and approve, reopen and decide stay blocked on it until someone edits it by hand."
+        },
+        {
+          "id": "lift-unstructured",
+          "label": "Lift the string into one line marked unstructured, which lint reports",
+          "abandons": "the closed format. The persisted shape keeps a permissive `unstructured` variant forever, which is the back-compat shim the repository refuses."
+        },
+        {
+          "id": "parse-or-refuse",
+          "label": "Parse the string when every line follows the format; refuse otherwise, naming the first departing line",
+          "abandons": "interactive-phases as it stands. None of its seven strings follow the format, so it is refused and blocked from approve, reopen and decide until its test strategies are rewritten in the format or it is re-authored. The parse costs nothing extra because the plan.md parser is reused."
+        }
+      ],
+      "recommendation": "parse-or-refuse",
+      "rationale": "It is deterministic and invents no coordinate, and it never adds a variant to the persisted shape. Its cost lands on the one live plan, interactive-phases. That plan's test strategies are prose that the skill revision of a08d93cb already asks to be rewritten as lines. If the plan runs and completes before this release, it is archived and migration never touches it."
+    },
+    {
+      "id": "q-lint",
+      "question": "Which lint findings are errors, which are warnings, and which are not checked? (§5 follows the recommendation.)",
+      "options": [
+        {
+          "id": "all-errors",
+          "label": "Every defect is an error: a format departure, an unknown criterion id, an oracle line off an oracle phase, an oracle phase with no oracle line, an uncovered criterion, and a phase with no line",
+          "abandons": "specs split across plans and docs-only phases. A plan of a spec with `completesSpec: false` fails on criteria a later plan covers, and every docs phase must invent a line to pass."
+        },
+        {
+          "id": "graded",
+          "label": "Contradictions are errors: a format departure, an unknown criterion id, an oracle line off an oracle phase, an oracle phase with no oracle line. An uncovered criterion is a warning. A phase with no line is not checked.",
+          "abandons": "blocking on gaps. A plan that leaves a criterion untested still lints with exit 0, so the uncovered criterion is caught only by an operator who reads the warning or the overview."
+        },
+        {
+          "id": "all-warnings",
+          "label": "Every finding is a warning",
+          "abandons": "lint's exit code as proof that the oracle pairs and test lines agree. That agreement is settled direction, and a plan breaking it would still exit 0."
+        }
+      ],
+      "recommendation": "graded",
+      "rationale": "A contradiction is always wrong, so it is an error. An uncovered criterion is sometimes right, because one spec can feed several plans. A phase with no line is often right, as in a docs-only phase. Warnings that fire on correct plans teach the operator to ignore them, and the overview already shows every gap."
+    },
+    {
+      "id": "q-command",
+      "question": "What is the overview's command and contract?",
+      "options": [
+        {
+          "id": "new-command",
+          "label": "A new `phax plans overview <plan> [--json]` beside lint and estimate, with no cost",
+          "abandons": "a single screen for shape and cost. The operator runs `phax plans estimate` separately to see what the plan costs."
+        },
+        {
+          "id": "dry-run-mode",
+          "label": "Fold it into `phax run --dry-run`",
+          "abandons": "the before-approval, model-free guarantee. Dry-run goes through the run's entry and extraction, so the layout is tied to a run being possible at all."
+        },
+        {
+          "id": "with-cost",
+          "label": "A new command that also prints each phase's P50 cost",
+          "abandons": "the guarantee of starting no session. Estimate probes Claude Code by default, so the overview would have to probe or duplicate estimate's `--no-probe` path and its ledger backfill."
+        }
+      ],
+      "recommendation": "new-command",
+      "rationale": "The read-only, model-free guarantee is settled, and a separate command is the cheapest way to keep it. A second command to type is a small price, and `--json` matches lint and estimate."
+    },
+    {
+      "id": "q-architecture",
+      "question": "How does the overview reach the architecture, and what does it print when the provider fails?",
+      "options": [
+        {
+          "id": "run-provider",
+          "label": "Run the configured provider once with the plan's planned files. On failure, show files, warn once on stderr and exit 0.",
+          "abandons": "a command that spawns no process at all. A read-only command runs a repository script whose speed and side effects phax does not control, as lint already does for part bounds."
+        },
+        {
+          "id": "files-only",
+          "label": "Show planned files only and leave parts to `phax architecture`",
+          "abandons": "the answer the overview exists for, which part each phase touches. The operator goes back to matching globs by eye."
+        }
+      ],
+      "recommendation": "run-provider",
+      "rationale": "Lint already runs the provider and accepts its cost. A failing provider only takes away the placement, while the layout, test lines and coverage still stand, so it is a warning with exit 0, never an exit 1."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "The coordinates, their values and the line format are the phax-planning skill's (a08d93cb); this spec makes them data and does not reopen them.",
+      "Oracle-loop lines belong on oracle phases only, and a discharging phase lists only in-phase lines.",
+      "The overview is read-only and model-free: it starts no session, writes nothing, and runs on a plan in any status, like lint.",
+      "The per-phase content of the overview and the trailing coverage are fixed by §5.",
+      "The skill is revised with the format, and its headless section documents the new shape."
+    ],
+    "open": [
+      "Key spellings in the sidecar (`loop`, `criterion`), the lint check name (`tests`), and the rendered and JSON layouts of the overview are indicative.",
+      "The §9 answers: where the structure lives, the migration rule, lint severities, the command and its contract, and how the overview reaches the architecture."
+    ],
+    "constraints": [
+      "The plan-document shape changes, so freeze the 0.26.0 schema and its renderer under the history snapshots, as was done for 0.25.0, and add an entry to docs/upgrading.md naming `phax artifact migrate-documents`.",
+      "No back-compat shims: every test line key is required, and `criterion` is null rather than absent.",
+      "The overview's layer has no Backend, the same construction that keeps lint model-free.",
+      "Reuse the architecture provider path that lint uses for part bounds, and phax's glob dialect, for placement.",
+      "Criterion ids are read from the source spec's JSON sidecar, never from its Markdown body.",
+      "The parser change is shared by lint, estimate and extraction. Under the recommendation, the extracted projection and the cache seed must not change.",
+      "Update the generated usage spec and CLI docs for the new command; their drift tests guard them."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/plan-overview.md",
+    "reader": "An operator who has a plan in hand and wants to see its shape, oracle pairs and criterion coverage before approving or running it.",
+    "example": "`phax plans overview docs/plans/2610240900-invoice-export-plan.md` on a three-phase plan with an oracle pair. The page shows the rendered layout, the parts each phase touches, and the coverage block with one uncovered criterion, then the matching `phax plans lint` warning."
+  }
+}
