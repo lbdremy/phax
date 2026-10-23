@@ -2,9 +2,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Effect, Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
-import { findNextResumablePhase, inspectResume } from "../../src/app/resume.js";
+import { findNextResumablePhase, readRunHold } from "../../src/app/resume.js";
+import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { FsError } from "../../src/ports/fs.js";
+import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { phaseStatus, phaseStatusFile } from "../helpers/phaseStatusFixture.js";
@@ -201,14 +204,14 @@ describe("inspectResume", () => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
 
-  it("refuses runs in created state with reason=created", () => {
+  it("refuses runs in created state with reason=created", async () => {
     writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("created")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("pending")),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -217,7 +220,7 @@ describe("inspectResume", () => {
     expect(result.left.message).toContain("not been started");
   });
 
-  it("refuses runs in failed state with reason=failed", () => {
+  it("refuses runs in failed state with reason=failed", async () => {
     writeFileSync(
       join(runPath, "run-status.json"),
       JSON.stringify(makeRunStatus("failed", { lastError: "gate check failed" })),
@@ -227,7 +230,7 @@ describe("inspectResume", () => {
       JSON.stringify(makePhaseStatus("failed")),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -237,14 +240,14 @@ describe("inspectResume", () => {
     expect(result.left.message).toContain("phax reset-phase test-run");
   });
 
-  it("refuses runs in review_open state with reason=review_open", () => {
+  it("refuses runs in review_open state with reason=review_open", async () => {
     writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("review_open")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("review_open")),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -252,14 +255,14 @@ describe("inspectResume", () => {
     expect(result.left.message).toContain("phax enter");
   });
 
-  it("allows runs in rate_limited state", () => {
+  it("allows runs in rate_limited state", async () => {
     writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("rate_limited")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("rate_limited")),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error("expected decision");
@@ -267,7 +270,7 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseId).toBe("phase-01");
   });
 
-  it("phase-01 skipped + phase-02 not yet on disk → resumes from phase-02", () => {
+  it("phase-01 skipped + phase-02 not yet on disk → resumes from phase-02", async () => {
     // Scenario: phase-01 had no changes (skipped), phase-02 folder doesn't exist yet.
     // The plan lists both phases; inspectResume should find phase-02 as the next resumable.
     const plan = {
@@ -314,7 +317,7 @@ describe("inspectResume", () => {
       JSON.stringify({ ...makePhaseStatus("skipped"), phaseId: "phase-01", phaseIndex: 0 }),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
@@ -323,7 +326,7 @@ describe("inspectResume", () => {
     expect(result.right.skippedPhaseIds).toContain("phase-01");
   });
 
-  it("phase-01 skipped + phase-02 skipped + phase-03 not yet on disk → resumes from phase-03", () => {
+  it("phase-01 skipped + phase-02 skipped + phase-03 not yet on disk → resumes from phase-03", async () => {
     const plan = {
       version: 1,
       run: {
@@ -360,7 +363,7 @@ describe("inspectResume", () => {
     writeFileSync(join(runPath, "phase-02", "status.json"), makeSkippedStatus("phase-02", 1));
     // phase-03 folder does not exist
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
@@ -369,7 +372,7 @@ describe("inspectResume", () => {
     expect(result.right.skippedPhaseIds).toEqual(["phase-01", "phase-02"]);
   });
 
-  it("final phase left committed on an interrupted run (artifact-completion pause) → resumes from it", () => {
+  it("final phase left committed on an interrupted run (artifact-completion pause) → resumes from it", async () => {
     // ArtifactCompletionFailed leaves the run `interrupted` and the FINAL phase
     // `committed` (commit + handoff already landed; only the completion step
     // remains). `committed` is terminal for non-final phases, so the resume scan
@@ -399,7 +402,7 @@ describe("inspectResume", () => {
       JSON.stringify({ ...makePhaseStatus("committed"), commitHash: "abc1234" }),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
@@ -408,7 +411,7 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseIndex).toBe(0);
   });
 
-  it("non-final committed phase stays terminal → resumes from the next phase, not the committed one", () => {
+  it("non-final committed phase stays terminal → resumes from the next phase, not the committed one", async () => {
     // Guard on the special-case scoping: only the FINAL phase's `committed` is
     // resumable. A non-final `committed` phase must remain terminal so the scan
     // advances to the next (unstarted) phase.
@@ -433,7 +436,7 @@ describe("inspectResume", () => {
       JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
@@ -441,7 +444,7 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseIndex).toBe(1);
   });
 
-  it("a non-final committed phase of the recorded hold, its stop owed → resumes from it", () => {
+  it("a non-final committed phase of the recorded hold, its stop owed → resumes from it", async () => {
     const plan = {
       version: 1,
       run: {
@@ -468,10 +471,38 @@ describe("inspectResume", () => {
       JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
     );
 
-    const result = inspectResume("test-project", shortName, stateRoot);
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-01");
     expect(result.right.nextPhaseIndex).toBe(0);
+  });
+});
+
+describe("readRunHold", () => {
+  const runPath = "/example/runs/test-project.test-run";
+  const statusPath = `${runPath}/run-status.json`;
+
+  function read(content: string) {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(statusPath, content);
+    return Effect.runSync(Effect.either(readRunHold(runPath).pipe(Effect.provide(fs.layer))));
+  }
+
+  it("reads the recorded hold through the FileSystem port", () => {
+    const hold = { selection: "listed", phases: ["phase-02", "phase-04"] };
+    expect(read(JSON.stringify(makeRunStatus("interrupted", { hold })))).toEqual(
+      Either.right(hold),
+    );
+  });
+
+  it("fails with an FsError naming the file when it is not JSON or not a run status", () => {
+    const notJson = read("{");
+    expect(Either.isLeft(notJson) && notJson.left.message).toBe(`${statusPath}: not valid JSON`);
+    const withoutHold = { ...makeRunStatus("interrupted") } as Record<string, unknown>;
+    delete withoutHold["hold"];
+    const refused = read(JSON.stringify(withoutHold));
+    if (Either.isRight(refused)) throw new Error("expected a refusal");
+    expect(refused.left).toBeInstanceOf(FsError);
   });
 });

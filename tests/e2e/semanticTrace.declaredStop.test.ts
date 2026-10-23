@@ -23,7 +23,7 @@ import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
 import { AgentInvocationError, AwaitingReviewStopError } from "../../src/domain/errors.js";
@@ -350,7 +350,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — declared interactive stop sn
       join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-02", "src", "phase-01.ts"),
       CORRECTED_EURO,
     );
-    const decision = inspectResume(NAMESPACE, shortName, stateRoot);
+    const decision = await inspectResumeOnDisk(NAMESPACE, shortName, stateRoot);
     if (Either.isLeft(decision)) throw new Error(decision.left.message);
     const closed = await execute(decision.right.nextPhaseIndex, runId);
     if (Either.isLeft(closed.result)) {
