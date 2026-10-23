@@ -158,6 +158,41 @@ describe("re-entering a hold point", { timeout: 30_000 }, () => {
     expect(existsSync(join(run.runPath, "phase-02", "review-seed.md"))).toBe(true);
   });
 
+  it("re-runs the handoff turn of a committed held phase interrupted during it, then stops", async () => {
+    const { run, result } = await startHeldRun(world, HOLD_PHASE_02);
+    failedWith(result, AwaitingReviewStopError);
+    const c2 = tipOf(run);
+    const commits = commitsOn(run);
+    // The disk a process killed during phase-02's handoff turn leaves: the
+    // phase committed (CommitCreated came first), no handoff copied yet.
+    rewindToTheHoldPoint(run);
+    rmSync(join(run.runPath, "phase-02", "phase-handoff.md"));
+    expect(
+      syncSaveInterruptedRun({
+        namespace: NAMESPACE,
+        shortName: SHORT,
+        stateRoot: world.stateRoot,
+      }),
+    ).toEqual({ state: "interrupted", stopPhaseId: null });
+    const callsBefore = backendCalls(run, "phase-02").length;
+    const gatesBefore = gateCallsIn(run, "phase-02").length;
+
+    expectHeldStop(run, await resumeHeldRun(run));
+
+    // Only the handoff turn ran again: no work turn, gate or commit.
+    expect(
+      backendCalls(run, "phase-02")
+        .slice(callsBefore)
+        .map((c) => c.kind),
+    ).toEqual(["resume"]);
+    expect(gateCallsIn(run, "phase-02")).toHaveLength(gatesBefore);
+    expect(tipOf(run)).toBe(c2);
+    expect(commitsOn(run)).toBe(commits);
+    expect(readFileSync(join(run.runPath, "phase-02", "phase-handoff.md"), "utf8")).toBe(
+      handoffOf("phase-02"),
+    );
+  });
+
   it("re-enters the hold point of a handoff_failed phase whose copied handoff is valid, with no handoff turn", async () => {
     const { run, result } = await startHeldRun(world, HOLD_PHASE_02, {
       prepare: (held) => held.backend.brokenHandoffs.add("phase-02"),
