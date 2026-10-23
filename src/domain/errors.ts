@@ -2,7 +2,7 @@ import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
-import type { DeclaredReviewStop, LastClose } from "../schemas/reviewStop.js";
+import type { DeclaredReviewStop, HeldReviewStop, LastClose } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
 
@@ -168,6 +168,7 @@ export type FirstTurnProblem = Exclude<
 
 /** What a run that stopped at a declared interactive phase reports. */
 export interface DeclaredStopReport {
+  readonly cause: "declared";
   /** The review-stop value the reducer's effect wrote, and where. */
   readonly reviewStop: DeclaredReviewStop;
   readonly reviewStopPath: string;
@@ -179,15 +180,54 @@ export interface DeclaredStopReport {
   readonly unverifiedProvider: boolean;
 }
 
+/** What a run that stopped at a held phase reports. No first turn ran. */
+export interface HeldStopReport {
+  readonly cause: "held";
+  /** The review-stop value the reducer's effect wrote, and where. */
+  readonly reviewStop: HeldReviewStop;
+  readonly reviewStopPath: string;
+  /** The phase's commit (a full sha) and its subject line. */
+  readonly phaseCommit: string;
+  readonly phaseCommitSubject: string;
+  /** The phase's validated handoff in its run folder. */
+  readonly handoffPath: string;
+  /** True when phax has not verified the provider's interactive resume. */
+  readonly unverifiedProvider: boolean;
+}
+
+/** What a run that stopped reports, by the stop's cause. */
+export type StopReport = DeclaredStopReport | HeldStopReport;
+
 /**
- * A run stopped at an interactive phase and waits for a person. A pause, like
- * a rate limit: no RunFailed and no record; it exits 13.
+ * A run stopped at an interactive or held phase and waits for a person. A
+ * pause, like a rate limit: no RunFailed and no record; it exits 13.
  */
 export class AwaitingReviewStopError extends Data.TaggedError("AwaitingReviewStopError")<{
   message: string;
   run: string;
   phase: string;
-  report: DeclaredStopReport;
+  report: StopReport;
+}> {}
+
+/**
+ * The hold point of a committed phase failed before the run reached its held
+ * stop. HoldPointFailed already left the run interrupted with the phase
+ * committed: a resumable pause, so no record and no RunFailed. Exits 1.
+ */
+export class HoldPointPausedError extends Data.TaggedError("HoldPointPausedError")<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
+/**
+ * A resume met a held stop that this phax cannot close yet. Refused before
+ * anything changes: the run stays awaiting review. Exits 1.
+ */
+export class HeldCloseUnavailableError extends Data.TaggedError("HeldCloseUnavailableError")<{
+  message: string;
+  run: string;
+  phase: string;
 }> {}
 
 /** How a refused close of a stop ended: any lastClose but `interrupted`. */

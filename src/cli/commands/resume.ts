@@ -42,7 +42,7 @@ import {
   renderAgentInvocationError,
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
-import { renderDeclaredStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
+import { renderStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -100,7 +100,26 @@ export async function runResume(
     priorityOverride = parsed.value;
   }
 
-  const decisionResult = inspectResumeFromInfo(info);
+  const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
+  // Read before the decision: the run's recorded hold names a held phase
+  // whose stop is still owed.
+  const runStatusPath = join(runPath, "run-status.json");
+  let runStatusRaw: unknown;
+  try {
+    runStatusRaw = JSON.parse(readFileSync(runStatusPath, "utf8"));
+  } catch (e) {
+    out.error(`Cannot read run-status.json: ${e instanceof Error ? e.message : String(e)}`);
+    return 2;
+  }
+
+  const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
+  if (Either.isLeft(runStatusResult)) {
+    out.error(runStatusResult.left.message);
+    return 2;
+  }
+  const runStatus = runStatusResult.right;
+
+  const decisionResult = inspectResumeFromInfo(info, runStatus.hold);
   if (Either.isLeft(decisionResult)) {
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
@@ -137,7 +156,6 @@ export async function runResume(
   }
   // Read the plan before promising a resume: a phax-plan.json this phax
   // refuses (an older shape) is refused on the preview too.
-  const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const planPath = join(runPath, "phax-plan.json");
   const planMdPath = join(runPath, "plan.md");
 
@@ -179,22 +197,6 @@ export async function runResume(
     );
     return 2;
   }
-
-  const runStatusPath = join(runPath, "run-status.json");
-  let runStatusRaw: unknown;
-  try {
-    runStatusRaw = JSON.parse(readFileSync(runStatusPath, "utf8"));
-  } catch (e) {
-    out.error(`Cannot read run-status.json: ${e instanceof Error ? e.message : String(e)}`);
-    return 2;
-  }
-
-  const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
-  if (Either.isLeft(runStatusResult)) {
-    out.error(runStatusResult.left.message);
-    return 2;
-  }
-  const runStatus = runStatusResult.right;
 
   const runIdResult = decodeRunId(runStatus.runId);
   if (Either.isLeft(runIdResult)) {
@@ -276,7 +278,7 @@ export async function runResume(
     if (Either.isLeft(result)) {
       const err = result.left;
       if (err instanceof AwaitingReviewStopError) {
-        for (const line of renderDeclaredStop(err.report)) out.log(line);
+        for (const line of renderStop(err.report)) out.log(line);
         return exitCodeForError(err);
       }
       if (err instanceof StopCloseRefusedError) {

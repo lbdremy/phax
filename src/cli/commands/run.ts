@@ -49,7 +49,7 @@ import {
   renderAgentInvocationError,
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
-import { renderDeclaredStop } from "./stopOutput.js";
+import { renderStop } from "./stopOutput.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -454,7 +454,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       const err = result.left;
       const qualName = runKey(namespace, shortName);
       if (err instanceof AwaitingReviewStopError) {
-        for (const line of renderDeclaredStop(err.report)) out.log(line);
+        for (const line of renderStop(err.report)) out.log(line);
         return exitCodeForError(err);
       }
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {

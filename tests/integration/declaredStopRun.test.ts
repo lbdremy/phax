@@ -17,7 +17,7 @@ import { withRunLock } from "../../src/app/lock.js";
 import { resetPhase } from "../../src/app/resetPhase.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
-import { renderDeclaredStop, renderStopClosed } from "../../src/cli/commands/stopOutput.js";
+import { renderStop, renderStopClosed } from "../../src/cli/commands/stopOutput.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import {
   decodeShortName,
@@ -515,7 +515,7 @@ describe("phax run on a plan with a declared interactive phase", { timeout: 30_0
 
     // phax run: exit 13, the stop printed, the lock released.
     expect(exitCodeForError(error)).toBe(13);
-    const lines = renderDeclaredStop(error.report);
+    const lines = renderStop(error.report);
     expect(lines[0]).toBe(
       "◐ phase-03  Review the export record — awaiting review (declared: interactive phase)",
     );

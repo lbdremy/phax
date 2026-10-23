@@ -69,7 +69,8 @@ function buildHandoffPrompt(reconciliation: ReconciliationResult): string {
   ].join("\n");
 }
 
-function validateHandoffSections(content: string): string[] {
+/** The required handoff sections `content` lacks; empty when it has them all. */
+export function validateHandoffSections(content: string): string[] {
   return REQUIRED_HANDOFF_SECTIONS.filter((section) => !content.includes(section));
 }
 
