@@ -940,9 +940,11 @@ export function executePlan(
     // the cause of that stop.
     let resumeFromClosedStop = false;
     let resumeClosedCause: "declared" | "held" | undefined;
-    // A held phase whose stop is still owed: committed, or handoff_failed with
+    // A held phase whose stop is still owed, committed or handoff_failed, with
     // its handoff already validated and copied. It re-enters the hold point
-    // with no agent turn, gate, commit or handoff turn.
+    // with no agent turn, gate, commit or handoff turn. Without a valid copy
+    // (a committed phase interrupted during its handoff turn, or a failed
+    // handoff) it takes the handoff re-entry and stops once the handoff passes.
     let resumeAtHoldPoint = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
@@ -964,14 +966,18 @@ export function executePlan(
         } else if (
           phaseStatus !== undefined &&
           owesHeldStop &&
-          (phaseStatus.state === "committed" ||
-            (phaseStatus.state === "handoff_failed" &&
-              resumePhaseFolderPath !== undefined &&
-              (yield* copiedHandoffIsValid(resumePhaseFolderPath))))
+          (phaseStatus.state === "committed" || phaseStatus.state === "handoff_failed") &&
+          resumePhaseFolderPath !== undefined &&
+          (yield* copiedHandoffIsValid(resumePhaseFolderPath))
         ) {
           resumeAtHoldPoint = true;
           resumeWorktreePath = phaseStatus.worktreePath;
-        } else if (phaseStatus?.state === "handoff_failed") {
+        } else if (
+          phaseStatus?.state === "handoff_failed" ||
+          (owesHeldStop && phaseStatus?.state === "committed")
+        ) {
+          // A held phase committed before its handoff was copied (interrupted
+          // during the handoff turn) re-runs only the handoff, as a failed one.
           resumeFromHandoff = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
