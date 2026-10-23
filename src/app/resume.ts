@@ -1,11 +1,14 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { Either } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
+import { holdsPhase } from "../domain/hold.js";
 import { interpret } from "../domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../domain/state.js";
 import type { PhaxState } from "../domain/state.js";
-import type { RunStatus, PhaseStatus } from "../schemas/status.js";
+import { readRunStatusFile } from "../schemas/persisted.js";
+import type { RunHold, RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRun, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
@@ -51,10 +54,15 @@ interface NextResumablePhase {
  * when the run paused at artifact completion (ArtifactCompletionFailed) — that
  * pause is resumable (executePlan re-enters the completion step), so it must be
  * surfaced here rather than reported as "no resumable phases".
+ *
+ * A non-final `committed` phase of the run's hold whose stop is still null is
+ * resumable too: its hold point failed or was interrupted before the stop, and
+ * executePlan re-enters it there.
  */
-function findNextResumablePhase(
+export function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
   planPhases: readonly { id: string; title: string }[],
+  hold: RunHold,
 ): NextResumablePhase | undefined {
   if (planPhases.length > 0) {
     const statusByPhaseId = new Map(phaseStatuses.map((p) => [p.phaseId, p]));
@@ -67,9 +75,15 @@ function findNextResumablePhase(
         return { phaseId: planPhase.id, phaseIndex: i, worktreePath: undefined };
       }
       const isFinalPlanPhase = i === planPhases.length - 1;
+      const owesHeldStop =
+        !isFinalPlanPhase &&
+        status.state === "committed" &&
+        status.stop === null &&
+        holdsPhase(hold, status.phaseId);
       const resumable =
         !TERMINAL_PHASE_STATES.has(status.state) ||
-        (isFinalPlanPhase && status.state === "committed");
+        (isFinalPlanPhase && status.state === "committed") ||
+        owesHeldStop;
       if (resumable) {
         return {
           phaseId: status.phaseId,
@@ -119,8 +133,14 @@ export function canResume(state: PhaxState): boolean {
   return disposition.kind === "Handled" || disposition.kind === "Ignored";
 }
 
+/**
+ * The resume decision for a resolved run. `hold` is the run's recorded hold,
+ * read from its run-status.json: it makes a held phase whose stop is still
+ * owed the start phase.
+ */
 export function inspectResumeFromInfo(
   info: RunReviewInfo,
+  hold: RunHold,
 ): Either.Either<ResumeDecision, ResumeRefusal> {
   const { shortName } = info;
 
@@ -141,7 +161,7 @@ export function inspectResumeFromInfo(
     });
   }
 
-  const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases);
+  const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases, hold);
   if (!nextPhase) {
     return Either.left({
       reason: "no_pending_phases",
@@ -182,5 +202,29 @@ export function inspectResume(
       message: `Run "${shortName}" not found: ${infoResult.left}`,
     });
   }
-  return inspectResumeFromInfo(infoResult.right);
+  const hold = readRunHold(infoResult.right.runPath);
+  if (Either.isLeft(hold)) {
+    return Either.left({ reason: "run_not_found", message: hold.left });
+  }
+  return inspectResumeFromInfo(infoResult.right, hold.right);
+}
+
+/**
+ * The hold recorded in the run's run-status.json, through the persisted
+ * reader; Left with the reader's message when the file cannot be read.
+ */
+export function readRunHold(runPath: string): Either.Either<RunHold, string> {
+  const path = join(runPath, "run-status.json");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch (e) {
+    return Either.left(
+      `Cannot read run-status.json at "${runPath}": ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  return Either.match(readRunStatusFile(path, parsed), {
+    onLeft: (error) => Either.left(error.message),
+    onRight: (status) => Either.right(status.hold),
+  });
 }

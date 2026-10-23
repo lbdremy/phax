@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { findNextResumablePhase, inspectResume } from "../../src/app/resume.js";
 import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
-import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
-import type { PhaseStatus } from "../../src/schemas/status.js";
+import { phaseStatus, phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import type { PhaseStatus, RunHold } from "../../src/schemas/status.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -105,6 +105,74 @@ describe("buildResumeInstructions", () => {
     expect(md).toContain("Reset time");
     expect(md).toContain("2026-06-12T00:00:00Z");
     expect(md).not.toContain("phax reset-phase");
+  });
+});
+
+describe("findNextResumablePhase — the run's hold", () => {
+  const planPhases = ["phase-01", "phase-02", "phase-03"].map((id) => ({ id, title: id }));
+  const listed: RunHold = { selection: "listed", phases: ["phase-02"] };
+  const none: RunHold = { selection: "none" };
+  const statusOf = (
+    phaseId: string,
+    phaseIndex: number,
+    state: PhaseStatus["state"],
+    stop: PhaseStatus["stop"] = null,
+  ): PhaseStatus =>
+    phaseStatus({
+      phaseId,
+      phaseIndex,
+      state,
+      model: "gpt-6-luna",
+      effort: "medium",
+      branchName: `phax/invoice-export--${phaseId}`,
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      createdAt: now,
+      updatedAt: now,
+      stop,
+    });
+
+  it.each([
+    {
+      name: "a committed held phase whose stop is owed",
+      phase02: statusOf("phase-02", 1, "committed"),
+      hold: listed,
+      expected: "phase-02",
+    },
+    {
+      name: "a committed phase outside the hold",
+      phase02: statusOf("phase-02", 1, "committed"),
+      hold: none,
+      expected: "phase-03",
+    },
+    {
+      name: "a committed held phase whose stop is closed",
+      phase02: statusOf("phase-02", 1, "committed", {
+        cause: "held",
+        status: "closed",
+        outcome: "unchanged",
+      }),
+      hold: listed,
+      expected: "phase-03",
+    },
+    {
+      name: "a cleaned-up held phase",
+      phase02: statusOf("phase-02", 1, "cleaned_up"),
+      hold: listed,
+      expected: "phase-03",
+    },
+  ])("$name → $expected", ({ phase02, hold, expected }) => {
+    const statuses = [statusOf("phase-01", 0, "cleaned_up"), phase02];
+    expect(findNextResumablePhase(statuses, planPhases, hold)?.phaseId).toBe(expected);
+  });
+
+  it("never holds the final phase: a committed final phase is resumable as before", () => {
+    const statuses = [
+      statusOf("phase-01", 0, "cleaned_up"),
+      statusOf("phase-02", 1, "cleaned_up"),
+      statusOf("phase-03", 2, "committed"),
+    ];
+    const all: RunHold = { selection: "listed", phases: ["phase-03"] };
+    expect(findNextResumablePhase(statuses, planPhases, all)?.phaseId).toBe("phase-03");
   });
 });
 
@@ -361,5 +429,39 @@ describe("inspectResume", () => {
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-02");
     expect(result.right.nextPhaseIndex).toBe(1);
+  });
+
+  it("a non-final committed phase of the recorded hold, its stop owed → resumes from it", () => {
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        requiredCommands: [],
+      },
+      phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02")],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(
+        makeRunStatus("interrupted", {
+          phasesCount: 2,
+          stoppedReason: "hold_point_failed",
+          hold: { selection: "listed", phases: ["phase-01"] },
+        }),
+      ),
+    );
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
+    );
+
+    const result = inspectResume("test-project", shortName, stateRoot);
+
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.nextPhaseId).toBe("phase-01");
+    expect(result.right.nextPhaseIndex).toBe(0);
   });
 });

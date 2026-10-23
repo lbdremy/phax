@@ -47,7 +47,10 @@ export function readPhaseCommit(phaseFolderPath: string): Effect.Effect<
 
 const isFullCommit = Schema.is(FullCommitShaSchema);
 
-function readPhaseStatus(phaseFolderPath: string) {
+/** The phase's `status.json`, through the persisted reader; a refusal is an FsError. */
+export function readPhaseStatus(
+  phaseFolderPath: string,
+): Effect.Effect<PhaseStatus, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const statusPath = join(phaseFolderPath, "status.json");

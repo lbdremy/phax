@@ -2,7 +2,9 @@ import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   buildDeclaredReviewStop,
+  buildHeldReviewStop,
   type DeclaredReviewStopInput,
+  type HeldReviewStopInput,
 } from "../../../src/domain/interactive/reviewStop.js";
 import { decodeReviewStopFile, type ReviewStopCommand } from "../../../src/schemas/reviewStop.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
@@ -123,5 +125,104 @@ describe("buildDeclaredReviewStop", () => {
     const stop = buildDeclaredReviewStop(input);
     const decoded = decodeReviewStopFile({ $schema: schemaUrl("review-stop", "1.2.3"), ...stop });
     expect(Either.isRight(decoded)).toBe(true);
+  });
+});
+
+const heldWorktree = "/Users/ada/.phax/worktrees/invoice-export/phase-02";
+const C2 = "5d6e7f8c0a91b2e4f6d8a0c2e4f6a8b0c2d4e6f8";
+const heldContinue: ReviewStopCommand = {
+  cwd: heldWorktree,
+  argv: ["codex", "resume", "X0", "-m", "gpt-6-luna"],
+  env: {},
+};
+const heldFreshStart: ReviewStopCommand = {
+  cwd: heldWorktree,
+  argv: ["codex", "-m", "gpt-6-luna", "Read .phax-context/interactive-review.md"],
+  env: {},
+};
+
+const heldInput: HeldReviewStopInput = {
+  run: "acme.invoice-export",
+  phase: { id: "phase-02", title: "Invoice CSV record", position: 2, of: 6 },
+  phaseCommit: C2,
+  worktree: heldWorktree,
+  mainCheckout: "/Users/ada/code/acme",
+  seed: `${heldWorktree}/.phax-context/interactive-review.md`,
+  session: { provider: "codex-cli", sessionId: "X0", origin: "builder" },
+  interactiveResume: "verified",
+  continueCommand: heldContinue,
+  freshStart: heldFreshStart,
+};
+
+describe("buildHeldReviewStop", () => {
+  it.each([
+    {
+      name: "a builder session on a verified provider",
+      overrides: {},
+      continue: heldContinue,
+    },
+    {
+      name: "no session",
+      overrides: { session: null },
+      continue: null,
+    },
+    {
+      name: "a session on an unverified provider",
+      overrides: {
+        session: { provider: "mistral-vibe", sessionId: "v-1", origin: "builder" },
+        interactiveResume: "unverified",
+      },
+      continue: null,
+    },
+  ] as const)("$name → continue $continue.argv", ({ overrides, continue: expected }) => {
+    const stop = buildHeldReviewStop({ ...heldInput, ...overrides });
+    expect(stop.commands.continue).toEqual(expected);
+    expect(stop.commands.freshStart).toEqual(heldFreshStart);
+  });
+
+  it("is the held variant: a headless phase, its commit, the builder session, nothing closed", () => {
+    expect(buildHeldReviewStop(heldInput)).toEqual({
+      run: "acme.invoice-export",
+      state: "awaiting_review",
+      cause: "held",
+      phase: { id: "phase-02", title: "Invoice CSV record", mode: "headless", position: 2, of: 6 },
+      phaseCommit: C2,
+      worktree: heldWorktree,
+      seed: `${heldWorktree}/.phax-context/interactive-review.md`,
+      session: {
+        provider: "codex-cli",
+        sessionId: "X0",
+        origin: "builder",
+        interactiveResume: "verified",
+      },
+      commands: {
+        continue: heldContinue,
+        freshStart: heldFreshStart,
+        enterPhase: {
+          cwd: "/Users/ada/code/acme",
+          argv: ["phax", "enter-phase", "acme.invoice-export", "phase-02"],
+          env: {},
+        },
+        close: {
+          cwd: "/Users/ada/code/acme",
+          argv: ["phax", "resume", "acme.invoice-export"],
+          env: {},
+        },
+        reset: {
+          cwd: "/Users/ada/code/acme",
+          argv: ["phax", "reset-phase", "acme.invoice-export", "phase-02"],
+          env: {},
+        },
+      },
+      lastClose: null,
+      closeBase: null,
+    });
+  });
+
+  it("is a document the review-stop schema accepts once stamped, as the held variant", () => {
+    const stop = buildHeldReviewStop({ ...heldInput, session: null });
+    const decoded = decodeReviewStopFile({ $schema: schemaUrl("review-stop", "1.2.3"), ...stop });
+    if (Either.isLeft(decoded)) throw new Error(String(decoded.left));
+    expect(decoded.right.cause).toBe("held");
   });
 });

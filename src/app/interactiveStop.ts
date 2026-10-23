@@ -1,5 +1,6 @@
-// Reaching a declared stop: the seed, phax's one read-only first turn and the
-// awaiting_review transition. A first turn is guarded by a before/after
+// Reaching a stop. A declared stop: the seed, phax's one read-only first turn
+// and the awaiting_review transition. A held stop: the seed, the builder
+// session recorded as current and the transition, with no turn. A first turn is guarded by a before/after
 // comparison of the worktree and of the person's handoff file: a turn that
 // changed either is refused, its versions kept aside and the worktree
 // restored, so no one's edit is lost. The session id always comes from the
@@ -15,15 +16,17 @@ import {
   UsageLimitError,
   type DeclaredStopReport,
   type FirstTurnProblem,
+  type HeldStopReport,
   type RegistryCorruptionError,
   type SetupCommandFailedError,
 } from "../domain/errors.js";
 import { renderFirstReading } from "../domain/interactive/firstReading.js";
 import {
   buildDeclaredReviewStop,
+  buildHeldReviewStop,
   declaredSessionOrigin,
 } from "../domain/interactive/reviewStop.js";
-import { buildDeclaredSeed } from "../domain/interactive/seed.js";
+import { buildDeclaredSeed, buildHeldSeed } from "../domain/interactive/seed.js";
 import {
   correctivePrompt,
   firstTurnPrompt,
@@ -38,7 +41,11 @@ import type { SecurityPolicy } from "../domain/security/types.js";
 import type { PhaxState } from "../domain/state.js";
 import { getSessionAdapter } from "../domain/session/index.js";
 import { codexModelId } from "../domain/session/codexFlags.js";
-import type { StopCommand, StopCommandResult } from "../domain/session/types.js";
+import type {
+  InteractiveResumeSupport,
+  StopCommand,
+  StopCommandResult,
+} from "../domain/session/types.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -53,7 +60,7 @@ import {
 } from "../schemas/persisted.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
-import type { ReviewStopCommand } from "../schemas/reviewStop.js";
+import type { ReviewStop, ReviewStopCommand } from "../schemas/reviewStop.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import {
@@ -61,6 +68,7 @@ import {
   fingerprintPersonHandoff,
   keepPersonHandoffCopy,
   keepRefusedTurn,
+  readExecutedHandoffs,
   readInteractiveSession,
   restorePersonHandoff,
   restoreWorktreeSeed,
@@ -579,6 +587,122 @@ export function asReviewStopCommand(command: StopCommand): ReviewStopCommand {
 const builtCommand = (result: StopCommandResult): StopCommand | null =>
   "unsupported" in result ? null : result;
 
+/** What the session adapters build for a stop: its continue and fresh-start commands. */
+interface StopCommands {
+  readonly interactiveResume: InteractiveResumeSupport;
+  /** Null with no current session or on an unverified provider. */
+  readonly continueCommand: ReviewStopCommand | null;
+  readonly freshStart: ReviewStopCommand;
+}
+
+/**
+ * The continue command (for `sessionId` on a verified provider) and the
+ * fresh-start command of a stop, built by the provider's session adapter
+ * under the phase's posture, its model and its effort. Shared by both causes.
+ */
+function buildStopCommands(input: {
+  readonly phaseId: string;
+  readonly worktree: string;
+  readonly provider: ProviderId;
+  readonly model: string;
+  readonly effort: string;
+  readonly providerEntry: ProviderConfig["providers"][string] | undefined;
+  readonly policy: SecurityPolicy;
+  readonly agentCommands: readonly string[];
+  readonly sessionId: string | null;
+}): Effect.Effect<StopCommands> {
+  return Effect.gen(function* () {
+    const adapter = getSessionAdapter(input.provider);
+    const commandModel =
+      input.provider === "codex-cli" && input.providerEntry !== undefined
+        ? codexModelId(input.providerEntry, input.model)
+        : input.model;
+    const commandOpts = {
+      cwd: input.worktree,
+      model: commandModel,
+      effort: input.effort,
+      posture: { policy: input.policy, agentCommands: input.agentCommands },
+    } as const;
+    const continueCommand =
+      input.sessionId !== null && adapter.interactiveResume === "verified"
+        ? builtCommand(adapter.buildContinueCommand({ ...commandOpts, sessionId: input.sessionId }))
+        : null;
+    const modelEnvVar = input.providerEntry?.modelEnvVar;
+    const freshStart = builtCommand(
+      adapter.buildFreshStartCommand({
+        ...commandOpts,
+        prompt: freshStartPrompt(input.phaseId),
+        ...(modelEnvVar !== undefined ? { modelEnvVar } : {}),
+      }),
+    );
+    // A phase worktree is always a writable root, so no adapter refuses it.
+    if (freshStart === null) {
+      return yield* Effect.dieMessage(
+        `No fresh-start command for ${input.provider} at ${input.phaseId}: its posture names no writable root`,
+      );
+    }
+    return {
+      interactiveResume: adapter.interactiveResume,
+      continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
+      freshStart: asReviewStopCommand(freshStart),
+    };
+  });
+}
+
+// Reach awaiting_review through the reducer: its effects write
+// review-stop.json and resume-instructions.md. Anything but Handled is an
+// invalid transition, and nothing was written.
+function dispatchStopReached(
+  input: {
+    readonly runPath: string;
+    readonly shortName: string;
+    readonly phaseFolder: string;
+    readonly worktree: string;
+    readonly phaseId: string;
+  },
+  reviewStop: ReviewStop,
+): Effect.Effect<
+  void,
+  | FsError
+  | GitError
+  | ShellError
+  | SetupCommandFailedError
+  | RegistryCorruptionError
+  | InvalidTransitionError,
+  FileSystem | Git | Shell | SystemTelemetry
+> {
+  return Effect.gen(function* () {
+    const result = yield* dispatch(
+      {
+        eventId: randomUUID(),
+        occurredAt: now(),
+        run: input.shortName as unknown as RunId,
+        phase: input.phaseId as PhaseId,
+        type: "ReviewStopReached",
+        phaseId: input.phaseId as PhaseId,
+        cause: reviewStop.cause,
+        worktreePath: input.worktree as WorktreePath,
+        reviewStop,
+      },
+      {
+        runPath: input.runPath,
+        shortName: input.shortName,
+        phaseFolderPath: input.phaseFolder,
+        phaseId: input.phaseId,
+      },
+    );
+    if (result.disposition !== "Handled") {
+      return yield* Effect.fail(
+        new InvalidTransitionError({
+          from: describeState(result.stateBefore),
+          to: "awaiting_review",
+          entity: "run",
+        }),
+      );
+    }
+  });
+}
+
 /**
  * Stop the run at a declared interactive phase whose worktree, setup
  * commands, `.phax-context/plan.md`, model-resolution.json and security.json
@@ -636,38 +760,18 @@ export function stopAtDeclaredPhase(
       origin: "first-turn",
     });
 
-    const adapter = getSessionAdapter(input.provider);
-    const commandModel =
-      input.provider === "codex-cli" && input.providerEntry !== undefined
-        ? codexModelId(input.providerEntry, input.model)
-        : input.model;
-    const commandOpts = {
-      cwd: input.worktree,
-      model: commandModel,
-      effort: input.effort,
-      posture: { policy: input.policy, agentCommands: input.agentCommands },
-    } as const;
     const current = turn.session.current;
-    const continueCommand =
-      current !== null && adapter.interactiveResume === "verified"
-        ? builtCommand(
-            adapter.buildContinueCommand({ ...commandOpts, sessionId: current.sessionId }),
-          )
-        : null;
-    const modelEnvVar = input.providerEntry?.modelEnvVar;
-    const freshStart = builtCommand(
-      adapter.buildFreshStartCommand({
-        ...commandOpts,
-        prompt: freshStartPrompt(phase.id),
-        ...(modelEnvVar !== undefined ? { modelEnvVar } : {}),
-      }),
-    );
-    // A phase worktree is always a writable root, so no adapter refuses it.
-    if (freshStart === null) {
-      return yield* Effect.dieMessage(
-        `No fresh-start command for ${input.provider} at ${phase.id}: its posture names no writable root`,
-      );
-    }
+    const commands = yield* buildStopCommands({
+      phaseId: phase.id,
+      worktree: input.worktree,
+      provider: input.provider,
+      model: input.model,
+      effort: input.effort,
+      providerEntry: input.providerEntry,
+      policy: input.policy,
+      agentCommands: input.agentCommands,
+      sessionId: current?.sessionId ?? null,
+    });
 
     const reviewStop = buildDeclaredReviewStop({
       run: input.shortName,
@@ -684,49 +788,165 @@ export function stopAtDeclaredPhase(
               sessionId: current.sessionId,
               origin: declaredSessionOrigin(current.origin),
             },
-      interactiveResume: adapter.interactiveResume,
-      continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
-      freshStart: asReviewStopCommand(freshStart),
+      ...commands,
       lastClose: null,
     });
-
-    const result = yield* dispatch(
-      {
-        eventId: randomUUID(),
-        occurredAt: now(),
-        run: input.shortName as unknown as RunId,
-        phase: phase.id as PhaseId,
-        type: "ReviewStopReached",
-        phaseId: phase.id as PhaseId,
-        cause: "declared",
-        worktreePath: input.worktree as WorktreePath,
-        reviewStop,
-      },
-      {
-        runPath: input.runPath,
-        shortName: input.shortName,
-        phaseFolderPath: input.phaseFolder,
-        phaseId: phase.id,
-      },
-    );
-    if (result.disposition !== "Handled") {
-      return yield* Effect.fail(
-        new InvalidTransitionError({
-          from: describeState(result.stateBefore),
-          to: "awaiting_review",
-          entity: "run",
-        }),
-      );
-    }
+    yield* dispatchStopReached({ ...input, phaseId: phase.id }, reviewStop);
 
     const firstTurnProblem: FirstTurnProblem | null =
       turn.turn.outcome === "answered" ? null : turn.turn;
     return {
+      cause: "declared",
       reviewStop,
       reviewStopPath: reviewStopPaths(input.runPath, input.phaseFolder).live,
       firstReading: turn.firstReading?.markdown ?? null,
       firstTurnProblem,
-      unverifiedProvider: adapter.interactiveResume === "unverified",
+      unverifiedProvider: commands.interactiveResume === "unverified",
+    };
+  });
+}
+
+export interface HeldStopInput {
+  readonly runId: RunId;
+  /** The run's name as phax commands take it. */
+  readonly shortName: string;
+  readonly runPath: string;
+  /** The main checkout, where the printed phax commands run. */
+  readonly mainCheckout: string;
+  readonly phases: readonly PhaxPlanPhase[];
+  readonly phase: PhaxPlanPhase;
+  readonly phaseIndex: number;
+  readonly phaseFolder: string;
+  readonly worktree: string;
+  /** The provider, model and effort the phase ran with (its agent binding). */
+  readonly provider: ProviderId;
+  readonly model: string;
+  readonly effort: string;
+  /** The provider's providers.json entry: codex's model id and vibe's model variable. */
+  readonly providerEntry: ProviderConfig["providers"][string] | undefined;
+  readonly policy: SecurityPolicy;
+  /** The phase's frozen agent commands, which the printed commands carry. */
+  readonly agentCommands: readonly string[];
+  readonly gateCommands: readonly string[];
+  /** Each phase's located plan.md section, keyed by phase id. */
+  readonly planSections: ReadonlyMap<string, string>;
+  /** The phase's base and its commit, full shas from its status. */
+  readonly base: string;
+  readonly phaseCommit: string;
+  /** The session that built the phase, or null when it recorded no session id. */
+  readonly builder: { readonly sessionId: string; readonly startedAt: string } | null;
+}
+
+/**
+ * Stop the run at a held phase that has committed and whose handoff is
+ * validated and copied. It reads the phase's handoff, its file
+ * reconciliation and the earlier handoffs; writes the held seed's two
+ * copies; records the builder session as current (origin `builder`), or no
+ * session; builds the continue and fresh-start commands under the phase's
+ * posture; then dispatches `ReviewStopReached` with cause `held`, whose
+ * effects write review-stop.json and resume-instructions.md. It runs no
+ * agent turn and never reads stdin. The caller fails the run with
+ * `AwaitingReviewStopError` carrying the returned report.
+ */
+export function stopAtHeldPhase(
+  input: HeldStopInput,
+): Effect.Effect<
+  HeldStopReport,
+  | FsError
+  | GitError
+  | ShellError
+  | SetupCommandFailedError
+  | RegistryCorruptionError
+  | InvalidTransitionError,
+  FileSystem | Git | Shell | SystemTelemetry
+> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const { phase, phases, phaseIndex } = input;
+    const sectionOf = (id: string): string => input.planSections.get(id) ?? "";
+
+    const handoffPath = join(input.phaseFolder, "phase-handoff.md");
+    const handoff = yield* fs.readText(handoffPath);
+    const reconciliation = yield* fs.readText(join(input.phaseFolder, "file-reconciliation.md"));
+    const earlier = yield* readExecutedHandoffs(input.runPath, phases, phaseIndex);
+
+    const seeds = seedPaths(input.worktree, input.phaseFolder);
+    yield* writeSeed(
+      seeds,
+      buildHeldSeed({
+        shortName: input.shortName,
+        phaseId: phase.id,
+        phaseTitle: phase.title,
+        planSection: sectionOf(phase.id),
+        handoff,
+        reconciliation,
+        base: input.base,
+        phaseCommit: input.phaseCommit,
+        earlier,
+        upcoming: phases
+          .slice(phaseIndex + 1)
+          .map((p) => ({ id: p.id, title: p.title, text: sectionOf(p.id) })),
+        gateCommands: input.gateCommands,
+        closeCommand: `phax resume ${input.shortName}`,
+      }),
+    );
+
+    const interactiveResume = getSessionAdapter(input.provider).interactiveResume;
+    yield* writeInteractiveSession(input.phaseFolder, {
+      phaseId: phase.id,
+      provider: input.provider,
+      interactiveResume,
+      current:
+        input.builder === null
+          ? null
+          : {
+              provider: input.provider,
+              model: input.model,
+              effort: input.effort,
+              sessionId: input.builder.sessionId,
+              startedAt: input.builder.startedAt,
+              origin: "builder",
+            },
+      history: [],
+      firstTurns: [],
+      turnInProgress: null,
+    });
+
+    const commands = yield* buildStopCommands({
+      phaseId: phase.id,
+      worktree: input.worktree,
+      provider: input.provider,
+      model: input.model,
+      effort: input.effort,
+      providerEntry: input.providerEntry,
+      policy: input.policy,
+      agentCommands: input.agentCommands,
+      sessionId: input.builder?.sessionId ?? null,
+    });
+
+    const reviewStop = buildHeldReviewStop({
+      run: input.shortName,
+      phase: { id: phase.id, title: phase.title, position: phaseIndex + 1, of: phases.length },
+      phaseCommit: input.phaseCommit,
+      worktree: input.worktree,
+      mainCheckout: input.mainCheckout,
+      seed: seeds.worktree,
+      session:
+        input.builder === null
+          ? null
+          : { provider: input.provider, sessionId: input.builder.sessionId, origin: "builder" },
+      ...commands,
+    });
+    yield* dispatchStopReached({ ...input, phaseId: phase.id }, reviewStop);
+
+    return {
+      cause: "held",
+      reviewStop,
+      reviewStopPath: reviewStopPaths(input.runPath, input.phaseFolder).live,
+      phaseCommit: input.phaseCommit,
+      phaseCommitSubject: phase.commit.subject,
+      handoffPath,
+      unverifiedProvider: interactiveResume === "unverified",
     };
   });
 }

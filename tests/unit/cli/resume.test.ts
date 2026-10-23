@@ -116,6 +116,28 @@ function makePhaseStatus(state: PhaseState, index = 0): PhaseStatus {
   });
 }
 
+function writeRunStatus(
+  runPath: string,
+  state: string,
+  hold: Record<string, unknown> = { selection: "none" },
+): void {
+  const now = new Date().toISOString();
+  writeFileSync(
+    join(runPath, "run-status.json"),
+    JSON.stringify({
+      $schema: currentSchemaUrl("run-status"),
+      namespace: "test-ns",
+      shortName: "my-run",
+      runId: "run-123",
+      state,
+      createdAt: now,
+      updatedAt: now,
+      phasesCount: 2,
+      hold,
+    }),
+  );
+}
+
 function makeReviewOpenRefusal() {
   return {
     reason: "review_open" as const,
@@ -132,22 +154,8 @@ describe("runResume --skip-oracle", () => {
     stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-skip-"));
     runPath = join(stateRoot, "runs", "test-ns.my-run");
     mkdirSync(runPath, { recursive: true });
-    const now = new Date().toISOString();
     writeFileSync(join(runPath, "plan.md"), "# plan\n");
-    writeFileSync(
-      join(runPath, "run-status.json"),
-      JSON.stringify({
-        $schema: currentSchemaUrl("run-status"),
-        namespace: "test-ns",
-        shortName: "my-run",
-        runId: "run-123",
-        state: "interrupted",
-        createdAt: now,
-        updatedAt: now,
-        phasesCount: 2,
-        hold: { selection: "none" },
-      }),
-    );
+    writeRunStatus(runPath, "interrupted");
   });
 
   afterEach(() => {
@@ -248,6 +256,66 @@ describe("runResume --skip-oracle", () => {
   });
 });
 
+describe("runResume — the recorded hold", () => {
+  let stateRoot: string;
+  let runPath: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-hold-"));
+    runPath = join(stateRoot, "runs", "test-ns.my-run");
+    mkdirSync(runPath, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(stateRoot, { recursive: true, force: true });
+  });
+
+  async function setupMocks() {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    const { inspectResumeFromInfo } = vi.mocked(await import("../../../src/app/resume.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-ns",
+        shortName: "my-run",
+        info: { runPath } as unknown as RunReviewInfo,
+        crossProject: false,
+      }),
+    );
+    inspectResumeFromInfo.mockReturnValue(
+      Either.left({ reason: "failed" as const, message: "Run failed." }),
+    );
+    return inspectResumeFromInfo;
+  }
+
+  it("reads the hold from run-status.json and passes it to the decision", async () => {
+    writeRunStatus(runPath, "interrupted", { selection: "listed", phases: ["phase-01"] });
+    const inspect = await setupMocks();
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+
+    await runResume("my-run", {}, makeOutput().out);
+
+    expect(inspect).toHaveBeenCalledOnce();
+    expect(inspect.mock.calls[0]?.[1]).toEqual({ selection: "listed", phases: ["phase-01"] });
+  });
+
+  it("refuses with exit 2, before any decision, when run-status.json cannot be read", async () => {
+    const inspect = await setupMocks();
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, errors } = makeOutput();
+
+    expect(await runResume("my-run", {}, out)).toBe(2);
+    expect(errors.join("\n")).toContain("Cannot read run-status.json");
+    expect(inspect).not.toHaveBeenCalled();
+  });
+});
+
 describe("runResume — review_open early branch recap", () => {
   let stateRoot: string;
   let runPath: string;
@@ -257,6 +325,7 @@ describe("runResume — review_open early branch recap", () => {
     stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-recap-"));
     runPath = join(stateRoot, "runs", "test-ns.my-run");
     mkdirSync(runPath, { recursive: true });
+    writeRunStatus(runPath, "review_open");
   });
 
   afterEach(() => {

@@ -1,9 +1,15 @@
-// The view of a declared stop for `phax run` and `phax resume`: the stop a
-// run reached, a close that committed, and a close that was refused. Pure
-// formatting over the reports the use cases return; nothing here reads stdin.
+// The view of a stop for `phax run` and `phax resume`: the stop a run
+// reached (declared or held), a close that committed, and a close that was
+// refused. Pure formatting over the reports the use cases return; nothing
+// here reads stdin.
 import type { ClosedStop } from "../../app/executePlan.js";
 import type { HandoffSource } from "../../app/closeStop.js";
-import type { DeclaredStopReport, RefusedClose } from "../../domain/errors.js";
+import type {
+  DeclaredStopReport,
+  HeldStopReport,
+  RefusedClose,
+  StopReport,
+} from "../../domain/errors.js";
 import { renderCommandLine } from "../../domain/interactive/commandLine.js";
 import type { ReviewStopCommand } from "../../schemas/reviewStop.js";
 
@@ -45,19 +51,17 @@ function firstReadingLines(report: DeclaredStopReport): string[] {
   ];
 }
 
-/** The lines `phax run` and `phax resume` print when a run stops at a declared phase. */
-export function renderDeclaredStop(report: DeclaredStopReport): string[] {
-  const { reviewStop } = report;
-  const { commands } = reviewStop;
+// The session command a stop offers, the way in through phax, the close and
+// the stop document: the tail both causes print.
+function sessionAndCloseLines(
+  report: StopReport,
+  continueHeading: string,
+  enterPhaseNote: string,
+): string[] {
+  const { commands } = report.reviewStop;
   const sessionCommand = commands.continue ?? commands.freshStart;
   const lines: string[] = [
-    `◐ ${reviewStop.phase.id}  ${reviewStop.phase.title} — awaiting review (declared: interactive phase)`,
-    "",
-    ...firstReadingLines(report),
-    "",
-    `  Worktree:  ${reviewStop.worktree}`,
-    `  Seed:      ${reviewStop.seed}`,
-    commands.continue !== null ? "  Continue the session phax started:" : "  Start a session:",
+    commands.continue !== null ? `  ${continueHeading}` : "  Start a session:",
     `    ${commandLine(sessionCommand)}`,
   ];
   if (isCodex(sessionCommand)) lines.push(`    ${TRUST_NOTE}`);
@@ -67,12 +71,54 @@ export function renderDeclaredStop(report: DeclaredStopReport): string[] {
     );
   }
   lines.push(
-    `    or: ${phaxCommand(commands.enterPhase)}`,
+    `    or: ${phaxCommand(commands.enterPhase)}${enterPhaseNote}`,
     "  Or work by hand or with any agent. Then, from the main checkout:",
     `    ${phaxCommand(commands.close)}`,
     `  Stop: ${report.reviewStopPath}`,
   );
   return lines;
+}
+
+/** The lines `phax run` and `phax resume` print when a run stops at a declared phase. */
+function renderDeclaredStop(report: DeclaredStopReport): string[] {
+  const { reviewStop } = report;
+  return [
+    `◐ ${reviewStop.phase.id}  ${reviewStop.phase.title} — awaiting review (declared: interactive phase)`,
+    "",
+    ...firstReadingLines(report),
+    "",
+    `  Worktree:  ${reviewStop.worktree}`,
+    `  Seed:      ${reviewStop.seed}`,
+    ...sessionAndCloseLines(report, "Continue the session phax started:", ""),
+  ];
+}
+
+/** The lines `phax run` and `phax resume` print when a run stops at a held phase. */
+function renderHeldStop(report: HeldStopReport): string[] {
+  const { reviewStop } = report;
+  return [
+    `◐ ${reviewStop.phase.id}  ${reviewStop.phase.title} — awaiting review (held: --hold)`,
+    "",
+    `  Phase commit: ${report.phaseCommit.slice(0, 7)} ${report.phaseCommitSubject}`,
+    `  Handoff:   ${report.handoffPath}`,
+    `  Worktree:  ${reviewStop.worktree}`,
+    `  Seed:      ${reviewStop.seed}`,
+    ...sessionAndCloseLines(
+      report,
+      `Continue the session that built ${reviewStop.phase.id}:`,
+      "   (add --new-session for a fresh read-only look)",
+    ),
+  ];
+}
+
+/** The lines `phax run` and `phax resume` print when a run stops, by its cause. */
+export function renderStop(report: StopReport): string[] {
+  switch (report.cause) {
+    case "declared":
+      return renderDeclaredStop(report);
+    case "held":
+      return renderHeldStop(report);
+  }
 }
 
 function handoffLine(source: HandoffSource): string {

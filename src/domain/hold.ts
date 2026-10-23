@@ -148,3 +148,8 @@ export function resolveHold(request: HoldRequest, phases: readonly HoldPhase[]):
   if (findings.length > 0 || held === null) return { hold: null, findings };
   return { hold: { selection: request.kind, phases: held }, findings: [] };
 }
+
+/** Whether the run's recorded hold selects `phaseId`. */
+export function holdsPhase(hold: RunHold, phaseId: string): boolean {
+  return hold.selection !== "none" && hold.phases.includes(phaseId);
+}

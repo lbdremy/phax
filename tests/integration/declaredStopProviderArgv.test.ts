@@ -392,6 +392,7 @@ describe("exit code 13", () => {
       run: "invoice-export",
       phase: "phase-03",
       report: {
+        cause: "declared",
         reviewStop: reviewStop(),
         reviewStopPath: "/example/runs/invoice-export/review-stop.json",
         firstReading: null,

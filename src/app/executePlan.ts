@@ -25,6 +25,8 @@ import {
   GateFailedError,
   GateStepRefusedError,
   HandoffPausedError,
+  HeldCloseUnavailableError,
+  HoldPointPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
   type AssignmentPreflightError,
@@ -109,21 +111,28 @@ import { stampBriefRequest } from "./briefProvider.js";
 import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./pushedBrief.js";
 import { closePulledBriefs } from "./pullBrief.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
-import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
+import {
+  generatePhaseHandoff,
+  HandoffValidationError,
+  validateHandoffSections,
+} from "./handoffGeneration.js";
 import {
   readPreviousHandoff,
   readPreviousReconciliation,
   readReviewCorrections,
 } from "./handoffInjection.js";
-import { readExecutedHandoffs } from "./interactiveFiles.js";
-import { stopAtDeclaredPhase } from "./interactiveStop.js";
+import { readExecutedHandoffs, readPhasePosture } from "./interactiveFiles.js";
+import { stopAtDeclaredPhase, stopAtHeldPhase } from "./interactiveStop.js";
+import { holdsPhase } from "../domain/hold.js";
+import type { RunHold } from "../schemas/status.js";
 import { closeDeclaredStop, type CloseReport } from "./closeStop.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
-import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
+import { readPhaseFileReconciliationFile, readRunStatusFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import {
   readPhaseBase,
   readPhaseCommit,
+  readPhaseStatus,
   recordPhaseWorktreeAndBranch,
 } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
@@ -184,10 +193,27 @@ function isArtifactCompletionPausedError(e: unknown): e is ArtifactCompletionPau
   return e instanceof ArtifactCompletionPausedError;
 }
 
+function isHoldPointPausedError(e: unknown): e is HoldPointPausedError {
+  return e instanceof HoldPointPausedError;
+}
+
 // A stop reached or a close refused leaves the run awaiting review: the
 // reducer already moved it there, so nothing more is dispatched.
 function isReviewStopError(e: unknown): e is AwaitingReviewStopError | StopCloseRefusedError {
   return e instanceof AwaitingReviewStopError || e instanceof StopCloseRefusedError;
+}
+
+// Whether the phase's handoff was validated and copied to its run folder:
+// the copy exists and has every required section.
+function copiedHandoffIsValid(
+  phaseFolderPath: string,
+): Effect.Effect<boolean, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(phaseFolderPath, "phase-handoff.md");
+    if (!(yield* fs.exists(path))) return false;
+    return validateHandoffSections(yield* fs.readText(path)).length === 0;
+  });
 }
 
 /** A declared stop this invocation closed, for the CLI to print. */
@@ -294,6 +320,8 @@ export type ExecutePlanError =
   | RecordsSyncRequiredError
   | AwaitingReviewStopError
   | StopCloseRefusedError
+  | HoldPointPausedError
+  | HeldCloseUnavailableError
   | InvalidTransitionError;
 
 export function executePlan(
@@ -427,6 +455,7 @@ export function executePlan(
       isCommitPausedError(e) ||
       isCleanupPausedError(e) ||
       isArtifactCompletionPausedError(e) ||
+      isHoldPointPausedError(e) ||
       isReviewStopError(e)
     );
   }
@@ -719,9 +748,29 @@ export function executePlan(
     });
   }
 
+  // The hold recorded when the run was named, from run-status.json: every
+  // invocation holds exactly these phases, and no caller passes another.
+  function readRecordedHold(): Effect.Effect<RunHold, FsError, FileSystem> {
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = join(runPath, "run-status.json");
+      const raw = yield* fs.readText(path);
+      const parsed = yield* Effect.try({
+        try: () => JSON.parse(raw) as unknown,
+        catch: () => new FsError({ message: `${path}: not valid JSON` }),
+      });
+      const decoded = readRunStatusFile(path, parsed);
+      if (Either.isLeft(decoded)) {
+        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      }
+      return decoded.right.hold;
+    });
+  }
+
   const program = Effect.gen(function* () {
     const telemetry = yield* SystemTelemetry;
     const git = yield* Git;
+    const hold = yield* readRecordedHold();
 
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
     yield* telemetry.recordEvent(
@@ -800,6 +849,10 @@ export function executePlan(
     let resumeFromCompletion = false;
     // An interactive phase awaiting review: the resume closes its stop.
     let resumeFromStop = false;
+    // A held phase whose stop is still owed: committed, or handoff_failed with
+    // its handoff already validated and copied. It re-enters the hold point
+    // with no agent turn, gate, commit or handoff turn.
+    let resumeAtHoldPoint = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     if (resumePhase !== undefined) {
@@ -808,9 +861,24 @@ export function executePlan(
         const phaseStatus = infoResult.right.phaseStatuses.find(
           (p) => p.phaseId === resumePhase.id,
         );
+        const owesHeldStop =
+          phaseStatus !== undefined &&
+          phaseStatus.stop === null &&
+          startIndex < plan.phases.length - 1 &&
+          holdsPhase(hold, resumePhase.id);
         if (phaseStatus?.state === "gates_exhausted") {
           resumeFromGate = true;
           resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (
+          phaseStatus !== undefined &&
+          owesHeldStop &&
+          (phaseStatus.state === "committed" ||
+            (phaseStatus.state === "handoff_failed" &&
+              resumePhaseFolderPath !== undefined &&
+              (yield* copiedHandoffIsValid(resumePhaseFolderPath))))
+        ) {
+          resumeAtHoldPoint = true;
           resumeWorktreePath = phaseStatus.worktreePath;
         } else if (phaseStatus?.state === "handoff_failed") {
           resumeFromHandoff = true;
@@ -834,6 +902,17 @@ export function executePlan(
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
         } else if (phaseStatus?.state === "awaiting_review") {
+          // INTERIM(held-close): removed when the close of a held stop lands.
+          // Refused before RunResumeRequested, so the run stays awaiting review.
+          if (resumePhase.mode === "headless") {
+            return yield* Effect.fail(
+              new HeldCloseUnavailableError({
+                message: `Run "${shortName}" awaits review at ${resumePhase.id} (held): this phax cannot close a held stop yet`,
+                run: shortName as string,
+                phase: resumePhase.id,
+              }),
+            );
+          }
           // Read before RunResumeRequested parks review-stop.json. A crashed
           // close left the run `running`, its phase still awaiting_review, so
           // it re-enters here too.
@@ -843,8 +922,9 @@ export function executePlan(
       }
     }
 
-    // An interactive phase's re-entry: only its recorded worktree is needed,
-    // since it has no claudeSessionId and no agent-binding.json. Fails, with
+    // A stop's or a hold point's re-entry: only its recorded worktree is
+    // needed; an interactive phase has no claudeSessionId and no
+    // agent-binding.json, and a hold point runs no session. Fails, with
     // nothing changed, when the worktree is gone or a name does not decode.
     function interactiveReentry(
       phaseId: string,
@@ -887,10 +967,109 @@ export function executePlan(
       });
     }
 
+    // The hold point of a non-final headless phase of the run's hold: after
+    // its commit, its validated handoff and its pulled briefs, before its
+    // record and its cleanup. It stops the run there with no agent turn, and
+    // returns only when the phase's stop is already recorded. Any failure
+    // before ReviewStopReached dispatches HoldPointFailed (the run interrupted,
+    // the phase committed) and pauses as HoldPointPausedError: no record, no
+    // RunFailed.
+    function holdPoint(args: {
+      readonly phase: PhaxPlanPhase;
+      readonly phaseIndex: number;
+      readonly phaseFolderPath: string;
+      readonly worktreePath: WorktreePath;
+    }) {
+      const { phase, phaseFolderPath, worktreePath } = args;
+      let phaseCommit: string | undefined;
+      const reach = Effect.gen(function* () {
+        const status = yield* readPhaseStatus(phaseFolderPath);
+        if (status.stop !== null) return null;
+        phaseCommit = status.commitHash;
+        if (phaseCommit === undefined) {
+          return yield* Effect.fail(
+            new FsError({ message: `${phase.id} is held but noted no commit in its status` }),
+          );
+        }
+        const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
+        if (Either.isLeft(binding)) {
+          return yield* Effect.fail(new FsError({ message: binding.left }));
+        }
+        const { provider, model, effort, sessionId } = binding.right;
+        const posture = yield* readPhasePosture(phaseFolderPath);
+        return yield* stopAtHeldPhase({
+          runId,
+          shortName: shortName as string,
+          runPath,
+          mainCheckout: config.repoRoot,
+          phases: plan.phases,
+          phase,
+          phaseIndex: args.phaseIndex,
+          phaseFolder: phaseFolderPath,
+          worktree: worktreePath as string,
+          provider,
+          model,
+          effort,
+          providerEntry: providerConfig.providers[provider],
+          policy: posture.policy,
+          agentCommands: posture.agentCommands,
+          gateCommands: selectGateSteps(gateSteps, false).map((s) => s.command),
+          planSections: planSections.sections,
+          base: status.base,
+          phaseCommit,
+          builder: sessionId === null ? null : { sessionId, startedAt: status.createdAt },
+        });
+      });
+      return reach.pipe(
+        Effect.catchAll((e) =>
+          Effect.gen(function* () {
+            const reason = e instanceof Error ? e.message : String(e);
+            yield* dispatch(
+              {
+                ...eventBase(phase.id),
+                type: "HoldPointFailed",
+                phaseId: phase.id as PhaseId,
+                // Not persisted: the status keeps its own commitHash. Unknown
+                // only when the status itself could not be read.
+                phaseCommit: phaseCommit ?? "",
+                worktreePath,
+                reason,
+              },
+              dispatchCtx(phaseFolderPath, phase.id),
+            ).pipe(Effect.catchAll(() => Effect.void));
+            return yield* Effect.fail(
+              new HoldPointPausedError({
+                message: `Hold point failed for phase "${phase.id}": ${reason}`,
+                phaseId: phase.id,
+                cause: e,
+              }),
+            );
+          }),
+        ),
+        Effect.flatMap((report) =>
+          report === null
+            ? Effect.void
+            : Effect.fail(
+                new AwaitingReviewStopError({
+                  message: `Run "${shortName}" awaits review at ${phase.id} (held: --hold)`,
+                  run: shortName as string,
+                  phase: phase.id,
+                  report,
+                }),
+              ),
+        ),
+      );
+    }
+
     // A stop's worktree is checked before RunResumeRequested, so a stop whose
     // worktree is gone is refused with the run still awaiting review.
     const stopReentry =
       resumeFromStop && resumePhase !== undefined
+        ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
+        : undefined;
+    // So is a hold point's: its worktree and branch must still be there.
+    const holdPointReentry =
+      resumeAtHoldPoint && resumePhase !== undefined
         ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
         : undefined;
 
@@ -1083,6 +1262,29 @@ export function executePlan(
             report,
           }),
         );
+      }
+
+      if (i === startIndex && resumeAtHoldPoint) {
+        // Its worktree and branch were checked before RunResumeRequested. No
+        // agent turn, gate, commit or handoff turn: straight to the hold point.
+        if (holdPointReentry === undefined) {
+          return yield* Effect.dieMessage(`No checked re-entry for the hold point of ${phase.id}`);
+        }
+        const heldFolder = join(runPath, phase.id);
+        currentPhaseId = phase.id;
+        currentPhaseFolderPath = heldFolder;
+        currentWorktreePath = holdPointReentry.worktree as string;
+        currentSessionId = undefined;
+        currentProvider = undefined;
+        currentModel = undefined;
+        currentEffort = undefined;
+        yield* holdPoint({
+          phase,
+          phaseIndex: i,
+          phaseFolderPath: heldFolder,
+          worktreePath: holdPointReentry.worktree,
+        });
+        return yield* Effect.dieMessage(`The hold point of ${phase.id} owed no stop on re-entry`);
       }
 
       let phaseBranch: BranchName;
@@ -1675,6 +1877,12 @@ export function executePlan(
         });
       }
 
+      // A phase of the run's hold stops here, once committed with its handoff
+      // validated, before its record and its cleanup.
+      if (!isFinal && holdsPhase(hold, phase.id)) {
+        yield* holdPoint({ phase, phaseIndex: i, phaseFolderPath, worktreePath });
+      }
+
       // Terminal committed outcome: assemble and write this phase's record onto
       // phax/records/v1 before any run-completion bookkeeping, so no record is
       // ever written for phax's own archival commit (spec §5.1). The source sha
@@ -1977,10 +2185,21 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // A hold point that failed pauses the run instead of failing it:
+    // HoldPointFailed was dispatched at the hold point (interrupted, the phase
+    // committed, resume-instructions.md written), so we just re-raise here.
+    Effect.catchIf(isHoldPointPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     // The interactive preflight refusal leaves an existing run's state and last
-    // error as they were (spec §5.9): the plan is fixed, then resumed again.
+    // error as they were (spec §5.9): the plan is fixed, then resumed again. A
+    // held stop this phax cannot close yet stays awaiting review the same way.
     Effect.tapError((e) =>
-      isResumablePauseError(e) || e instanceof InteractivePreflightError
+      isResumablePauseError(e) ||
+      e instanceof InteractivePreflightError ||
+      e instanceof HeldCloseUnavailableError
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {
