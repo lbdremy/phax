@@ -187,7 +187,28 @@ const samples = {
     phaseId,
     lastClose: { result: "interrupted", at: base.occurredAt, exitCode: 130 },
   },
-  StopCommitted: { ...base, type: "StopCommitted", phaseId, hash: "abc123", outcome: "unchanged" },
+  StopCommitted: {
+    ...base,
+    type: "StopCommitted",
+    phaseId,
+    hash: "abc123",
+    closure: { outcome: "unchanged" },
+  },
+  HeldStopClosed: {
+    ...base,
+    type: "HeldStopClosed",
+    phaseId,
+    phaseCommit: "abc123",
+    closure: { outcome: "corrected", reviewCommit: "def456", oracleStep: "none" },
+  },
+  HoldPointFailed: {
+    ...base,
+    type: "HoldPointFailed",
+    phaseId,
+    phaseCommit: "abc123",
+    worktreePath,
+    reason: "the seed could not be written",
+  },
 } satisfies { readonly [K in PhaxEventType]: PhaxEvent & { type: K } };
 
 function assertNever(x: never): never {
@@ -249,7 +270,11 @@ function visit(event: PhaxEvent): string {
     case "StopCloseRefused":
       return `${event.type}:${event.lastClose.result}`;
     case "StopCommitted":
-      return `${event.type}:${event.hash}:${event.outcome}`;
+      return `${event.type}:${event.hash}:${event.closure.outcome}`;
+    case "HeldStopClosed":
+      return `${event.type}:${event.phaseCommit}:${event.closure.outcome}`;
+    case "HoldPointFailed":
+      return `${event.type}:${event.phaseId}:${event.reason}`;
     default:
       return assertNever(event);
   }

@@ -1,6 +1,6 @@
 import type { BranchName } from "../../src/domain/branded.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
-import type { ReviewStop } from "../../src/schemas/reviewStop.js";
+import type { DeclaredReviewStop, HeldReviewStop } from "../../src/schemas/reviewStop.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 /**
@@ -33,7 +33,7 @@ export function phaseStatusFile(fields: PhaseStatusFields) {
  * The review stop a run writes at a declared stop on phase-03 of the made-up
  * invoice-export run, before any close.
  */
-export function reviewStop(overrides: Partial<ReviewStop> = {}): ReviewStop {
+export function reviewStop(overrides: Partial<DeclaredReviewStop> = {}): DeclaredReviewStop {
   const worktree = "/example/worktrees/invoice-export/phase-03";
   return {
     run: "example.invoice-export",
@@ -71,6 +71,57 @@ export function reviewStop(overrides: Partial<ReviewStop> = {}): ReviewStop {
       reset: {
         cwd: "/example/repo",
         argv: ["phax", "reset-phase", "invoice-export", "phase-03"],
+        env: {},
+      },
+    },
+    lastClose: null,
+    closeBase: null,
+    ...overrides,
+  };
+}
+
+/**
+ * The review stop a run writes at a held stop on phase-02 of the made-up
+ * invoice-export run, before any close: the builder session is current.
+ */
+export function heldReviewStop(overrides: Partial<HeldReviewStop> = {}): HeldReviewStop {
+  const worktree = "/example/worktrees/invoice-export/phase-02";
+  return {
+    run: "example.invoice-export",
+    state: "awaiting_review",
+    cause: "held",
+    phase: {
+      id: "phase-02",
+      title: "Write the credit-note rows",
+      mode: "headless",
+      position: 2,
+      of: 4,
+    },
+    phaseCommit: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    worktree,
+    seed: `${worktree}/.phax-context/review-seed.md`,
+    session: {
+      provider: "claude-code",
+      sessionId: "4f6c1a52-0000-4000-8000-0000000000b1",
+      origin: "builder",
+      interactiveResume: "verified",
+    },
+    commands: {
+      continue: {
+        cwd: worktree,
+        argv: ["claude", "--resume", "4f6c1a52-0000-4000-8000-0000000000b1"],
+        env: {},
+      },
+      freshStart: { cwd: worktree, argv: ["claude"], env: {} },
+      enterPhase: {
+        cwd: "/example/repo",
+        argv: ["phax", "enter-phase", "invoice-export", "phase-02"],
+        env: {},
+      },
+      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export"], env: {} },
+      reset: {
+        cwd: "/example/repo",
+        argv: ["phax", "reset-phase", "invoice-export", "phase-02"],
         env: {},
       },
     },

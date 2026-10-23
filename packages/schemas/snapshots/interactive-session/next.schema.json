@@ -92,9 +92,10 @@
               "type": "string",
               "enum": [
                 "first-turn",
-                "new-session"
+                "new-session",
+                "builder"
               ],
-              "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
+              "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
             }
           },
           "additionalProperties": false
@@ -144,9 +145,10 @@
             "type": "string",
             "enum": [
               "first-turn",
-              "new-session"
+              "new-session",
+              "builder"
             ],
-            "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
+            "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
           }
         },
         "additionalProperties": false
@@ -178,7 +180,7 @@
                   "first-turn",
                   "new-session"
                 ],
-                "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
               },
               "startedAt": {
                 "type": "string",
@@ -221,7 +223,7 @@
                   "first-turn",
                   "new-session"
                 ],
-                "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
               },
               "startedAt": {
                 "type": "string",
@@ -275,7 +277,7 @@
                   "first-turn",
                   "new-session"
                 ],
-                "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
               },
               "startedAt": {
                 "type": "string",
@@ -321,66 +323,131 @@
     "turnInProgress": {
       "anyOf": [
         {
-          "type": "object",
-          "required": [
-            "kind",
-            "turn",
-            "origin",
-            "beforeTree",
-            "personHandoffBefore",
-            "startedAt"
-          ],
-          "properties": {
-            "kind": {
-              "type": "string",
-              "enum": [
-                "first-turn",
-                "closing-turn"
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "origin",
+                "turn",
+                "beforeTree",
+                "personHandoffBefore",
+                "startedAt"
               ],
-              "description": "Which of phax's turns is in progress: a read-only first turn, or a stop's closing turn."
-            },
-            "turn": {
-              "$ref": "#/$defs/Int",
-              "description": "a number between 1 and 99",
-              "title": "between(1, 99)",
-              "minimum": 1,
-              "maximum": 99
-            },
-            "origin": {
-              "type": "string",
-              "enum": [
-                "first-turn",
-                "new-session"
-              ],
-              "description": "How the session began: the first turn, or `phax enter-phase --new-session`."
-            },
-            "beforeTree": {
-              "type": "string",
-              "description": "The worktree's tree id before the turn.",
-              "title": "nonEmptyString",
-              "minLength": 1
-            },
-            "personHandoffBefore": {
-              "anyOf": [
-                {
+              "properties": {
+                "kind": {
                   "type": "string",
-                  "description": "A sha256 hex digest.",
-                  "pattern": "^[0-9a-f]{64}$"
+                  "enum": [
+                    "first-turn"
+                  ],
+                  "description": "A read-only first turn is in progress."
                 },
-                {
-                  "type": "null"
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "first-turn",
+                    "new-session"
+                  ],
+                  "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
+                },
+                "turn": {
+                  "$ref": "#/$defs/Int",
+                  "description": "a number between 1 and 99",
+                  "title": "between(1, 99)",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "beforeTree": {
+                  "type": "string",
+                  "description": "The worktree's tree id before the turn.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                },
+                "personHandoffBefore": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "A sha256 hex digest.",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The sha256 of the person's handoff file before the turn, or null if absent."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "An ISO-8601 instant.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
                 }
-              ],
-              "description": "The sha256 of the person's handoff file before the turn, or null if absent."
+              },
+              "additionalProperties": false
             },
-            "startedAt": {
-              "type": "string",
-              "description": "An ISO-8601 instant.",
-              "title": "nonEmptyString",
-              "minLength": 1
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "origin",
+                "turn",
+                "beforeTree",
+                "personHandoffBefore",
+                "startedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "closing-turn"
+                  ],
+                  "description": "A stop's closing turn is in progress."
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "first-turn",
+                    "new-session",
+                    "builder"
+                  ],
+                  "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
+                },
+                "turn": {
+                  "$ref": "#/$defs/Int",
+                  "description": "a number between 1 and 99",
+                  "title": "between(1, 99)",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "beforeTree": {
+                  "type": "string",
+                  "description": "The worktree's tree id before the turn.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                },
+                "personHandoffBefore": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "A sha256 hex digest.",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The sha256 of the person's handoff file before the turn, or null if absent."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "An ISO-8601 instant.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
             }
-          },
-          "additionalProperties": false
+          ]
         },
         {
           "type": "null"

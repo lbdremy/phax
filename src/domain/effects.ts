@@ -19,6 +19,7 @@ export interface ResumeContext {
     | "Commit failed"
     | "Cleanup failed"
     | "Artifact completion failed"
+    | "Hold point failed"
     | "Awaiting review";
   readonly kind:
     | "rate_limit"
@@ -29,6 +30,7 @@ export interface ResumeContext {
     | "commit_failed"
     | "cleanup_failed"
     | "artifact_completion_failed"
+    | "hold_point_failed"
     | "awaiting_review";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;

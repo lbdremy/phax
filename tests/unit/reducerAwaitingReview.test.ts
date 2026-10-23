@@ -175,7 +175,7 @@ describe("closing a stop", () => {
       type: "StopCommitted",
       phaseId,
       hash: "0123456789abcdef0123456789abcdef01234567",
-      outcome: "corrected",
+      closure: { outcome: "corrected", oracleStep: "none" },
     });
     expect(result.nextState).toEqual({
       run: "running",
@@ -188,7 +188,12 @@ describe("closing a stop", () => {
           phase: {
             state: "committed",
             commitHash: "0123456789abcdef0123456789abcdef01234567",
-            stop: { cause: "declared", status: "closed", outcome: "corrected" },
+            stop: {
+              cause: "declared",
+              status: "closed",
+              outcome: "corrected",
+              oracleStep: "none",
+            },
           },
         },
       },
@@ -207,7 +212,7 @@ describe("closing a stop", () => {
         type: "StopCommitted",
         phaseId,
         hash: "abc",
-        outcome: "unchanged",
+        closure: { outcome: "unchanged" },
       }).kind,
     ).toBe("Stale");
   });
@@ -223,7 +228,7 @@ describe("closing a stop", () => {
         type: "StopCommitted",
         phaseId,
         hash: "abc",
-        outcome: "unchanged",
+        closure: { outcome: "unchanged" },
       }).kind,
     ).toBe("Unexpected");
   });

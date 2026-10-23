@@ -86,7 +86,9 @@ beforeEach(() => {
         createdAt: "2026-10-22T09:00:00.000Z",
         updatedAt: "2026-10-22T09:00:00.000Z",
         mode: phase.mode,
-        stop: interactive ? { cause: "declared", status: "closed", outcome: "corrected" } : null,
+        stop: interactive
+          ? { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" }
+          : null,
       }),
     );
     write(

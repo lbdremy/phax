@@ -409,7 +409,7 @@ describe("dispatch — review-stop.json lifecycle", () => {
       ...baseEventFields,
       phaseId: "phase-01" as PhaseId,
       hash: "deadbeef12345678",
-      outcome: "unchanged",
+      closure: { outcome: "unchanged" },
     });
     expect(fakeFs.impl.getFile(live)).toBeUndefined();
     expect(fakeFs.impl.getFile(parked)).toBeUndefined();

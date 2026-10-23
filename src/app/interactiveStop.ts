@@ -19,7 +19,10 @@ import {
   type SetupCommandFailedError,
 } from "../domain/errors.js";
 import { renderFirstReading } from "../domain/interactive/firstReading.js";
-import { buildDeclaredReviewStop } from "../domain/interactive/reviewStop.js";
+import {
+  buildDeclaredReviewStop,
+  declaredSessionOrigin,
+} from "../domain/interactive/reviewStop.js";
 import { buildDeclaredSeed } from "../domain/interactive/seed.js";
 import {
   correctivePrompt,
@@ -74,6 +77,7 @@ import { tracedStep, tracedTurnCall } from "./telemetry/stopTelemetry.js";
 type Origin = "first-turn" | "new-session";
 type FirstTurnRecord = InteractiveSession["firstTurns"][number];
 type TurnInProgress = NonNullable<InteractiveSession["turnInProgress"]>;
+type FirstTurnInProgress = Extract<TurnInProgress, { readonly kind: "first-turn" }>;
 type FailureReason = Extract<FirstTurnRecord, { outcome: "failed" }>["reason"];
 
 export interface FirstTurnInput {
@@ -259,7 +263,7 @@ function settleTurn(
   input: FirstTurnInput,
   seeds: SeedPaths,
   base: InteractiveSession,
-  inProgress: TurnInProgress,
+  inProgress: FirstTurnInProgress,
   attempt: TurnAttempt,
 ): Effect.Effect<Settled, FsError | GitError, FileSystem | Git> {
   return Effect.gen(function* () {
@@ -483,7 +487,7 @@ export function runFirstTurn(
     const turn = yield* nextTurnNumber(input.phaseFolder, leftOver.settledFirstTurn);
     const personHandoff = yield* fingerprintPersonHandoff(input.worktree);
     yield* keepPersonHandoffCopy(input.phaseFolder, turnLabel(turn), personHandoff);
-    const inProgress: TurnInProgress = {
+    const inProgress: FirstTurnInProgress = {
       kind: "first-turn",
       turn,
       origin: input.origin,
@@ -675,7 +679,11 @@ export function stopAtDeclaredPhase(
       session:
         current === null
           ? null
-          : { provider: current.provider, sessionId: current.sessionId, origin: current.origin },
+          : {
+              provider: current.provider,
+              sessionId: current.sessionId,
+              origin: declaredSessionOrigin(current.origin),
+            },
       interactiveResume: adapter.interactiveResume,
       continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
       freshStart: asReviewStopCommand(freshStart),

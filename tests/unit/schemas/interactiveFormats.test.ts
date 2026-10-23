@@ -293,8 +293,22 @@ describe("interactive-session", () => {
     ["an unknown key", stampedSession({ ...interactiveSession, extra: true })],
     ["a provider outside the enum", stampedSession({ ...interactiveSession, provider: "gpt" })],
     [
-      "a session origin outside first-turn and new-session",
-      stampedSession({ ...interactiveSession, current: { ...session, origin: "builder" } }),
+      "a session origin outside first-turn, new-session and builder",
+      stampedSession({ ...interactiveSession, current: { ...session, origin: "oracle" } }),
+    ],
+    [
+      "a first turn in progress whose origin is the builder",
+      stampedSession({
+        ...interactiveSession,
+        turnInProgress: {
+          kind: "first-turn",
+          turn: 1,
+          origin: "builder",
+          beforeTree: HEAD,
+          personHandoffBefore: null,
+          startedAt: AT,
+        },
+      }),
     ],
     [
       "a session with an unknown key",
@@ -306,6 +320,28 @@ describe("interactive-session", () => {
     ],
   ])("refuses %s", (_name, document) => {
     expect(accepted(decodeInteractiveSessionFile(document))).toBe(false);
+  });
+
+  it("decodes the builder as the origin of the current session and of a closing turn", () => {
+    const closingTurn = {
+      kind: "closing-turn",
+      turn: 1,
+      origin: "builder",
+      beforeTree: HEAD,
+      personHandoffBefore: null,
+      startedAt: AT,
+    };
+    expect(
+      accepted(
+        decodeInteractiveSessionFile(
+          stampedSession({
+            ...interactiveSession,
+            current: { ...session, origin: "builder" },
+            turnInProgress: closingTurn,
+          }),
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("is read through its bridge reader", () => {
@@ -467,6 +503,63 @@ describe("review-stop", () => {
     expect(accepted(decodeReviewStopFile(stampedStop({ ...reviewStop, phaseCommit: HEAD })))).toBe(
       false,
     );
+  });
+
+  describe("held variant", () => {
+    const { firstReading: _firstReading, ...declaredKeys } = reviewStop;
+    const held = {
+      ...declaredKeys,
+      cause: "held",
+      phase: { ...reviewStop.phase, id: "phase-02", mode: "headless", position: 2 },
+      phaseCommit: HEAD,
+      session: { ...reviewStop.session, origin: "builder" },
+    };
+
+    it("decodes a valid document, with the builder or a new session, or none", () => {
+      expect(accepted(decodeReviewStopFile(stampedStop(held)))).toBe(true);
+      expect(
+        accepted(
+          decodeReviewStopFile(
+            stampedStop({ ...held, session: { ...held.session, origin: "new-session" } }),
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        accepted(
+          decodeReviewStopFile(
+            stampedStop({ ...held, session: null, commands: { ...held.commands, continue: null } }),
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["a firstReading: no first turn ran", { ...held, firstReading: null }],
+      ["no phaseCommit", { ...held, phaseCommit: undefined }],
+      ["an abbreviated phaseCommit", { ...held, phaseCommit: HEAD.slice(0, 7) }],
+      ["an interactive phase", { ...held, phase: { ...held.phase, mode: "interactive" } }],
+      ["the first-turn origin", { ...held, session: { ...held.session, origin: "first-turn" } }],
+      ["an unknown key", { ...held, extra: true }],
+    ])("refuses %s", (_name, document) => {
+      expect(accepted(decodeReviewStopFile(stampedStop(document)))).toBe(false);
+    });
+
+    it("refuses the builder origin on the declared variant", () => {
+      expect(
+        accepted(
+          decodeReviewStopFile(
+            stampedStop({ ...reviewStop, session: { ...reviewStop.session, origin: "builder" } }),
+          ),
+        ),
+      ).toBe(false);
+    });
+
+    it("is read through its bridge reader as the held variant", () => {
+      const read = Either.getOrThrow(readReviewStopFile("review-stop.json", stampedStop(held)));
+      expect(read.cause).toBe("held");
+      expect(read).not.toHaveProperty("$schema");
+      if (read.cause === "held") expect(read.phaseCommit).toBe(HEAD);
+    });
   });
 
   it.each([

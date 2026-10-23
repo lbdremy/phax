@@ -140,6 +140,44 @@
               "required": [
                 "cause",
                 "status",
+                "outcome",
+                "oracleStep"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "declared"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "closed"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "corrected"
+                  ]
+                },
+                "oracleStep": {
+                  "type": "string",
+                  "enum": [
+                    "authored",
+                    "none"
+                  ],
+                  "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "status",
                 "outcome"
               ],
               "properties": {
@@ -158,7 +196,101 @@
                 "outcome": {
                   "type": "string",
                   "enum": [
-                    "corrected",
+                    "unchanged"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "status"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "held"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "waiting"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "status",
+                "outcome",
+                "reviewCommit",
+                "oracleStep"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "held"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "closed"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "corrected"
+                  ]
+                },
+                "reviewCommit": {
+                  "type": "string",
+                  "description": "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
+                  "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+                },
+                "oracleStep": {
+                  "type": "string",
+                  "enum": [
+                    "authored",
+                    "none"
+                  ],
+                  "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "status",
+                "outcome"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "held"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "closed"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
                     "unchanged"
                   ]
                 }

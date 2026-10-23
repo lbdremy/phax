@@ -2,7 +2,7 @@ import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
-import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
+import type { DeclaredReviewStop, LastClose } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
 
@@ -169,7 +169,7 @@ export type FirstTurnProblem = Exclude<
 /** What a run that stopped at a declared interactive phase reports. */
 export interface DeclaredStopReport {
   /** The review-stop value the reducer's effect wrote, and where. */
-  readonly reviewStop: ReviewStop;
+  readonly reviewStop: DeclaredReviewStop;
   readonly reviewStopPath: string;
   /** The first reading's markdown, or null when no first turn answered. */
   readonly firstReading: string | null;

@@ -113,10 +113,17 @@ export const FullCommitShaSchema = Schema.String.pipe(
   }),
 );
 
+const OracleStepSchema = Schema.Literal("authored", "none").annotations({
+  description:
+    "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
+});
+
 /**
  * A phase's stop: null for a phase that never stopped; `waiting` while it
- * waits for a person or its close runs; `closed` once the close committed,
- * with whether the person changed anything.
+ * waits for a person or its close runs; `closed` once the close finished,
+ * with whether the person changed anything. One struct per cause and
+ * outcome: a held close that corrected something names its review commit,
+ * and a declared one never does.
  */
 export const PhaseStopSchema = Schema.NullOr(
   Schema.Union(
@@ -127,9 +134,31 @@ export const PhaseStopSchema = Schema.NullOr(
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
-      outcome: Schema.Literal("corrected", "unchanged"),
+      outcome: Schema.Literal("corrected"),
+      oracleStep: OracleStepSchema,
     }),
-  ),
+    Schema.Struct({
+      cause: Schema.Literal("declared"),
+      status: Schema.Literal("closed"),
+      outcome: Schema.Literal("unchanged"),
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("held"),
+      status: Schema.Literal("waiting"),
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("held"),
+      status: Schema.Literal("closed"),
+      outcome: Schema.Literal("corrected"),
+      reviewCommit: FullCommitShaSchema,
+      oracleStep: OracleStepSchema,
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("held"),
+      status: Schema.Literal("closed"),
+      outcome: Schema.Literal("unchanged"),
+    }),
+  ).annotations({ parseOptions: { onExcessProperty: "error" } }),
 );
 
 export type PhaseStop = Schema.Schema.Type<typeof PhaseStopSchema>;

@@ -200,7 +200,24 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     phaseId,
     hash: "abc123",
-    outcome: "corrected",
+    closure: { outcome: "corrected", oracleStep: "none" },
+  },
+  HeldStopClosed: {
+    ...base,
+    type: "HeldStopClosed",
+    phase: phaseId,
+    phaseId,
+    phaseCommit: "abc123",
+    closure: { outcome: "corrected", reviewCommit: "def456", oracleStep: "none" },
+  },
+  HoldPointFailed: {
+    ...base,
+    type: "HoldPointFailed",
+    phase: phaseId,
+    phaseId,
+    phaseCommit: "abc123",
+    worktreePath,
+    reason: "the seed could not be written",
   },
 };
 
@@ -229,6 +246,8 @@ const runningStateFor: Partial<Record<PhaxEventType, PhaxState>> = {
   // A close of the stop runs with the phase still awaiting_review.
   StopCloseRefused: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
   StopCommitted: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
+  HeldStopClosed: { run: "running", phase: { state: "awaiting_review", cause: "held" } },
+  HoldPointFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
 };
 
 const runStateNames = Object.keys(representativeState) as readonly PhaxStateName[];
