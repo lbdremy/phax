@@ -77,6 +77,12 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Approved, not yet planned
 
+- [ ] **`test-strategy`** — `docs/specs/2610231041-test-strategy.md`. Approved 2026-10-23, from
+      `docs/briefs/test-strategy.md`. A plan's test strategy becomes data: test lines on four closed
+      coordinates (size, technique, oracle, loop) plus an optional criterion id, parsed from any
+      plan.md and carried in `phax-plan.json`; graded lint against the oracle pairs and the source
+      spec's criteria; a new read-only `phax plans overview <plan> [--json]` that runs the
+      architecture provider. The `review-map` spec below depends on it.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`.
       Approved 2026-10-19. A headless verdicts mode for decide: a verdicts file is transcribed by a
       headless writer under the doctrine, checked deterministically and committed, the artifact
@@ -88,6 +94,18 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       opens as a draft while a review plan or a finding is pending, run completion happens when
       the PR becomes ready, and `--run` lets approve, status, lint and `run --append` reach the
       run's branch from the checkout.
+
+### Briefs written, spec not yet authored
+
+- [ ] **`headless-review` revision** — `docs/briefs/review-escape.md` (2026-10-23). Reopen the
+      approved `headless-review` spec before it is planned: a review finding gains `lens`, `escape`
+      (why the tests missed it) and `criterion`, the vocabulary of the `phax-review` skill; the
+      headless session follows that skill. Open: whether `criterion` is checked, what the review
+      plan does with a `wrong-oracle` or `omission` finding, where the escape shows. Do it before
+      `headless-review` gets a plan.
+- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23). phax computes, without a model,
+      where review attention belongs (criteria no test proves, skipped oracles, phases that needed
+      fixes, the run's review notes) and gives it to the review session. After `test-strategy`.
 
 ### Drafts
 
@@ -246,6 +264,10 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Spec candidates, deliberately not written yet
 
+- [ ] **Oracles provider: the oracle's own quality** (raised 2026-10-23, out of `test-strategy`'s
+      scope). The provider checks that an oracle phase's tests fail on their assertion, not on a
+      crash or an import error; that table and generator files are oracle files, frozen like the
+      tests; and that property tests run on a fixed seed. No brief yet.
 - [ ] **OpenSpec-inspired ideas — brainstorm before speccing.** Captured 2026-09-01 in
       `docs/ideas/openspec-inspired-ideas.md` from the OpenSpec comparison
       (`docs/comparisons/openspec-vs-phax.md`). Three pistes: living specs describing current
