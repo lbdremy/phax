@@ -169,7 +169,7 @@ export async function runResume(
   if (opts.skipOracle === true) {
     const skipRefusal =
       runStatus.state === "awaiting_review"
-        ? stopSkipOracleRefusal(shortName, decision.nextPhaseId)
+        ? stopSkipOracleRefusal(plan.phases, shortName, decision.nextPhaseId)
         : oracleSkipRefusal(plan.phases, decision.nextPhaseId);
     if (skipRefusal !== null) {
       out.error(skipRefusal);
