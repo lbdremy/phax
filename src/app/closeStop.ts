@@ -1,12 +1,18 @@
-// Closing a declared interactive stop: the gate first, then the person's
-// handoff file or a read-only closing turn given the corrections' content
-// diff, then a commit of exactly the tree the gate passed, reconciled as
-// review corrections. The close runs after `RunResumeRequested` made the run
-// `running`, with the phase still `awaiting_review` and review-stop.json
-// parked. It transitions only through `StopCloseRefused` and `StopCommitted`:
-// every failure before the commit's state returns the run to the stop, and
-// none restores or resets the person's corrections: only a closing turn's own
-// edits are moved aside and put back.
+// Closing a stop, declared or held, with one sequence: the gate first, then
+// the person's handoff file or a read-only closing turn given the
+// corrections' content diff, then a commit of exactly the tree the gate
+// passed, reconciled as review corrections. The close runs after
+// `RunResumeRequested` made the run `running`, with the phase still
+// `awaiting_review` and review-stop.json parked; the parked document's
+// `cause` decides the variant. A declared stop's commit is the phase's own,
+// with the phase's files. A held stop's is one review commit on top of the
+// unchanged phase commit, or none when nothing changed, and every file it
+// writes sits beside the phase's own (`review-gate/`, `correction-handoff.md`,
+// `review-diff.patch`, `correction-reconciliation.*`), which stay as they
+// are. It transitions only through `StopCloseRefused`, and `StopCommitted`
+// or `HeldStopClosed`: every failure before that returns the run to the
+// stop, and none restores or resets the person's corrections: only a closing
+// turn's own edits are moved aside and put back.
 import { Effect, Either, JSONSchema } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -23,6 +29,7 @@ import {
   type RegistryCorruptionError,
   type SetupCommandFailedError,
 } from "../domain/errors.js";
+import type { HeldStopClosed, OracleStep, PhaxEventBase, StopCommitted } from "../domain/events.js";
 import { attemptLogName, nextAttemptNumber } from "../domain/gate/attemptFiles.js";
 import { selectGateSteps } from "../domain/gate/selectSteps.js";
 import {
@@ -45,7 +52,7 @@ import type { ProviderId } from "../domain/routing/types.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import { getSessionAdapter } from "../domain/session/index.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
-import { FileSystem, type FsError } from "../ports/fs.js";
+import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
@@ -62,7 +69,8 @@ import {
 } from "../schemas/persisted.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
-import { buildInteractiveCommitBody } from "./commit.js";
+import type { ReviewStop } from "../schemas/reviewStop.js";
+import { buildHeldReviewCommitBody, buildInteractiveCommitBody } from "./commit.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { runGates } from "./gates.js";
@@ -88,8 +96,11 @@ import {
   type FirstTurnInput,
   type LeftoverSettlement,
 } from "./interactiveStop.js";
-import { readPhaseBase } from "./phaseStatusUpdates.js";
-import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
+import { readPhaseBase, readPhaseCommit } from "./phaseStatusUpdates.js";
+import {
+  reconcilePhaseFiles,
+  writeUnchangedCorrectionReconciliation,
+} from "./reconcilePhaseFiles.js";
 import {
   tracedCloseGate,
   tracedReviewCommit,
@@ -116,10 +127,10 @@ export interface CloseStopInput {
 }
 
 /**
- * Where the commit's handoff came from: the person's file, a closing turn
+ * Where the close's handoff came from: the person's file, a closing turn
  * that resumed the current session or started a new one, the fixed handoff of
- * an unchanged stop, or (`earlier-close`) a close interrupted after its commit,
- * whose phase-handoff.md was written before that commit.
+ * an unchanged stop, or (`earlier-close`) a close interrupted after its
+ * commit, whose handoff was written before that commit.
  */
 export type HandoffSource =
   | "person"
@@ -128,18 +139,83 @@ export type HandoffSource =
   | "unchanged"
   | "earlier-close";
 
-export interface CloseReport {
-  readonly outcome: "corrected" | "unchanged";
-  readonly commit: string;
+interface CloseReportFacts {
   readonly handoffSource: HandoffSource;
   /** The closing gate attempt's log: the commit's `Gate-Log` trailer. */
   readonly gateLog: string | null;
   /** The closing gate's steps; empty for an `earlier-close`, whose gate ran before. */
   readonly gateSteps: readonly GateStepResult[];
-  /** The paths the commit changed, sorted. */
+  /** The paths the corrections changed, sorted. */
   readonly changedPaths: readonly string[];
   /** A writing closing turn's edits an earlier close left in progress, restored before the gate. */
   readonly restoredClosingTurn: LeftoverSettlement["restoredClosingTurn"];
+  /** Whether the close's gate ended with the `authored` oracle step, which passed. */
+  readonly oracleStep: OracleStep;
+}
+
+/**
+ * What a close came to, by the stop's cause and its outcome. A declared close
+ * always commits: `commit` is the phase's commit. A held close commits only
+ * corrections: `reviewCommit` sits on top of `phaseCommit`, which is never
+ * rewritten.
+ */
+export type CloseReport =
+  | (CloseReportFacts & {
+      readonly cause: "declared";
+      readonly outcome: "corrected" | "unchanged";
+      readonly commit: string;
+    })
+  | (CloseReportFacts & {
+      readonly cause: "held";
+      readonly outcome: "corrected";
+      readonly phaseCommit: string;
+      readonly reviewCommit: string;
+    })
+  | (CloseReportFacts & {
+      readonly cause: "held";
+      readonly outcome: "unchanged";
+      readonly phaseCommit: string;
+    });
+
+type Cause = ReviewStop["cause"];
+
+/**
+ * Where a close of each cause writes. A declared close writes the phase's own
+ * files; a held one writes beside them, so the agent's gate attempts,
+ * attribution, handoff, diff and reconciliation stay as they are.
+ */
+interface CloseLayout {
+  readonly cause: Cause;
+  /** The folder of the closing gate's attempt log, its siblings and attribution. */
+  readonly gateFolder: string;
+  readonly handoffFile: "phase-handoff.md" | "correction-handoff.md";
+  readonly diffFile: "diff.patch" | "review-diff.patch";
+  /** The trailer naming the stop on its commit. */
+  readonly trailer: "Interactive-Phase" | "Held-Phase";
+}
+
+/** The folder a held close's gate files go to, inside the phase folder. */
+const REVIEW_GATE_FOLDER = "review-gate";
+
+function layoutOf(cause: Cause, phaseFolder: string): CloseLayout {
+  switch (cause) {
+    case "declared":
+      return {
+        cause,
+        gateFolder: phaseFolder,
+        handoffFile: "phase-handoff.md",
+        diffFile: "diff.patch",
+        trailer: "Interactive-Phase",
+      };
+    case "held":
+      return {
+        cause,
+        gateFolder: join(phaseFolder, REVIEW_GATE_FOLDER),
+        handoffFile: "correction-handoff.md",
+        diffFile: "review-diff.patch",
+        trailer: "Held-Phase",
+      };
+  }
 }
 
 type CloseStep = "gate" | "commit" | "files" | "closing-turn";
@@ -260,13 +336,15 @@ function ownCommitRemedy(input: CloseStopInput, base: string): string {
 /**
  * HEAD moved since the close recorded `closeBase`. It is this stop's commit
  * when its parent is `closeBase` and its message carries this run's `Run-Id`
- * and `Interactive-Phase: <phase>`: the close is then finished from it,
- * unless the worktree changed since that commit, which is refused as
- * `worktree-changed` so the person decides about those edits. Any other move
- * is refused, naming the remedy.
+ * and the cause's trailer naming the phase (`Interactive-Phase: <phase>` or
+ * `Held-Phase: <phase>`): the close is then finished from it, unless the
+ * worktree changed since that commit, which is refused as `worktree-changed`
+ * so the person decides about those edits. Any other move is refused, naming
+ * the remedy.
  */
 function finishLandedCommit(
   input: CloseStopInput,
+  layout: CloseLayout,
   closeBase: string,
   head: string,
 ): Effect.Effect<CloseReport, CloseRefusal, FileSystem | Git | Shell | SystemTelemetry> {
@@ -278,13 +356,13 @@ function finishLandedCommit(
     const ours =
       parent === closeBase &&
       trailerValue(message, "Run-Id") === input.runId &&
-      trailerValue(message, "Interactive-Phase") === input.phase.id;
+      trailerValue(message, layout.trailer) === input.phase.id;
     if (!ours) {
       return yield* refuse(
         closeError(
           "commit",
           new Error(
-            `HEAD moved from ${closeBase} to ${head}, and ${head} is not this stop's Interactive-Phase commit: ${ownCommitRemedy(input, closeBase)}`,
+            `HEAD moved from ${closeBase} to ${head}, and ${head} is not this stop's ${layout.trailer} commit: ${ownCommitRemedy(input, closeBase)}`,
           ),
         ),
       );
@@ -311,23 +389,46 @@ function finishLandedCommit(
         ? []
         : yield* at("commit", git.changedPathsBetween(input.worktree, baseTree, headTree));
     const diff = yield* at("files", git.diffTrees(input.worktree, baseTree, headTree));
-    yield* at("files", fs.writeAtomic(join(input.phaseFolder, "diff.patch"), diff));
-    yield* at("files", reconcileReview(input));
-    return {
-      outcome: baseTree === headTree ? "unchanged" : "corrected",
-      commit: head,
+    yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.diffFile), diff));
+    yield* at("files", reconcileReview(input, layout));
+    const facts = {
       handoffSource: "earlier-close",
       gateLog: trailerValue(message, "Gate-Log"),
       gateSteps: [],
       changedPaths: changed.map((c) => c.path).toSorted(),
       restoredClosingTurn: null,
-    } satisfies CloseReport;
+      // No oracle step runs at a close until reviews inside an oracle pair land.
+      oracleStep: "none",
+    } as const;
+    switch (layout.cause) {
+      case "declared":
+        return {
+          ...facts,
+          cause: "declared",
+          outcome: baseTree === headTree ? "unchanged" : "corrected",
+          commit: head,
+        } satisfies CloseReport;
+      case "held":
+        // A held close commits only corrections, so its landed commit is one;
+        // the close base it sits on is the phase commit, checked at the first close.
+        return {
+          ...facts,
+          cause: "held",
+          outcome: "corrected",
+          phaseCommit: closeBase,
+          reviewCommit: head,
+        } satisfies CloseReport;
+    }
   });
 }
 
-function reconcileReview(input: CloseStopInput) {
+// The stop's commit, reconciled as review corrections against HEAD^: the
+// phase's own reconciliation at a declared stop, the correction
+// reconciliation beside it at a held one.
+function reconcileReview(input: CloseStopInput, layout: CloseLayout) {
   return reconcilePhaseFiles({
     kind: "review",
+    output: layout.cause === "held" ? "correction" : "phase",
     phase: input.phase,
     worktreePath: input.worktree as never,
     phaseFolderPath: input.phaseFolder,
@@ -341,6 +442,7 @@ function reconcileReview(input: CloseStopInput) {
 
 function runCloseGate(
   input: CloseStopInput,
+  layout: CloseLayout,
 ): Effect.Effect<
   { readonly log: string; readonly steps: readonly GateStepResult[] },
   CloseRefusal,
@@ -349,8 +451,9 @@ function runCloseGate(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const gateRequest = yield* at("gate", input.gateRequest);
-    const names = yield* at("gate", fs.list(input.phaseFolder));
-    const log = join(input.phaseFolder, attemptLogName(nextAttemptNumber(names)));
+    yield* at("gate", fs.mkdirp(layout.gateFolder));
+    const names = yield* at("gate", fs.list(layout.gateFolder));
+    const log = join(layout.gateFolder, attemptLogName(nextAttemptNumber(names)));
     const outcome = yield* Effect.either(
       tracedCloseGate(
         { runId: input.runId, phaseId: input.phase.id },
@@ -358,7 +461,7 @@ function runCloseGate(
           steps: selectGateSteps(input.gateSteps, false),
           cwd: input.worktree,
           attemptLogPath: log,
-          attributionPath: join(input.phaseFolder, "gate-attribution.json"),
+          attributionPath: join(layout.gateFolder, "gate-attribution.json"),
           phaseId: input.phase.id,
           gateRequest,
         }),
@@ -739,26 +842,31 @@ function closeSteps(
         closeError("files", new Error(`no review-stop document for ${input.phase.id}`)),
       );
     }
+    const layout = layoutOf(stop.reviewStop.cause, input.phaseFolder);
     const head = yield* at("commit", git.headCommit(input.worktree));
     const closeBase = stop.reviewStop.closeBase;
     if (closeBase === null) {
-      // The first close: HEAD is still the phase's base unless the person
-      // committed in the worktree, which would pass their correction as the base.
-      const base = yield* at("files", readPhaseBase(input.phaseFolder));
-      if (head !== base) {
+      // The first close: HEAD is still where the stop left it (the phase's
+      // base at a declared stop, the phase commit at a held one) unless the
+      // person committed in the worktree, which would pass their correction
+      // as the base, or as the agent's work.
+      const expected = yield* at("files", stopHead(input, layout.cause));
+      if (head !== expected.sha) {
         return yield* refuse(
           closeError(
             "commit",
             new Error(
-              `HEAD moved from the phase's base ${base} to ${head}, a commit made in the stopped worktree: ${ownCommitRemedy(input, base)}`,
+              `HEAD moved from ${expected.name} ${expected.sha} to ${head}, a commit made in the stopped worktree: ${ownCommitRemedy(input, expected.sha)}`,
             ),
           ),
         );
       }
       yield* at("files", rewriteReviewStopAt(stop.path, { ...stop.reviewStop, closeBase: head }));
     } else if (head !== closeBase) {
-      return yield* finishLandedCommit(input, closeBase, head);
+      return yield* finishLandedCommit(input, layout, closeBase, head);
     }
+    // HEAD is the close base: at a held stop, the phase commit.
+    const phaseCommit = head;
 
     const model: PhaseModel = yield* at("files", readModelResolution(input.phaseFolder));
     const { policy } = yield* at("files", readPhasePosture(input.phaseFolder));
@@ -782,7 +890,7 @@ function closeSteps(
     const leftover = yield* at("files", settleLeftoverTurn(turnInput));
 
     // 2. Gate.
-    const gate = yield* runCloseGate(input);
+    const gate = yield* runCloseGate(input, layout);
 
     // 3. Gated tree.
     const gated = yield* at("commit", git.snapshotWorktree(input.worktree));
@@ -838,58 +946,168 @@ function closeSteps(
     }
 
     // 6. Commit exactly the gated tree.
-    yield* at("files", fs.writeAtomic(join(input.phaseFolder, "phase-handoff.md"), handoff));
-    const body = buildInteractiveCommitBody({
+    yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.handoffFile), handoff));
+    const bodyOptions = {
       phase: input.phase,
       runId: input.runId,
       shortName: input.shortName,
       worktreePath: input.worktree,
       gateLogPath: gate.log,
-    });
-    const commit = yield* at(
-      "commit",
-      tracedReviewCommit(
-        { runId: input.runId, phaseId: input.phase.id },
-        git.commitTree(
-          input.worktree,
-          changed ? gated : headTree,
-          input.phase.commit.subject,
-          body,
+    };
+    const commitGated = (tree: string, body: string) =>
+      at(
+        "commit",
+        tracedReviewCommit(
+          { runId: input.runId, phaseId: input.phase.id },
+          git.commitTree(input.worktree, tree, input.phase.commit.subject, body),
         ),
-      ),
-    );
-    const diff = yield* at("files", git.diffTrees(input.worktree, headTree, gated));
-    yield* at("files", fs.writeAtomic(join(input.phaseFolder, "diff.patch"), diff));
-
-    // 7. Reconcile.
-    yield* at("files", reconcileReview(input));
-
-    return {
-      outcome: changed ? "corrected" : "unchanged",
-      commit,
+      );
+    const writeDiff = Effect.gen(function* () {
+      const diff = yield* at("files", git.diffTrees(input.worktree, headTree, gated));
+      yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.diffFile), diff));
+    });
+    const facts = {
       handoffSource: source,
       gateLog: gate.log,
       gateSteps: gate.steps,
       changedPaths,
       restoredClosingTurn: leftover.restoredClosingTurn,
-    } satisfies CloseReport;
+      // No oracle step runs at a close until reviews inside an oracle pair land.
+      oracleStep: "none",
+    } as const;
+
+    switch (layout.cause) {
+      case "declared": {
+        // A declared stop always commits: an unchanged one lands an empty commit.
+        const commit = yield* commitGated(
+          changed ? gated : headTree,
+          buildInteractiveCommitBody(bodyOptions),
+        );
+        yield* writeDiff;
+        // 7. Reconcile.
+        yield* at("files", reconcileReview(input, layout));
+        return {
+          ...facts,
+          cause: "declared",
+          outcome: changed ? "corrected" : "unchanged",
+          commit,
+        } satisfies CloseReport;
+      }
+      case "held": {
+        if (!changed) {
+          // No commit, no diff and no git read: the phase commit stays the tip.
+          yield* at(
+            "files",
+            writeUnchangedCorrectionReconciliation({
+              phase: input.phase,
+              worktreePath: input.worktree as never,
+              phaseFolderPath: input.phaseFolder,
+              runId: input.runId,
+              fileReconciliationMode: input.fileReconciliationMode,
+              oracleFiles: [],
+            }),
+          );
+          return {
+            ...facts,
+            cause: "held",
+            outcome: "unchanged",
+            phaseCommit,
+          } satisfies CloseReport;
+        }
+        const reviewCommit = yield* commitGated(gated, buildHeldReviewCommitBody(bodyOptions));
+        yield* writeDiff;
+        // 7. Reconcile: the review commit against the phase commit.
+        yield* at("files", reconcileReview(input, layout));
+        return {
+          ...facts,
+          cause: "held",
+          outcome: "corrected",
+          phaseCommit,
+          reviewCommit,
+        } satisfies CloseReport;
+      }
+    }
   });
 }
 
 /**
- * Close a declared stop. Called once `RunResumeRequested` has made the run
- * `running`, the phase still `awaiting_review` and review-stop.json parked.
- * In order: the close base (finishing a close whose commit already landed);
- * a turn left in progress settled; the gate's non-terminal steps once; the
- * gated tree snapshotted; the handoff (the person's file, the fixed handoff
- * of an unchanged stop, or a read-only closing turn); a check that the tree
- * is still the gated one; phase-handoff.md, the commit of exactly that tree
- * and diff.patch; the review reconciliation; `StopCommitted`. Any failure
- * before that dispatches `StopCloseRefused` and fails with
- * `StopCloseRefusedError`. It writes neither phax-plan.json nor plan.md, and
- * never raises `PhaseHadNoChangesError`.
+ * Where the first close expects HEAD: the phase's base at a declared stop
+ * (no commit yet), the phase commit (its status's `commitHash`) at a held one.
  */
-export function closeDeclaredStop(
+function stopHead(
+  input: CloseStopInput,
+  cause: Cause,
+): Effect.Effect<{ readonly sha: string; readonly name: string }, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    switch (cause) {
+      case "declared":
+        return { sha: yield* readPhaseBase(input.phaseFolder), name: "the phase's base" };
+      case "held": {
+        const { commit } = yield* readPhaseCommit(input.phaseFolder);
+        if (commit === null) {
+          return yield* Effect.fail(
+            new FsError({ message: `${input.phase.id} is held but noted no commit in its status` }),
+          );
+        }
+        return { sha: commit, name: `${input.phase.id}'s commit` };
+      }
+    }
+  });
+}
+
+/** The state event a close that finished dispatches: one per cause. */
+function closedEvent(
+  stamp: PhaxEventBase & { readonly phaseId: PhaseId },
+  report: CloseReport,
+): StopCommitted | HeldStopClosed {
+  switch (report.cause) {
+    case "declared":
+      return {
+        ...stamp,
+        type: "StopCommitted",
+        hash: report.commit,
+        closure:
+          report.outcome === "corrected"
+            ? { outcome: "corrected", oracleStep: report.oracleStep }
+            : { outcome: "unchanged" },
+      };
+    case "held":
+      return {
+        ...stamp,
+        type: "HeldStopClosed",
+        phaseCommit: report.phaseCommit,
+        closure:
+          report.outcome === "corrected"
+            ? {
+                outcome: "corrected",
+                reviewCommit: report.reviewCommit,
+                oracleStep: report.oracleStep,
+              }
+            : { outcome: "unchanged" },
+      };
+  }
+}
+
+/**
+ * Close the run's stop, declared or held, as the parked review-stop names
+ * it. Called once `RunResumeRequested` has made the run `running`, the phase
+ * still `awaiting_review` and review-stop.json parked. In order: the close
+ * base (HEAD at the phase's base, or at a held stop at the phase commit;
+ * finishing a close whose commit already landed); a turn left in progress
+ * settled; the gate's non-terminal steps once (a held stop's under
+ * `review-gate/`); the gated tree snapshotted; the handoff (the person's
+ * file, the fixed handoff of an unchanged stop, or a read-only closing turn);
+ * a check that the tree is still the gated one; the handoff file, the commit
+ * of exactly that tree and its diff; the review reconciliation; then
+ * `StopCommitted`, or `HeldStopClosed` at a held stop. A declared stop writes
+ * phase-handoff.md, diff.patch and file-reconciliation.*; a held stop writes
+ * correction-handoff.md, review-diff.patch and correction-reconciliation.*,
+ * commits only when the worktree changed, and never writes the phase's own.
+ * Any failure before the state event dispatches `StopCloseRefused` and fails
+ * with `StopCloseRefusedError`. It writes neither phax-plan.json nor plan.md,
+ * and never raises `PhaseHadNoChangesError`.
+ */
+export function closeStop(
   input: CloseStopInput,
 ): Effect.Effect<
   CloseReport,
@@ -932,21 +1150,8 @@ export function closeDeclaredStop(
     }
 
     const report = closed.right;
-    const result = yield* dispatch(
-      {
-        ...base,
-        eventId: randomUUID(),
-        occurredAt: now(),
-        type: "StopCommitted",
-        hash: report.commit,
-        // No oracle step runs at a close until reviews inside an oracle pair land.
-        closure:
-          report.outcome === "corrected"
-            ? { outcome: "corrected", oracleStep: "none" }
-            : { outcome: "unchanged" },
-      },
-      ctx,
-    );
+    const stamp = { ...base, eventId: randomUUID(), occurredAt: now() };
+    const result = yield* dispatch(closedEvent(stamp, report), ctx);
     if (result.disposition !== "Handled") {
       return yield* Effect.fail(
         new InvalidTransitionError({

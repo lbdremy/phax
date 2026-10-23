@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Effect, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeDeclaredStop } from "../../src/app/closeStop.js";
+import { closeStop } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
 import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
 import { runFirstTurn, type FirstTurnInput } from "../../src/app/interactiveStop.js";
@@ -262,7 +262,7 @@ async function closeThroughCli(run: StoppedRun) {
         phaseId: "phase-03",
       },
     );
-    return yield* closeDeclaredStop({
+    return yield* closeStop({
       runId: run.runId as RunId,
       shortName: run.shortName,
       runPath: run.runPath,

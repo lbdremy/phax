@@ -7,6 +7,7 @@ import type {
   TokenUsage,
 } from "../../schemas/runRecord.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
+import { isStopArtifact } from "./stopArtifacts.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
 
@@ -66,8 +67,9 @@ export function selectRecordArtifacts(
  * commits what this returns.
  */
 export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
+  // A stop's files are the review's, never the agent's work.
   const { shape, artifactPaths } = selectRecordArtifacts(
-    input.files,
+    input.files.filter((file) => !isStopArtifact(file)),
     input.transcriptEnabled,
     PHASE_TRANSCRIPT_FILES,
   );

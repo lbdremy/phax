@@ -93,6 +93,40 @@ describe("assembleRecord", () => {
     expect(manifest.verifiedSurfaces).toEqual(["local", "product"]);
   });
 
+  it("carries none of a stop's files, so a held phase's record holds only the agent's work", () => {
+    const files = [
+      "agent-binding.json",
+      "checks-attempt-01.log",
+      "closing-turn-01.jsonl",
+      "closing-turn-01-retry.jsonl",
+      "correction-handoff.md",
+      "correction-reconciliation.json",
+      "correction-reconciliation.md",
+      "diff.patch",
+      "file-reconciliation.json",
+      "gate-attribution.json",
+      "interactive-session.json",
+      "output.jsonl",
+      "phase-handoff.md",
+      "refused-turn-01",
+      "review-diff.patch",
+      "review-gate",
+      "review-seed.md",
+      "review-stop.closing.json",
+    ];
+    const { artifactPaths, manifest } = assembleRecord({ ...baseInput, files });
+    expect(artifactPaths).toEqual([
+      "agent-binding.json",
+      "checks-attempt-01.log",
+      "diff.patch",
+      "file-reconciliation.json",
+      "gate-attribution.json",
+      "output.jsonl",
+      "phase-handoff.md",
+    ]);
+    expect(manifest.shape).toBe("full");
+  });
+
   it("does not mutate the input files array", () => {
     const files = ["b.log", "a.log"];
     const frozen = Object.freeze([...files]);

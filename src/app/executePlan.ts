@@ -125,7 +125,7 @@ import { readExecutedHandoffs, readPhasePosture } from "./interactiveFiles.js";
 import { stopAtDeclaredPhase, stopAtHeldPhase } from "./interactiveStop.js";
 import { holdsPhase } from "../domain/hold.js";
 import type { RunHold } from "../schemas/status.js";
-import { closeDeclaredStop, type CloseReport } from "./closeStop.js";
+import { closeStop, type CloseReport } from "./closeStop.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import { readPhaseFileReconciliationFile, readRunStatusFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
@@ -216,7 +216,7 @@ function copiedHandoffIsValid(
   });
 }
 
-/** A declared stop this invocation closed, for the CLI to print. */
+/** A stop this invocation closed, for the CLI to print; its report says the cause. */
 export interface ClosedStop {
   readonly phaseId: string;
   readonly phaseTitle: string;
@@ -272,7 +272,7 @@ export interface ExecutePlanOptions {
   // run. Never persisted and never reaches a later phase. The resume command
   // sets it after checking the phase's oracle role.
   readonly skipOracle?: boolean | undefined;
-  // Called once a declared stop's close has committed, before its cleanup and
+  // Called once a stop's close has finished, before its cleanup and
   // the next phase, so the caller can print the close as it happens.
   readonly onStopClosed?: ((closed: ClosedStop) => void) | undefined;
 }
@@ -1148,7 +1148,7 @@ export function executePlan(
           currentWorktreePath = reentryWorktree as string;
 
           if (isResumeFromStop) {
-            const report = yield* closeDeclaredStop({
+            const report = yield* closeStop({
               runId,
               shortName: shortName as string,
               runPath,

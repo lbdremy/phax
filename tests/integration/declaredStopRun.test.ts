@@ -566,18 +566,21 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     expect(harness.closed).toHaveLength(1);
     const closed = harness.closed[0]!;
     expect(closed.report).toMatchObject({
+      cause: "declared",
       outcome: "corrected",
       handoffSource: "closing-turn-resumed",
       changedPaths: ["src/export/invoiceRow.ts"],
     });
+    if (closed.report.cause !== "declared") throw new Error("not a declared close");
+    const { commit } = closed.report;
     const closeLines = renderStopClosed(closed);
     expect(closeLines[0]).toBe("phase-03 (declared): 1 file(s) changed by review");
     expect(closeLines).toContain("  gate  pnpm typecheck   pass");
     expect(closeLines.at(-1)).toBe(
-      `✓ phase-03  Review the export record   committed  ${closed.report.commit.slice(0, 7)}  (corrected)`,
+      `✓ phase-03  Review the export record   committed  ${commit.slice(0, 7)}  (corrected)`,
     );
     const stopTree = worktreeOf("phase-03");
-    const message = gitIn(stopTree, "log", "-1", "--format=%B", closed.report.commit);
+    const message = gitIn(stopTree, "log", "-1", "--format=%B", commit);
     expect(message).toContain("Interactive-Phase: phase-03");
     expect(phaseStatus(harness, "phase-03")).toMatchObject({
       state: "cleaned_up",
@@ -586,7 +589,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     expect(harness.shellCalls).toContainEqual({ line: "pnpm cleanup", cwd: stopTree });
 
     // phase-04 branched from phase-03's commit and read the correction.
-    expect(gitIn(worktreeOf("phase-04"), "rev-parse", "HEAD~1")).toBe(closed.report.commit);
+    expect(gitIn(worktreeOf("phase-04"), "rev-parse", "HEAD~1")).toBe(commit);
     const prompt = readFileSync(join(harness.runPath, "phase-04", "prompt.md"), "utf8");
     const previous = prompt.slice(prompt.indexOf("## Previous phase handoff"));
     expect(previous).toContain("- phase-02 delivered its file.");

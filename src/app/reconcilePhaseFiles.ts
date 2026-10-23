@@ -26,25 +26,60 @@ export interface ReconcilePhaseFilesOptions {
    *  `review`: a closed interactive stop's commit, every changed file a
    *  review correction (`reconcileReview`). */
   readonly kind?: "agent" | "review" | undefined;
+  /** `phase` (the default): `file-reconciliation.json` and `.md`. `correction`:
+   *  a held stop's review commit, written to `correction-reconciliation.json`
+   *  and `.md` beside the phase's own, which stay as they are. */
+  readonly output?: "phase" | "correction" | undefined;
 }
+
+type WriteReconciliationOptions = Omit<ReconcilePhaseFilesOptions, "kind">;
+
+const outputBase = (output: ReconcilePhaseFilesOptions["output"]): string =>
+  output === "correction" ? "correction-reconciliation" : "file-reconciliation";
+
+const plannedFilesOf = (opts: WriteReconciliationOptions): PlannedFiles => ({
+  create: opts.phase.plannedFilesToCreate,
+  edit: opts.phase.plannedFilesToEdit,
+  optional: [...new Set([...opts.phase.optionalFilesToEdit, ...opts.oracleFiles])],
+});
 
 export function reconcilePhaseFiles(
   opts: ReconcilePhaseFilesOptions,
 ): Effect.Effect<ReconciliationResult, GitError | FsError, Git | FileSystem | SystemTelemetry> {
   return Effect.gen(function* () {
     const git = yield* Git;
+    const entries = yield* git.diffNameStatus(opts.worktreePath);
+    const result =
+      opts.kind === "review" ? reconcileReview(entries) : reconcile(plannedFilesOf(opts), entries);
+    yield* writeReconciliation(opts, result);
+    return result;
+  });
+}
+
+/**
+ * A held stop closed without change: the empty review reconciliation, written
+ * to the correction files with no git read, as there is no review commit.
+ */
+export function writeUnchangedCorrectionReconciliation(
+  opts: Omit<WriteReconciliationOptions, "output">,
+): Effect.Effect<ReconciliationResult, FsError, FileSystem | SystemTelemetry> {
+  return Effect.gen(function* () {
+    const result = reconcileReview([]);
+    yield* writeReconciliation({ ...opts, output: "correction" }, result);
+    return result;
+  });
+}
+
+function writeReconciliation(
+  opts: WriteReconciliationOptions,
+  result: ReconciliationResult,
+): Effect.Effect<void, FsError, FileSystem | SystemTelemetry> {
+  return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const telemetry = yield* SystemTelemetry;
-
-    const planned: PlannedFiles = {
-      create: opts.phase.plannedFilesToCreate,
-      edit: opts.phase.plannedFilesToEdit,
-      optional: [...new Set([...opts.phase.optionalFilesToEdit, ...opts.oracleFiles])],
-    };
-
-    const entries = yield* git.diffNameStatus(opts.worktreePath);
-    const result = opts.kind === "review" ? reconcileReview(entries) : reconcile(planned, entries);
+    const planned = plannedFilesOf(opts);
     const markdown = renderReconciliationMarkdown(result, planned);
+    const base = outputBase(opts.output);
 
     if (opts.fileReconciliationMode === "warn" && result.hasDeviations) {
       const deviationSummary = [
@@ -72,20 +107,18 @@ export function reconcilePhaseFiles(
       withSchemaUrl("phase-file-reconciliation", { ...result, phaseId: opts.phase.id }),
     );
     yield* fs.writeAtomic(
-      join(opts.phaseFolderPath, "file-reconciliation.json"),
+      join(opts.phaseFolderPath, `${base}.json`),
       JSON.stringify(persisted, null, 2),
     );
-    yield* fs.writeAtomic(join(opts.phaseFolderPath, "file-reconciliation.md"), markdown);
+    yield* fs.writeAtomic(join(opts.phaseFolderPath, `${base}.md`), markdown);
 
     yield* telemetry.recordEvent(
       makeArtifactGeneratedTelemetryEvent({
         runId: opts.runId as RunId,
         operationId: opts.phase.id,
-        artifact: "file-reconciliation",
-        path: join(opts.phase.id, "file-reconciliation.md"),
+        artifact: base,
+        path: join(opts.phase.id, `${base}.md`),
       }),
     );
-
-    return result;
   });
 }
