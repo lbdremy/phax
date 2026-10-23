@@ -102,6 +102,18 @@ export interface SecurityPolicyAppliedTelemetryEvent {
   }[];
 }
 
+/**
+ * A held discharge's close committed corrections to oracle files of the pair
+ * it discharges: its discharge was judged before the stop, so the oracles
+ * provider never sees these edits.
+ */
+export interface OracleEditsUnjudgedTelemetryEvent {
+  readonly type: "oracle.edits.unjudged";
+  readonly runId: RunId;
+  readonly operationId: string;
+  readonly files: readonly string[];
+}
+
 export type SemanticTelemetryEvent =
   | StateTransitionTelemetryEvent
   | AdapterCallStartedTelemetryEvent
@@ -112,7 +124,8 @@ export type SemanticTelemetryEvent =
   | GateEvaluatedTelemetryEvent
   | ArtifactGeneratedTelemetryEvent
   | ModelResolvedTelemetryEvent
-  | SecurityPolicyAppliedTelemetryEvent;
+  | SecurityPolicyAppliedTelemetryEvent
+  | OracleEditsUnjudgedTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
   fields: Omit<StateTransitionTelemetryEvent, "type">,
@@ -156,3 +169,7 @@ export const makeSecurityPolicyAppliedTelemetryEvent = (
   type: "security.policy.applied",
   ...fields,
 });
+
+export const makeOracleEditsUnjudgedTelemetryEvent = (
+  fields: Omit<OracleEditsUnjudgedTelemetryEvent, "type">,
+): OracleEditsUnjudgedTelemetryEvent => ({ type: "oracle.edits.unjudged", ...fields });

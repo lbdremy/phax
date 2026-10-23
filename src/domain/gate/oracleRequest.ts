@@ -1,5 +1,5 @@
 import type { OracleRequest } from "../../schemas/oracleRequest.js";
-import type { OracleRole } from "../plan/oraclePairs.js";
+import type { OraclePair, OracleRole } from "../plan/oraclePairs.js";
 
 export interface MakeOracleRequestInput {
   /** The gated phase's role in its pair, from `oracleRoleOf`. */
@@ -36,6 +36,31 @@ export function makeOracleRequest(input: MakeOracleRequestInput): OracleRequest 
     base,
     oracleCommit,
     files,
+  };
+}
+
+export interface MakeReviewOracleRequestInput {
+  /** The pair the stop sits in whose oracle files the corrections changed. */
+  readonly pair: OraclePair;
+  /** The stopped phase, which the request names as `phase`. */
+  readonly phaseId: string;
+  /** The oracle phase's base, as noted in its status. */
+  readonly base: string;
+}
+
+/**
+ * The `authored` request a close sends when a review inside a pair changed
+ * one of its oracle files: the oracle phase's request, naming the stopped
+ * phase as `phase`. Keys come in the format's order.
+ */
+export function makeReviewOracleRequest(input: MakeReviewOracleRequestInput): OracleRequest {
+  const { pair, phaseId, base } = input;
+  return {
+    verdict: "authored",
+    phase: phaseId,
+    oraclePhase: pair.oraclePhase,
+    base,
+    files: toNonEmpty(pair.files, pair.oraclePhase),
   };
 }
 

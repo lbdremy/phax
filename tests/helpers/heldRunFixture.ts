@@ -21,7 +21,7 @@ import { persistSessionId } from "../../src/infra/providers/sessionWriter.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Backend, type AgentRunOptions, type BackendOps } from "../../src/ports/backend.js";
 import { Shell } from "../../src/ports/shell.js";
-import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
@@ -185,8 +185,13 @@ function invoiceExportPlan(): { plan: PhaxPlan; planMd: string } {
   return { plan, planMd };
 }
 
-function configOf(world: HeldWorld, records: boolean): ResolvedConfig {
+function configOf(
+  world: HeldWorld,
+  records: boolean,
+  oracles: { readonly command: string } | undefined,
+): ResolvedConfig {
   return {
+    ...(oracles === undefined ? {} : { oracles }),
     raw: {
       version: 1,
       name: NAMESPACE,
@@ -253,6 +258,8 @@ interface HeldBackend extends BackendOps {
   readonly brokenHandoffs: Set<string>;
   /** Called after a phase's handoff turn wrote the handoff: its phase and folder. */
   onHandoff: ((phase: string, phaseFolderPath: string | undefined) => void) | undefined;
+  /** Called when a headless run builds a phase, after it wrote the phase's file: its phase and worktree. */
+  onBuild: ((phase: string, worktree: string) => void) | undefined;
 }
 
 const phaseOf = (options: AgentRunOptions): string =>
@@ -277,6 +284,7 @@ function makeHeldBackend(): HeldBackend {
     calls,
     brokenHandoffs,
     onHandoff: undefined,
+    onBuild: undefined,
     runAgent: (prompt, options) => {
       const phase = phaseOf(options);
       calls.push({ kind: "run", phase, prompt, options });
@@ -294,6 +302,7 @@ function makeHeldBackend(): HeldBackend {
           join(options.cwd, "src", `${phase}.ts`),
           `export const ${phase.replace("-", "")} = 1;\n`,
         );
+        backend.onBuild?.(phase, options.cwd);
         if (options.phaseFolderPath !== undefined) {
           await persistSessionId(sessionId, options.phaseFolderPath);
         }
@@ -364,17 +373,27 @@ export interface HeldRun {
   readonly lock: ReturnType<typeof makeFakeLock>;
   readonly closed: ClosedStop[];
   readonly config: ResolvedConfig;
+  /** Every semantic event the run and its resumes recorded. */
+  readonly telemetry: ReturnType<typeof makeFakeSystemTelemetry>;
+}
+
+export interface HeldRunOptions {
+  readonly records?: boolean;
+  /** Another made-up plan and its plan.md; the invoice-export plan by default. */
+  readonly plan?: { readonly plan: PhaxPlan; readonly planMd: string };
+  /** The configured oracles provider; none by default. */
+  readonly oracles?: { readonly command: string };
 }
 
 /** Name a run of the invoice-export plan that records `hold`, without running it. */
 async function createHeldRun(
   world: HeldWorld,
   hold: RunHold,
-  opts: { readonly records?: boolean } = {},
+  opts: HeldRunOptions = {},
 ): Promise<HeldRun> {
   const shortName = Either.getOrThrow(decodeShortName(SHORT));
-  const { plan, planMd } = invoiceExportPlan();
-  const config = configOf(world, opts.records ?? false);
+  const { plan, planMd } = opts.plan ?? invoiceExportPlan();
+  const config = configOf(world, opts.records ?? false, opts.oracles);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config, undefined, undefined, hold).pipe(
       Effect.provide(NodeFileSystemLayer),
@@ -392,6 +411,7 @@ async function createHeldRun(
     lock: makeFakeLock(),
     closed: [],
     config,
+    telemetry: makeFakeSystemTelemetry(),
   };
 }
 
@@ -428,7 +448,7 @@ function executeHeldRun(
             NodeFileSystemLayer,
             NodeGitLayer,
             scriptedShell(run.shellCalls, run.failingGates),
-            NoopSystemTelemetryLayer,
+            run.telemetry.layer,
             makeFakeGitHub().layer,
             run.lock.layer,
           ),
@@ -442,7 +462,7 @@ function executeHeldRun(
 export async function startHeldRun(
   world: HeldWorld,
   hold: RunHold,
-  opts: { readonly records?: boolean; readonly prepare?: (run: HeldRun) => void } = {},
+  opts: HeldRunOptions & { readonly prepare?: (run: HeldRun) => void } = {},
 ): Promise<{ run: HeldRun; result: Either.Either<unknown, unknown> }> {
   const run = await createHeldRun(world, hold, opts);
   opts.prepare?.(run);

@@ -446,6 +446,114 @@ describe("resetPhase", () => {
     });
   });
 
+  describe("a phase whose closed stop ran authored is not reset once its discharge has started", () => {
+    // The five-phase refunds plan: phase-02 authors tests/refunds.test.ts,
+    // declared phase-03 reviews it, phase-04 discharges it.
+    async function seedReviewedPair(
+      phase04State: PhaseStatus["state"],
+      oracleStep: "authored" | "none",
+    ) {
+      const { runPath } = await seedRun(stateRoot, {
+        runState: "failed",
+        phases: [
+          { id: "phase-01", index: 0, state: "cleaned_up", branchName: "ai/my-run--phase-01" },
+          { id: "phase-02", index: 1, state: "cleaned_up", branchName: "ai/my-run--phase-02" },
+          {
+            id: "phase-03",
+            index: 2,
+            state: "cleaned_up",
+            interactive: true,
+            branchName: "ai/my-run--phase-03",
+            commitHash: "c3".repeat(20),
+          },
+          { id: "phase-04", index: 3, state: phase04State, branchName: "ai/my-run--phase-04" },
+        ],
+      });
+      const statusPath = join(runPath, "phase-03", "status.json");
+      const status = JSON.parse(await readFile(statusPath, "utf8")) as Record<string, unknown>;
+      await writeFile(
+        statusPath,
+        JSON.stringify({
+          ...status,
+          stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep },
+        }),
+      );
+      const plan: PhaxPlan = {
+        run: {
+          shortName: SHORT_NAME,
+          title: "Refunds",
+          branch: "phax/refunds",
+          requiredCommands: [],
+        },
+        phases: [
+          planPhase("phase-01", null),
+          planPhase("phase-02", { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
+          { ...planPhase("phase-03", null), mode: "interactive" as const },
+          planPhase("phase-04", null),
+          planPhase("phase-05", null),
+        ],
+      };
+      await writeFile(
+        join(runPath, "phax-plan.json"),
+        JSON.stringify(withSchemaUrl("phax-plan", plan), null, 2),
+      );
+      return runPath;
+    }
+
+    function reset(phaseId: string) {
+      const layers = Layer.mergeAll(
+        makeFakeGit().layer,
+        makeFakeShell().layer,
+        makeFakeLock().layer,
+        NodeFileSystemLayer,
+        NoopSystemTelemetryLayer,
+      );
+      return Effect.runPromise(
+        Effect.either(
+          resetPhase({
+            shortName: shortName(),
+            namespace: NAMESPACE,
+            phaseId,
+            stateRoot,
+            repoRoot: stateRoot,
+          }).pipe(Effect.provide(layers)),
+        ),
+      );
+    }
+
+    it("refuses while phase-04 is failed, naming the discharge, and changes nothing", async () => {
+      const runPath = await seedReviewedPair("failed", "authored");
+      const before = await snapshot(runPath);
+
+      const result = await reset("phase-03");
+
+      if (Either.isRight(result)) throw new Error("expected the reset to be refused");
+      expect(result.left).toMatchObject({
+        reason: "phase_blocked_by_discharge",
+        message:
+          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit.",
+      });
+      expect(await snapshot(runPath)).toEqual(before);
+    });
+
+    it("adds no such refusal when the stop ran no oracle step, or before the discharge started", async () => {
+      for (const [phase04, step] of [
+        ["failed", "none"],
+        ["pending", "authored"],
+      ] as const) {
+        await rm(join(stateRoot, "runs"), { recursive: true, force: true });
+        await seedReviewedPair(phase04, step);
+
+        const result = await reset("phase-03");
+
+        // Some other rule may refuse it, never the discharge rule.
+        if (Either.isLeft(result)) {
+          expect((result.left as ResetPhaseError).reason).not.toBe("phase_blocked_by_discharge");
+        }
+      }
+    });
+  });
+
   it("rejects resetting a phase that is not in a resettable state", async () => {
     await seedRun(stateRoot, {
       runState: "running",

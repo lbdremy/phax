@@ -143,6 +143,19 @@ describe("the hold step of freshRunPreflight", () => {
     });
   });
 
+  it("resolves oracle and the pair's phases with no finding", async () => {
+    const oracle = await preflight({ kind: "oracle" });
+    expect(Either.isRight(oracle.result) && oracle.result.right.hold).toEqual({
+      selection: "oracle",
+      phases: ["phase-02"],
+    });
+    const pair = await preflight({ kind: "listed", phases: ["phase-03", "phase-02"] });
+    expect(Either.isRight(pair.result) && pair.result.right.hold).toEqual({
+      selection: "listed",
+      phases: ["phase-02", "phase-03"],
+    });
+  });
+
   it("refuses with exit 11, printing every error with its phase", async () => {
     const { result, git } = await preflight({
       kind: "listed",
@@ -153,10 +166,9 @@ describe("the hold step of freshRunPreflight", () => {
     expect(exitCodeForError(result.left)).toBe(11);
     expect(result.left.message).toBe(
       [
-        "Hold preflight failed: 3 error(s).",
+        "Hold preflight failed: 2 error(s).",
         "  phase-09  is not a phase of this plan",
         "  phase-04  is the final phase: it already stays open in review_open",
-        "  phase-02  sits in oracle pair phase-02 → phase-03: this phax does not hold a phase of an oracle pair yet",
       ].join("\n"),
     );
     // The hold comes before the clean-tree check: git was never asked.

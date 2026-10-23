@@ -136,7 +136,8 @@ afterAll(() => {
   for (const root of copies) rmSync(root, { recursive: true, force: true });
 });
 
-describe("openRelease on a copy of the tree", () => {
+// Each case copies the tree: well under a second alone, several under full-suite load.
+describe("openRelease on a copy of the tree", { timeout: 30_000 }, () => {
   it(`opens ${V}: manifests and generated versions and stamps, never the ledger or snapshots`, async () => {
     const copy = makeCopy();
     const planted = plantNext(copy);

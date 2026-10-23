@@ -5,6 +5,7 @@
  */
 import type { PhaxPlanPhase } from "../../schemas/phaxPlan.js";
 import type { RecordOracleRole } from "../../schemas/runRecord.js";
+import type { PhaseStop } from "../../schemas/status.js";
 
 export interface OraclePair {
   readonly oraclePhase: string;
@@ -56,6 +57,14 @@ export function oracleSkipRefusal(
 }
 
 /**
+ * Why a run awaiting review at `phaseId` may not skip an oracle step: its
+ * resume closes the stop, and a close's `authored` step is never skipped.
+ */
+export function stopSkipOracleRefusal(run: string, phaseId: string): string {
+  return `--skip-oracle: ${run} awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`;
+}
+
+/**
  * The oracle files `phaseId` discharges: its pair's files when it is a
  * discharging phase, else none. Reconciliation counts them as optional files,
  * so removing a marker is never an unplanned edit.
@@ -66,6 +75,65 @@ export function dischargedOracleFiles(
 ): readonly string[] {
   const role = oracleRoleOf(phases, phaseId);
   return role?.role === "discharging" ? role.pair.files : [];
+}
+
+/**
+ * The pairs a stop at `stopPhaseId` sits in: those whose oracle phase is the
+ * stop or comes before it, and whose discharging phase comes after it. A
+ * discharging phase is never in its own pair's list: its discharge was judged
+ * before it stopped.
+ */
+export function stopOraclePairs(
+  phases: ReadonlyArray<PairPhase>,
+  stopPhaseId: string,
+): readonly OraclePair[] {
+  const indexOf = (id: string): number => phases.findIndex((p) => p.id === id);
+  const stop = indexOf(stopPhaseId);
+  if (stop === -1) return [];
+  return oraclePairs(phases).filter(
+    (pair) => indexOf(pair.oraclePhase) <= stop && indexOf(pair.dischargingPhase) > stop,
+  );
+}
+
+/** The pairs whose oracle files include one of `changedPaths`. */
+export function pairsChangedByCorrections(
+  pairs: readonly OraclePair[],
+  changedPaths: readonly string[],
+): readonly OraclePair[] {
+  return pairs.filter((pair) => pair.files.some((file) => changedPaths.includes(file)));
+}
+
+/** The status.json facts the latest authored commit is read from. */
+export interface AuthoredCommitStatus {
+  readonly phaseId: string;
+  readonly commitHash?: string | undefined;
+  readonly stop: PhaseStop;
+}
+
+/**
+ * The commit a pair's discharge judges, from status.json facts only: the last
+ * phase in plan order, from the oracle phase up to but not including the
+ * discharge, whose closed stop corrected something and ran the `authored`
+ * step (its `reviewCommit` when held, its `commitHash` when declared).
+ * Without one, the oracle phase's `commitHash`, or null when it noted none.
+ */
+export function latestAuthoredCommit(
+  pair: OraclePair,
+  phases: ReadonlyArray<PairPhase>,
+  statuses: readonly AuthoredCommitStatus[],
+): string | null {
+  const from = phases.findIndex((p) => p.id === pair.oraclePhase);
+  const to = phases.findIndex((p) => p.id === pair.dischargingPhase);
+  const statusOf = (id: string) => statuses.find((s) => s.phaseId === id);
+  for (const phase of phases.slice(from, to).toReversed()) {
+    const status = statusOf(phase.id);
+    const stop = status?.stop ?? null;
+    if (stop === null || stop.status !== "closed" || stop.outcome !== "corrected") continue;
+    if (stop.oracleStep !== "authored") continue;
+    if (stop.cause === "held") return stop.reviewCommit;
+    if (status?.commitHash !== undefined) return status.commitHash;
+  }
+  return statusOf(pair.oraclePhase)?.commitHash ?? null;
 }
 
 /** The role as a phase record's manifest stores it. */

@@ -153,6 +153,7 @@ import {
 import { providerToAdapter } from "../domain/providerAdapter.js";
 import {
   dischargedOracleFiles,
+  latestAuthoredCommit,
   oracleRoleOf,
   recordOracleRole,
   type OraclePair,
@@ -556,15 +557,30 @@ export function executePlan(
     });
   }
 
-  // The commit a discharging phase judges: the one its oracle phase noted in
-  // status.json. An oracle phase that noted none was skipped for producing no
-  // changes, so there is nothing to discharge, and no resume can change that.
+  // The commit a discharging phase judges, from status.json facts only: the
+  // latest commit of the pair that passed `authored` (a closed stop's that ran
+  // the step, or else the oracle phase's own). An oracle phase that noted no
+  // commit was skipped for producing no changes, so there is nothing to
+  // discharge, and no resume can change that.
   function oracleCommitOf(
     pair: OraclePair,
   ): Effect.Effect<string, FsError | OracleCommitMissingError, FileSystem> {
     return Effect.gen(function* () {
+      const from = plan.phases.findIndex((p) => p.id === pair.oraclePhase);
+      const to = plan.phases.findIndex((p) => p.id === pair.dischargingPhase);
+      // A phase of the pair a reset archived, or one not entered, has no status.
+      const statuses = yield* Effect.forEach(plan.phases.slice(from, to), (p) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem;
+          const folder = join(runPath, p.id);
+          if (!(yield* fs.exists(join(folder, "status.json")))) return [];
+          return [yield* readPhaseStatus(folder)];
+        }),
+      );
+      // Read through readPhaseCommit, which refuses a noted hash that is not a full name.
       const noted = yield* readPhaseCommit(join(runPath, pair.oraclePhase));
-      if (noted.commit !== null) return noted.commit;
+      const latest = latestAuthoredCommit(pair, plan.phases, statuses.flat());
+      if (noted.commit !== null && latest !== null) return latest;
       return yield* Effect.fail(
         new OracleCommitMissingError({
           message: [
@@ -1263,6 +1279,8 @@ export function executePlan(
                 Effect.map(serializeGateRequest),
               ),
               fileReconciliationMode: config.fileReconciliationMode,
+              phases: plan.phases,
+              oracles: config.oracles ?? null,
             });
             committedPhases.push(phase.id);
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
@@ -1437,6 +1455,8 @@ export function executePlan(
               Effect.map(serializeGateRequest),
             ),
             fileReconciliationMode: config.fileReconciliationMode,
+            phases: plan.phases,
+            oracles: config.oracles ?? null,
           });
           closeInFlight = false;
           committedPhases.push(phase.id);

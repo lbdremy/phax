@@ -46,7 +46,7 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
 });
 
 const INTERACTIVE_LINE = "**Mode:** interactive";
-const ORACLE_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"];
+const ORACLE_PAIR_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-02.ts`"];
 
 // The made-up six-phase plan: phase-03 is declared interactive and phase-06 is the final phase.
 const SIX_PHASES: Fixture = {
@@ -195,21 +195,32 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
       expect(out.errors).toEqual([`phax run failed: ${message}`]);
       expectNothingNamed(r);
     });
+  });
 
-    it("refuses a phase of an oracle pair, which this phax does not hold yet", async () => {
-      const r = enter({
-        config: { oracles: { command: "./fake-oracles" } },
-        plan: { phases: [{ headerLines: ORACLE_LINES }, {}, {}] },
-      });
+  describe("holds the phases of an oracle pair", () => {
+    // The four-phase variant: phase-02 pins src/step-02.ts, which phase-03 discharges.
+    const ORACLE_VARIANT: Fixture = {
+      config: { oracles: { command: "./fake-oracles" } },
+      plan: { phases: [{}, { headerLines: ORACLE_PAIR_LINES }, {}, {}] },
+    };
+
+    it.each([
+      ["--hold oracle", "oracle", { selection: "oracle", phases: ["phase-02"] }],
+      [
+        "--hold phase-02,phase-03",
+        "phase-02,phase-03",
+        { selection: "listed", phases: ["phase-02", "phase-03"] },
+      ],
+      ["a bare --hold", true, { selection: "all", phases: ["phase-01", "phase-02", "phase-03"] }],
+    ] as const)("%s", async (_label, hold, expected) => {
+      const r = enter(ORACLE_VARIANT);
       const out = recordingOutput();
 
-      const code = await runRun({ plan: "plan.md", hold: "phase-01" }, out.port);
+      await runRun({ plan: "plan.md", hold }, out.port);
 
-      expect(code).toBe(11);
-      expect(out.errors[0]).toContain(
-        "  phase-01  sits in oracle pair phase-01 → phase-02: this phax does not hold a phase of an oracle pair yet",
-      );
-      expectNothingNamed(r);
+      expect(out.errors.join("\n")).not.toContain("Hold preflight failed");
+      expect(out.logs).toContain(`Run: ${r.namespace}.foo`);
+      expect(recordedHold(r)).toEqual(expected);
     });
   });
 

@@ -22,7 +22,8 @@ import type { Lock } from "../ports/lock.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { readPhaxPlanFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
-import { oracleRoleOf } from "../domain/plan/oraclePairs.js";
+import { oracleRoleOf, stopOraclePairs } from "../domain/plan/oraclePairs.js";
+import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { withRunLock } from "./lock.js";
@@ -194,7 +195,9 @@ function resetPhaseLocked(
     // An oracle phase is not reset once its discharge has started: the
     // discharge judges this phase's commit, which a reset would discard. A
     // committed oracle phase is never resettable anyway.
-    const discharging = yield* dischargingPhaseOf(info.runPath, target.phaseId);
+    const planPhases = yield* readPlanPhases(info.runPath);
+    const role = planPhases === undefined ? null : oracleRoleOf(planPhases, target.phaseId);
+    const discharging = role?.role === "oracle" ? role.pair.dischargingPhase : undefined;
     const dischargingStatus = info.phaseStatuses.find((p) => p.phaseId === discharging);
     if (dischargingStatus !== undefined && dischargingStatus.state !== "pending") {
       return yield* Effect.fail(
@@ -209,6 +212,26 @@ function resetPhaseLocked(
               : ""),
         }),
       );
+    }
+
+    // Nor is a phase whose closed stop ran the `authored` step once its
+    // pair's discharge has started: the discharge judges this phase's commit.
+    const authoredStop =
+      target.stop !== null &&
+      target.stop.status === "closed" &&
+      target.stop.outcome === "corrected" &&
+      target.stop.oracleStep === "authored";
+    if (authoredStop && planPhases !== undefined) {
+      for (const pair of stopOraclePairs(planPhases, target.phaseId)) {
+        const status = info.phaseStatuses.find((p) => p.phaseId === pair.dischargingPhase);
+        if (status === undefined || status.state === "pending") continue;
+        return yield* Effect.fail(
+          new ResetPhaseError({
+            reason: "phase_blocked_by_discharge",
+            message: `Cannot reset '${target.phaseId}' of run '${opts.shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.`,
+          }),
+        );
+      }
     }
 
     const laterCommitted = info.phaseStatuses.find(
@@ -409,23 +432,20 @@ function selectTargetPhase(
 }
 
 /**
- * The phase that discharges `phaseId` when it is an oracle phase, read from the
- * run's `phax-plan.json` in any shape; undefined otherwise. An unreadable plan
- * names none: such a run cannot resume anyway.
+ * The phases of the run's `phax-plan.json` in any shape, from which the
+ * oracle pairs come; undefined when it is unreadable, which names no pair:
+ * such a run cannot resume anyway.
  */
-function dischargingPhaseOf(
+function readPlanPhases(
   runPath: string,
-  phaseId: string,
-): Effect.Effect<string | undefined, never, FileSystem> {
+): Effect.Effect<readonly PhaxPlanPhase[] | undefined, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, "phax-plan.json");
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readPhaxPlanFile(path, parsed);
-    if (Either.isLeft(read)) return undefined;
-    const role = oracleRoleOf(read.right.plan.phases, phaseId);
-    return role?.role === "oracle" ? role.pair.dischargingPhase : undefined;
+    return Either.isLeft(read) ? undefined : read.right.plan.phases;
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 

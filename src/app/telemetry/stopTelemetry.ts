@@ -1,5 +1,6 @@
-// The effect telemetry of a declared stop: its turns' provider calls, the
-// closing gate and the review commit, emitted as a headless phase's are
+// The effect telemetry of a stop, declared or held: its turns' provider
+// calls, the closing gate (with its oracle step), the review commit and a
+// held discharge's unjudged oracle edits, emitted as a headless phase's are
 // (executePlan, fixLoop). The dispatcher traces the stop's state transitions.
 import { Effect, Either } from "effect";
 import type { RunId } from "../../domain/branded.js";
@@ -14,6 +15,7 @@ import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
+  makeOracleEditsUnjudgedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
 } from "../../domain/telemetry/events.js";
@@ -138,6 +140,28 @@ export function tracedCloseGate<A, E, R>(
       );
     }
     return yield* Effect.fail(error);
+  });
+}
+
+/**
+ * The oracle files a held discharge's corrections changed, which no oracle
+ * step judges: one `oracle.edits.unjudged` event, and none when `files` is
+ * empty.
+ */
+export function traceUnjudgedOracleEdits(
+  ctx: StopTraceContext,
+  files: readonly string[],
+): Effect.Effect<void, never, SystemTelemetry> {
+  return Effect.gen(function* () {
+    if (files.length === 0) return;
+    const telemetry = yield* SystemTelemetry;
+    yield* telemetry.recordEvent(
+      makeOracleEditsUnjudgedTelemetryEvent({
+        runId: ctx.runId as RunId,
+        operationId: ctx.phaseId,
+        files,
+      }),
+    );
   });
 }
 

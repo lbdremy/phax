@@ -177,7 +177,8 @@ afterAll(() => {
   for (const root of copies) rmSync(root, { recursive: true, force: true });
 });
 
-describe("cutRelease on an opened copy of the tree", () => {
+// Each case copies the tree: well under a second alone, several under full-suite load.
+describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => {
   it(`cuts ${O}: renames next snapshots, regenerates the shapes, appends the ledger, with the gate green`, async () => {
     const copy = openedCopy();
     const before = hashTree(copy, ["."]);

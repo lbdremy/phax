@@ -188,8 +188,16 @@ export function renderStopClosed(closed: ClosedStop): string[] {
     lines.push(`  gate  ${step.command}   ${step.result}`);
   }
   lines.push(`  handoff     ${handoffLine(report.handoffSource)}${handoffFile}`);
+  if (report.cause === "held" && report.outcome === "corrected") {
+    for (const file of report.unjudgedOracleFiles) lines.push(unjudgedOracleWarning(file));
+  }
   lines.push(done);
   return lines;
+}
+
+/** The warning for an oracle file a held discharge's corrections changed. */
+function unjudgedOracleWarning(file: string): string {
+  return `  warning: ${file}: an oracle file changed at the discharge; the discharge was judged before the stop, so the oracles provider does not see this change`;
 }
 
 function refusalReason(lastClose: RefusedClose): string {

@@ -1,6 +1,10 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { makeOracleRequest, oracleRequestPathFor } from "../../src/domain/gate/oracleRequest.js";
+import {
+  makeOracleRequest,
+  makeReviewOracleRequest,
+  oracleRequestPathFor,
+} from "../../src/domain/gate/oracleRequest.js";
 import { oracleRoleOf } from "../../src/domain/plan/oraclePairs.js";
 import { decodeOracleRequestFile } from "../../src/schemas/oracleRequest.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -93,6 +97,27 @@ describe("makeOracleRequest", () => {
         Either.isRight(decodeOracleRequestFile(withSchemaUrl("oracle-request", request))),
       ).toBe(true);
     }
+  });
+});
+
+describe("makeReviewOracleRequest", () => {
+  it("asks for an authored verdict naming the stopped phase, against the oracle phase", () => {
+    const role = roleOf("phase-02");
+    // A stop at the oracle phase itself, then one made-up phase between the pair.
+    const request = makeReviewOracleRequest({ pair: role.pair, phaseId: "phase-02", base });
+    expect(request).toEqual({
+      verdict: "authored",
+      phase: "phase-02",
+      oraclePhase: "phase-02",
+      base,
+      files: ["tests/refunds.test.ts", "tests/prune.test.ts"],
+    });
+    const between = makeReviewOracleRequest({ pair: role.pair, phaseId: "phase-07", base });
+    expect(between).toEqual({ ...request, phase: "phase-07" });
+    expect(Object.keys(between)).toEqual(["verdict", "phase", "oraclePhase", "base", "files"]);
+    expect(Either.isRight(decodeOracleRequestFile(withSchemaUrl("oracle-request", between)))).toBe(
+      true,
+    );
   });
 });
 
