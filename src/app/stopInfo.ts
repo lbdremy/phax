@@ -9,7 +9,7 @@ import type { ProviderId } from "../schemas/providerId.js";
 import { readReviewStop } from "./interactiveFiles.js";
 
 export interface StopInfo {
-  readonly cause: "declared";
+  readonly cause: "declared" | "held";
   readonly phaseId: string;
   readonly phaseTitle: string;
   /** The stopped phase's place in the plan, one-based, of `of` phases. */
@@ -21,7 +21,7 @@ export interface StopInfo {
   readonly session: {
     readonly provider: ProviderId;
     readonly sessionId: string;
-    readonly origin: "first-turn" | "new-session";
+    readonly origin: "first-turn" | "new-session" | "builder";
   } | null;
   /** The command that continues the stop from the main checkout. */
   readonly enterPhase: string;

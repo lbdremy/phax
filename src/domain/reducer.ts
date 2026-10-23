@@ -1168,10 +1168,22 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
     }
 
     case "ReviewStopReached":
+      if (event.reviewStop.cause !== event.cause) {
+        return unexpected(
+          `review stop reached with cause ${event.cause} carries a ${event.reviewStop.cause} review stop`,
+        );
+      }
       switch (state.run) {
         case "running": {
           const ps = state.phase.state;
-          if (ps === "running") {
+          // A declared stop is reached from the running phase; a held one after
+          // the phase committed, or after a resumed handoff just passed
+          // (no event moves a phase out of handoff_failed).
+          const acceptedFrom =
+            event.cause === "declared"
+              ? ps === "running"
+              : ps === "committed" || ps === "handoff_failed";
+          if (acceptedFrom) {
             return handled(
               { run: "awaiting_review", phase: { state: "awaiting_review", cause: event.cause } },
               [
@@ -1205,7 +1217,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
               ],
             );
           }
-          return unexpected(`review stop reached while phase is ${ps}`);
+          return unexpected(`${event.cause} review stop reached while phase is ${ps}`);
         }
         case "awaiting_review":
           return ignored("run already awaits review");
@@ -1255,6 +1267,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "running": {
           if (state.phase.state === "awaiting_review") {
+            if (state.phase.cause === "held") {
+              return unexpected("a held stop closes with HeldStopClosed");
+            }
             return handled({ run: "running", phase: { state: "committed", hash: event.hash } }, [
               {
                 type: "PersistState",
@@ -1262,7 +1277,15 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   phase: {
                     state: "committed",
                     commitHash: event.hash,
-                    stop: { cause: state.phase.cause, status: "closed", outcome: event.outcome },
+                    stop:
+                      event.closure.outcome === "corrected"
+                        ? {
+                            cause: "declared",
+                            status: "closed",
+                            outcome: "corrected",
+                            oracleStep: event.closure.oracleStep,
+                          }
+                        : { cause: "declared", status: "closed", outcome: "unchanged" },
                   },
                 },
               },
@@ -1286,6 +1309,121 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`stop committed on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
+
+    case "HeldStopClosed":
+      switch (state.run) {
+        case "running": {
+          if (state.phase.state === "awaiting_review") {
+            if (state.phase.cause === "declared") {
+              return unexpected("a declared stop closes with StopCommitted");
+            }
+            // `commitHash` stays the phase commit: no RecordCommitMetadata.
+            return handled(
+              { run: "running", phase: { state: "committed", hash: event.phaseCommit } },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    phase: {
+                      state: "committed",
+                      stop:
+                        event.closure.outcome === "corrected"
+                          ? {
+                              cause: "held",
+                              status: "closed",
+                              outcome: "corrected",
+                              reviewCommit: event.closure.reviewCommit,
+                              oracleStep: event.closure.oracleStep,
+                            }
+                          : { cause: "held", status: "closed", outcome: "unchanged" },
+                    },
+                  },
+                },
+                { type: "DiscardReviewStop" },
+              ],
+            );
+          }
+          return unexpected(`held stop closed while phase is ${state.phase.state}`);
+        }
+        case "awaiting_review":
+          return stale("held stop closed while no close runs");
+        case "rate_limited":
+          return unexpected("held stop closed while run is rate_limited");
+        case "interrupted":
+          return stale("held stop closed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`held stop closed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`held stop closed on ${state.run} run`);
+        default:
+          return assertNever(state);
+      }
+
+    case "HoldPointFailed":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "committed" || ps === "handoff_failed") {
+            return handled(
+              { run: "interrupted", phase: { state: "committed", hash: event.phaseCommit } },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: { stoppedReason: "hold_point_failed", lastError: event.reason },
+                    phase: { state: "committed" },
+                  },
+                },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Hold point failed",
+                    kind: "hold_point_failed",
+                    phaseId: event.phaseId,
+                    worktreePath: event.worktreePath as string,
+                    rawMessage: event.reason,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "hold.point.failed",
+                  status: "failed",
+                  boundary: "hold-point",
+                  details: { phaseId: event.phaseId, reason: event.reason },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "resume.available",
+                  status: "info",
+                  boundary: "resume-instructions.md",
+                  details: { resumeCommand: `phax resume ${event.run}` },
+                },
+              ],
+            );
+          }
+          return unexpected(`hold point failed while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return stale("hold point failed on rate-limited run");
+        case "interrupted":
+          return stale("hold point failed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`hold point failed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`hold point failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HoldPointFailed while the run awaits review");
         default:
           return assertNever(state);
       }

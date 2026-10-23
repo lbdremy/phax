@@ -232,6 +232,32 @@ function buildCleanupFailedInstructions(input: ResumeInstructionsInput): string 
   return lines.join("\n");
 }
 
+function buildHoldPointFailedInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused before it could stop at a held phase. The phase is committed and",
+    "its gate passed — only the stop itself failed. Fix the cause, then resume:",
+    "`phax resume` reaches the stop again with no agent turn, gate or commit.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not recorded)"}`,
+    ...(input.rawMessage !== undefined ? [`- **Error:** ${input.rawMessage}`] : []),
+    "",
+    "## Resume",
+    "",
+    "```bash",
+    `phax resume ${input.shortName}`,
+    "```",
+    "",
+  ];
+  return lines.join("\n");
+}
+
 function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
@@ -321,6 +347,9 @@ export function buildResumeInstructions(input: ResumeInstructionsInput): string 
   }
   if (input.kind === "artifact_completion_failed") {
     return buildArtifactCompletionFailedInstructions(input);
+  }
+  if (input.kind === "hold_point_failed") {
+    return buildHoldPointFailedInstructions(input);
   }
   return buildRateLimitInstructions(input);
 }

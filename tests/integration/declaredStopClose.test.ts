@@ -373,7 +373,7 @@ describe("closing a declared stop", () => {
     expect(phaseStatus(run)).toMatchObject({
       state: "committed",
       commitHash: closed.commit,
-      stop: { cause: "declared", status: "closed", outcome: "corrected" },
+      stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
     });
     expect(existsSync(reviewStopPath(run))).toBe(false);
     expect(existsSync(parkedPath(run))).toBe(false);
@@ -811,7 +811,7 @@ describe("a close taken up again", () => {
     expect(phaseStatus(run)).toMatchObject({
       state: "committed",
       commitHash: landed,
-      stop: { cause: "declared", status: "closed", outcome: "corrected" },
+      stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
     });
     expect(reconciliation(run)).toMatchObject({ reviewCorrections: ["src/invoiceRow.ts"] });
     expect(existsSync(parkedPath(run))).toBe(false);

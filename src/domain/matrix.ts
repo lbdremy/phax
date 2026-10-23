@@ -44,6 +44,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Unexpected",
     StopCloseRefused: "Unexpected",
     StopCommitted: "Unexpected",
+    HeldStopClosed: "Unexpected",
+    HoldPointFailed: "Unexpected",
   },
   running: {
     RunStarted: "Rejected",
@@ -79,6 +81,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Handled",
     StopCloseRefused: "Handled",
     StopCommitted: "Handled",
+    HeldStopClosed: "Handled",
+    HoldPointFailed: "Handled",
   },
   rate_limited: {
     RunStarted: "Rejected",
@@ -114,6 +118,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Unexpected",
     StopCloseRefused: "Unexpected",
     StopCommitted: "Unexpected",
+    HeldStopClosed: "Unexpected",
+    HoldPointFailed: "Stale",
   },
   interrupted: {
     RunStarted: "Rejected",
@@ -149,6 +155,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Stale",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
   review_open: {
     RunStarted: "Rejected",
@@ -184,6 +192,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Unexpected",
     StopCloseRefused: "Unexpected",
     StopCommitted: "Unexpected",
+    HeldStopClosed: "Unexpected",
+    HoldPointFailed: "Unexpected",
   },
   awaiting_review: {
     RunStarted: "Rejected",
@@ -219,6 +229,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Ignored",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
   failed: {
     RunStarted: "Rejected",
@@ -254,6 +266,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Stale",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
   completed: {
     RunStarted: "Rejected",
@@ -289,6 +303,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Stale",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
   stopped: {
     RunStarted: "Rejected",
@@ -324,6 +340,8 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Stale",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
   archived: {
     RunStarted: "Rejected",
@@ -359,5 +377,7 @@ export const phaxDispositionMatrix = {
     ReviewStopReached: "Stale",
     StopCloseRefused: "Stale",
     StopCommitted: "Stale",
+    HeldStopClosed: "Stale",
+    HoldPointFailed: "Stale",
   },
 } as const satisfies EventDispositionMatrix<PhaxStateName, PhaxEventType>;

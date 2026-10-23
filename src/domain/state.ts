@@ -31,8 +31,11 @@ export type PhaseState =
   | "rate_limited"
   | "awaiting_review";
 
-/** Why a run waits for a person at a phase: the plan declared the phase interactive. */
-export type StopCause = "declared";
+/**
+ * Why a run waits for a person at a phase: the plan declared the phase
+ * interactive, or the operator held a headless phase after its commit.
+ */
+export type StopCause = "declared" | "held";
 
 // Hierarchical state model. The dispatcher (phase-03) composes a PhaxState
 // from the flat RunStatus + PhaseStatus persisted on disk; the reducer

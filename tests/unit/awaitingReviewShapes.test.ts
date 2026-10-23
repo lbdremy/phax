@@ -72,14 +72,39 @@ describe("phase status readers", () => {
   });
 
   it.each([
-    ["waiting", { cause: "declared", status: "waiting" }],
-    ["closed corrected", { cause: "declared", status: "closed", outcome: "corrected" }],
-    ["closed unchanged", { cause: "declared", status: "closed", outcome: "unchanged" }],
-  ] as const)("round-trips a current status with a %s stop", (_name, stop) => {
+    ["declared waiting", "interactive", { cause: "declared", status: "waiting" }],
+    [
+      "declared closed corrected",
+      "interactive",
+      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "authored" },
+    ],
+    [
+      "declared closed unchanged",
+      "interactive",
+      { cause: "declared", status: "closed", outcome: "unchanged" },
+    ],
+    ["held waiting", "headless", { cause: "held", status: "waiting" }],
+    [
+      "held closed corrected",
+      "headless",
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "corrected",
+        reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+        oracleStep: "none",
+      },
+    ],
+    [
+      "held closed unchanged",
+      "headless",
+      { cause: "held", status: "closed", outcome: "unchanged" },
+    ],
+  ] as const)("round-trips a current status with a %s stop", (_name, mode, stop) => {
     const document = phaseStatusFile({
       ...fields,
       state: stop.status === "waiting" ? "awaiting_review" : "committed",
-      mode: "interactive",
+      mode,
       stop,
     });
     const read = readPhaseStatusFile("status.json", JSON.parse(JSON.stringify(document)));
@@ -89,7 +114,10 @@ describe("phase status readers", () => {
 
   it.each([
     ["no stop", null],
-    ["a closed stop", { cause: "declared", status: "closed", outcome: "corrected" }],
+    [
+      "a closed stop",
+      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
+    ],
   ] as const)("refuses a current status awaiting review with %s", (_name, stop) => {
     const document = phaseStatusFile({
       ...fields,
@@ -105,7 +133,7 @@ describe("phase status readers", () => {
   it("refuses a stop with an unknown cause", () => {
     const document = {
       ...phaseStatusFile({ ...fields, state: "awaiting_review", mode: "interactive" }),
-      stop: { cause: "held", status: "waiting" },
+      stop: { cause: "paused", status: "waiting" },
     };
     expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
   });
@@ -114,6 +142,69 @@ describe("phase status readers", () => {
     const document = {
       ...phaseStatusFile({ ...fields, state: "committed", mode: "interactive" }),
       stop: { cause: "declared", status: "closed" },
+    };
+    expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a declared corrected stop without oracleStep",
+      { cause: "declared", status: "closed", outcome: "corrected" },
+    ],
+    [
+      "a held corrected stop without oracleStep",
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "corrected",
+        reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+      },
+    ],
+    [
+      "a held corrected stop without reviewCommit",
+      { cause: "held", status: "closed", outcome: "corrected", oracleStep: "none" },
+    ],
+    [
+      "a held corrected stop with an abbreviated reviewCommit",
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "corrected",
+        reviewCommit: "b2c3d4e",
+        oracleStep: "none",
+      },
+    ],
+    [
+      "a held unchanged stop naming a reviewCommit",
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "unchanged",
+        reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+      },
+    ],
+    [
+      "a declared unchanged stop naming an oracleStep",
+      { cause: "declared", status: "closed", outcome: "unchanged", oracleStep: "none" },
+    ],
+    [
+      "a declared corrected stop naming a reviewCommit",
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "none",
+        reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+      },
+    ],
+    [
+      "an oracleStep other than authored or none",
+      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "skipped" },
+    ],
+  ] as const)("refuses %s", (_name, stop) => {
+    const document = {
+      ...phaseStatusFile({ ...fields, state: "committed", mode: "interactive" }),
+      stop,
     };
     expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
   });

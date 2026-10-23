@@ -220,13 +220,44 @@ export interface StopCloseRefused extends PhaxEventBase {
   readonly lastClose: LastClose;
 }
 
-// A close of the stop committed the gated tree: the phase is committed and
-// review-stop.json is discarded.
+/** Whether a close's gate ended with the `authored` oracle step, which passed. */
+export type OracleStep = "authored" | "none";
+
+// A close of a declared stop committed the gated tree: the phase is committed
+// and review-stop.json is discarded.
 export interface StopCommitted extends PhaxEventBase {
   readonly type: "StopCommitted";
   readonly phaseId: PhaseId;
   readonly hash: string;
-  readonly outcome: "corrected" | "unchanged";
+  readonly closure:
+    | { readonly outcome: "corrected"; readonly oracleStep: OracleStep }
+    | { readonly outcome: "unchanged" };
+}
+
+// A close of a held stop finished: the phase is committed again, at the phase
+// commit (never the review commit, which the closed stop records beside it),
+// and review-stop.json is discarded.
+export interface HeldStopClosed extends PhaxEventBase {
+  readonly type: "HeldStopClosed";
+  readonly phaseId: PhaseId;
+  readonly phaseCommit: string;
+  readonly closure:
+    | {
+        readonly outcome: "corrected";
+        readonly reviewCommit: string;
+        readonly oracleStep: OracleStep;
+      }
+    | { readonly outcome: "unchanged" };
+}
+
+// The hold point failed before the run reached the held stop: the phase is
+// already committed, so the run pauses resumable at that commit.
+export interface HoldPointFailed extends PhaxEventBase {
+  readonly type: "HoldPointFailed";
+  readonly phaseId: PhaseId;
+  readonly phaseCommit: string;
+  readonly worktreePath: WorktreePath;
+  readonly reason: string;
 }
 
 export type PhaxEvent =
@@ -262,6 +293,8 @@ export type PhaxEvent =
   | PhaseResetRequested
   | ReviewStopReached
   | StopCloseRefused
-  | StopCommitted;
+  | StopCommitted
+  | HeldStopClosed
+  | HoldPointFailed;
 
 export type PhaxEventType = PhaxEvent["type"];

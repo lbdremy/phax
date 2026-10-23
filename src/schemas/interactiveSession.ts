@@ -10,8 +10,14 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 
 const InstantSchema = Schema.NonEmptyString.annotations({ description: "An ISO-8601 instant." });
 
-const OriginSchema = Schema.Literal("first-turn", "new-session").annotations({
-  description: "How the session began: the first turn, or `phax enter-phase --new-session`.",
+const FirstTurnOriginSchema = Schema.Literal("first-turn", "new-session").annotations({
+  description:
+    "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder.",
+});
+
+const SessionOriginSchema = Schema.Literal("first-turn", "new-session", "builder").annotations({
+  description:
+    "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase.",
 });
 
 const Sha256Schema = Schema.String.pipe(
@@ -25,20 +31,20 @@ const SessionSchema = Schema.Struct({
   effort: Schema.NonEmptyString,
   sessionId: Schema.NonEmptyString,
   startedAt: InstantSchema,
-  origin: OriginSchema,
+  origin: SessionOriginSchema,
 });
 
 const FirstTurnSchema = Schema.Union(
   Schema.Struct({
     outcome: Schema.Literal("answered"),
-    origin: OriginSchema,
+    origin: FirstTurnOriginSchema,
     startedAt: InstantSchema,
     endedAt: InstantSchema,
     sessionId: Schema.NonEmptyString,
   }),
   Schema.Struct({
     outcome: Schema.Literal("refused-change"),
-    origin: OriginSchema,
+    origin: FirstTurnOriginSchema,
     startedAt: InstantSchema,
     endedAt: InstantSchema,
     changedPaths: Schema.NonEmptyArray(Schema.String),
@@ -48,7 +54,7 @@ const FirstTurnSchema = Schema.Union(
   }),
   Schema.Struct({
     outcome: Schema.Literal("failed"),
-    origin: OriginSchema,
+    origin: FirstTurnOriginSchema,
     startedAt: InstantSchema,
     endedAt: InstantSchema,
     reason: Schema.Literal(
@@ -63,13 +69,8 @@ const FirstTurnSchema = Schema.Union(
   }),
 );
 
-const TurnInProgressSchema = Schema.Struct({
-  kind: Schema.Literal("first-turn", "closing-turn").annotations({
-    description:
-      "Which of phax's turns is in progress: a read-only first turn, or a stop's closing turn.",
-  }),
+const turnInProgressFields = {
   turn: Schema.Int.pipe(Schema.between(1, 99)),
-  origin: OriginSchema,
   beforeTree: Schema.NonEmptyString.annotations({
     description: "The worktree's tree id before the turn.",
   }),
@@ -77,7 +78,25 @@ const TurnInProgressSchema = Schema.Struct({
     description: "The sha256 of the person's handoff file before the turn, or null if absent.",
   }),
   startedAt: InstantSchema,
-});
+};
+
+// A first turn is never the builder; a closing turn may resume the builder session.
+const TurnInProgressSchema = Schema.Union(
+  Schema.Struct({
+    kind: Schema.Literal("first-turn").annotations({
+      description: "A read-only first turn is in progress.",
+    }),
+    origin: FirstTurnOriginSchema,
+    ...turnInProgressFields,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("closing-turn").annotations({
+      description: "A stop's closing turn is in progress.",
+    }),
+    origin: SessionOriginSchema,
+    ...turnInProgressFields,
+  }),
+);
 
 /**
  * An `interactive-session` document. Exactly the keys of its variants; any

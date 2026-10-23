@@ -15,7 +15,10 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { decodeShortName, type RunId } from "../domain/branded.js";
 import type { LockConflictError } from "../domain/errors.js";
-import { buildDeclaredReviewStop } from "../domain/interactive/reviewStop.js";
+import {
+  buildDeclaredReviewStop,
+  declaredSessionOrigin,
+} from "../domain/interactive/reviewStop.js";
 import { freshStartPrompt } from "../domain/interactive/turnPrompts.js";
 import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
@@ -426,9 +429,11 @@ function runNewSessionTurn(
         current.sessionId,
       );
       const freshStart = commandOf(commands.freshStart);
-      if (freshStart !== null) {
+      const existing = stop.reviewStop;
+      // A held stop's document is refreshed with the held commands; no held
+      // stop exists until a later phase reaches one.
+      if (freshStart !== null && existing.cause === "declared") {
         const continueCommand = commands.continue === null ? null : commandOf(commands.continue);
-        const existing = stop.reviewStop;
         const rebuilt = buildDeclaredReviewStop({
           run: existing.run,
           phase: existing.phase,
@@ -439,7 +444,7 @@ function runNewSessionTurn(
           session: {
             provider: current.provider,
             sessionId: current.sessionId,
-            origin: current.origin,
+            origin: declaredSessionOrigin(current.origin),
           },
           interactiveResume: adapter.interactiveResume,
           continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),

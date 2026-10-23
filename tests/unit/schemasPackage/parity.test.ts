@@ -77,6 +77,9 @@ import {
 import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
+  builderInteractiveSessionDocument,
+  heldReviewStopDocument,
+  phaseStatusStopDocuments,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
@@ -382,6 +385,50 @@ describe.each(FORMAT_IDS.map((id) => FORMATS[id]))(
     });
   },
 );
+
+describe("parity: the held cause", () => {
+  it.each(Object.entries(phaseStatusStopDocuments))(
+    "a phase status with a %s stop is accepted by both",
+    (_label, document) => {
+      expectParity(parsePhaseStatus, decodePhaseStatusFile, document, "accepted");
+    },
+  );
+
+  it("refuses a closed unchanged held stop that names a review commit, in both", () => {
+    const document = withKey(phaseStatusStopDocuments["held closed unchanged"]!, "stop", {
+      cause: "held",
+      status: "closed",
+      outcome: "unchanged",
+      reviewCommit: "89abcdef0123456789abcdef0123456789abcdef",
+    });
+    expectParity(parsePhaseStatus, decodePhaseStatusFile, document, "rejected");
+  });
+
+  it("accepts the held review stop in both, and refuses the other variant's keys in both", () => {
+    expectParity(parseReviewStop, decodeReviewStopFile, heldReviewStopDocument, "accepted");
+    expectParity(
+      parseReviewStop,
+      decodeReviewStopFile,
+      withKey(heldReviewStopDocument, "firstReading", null),
+      "rejected",
+    );
+    expectParity(
+      parseReviewStop,
+      decodeReviewStopFile,
+      withoutKey(heldReviewStopDocument, "phaseCommit"),
+      "rejected",
+    );
+  });
+
+  it("accepts a builder session and closing turn in both", () => {
+    expectParity(
+      parseInteractiveSession,
+      decodeInteractiveSessionFile,
+      builderInteractiveSessionDocument,
+      "accepted",
+    );
+  });
+});
 
 describe("parity: one unknown key", () => {
   it("is rejected by both for a phase record manifest, at the key", () => {

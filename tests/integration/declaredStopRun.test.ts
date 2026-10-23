@@ -581,7 +581,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     expect(message).toContain("Interactive-Phase: phase-03");
     expect(phaseStatus(harness, "phase-03")).toMatchObject({
       state: "cleaned_up",
-      stop: { cause: "declared", status: "closed", outcome: "corrected" },
+      stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
     });
     expect(harness.shellCalls).toContainEqual({ line: "pnpm cleanup", cwd: stopTree });
 

@@ -117,7 +117,11 @@ import {
   type SpecRecord,
 } from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
-import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
+import {
+  PhaseStatusFileSchema,
+  RunStatusFileSchema,
+  type PhaseStop,
+} from "../../../src/schemas/status.js";
 
 export type Doc = Readonly<Record<string, unknown>>;
 
@@ -942,6 +946,149 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     }),
   ),
 };
+
+const EXAMPLE_REVIEW_COMMIT = "89abcdef0123456789abcdef0123456789abcdef";
+
+function phaseStatusWithStop(
+  state: "awaiting_review" | "committed",
+  mode: "headless" | "interactive",
+  stop: PhaseStop,
+): Doc {
+  return encoded(
+    PhaseStatusFileSchema,
+    withSchemaUrl("phase-status", {
+      ...stepped(phaseStatus),
+      state,
+      base: EXAMPLE_BASE,
+      mode,
+      stop,
+    }),
+  );
+}
+
+/**
+ * One current-shape phase status per variant of a phase's `stop`, keyed by a
+ * label naming the cause, the status and the outcome.
+ */
+export const phaseStatusStopDocuments: Readonly<Record<string, Doc>> = {
+  "declared waiting": phaseStatusWithStop("awaiting_review", "interactive", {
+    cause: "declared",
+    status: "waiting",
+  }),
+  "declared closed corrected": phaseStatusWithStop("committed", "interactive", {
+    cause: "declared",
+    status: "closed",
+    outcome: "corrected",
+    oracleStep: "authored",
+  }),
+  "declared closed unchanged": phaseStatusWithStop("committed", "interactive", {
+    cause: "declared",
+    status: "closed",
+    outcome: "unchanged",
+  }),
+  "held waiting": phaseStatusWithStop("awaiting_review", "headless", {
+    cause: "held",
+    status: "waiting",
+  }),
+  "held closed corrected": phaseStatusWithStop("committed", "headless", {
+    cause: "held",
+    status: "closed",
+    outcome: "corrected",
+    reviewCommit: EXAMPLE_REVIEW_COMMIT,
+    oracleStep: "none",
+  }),
+  "held closed unchanged": phaseStatusWithStop("committed", "headless", {
+    cause: "held",
+    status: "closed",
+    outcome: "unchanged",
+  }),
+};
+
+/**
+ * A current-shape `review-stop` in its held variant: a stop after the commit
+ * of the headless phase-02 of the made-up invoice-export run, with the
+ * builder session current.
+ */
+export const heldReviewStopDocument: Doc = encoded(
+  ReviewStopFileSchema,
+  withSchemaUrl("review-stop", {
+    run: "example.invoice-export",
+    state: "awaiting_review",
+    cause: "held",
+    phase: {
+      id: "phase-02",
+      title: "Write the credit-note rows",
+      mode: "headless",
+      position: 2,
+      of: 4,
+    },
+    phaseCommit: EXAMPLE_BASE,
+    worktree: "/example/worktrees/invoice-export/phase-02",
+    seed: "/example/worktrees/invoice-export/phase-02/.phax-context/review-seed.md",
+    session: {
+      provider: "claude-code",
+      sessionId: "4f6c1a52-0000-4000-8000-0000000000b1",
+      origin: "builder",
+      interactiveResume: "verified",
+    },
+    commands: {
+      continue: {
+        cwd: "/example/worktrees/invoice-export/phase-02",
+        argv: ["claude", "--resume", "4f6c1a52-0000-4000-8000-0000000000b1"],
+        env: {},
+      },
+      freshStart: {
+        cwd: "/example/worktrees/invoice-export/phase-02",
+        argv: ["claude"],
+        env: {},
+      },
+      enterPhase: {
+        cwd: "/example/repo",
+        argv: ["phax", "enter-phase", "invoice-export", "phase-02"],
+        env: {},
+      },
+      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export"], env: {} },
+      reset: {
+        cwd: "/example/repo",
+        argv: ["phax", "reset-phase", "invoice-export", "phase-02"],
+        env: {},
+      },
+    },
+    lastClose: null,
+    closeBase: null,
+  }),
+);
+
+/**
+ * A current-shape `interactive-session` for a held phase: the builder session
+ * is current, and a read-only closing turn that resumed it is in progress.
+ */
+export const builderInteractiveSessionDocument: Doc = encoded(
+  InteractiveSessionFileSchema,
+  withSchemaUrl("interactive-session", {
+    phaseId: "phase-02",
+    provider: "claude-code",
+    interactiveResume: "verified",
+    current: {
+      provider: "claude-code",
+      model: "claude-sonnet-5-5",
+      effort: "high",
+      sessionId: "4f6c1a52-0000-4000-8000-0000000000b1",
+      startedAt: "2026-01-01T09:10:00.000Z",
+      origin: "builder",
+    },
+    history: [],
+    firstTurns: [],
+    turnInProgress: {
+      kind: "closing-turn",
+      turn: 1,
+      origin: "builder",
+      beforeTree: "0123456789abcdef0123456789abcdef01234567",
+      personHandoffBefore: null,
+      startedAt: "2026-01-01T09:20:00.000Z",
+    },
+  }),
+);
 
 /**
  * A phase record manifest older than the pre-schema shape: `version: 1` and

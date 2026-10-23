@@ -282,7 +282,7 @@ describe("planEnterPhase and a closed interactive phase", () => {
     patchJson(join(run.phaseFolder, "status.json"), {
       state: "committed",
       commitHash: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-      stop: { cause: "declared", status: "closed", outcome: "corrected" },
+      stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
     });
     const info = Either.getOrThrow(
       resolveRun(NAMESPACE, run.shortName as ShortName, world.stateRoot),

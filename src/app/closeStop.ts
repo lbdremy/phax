@@ -939,7 +939,11 @@ export function closeDeclaredStop(
         occurredAt: now(),
         type: "StopCommitted",
         hash: report.commit,
-        outcome: report.outcome,
+        // No oracle step runs at a close until reviews inside an oracle pair land.
+        closure:
+          report.outcome === "corrected"
+            ? { outcome: "corrected", oracleStep: "none" }
+            : { outcome: "unchanged" },
       },
       ctx,
     );

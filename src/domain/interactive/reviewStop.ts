@@ -1,5 +1,5 @@
 import type { ProviderId } from "../../schemas/providerId.js";
-import type { LastClose, ReviewStop, ReviewStopCommand } from "../../schemas/reviewStop.js";
+import type { DeclaredReviewStop, LastClose, ReviewStopCommand } from "../../schemas/reviewStop.js";
 import type { InteractiveResumeSupport } from "../session/types.js";
 
 // The in-memory `review-stop` document of a declared stop, before the app
@@ -37,11 +37,20 @@ function phaxCommand(cwd: string, ...argv: [string, ...string[]]): ReviewStopCom
 }
 
 /**
+ * The origin of a declared phase's session. A declared phase never has a
+ * builder session: that origin belongs to a held headless phase.
+ */
+export function declaredSessionOrigin(origin: string): "first-turn" | "new-session" {
+  if (origin === "first-turn" || origin === "new-session") return origin;
+  throw new Error(`A declared phase has no ${origin} session`);
+}
+
+/**
  * The review-stop value of a declared stop. `continue` is null when no
  * session is current or the session's provider has unverified interactive
  * resume; `closeBase` is null until a close records HEAD.
  */
-export function buildDeclaredReviewStop(input: DeclaredReviewStopInput): ReviewStop {
+export function buildDeclaredReviewStop(input: DeclaredReviewStopInput): DeclaredReviewStop {
   const { run, phase, mainCheckout } = input;
   return {
     run,
