@@ -49,7 +49,7 @@ file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
-and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured), and **advisory** (when `phax.json` registers a `planAuditor`, every
+and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured and an interactive phase in an oracle role; one inside a pair is allowed), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -302,8 +302,8 @@ provider judges both gates.
   runner's expected-failure marker, so the test command stays green; it may delete tests.
 - **The discharging phase** (the next phase, or the one named) removes the markers and writes
   the code. Removing the markers is its only change to the oracle files.
-- **No phase in between** plans an oracle file, no interactive phase sits in between or takes
-  an oracle role, and one phase discharges one oracle phase.
+- **No phase in between** plans an oracle file, an interactive phase may sit in between and
+  never takes an oracle role, and one phase discharges one oracle phase.
 
 ### What makes a good oracle
 
@@ -341,7 +341,9 @@ read-only first turn, then stops in `awaiting_review` (exit 13); `phax resume` c
 with the gate and a commit of the person's correction.
 
 - **Declare one directly after the first phase that sets a pattern at least one later phase
-  repeats**, and never by default. A plan with nothing to review writes no `**Mode:**` line.
+  repeats**, and never by default. A plan with nothing to review writes no `**Mode:**` line:
+  the operator can hold any other phase at run time with `phax run --hold`, so a plan does
+  not declare a stop for a review the operator may or may not want.
 - **One header line**, `**Mode:** interactive`, sits after the model, effort and Assignment
   reason lines of the phase.
 - **It plans no file to create or edit.** Its optional files name what the person may touch;
@@ -351,8 +353,8 @@ with the gate and a commit of the person's correction.
   last (the final phase is already kept open for review), and never directly follows another
   interactive phase.
 - **Bounds.** It is held to the assignment bounds through its optional files, like any phase.
-- **Oracles.** In this release it may not sit inside an oracle pair, and it never takes an
-  oracle role.
+- **Oracles.** It may sit inside an oracle pair, where a person reviews the oracles before
+  their discharge and phax judges them again, and it never takes an oracle role.
 
 ## Boundary contracts (informational)
 
