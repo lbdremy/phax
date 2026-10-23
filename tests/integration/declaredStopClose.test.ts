@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Deferred, Effect, Either, Fiber, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeDeclaredStop, type CloseReport } from "../../src/app/closeStop.js";
+import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
 import { buildInteractiveCommitBody } from "../../src/app/commit.js";
 import { readInteractiveSession } from "../../src/app/interactiveFiles.js";
@@ -40,7 +40,7 @@ import {
 } from "../helpers/stoppedRunFixture.js";
 
 // The made-up invoice-export run stopped at its interactive phase-03 by the
-// real stop, then closed through `closeDeclaredStop`: real git (a linked
+// real stop, then closed through `closeStop`: real git (a linked
 // worktree), the real file system, a fake backend playing the provider, and a
 // shell whose `pnpm` gate steps are scripted while git runs for real.
 
@@ -239,7 +239,7 @@ async function close(run: StoppedRun, options: CloseOptions = {}) {
   });
   const program = Effect.gen(function* () {
     if (options.resume !== false) yield* resumeRequested(run);
-    return yield* Effect.either(closeDeclaredStop(closeInput(run)));
+    return yield* Effect.either(closeStop(closeInput(run)));
   });
   const result = await Effect.runPromise(
     program.pipe(Effect.provide(layers(options, order, backend))),
@@ -247,8 +247,11 @@ async function close(run: StoppedRun, options: CloseOptions = {}) {
   return { result, order, backend };
 }
 
-const report = (result: Either.Either<CloseReport, unknown>): CloseReport => {
+type DeclaredReport = Extract<CloseReport, { readonly cause: "declared" }>;
+
+const report = (result: Either.Either<CloseReport, unknown>): DeclaredReport => {
   if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
+  if (result.right.cause !== "declared") throw new Error("the close was not a declared stop's");
   return result.right;
 };
 
@@ -555,7 +558,7 @@ describe("a refused close", () => {
       Effect.gen(function* () {
         yield* resumeRequested(run);
         return yield* Effect.either(
-          closeDeclaredStop({
+          closeStop({
             ...closeInput(run),
             gateRequest: Effect.fail(new FsError({ message: "status.json: not valid JSON" })),
           }),
@@ -929,7 +932,7 @@ describe("a close taken up again", () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         yield* resumeRequested(run);
-        const fiber = yield* Effect.fork(closeDeclaredStop(closeInput(run)));
+        const fiber = yield* Effect.fork(closeStop(closeInput(run)));
         yield* Deferred.await(started);
         yield* Fiber.interrupt(fiber);
       }).pipe(Effect.provide(layers({}, [], new HangingBackend()))),

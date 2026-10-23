@@ -59,7 +59,7 @@ export interface InteractiveCommitBodyOptions {
   readonly runId: string;
   readonly shortName: string;
   readonly worktreePath: string;
-  /** The log of the closing gate attempt whose tree the commit holds. */
+  /** The log of the closing gate attempt whose tree the commit holds: its `Gate-Log` trailer. */
   readonly gateLogPath: string;
 }
 
@@ -80,6 +80,27 @@ export function buildInteractiveCommitBody(opts: InteractiveCommitBodyOptions): 
     `Phase-Id: ${opts.phase.id}`,
     `Phase-Title: ${opts.phase.title}`,
     `Interactive-Phase: ${opts.phase.id}`,
+    `Worktree: ${opts.worktreePath}`,
+    `Gate-Log: ${opts.gateLogPath}`,
+  ].join("\n");
+}
+
+/**
+ * The body of a held stop's review commit: one line saying a person corrected
+ * the phase, then the trailers. No `Phase-Id`, `Model`, `Effort` or
+ * `Session-Id`: the review commit names neither a record nor an agent, and
+ * the phase commit it sits on keeps its own trailers.
+ */
+export function buildHeldReviewCommitBody(opts: InteractiveCommitBodyOptions): string {
+  return [
+    `Review corrections to ${opts.phase.id} (${opts.phase.title}), made by a person at a held stop.`,
+    "",
+    "---",
+    "",
+    `Run-Id: ${opts.runId}`,
+    `Short-Name: ${opts.shortName}`,
+    `Phase-Title: ${opts.phase.title}`,
+    `Held-Phase: ${opts.phase.id}`,
     `Worktree: ${opts.worktreePath}`,
     `Gate-Log: ${opts.gateLogPath}`,
   ].join("\n");

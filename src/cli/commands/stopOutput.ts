@@ -136,14 +136,49 @@ function handoffLine(source: HandoffSource): string {
   }
 }
 
-/** The lines printed once a declared stop's close has committed. */
+const short = (sha: string): string => sha.slice(0, 7);
+
+const changedByReview = (count: number): string =>
+  count === 0 ? "no file changed by review" : `${count} file(s) changed by review`;
+
+// The heading, the gate and handoff lines and the closing line, by cause and outcome.
+function closedLines(closed: ClosedStop): {
+  readonly heading: string;
+  readonly handoffFile: string;
+  readonly done: string;
+} {
+  const { report } = closed;
+  const done = `✓ ${closed.phaseId}  ${closed.phaseTitle}`;
+  switch (report.cause) {
+    case "declared":
+      return {
+        heading: `${closed.phaseId} (declared): ${changedByReview(report.changedPaths.length)}`,
+        handoffFile: "",
+        done: `${done}   committed  ${short(report.commit)}  (${report.outcome})`,
+      };
+    case "held":
+      switch (report.outcome) {
+        case "corrected":
+          return {
+            heading: `${closed.phaseId} (held): ${changedByReview(report.changedPaths.length)}, on ${short(report.phaseCommit)}`,
+            handoffFile: " → correction-handoff.md",
+            done: `${done}   review commit  ${short(report.reviewCommit)}  on ${short(report.phaseCommit)}  (corrected)`,
+          };
+        case "unchanged":
+          return {
+            heading: `${closed.phaseId} (held): no change`,
+            handoffFile: " → correction-handoff.md",
+            done: `${done}   ${short(report.phaseCommit)}  (unchanged, no commit)`,
+          };
+      }
+  }
+}
+
+/** The lines printed once a stop's close has finished, declared or held. */
 export function renderStopClosed(closed: ClosedStop): string[] {
   const { report } = closed;
-  const changed =
-    report.changedPaths.length === 0
-      ? "no file changed by review"
-      : `${report.changedPaths.length} file(s) changed by review`;
-  const lines: string[] = [`${closed.phaseId} (declared): ${changed}`];
+  const { heading, handoffFile, done } = closedLines(closed);
+  const lines: string[] = [heading];
   if (report.restoredClosingTurn !== null) {
     lines.push(
       `  restored an interrupted closing turn's edits (${report.restoredClosingTurn.paths.join(", ")}); its versions are in ${report.restoredClosingTurn.keptAt}`,
@@ -152,10 +187,8 @@ export function renderStopClosed(closed: ClosedStop): string[] {
   for (const step of report.gateSteps) {
     lines.push(`  gate  ${step.command}   ${step.result}`);
   }
-  lines.push(`  handoff     ${handoffLine(report.handoffSource)}`);
-  lines.push(
-    `✓ ${closed.phaseId}  ${closed.phaseTitle}   committed  ${report.commit.slice(0, 7)}  (${report.outcome})`,
-  );
+  lines.push(`  handoff     ${handoffLine(report.handoffSource)}${handoffFile}`);
+  lines.push(done);
   return lines;
 }
 
