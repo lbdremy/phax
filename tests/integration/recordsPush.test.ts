@@ -18,6 +18,7 @@ import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { runStatus } from "../helpers/runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
@@ -280,15 +281,18 @@ function seedPublishPreconditions(args: {
   args.fs.impl.setFile(
     `${publishRunPath}/run-status.json`,
     JSON.stringify(
-      withSchemaUrl("run-status", {
-        namespace: "test-project",
-        shortName,
-        runId: "test-run-999",
-        state: "review_open",
-        createdAt: now,
-        updatedAt: now,
-        phasesCount: 1,
-      }),
+      withSchemaUrl(
+        "run-status",
+        runStatus({
+          namespace: "test-project",
+          shortName,
+          runId: "test-run-999",
+          state: "review_open",
+          createdAt: now,
+          updatedAt: now,
+          phasesCount: 1,
+        }),
+      ),
     ),
   );
   args.git.impl.addExistingBranch(finalBranch);

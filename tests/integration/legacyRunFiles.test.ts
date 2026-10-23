@@ -133,7 +133,10 @@ describe("a run status written before $schema", () => {
     expect(runStatus).not.toHaveProperty("version");
     expect(
       withoutKeys(runStatus, "$schema", "state", "updatedAt", "stoppedReason", "lastError"),
-    ).toEqual(withoutKeys(preSchemaRunStatus, "version", "state", "updatedAt"));
+    ).toEqual({
+      ...withoutKeys(preSchemaRunStatus, "version", "state", "updatedAt"),
+      hold: { selection: "none" },
+    });
     expect(runStatus["state"]).toBe("rate_limited");
 
     const rewritten = readJson(phaseStatusPath);

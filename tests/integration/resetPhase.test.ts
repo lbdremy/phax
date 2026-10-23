@@ -60,7 +60,9 @@ async function seedRun(
   await writeFile(
     join(runPath, "run-status.json"),
     JSON.stringify(
-      opts.runState === "awaiting_review" ? withSchemaUrl("run-status", current) : runStatus,
+      opts.runState === "awaiting_review"
+        ? withSchemaUrl("run-status", { ...current, hold: { selection: "none" } })
+        : runStatus,
     ),
   );
 

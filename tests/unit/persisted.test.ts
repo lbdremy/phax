@@ -313,7 +313,9 @@ describe("format readers", () => {
     const file = `/home/example/.phax/runs/example.example-run/${id}.json`;
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
-    const { version: _version, ...expected } = preSchemaDocuments[id];
+    // No earlier phax could hold a run, so the pre-schema value is lifted with `none`.
+    const { version: _version, ...recorded } = preSchemaDocuments[id];
+    const expected = { ...recorded, hold: { selection: "none" } };
     expect(fromPreSchema).toEqual(expected);
     expect(fromCurrent).toEqual(expected);
     expect(fromCurrent).not.toHaveProperty("$schema");
@@ -330,6 +332,21 @@ describe("format readers", () => {
     const refused = left(read(file, wrongUrl));
     expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
     expect(refused.message).not.toContain("without $schema");
+  });
+
+  describe("run-status: hold", () => {
+    const file = "/home/example/.phax/runs/example.example-run/run-status.json";
+
+    it("lifts a 0.17.0 run status with none", () => {
+      const { $schema: _schema, hold: _hold, ...recorded } = validDocuments["run-status"];
+      const older = { $schema: schemaUrl("run-status", "0.17.0"), ...recorded };
+      expect(right(readRunStatusFile(file, older))).toMatchObject({ hold: { selection: "none" } });
+    });
+
+    it("refuses a current-stamp run status without hold", () => {
+      const { hold: _hold, ...withoutHold } = validDocuments["run-status"];
+      expect(left(readRunStatusFile(file, withoutHold)).message).toContain("hold");
+    });
   });
 
   describe("phase-status: base", () => {

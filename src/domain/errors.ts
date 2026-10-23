@@ -394,6 +394,12 @@ export class InteractivePreflightError extends Data.TaggedError("InteractivePref
   planPath: string;
 }> {}
 
+// A --hold selection the plan cannot honour; one finding per defect.
+export class HoldPreflightError extends Data.TaggedError("HoldPreflightError")<{
+  message: string;
+  findings: readonly { readonly phase: string | null; readonly message: string }[];
+}> {}
+
 export class OraclePreflightError extends Data.TaggedError("OraclePreflightError")<{
   message: string;
   findings: readonly LintFinding[];

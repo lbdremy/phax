@@ -360,6 +360,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         namespace,
         allowSkillEdits: opts.allowSkillEdits ?? false,
         allowDirty: opts.allowDirty ?? false,
+        hold: { kind: "none" },
         priorityOverride,
       }).pipe(
         Effect.provide(makeRepoRootedFileSystemLayer(config)),
@@ -381,7 +382,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     out.error(`phax run failed: ${err.message}`);
     return exitCodeForError(err);
   }
-  const { routing, providerConfig } = preflightResult.right;
+  const { routing, providerConfig, hold } = preflightResult.right;
 
   // The slug may already name an existing run (in this namespace); bump it so
   // we never clobber a prior run. Uniqueness is scoped to the namespace via the
@@ -420,6 +421,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         config,
         planRepoRel,
         opts.allowSkillEdits ?? false,
+        hold,
       ).pipe(
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({

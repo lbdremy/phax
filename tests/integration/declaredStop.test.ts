@@ -40,6 +40,7 @@ import {
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import { parseSchemaUrl } from "../../src/schemas/schemaUrl.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { runStatus } from "../helpers/runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // The made-up invoice-export run stops at phase-03, which its plan declares
@@ -146,16 +147,19 @@ beforeEach(() => {
 
   writeJson(
     join(runPath, "run-status.json"),
-    withSchemaUrl("run-status", {
-      namespace: "example",
-      shortName: "invoice-export",
-      runId: "invoice-export-1792667922832",
-      state: "running",
-      createdAt: "2026-10-22T09:00:00.000Z",
-      updatedAt: "2026-10-22T09:00:00.000Z",
-      phasesCount: 4,
-      currentPhaseIndex: 2,
-    }),
+    withSchemaUrl(
+      "run-status",
+      runStatus({
+        namespace: "example",
+        shortName: "invoice-export",
+        runId: "invoice-export-1792667922832",
+        state: "running",
+        createdAt: "2026-10-22T09:00:00.000Z",
+        updatedAt: "2026-10-22T09:00:00.000Z",
+        phasesCount: 4,
+        currentPhaseIndex: 2,
+      }),
+    ),
   );
   writeJson(
     join(phaseFolder, "status.json"),

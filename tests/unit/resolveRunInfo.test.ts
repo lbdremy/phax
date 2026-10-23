@@ -5,22 +5,22 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
-import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import type { RunStatus } from "../../src/schemas/status.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { runStatusFile } from "../helpers/runStatusFixture.js";
 
 const now = new Date().toISOString();
 
 function makeRunStatus(namespace: string, shortName: string, state = "running"): object {
-  return {
-    $schema: currentSchemaUrl("run-status"),
+  return runStatusFile({
     namespace,
     shortName,
     runId: `${shortName}-id`,
-    state,
+    state: state as RunStatus["state"],
     createdAt: now,
     updatedAt: now,
     phasesCount: 1,
-  };
+  });
 }
 
 function makePhaseStatus(shortName: string): object {

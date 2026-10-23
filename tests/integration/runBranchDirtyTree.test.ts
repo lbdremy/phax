@@ -128,6 +128,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
           namespace: "test-project",
           allowSkillEdits: false,
           allowDirty: false,
+          hold: { kind: "none" },
         }).pipe(
           Effect.provide(makeFakeFileSystem().layer),
           Effect.provide(fakeGit.layer),

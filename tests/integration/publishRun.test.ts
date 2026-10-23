@@ -4,6 +4,7 @@ import { publishRun } from "../../src/app/publishRun.js";
 import { generateReviewHandoff } from "../../src/app/reviewHandoff.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 import { phaseStatus } from "../helpers/phaseStatusFixture.js";
+import { runStatus } from "../helpers/runStatusFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -69,16 +70,19 @@ function setupLayers() {
 
 function runStatusJson(planRepoRelPath?: string): string {
   return JSON.stringify(
-    withSchemaUrl("run-status", {
-      namespace: "test-project",
-      shortName,
-      runId: "test-run-999",
-      state: "review_open",
-      createdAt: now,
-      updatedAt: now,
-      phasesCount: 1,
-      ...(planRepoRelPath !== undefined ? { planRepoRelPath } : {}),
-    }),
+    withSchemaUrl(
+      "run-status",
+      runStatus({
+        namespace: "test-project",
+        shortName,
+        runId: "test-run-999",
+        state: "review_open",
+        createdAt: now,
+        updatedAt: now,
+        phasesCount: 1,
+        ...(planRepoRelPath !== undefined ? { planRepoRelPath } : {}),
+      }),
+    ),
   );
 }
 

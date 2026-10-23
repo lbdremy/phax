@@ -28,6 +28,7 @@ function makeRunStatus(state: string, extra: Record<string, unknown> = {}): obje
     createdAt: now,
     updatedAt: now,
     phasesCount: 1,
+    hold: { selection: "none" },
     ...extra,
   };
 }
