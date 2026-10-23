@@ -70,6 +70,13 @@ export interface ResetPreview {
    * snapshot sees, when it exists; null when it does not or away from a stop.
    */
   readonly personHandoff: string | null;
+  /**
+   * The commit a reset discards: the stopped phase's own commit at a held
+   * stop (a headless phase), null at a declared stop or away from one.
+   */
+  readonly phaseCommit: string | null;
+  /** The stopped phase's worktree; null away from a stop. */
+  readonly worktree: string | null;
 }
 
 const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
@@ -349,12 +356,27 @@ export function previewResetPhase(
     const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
     if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
     if (stopped === undefined) {
-      return { phaseId: target.phaseId, atStop: false, corrections: [], personHandoff: null };
+      return {
+        phaseId: target.phaseId,
+        atStop: false,
+        corrections: [],
+        personHandoff: null,
+        phaseCommit: null,
+        worktree: null,
+      };
     }
 
+    const phaseCommit = target.mode === "headless" ? (target.commitHash ?? null) : null;
     const worktree = target.worktreePath;
     if (worktree === undefined || !(yield* fs.exists(worktree))) {
-      return { phaseId: target.phaseId, atStop: true, corrections: [], personHandoff: null };
+      return {
+        phaseId: target.phaseId,
+        atStop: true,
+        corrections: [],
+        personHandoff: null,
+        phaseCommit,
+        worktree: worktree ?? null,
+      };
     }
     const head = yield* git.headTree(worktree);
     const snapshot = yield* git.snapshotWorktree(worktree);
@@ -362,7 +384,14 @@ export function previewResetPhase(
       snapshot === head ? [] : yield* git.changedPathsBetween(worktree, head, snapshot);
     const handoffPath = join(worktree, PERSON_HANDOFF_PATH);
     const personHandoff = (yield* fs.exists(handoffPath)) ? handoffPath : null;
-    return { phaseId: target.phaseId, atStop: true, corrections, personHandoff };
+    return {
+      phaseId: target.phaseId,
+      atStop: true,
+      corrections,
+      personHandoff,
+      phaseCommit,
+      worktree,
+    };
   });
 }
 
