@@ -90,6 +90,12 @@ import {
 } from "./interactiveStop.js";
 import { readPhaseBase } from "./phaseStatusUpdates.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
+import {
+  tracedCloseGate,
+  tracedReviewCommit,
+  tracedStep,
+  tracedTurnCall,
+} from "./telemetry/stopTelemetry.js";
 
 export interface CloseStopInput {
   readonly runId: RunId;
@@ -338,7 +344,7 @@ function runCloseGate(
 ): Effect.Effect<
   { readonly log: string; readonly steps: readonly GateStepResult[] },
   CloseRefusal,
-  FileSystem | Shell
+  FileSystem | Shell | SystemTelemetry
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -346,14 +352,17 @@ function runCloseGate(
     const names = yield* at("gate", fs.list(input.phaseFolder));
     const log = join(input.phaseFolder, attemptLogName(nextAttemptNumber(names)));
     const outcome = yield* Effect.either(
-      runGates({
-        steps: selectGateSteps(input.gateSteps, false),
-        cwd: input.worktree,
-        attemptLogPath: log,
-        attributionPath: join(input.phaseFolder, "gate-attribution.json"),
-        phaseId: input.phase.id,
-        gateRequest,
-      }),
+      tracedCloseGate(
+        { runId: input.runId, phaseId: input.phase.id },
+        runGates({
+          steps: selectGateSteps(input.gateSteps, false),
+          cwd: input.worktree,
+          attemptLogPath: log,
+          attributionPath: join(input.phaseFolder, "gate-attribution.json"),
+          phaseId: input.phase.id,
+          gateRequest,
+        }),
+      ),
     );
     if (Either.isRight(outcome)) return { log, steps: outcome.right.steps };
     const error = outcome.left;
@@ -435,16 +444,20 @@ function attemptClosingTurn(
       run: Effect.Effect<AgentRunResult, unknown, Backend>,
       stream: string,
       binding: Binding,
+      operation: "agent.run" | "agent.resume",
     ) =>
       Effect.either(
-        withInvocationCost(run, {
-          role: "closing-turn",
-          phase: input.phase.id,
-          runId: input.runId,
-          runPath: input.runPath,
-          provider: binding.provider,
-          streamPath: join(input.phaseFolder, stream),
-        }),
+        tracedTurnCall(
+          { runId: input.runId, phaseId: input.phase.id, provider: binding.provider, operation },
+          withInvocationCost(run, {
+            role: "closing-turn",
+            phase: input.phase.id,
+            runId: input.runId,
+            runPath: input.runPath,
+            provider: binding.provider,
+            streamPath: join(input.phaseFolder, stream),
+          }),
+        ),
       );
 
     let first: {
@@ -466,6 +479,7 @@ function attemptClosingTurn(
         ),
         stream,
         binding,
+        "agent.resume",
       );
       if (Either.isRight(resumed)) {
         first = { result: resumed.right, binding, source: "closing-turn-resumed", label };
@@ -499,6 +513,7 @@ function attemptClosingTurn(
         ),
         stream,
         ctx.phaseBinding,
+        "agent.run",
       );
       if (Either.isLeft(started)) {
         return {
@@ -534,6 +549,7 @@ function attemptClosingTurn(
       ),
       retryStream,
       first.binding,
+      "agent.resume",
     );
     if (Either.isLeft(retry)) {
       return {
@@ -644,15 +660,19 @@ function runClosingTurn(
         label = nextLabel;
       });
 
-    const attempt = yield* attemptClosingTurn({
-      input,
-      turn,
-      policy: args.policy,
-      current,
-      phaseBinding: args.phaseBinding,
-      diff,
-      advanceTurn,
-    });
+    const attempt = yield* tracedStep(
+      { runId: input.runId, phaseId: input.phase.id, step: "closing-turn" },
+      attemptClosingTurn({
+        input,
+        turn,
+        policy: args.policy,
+        current,
+        phaseBinding: args.phaseBinding,
+        diff,
+        advanceTurn,
+      }),
+      (a) => a.kind === "answered",
+    );
 
     const afterTree = yield* at("commit", git.snapshotWorktree(input.worktree));
     const personAfter = yield* at("files", fingerprintPersonHandoff(input.worktree));
@@ -828,7 +848,15 @@ function closeSteps(
     });
     const commit = yield* at(
       "commit",
-      git.commitTree(input.worktree, changed ? gated : headTree, input.phase.commit.subject, body),
+      tracedReviewCommit(
+        { runId: input.runId, phaseId: input.phase.id },
+        git.commitTree(
+          input.worktree,
+          changed ? gated : headTree,
+          input.phase.commit.subject,
+          body,
+        ),
+      ),
     );
     const diff = yield* at("files", git.diffTrees(input.worktree, headTree, gated));
     yield* at("files", fs.writeAtomic(join(input.phaseFolder, "diff.patch"), diff));
