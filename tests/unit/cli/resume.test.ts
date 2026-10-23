@@ -261,6 +261,21 @@ describe("runResume --skip-oracle", () => {
     expect(executePlan).not.toHaveBeenCalled();
   });
 
+  it("gives a run awaiting review at a phase in no pair the no-oracle-step refusal", async () => {
+    writeRunStatus(runPath, "awaiting_review");
+    const executePlan = await setupMocks("phase-01", false);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, errors } = makeOutput();
+
+    const code = await runResume("my-run", { yes: true, skipOracle: true }, out);
+
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "--skip-oracle: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+    ]);
+    expect(executePlan).not.toHaveBeenCalled();
+  });
+
   it("passes skipOracle: false without the flag", async () => {
     const executePlan = await setupMocks("phase-02", true);
     const { runResume } = await import("../../../src/cli/commands/resume.js");

@@ -132,11 +132,24 @@ describe("dischargedOracleFiles", () => {
 });
 
 describe("stopSkipOracleRefusal", () => {
-  it("names the run and the stopped phase", () => {
-    expect(stopSkipOracleRefusal("invoice-export", "phase-02")).toBe(
-      "--skip-oracle: invoice-export awaits review at phase-02; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.",
+  it.each([
+    ["the oracle phase", "phase-02"],
+    ["a phase strictly between", "phase-03"],
+    ["the discharging phase", "phase-04"],
+  ])("names the run and the stop at %s of a pair", (_name, phaseId) => {
+    expect(stopSkipOracleRefusal(phases, "invoice-export", phaseId)).toBe(
+      `--skip-oracle: invoice-export awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`,
     );
   });
+
+  it.each(["phase-01", "phase-05"])(
+    "gives a stop at %s, in no pair, the no-oracle-step refusal",
+    (phaseId) => {
+      expect(stopSkipOracleRefusal(phases, "invoice-export", phaseId)).toBe(
+        oracleSkipRefusal(phases, phaseId),
+      );
+    },
+  );
 });
 
 describe("stopOraclePairs", () => {

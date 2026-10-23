@@ -53,14 +53,28 @@ export function oracleSkipRefusal(
   phaseId: string,
 ): string | null {
   if (oracleRoleOf(phases, phaseId) !== null) return null;
+  return noOracleStep(phaseId);
+}
+
+function noOracleStep(phaseId: string): string {
   return `--skip-oracle: ${phaseId} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`;
 }
 
 /**
  * Why a run awaiting review at `phaseId` may not skip an oracle step: its
- * resume closes the stop, and a close's `authored` step is never skipped.
+ * resume closes the stop. A stop in a pair (its oracle phase, a phase it sits
+ * in, or its discharging phase) is told that a close's `authored` step is
+ * never skipped; a stop in no pair has no oracle step at all, as
+ * `oracleSkipRefusal` says.
  */
-export function stopSkipOracleRefusal(run: string, phaseId: string): string {
+export function stopSkipOracleRefusal(
+  phases: ReadonlyArray<PairPhase>,
+  run: string,
+  phaseId: string,
+): string {
+  const inPair =
+    oracleRoleOf(phases, phaseId) !== null || stopOraclePairs(phases, phaseId).length > 0;
+  if (!inPair) return noOracleStep(phaseId);
   return `--skip-oracle: ${run} awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`;
 }
 
