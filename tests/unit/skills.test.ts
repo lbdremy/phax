@@ -192,6 +192,51 @@ describe("phax-planning skill", () => {
   });
 });
 
+describe("phax-review skill", () => {
+  const content = readSkill("phax-review/SKILL.md");
+
+  it("has YAML frontmatter with name and description", () => {
+    expect(content).toMatch(/^---\n/);
+    expect(content).toContain("name: phax-review");
+    expect(content).toMatch(/description: .+/);
+  });
+
+  it("reviews outside-in, using the change before reading it", () => {
+    const order = sectionOf(content, "## The order: outside-in");
+    expect(order).toContain("1. **Use it before you read it.**");
+    expect(order).toContain("2. **Acceptance criteria, then their tests.**");
+    expect(order).toMatch(/Read the test against the criterion's\s+text, not against the code\./);
+  });
+
+  it("aims at the tests' blind spots, one escape id each", () => {
+    const blind = sectionOf(content, "## Aim at what the tests cannot see");
+    for (const id of [
+      "wrong-oracle",
+      "same-author",
+      "weakened",
+      "fake-drift",
+      "unexplored-input",
+      "omission",
+      "untestable",
+    ]) {
+      expect(blind).toContain(`| \`${id}\` |`);
+    }
+  });
+
+  it("gives every finding a severity, a lens and an escape", () => {
+    const finding = sectionOf(content, "## Writing a finding");
+    expect(finding).toContain("**severity**");
+    expect(finding).toContain("**lens**");
+    expect(finding).toContain("**escape**");
+    expect(finding).toContain("The escape turns a finding into a test.");
+  });
+
+  it("never edits a test to make the code pass", () => {
+    const session = sectionOf(content, "## In the session");
+    expect(session).toContain("Never edit a test to make the code pass.");
+  });
+});
+
 // The text from `heading` up to the next heading of the same or a higher level.
 function sectionOf(content: string, heading: string): string {
   const start = content.indexOf(`\n${heading}\n`);

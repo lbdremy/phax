@@ -1,4 +1,5 @@
 import { Effect, Either, Layer } from "effect";
+import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
@@ -10,6 +11,9 @@ import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { Session } from "../../ports/session.js";
+import { FileSystem } from "../../ports/fs.js";
+import { PHAX_REVIEW_SKILL } from "../../domain/skills/catalog.js";
+import { defaultBundleRoot } from "./skills.js";
 
 const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
 type ValidEffort = (typeof VALID_EFFORT_VALUES)[number];
@@ -73,11 +77,18 @@ export async function runReviewCode(
     return 1;
   }
 
-  const prepareEffect = prepareCodeReviewSession(info, effectiveConfig, {
-    newSession: opts.newSession ?? false,
-    nowIso: new Date().toISOString(),
-    ...(opts.model !== undefined ? { modelOverride: opts.model } : {}),
-    ...(opts.effort !== undefined ? { effortOverride: opts.effort } : {}),
+  const prepareEffect = Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const bundledReviewSkill = yield* fs.readText(
+      join(defaultBundleRoot(), PHAX_REVIEW_SKILL, "SKILL.md"),
+    );
+    return yield* prepareCodeReviewSession(info, effectiveConfig, {
+      newSession: opts.newSession ?? false,
+      nowIso: new Date().toISOString(),
+      ...(opts.model !== undefined ? { modelOverride: opts.model } : {}),
+      ...(opts.effort !== undefined ? { effortOverride: opts.effort } : {}),
+      bundledReviewSkill,
+    });
   }).pipe(
     Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NoopSystemTelemetryLayer)),
   );

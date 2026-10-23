@@ -28,6 +28,7 @@ const bindingPath = `${finalPhaseFolder}/agent-binding.json`;
 const sessionRecordPath = `${runPath}/code-review-session.json`;
 const promptFilePath = `${phaxContextPath}/${CODE_REVIEW_PROMPT_FILENAME}`;
 const nowIso = "2026-06-26T10:00:00.000Z";
+const bundledReviewSkill = "---\nname: phax-review\n---\n\n# Bundled review doctrine\n";
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
   return {
@@ -171,6 +172,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -223,6 +225,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -256,6 +259,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -276,6 +280,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -284,6 +289,47 @@ describe("prepareCodeReviewSession", () => {
 
     const promptContent = fs.impl.getFile(promptFilePath);
     expect(promptContent).toContain("phax review-compliance");
+  });
+
+  it("new session: the prompt carries the bundled review doctrine", async () => {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+
+    const result = await Effect.runPromise(
+      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+        newSession: false,
+        nowIso,
+        bundledReviewSkill,
+      }).pipe(Effect.provide(makeLayer(fs))),
+    );
+
+    expect(result.kind).toBe("ready");
+    const promptContent = fs.impl.getFile(promptFilePath);
+    expect(promptContent).toContain("## Review doctrine — `phax-review` (bundled)");
+    expect(promptContent).toContain("# Bundled review doctrine");
+  });
+
+  it("new session: the worktree's project copy of the review skill replaces the bundled one", async () => {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+    fs.impl.setFile(
+      `${worktreePath}/.claude/skills/phax-review/SKILL.md`,
+      "---\nname: phax-review\n---\n\n# Project review doctrine\n",
+    );
+
+    const result = await Effect.runPromise(
+      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+        newSession: false,
+        nowIso,
+        bundledReviewSkill,
+      }).pipe(Effect.provide(makeLayer(fs))),
+    );
+
+    expect(result.kind).toBe("ready");
+    const promptContent = fs.impl.getFile(promptFilePath);
+    expect(promptContent).toContain("## Review doctrine — `phax-review` (project)");
+    expect(promptContent).toContain("# Project review doctrine");
+    expect(promptContent).not.toContain("# Bundled review doctrine");
   });
 
   it("new session with no reconciliation JSON: ready with empty worklist", async () => {
@@ -295,6 +341,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -314,6 +361,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -344,6 +392,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -386,6 +435,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
         modelOverride: "claude-sonnet-4-6",
       }).pipe(Effect.provide(makeLayer(fs))),
     );
@@ -422,6 +472,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: true,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -449,6 +500,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 
@@ -471,6 +523,7 @@ describe("prepareCodeReviewSession", () => {
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
         newSession: false,
         nowIso,
+        bundledReviewSkill,
       }).pipe(Effect.provide(makeLayer(fs))),
     );
 

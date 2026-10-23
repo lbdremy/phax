@@ -8,6 +8,7 @@ export interface ExposedSkill {
 export const PHAX_PLANNING_SKILL = "phax-planning";
 export const PHAX_CLI_SKILL = "phax-cli";
 export const PHAX_SPEC_SKILL = "phax-spec";
+export const PHAX_REVIEW_SKILL = "phax-review";
 export const PHAX_DECIDE_SPEC_SKILL = "phax-decide-spec";
 export const PHAX_DECIDE_PLAN_SKILL = "phax-decide-plan";
 export const PHAX_DECIDE_REVIEW_SKILL = "phax-decide-review";
@@ -28,6 +29,12 @@ export const EXPOSED_SKILLS: readonly ExposedSkill[] = [
   {
     name: PHAX_SPEC_SKILL,
     sourceDir: "phax-spec",
+    files: ["SKILL.md"],
+    requiredFile: "SKILL.md",
+  },
+  {
+    name: PHAX_REVIEW_SKILL,
+    sourceDir: "phax-review",
     files: ["SKILL.md"],
     requiredFile: "SKILL.md",
   },

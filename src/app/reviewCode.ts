@@ -7,7 +7,9 @@ import {
   buildCodeReviewPrompt,
   buildCodeReviewPositionalPrompt,
   CODE_REVIEW_PROMPT_FILENAME,
+  type CodeReviewDoctrine,
 } from "../domain/review/codeReviewPrompt.js";
+import { PHAX_REVIEW_SKILL } from "../domain/skills/catalog.js";
 import {
   decodeCodeReviewSession,
   encodeCodeReviewSession,
@@ -65,6 +67,8 @@ export function prepareCodeReviewSession(
     readonly nowIso: string;
     readonly modelOverride?: string;
     readonly effortOverride?: string;
+    /** The bundled `phax-review` SKILL.md, read by the caller. */
+    readonly bundledReviewSkill: string;
   },
 ): Effect.Effect<PrepareCodeReviewResult, FsError, FileSystem | SystemTelemetry> {
   return Effect.gen(function* () {
@@ -260,11 +264,18 @@ export function prepareCodeReviewSession(
       }
     }
 
+    // The project's copy of the review skill, on the run's branch, replaces the bundled one.
+    const projectSkillPath = join(worktreePath, ".claude", "skills", PHAX_REVIEW_SKILL, "SKILL.md");
+    const doctrine: CodeReviewDoctrine = (yield* fs.exists(projectSkillPath))
+      ? { source: "project", text: yield* fs.readText(projectSkillPath) }
+      : { source: "bundled", text: opts.bundledReviewSkill };
+
     const promptContent = buildCodeReviewPrompt({
       worktreePath,
       attentionPoints,
       ...(complianceBlock !== undefined ? { compliance: complianceBlock } : {}),
       complianceMissing,
+      doctrine,
     });
 
     const phaxContextPath = join(worktreePath, PHAX_CONTEXT_DIR);

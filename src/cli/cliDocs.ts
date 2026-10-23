@@ -159,7 +159,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "review-code": {
     longHelp:
-      "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).",
+      "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The prompt carries the phax-review skill: the project's copy at .claude/skills/phax-review/SKILL.md in the run's worktree when it has one, else the bundled skill. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).",
     examples: ["phax review-code usage-cli"],
   },
 
