@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610211403-interactive-phases.md
 completes-spec: false
+approved:
+  date: 2026-10-23
+  baseline: 43c6df7
 ---
 # Held stop and oracle-pair reviews
 
