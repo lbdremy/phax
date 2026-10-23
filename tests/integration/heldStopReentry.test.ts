@@ -193,6 +193,26 @@ describe("re-entering a hold point", { timeout: 30_000 }, () => {
     );
   });
 
+  it("collects the pulled briefs on a hold-point re-entry, so the closing record lists them", async () => {
+    const { run, result } = await startHeldRun(world, HOLD_PHASE_02);
+    failedWith(result, AwaitingReviewStopError);
+    rewindToTheHoldPoint(run);
+    // A brief the agent pulled during phase-02, not yet collected when the
+    // process died before the hold point.
+    const briefs = join(worktreeOf(run, "phase-02"), ".phax-context", "briefs");
+    rmSync(briefs, { recursive: true, force: true });
+    mkdirSync(briefs, { recursive: true });
+    const pulled = JSON.stringify({ paths: ["src/invoiceRow.ts"], outcome: "answered" });
+    writeFileSync(join(briefs, "brief-01.json"), pulled);
+    Object.assign(run.config, { brief: { command: "brief-provider", push: "findings" } });
+    syncSaveInterruptedRun({ namespace: NAMESPACE, shortName: SHORT, stateRoot: world.stateRoot });
+
+    expectHeldStop(run, await resumeHeldRun(run));
+
+    expect(readFileSync(join(run.runPath, "phase-02", "brief-01.json"), "utf8")).toBe(pulled);
+    expect(existsSync(join(briefs, "closed"))).toBe(true);
+  });
+
   it("re-enters the hold point of a handoff_failed phase whose copied handoff is valid, with no handoff turn", async () => {
     const { run, result } = await startHeldRun(world, HOLD_PHASE_02, {
       prepare: (held) => held.backend.brokenHandoffs.add("phase-02"),

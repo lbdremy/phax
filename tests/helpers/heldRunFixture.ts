@@ -8,7 +8,7 @@ import { withRunLock } from "../../src/app/lock.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
-import { AgentInvocationError } from "../../src/domain/errors.js";
+import { AgentInvocationError, RateLimitError } from "../../src/domain/errors.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -20,6 +20,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import { persistSessionId } from "../../src/infra/providers/sessionWriter.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Backend, type AgentRunOptions, type BackendOps } from "../../src/ports/backend.js";
+import { FileSystem, FsError } from "../../src/ports/fs.js";
 import { Shell } from "../../src/ports/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
@@ -256,6 +257,8 @@ interface HeldBackend extends BackendOps {
   readonly calls: BackendCall[];
   /** Phases whose next handoff turn writes a handoff missing its sections. */
   readonly brokenHandoffs: Set<string>;
+  /** Phases whose next headless run hits the provider's rate limit before any work. */
+  readonly rateLimited: Set<string>;
   /** Called after a phase's handoff turn wrote the handoff: its phase and folder. */
   onHandoff: ((phase: string, phaseFolderPath: string | undefined) => void) | undefined;
   /** Called when a headless run builds a phase, after it wrote the phase's file: its phase and worktree. */
@@ -280,9 +283,11 @@ const stream = (options: AgentRunOptions): void => {
 function makeHeldBackend(): HeldBackend {
   const calls: BackendCall[] = [];
   const brokenHandoffs = new Set<string>();
+  const rateLimited = new Set<string>();
   const backend: HeldBackend = {
     calls,
     brokenHandoffs,
+    rateLimited,
     onHandoff: undefined,
     onBuild: undefined,
     runAgent: (prompt, options) => {
@@ -295,6 +300,16 @@ function makeHeldBackend(): HeldBackend {
           outputPath: "",
           finalText: FIRST_READING,
         });
+      }
+      if (rateLimited.delete(phase)) {
+        return Effect.fail(
+          new RateLimitError({
+            message: "Rate limit reached",
+            rawMessage: "429: rate limit reached, try again at 18:00",
+            resetAt: "2026-10-23T18:00:00Z",
+            phaseId: phase,
+          }),
+        );
       }
       const sessionId = (BUILDER_SESSIONS[phase] ?? `X-${phase}`) as ClaudeSessionId;
       return Effect.promise(async () => {
@@ -375,6 +390,10 @@ export interface HeldRun {
   readonly config: ResolvedConfig;
   /** Every semantic event the run and its resumes recorded. */
   readonly telemetry: ReturnType<typeof makeFakeSystemTelemetry>;
+  /** The host the run asks the repository's visibility of; private by default. */
+  readonly github: ReturnType<typeof makeFakeGitHub>;
+  /** An atomic write it returns true for fails, as a full disk would; none by default. */
+  failWrite: ((path: string, content: string) => boolean) | undefined;
 }
 
 export interface HeldRunOptions {
@@ -412,7 +431,23 @@ async function createHeldRun(
     closed: [],
     config,
     telemetry: makeFakeSystemTelemetry(),
+    github: makeFakeGitHub(),
+    failWrite: undefined,
   };
+}
+
+// The real file system, whose atomic writes fail where `run.failWrite` says.
+function faultyFileSystem(run: HeldRun) {
+  return Layer.effect(
+    FileSystem,
+    Effect.map(FileSystem, (fs) => ({
+      ...fs,
+      writeAtomic: (path: string, content: string) =>
+        run.failWrite?.(path, content) === true
+          ? Effect.fail(new FsError({ message: `${path}: no space left on device` }))
+          : fs.writeAtomic(path, content),
+    })),
+  ).pipe(Layer.provide(NodeFileSystemLayer));
 }
 
 /** Run `executePlan` from `startIndex`, as `phax run` (0) or `phax resume --yes` does. */
@@ -445,11 +480,11 @@ function executeHeldRun(
         Effect.provide(
           Layer.mergeAll(
             Layer.succeed(Backend, run.backend),
-            NodeFileSystemLayer,
+            faultyFileSystem(run),
             NodeGitLayer,
             scriptedShell(run.shellCalls, run.failingGates),
             run.telemetry.layer,
-            makeFakeGitHub().layer,
+            run.github.layer,
             run.lock.layer,
           ),
         ),

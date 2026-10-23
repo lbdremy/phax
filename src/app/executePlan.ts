@@ -25,6 +25,7 @@ import {
   GateFailedError,
   GateStepRefusedError,
   HandoffPausedError,
+  HeldRecordPausedError,
   HoldPointPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
@@ -198,6 +199,10 @@ function isHoldPointPausedError(e: unknown): e is HoldPointPausedError {
   return e instanceof HoldPointPausedError;
 }
 
+function isHeldRecordPausedError(e: unknown): e is HeldRecordPausedError {
+  return e instanceof HeldRecordPausedError;
+}
+
 // A stop reached or a close refused leaves the run awaiting review: the
 // reducer already moved it there, so nothing more is dispatched.
 function isReviewStopError(e: unknown): e is AwaitingReviewStopError | StopCloseRefusedError {
@@ -331,6 +336,7 @@ export type ExecutePlanError =
   | AwaitingReviewStopError
   | StopCloseRefusedError
   | HoldPointPausedError
+  | HeldRecordPausedError
   | InvalidTransitionError;
 
 export function executePlan(
@@ -378,6 +384,10 @@ export function executePlan(
   // A held close is running: its failures past the commit leave the run for a
   // resume to finish, never as RunFailed.
   let closeInFlight = false;
+  // A resume is reading what its start phase's re-entry needs, before
+  // RunResumeRequested: a failure there leaves the run's state as it was, so
+  // an interrupted run stays resumable instead of becoming failed.
+  let reentryReading = false;
 
   // Records (spec §5.1): one record per phase at its terminal outcome. A single
   // helper writes both the committed and the failed case so the two cannot
@@ -468,6 +478,7 @@ export function executePlan(
       isCleanupPausedError(e) ||
       isArtifactCompletionPausedError(e) ||
       isHoldPointPausedError(e) ||
+      isHeldRecordPausedError(e) ||
       isReviewStopError(e)
     );
   }
@@ -948,6 +959,7 @@ export function executePlan(
     let resumeAtHoldPoint = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
+    reentryReading = true;
     if (resumePhase !== undefined) {
       const infoResult = resolveRun(namespace, shortName, config.stateRoot);
       if (Either.isRight(infoResult)) {
@@ -1187,6 +1199,7 @@ export function executePlan(
       resumeAtHoldPoint && resumePhase !== undefined
         ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
         : undefined;
+    reentryReading = false;
 
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
@@ -1405,6 +1418,16 @@ export function executePlan(
         currentProvider = undefined;
         currentModel = undefined;
         currentEffort = undefined;
+        // The pulled briefs land before the hold point, as on a first entry,
+        // so the record written at closing lists them. A no-op when the
+        // first entry already closed them.
+        if (config.brief !== undefined) {
+          yield* closePulledBriefs({
+            worktreePath: holdPointReentry.worktree as string,
+            phaseFolderPath: heldFolder,
+            phaseId: phase.id,
+          });
+        }
         yield* holdPoint({
           phase,
           phaseIndex: i,
@@ -1432,6 +1455,10 @@ export function executePlan(
         currentModel = undefined;
         currentEffort = undefined;
 
+        // A refused destination is the headless record policy, made
+        // resumable: the close stands, so HeldRecordRefused pauses the run
+        // with the record still owed, which the closed stop's re-entry writes
+        // once. A failure of that dispatch still ends in the pause.
         const writeHeldRecord = writeRecordForPhase({
           phaseId: phase.id,
           phaseFolderPath: heldFolder,
@@ -1442,8 +1469,30 @@ export function executePlan(
           outcome: "committed",
           // The phase commit, never HEAD (which is the review commit).
           sourceSha: heldRecord.sourceSha,
-          failOnRefusal: false,
-        }).pipe(Effect.catchAll(() => Effect.void));
+        }).pipe(
+          Effect.catchAll((refused) =>
+            Effect.gen(function* () {
+              yield* dispatch(
+                {
+                  ...eventBase(phase.id),
+                  type: "HeldRecordRefused",
+                  phaseId: phase.id as PhaseId,
+                  phaseCommit: heldRecord.sourceSha,
+                  worktreePath: stopReentry.worktree,
+                  reason: refused.message,
+                },
+                dispatchCtx(heldFolder, phase.id),
+              ).pipe(Effect.catchAll(() => Effect.void));
+              return yield* Effect.fail(
+                new HeldRecordPausedError({
+                  message: refused.message,
+                  phaseId: phase.id,
+                  cause: refused,
+                }),
+              );
+            }),
+          ),
+        );
 
         if (resumeFromHeldStop) {
           // A failure of the close past its commit leaves the run for a
@@ -2396,12 +2445,25 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // A records destination that refused a closed held stop's record pauses
+    // the run instead of failing it: HeldRecordRefused was dispatched where the
+    // record was refused (interrupted, the phase committed with its stop
+    // closed, resume-instructions.md written), so we just re-raise here.
+    Effect.catchIf(isHeldRecordPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     // The interactive preflight refusal leaves an existing run's state and last
     // error as they were (spec §5.9): the plan is fixed, then resumed again. A
     // held close that fails past its commit is finished by a resume, so it
-    // never fails the run either.
+    // never fails the run either, nor does a re-entry read that fails before
+    // RunResumeRequested.
     Effect.tapError((e) =>
-      isResumablePauseError(e) || e instanceof InteractivePreflightError || closeInFlight
+      isResumablePauseError(e) ||
+      e instanceof InteractivePreflightError ||
+      closeInFlight ||
+      reentryReading
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {

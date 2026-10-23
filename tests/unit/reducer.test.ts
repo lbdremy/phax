@@ -219,6 +219,15 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     worktreePath,
     reason: "the seed could not be written",
   },
+  HeldRecordRefused: {
+    ...base,
+    type: "HeldRecordRefused",
+    phase: phaseId,
+    phaseId,
+    phaseCommit: "abc123",
+    worktreePath,
+    reason: "records destination refused",
+  },
 };
 
 /** Canonical PhaxState per run-state name — used by the matrix consistency walker. */
@@ -248,6 +257,7 @@ const runningStateFor: Partial<Record<PhaxEventType, PhaxState>> = {
   StopCommitted: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
   HeldStopClosed: { run: "running", phase: { state: "awaiting_review", cause: "held" } },
   HoldPointFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
+  HeldRecordRefused: { run: "running", phase: { state: "committed", hash: "abc123" } },
 };
 
 const runStateNames = Object.keys(representativeState) as readonly PhaxStateName[];

@@ -209,6 +209,14 @@ const samples = {
     worktreePath,
     reason: "the seed could not be written",
   },
+  HeldRecordRefused: {
+    ...base,
+    type: "HeldRecordRefused",
+    phaseId,
+    phaseCommit: "abc123",
+    worktreePath,
+    reason: "records destination refused",
+  },
 } satisfies { readonly [K in PhaxEventType]: PhaxEvent & { type: K } };
 
 function assertNever(x: never): never {
@@ -274,6 +282,8 @@ function visit(event: PhaxEvent): string {
     case "HeldStopClosed":
       return `${event.type}:${event.phaseCommit}:${event.closure.outcome}`;
     case "HoldPointFailed":
+      return `${event.type}:${event.phaseId}:${event.reason}`;
+    case "HeldRecordRefused":
       return `${event.type}:${event.phaseId}:${event.reason}`;
     default:
       return assertNever(event);

@@ -89,6 +89,16 @@ const holdPointFailed: PhaxEvent = {
   worktreePath,
   reason: "the review seed could not be written",
 };
+const REFUSAL =
+  'Phase "phase-02" — records destination refused: this repo is public (remedy: set a records repo, or disable transcripts)';
+const heldRecordRefused: PhaxEvent = {
+  ...base,
+  type: "HeldRecordRefused",
+  phaseId,
+  phaseCommit: PHASE_COMMIT,
+  worktreePath,
+  reason: REFUSAL,
+};
 const gateFailed: LastClose = {
   result: "gate-failed",
   at: occurredAt,
@@ -373,6 +383,58 @@ describe("a failed hold point", () => {
   });
 });
 
+describe("a refused record of a closed held stop", () => {
+  it("pauses the run interrupted with the phase committed and its stop left closed", () => {
+    const result = handled(committed, heldRecordRefused);
+    expect(result.nextState).toEqual({
+      run: "interrupted",
+      phase: { state: "committed", hash: PHASE_COMMIT },
+    });
+    expect(result.effects).toEqual([
+      {
+        type: "PersistState",
+        patch: { run: { stoppedReason: "held_record_refused", lastError: REFUSAL } },
+      },
+      {
+        type: "WriteResumeInstructions",
+        ctx: {
+          reason: "Records destination refused",
+          kind: "held_record_refused",
+          phaseId,
+          worktreePath,
+          rawMessage: REFUSAL,
+        },
+      },
+      {
+        type: "EmitTrace",
+        name: "held.record.refused",
+        status: "failed",
+        boundary: "records",
+        details: { phaseId, reason: REFUSAL },
+      },
+      {
+        type: "EmitTrace",
+        name: "resume.available",
+        status: "info",
+        boundary: "resume-instructions.md",
+        details: { resumeCommand: "phax resume invoice-export" },
+      },
+    ]);
+  });
+
+  it("is unexpected while the phase is not committed, and stale on a run that is not running", () => {
+    expect(interpret(phaseRunning, heldRecordRefused).kind).toBe("Unexpected");
+    expect(interpret(heldClosing, heldRecordRefused).kind).toBe("Unexpected");
+    expect(interpret(heldAtStop, heldRecordRefused).kind).toBe("Stale");
+    expect(
+      interpret(
+        { run: "interrupted", phase: { state: "committed", hash: PHASE_COMMIT } },
+        heldRecordRefused,
+      ).kind,
+    ).toBe("Stale");
+  });
+});
+
 describe("a held stop keeps plan 1's verdicts on events other than its own", () => {
   const cases: ReadonlyArray<readonly [string, PhaxState, PhaxEvent]> = [
     ["RunResumeRequested", heldAtStop, { ...base, type: "RunResumeRequested" }],
@@ -467,10 +529,12 @@ describe("the matrix cells of the held cause", () => {
   const runningFor: Partial<Record<PhaxEventType, PhaxState>> = {
     HeldStopClosed: heldClosing,
     HoldPointFailed: committed,
+    HeldRecordRefused: committed,
   };
   const events: ReadonlyArray<readonly [PhaxEventType, PhaxEvent]> = [
     ["HeldStopClosed", heldClosedCorrected],
     ["HoldPointFailed", holdPointFailed],
+    ["HeldRecordRefused", heldRecordRefused],
     ["ReviewStopReached", declaredReached],
   ];
   const states = Object.keys(representative) as readonly PhaxStateName[];
