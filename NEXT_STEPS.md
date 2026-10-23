@@ -89,11 +89,6 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
       staying Draft. It replaces the hand-edited sidecar used today to record decisions. Its format
       changes (the `other` option, the decision record's mode, a new `decide-verdicts` input) land
       in the open release.
-- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Reworked and re-approved
-      2026-10-19: the review passes go under `## Needs your review` in the short PR body, the PR
-      opens as a draft while a review plan or a finding is pending, run completion happens when
-      the PR becomes ready, and `--run` lets approve, status, lint and `run --append` reach the
-      run's branch from the checkout.
 
 ### Briefs written, spec not yet authored
 
@@ -109,7 +104,12 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### Drafts
 
-(none)
+- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Re-approved 2026-10-19,
+      reopened to Draft 2026-10-23 so that it is not planned before the `review-escape` revision
+      above. Its body is unchanged: the review passes go under `## Needs your review` in the short
+      PR body, the PR opens as a draft while a review plan or a finding is pending, run completion
+      happens when the PR becomes ready, and `--run` lets approve, status, lint and `run --append`
+      reach the run's branch from the checkout.
 
 ## Model policy tracking
 
