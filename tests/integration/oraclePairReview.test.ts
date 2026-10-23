@@ -512,8 +512,10 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     if (Either.isRight(reset)) throw new Error("expected the reset to be refused");
     expect(reset.left).toBeInstanceOf(ResetPhaseError);
     const state = String(readPhaseStatus(run, "phase-04")["state"]);
+    expect(state).toBe("gates_exhausted");
+    // The discharge stopped at its gate: the refusal names the recovery.
     expect(reset.left.message).toBe(
-      `Cannot reset 'phase-03' of run '${SHORT}': its discharging phase 'phase-04' is ${state}, and the discharge judges this phase's commit.`,
+      `Cannot reset 'phase-03' of run '${SHORT}': its discharging phase 'phase-04' is ${state}, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-oracle\`: the configured gate still runs.`,
     );
     expect(readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8")).toBe(before);
   });
