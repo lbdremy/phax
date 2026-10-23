@@ -203,7 +203,7 @@ phase adds.>
 
 ### Test strategy
 
-<what to test, at which layer, and which tests to write before implementation>
+- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]
 
 ### Implementation order
 
@@ -305,6 +305,34 @@ provider judges both gates.
 - **No phase in between** plans an oracle file, no interactive phase sits in between or takes
   an oracle role, and one phase discharges one oracle phase.
 
+### What makes a good oracle
+
+An oracle pair is the acceptance loop, not test-driven development: every oracle is written
+before the code, in another phase, and frozen once committed. The discharging phase cannot
+adjust one it disagrees with; the run pauses instead. So hold each oracle to these rules:
+
+- **It tests the surface the spec shows, through a stable entry**: a use case, a port, a
+  decoder, a command, a state transition. Never the code's internal design (helpers, private
+  modules, call order): the code does not exist yet, and a frozen test of its internals pauses
+  the run on a disagreement that is not one.
+- **It traces to an acceptance criterion** of the source spec. Name the criterion id on its
+  Test strategy line; a criterion with no oracle and no in-phase test is a gap in the plan.
+- **What it judges with is frozen with it.** Property generators, model or transition
+  tables, fixtures and expected files the oracle reads go on the `**Oracle files:**` line
+  too; otherwise the discharging phase can narrow a generator or edit a table until the
+  oracle passes. A generator derived from a type or schema the discharging phase may change
+  is not frozen: freeze the schema in an earlier phase, or write the generator by hand.
+- **It fails for the reason it states.** Against the oracle phase's stubs, each oracle must
+  fail on its assertion, not because a module, export or type is missing. Plan the stubs the
+  tests compile and load against, and make them fail recognizably (a stub that throws a
+  not-implemented error). An oracle red for the wrong reason passes its marker, then cannot
+  be repaired by the discharging phase.
+- **It is deterministic.** A randomized oracle (property, fuzz) runs on a fixed seed in the
+  gate, so a fix loop never chases a counterexample that moved.
+- **Not every test is an oracle.** The unit tests that drive the code's design are the
+  inner loop: the discharging phase and ordinary phases write them freely, test-first where
+  the logic warrants it, and the gate judges them like any test.
+
 ## Interactive phases
 
 An interactive phase stops the run after the phase so a person can review the work and
@@ -337,22 +365,68 @@ interface shape. These are not extracted (human-readable only). Omit the section
 
 ## Test strategy (informational)
 
-Map tests to the parts of the repository's architecture and pick the cheapest
-reliable test for each. For the example architecture:
+A phase's `### Test strategy` is not extracted, but it is held to a strict shape: one line
+per guarantee the phase adds or changes, each placed on four coordinates.
 
-| Layer                     | Preferred test type                       |
-| ------------------------- | ----------------------------------------- |
-| Domain                    | Unit tests                                |
-| Application command/query | Unit or integration tests with fake ports |
-| Ports                     | Type/contract tests                       |
-| Adapters                  | Integration tests                         |
-| ViewModel                 | Integration tests                         |
-| View                      | Component/unit tests                      |
-| Page/route/CLI            | E2E or smoke tests                        |
+```markdown
+- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]
+```
 
-Mark which tests to write **before** implementation. Do it for stable contracts
-and critical behavior (domain invariants, application commands, ports, bug
-fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
+For example:
+
+```markdown
+- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · oracle · AC-3
+- a gate-report decodes or is refused with a typed error, never a crash — small · fuzz · the decoder's refusal · in-phase
+- the git adapter's fake and the real adapter agree on branch creation — medium · contract · shared suite · in-phase
+```
+
+**The coordinates.**
+
+- **Size — what the test touches.** `small`: one process and memory only. `medium`: one
+  machine (disk, subprocesses, a local repository, localhost). `large`: anything beyond (the
+  network, a real provider or service). Size, not "unit" or "integration", decides speed
+  and flakiness: pick the smallest size that still exercises the guarantee.
+- **Technique — how inputs are chosen.** `example` (hand-picked cases), `table` (every case
+  of a finite domain, such as every state × transition), `property` (generated inputs
+  against an invariant: round-trip, idempotence, an invariant that must always hold),
+  `metamorphic` (two runs whose outputs must relate: the same result with an irrelevant
+  section added, reordered, or reformatted), `stateful` (generated command sequences against
+  a model), `fuzz` (arbitrary or malformed input at a boundary), `contract` (one suite run
+  against both a fake and the real adapter), `smoke` (the real entry, end to end).
+- **Oracle — what judges the result.** An expected value, an invariant, a reference table or
+  model, a relation between two runs, a typed refusal. Name it: a test whose oracle you
+  cannot name guarantees nothing.
+- **Where — which loop owns the test.** `oracle`: written in an oracle phase and frozen until
+  its discharge (the acceptance loop, see [Oracle phases](#oracle-phases)). `in-phase`:
+  written with the code in the same phase, free to change while the phase runs (the inner,
+  test-driven loop). An oracle phase lists its oracle lines; its discharging phase lists only
+  its own in-phase lines. Without an `oracles` provider every line is `in-phase`.
+
+**Defaults by kind of code.** Read the kind from the repository's architecture, then start
+from its default and depart only for a reason:
+
+| Kind of code                                        | Size         | Technique                                         | Oracle candidate                        |
+| --------------------------------------------------- | ------------ | ------------------------------------------------- | --------------------------------------- |
+| Pure decision logic (rules, routing, computation)   | small        | example, then property or metamorphic             | yes, when the spec states its I/O       |
+| State machine or lifecycle                          | small        | table over every (state, transition), stateful    | yes: the table is the spec              |
+| Decoder, parser or codec at an external boundary    | small        | property (round-trip), fuzz (never a crash)       | the round-trip, yes; the fuzz in-phase  |
+| Use case orchestrating ports                        | small        | example against fake ports                        | yes, at the use case's entry            |
+| Adapter to an external tool or service              | medium       | example against the real thing, contract          | no: its behaviour is the tool's         |
+| Composition root, CLI entry, route                  | medium/large | smoke                                             | yes, for the surface the spec shows     |
+| Architecture rule (layering, dependency direction)  | small        | fitness check the project already runs            | no                                      |
+
+**Rules.**
+
+- **A fake earns its place by a contract suite.** A fake port used by small tests is only as
+  true as its agreement with the real adapter; when a phase adds or changes a fake, it adds
+  or extends the suite both run.
+- **Randomized tests run on a fixed seed in the gate**, and a counterexample a property
+  finds becomes an example test that stays.
+- **Every acceptance criterion the phase serves appears on at least one line**, as an
+  oracle or in-phase.
+- **A new technique is a planned dependency.** A technique the project has no library for
+  (a property-based testing library, a mutation tool) is not planned silently: adding the
+  dependency is a phase of its own, or an arbitration.
 
 ## Planning doctrine
 
@@ -363,7 +437,9 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
   the surface, so the surface never claims a behavior the core does not yet
   provide.
 - **Verify outside-in.** End by checking the consumer-visible behavior end to
-  end, then let the gates confirm it.
+  end, then let the gates confirm it. With an `oracles` provider, the acceptance
+  side of that check is written first, as oracles, and the code is implemented
+  inside-out against them.
 
 ### The repository's architecture
 
@@ -659,6 +735,10 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 - Inaccurate file lists — listing files you will not touch (noisy deviations),
   omitting files you will (false deviations), or listing files you only read.
 - Putting "maybe" files in the create/edit lists instead of the optional list.
+- A Test strategy in prose ("add unit tests") instead of one line per guarantee with its
+  size, technique, oracle and loop.
+- An oracle that pins the code's internal design, or that judges with a generator or table
+  left outside its oracle files.
 - Silently arbitrated trade-offs — picking between viable approaches without
   asking the human, or recording the decision without the loss accepted (see
   Technical arbitrations). Symmetric pros/cons lists are the same smell in
@@ -736,7 +816,9 @@ and the fields that only render the phase:
   string arrays.
 - `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
   section is then omitted rather than filled.
-- `testStrategy`, `verification`, `expectedHandoff`: strings.
+- `testStrategy`, `verification`, `expectedHandoff`: strings. `testStrategy` holds the
+  guarantee lines of [Test strategy](#test-strategy-informational), one `- ` line each,
+  separated by newlines.
 - `assignmentReason` — why the phase leaves its governing bound or the default assignment, rendered as an
   `**Assignment reason:**` line under its effort line. Put each departure's reason in that
   phase's `assignmentReason`, and `assignmentReason: null` on every phase that conforms to its governing
@@ -771,6 +853,13 @@ durable place to persist run state.
 ### Optional files that may be edited
 
 - (none)
+
+### Test strategy
+
+- a run folder is created with its layout, and a second create of the same name is refused
+  — medium · example · expected tree and typed error · in-phase
+- an interrupted write leaves the previous file whole — medium · example · file content
+  before and after · in-phase
 
 ### Excluded scope
 

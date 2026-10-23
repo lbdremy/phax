@@ -149,16 +149,30 @@ describe("phax-planning skill", () => {
     }
   });
 
-  it("presents the layer chain, test table and boundary list as the example architecture", () => {
+  it("presents the layer chain and boundary list as the example architecture", () => {
     const example = sectionOf(content, "### One example architecture");
     expect(example).toContain("page → view-model → command → domain → port → adapter");
     expect(example).toContain("Use it only where the repository is built this way.");
 
-    const tests = sectionOf(content, "## Test strategy (informational)");
-    expect(tests).toMatch(/For the example architecture:\n\n\| Layer/);
-
     const boundaries = sectionOf(content, "## Boundary contracts (informational)");
     expect(boundaries).toMatch(/in the example\s+architecture: page\/cli\/surface → view-model/);
+  });
+
+  it("keys test defaults on the kind of code, one line per guarantee on four coordinates", () => {
+    const tests = sectionOf(content, "## Test strategy (informational)");
+    expect(tests).toContain("Read the kind from the repository's architecture");
+    expect(tests).toMatch(/\| Kind of code\s+\|/);
+    expect(tests).not.toMatch(/\| Layer\s+\|/);
+    expect(tests).toContain(
+      "- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]",
+    );
+  });
+
+  it("holds oracles to the acceptance loop", () => {
+    const section = sectionOf(content, "### What makes a good oracle");
+    expect(section).toContain("the acceptance loop, not test-driven development");
+    expect(section).toContain("**It fails for the reason it states.**");
+    expect(section).toContain("**Not every test is an oracle.**");
   });
 
   it("reads the repository's architecture from `phax architecture`, or from its code and documentation", () => {

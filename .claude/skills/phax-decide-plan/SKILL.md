@@ -88,7 +88,10 @@ handoffs, docs, the PR's tables).
   keep test and code in one phase and rely on the compliance review's `tests` dimension. If
   an oracle written first turns out wrong, the implementing phase changes it only by
   removing the markers: the run pauses and the disagreement goes back to the spec — that is
-  the intended behaviour, not a failure.
+  the intended behaviour, not a failure. An oracle is the acceptance loop, never the inner
+  one: it tests the shown surface through a stable entry and traces to an acceptance
+  criterion, its generators and tables are oracle files too, and the unit tests that drive
+  the code's design stay in-phase (see the planning skill's "What makes a good oracle").
 - `P4` (`C2`) **A fix stays inside the run's footprint.** A correction phase may touch the
   files the findings name plus the run's declared footprint. A root cause outside it is
   not fixed here: it becomes a `deviation` to escalate (a spec amendment or a new plan).
