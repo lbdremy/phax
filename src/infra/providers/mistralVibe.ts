@@ -163,8 +163,10 @@ function spawnVibe(
     proc.on("close", (code) => {
       clearTimeout(killTimer);
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
-      writeStream?.end();
-      resolve({ lines, exitCode: code ?? 1, stderr: stderrBuf });
+      const result = { lines, exitCode: code ?? 1, stderr: stderrBuf };
+      // Resolve once the stream is flushed: the cost ledger reads it next.
+      if (writeStream === undefined) resolve(result);
+      else writeStream.end(() => resolve(result));
     });
 
     proc.on("error", (err) => {
