@@ -69,6 +69,7 @@ import {
   writeSeed,
   type SeedPaths,
 } from "./interactiveFiles.js";
+import { tracedStep, tracedTurnCall } from "./telemetry/stopTelemetry.js";
 
 type Origin = "first-turn" | "new-session";
 type FirstTurnRecord = InteractiveSession["firstTurns"][number];
@@ -180,15 +181,22 @@ function attemptTurn(
       readOnly: true,
       outputJsonlPath: join(input.phaseFolder, stream),
     });
-    const costed = (run: Effect.Effect<AgentRunResult, unknown, Backend>, stream: string) =>
-      withInvocationCost(run, {
-        role: "first-turn",
-        phase: input.phase.id,
-        runId: input.runId,
-        runPath: input.runPath,
-        provider: input.provider,
-        streamPath: join(input.phaseFolder, stream),
-      });
+    const costed = (
+      run: Effect.Effect<AgentRunResult, unknown, Backend>,
+      stream: string,
+      operation: "agent.run" | "agent.resume",
+    ) =>
+      tracedTurnCall(
+        { runId: input.runId, phaseId: input.phase.id, provider: input.provider, operation },
+        withInvocationCost(run, {
+          role: "first-turn",
+          phase: input.phase.id,
+          runId: input.runId,
+          runPath: input.runPath,
+          provider: input.provider,
+          streamPath: join(input.phaseFolder, stream),
+        }),
+      );
 
     const firstStream = `${label}.jsonl`;
     const first = yield* Effect.either(
@@ -202,6 +210,7 @@ function attemptTurn(
           options(firstStream),
         ),
         firstStream,
+        "agent.run",
       ),
     );
     if (Either.isLeft(first)) return failedAttempt(first.left);
@@ -219,6 +228,7 @@ function attemptTurn(
           options(retryStream),
         ),
         retryStream,
+        "agent.resume",
       ),
     );
     if (Either.isLeft(retry)) return failedAttempt(retry.left);
@@ -486,7 +496,15 @@ export function runFirstTurn(
 
     return yield* Effect.uninterruptibleMask((restore) =>
       Effect.gen(function* () {
-        const exit = yield* Effect.exit(restore(attemptTurn(input, turn)));
+        const exit = yield* Effect.exit(
+          restore(
+            tracedStep(
+              { runId: input.runId, phaseId: input.phase.id, step: "first-turn" },
+              attemptTurn(input, turn),
+              (attempt) => attempt.kind === "answered",
+            ),
+          ),
+        );
         const attempt: TurnAttempt = Exit.isSuccess(exit)
           ? exit.value
           : {

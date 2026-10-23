@@ -19,6 +19,52 @@ exports[`E2E semantic trace — declared interactive stop snapshot > pins the tr
     "type": "state.transition",
   },
   {
+    "operationId": "phase-02",
+    "step": "gate.run",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-02",
+    "result": "success",
+    "step": "gate.run",
+    "type": "step.completed",
+  },
+  {
+    "gate": "checks",
+    "operationId": "phase-02",
+    "result": "accepted",
+    "type": "gate.evaluated",
+  },
+  {
+    "operationId": "phase-02",
+    "step": "closing-turn",
+    "type": "step.started",
+  },
+  {
+    "adapter": "claude-code",
+    "operation": "agent.resume",
+    "operationId": "phase-02",
+    "type": "adapter.call.started",
+  },
+  {
+    "adapter": "claude-code",
+    "operation": "agent.resume",
+    "operationId": "phase-02",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "operationId": "phase-02",
+    "result": "success",
+    "step": "closing-turn",
+    "type": "step.completed",
+  },
+  {
+    "adapter": "git",
+    "operation": "commit.create",
+    "operationId": "phase-02",
+    "type": "adapter.call.succeeded",
+  },
+  {
     "artifact": "file-reconciliation",
     "operationId": "phase-02",
     "path": "phase-02/file-reconciliation.md",
@@ -374,6 +420,29 @@ exports[`E2E semantic trace — declared interactive stop snapshot > pins the tr
     "sandboxEnabled": false,
     "skippedForSecurity": [],
     "type": "security.policy.applied",
+  },
+  {
+    "operationId": "phase-02",
+    "step": "first-turn",
+    "type": "step.started",
+  },
+  {
+    "adapter": "claude-code",
+    "operation": "agent.run",
+    "operationId": "phase-02",
+    "type": "adapter.call.started",
+  },
+  {
+    "adapter": "claude-code",
+    "operation": "agent.run",
+    "operationId": "phase-02",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "operationId": "phase-02",
+    "result": "success",
+    "step": "first-turn",
+    "type": "step.completed",
   },
   {
     "dispatcher": "dispatch",
