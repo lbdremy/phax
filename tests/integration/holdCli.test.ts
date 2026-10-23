@@ -4,9 +4,11 @@
  * with exit 1 before anything is read, a plan that cannot honour the selection
  * with exit 11, and a valid one is recorded with the run it names. `phax
  * resume` takes no `--hold`. Only the HOME-derived loaders and the provider
- * backend are replaced, as in runPreflightBeforeNaming.test.ts.
+ * backend are replaced, as in runPreflightBeforeNaming.test.ts, and HOME is a
+ * temporary directory, so the developer's ~/.phax/config.json is never read.
  */
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +23,7 @@ import {
   removePreflightRepo,
   snapshotRepo,
 } from "./helpers/preflightRepo.js";
+import { removeTempDir } from "../helpers/tempGit.js";
 
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
@@ -78,15 +81,21 @@ function expectNothingNamed(r: PreflightRepo): void {
 describe("phax run --hold", { timeout: 60_000 }, () => {
   let roots: PreflightRepo | undefined;
   let origCwd: string;
+  let home: string;
 
   beforeEach(() => {
     origCwd = process.cwd();
+    // loadConfig reads ~/.phax/config.json through homedir(), which follows HOME.
+    home = realpathSync(mkdtempSync(join(tmpdir(), "phax-hold-cli-home-")));
+    vi.stubEnv("HOME", home);
   });
 
   afterEach(() => {
     process.chdir(origCwd);
     removePreflightRepo(roots);
     roots = undefined;
+    vi.unstubAllEnvs();
+    removeTempDir(home);
     vi.resetAllMocks();
   });
 
