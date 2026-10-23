@@ -285,8 +285,8 @@ const SCENARIOS = {
     errorLine: () =>
       `phax run failed: Working tree is not clean. Commit or stash changes, or pass --allow-dirty.`,
   },
-  // No "hold" scenario: `phax run` registers no --hold yet, so the step cannot refuse here.
-  // tests/integration/holdPreflight.test.ts drives it through freshRunPreflight.
+  // No "hold" scenario: a scenario passes no --hold. tests/integration/holdCli.test.ts
+  // drives its refusals through `runRun --hold`, and holdPreflight.test.ts through freshRunPreflight.
 } satisfies Record<Exclude<FreshRunPreflightStep, "hold">, RefusalScenario>;
 
 // Refusals that share a step with another scenario above.

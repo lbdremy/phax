@@ -220,16 +220,6 @@ export class HoldPointPausedError extends Data.TaggedError("HoldPointPausedError
   cause: unknown;
 }> {}
 
-/**
- * A resume met a held stop that this phax cannot close yet. Refused before
- * anything changes: the run stays awaiting review. Exits 1.
- */
-export class HeldCloseUnavailableError extends Data.TaggedError("HeldCloseUnavailableError")<{
-  message: string;
-  run: string;
-  phase: string;
-}> {}
-
 /** How a refused close of a stop ended: any lastClose but `interrupted`. */
 export type RefusedClose = Exclude<LastClose, { readonly result: "interrupted" }>;
 

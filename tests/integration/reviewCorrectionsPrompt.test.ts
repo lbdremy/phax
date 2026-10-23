@@ -174,6 +174,73 @@ describe("later prompts after two closed stops", () => {
     expect(at04).not.toContain("### phase-05 (interactive)");
   });
 
+  // The stop is chosen by the phase's status `stop`, never by its mode: phase-02
+  // is headless and held.
+  describe("with a held stop at phase-02", () => {
+    beforeEach(() => {
+      statuses = statuses.map((s) =>
+        s.phaseId === "phase-02"
+          ? {
+              ...s,
+              stop: {
+                cause: "held",
+                status: "closed",
+                outcome: "corrected",
+                reviewCommit: "b1c2d3e4f5a60718293a4b5c6d7e8f9012345679",
+                oracleStep: "none",
+              },
+            }
+          : s,
+      );
+      write(
+        "phase-02",
+        "correction-handoff.md",
+        "## What was corrected\n- Held fix at phase-02.\n",
+      );
+      write(
+        "phase-02",
+        "correction-reconciliation.json",
+        JSON.stringify(
+          phaseReconciliationFile("phase-02", { reviewCorrections: ["src/credit/labels.ts"] }),
+        ),
+      );
+    });
+
+    it("phase-06 reads the held correction first, then the declared ones, each under its own heading", async () => {
+      const prompt = await promptFor(5);
+
+      const section = prompt.slice(
+        prompt.indexOf("## Review corrections"),
+        prompt.indexOf("## Previous phase file reconciliation"),
+      );
+      expect(section).toContain("at phase-02, phase-03 and phase-05.");
+      const at02 = section.indexOf("### phase-02 (held)");
+      const at03 = section.indexOf("### phase-03 (interactive)");
+      expect(at02).toBeGreaterThan(0);
+      expect(at03).toBeGreaterThan(at02);
+      expect(section.slice(at02, at03)).toContain("- Held fix at phase-02.");
+      expect(section.slice(at02, at03)).toContain("- src/credit/labels.ts");
+      // The held phase's builder handoff is not its correction.
+      expect(section).not.toContain("- phase-02 delivered.");
+    });
+
+    it("after the held phase the previous handoff is its own builder handoff", async () => {
+      const prompt = await promptFor(2);
+      const handoff = prompt.slice(
+        prompt.indexOf("## Previous phase handoff"),
+        prompt.indexOf("## Review corrections"),
+      );
+      expect(handoff).toContain("- phase-02 delivered.");
+      expect(handoff).not.toContain("Held fix");
+      expect(prompt).toContain("### phase-02 (held)");
+    });
+
+    it("fails when the held stop's correction reconciliation is missing", async () => {
+      removeTempDir(join(runPath, "phase-02", "correction-reconciliation.json"));
+      await expect(promptFor(5)).rejects.toThrow();
+    });
+  });
+
   it("a stop still waiting, and every phase before the first stop, read no section", async () => {
     statuses = statuses.map((s) =>
       s.phaseId === "phase-05" ? { ...s, stop: { cause: "declared", status: "waiting" } } : s,

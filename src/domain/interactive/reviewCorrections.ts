@@ -1,9 +1,11 @@
 // The `## Review corrections` section of a later phase's prompt: the
-// interactive handoff of every closed stop before it. Pure.
+// handoff of every closed stop before it, declared or held. Pure.
 
 export interface ReviewCorrectionStop {
   readonly phaseId: string;
-  /** The stop's interactive handoff, verbatim. */
+  /** Why the run stopped there; it names the stop's heading. */
+  readonly cause: "declared" | "held";
+  /** The stop's correction handoff (held) or interactive handoff (declared), verbatim. */
   readonly handoff: string;
   /** The files the review changed, from the stop's reconciliation. */
   readonly changedFiles: readonly string[];
@@ -30,7 +32,7 @@ export function renderReviewCorrectionsSection(
     `A person reviewed and corrected the run at ${joinNames(stops.map((s) => s.phaseId))}. Where this section disagrees with an earlier phase's handoff, this section wins. Your own plan section still binds.`,
     "",
     ...stops.flatMap((stop) => [
-      `### ${stop.phaseId} (interactive)`,
+      `### ${stop.phaseId} (${stop.cause === "held" ? "held" : "interactive"})`,
       "",
       stop.handoff.trimEnd(),
       "",

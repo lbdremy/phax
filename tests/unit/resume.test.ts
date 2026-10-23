@@ -145,14 +145,24 @@ describe("findNextResumablePhase — the run's hold", () => {
       expected: "phase-03",
     },
     {
-      name: "a committed held phase whose stop is closed",
+      name: "a committed held phase whose stop is closed: its cleanup is owed",
       phase02: statusOf("phase-02", 1, "committed", {
         cause: "held",
         status: "closed",
         outcome: "unchanged",
       }),
       hold: listed,
-      expected: "phase-03",
+      expected: "phase-02",
+    },
+    {
+      name: "a committed declared phase whose stop is closed: its cleanup is owed",
+      phase02: statusOf("phase-02", 1, "committed", {
+        cause: "declared",
+        status: "closed",
+        outcome: "unchanged",
+      }),
+      hold: none,
+      expected: "phase-02",
     },
     {
       name: "a cleaned-up held phase",

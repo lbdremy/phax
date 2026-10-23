@@ -330,16 +330,19 @@ interface ShellCall {
 
 const realShell = Effect.runSync(Effect.provide(Shell, NodeShellLayer));
 
-// `pnpm …` steps are scripted and recorded, always green; every other command runs.
-function scriptedShell(calls: ShellCall[]) {
+// `pnpm …` steps are scripted and recorded, green unless in `failing`; every
+// other command runs.
+function scriptedShell(calls: ShellCall[], failing: ReadonlySet<string>) {
   return Layer.succeed(Shell, {
     run: (options) => {
       if (options.command[0] !== "pnpm") return realShell.run(options);
-      calls.push({ line: options.command.join(" "), cwd: options.cwd });
+      const line = options.command.join(" ");
+      calls.push({ line, cwd: options.cwd });
+      const red = failing.has(line);
       return Effect.succeed({
-        exitCode: 0,
+        exitCode: red ? 1 : 0,
         stdout: "",
-        stderr: "",
+        stderr: red ? "1 failed: invoiceRow header" : "",
         stdoutEncoding: "utf8" as const,
       });
     },
@@ -356,6 +359,8 @@ export interface HeldRun {
   readonly runId: RunId;
   readonly backend: HeldBackend;
   readonly shellCalls: ShellCall[];
+  /** Gate command lines (`pnpm typecheck`) that fail while they are in the set. */
+  readonly failingGates: Set<string>;
   readonly lock: ReturnType<typeof makeFakeLock>;
   readonly closed: ClosedStop[];
   readonly config: ResolvedConfig;
@@ -383,6 +388,7 @@ async function createHeldRun(
     runId,
     backend: makeHeldBackend(),
     shellCalls: [],
+    failingGates: new Set<string>(),
     lock: makeFakeLock(),
     closed: [],
     config,
@@ -421,7 +427,7 @@ function executeHeldRun(
             Layer.succeed(Backend, run.backend),
             NodeFileSystemLayer,
             NodeGitLayer,
-            scriptedShell(run.shellCalls),
+            scriptedShell(run.shellCalls, run.failingGates),
             NoopSystemTelemetryLayer,
             makeFakeGitHub().layer,
             run.lock.layer,

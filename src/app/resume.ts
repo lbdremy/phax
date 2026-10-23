@@ -57,7 +57,9 @@ interface NextResumablePhase {
  *
  * A non-final `committed` phase of the run's hold whose stop is still null is
  * resumable too: its hold point failed or was interrupted before the stop, and
- * executePlan re-enters it there.
+ * executePlan re-enters it there. So is a non-final `committed` phase whose
+ * stop is closed, of either cause: its close was interrupted before the
+ * cleanup, and executePlan finishes what it still owes.
  */
 export function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
@@ -80,10 +82,15 @@ export function findNextResumablePhase(
         status.state === "committed" &&
         status.stop === null &&
         holdsPhase(hold, status.phaseId);
+      // A non-final `committed` phase whose stop is closed, of either cause: a
+      // close was interrupted between its state event and its cleanup.
+      const owesClosedStopCleanup =
+        !isFinalPlanPhase && status.state === "committed" && status.stop?.status === "closed";
       const resumable =
         !TERMINAL_PHASE_STATES.has(status.state) ||
         (isFinalPlanPhase && status.state === "committed") ||
-        owesHeldStop;
+        owesHeldStop ||
+        owesClosedStopCleanup;
       if (resumable) {
         return {
           phaseId: status.phaseId,

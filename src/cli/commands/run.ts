@@ -25,6 +25,7 @@ import { buildFootprint } from "../../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../../domain/planOverlap/fromPhaxPlan.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { parseHoldValue, type HoldRequest } from "../../domain/hold.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
 import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { createRunFolder } from "../../app/runFolder.js";
@@ -59,6 +60,8 @@ export interface RunCommandOptions {
   dryRun?: boolean;
   allowDirty?: boolean;
   allowSkillEdits?: boolean;
+  /** `--hold [selection]`: `true` for a bare flag, else the value given. */
+  hold?: true | string;
   providerPriority?: string;
   security?: string;
   refresh?: boolean;
@@ -163,6 +166,18 @@ function printUnsafeWarning(out: OutputPort): void {
 }
 
 export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<number> {
+  // The hold's value is read before the config or the plan is, so a malformed
+  // one is refused with nothing else done.
+  let holdRequest: HoldRequest = { kind: "none" };
+  if (opts.hold !== undefined) {
+    const parsedHold = parseHoldValue(opts.hold);
+    if (Either.isLeft(parsedHold)) {
+      out.error(parsedHold.left);
+      return 1;
+    }
+    holdRequest = parsedHold.right;
+  }
+
   const cwd = process.cwd();
   const planMdPath = resolve(cwd, opts.plan);
 
@@ -338,6 +353,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           priorityOverride !== undefined ? [...priorityOverride] : undefined,
           effectiveSecurityMode,
           opts.allowSkillEdits ?? false,
+          holdRequest,
         ),
       ),
     );
@@ -360,7 +376,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         namespace,
         allowSkillEdits: opts.allowSkillEdits ?? false,
         allowDirty: opts.allowDirty ?? false,
-        hold: { kind: "none" },
+        hold: holdRequest,
         priorityOverride,
       }).pipe(
         Effect.provide(makeRepoRootedFileSystemLayer(config)),

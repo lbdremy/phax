@@ -7,7 +7,6 @@ import { syncSaveInterruptedRun } from "../../src/cli/interruptHandler.js";
 import {
   AwaitingReviewStopError,
   HandoffPausedError,
-  HeldCloseUnavailableError,
   HoldPointPausedError,
 } from "../../src/domain/errors.js";
 import {
@@ -33,7 +32,7 @@ import {
 
 // The made-up invoice-export run holding phase-02, re-entering its hold point:
 // after a handoff pause, after an interruption or a failure before the stop,
-// and the interim refusal of a resume at a held stop no phax can close yet.
+// and a resume that closes the stop they reach.
 
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/app/loadRouting.js")>()),
@@ -206,21 +205,20 @@ describe("re-entering a hold point", { timeout: 30_000 }, () => {
     );
   });
 
-  it("refuses to resume a held stop before the close exists, changing nothing", async () => {
+  it("closes a held stop on resume and goes on to the declared phase-03", async () => {
     const { run, result } = await startHeldRun(world, HOLD_PHASE_02);
     failedWith(result, AwaitingReviewStopError);
-    const runBefore = readFileSync(join(run.runPath, "run-status.json"), "utf8");
-    const phaseBefore = readFileSync(join(run.runPath, "phase-02", "status.json"), "utf8");
-    const stopBefore = readFileSync(join(run.runPath, "review-stop.json"), "utf8");
+    const c2 = tipOf(run);
 
-    const error = failedWith(await resumeHeldRun(run), HeldCloseUnavailableError);
+    const error = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
 
-    expect(error.message).toContain("this phax cannot close a held stop yet");
-    expect(exitCodeForError(error)).toBe(1);
-    expect(readFileSync(join(run.runPath, "run-status.json"), "utf8")).toBe(runBefore);
-    expect(readFileSync(join(run.runPath, "phase-02", "status.json"), "utf8")).toBe(phaseBefore);
-    expect(readFileSync(join(run.runPath, "review-stop.json"), "utf8")).toBe(stopBefore);
-    expect(existsSync(join(run.runPath, "phase-02", "review-stop.closing.json"))).toBe(false);
+    expect(error.report.cause).toBe("declared");
+    expect(error.phase).toBe("phase-03");
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "cleaned_up",
+      commitHash: c2,
+      stop: { cause: "held", status: "closed", outcome: "unchanged" },
+    });
   });
 
   it("holds only the recorded phases: a run that holds none runs past phase-02", async () => {

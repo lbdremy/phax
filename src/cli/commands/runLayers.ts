@@ -167,7 +167,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   { code: 10, meaning: "Registry corruption" },
   { code: 11, meaning: "Security or preflight refusal" },
   { code: 12, meaning: "Artifact lifecycle refusal" },
-  { code: 13, meaning: "Awaiting review at an interactive phase (resumable)" },
+  { code: 13, meaning: "Awaiting review at an interactive or held phase (resumable)" },
 ];
 
 export function exitCodeForError(err: unknown): number {

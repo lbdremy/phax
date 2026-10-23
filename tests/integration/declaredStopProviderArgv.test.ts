@@ -403,7 +403,7 @@ describe("exit code 13", () => {
     expect(exitCodeForError(error)).toBe(13);
     expect(EXIT_CODE_MEANINGS).toContainEqual({
       code: 13,
-      meaning: "Awaiting review at an interactive phase (resumable)",
+      meaning: "Awaiting review at an interactive or held phase (resumable)",
     });
   });
 });

@@ -231,6 +231,10 @@ export function buildProgram(): Command {
       "--allow-skill-edits",
       "Allow phases to edit the .claude/skills files the plan declares",
     )
+    .option(
+      "--hold [selection]",
+      "Stop for review once these headless phases commit: no value for every phase but the final one, oracle, or phase ids such as phase-02,phase-04",
+    )
     .action(
       async (
         shortName: string | undefined,
@@ -241,6 +245,7 @@ export function buildProgram(): Command {
           dryRun?: boolean;
           refresh?: boolean;
           allowSkillEdits?: boolean;
+          hold?: true | string;
         },
       ) => {
         const merged = { ...opts, ...globalTraceOpts() };

@@ -241,6 +241,7 @@ describe("buildPhasePrompt", () => {
       reviewCorrections: [
         {
           phaseId: "phase-03",
+          cause: "declared",
           handoff: "## What was corrected\n\nThe header reads invoice_no.\n",
           changedFiles: ["src/export/invoiceRow.ts"],
         },
