@@ -525,7 +525,7 @@ phax review-compliance usage-cli
 
 - **Usage**: `phax review-code [FLAGS] <short-name>`
 
-Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
+Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The prompt carries the phax-review skill: the project's copy at .claude/skills/phax-review/SKILL.md in the run's worktree when it has one, else the bundled skill. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
 
 Side effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).
 
@@ -959,7 +959,7 @@ Install bundled PHAX skills into an agent's native skill directory
 
 #### `[skill]`
 
-Skill to install (phax-planning|phax-cli|phax-spec|phax-decide-spec|phax-decide-plan|phax-decide-review); installs all skills when omitted
+Skill to install (phax-planning|phax-cli|phax-spec|phax-review|phax-decide-spec|phax-decide-plan|phax-decide-review); installs all skills when omitted
 
 ### Flags
 

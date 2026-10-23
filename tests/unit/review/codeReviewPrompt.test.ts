@@ -14,6 +14,10 @@ const baseInput = {
   worktreePath: "/home/user/.phax/worktrees/my-run/phase-03",
   attentionPoints: baseAttentionPoints,
   complianceMissing: false,
+  doctrine: {
+    source: "bundled" as const,
+    text: "---\nname: phax-review\ndescription: How to review.\n---\n\n# phax review — how to review a run\n\nUse it before you read it.\n",
+  },
 };
 
 describe("buildCodeReviewPrompt", () => {
@@ -124,6 +128,39 @@ describe("buildCodeReviewPrompt", () => {
       const input = { ...baseInput, attentionPoints: [], complianceMissing: true };
       expect(() => buildCodeReviewPrompt(input)).not.toThrow();
     });
+  });
+});
+
+describe("buildCodeReviewPrompt doctrine", () => {
+  it("carries the review doctrine after the steps, named with its source", () => {
+    const prompt = buildCodeReviewPrompt(baseInput);
+    const steps = prompt.indexOf("## How to proceed");
+    const doctrine = prompt.indexOf("## Review doctrine — `phax-review` (bundled)");
+    expect(steps).toBeGreaterThan(-1);
+    expect(doctrine).toBeGreaterThan(steps);
+    expect(prompt.slice(doctrine)).toContain("Use it before you read it.");
+  });
+
+  it("drops the skill's frontmatter", () => {
+    const prompt = buildCodeReviewPrompt(baseInput);
+    expect(prompt).not.toContain("name: phax-review");
+    expect(prompt).not.toContain("description: How to review.");
+    expect(prompt).toContain("# phax review — how to review a run");
+  });
+
+  it("names a project copy as the doctrine's source", () => {
+    const prompt = buildCodeReviewPrompt({
+      ...baseInput,
+      doctrine: { source: "project", text: "# Our review rules\n" },
+    });
+    expect(prompt).toContain("## Review doctrine — `phax-review` (project)");
+    expect(prompt).toContain("# Our review rules");
+  });
+
+  it("asks for the surface pass first, then findings with their escape", () => {
+    const prompt = buildCodeReviewPrompt(baseInput);
+    expect(prompt).toContain("use the change before you read its code, then work outside-in");
+    expect(prompt).toContain("each with its severity, lens, escape and suggestion");
   });
 });
 

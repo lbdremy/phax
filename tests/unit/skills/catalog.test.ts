@@ -7,6 +7,7 @@ import {
   PHAX_DECIDE_REVIEW_SKILL,
   PHAX_DECIDE_SPEC_SKILL,
   PHAX_PLANNING_SKILL,
+  PHAX_REVIEW_SKILL,
   PHAX_SPEC_SKILL,
   findExposedSkill,
 } from "../../../src/domain/skills/catalog.js";
@@ -18,12 +19,13 @@ import {
 } from "../../../src/domain/skills/types.js";
 
 describe("EXPOSED_SKILLS", () => {
-  it("lists the six skills in order, the three doctrine skills after phax-spec", () => {
-    expect(EXPOSED_SKILLS).toHaveLength(6);
+  it("lists the seven skills in order, phax-review after phax-spec and the three decide doctrines last", () => {
+    expect(EXPOSED_SKILLS).toHaveLength(7);
     expect(EXPOSED_SKILLS.map((s) => s.name)).toEqual([
       "phax-planning",
       "phax-cli",
       "phax-spec",
+      "phax-review",
       "phax-decide-spec",
       "phax-decide-plan",
       "phax-decide-review",
@@ -47,6 +49,7 @@ describe("EXPOSED_SKILLS", () => {
     expect(PHAX_PLANNING_SKILL).toBe("phax-planning");
     expect(PHAX_CLI_SKILL).toBe("phax-cli");
     expect(PHAX_SPEC_SKILL).toBe("phax-spec");
+    expect(PHAX_REVIEW_SKILL).toBe("phax-review");
     expect(PHAX_DECIDE_SPEC_SKILL).toBe("phax-decide-spec");
     expect(PHAX_DECIDE_PLAN_SKILL).toBe("phax-decide-plan");
     expect(PHAX_DECIDE_REVIEW_SKILL).toBe("phax-decide-review");
@@ -54,6 +57,7 @@ describe("EXPOSED_SKILLS", () => {
       PHAX_PLANNING_SKILL,
       PHAX_CLI_SKILL,
       PHAX_SPEC_SKILL,
+      PHAX_REVIEW_SKILL,
       PHAX_DECIDE_SPEC_SKILL,
       PHAX_DECIDE_PLAN_SKILL,
       PHAX_DECIDE_REVIEW_SKILL,

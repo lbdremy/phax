@@ -1,4 +1,12 @@
+import { PHAX_REVIEW_SKILL } from "../skills/catalog.js";
+
 export const CODE_REVIEW_PROMPT_FILENAME = "code-review-prompt.md";
+
+/** The review doctrine the session follows: the project's copy of the skill, or the bundled one. */
+export interface CodeReviewDoctrine {
+  readonly source: "bundled" | "project";
+  readonly text: string;
+}
 
 export interface BuildCodeReviewPromptInput {
   readonly worktreePath: string;
@@ -18,10 +26,11 @@ export interface BuildCodeReviewPromptInput {
     }>;
   };
   readonly complianceMissing: boolean;
+  readonly doctrine: CodeReviewDoctrine;
 }
 
 export function buildCodeReviewPrompt(input: BuildCodeReviewPromptInput): string {
-  const { worktreePath, attentionPoints, compliance, complianceMissing } = input;
+  const { worktreePath, attentionPoints, compliance, complianceMissing, doctrine } = input;
 
   const attentionPointsSection =
     attentionPoints.length === 0
@@ -57,10 +66,14 @@ export function buildCodeReviewPrompt(input: BuildCodeReviewPromptInput): string
     complianceSection,
     "## How to proceed",
     "",
-    "1. Start by reading the files listed above and understanding what changed.",
-    "2. Explain your findings to the developer before proposing fixes.",
+    "1. Follow the review doctrine below: use the change before you read its code, then work outside-in.",
+    "2. Report what you saw using it first, then your findings, most severe first, each with its severity, lens, escape and suggestion.",
     "3. Apply fixes only when the developer confirms.",
     "4. The developer will take over the session — hand off cleanly when asked.",
+    "",
+    `## Review doctrine — \`${PHAX_REVIEW_SKILL}\` (${doctrine.source})`,
+    "",
+    skillBody(doctrine.text),
   ]
     .filter((line) => line !== undefined)
     .join("\n");
@@ -99,6 +112,11 @@ function buildComplianceSection(compliance: BuildCodeReviewPromptInput["complian
   }
 
   return lines.join("\n");
+}
+
+// A skill's text without its YAML frontmatter.
+function skillBody(text: string): string {
+  return text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").trim();
 }
 
 export function buildCodeReviewPositionalPrompt(promptFilePath: string): string {
