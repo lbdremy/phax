@@ -531,9 +531,22 @@ describe("resetPhase", () => {
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_discharge",
         message:
-          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit.",
+          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-oracle`: the configured gate still runs.",
       });
       expect(await snapshot(runPath)).toEqual(before);
+    });
+
+    it("names no --skip-oracle recovery once phase-04 is past its gate", async () => {
+      await seedReviewedPair("review_open", "authored");
+
+      const result = await reset("phase-03");
+
+      if (Either.isRight(result)) throw new Error("expected the reset to be refused");
+      expect(result.left).toMatchObject({
+        reason: "phase_blocked_by_discharge",
+        message:
+          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is review_open, and the discharge judges this phase's commit.",
+      });
     });
 
     it("adds no such refusal when the stop ran no oracle step, or before the discharge started", async () => {

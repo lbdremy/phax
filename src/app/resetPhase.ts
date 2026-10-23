@@ -228,7 +228,13 @@ function resetPhaseLocked(
         return yield* Effect.fail(
           new ResetPhaseError({
             reason: "phase_blocked_by_discharge",
-            message: `Cannot reset '${target.phaseId}' of run '${opts.shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.`,
+            // The same recovery as for the oracle phase (§5.36), while the
+            // discharge is the stopped phase.
+            message:
+              `Cannot reset '${target.phaseId}' of run '${opts.shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.` +
+              (STOPPED_AT_GATE_STATES.has(status.state)
+                ? ` To correct the oracle, edit it in ${status.phaseId} (\`phax enter-phase ${opts.shortName} ${status.phaseId}\`), then run \`phax resume ${opts.shortName} --yes --skip-oracle\`: the configured gate still runs.`
+                : ""),
           }),
         );
       }
