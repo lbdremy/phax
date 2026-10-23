@@ -101,7 +101,7 @@ Declare an oracle phase only when a provider is configured. In `plan.md`, phase-
 **Oracle files:** tests/refunds.test.ts
 ```
 
-`yes` means the next phase in plan order; `**Oracle phase:** discharged by phase-04` names it. The oracle files are a subset of the phase's planned files, so the phase may also plan a stub, such as `src/refunds/index.ts`, that is not an oracle. No phase in between plans an oracle file, no interactive phase sits in between or takes a role, and one phase discharges one oracle phase. `phax plans lint` checks all of it.
+`yes` means the next phase in plan order; `**Oracle phase:** discharged by phase-04` names it. The oracle files are a subset of the phase's planned files, so the phase may also plan a stub, such as `src/refunds/index.ts`, that is not an oracle. No phase in between plans an oracle file, an interactive phase may sit in between and takes no role, and one phase discharges one oracle phase. `phax plans lint` checks all of it.
 
 phase-02 adds its tests with the framework's expected-failure marker, so the test command stays green:
 
@@ -119,7 +119,7 @@ phase-03 removes `.fails` and writes the refund cap. Its gate sends `discharged`
 
 An oracle that the code cannot satisfy unchanged is a spec question, not a bug to work around. The fix loop runs out on the failing oracle step, the run pauses at the discharging phase with exit 4, resumable at that phase, and the agent has been told to say so in its handoff. Send the disagreement back to the spec.
 
-A committed oracle phase is not reset: `phax reset-phase` refuses an oracle phase while its discharging phase is in any state other than `pending`, and the state machine never resets a committed phase. When the oracle itself is wrong, correct it in the stopped phase and close the step with `phax resume <run> --skip-oracle`. That resume runs the phase's configured gate with the usual fix loop, runs no oracle step, and records the step as `skipped`. `--hold oracle`, coming with interactive phases, will let a person review the oracles before their discharge.
+A committed oracle phase is not reset: `phax reset-phase` refuses an oracle phase while its discharging phase is in any state other than `pending`, and the state machine never resets a committed phase. When the oracle itself is wrong, correct it in the stopped phase and close the step with `phax resume <run> --skip-oracle`. That resume runs the phase's configured gate with the usual fix loop, runs no oracle step, and records the step as `skipped`. To review the oracles before their discharge instead, see [Reviewing oracles before the discharge](#reviewing-oracles-before-the-discharge).
 
 For example, phase-03 of the `refunds` run exhausts its fix loop on the oracle step and the run pauses with exit 4. The person decides the oracle is wrong, edits it in the stopped phase's worktree, and resumes:
 
@@ -141,6 +141,18 @@ and `oracle` is then not among phase-03's verified surfaces, nor the run's: the 
 - It is an operator's choice. No agent prompt names it.
 
 An oracle phase that produced no changes is skipped and notes no commit, so there is nothing to discharge. phax refuses its discharging phase before the agent runs, with exit 11, and the run fails; the message names a different recovery: archive the run and run a corrected plan. `--skip-oracle` does not apply: there is no commit to discharge.
+
+## Reviewing oracles before the discharge
+
+A person can read the oracles before the code is written against them. Two ways stop the run between the oracle phase and its discharge: `phax run --hold oracle`, which holds the plan's oracle phases after they commit, and a phase the plan declares `**Mode:** interactive` between the two. See [Interactive phases](../README.md#interactive-phases) for the stop itself; this section covers what changes inside a pair.
+
+- **The `authored` re-run.** When the person's corrections at a stop change an oracle file of the pair the stop sits in, `phax resume` runs the oracles provider's `authored` verdict again as the last step of the closing gate, after every configured step passed. The request is the usual `oracle-request`, with `phase` naming the stopped phase, `oraclePhase` the oracle phase, and `files` the pair's oracle files. A finding goes to the person like any red gate (exit 4). Corrections that touch the oracle files of two pairs are refused, because one gate attempt carries one request, as is a gate step that writes an oracle file the corrections did not change.
+- **`oracleCommit`.** The discharge judges the latest commit of the pair that passed `authored`: the review commit of the last stop in the pair whose close ran the step, or the oracle phase's own commit when none did. The request's `oracleCommit` names it.
+- **A held discharge.** Holding the discharging phase stops it after it passed its own `discharged` verdict. Its close runs the configured steps only, with no oracle step. For each oracle file its corrections changed, it warns that the discharge was judged before the stop and that the oracles provider does not see the change, and records the files in the close's trace. It refuses nothing.
+- **Reset.** `phax reset-phase` refuses a phase whose closed stop ran the `authored` step once the pair's discharge has started, as it does the oracle phase itself, because the discharge judges that commit.
+- **`--skip-oracle`.** `phax resume --skip-oracle` on a run awaiting review exits 1: a close's `authored` step is never skipped. When the oracles provider is broken, undo the correction to the oracle file, or `phax reset-phase` the stop.
+
+For example, `phax run --hold oracle` on the `refunds` run stops after phase-02. The person tightens `tests/refunds.test.ts`, then `phax resume refunds` gates the worktree, runs `authored` on the change, leaves one review commit with a `Held-Phase: phase-02` trailer, and starts phase-03. Its `discharged` request names that review commit as `oracleCommit`.
 
 ## What you see afterwards
 

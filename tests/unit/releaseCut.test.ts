@@ -175,7 +175,7 @@ afterEach(() => {
 
 afterAll(() => {
   for (const root of copies) rmSync(root, { recursive: true, force: true });
-});
+}, 30_000);
 
 // Each case copies the tree: well under a second alone, several under full-suite load.
 describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => {

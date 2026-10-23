@@ -69,11 +69,17 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         preflight no longer refuse a declared phase. The review fixes on #157 also trace the stop's
         effects (turns, closing gate, review commit) and pin them in
         `tests/e2e/semanticTrace.declaredStop.test.ts`.
-      - Next: plan 2 (`phax run --hold`, the held stop and the oracle-pair rules), then plan 3 (the
-        versioned `phax ls --json` run list, transcript capture, and the records, compliance review
-        and PR body around a stop).
-      - Gaps until then: no phase record for a declared phase, no review inside an oracle pair
-        until plan 2, and a cost ledger that covers Claude Code turns only.
+      - Plan 2 of 3 lands with this run (`docs/plans/2610231043-interactive-phases-plan.md`):
+        `phax run --hold`, the held stop and its close (one review commit with a `Held-Phase:`
+        trailer on the phase commit), the phase's record written at closing, and the
+        oracle-pair reviews (the `authored` re-run, the latest authored commit, the held
+        discharge).
+      - Next: plan 3 (the versioned `phax ls --json` run list, transcript capture, and the
+        records, compliance review and PR body around a stop).
+      - Gaps until then: stops have no review fields in their records; `phax records explain` on
+        a review commit finds no record; on vibe, a held phase's record counts the closing turn
+        in its usage; a declared phase writes no phase record; and the cost ledger covers Claude
+        Code turns only.
 
 ### Approved, not yet planned
 
