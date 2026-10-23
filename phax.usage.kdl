@@ -121,7 +121,7 @@ cmd "open" {
 
 cmd "ls" {
     help "List runs from the registry"
-    long_help "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) and its PHASE column names the stopped phase. Use --json for machine-readable output."
+    long_help "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) and its PHASE column names the stopped phase. Use --json for machine-readable output."
     example "phax ls"
     example "phax ls --review-open"
     example "phax ls --awaiting-review"

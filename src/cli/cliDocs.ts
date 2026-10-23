@@ -102,7 +102,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   ls: {
     longHelp:
-      "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) and its PHASE column names the stopped phase. Use --json for machine-readable output.",
+      "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) and its PHASE column names the stopped phase. Use --json for machine-readable output.",
     examples: [
       "phax ls",
       "phax ls --review-open",
