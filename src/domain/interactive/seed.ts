@@ -150,6 +150,7 @@ export function buildHeldSeed(input: HeldSeedInput): string {
     "",
     "## What is expected of you",
     `- Review ${input.phaseId}'s work; correct it in this worktree, on top of its commit.`,
+    `- Leave your corrections uncommitted: phax commits them when you resume, and a commit of your own on ${short(input.phaseCommit)} is refused at the first close.`,
     ...EXPECTED_OF_EVERY_REVIEW,
     "",
     ...section(`## The phase (plan, ${input.phaseId})`, input.planSection),
