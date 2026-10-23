@@ -139,6 +139,9 @@ describe("buildHeldSeed", () => {
 
   it("asks for a review on top of the commit, guards, the scope and the optional handoff", () => {
     expect(seed).toContain("correct it in this worktree, on top of its commit");
+    expect(seed).toContain(
+      "- Leave your corrections uncommitted: phax commits them when you resume, and a commit of your own on 5d6e7f8 is refused at the first close.",
+    );
     expect(seed).toContain("Turn each correction into a guard");
     expect(seed).toContain("Keep the scope");
     expect(seed).toContain(".phax-context/correction-handoff.md");
