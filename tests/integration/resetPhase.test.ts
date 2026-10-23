@@ -600,6 +600,8 @@ describe("resetPhase", () => {
           { status: "D", path: "docs/notes.md" },
         ],
         personHandoff: null,
+        phaseCommit: null,
+        worktree: stopped,
       });
     });
 

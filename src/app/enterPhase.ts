@@ -231,7 +231,13 @@ function planInteractive(
       if (commands.continue === null || "unsupported" in commands.continue) {
         return refused(commands.continue?.unsupported ?? "No continue command.");
       }
-      return continueResult(commands.continue, provider, current.sessionId, []);
+      return continueResult(
+        commands.continue,
+        provider,
+        current.sessionId,
+        [],
+        current.origin === "builder" ? ` (the session that built ${input.phaseId})` : undefined,
+      );
     }
 
     if (!stopped) {
@@ -430,9 +436,27 @@ function runNewSessionTurn(
       );
       const freshStart = commandOf(commands.freshStart);
       const existing = stop.reviewStop;
-      // A held stop's document is refreshed with the held commands; no held
-      // stop exists until a later phase reaches one.
-      if (freshStart !== null && existing.cause === "declared") {
+      if (existing.cause === "held") {
+        // Patch only the session and `continue`: the held variant and its
+        // phase commit survive, and the other commands are the stop's own.
+        const continueCommand = commands.continue === null ? null : commandOf(commands.continue);
+        yield* refreshReviewStop(fresh.runPath, {
+          ...existing,
+          session: {
+            provider: current.provider,
+            sessionId: current.sessionId,
+            origin: "new-session",
+            interactiveResume: adapter.interactiveResume,
+          },
+          commands: {
+            ...existing.commands,
+            continue:
+              continueCommand !== null && adapter.interactiveResume === "verified"
+                ? asReviewStopCommand(continueCommand)
+                : null,
+          },
+        });
+      } else if (freshStart !== null) {
         const continueCommand = commands.continue === null ? null : commandOf(commands.continue);
         const rebuilt = buildDeclaredReviewStop({
           run: existing.run,

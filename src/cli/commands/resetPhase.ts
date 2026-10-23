@@ -94,7 +94,20 @@ export async function runResetPhase(
         `This archives the phase folder and removes its worktree and branch. ` +
         `Pass --yes to proceed.`,
     );
-    if (preview.atStop) {
+    if (preview.atStop && preview.phaseCommit !== null) {
+      out.log(
+        `This discards ${preview.phaseId}'s commit ${preview.phaseCommit.slice(0, 7)} and ${preview.corrections.length} uncommitted review corrections in ${preview.worktree ?? "its worktree"}:`,
+      );
+      for (const change of preview.corrections) {
+        out.log(`  ${change.status} ${change.path}`);
+      }
+      if (preview.personHandoff !== null) {
+        out.log(`The reset also discards your handoff file: ${preview.personHandoff}`);
+      }
+      out.log(
+        `phax resume ${qualifiedName} will run ${preview.phaseId} again from its start and hold it again.`,
+      );
+    } else if (preview.atStop) {
       out.log(
         preview.corrections.length === 0
           ? `"${preview.phaseId}" is the stopped phase; its worktree holds no uncommitted correction.`

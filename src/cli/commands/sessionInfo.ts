@@ -101,7 +101,11 @@ async function printSessionInfo(
 
   if (stop !== null) {
     out.log(
-      `Stopped phase:    ${stop.phaseId} — ${stop.phaseTitle} (interactive, ${stop.position}/${stop.of})`,
+      `Stopped phase:    ${stop.phaseId} — ${stop.phaseTitle} (${
+        stop.phaseCommit === null
+          ? "interactive"
+          : `headless, committed ${stop.phaseCommit.slice(0, 7)}`
+      }, ${stop.position}/${stop.of})`,
     );
     out.log(`Worktree:         ${stop.worktree}`);
     out.log(`Seed:             ${stop.seed}`);

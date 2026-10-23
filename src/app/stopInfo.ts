@@ -11,6 +11,8 @@ import { readReviewStop } from "./interactiveFiles.js";
 export interface StopInfo {
   readonly cause: "declared" | "held";
   readonly phaseId: string;
+  /** The held phase's commit, a full sha; null at a declared stop. */
+  readonly phaseCommit: string | null;
   readonly phaseTitle: string;
   /** The stopped phase's place in the plan, one-based, of `of` phases. */
   readonly position: number;
@@ -47,6 +49,7 @@ export function readStopInfo(
     return {
       cause: reviewStop.cause,
       phaseId: reviewStop.phase.id,
+      phaseCommit: reviewStop.cause === "held" ? reviewStop.phaseCommit : null,
       phaseTitle: reviewStop.phase.title,
       position: reviewStop.phase.position,
       of: reviewStop.phase.of,
