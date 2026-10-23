@@ -136,10 +136,10 @@
       "statement": "IF a `### Test strategy` entry departs from the line format THEN `phax plans lint` SHALL report an error naming the phase and the first departing line."
     },
     {
-      "id": "r-run-untouched",
-      "title": "The run does not read test lines",
-      "pattern": "ubiquitous",
-      "statement": "The system shall keep test lines out of `phax-plan.json`, the extraction cache seed and the run preflight."
+      "id": "r-lines-extracted",
+      "title": "Test lines join phax-plan.json",
+      "pattern": "event",
+      "statement": "WHEN phax extracts a plan, by the deterministic parser or by the model fallback, THE system SHALL carry each phase's test lines in `phax-plan.json` and in the extraction cache seed, under a required key holding an empty list for a phase with no line."
     },
     {
       "id": "r-lint-oracle-loop",
@@ -252,6 +252,12 @@
       "after": "\"testStrategy\": [\n  {\n    \"guarantee\": \"every (state, transition) pair is accepted or refused as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"transition table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-transitions\"\n  },\n  {\n    \"guarantee\": \"a gate-report decodes or is refused with a typed error, never a crash\",\n    \"size\": \"small\",\n    \"technique\": \"fuzz\",\n    \"oracle\": \"the decoder's refusal\",\n    \"loop\": \"in-phase\",\n    \"criterion\": null\n  }\n]\n\nKey spellings are indicative. The values of size, technique and loop are normative: exactly the skill's sets. Every key is required, `criterion` is a string or null, and an empty array is a phase with no line."
     },
     {
+      "surface": "file: `phax-plan.json`, phase test lines",
+      "binding": "indicative",
+      "before": "A phase of `phax-plan.json` carries no test strategy: the `### Test strategy` section is never extracted.",
+      "after": "\"testLines\": [\n  {\n    \"guarantee\": \"every (state, transition) pair is accepted or refused as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"transition table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-transitions\"\n  }\n]\n\nThe same line shape as the plan document's. The key spelling is indicative; the key is required on every phase."
+    },
+    {
       "surface": "file: plan.md `### Test strategy` section",
       "binding": "normative",
       "before": "### Test strategy\n\n<any text; not parsed>",
@@ -361,13 +367,13 @@
       ]
     },
     {
-      "id": "ac-run-untouched",
-      "name": "phax-plan.json is unchanged",
-      "given": "two plans that differ only in their test lines",
+      "id": "ac-lines-extracted",
+      "name": "phax-plan.json carries the test lines",
+      "given": "a plan whose phases list lines in the format, and a second plan that differs from it only in one line",
       "when": "each is extracted",
-      "then": "their `phax-plan.json` and cache seed are identical, and the run preflight accepts both",
+      "then": "each phase of the first plan's `phax-plan.json` carries its lines with their coordinates in plan order, a phase with no line carries an empty list, and the two plans' cache seeds differ",
       "refs": [
-        "r-run-untouched"
+        "r-lines-extracted"
       ]
     },
     {
@@ -552,10 +558,11 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-where",
-      "question": "Where does the test line structure live: only in the plan document, also parsed from any plan.md, and does it join `phax-plan.json`? (§5 follows the recommendation.)",
+      "question": "Where does the test line structure live: only in the plan document, also parsed from any plan.md, and does it join `phax-plan.json`? (§5 follows the verdict.)",
       "options": [
         {
           "id": "document-only",
@@ -574,7 +581,32 @@
         }
       ],
       "recommendation": "parsed-informational",
-      "rationale": "The overview and lint must work on every plan, so the parser has to read the lines. No part of the run reads them yet, so moving them into `phax-plan.json` costs runs in flight and the extraction contract for nothing. If a later spec gives the run a reader, it can carry them then."
+      "rationale": "The overview and lint must work on every plan, so the parser has to read the lines. No part of the run reads them yet, so moving them into `phax-plan.json` costs runs in flight and the extraction contract for nothing. If a later spec gives the run a reader, it can carry them then.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "parsed-extracted",
+        "abandoned": [
+          "document-only",
+          "parsed-informational"
+        ],
+        "why": "Decided by the operator on 2026-10-23, against the recommendation: one source of what a plan declares. `phax-plan.json` stays the single record of a plan's phases; a structure the parser reads but extraction drops would be a second reading of the plan, beside the one the run keeps.",
+        "advocate": "No part of the run reads the lines yet: extracting them changes the `phax-plan.json` shape and the cache seed, and asks the model fallback to emit coordinates, with no reader in the run to show for it.",
+        "principles": [],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-23T11:15:11Z",
+        "revised": [
+          "§5.6",
+          "§6 phax-plan.json test lines",
+          "AC phax-plan.json carries the test lines",
+          "§7",
+          "§10"
+        ]
+      },
+      "history": []
     },
     {
       "id": "q-migrate",
@@ -597,7 +629,26 @@
         }
       ],
       "recommendation": "parse-or-refuse",
-      "rationale": "It is deterministic and invents no coordinate, and it never adds a variant to the persisted shape. Its cost lands on the one live plan, interactive-phases. That plan's test strategies are prose that the skill revision of a08d93cb already asks to be rewritten as lines. If the plan runs and completes before this release, it is archived and migration never touches it."
+      "rationale": "It is deterministic and invents no coordinate, and it never adds a variant to the persisted shape. Its cost lands on the one live plan, interactive-phases. That plan's test strategies are prose that the skill revision of a08d93cb already asks to be rewritten as lines. If the plan runs and completes before this release, it is archived and migration never touches it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "parse-or-refuse",
+        "abandoned": [
+          "refuse",
+          "lift-unstructured"
+        ],
+        "why": "Decided by the operator on 2026-10-23, as recommended: it is deterministic, invents no coordinate and adds no variant to the persisted shape. interactive-phases, the live plan the recommendation named, was abandoned on 2026-10-23 (04f6208b): no live plan sidecar remains, so the refusal lands on none today.",
+        "advocate": "Always refusing is one rule with no parser in the migration, and with no live plan sidecar left there is nothing for the lift to save.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-23T11:15:11Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-lint",
@@ -620,7 +671,26 @@
         }
       ],
       "recommendation": "graded",
-      "rationale": "A contradiction is always wrong, so it is an error. An uncovered criterion is sometimes right, because one spec can feed several plans. A phase with no line is often right, as in a docs-only phase. Warnings that fire on correct plans teach the operator to ignore them, and the overview already shows every gap."
+      "rationale": "A contradiction is always wrong, so it is an error. An uncovered criterion is sometimes right, because one spec can feed several plans. A phase with no line is often right, as in a docs-only phase. Warnings that fire on correct plans teach the operator to ignore them, and the overview already shows every gap.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "graded",
+        "abandoned": [
+          "all-errors",
+          "all-warnings"
+        ],
+        "why": "Decided by the operator on 2026-10-23, as recommended: a contradiction is always wrong, an uncovered criterion is sometimes right (one spec feeds several plans), a phase with no line is often right (a docs-only phase); the overview shows every gap.",
+        "advocate": "An untested acceptance criterion is exactly the gap a test strategy exists to catch; as a warning, a plan that leaves one untested still lints clean and runs.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-23T11:15:11Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-command",
@@ -643,7 +713,26 @@
         }
       ],
       "recommendation": "new-command",
-      "rationale": "The read-only, model-free guarantee is settled, and a separate command is the cheapest way to keep it. A second command to type is a small price, and `--json` matches lint and estimate."
+      "rationale": "The read-only, model-free guarantee is settled, and a separate command is the cheapest way to keep it. A second command to type is a small price, and `--json` matches lint and estimate.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "new-command",
+        "abandoned": [
+          "dry-run-mode",
+          "with-cost"
+        ],
+        "why": "Decided by the operator on 2026-10-23, as recommended: a separate command keeps the overview read-only and model-free at the lowest cost; `--json` matches lint and estimate.",
+        "advocate": "One screen would answer both what the plan does and what it costs before approval, without a second command.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-23T11:15:11Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-architecture",
@@ -661,10 +750,27 @@
         }
       ],
       "recommendation": "run-provider",
-      "rationale": "Lint already runs the provider and accepts its cost. A failing provider only takes away the placement, while the layout, test lines and coverage still stand, so it is a warning with exit 0, never an exit 1."
+      "rationale": "Lint already runs the provider and accepts its cost. A failing provider only takes away the placement, while the layout, test lines and coverage still stand, so it is a warning with exit 0, never an exit 1.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "run-provider",
+        "abandoned": [
+          "files-only"
+        ],
+        "why": "Decided by the operator on 2026-10-23, as recommended: lint already runs the provider for part bounds; a failing provider only takes away the placement, so it is a warning with exit 0.",
+        "advocate": "A read-only command that spawns no process stays fast and free of side effects whatever the repository's provider script does.",
+        "principles": [],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-23T11:15:11Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The coordinates, their values and the line format are the phax-planning skill's (a08d93cb); this spec makes them data and does not reopen them.",
@@ -683,7 +789,7 @@
       "The overview's layer has no Backend, the same construction that keeps lint model-free.",
       "Reuse the architecture provider path that lint uses for part bounds, and phax's glob dialect, for placement.",
       "Criterion ids are read from the source spec's JSON sidecar, never from its Markdown body.",
-      "The parser change is shared by lint, estimate and extraction. Under the recommendation, the extracted projection and the cache seed must not change.",
+      "The parser change is shared by lint, estimate and extraction. The extracted projection and the cache seed carry the test lines (q-where): cut the current `phax-plan.json` snapshot as for the plan document, let the model-fallback extraction emit them through the same JSON Schema, and say in docs/upgrading.md what becomes of a run extracted before the release.",
       "Update the generated usage spec and CLI docs for the new command; their drift tests guard them."
     ]
   },

@@ -75,9 +75,9 @@ WHEN the deterministic parser reads a plan.md THE system SHALL read each phase's
 
 IF a `### Test strategy` entry departs from the line format THEN `phax plans lint` SHALL report an error naming the phase and the first departing line.
 
-### 5.6 The run does not read test lines
+### 5.6 Test lines join phax-plan.json
 
-The system shall keep test lines out of `phax-plan.json`, the extraction cache seed and the run preflight.
+WHEN phax extracts a plan, by the deterministic parser or by the model fallback, THE system SHALL carry each phase's test lines in `phax-plan.json` and in the extraction cache seed, under a required key holding an empty list for a phase with no line.
 
 ### 5.7 Oracle-loop lines only on oracle phases
 
@@ -177,6 +177,27 @@ after:
     ]
 
     Key spellings are indicative. The values of size, technique and loop are normative: exactly the skill's sets. Every key is required, `criterion` is a string or null, and an empty array is a phase with no line.
+
+### file: `phax-plan.json`, phase test lines — indicative
+
+before:
+
+    A phase of `phax-plan.json` carries no test strategy: the `### Test strategy` section is never extracted.
+
+after:
+
+    "testLines": [
+      {
+        "guarantee": "every (state, transition) pair is accepted or refused as the table says",
+        "size": "small",
+        "technique": "table",
+        "oracle": "transition table",
+        "loop": "oracle",
+        "criterion": "ac-transitions"
+      }
+    ]
+
+    The same line shape as the plan document's. The key spelling is indicative; the key is required on every phase.
 
 ### file: plan.md `### Test strategy` section — normative
 
@@ -334,9 +355,9 @@ Given a hand-written plan.md with no sidecar whose phases list lines in the form
 
 Given a plan.md whose phase-01 Test strategy has the entry `- add unit tests for the exporter`, when `phax plans lint` runs, then it exits 1 with an error naming phase-01 and that line. (refs §5.5)
 
-### phax-plan.json is unchanged
+### phax-plan.json carries the test lines
 
-Given two plans that differ only in their test lines, when each is extracted, then their `phax-plan.json` and cache seed are identical, and the run preflight accepts both. (refs §5.6)
+Given a plan whose phases list lines in the format, and a second plan that differs from it only in one line, when each is extracted, then each phase of the first plan's `phax-plan.json` carries its lines with their coordinates in plan order, a phase with no line carries an empty list, and the two plans' cache seeds differ. (refs §5.6)
 
 ### An oracle line on an ordinary phase is an error
 
@@ -412,13 +433,20 @@ Given the shipped phax-planning skill, when the skills test reads it, then its h
 
 ## 9. Open questions
 
-### q-where — Where does the test line structure live: only in the plan document, also parsed from any plan.md, and does it join `phax-plan.json`? (§5 follows the recommendation.)
+None.
+
+## 9b. Arbitrated questions
+
+### q-where — Where does the test line structure live: only in the plan document, also parsed from any plan.md, and does it join `phax-plan.json`? (§5 follows the verdict.)
 
 - document-only — Only in the plan document; a hand-authored plan.md shows no lines in the overview and lint skips it — abandons: every hand-authored plan: no overview lines, no coverage, no oracle-loop check. It also contradicts the overview reading the deterministic parser, because the lines would come from the sidecar instead.
 - parsed-informational — Parsed from `### Test strategy` in any plan.md by the deterministic parser, kept out of `phax-plan.json` — abandons: run-time use of the lines. The phase prompt, the records and the review handoff cannot see them without re-reading plan.md, and a departing line is a lint error that the run itself does not refuse.
 - parsed-extracted — Parsed from any plan.md and carried into `phax-plan.json` — abandons: runs in flight and the extraction contract. Every older `phax-plan.json` is refused on resume, the model-fallback extraction must emit coordinates, and all of it serves no reader in the run.
 
 Recommendation: parsed-informational — The overview and lint must work on every plan, so the parser has to read the lines. No part of the run reads them yet, so moving them into `phax-plan.json` costs runs in flight and the extraction contract for nothing. If a later spec gives the run a reader, it can carry them then.
+
+Decision: parsed-extracted — by operator (Rémy Loubradou), 2026-10-23
+Why: Decided by the operator on 2026-10-23, against the recommendation: one source of what a plan declares. `phax-plan.json` stays the single record of a plan's phases; a structure the parser reads but extraction drops would be a second reading of the plan, beside the one the run keeps. Advocate: No part of the run reads the lines yet: extracting them changes the `phax-plan.json` shape and the cache seed, and asks the model fallback to emit coordinates, with no reader in the run to show for it. Principles: none. Reversibility: costly. Revised: §5.6, §6 phax-plan.json test lines, AC phax-plan.json carries the test lines, §7, §10.
 
 ### q-migrate — What does `phax artifact migrate-documents` write for a live plan sidecar whose `testStrategy` is a string?
 
@@ -428,6 +456,9 @@ Recommendation: parsed-informational — The overview and lint must work on ever
 
 Recommendation: parse-or-refuse — It is deterministic and invents no coordinate, and it never adds a variant to the persisted shape. Its cost lands on the one live plan, interactive-phases. That plan's test strategies are prose that the skill revision of a08d93cb already asks to be rewritten as lines. If the plan runs and completes before this release, it is archived and migration never touches it.
 
+Decision: parse-or-refuse — by operator (Rémy Loubradou), 2026-10-23
+Why: Decided by the operator on 2026-10-23, as recommended: it is deterministic, invents no coordinate and adds no variant to the persisted shape. interactive-phases, the live plan the recommendation named, was abandoned on 2026-10-23 (04f6208b): no live plan sidecar remains, so the refusal lands on none today. Advocate: Always refusing is one rule with no parser in the migration, and with no live plan sidecar left there is nothing for the lift to save. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-lint — Which lint findings are errors, which are warnings, and which are not checked? (§5 follows the recommendation.)
 
 - all-errors — Every defect is an error: a format departure, an unknown criterion id, an oracle line off an oracle phase, an oracle phase with no oracle line, an uncovered criterion, and a phase with no line — abandons: specs split across plans and docs-only phases. A plan of a spec with `completesSpec: false` fails on criteria a later plan covers, and every docs phase must invent a line to pass.
@@ -435,6 +466,9 @@ Recommendation: parse-or-refuse — It is deterministic and invents no coordinat
 - all-warnings — Every finding is a warning — abandons: lint's exit code as proof that the oracle pairs and test lines agree. That agreement is settled direction, and a plan breaking it would still exit 0.
 
 Recommendation: graded — A contradiction is always wrong, so it is an error. An uncovered criterion is sometimes right, because one spec can feed several plans. A phase with no line is often right, as in a docs-only phase. Warnings that fire on correct plans teach the operator to ignore them, and the overview already shows every gap.
+
+Decision: graded — by operator (Rémy Loubradou), 2026-10-23
+Why: Decided by the operator on 2026-10-23, as recommended: a contradiction is always wrong, an uncovered criterion is sometimes right (one spec feeds several plans), a phase with no line is often right (a docs-only phase); the overview shows every gap. Advocate: An untested acceptance criterion is exactly the gap a test strategy exists to catch; as a warning, a plan that leaves one untested still lints clean and runs. Principles: none. Reversibility: cheap. Revised: none.
 
 ### q-command — What is the overview's command and contract?
 
@@ -444,6 +478,9 @@ Recommendation: graded — A contradiction is always wrong, so it is an error. A
 
 Recommendation: new-command — The read-only, model-free guarantee is settled, and a separate command is the cheapest way to keep it. A second command to type is a small price, and `--json` matches lint and estimate.
 
+Decision: new-command — by operator (Rémy Loubradou), 2026-10-23
+Why: Decided by the operator on 2026-10-23, as recommended: a separate command keeps the overview read-only and model-free at the lowest cost; `--json` matches lint and estimate. Advocate: One screen would answer both what the plan does and what it costs before approval, without a second command. Principles: none. Reversibility: cheap. Revised: none.
+
 ### q-architecture — How does the overview reach the architecture, and what does it print when the provider fails?
 
 - run-provider — Run the configured provider once with the plan's planned files. On failure, show files, warn once on stderr and exit 0. — abandons: a command that spawns no process at all. A read-only command runs a repository script whose speed and side effects phax does not control, as lint already does for part bounds.
@@ -451,9 +488,8 @@ Recommendation: new-command — The read-only, model-free guarantee is settled, 
 
 Recommendation: run-provider — Lint already runs the provider and accepts its cost. A failing provider only takes away the placement, while the layout, test lines and coverage still stand, so it is a warning with exit 0, never an exit 1.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: run-provider — by operator (Rémy Loubradou), 2026-10-23
+Why: Decided by the operator on 2026-10-23, as recommended: lint already runs the provider for part bounds; a failing provider only takes away the placement, so it is a warning with exit 0. Advocate: A read-only command that spawns no process stays fast and free of side effects whatever the repository's provider script does. Principles: none. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -477,7 +513,7 @@ Constraints:
 - The overview's layer has no Backend, the same construction that keeps lint model-free.
 - Reuse the architecture provider path that lint uses for part bounds, and phax's glob dialect, for placement.
 - Criterion ids are read from the source spec's JSON sidecar, never from its Markdown body.
-- The parser change is shared by lint, estimate and extraction. Under the recommendation, the extracted projection and the cache seed must not change.
+- The parser change is shared by lint, estimate and extraction. The extracted projection and the cache seed carry the test lines (q-where): cut the current `phax-plan.json` snapshot as for the plan document, let the model-fallback extraction emit them through the same JSON Schema, and say in docs/upgrading.md what becomes of a run extracted before the release.
 - Update the generated usage spec and CLI docs for the new command; their drift tests guard them.
 
 ## 11. Docs page
@@ -487,3 +523,11 @@ Page: docs/plan-overview.md
 Reader: An operator who has a plan in hand and wants to see its shape, oracle pairs and criterion coverage before approving or running it.
 
 Example: `phax plans overview docs/plans/2610240900-invoice-export-plan.md` on a three-phase plan with an oracle pair. The page shows the rendered layout, the parts each phase touches, and the coverage block with one uncovered criterion, then the matching `phax plans lint` warning.
+
+## 12. Decision log
+
+- 2026-10-23 q-where decided parsed-extracted — operator (Rémy Loubradou) — revised 5 sections
+- 2026-10-23 q-migrate decided parse-or-refuse — operator (Rémy Loubradou)
+- 2026-10-23 q-lint decided graded — operator (Rémy Loubradou)
+- 2026-10-23 q-command decided new-command — operator (Rémy Loubradou)
+- 2026-10-23 q-architecture decided run-provider — operator (Rémy Loubradou)
