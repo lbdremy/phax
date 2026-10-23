@@ -1427,6 +1427,69 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         default:
           return assertNever(state);
       }
+
+    case "HeldRecordRefused":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          // After HeldStopClosed, or on a closed stop's re-entry: the phase is
+          // committed and its closed stop stays as it is.
+          if (ps === "committed") {
+            return handled(
+              { run: "interrupted", phase: { state: "committed", hash: event.phaseCommit } },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: { stoppedReason: "held_record_refused", lastError: event.reason },
+                  },
+                },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Records destination refused",
+                    kind: "held_record_refused",
+                    phaseId: event.phaseId,
+                    worktreePath: event.worktreePath as string,
+                    rawMessage: event.reason,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "held.record.refused",
+                  status: "failed",
+                  boundary: "records",
+                  details: { phaseId: event.phaseId, reason: event.reason },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "resume.available",
+                  status: "info",
+                  boundary: "resume-instructions.md",
+                  details: { resumeCommand: `phax resume ${event.run}` },
+                },
+              ],
+            );
+          }
+          return unexpected(`held record refused while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return stale("held record refused on rate-limited run");
+        case "interrupted":
+          return stale("held record refused on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`held record refused while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`held record refused on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HeldRecordRefused while the run awaits review");
+        default:
+          return assertNever(state);
+      }
   }
 }
 

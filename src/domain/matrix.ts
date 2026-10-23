@@ -46,6 +46,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Unexpected",
     HeldStopClosed: "Unexpected",
     HoldPointFailed: "Unexpected",
+    HeldRecordRefused: "Unexpected",
   },
   running: {
     RunStarted: "Rejected",
@@ -83,6 +84,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Handled",
     HeldStopClosed: "Handled",
     HoldPointFailed: "Handled",
+    HeldRecordRefused: "Handled",
   },
   rate_limited: {
     RunStarted: "Rejected",
@@ -120,6 +122,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Unexpected",
     HeldStopClosed: "Unexpected",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   interrupted: {
     RunStarted: "Rejected",
@@ -157,6 +160,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   review_open: {
     RunStarted: "Rejected",
@@ -194,6 +198,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Unexpected",
     HeldStopClosed: "Unexpected",
     HoldPointFailed: "Unexpected",
+    HeldRecordRefused: "Unexpected",
   },
   awaiting_review: {
     RunStarted: "Rejected",
@@ -231,6 +236,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   failed: {
     RunStarted: "Rejected",
@@ -268,6 +274,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   completed: {
     RunStarted: "Rejected",
@@ -305,6 +312,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   stopped: {
     RunStarted: "Rejected",
@@ -342,6 +350,7 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
   archived: {
     RunStarted: "Rejected",
@@ -379,5 +388,6 @@ export const phaxDispositionMatrix = {
     StopCommitted: "Stale",
     HeldStopClosed: "Stale",
     HoldPointFailed: "Stale",
+    HeldRecordRefused: "Stale",
   },
 } as const satisfies EventDispositionMatrix<PhaxStateName, PhaxEventType>;

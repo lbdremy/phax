@@ -220,6 +220,18 @@ export class HoldPointPausedError extends Data.TaggedError("HoldPointPausedError
   cause: unknown;
 }> {}
 
+/**
+ * The records destination refused the record a closed held stop owes.
+ * HeldRecordRefused already left the run interrupted with the phase committed
+ * and its stop closed: a resumable pause, so no `failed` record and no
+ * RunFailed; the next resume writes the record once. Exits 1.
+ */
+export class HeldRecordPausedError extends Data.TaggedError("HeldRecordPausedError")<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
 /** How a refused close of a stop ended: any lastClose but `interrupted`. */
 export type RefusedClose = Exclude<LastClose, { readonly result: "interrupted" }>;
 

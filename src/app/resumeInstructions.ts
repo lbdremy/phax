@@ -258,6 +258,32 @@ function buildHoldPointFailedInstructions(input: ResumeInstructionsInput): strin
   return lines.join("\n");
 }
 
+function buildHeldRecordRefusedInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused after closing a held stop: the records destination refused the",
+    "phase's record. The close and its commits stand. Apply the remedy below, then",
+    "resume: `phax resume` writes the record once, runs the cleanup and goes on.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not recorded)"}`,
+    ...(input.rawMessage !== undefined ? [`- **Error:** ${input.rawMessage}`] : []),
+    "",
+    "## Resume",
+    "",
+    "```bash",
+    `phax resume ${input.shortName}`,
+    "```",
+    "",
+  ];
+  return lines.join("\n");
+}
+
 function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
@@ -350,6 +376,9 @@ export function buildResumeInstructions(input: ResumeInstructionsInput): string 
   }
   if (input.kind === "hold_point_failed") {
     return buildHoldPointFailedInstructions(input);
+  }
+  if (input.kind === "held_record_refused") {
+    return buildHeldRecordRefusedInstructions(input);
   }
   return buildRateLimitInstructions(input);
 }

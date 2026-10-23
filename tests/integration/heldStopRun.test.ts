@@ -9,7 +9,14 @@ import { explainRecord } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
 import { syncSaveInterruptedRun } from "../../src/cli/interruptHandler.js";
 import type { ClaudeSessionId, PhaseId, RunId } from "../../src/domain/branded.js";
-import { AwaitingReviewStopError, CleanupPausedError } from "../../src/domain/errors.js";
+import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
+import {
+  AwaitingReviewStopError,
+  CleanupPausedError,
+  HeldRecordPausedError,
+  RateLimitError,
+  RegistryCorruptionError,
+} from "../../src/domain/errors.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -136,6 +143,28 @@ const recordsOf = (run: HeldRun, phaseId: string) =>
       : [],
   );
 
+// The record of the commit `sha` explains, or undefined.
+async function explainedRecord(run: HeldRun, sha: string) {
+  const result = await Effect.runPromise(
+    explainRecord({
+      sha,
+      repoRoot: world.repoRoot,
+      records: run.config.records,
+      publishRemote: run.config.publish.remote,
+    }).pipe(Effect.provide(Layer.mergeAll(NodeGitLayer, NodeShellLayer))),
+  );
+  return result.kind === "found" ? result.record.manifest : undefined;
+}
+
+const runFailedTraced = (run: HeldRun): boolean =>
+  run.telemetry.impl
+    .events()
+    .some(
+      (e) =>
+        JSON.stringify(e).includes('"RunFailed"') ||
+        JSON.stringify(e).includes("dispatch.RunFailed"),
+    );
+
 describe("closing a held stop by phax resume", { timeout: 60_000 }, () => {
   it("leaves a review commit by Ada Example on C2, cleans up after the close and starts phase-03 at the review commit", async () => {
     const { run, c2 } = await heldAtPhase02();
@@ -191,7 +220,6 @@ describe("closing a held stop by phax resume", { timeout: 60_000 }, () => {
     const refused = await resumeHeldRun(run);
 
     expect(Either.isLeft(refused)).toBe(true);
-    const { exitCodeForError } = await import("../../src/cli/commands/runLayers.js");
     expect(exitCodeForError((refused as Either.Left<unknown, unknown>).left)).toBe(4);
     expect(readRunStatus(run)["state"]).toBe("awaiting_review");
     expect(readPhaseStatus(run, "phase-02")).toMatchObject({
@@ -334,6 +362,112 @@ describe("the record of a held phase", { timeout: 60_000 }, () => {
     expect(c2).toBe(readPhaseStatus(run, "phase-02")["commitHash"]);
   });
 
+  it("pauses the run when the records destination refuses it at closing, and is written once by the next resume", async () => {
+    const { run, c2 } = await heldAtPhase02({ records: true });
+    correct(run);
+    // Transcripts in-repo on a public repository: the destination refuses.
+    const records = run.config.records;
+    Object.assign(run.config, { records: { ...records, transcript: true } });
+    run.github.impl.setVisibility("public");
+
+    const paused = failedWith(await resumeHeldRun(run), HeldRecordPausedError);
+
+    expect(exitCodeForError(paused)).toBe(1);
+    expect(paused.message).toContain("set a records repo, or disable transcripts");
+    expect(readRunStatus(run)).toMatchObject({
+      state: "interrupted",
+      stoppedReason: "held_record_refused",
+    });
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "committed",
+      commitHash: c2,
+      stop: { cause: "held", status: "closed", outcome: "corrected" },
+    });
+    expect(await recordsOf(run, "phase-02")).toHaveLength(0);
+    expect(existsSync(join(tree(run), ".cleanup-marker"))).toBe(false);
+    expect(readFileSync(join(run.runPath, "resume-instructions.md"), "utf8")).toContain(
+      `phax resume ${SHORT}`,
+    );
+    expect(runFailedTraced(run)).toBe(false);
+
+    Object.assign(run.config, { records });
+    const error = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+
+    expect(error.phase).toBe("phase-03");
+    expect(await recordsOf(run, "phase-02")).toHaveLength(1);
+    expect(await explainedRecord(run, c2)).toMatchObject({
+      phaseId: "phase-02",
+      sourceSha: c2,
+      outcome: "committed",
+    });
+    expect(existsSync(join(tree(run), ".cleanup-marker"))).toBe(true);
+    expect(readPhaseStatus(run, "phase-02")["state"]).toBe("cleaned_up");
+  });
+
+  it("leaves an interrupted closed stop resumable when what its record needs cannot be read", async () => {
+    const { run } = await heldAtPhase02({ records: true });
+    correct(run);
+    await closeAndInterrupt(run);
+    const bindingPath = join(phaseFolder(run), "agent-binding.json");
+    const binding = readFileSync(bindingPath, "utf8");
+    writeFileSync(bindingPath, "{");
+    const before = readFileSync(join(run.runPath, "run-status.json"), "utf8");
+
+    failedWith(await resumeHeldRun(run), RegistryCorruptionError);
+
+    expect(readFileSync(join(run.runPath, "run-status.json"), "utf8")).toBe(before);
+    expect(readRunStatus(run)["state"]).toBe("interrupted");
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "committed",
+      stop: { cause: "held", status: "closed" },
+    });
+    expect(runFailedTraced(run)).toBe(false);
+
+    writeFileSync(bindingPath, binding);
+    failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+    expect(await recordsOf(run, "phase-02")).toHaveLength(1);
+  });
+
+  it("writes no failed record and no RunFailed when HeldStopClosed cannot be persisted, and one record naming C2 later", async () => {
+    const { run, c2 } = await heldAtPhase02({ records: true });
+    correct(run);
+    // The first write of phase-02's status as committed (HeldStopClosed's) fails once.
+    const statusPath = join(phaseFolder(run), "status.json");
+    run.failWrite = (path, content) => {
+      if (path !== statusPath || (JSON.parse(content) as { state?: string }).state !== "committed")
+        return false;
+      run.failWrite = undefined;
+      return true;
+    };
+
+    const failed = await resumeHeldRun(run);
+
+    expect(Either.isLeft(failed)).toBe(true);
+    expect(run.failWrite).toBeUndefined();
+    expect(readRunStatus(run)["state"]).not.toBe("failed");
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "awaiting_review",
+      stop: { cause: "held", status: "waiting" },
+    });
+    expect(await recordsOf(run, "phase-02")).toHaveLength(0);
+    expect(runFailedTraced(run)).toBe(false);
+
+    failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+
+    const records = await recordsOf(run, "phase-02");
+    expect(records).toHaveLength(1);
+    expect(await explainedRecord(run, c2)).toMatchObject({
+      phaseId: "phase-02",
+      sourceSha: c2,
+      outcome: "committed",
+    });
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "cleaned_up",
+      commitHash: c2,
+      stop: { cause: "held", status: "closed", outcome: "corrected" },
+    });
+  });
+
   it("is not written twice by a held phase that paused in cleanup after its close", async () => {
     const { run } = await heldAtPhase02({ records: true });
     setCleanup(run, ["false"]);
@@ -370,6 +504,38 @@ describe("the hold stays fixed for the run", { timeout: 60_000 }, () => {
     expect(hold()).toBe(before);
 
     // phase-05 does not stop: the run ends past it.
+    const last = await resumeHeldRun(run);
+    if (Either.isLeft(last)) expect(last.left).not.toBeInstanceOf(AwaitingReviewStopError);
+    expect(readPhaseStatus(run, "phase-05")).toMatchObject({ stop: null });
+    expect(hold()).toBe(before);
+  });
+
+  it("keeps the hold byte-identical through a rate-limit pause and a declared phase", async () => {
+    const HOLD_PHASE_04 = { selection: "listed", phases: ["phase-04"] } as const;
+    const { run, result } = await startHeldRun(world, HOLD_PHASE_04, {
+      prepare: (held) => held.backend.rateLimited.add("phase-02"),
+    });
+    const hold = (): string => JSON.stringify(readRunStatus(run)["hold"]);
+    const before = hold();
+    expect(JSON.parse(before)).toEqual(HOLD_PHASE_04);
+    failedWith(result, RateLimitError);
+    expect(readRunStatus(run)["state"]).toBe("rate_limited");
+    expect(hold()).toBe(before);
+
+    // phase-02 commits without stopping; the declared phase-03 stops.
+    const declared = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+    expect(declared.phase).toBe("phase-03");
+    expect(declared.report.cause).toBe("declared");
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({ state: "cleaned_up", stop: null });
+    expect(hold()).toBe(before);
+
+    // phase-03 closes; phase-04 holds.
+    const held04 = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+    expect(held04.phase).toBe("phase-04");
+    expect(held04.report.cause).toBe("held");
+    expect(hold()).toBe(before);
+
+    // phase-04 closes; phase-05 does not stop.
     const last = await resumeHeldRun(run);
     if (Either.isLeft(last)) expect(last.left).not.toBeInstanceOf(AwaitingReviewStopError);
     expect(readPhaseStatus(run, "phase-05")).toMatchObject({ stop: null });

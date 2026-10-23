@@ -260,6 +260,17 @@ export interface HoldPointFailed extends PhaxEventBase {
   readonly reason: string;
 }
 
+// The records destination refused the record a closed held stop owes: the
+// close stands, so the run pauses resumable with the phase committed and the
+// record still owed, written by the closed stop's re-entry.
+export interface HeldRecordRefused extends PhaxEventBase {
+  readonly type: "HeldRecordRefused";
+  readonly phaseId: PhaseId;
+  readonly phaseCommit: string;
+  readonly worktreePath: WorktreePath;
+  readonly reason: string;
+}
+
 export type PhaxEvent =
   | RunStarted
   | RunResumeRequested
@@ -295,6 +306,7 @@ export type PhaxEvent =
   | StopCloseRefused
   | StopCommitted
   | HeldStopClosed
-  | HoldPointFailed;
+  | HoldPointFailed
+  | HeldRecordRefused;
 
 export type PhaxEventType = PhaxEvent["type"];
