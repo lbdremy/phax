@@ -144,13 +144,11 @@ export function generateReviewHandoff(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
-    const phaseIds = info.phaseStatuses
-      .toSorted((a, b) => a.phaseIndex - b.phaseIndex)
-      .map((p) => p.phaseId);
+    const phases = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex);
 
     const global = yield* generateGlobalReconciliation({
       runPath: info.runPath,
-      phaseIds,
+      phases,
       allowPartial: opts.allowPartial,
       runId: info.runId,
       qualifiedRunName: runKey(info.namespace, info.shortName),

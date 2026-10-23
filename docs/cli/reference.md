@@ -405,7 +405,9 @@ The start preflight also holds every phase to the owner's assignment bounds (pha
 
 The preflight also checks the plan's oracle phases: a malformed declaration, a broken pair, or an oracle phase with no "oracles" provider configured refuses before the run is named, with exit 11 and "Oracle preflight failed". The provider is never spawned by the preflight.
 
-A phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop. A held stop, run-time holds and transcripts are not part of this release.
+A phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop.
+
+--hold [selection] stops the run for review at headless phases too: no value holds every headless phase but the final one, `--hold oracle` the plan's oracle phases, and `--hold phase-02,phase-04` the phases listed (exactly `phase-NN`, no repeats). A malformed value exits 1 before the run is named, and a selection the plan cannot honour (an unknown, interactive or final phase) exits 11 with "Hold preflight failed". A held phase does its work, passes its gate, commits and validates its handoff, then stops in awaiting_review before its record and its cleanup, with no agent turn, and exits 13. The hold is recorded with the run: phax resume takes no --hold and holds exactly those phases. A bare --hold takes the next word as its value, so put the run name before it or write --hold=<selection>. Transcripts are not part of this release.
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
@@ -444,6 +446,10 @@ Re-extract the plan even if a cached extraction exists
 #### `--allow-skill-edits`
 
 Allow phases to edit the .claude/skills files the plan declares
+
+#### `--hold [selection]`
+
+Stop for review once these headless phases commit: no value for every phase but the final one, oracle, or phase ids such as phase-02,phase-04
 
 ### Examples
 
@@ -741,7 +747,7 @@ A discharging phase whose oracle phase was skipped (it produced no changes, so i
 
 --skip-oracle applies only to the phase this resume restarts at, and only in this invocation. That phase's configured gate steps run and must pass, with the usual fix loop; its oracle step does not run, and is recorded as skipped in its gate-attribution, so oracle is then not among that phase's verified surfaces, nor the run's. At a phase that is neither an oracle phase nor a discharging phase, it is refused with exit 1 and nothing changes. A committed oracle phase is never reset, so a wrong oracle is corrected in the stopped phase (phax enter-phase <run> <phase>) and closed this way.
 
-A run in awaiting_review (stopped at a declared interactive phase, exit 13) is closed by resume, which re-checks the preflight and then runs the gate first: a red gate returns the phase to the person (exit 4) and the run stays in awaiting_review. The handoff is the person's .phax-context/correction-handoff.md when it exists (four sections, checked before anything runs), otherwise the handoff a read-only closing turn writes from the diff of the corrections; a closing turn that edits the worktree exits 5, its edits set aside in the phase's refused-turn-NN/ folder and the worktree put back to the gated tree, and so does an answer still invalid after one corrective resume. phax then commits exactly the gated tree with an Interactive-Phase: trailer (an empty commit when nothing changed) and continues with the next phase, whose prompt carries the correction under ## Review corrections. A refused close puts the run back in awaiting_review with the reason in review-stop.json; an interrupt during a close does the same.
+A run in awaiting_review (stopped at a declared interactive phase or a held one, exit 13) is closed by resume, which re-checks the preflight and then runs the gate first: a red gate returns the phase to the person (exit 4) and the run stays in awaiting_review. The handoff is the person's .phax-context/correction-handoff.md when it exists (four sections, checked before anything runs), otherwise the handoff a read-only closing turn writes from the diff of the corrections; a closing turn that edits the worktree exits 5, its edits set aside in the phase's refused-turn-NN/ folder and the worktree put back to the gated tree, and so does an answer still invalid after one corrective resume. At a declared stop phax then commits exactly the gated tree with an Interactive-Phase: trailer (an empty commit when nothing changed). At a held stop it leaves one review commit with a Held-Phase: trailer on top of the unchanged phase commit, or no commit when nothing changed, then writes the phase's record once, naming the phase commit. Either way it runs the cleanup and continues with the next phase in the same invocation, whose prompt carries the correction under ## Review corrections. A close interrupted before its cleanup finishes on the next resume. A refused close puts the run back in awaiting_review with the reason in review-stop.json; an interrupt during a close does the same.
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 

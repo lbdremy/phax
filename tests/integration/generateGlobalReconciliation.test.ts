@@ -6,6 +6,7 @@ import type { GlobalFileReconciliation } from "../../src/domain/reconciliation/g
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
 import { phaseReconciliationFile } from "../helpers/reconciliationFixture.js";
 
 const RUN_PATH = "/runs/test-run";
@@ -45,6 +46,20 @@ function makePhaseJson(
   });
 }
 
+type PhaseStop = PhaseStatus["stop"];
+
+/** The statuses the global reconciliation reads: their ids in plan order, none of them stopped. */
+const phasesOf = (...ids: string[]) =>
+  ids.map((phaseId, phaseIndex) => ({ phaseId, phaseIndex, stop: null as PhaseStop }));
+
+const HELD_CORRECTED: PhaseStop = {
+  cause: "held",
+  status: "closed",
+  outcome: "corrected",
+  reviewCommit: "a".repeat(40),
+  oracleStep: "none",
+};
+
 function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
   return Effect.runPromise(Effect.either(effect));
 }
@@ -67,7 +82,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01", "phase-02"],
+        phases: phasesOf("phase-01", "phase-02"),
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -104,7 +119,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01", "phase-02"],
+        phases: phasesOf("phase-01", "phase-02"),
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -146,7 +161,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01", "phase-02"],
+        phases: phasesOf("phase-01", "phase-02"),
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -199,7 +214,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01", "phase-02"],
+        phases: phasesOf("phase-01", "phase-02"),
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -231,7 +246,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01"],
+        phases: phasesOf("phase-01"),
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -258,7 +273,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: ["phase-01", "phase-02"],
+        phases: phasesOf("phase-01", "phase-02"),
         allowPartial: true,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,
@@ -282,6 +297,150 @@ describe("generateGlobalReconciliation", () => {
     expect(jsonRaw).toBeDefined();
   });
 
+  describe("a held phase closed with a correction", () => {
+    const heldPhases = [
+      { phaseId: "phase-01", phaseIndex: 0, stop: null as PhaseStop },
+      { phaseId: "phase-02", phaseIndex: 1, stop: HELD_CORRECTED },
+    ];
+
+    it("reads a file only the review changed as review-corrected and never unplanned", async () => {
+      const { impl, layer } = makeFakeFileSystem();
+      impl.setFile(
+        `${RUN_PATH}/phase-01/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-01", { createdAsPlanned: ["src/csv.ts"] })),
+      );
+      impl.setFile(
+        `${RUN_PATH}/phase-02/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-02", { createdAsPlanned: ["src/row.ts"] })),
+      );
+      // Only the review touched src/header.ts and src/row.ts.
+      impl.setFile(
+        `${RUN_PATH}/phase-02/correction-reconciliation.json`,
+        JSON.stringify(
+          phaseReconciliationFile("phase-02", {
+            reviewCorrections: ["src/header.ts", "src/row.ts"],
+          }),
+        ),
+      );
+
+      const result = await runWith(
+        generateGlobalReconciliation({
+          runPath: RUN_PATH,
+          phases: heldPhases,
+          allowPartial: false,
+          runId: RUN_ID,
+          qualifiedRunName: QUALIFIED_RUN_NAME,
+        }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      if (!Either.isRight(result)) return;
+      const header = result.right.files.find((f) => f.path === "src/header.ts");
+      expect(header?.status).toBe("review-corrected");
+      expect(header?.reviewCorrectedInPhases).toEqual(["phase-02"]);
+      const row = result.right.files.find((f) => f.path === "src/row.ts");
+      expect(row?.status).toBe("matched");
+      expect(row?.reviewCorrectedInPhases).toEqual(["phase-02"]);
+      expect(result.right.unplanned).toEqual([]);
+    });
+
+    it("counts a missing correction reconciliation as a missing reconciliation", async () => {
+      const { impl, layer } = makeFakeFileSystem();
+      impl.setFile(
+        `${RUN_PATH}/phase-01/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-01")),
+      );
+      impl.setFile(
+        `${RUN_PATH}/phase-02/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-02")),
+      );
+      const layers = Layer.mergeAll(layer, NoopSystemTelemetryLayer);
+      const run = (allowPartial: boolean) =>
+        runWith(
+          generateGlobalReconciliation({
+            runPath: RUN_PATH,
+            phases: heldPhases,
+            allowPartial,
+            runId: RUN_ID,
+            qualifiedRunName: QUALIFIED_RUN_NAME,
+          }).pipe(Effect.provide(layers)),
+        );
+
+      const refused = await run(false);
+      expect(Either.isLeft(refused)).toBe(true);
+      if (!Either.isLeft(refused)) return;
+      expect(refused.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+      const error = refused.left as ReviewHandoffArtifactMissingError;
+      expect(error.missingPhases).toEqual(["phase-02"]);
+      expect(error.missingPaths).toEqual([`${RUN_PATH}/phase-02/correction-reconciliation.json`]);
+
+      const partial = await run(true);
+      expect(Either.isRight(partial)).toBe(true);
+      expect(impl.getFile(`${RUN_PATH}/global-file-reconciliation.md`)).toContain("PARTIAL");
+    });
+
+    it("counts an undecodable correction reconciliation as missing too", async () => {
+      const { impl, layer } = makeFakeFileSystem();
+      impl.setFile(
+        `${RUN_PATH}/phase-02/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-02")),
+      );
+      impl.setFile(`${RUN_PATH}/phase-02/correction-reconciliation.json`, "{ not json");
+
+      const result = await runWith(
+        generateGlobalReconciliation({
+          runPath: RUN_PATH,
+          phases: [heldPhases[1]!],
+          allowPartial: false,
+          runId: RUN_ID,
+          qualifiedRunName: QUALIFIED_RUN_NAME,
+        }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+    });
+
+    it("reads no correction reconciliation for an unchanged held close or a declared one", async () => {
+      const { impl, layer } = makeFakeFileSystem();
+      impl.setFile(
+        `${RUN_PATH}/phase-01/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-01")),
+      );
+      impl.setFile(
+        `${RUN_PATH}/phase-02/file-reconciliation.json`,
+        JSON.stringify(phaseReconciliationFile("phase-02")),
+      );
+
+      const result = await runWith(
+        generateGlobalReconciliation({
+          runPath: RUN_PATH,
+          phases: [
+            {
+              phaseId: "phase-01",
+              phaseIndex: 0,
+              stop: { cause: "held", status: "closed", outcome: "unchanged" },
+            },
+            {
+              phaseId: "phase-02",
+              phaseIndex: 1,
+              stop: {
+                cause: "declared",
+                status: "closed",
+                outcome: "corrected",
+                oracleStep: "none",
+              },
+            },
+          ],
+          allowPartial: false,
+          runId: RUN_ID,
+          qualifiedRunName: QUALIFIED_RUN_NAME,
+        }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+    });
+  });
+
   it("empty phase list produces empty global artifacts", async () => {
     const { layer } = makeFakeFileSystem();
     const layers = Layer.mergeAll(layer, NoopSystemTelemetryLayer);
@@ -289,7 +448,7 @@ describe("generateGlobalReconciliation", () => {
     const result = await runWith(
       generateGlobalReconciliation({
         runPath: RUN_PATH,
-        phaseIds: [],
+        phases: [],
         allowPartial: false,
         runId: RUN_ID,
         qualifiedRunName: QUALIFIED_RUN_NAME,

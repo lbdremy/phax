@@ -76,10 +76,12 @@ export function readPreviousReconciliation(
 }
 
 /**
- * Every closed stop before `phaseIndex`, in plan order: each earlier
- * interactive phase whose status says `stop.status` is `closed`, with its
- * `phase-handoff.md` (the interactive handoff) and the `reviewCorrections` of
- * its `file-reconciliation.json`. Empty when the run has no closed stop.
+ * Every closed stop before `phaseIndex`, in plan order, chosen by the phase's
+ * status `stop` and never by its mode. A held stop contributes its
+ * `correction-handoff.md` and the `reviewCorrections` of its
+ * `correction-reconciliation.json`; a declared one its `phase-handoff.md` and
+ * those of its `file-reconciliation.json`. A missing or undecodable file is an
+ * error. Empty when the run has no closed stop.
  */
 export function readReviewCorrections(
   runPath: string,
@@ -91,11 +93,17 @@ export function readReviewCorrections(
     const fs = yield* FileSystem;
     const stops: ReviewCorrectionStop[] = [];
     for (const phase of phases.slice(0, Math.max(phaseIndex, 0))) {
-      if (phase.mode !== "interactive") continue;
-      const status = phaseStatuses.find((s) => s.phaseId === phase.id);
-      if (status?.stop?.status !== "closed") continue;
-      const handoff = yield* fs.readText(handoffPath(runPath, phase.id));
-      const reconPath = join(runPath, phase.id, "file-reconciliation.json");
+      const stop = phaseStatuses.find((s) => s.phaseId === phase.id)?.stop;
+      if (stop?.status !== "closed") continue;
+      const held = stop.cause === "held";
+      const handoff = yield* fs.readText(
+        held ? join(runPath, phase.id, "correction-handoff.md") : handoffPath(runPath, phase.id),
+      );
+      const reconPath = join(
+        runPath,
+        phase.id,
+        held ? "correction-reconciliation.json" : "file-reconciliation.json",
+      );
       const raw = yield* fs.readText(reconPath);
       const parsed = yield* Effect.try({
         try: () => JSON.parse(raw) as unknown,
@@ -107,6 +115,7 @@ export function readReviewCorrections(
       }
       stops.push({
         phaseId: phase.id,
+        cause: stop.cause,
         handoff,
         changedFiles: decoded.right.reviewCorrections,
       });

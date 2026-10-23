@@ -216,3 +216,47 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     });
   });
 });
+
+describe("the hold in the dry run", () => {
+  const phaseOf = (id: string): PhaxPlan["phases"][number] => ({
+    ...minimalPlan.phases[0]!,
+    id,
+    planMarkdownAnchor: `#${id}`,
+  });
+  const fourPhases: PhaxPlan = {
+    ...minimalPlan,
+    phases: ["phase-01", "phase-02", "phase-03", "phase-04"].map(
+      phaseOf,
+    ) as unknown as PhaxPlan["phases"],
+  };
+  const report = (hold?: Parameters<typeof buildDryRunReport>[6]) =>
+    buildDryRunReport(fourPhases, minimalConfig, undefined, undefined, undefined, false, hold);
+
+  it("prints Hold: none for a run without --hold", () => {
+    expect(formatDryRunReport(report())).toContain("Hold: none");
+  });
+
+  it("prints the resolved selection and its phases in plan order", () => {
+    const listed = report({ kind: "listed", phases: ["phase-03", "phase-02"] });
+    expect(listed.holdFindings).toEqual([]);
+    expect(formatDryRunReport(listed)).toContain("Hold: listed — phase-02, phase-03");
+  });
+
+  it("prints every phase a bare --hold selects", () => {
+    expect(formatDryRunReport(report({ kind: "all" }))).toContain(
+      "Hold: all — phase-01, phase-02, phase-03",
+    );
+  });
+
+  it("prints the hold check's errors under the hold line", () => {
+    const lines = formatDryRunReport(
+      report({ kind: "listed", phases: ["phase-04", "phase-09"] }),
+    ).split("\n");
+    const at = lines.indexOf("Hold: listed");
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at + 1, at + 3)).toEqual([
+      "  phase-04  is the final phase: it already stays open in review_open",
+      "  phase-09  is not a phase of this plan",
+    ]);
+  });
+});

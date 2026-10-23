@@ -390,7 +390,9 @@ A refused close puts the run back to `awaiting_review`; so does an interrupt dur
 
 A user interface reads `review-stop.json` for the stopped phase, its worktree, the current session, the last refused close and the commands above, each as `{ cwd, argv, env }`; its format is under [Persisted formats](#persisted-formats).
 
-Not part of this release: holding a phase at run time (`--hold`), a stop inside an oracle pair, the versioned `phax ls --json` run list, captured transcripts, and the records, compliance review and PR body of a stop. A declared phase writes no phase record yet, and the cost ledger covers Claude Code turns only.
+`phax run --hold` stops the run at headless phases too: no value holds every headless phase but the final one, `--hold oracle` the oracle phases, `--hold phase-02,phase-04` the phases listed. A held phase does its work, passes its gate and commits, then stops in `awaiting_review` before its record and cleanup, with no agent turn, and exits 13. `phax resume` closes it as above, except that it leaves one review commit with a `Held-Phase:` trailer on top of the unchanged phase commit (or none when nothing changed), writes the phase's record once, naming the phase commit, and starts the next phase in the same invocation. The hold is recorded with the run: `phax resume` takes no `--hold`.
+
+Not part of this release: a stop inside an oracle pair, the versioned `phax ls --json` run list, captured transcripts, and the records, compliance review and PR body of a stop. A declared phase writes no phase record yet, and the cost ledger covers Claude Code turns only.
 
 ### See what it is doing
 
@@ -872,7 +874,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 | 10   | Registry corruption                                         |
 | 11   | Security or preflight refusal                               |
 | 12   | Artifact lifecycle refusal                                  |
-| 13   | Awaiting review at an interactive phase (resumable)         |
+| 13   | Awaiting review at an interactive or held phase (resumable) |
 
 `phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 

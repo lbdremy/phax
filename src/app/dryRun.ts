@@ -6,6 +6,7 @@ import { checkSkillEditConsent, phaseSkillEditGrants } from "../domain/security/
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { SecurityMode } from "../domain/security/types.js";
+import { resolveHold, type HoldFinding, type HoldRequest } from "../domain/hold.js";
 
 export interface DryRunPhase {
   readonly index: number;
@@ -38,6 +39,10 @@ export interface DryRunReport {
   readonly skillEditConsentMissing: boolean;
   readonly runPath: string;
   readonly providerPriorityOverride?: readonly string[];
+  /** The hold the request resolves to: `Hold: none`, or the selection and its phases. */
+  readonly holdLine: string;
+  /** The hold check's errors, printed under the hold line. */
+  readonly holdFindings: readonly HoldFinding[];
 }
 
 export function buildDryRunReport(
@@ -47,6 +52,7 @@ export function buildDryRunReport(
   providerPriorityOverride?: readonly string[],
   securityMode?: SecurityMode,
   allowSkillEdits = false,
+  hold: HoldRequest = { kind: "none" },
 ): DryRunReport {
   const profileId = gateProfileId ?? Object.keys(config.raw.gateProfiles)[0] ?? "";
   const gateCommands = resolveGateProfile(config, profileId).map((s) => s.command);
@@ -79,6 +85,14 @@ export function buildDryRunReport(
   const skillEditConsentMissing =
     checkSkillEditConsent({ phases: plan.phases, allowSkillEdits }).length > 0;
 
+  const resolved = resolveHold(hold, plan.phases);
+  const holdLine =
+    resolved.hold === null
+      ? `Hold: ${hold.kind}`
+      : resolved.hold.selection === "none"
+        ? "Hold: none"
+        : `Hold: ${resolved.hold.selection} — ${resolved.hold.phases.join(", ")}`;
+
   return {
     shortName: plan.run.shortName,
     qualifiedName: runKey(config.namespace, plan.run.shortName),
@@ -96,6 +110,8 @@ export function buildDryRunReport(
     phases,
     skillEditConsentMissing,
     runPath: join(config.stateRoot, "runs", runKey(config.namespace, plan.run.shortName)),
+    holdLine,
+    holdFindings: resolved.findings,
     ...(providerPriorityOverride !== undefined ? { providerPriorityOverride } : {}),
   };
 }
@@ -111,6 +127,11 @@ export function formatDryRunReport(report: DryRunReport): string {
   lines.push(`  Run path:     ${report.runPath}`);
   if (report.providerPriorityOverride !== undefined) {
     lines.push(`  Priority:     ${report.providerPriorityOverride.join(" → ")} (override)`);
+  }
+  lines.push("");
+  lines.push(report.holdLine);
+  for (const finding of report.holdFindings) {
+    lines.push(`  ${finding.phase ?? "-"}  ${finding.message}`);
   }
   lines.push("");
 
