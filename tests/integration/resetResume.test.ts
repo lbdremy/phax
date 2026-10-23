@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { runKey } from "../../src/domain/runRef.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
@@ -99,7 +99,7 @@ describe("resolveRun + inspectResume after reset-phase", () => {
     await writeFile(join(runPath, "phax-plan.json"), JSON.stringify(RAW_PLAN));
     await mkdir(join(runPath, "phase-01.reset-20260625T000000000Z"), { recursive: true });
 
-    const result = inspectResume(NAMESPACE, SHORT_NAME, stateRoot);
+    const result = await inspectResumeOnDisk(NAMESPACE, SHORT_NAME, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
@@ -359,7 +359,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     // `phax resume` resolves the next resumable phase from the rate-limited run.
-    const decision = inspectResume("test-project", shortName, stateRoot);
+    const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
     expect(Either.isRight(decision)).toBe(true);
     if (Either.isLeft(decision)) throw new Error("expected resumable run");
     expect(decision.right.fromState).toBe("rate_limited");
@@ -527,7 +527,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     }
 
     // `phax resume` re-enters the rate-limited phase; the gate now passes.
-    const decision = inspectResume("test-project", shortName, stateRoot);
+    const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
     if (Either.isLeft(decision)) throw new Error("expected resumable run");
     expect(decision.right.nextPhaseId).toBe("phase-01");
 

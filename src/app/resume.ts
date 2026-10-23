@@ -1,12 +1,13 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Effect, Either } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
 import { holdsPhase } from "../domain/hold.js";
 import { interpret } from "../domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../domain/state.js";
 import type { PhaxState } from "../domain/state.js";
+import { FileSystem, FsError } from "../ports/fs.js";
 import { readRunStatusFile } from "../schemas/persisted.js";
 import type { RunHold, RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRun, findCurrentPhase } from "./resolveRunInfo.js";
@@ -201,37 +202,44 @@ export function inspectResume(
   namespace: string,
   shortName: ShortName,
   stateRoot: string,
-): Either.Either<ResumeDecision, ResumeRefusal> {
+): Effect.Effect<Either.Either<ResumeDecision, ResumeRefusal>, never, FileSystem> {
   const infoResult = resolveRun(namespace, shortName, stateRoot);
   if (Either.isLeft(infoResult)) {
-    return Either.left({
-      reason: "run_not_found",
-      message: `Run "${shortName}" not found: ${infoResult.left}`,
-    });
+    return Effect.succeed(
+      Either.left({
+        reason: "run_not_found",
+        message: `Run "${shortName}" not found: ${infoResult.left}`,
+      }),
+    );
   }
-  const hold = readRunHold(infoResult.right.runPath);
-  if (Either.isLeft(hold)) {
-    return Either.left({ reason: "run_not_found", message: hold.left });
-  }
-  return inspectResumeFromInfo(infoResult.right, hold.right);
+  const info = infoResult.right;
+  return readRunHold(info.runPath).pipe(
+    Effect.match({
+      onFailure: (error): Either.Either<ResumeDecision, ResumeRefusal> =>
+        Either.left({ reason: "run_not_found", message: error.message }),
+      onSuccess: (hold) => inspectResumeFromInfo(info, hold),
+    }),
+  );
 }
 
 /**
- * The hold recorded in the run's run-status.json, through the persisted
- * reader; Left with the reader's message when the file cannot be read.
+ * The hold recorded in the run's run-status.json, read through the
+ * FileSystem port and the persisted reader. Fails with the reader's message
+ * when the file cannot be read or decoded.
  */
-export function readRunHold(runPath: string): Either.Either<RunHold, string> {
-  const path = join(runPath, "run-status.json");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  } catch (e) {
-    return Either.left(
-      `Cannot read run-status.json at "${runPath}": ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
-  return Either.match(readRunStatusFile(path, parsed), {
-    onLeft: (error) => Either.left(error.message),
-    onRight: (status) => Either.right(status.hold),
+export function readRunHold(runPath: string): Effect.Effect<RunHold, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, "run-status.json");
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try({
+      try: () => JSON.parse(raw) as unknown,
+      catch: () => new FsError({ message: `${path}: not valid JSON` }),
+    });
+    const decoded = readRunStatusFile(path, parsed);
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    }
+    return decoded.right.hold;
   });
 }

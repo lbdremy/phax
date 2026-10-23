@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { executePlan, type ClosedStop } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { inspectResumeOnDisk } from "./inspectResume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
 import { AgentInvocationError, RateLimitError } from "../../src/domain/errors.js";
@@ -505,8 +505,8 @@ export async function startHeldRun(
 }
 
 /** `phax resume --yes`: the start phase as the resume decision names it. */
-export function resumeHeldRun(run: HeldRun): Promise<Either.Either<unknown, unknown>> {
-  const decision = inspectResume(
+export async function resumeHeldRun(run: HeldRun): Promise<Either.Either<unknown, unknown>> {
+  const decision = await inspectResumeOnDisk(
     NAMESPACE,
     Either.getOrThrow(decodeShortName(SHORT)),
     run.world.stateRoot,

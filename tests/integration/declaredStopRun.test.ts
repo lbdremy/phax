@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan, type ClosedStop } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
 import { resetPhase } from "../../src/app/resetPhase.js";
-import { inspectResume } from "../../src/app/resume.js";
+import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { renderStop, renderStopClosed } from "../../src/cli/commands/stopOutput.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -443,7 +443,7 @@ async function execute(harness: Harness, startIndex: number) {
 
 /** `phax resume --yes`: the start phase as the resume command decides it. */
 async function resume(harness: Harness) {
-  const decision = inspectResume(NAMESPACE, harness.shortName, world.stateRoot);
+  const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
   if (Either.isLeft(decision)) throw new Error(decision.left.message);
   return execute(harness, decision.right.nextPhaseIndex);
 }
@@ -628,7 +628,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     const stopTree = worktreeOf("phase-03");
     const reviewStop = readFileSync(join(harness.runPath, "review-stop.json"), "utf8");
     // The worktree goes after the resume command's own check passed.
-    const decision = inspectResume(NAMESPACE, harness.shortName, world.stateRoot);
+    const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
     if (Either.isLeft(decision)) throw new Error(decision.left.message);
     renameSync(stopTree, `${stopTree}.moved`);
 

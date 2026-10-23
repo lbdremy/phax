@@ -110,6 +110,7 @@ import type { GateRequest } from "../schemas/gateRequest.js";
 import { stampBriefRequest } from "./briefProvider.js";
 import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./pushedBrief.js";
 import { closePulledBriefs } from "./pullBrief.js";
+import { readRunHold } from "./resume.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import {
   generatePhaseHandoff,
@@ -128,7 +129,7 @@ import type { RunHold } from "../schemas/status.js";
 import { closeStop, type CloseReport } from "./closeStop.js";
 import { listRecords } from "./recordsList.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
-import { readPhaseFileReconciliationFile, readRunStatusFile } from "../schemas/persisted.js";
+import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import {
   readPhaseBase,
@@ -792,25 +793,6 @@ export function executePlan(
     });
   }
 
-  // The hold recorded when the run was named, from run-status.json: every
-  // invocation holds exactly these phases, and no caller passes another.
-  function readRecordedHold(): Effect.Effect<RunHold, FsError, FileSystem> {
-    return Effect.gen(function* () {
-      const fs = yield* FileSystem;
-      const path = join(runPath, "run-status.json");
-      const raw = yield* fs.readText(path);
-      const parsed = yield* Effect.try({
-        try: () => JSON.parse(raw) as unknown,
-        catch: () => new FsError({ message: `${path}: not valid JSON` }),
-      });
-      const decoded = readRunStatusFile(path, parsed);
-      if (Either.isLeft(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
-      }
-      return decoded.right.hold;
-    });
-  }
-
   // What the record of a held phase needs, read from the phase's own files and
   // never from HEAD: the builder's binding and the phase commit.
   function readHeldRecord(
@@ -866,7 +848,9 @@ export function executePlan(
   const program = Effect.gen(function* () {
     const telemetry = yield* SystemTelemetry;
     const git = yield* Git;
-    const hold = yield* readRecordedHold();
+    // The hold recorded when the run was named: every invocation holds
+    // exactly these phases, and no caller passes another.
+    const hold = yield* readRunHold(runPath);
 
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
     yield* telemetry.recordEvent(
