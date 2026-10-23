@@ -107,6 +107,28 @@ describe("createRunFolder", () => {
     expect(impl.getFile(`${runPath}/run-status.json`)).toBeDefined();
   });
 
+  it.each([
+    ["none by default", undefined, { selection: "none" }],
+    [
+      "a given listed hold verbatim",
+      { selection: "listed" as const, phases: ["phase-01"] as [string, ...string[]] },
+      { selection: "listed", phases: ["phase-01"] },
+    ],
+  ])("records %s in run-status.json", async (_label, hold, expected) => {
+    const { impl, layer } = makeFakeFileSystem();
+    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+
+    await Effect.runPromise(
+      createRunFolder(shortName, "# Plan", plan, resolvedConfig, undefined, undefined, hold).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
+    const decoded = decodeRunStatusFile(JSON.parse(raw!));
+    expect(Either.isRight(decoded) && decoded.right.hold).toEqual(expected);
+  });
+
   it("writes a valid run-status.json with state: created", async () => {
     const { impl, layer } = makeFakeFileSystem();
     const shortName = Either.getOrThrow(decodeShortName("my-run"));

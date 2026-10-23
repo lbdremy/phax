@@ -64,7 +64,7 @@ function seedFs(opts: {
     join(runPath, "run-status.json"),
     JSON.stringify({
       ...(opts.runState === "awaiting_review"
-        ? { $schema: currentSchemaUrl("run-status"), ...currentShape }
+        ? { $schema: currentSchemaUrl("run-status"), ...currentShape, hold: { selection: "none" } }
         : runStatusBase),
       state: opts.runState,
       ...(opts.stoppedReason !== undefined ? { stoppedReason: opts.stoppedReason } : {}),

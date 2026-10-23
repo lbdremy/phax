@@ -145,6 +145,7 @@ describe("runResume --skip-oracle", () => {
         createdAt: now,
         updatedAt: now,
         phasesCount: 2,
+        hold: { selection: "none" },
       }),
     );
   });

@@ -709,7 +709,10 @@ export function latestPreSchema(id: PreSchemaFormatId): Doc {
  */
 export const validDocuments: { readonly [F in FormatId]: Doc } = {
   registry: encoded(RegistryFileSchema, withSchemaUrl("registry", { runs: registry.runs })),
-  "run-status": encoded(RunStatusFileSchema, withSchemaUrl("run-status", stepped(runStatus))),
+  "run-status": encoded(
+    RunStatusFileSchema,
+    withSchemaUrl("run-status", { ...stepped(runStatus), hold: { selection: "none" as const } }),
+  ),
   "phase-status": encoded(
     PhaseStatusFileSchema,
     withSchemaUrl("phase-status", {

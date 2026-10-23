@@ -714,6 +714,7 @@ function makeFreshInput(overrides: Partial<FreshRunPreflightInput> = {}): FreshR
     namespace: NAMESPACE,
     allowSkillEdits: false,
     allowDirty: false,
+    hold: { kind: "none" },
     ...overrides,
   };
 }

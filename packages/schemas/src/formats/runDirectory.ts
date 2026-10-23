@@ -171,12 +171,17 @@ export type LatestRunStatus = RunStatus;
 export function toLatestRunStatus(
   value: RunStatusPreSchema | RunStatusV0_17_0 | RunStatusFile,
 ): LatestRunStatus {
-  if ("$schema" in value) {
+  // No earlier phax could hold a run, so a value without `hold` is lifted with `none`.
+  if ("hold" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, hold: { selection: "none" } };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, hold: { selection: "none" } };
 }
 
 // ── phase status

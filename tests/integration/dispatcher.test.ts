@@ -58,6 +58,7 @@ function seedFs(opts: {
     JSON.stringify(
       withSchemaUrl("run-status", {
         ...runStatusBase,
+        hold: { selection: "none" },
         state: opts.runState,
         ...(opts.lastError !== undefined ? { lastError: opts.lastError } : {}),
       }),

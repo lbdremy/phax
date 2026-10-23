@@ -58,6 +58,8 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parseRunStatus,
     phax: decodeRunStatusFile,
     toLatest: toLatestRunStatus,
+    // No phax that wrote a pre-schema status could hold a run.
+    unrecorded: { hold: { selection: "none" } },
   },
   {
     id: "phase-status",

@@ -20,6 +20,7 @@ import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { ProviderId } from "../../src/schemas/providerId.js";
 import { encodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { phaseStatusFile } from "./phaseStatusFixture.js";
+import { runStatus } from "./runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
 
 // A made-up world for the commands that act on a run awaiting review: one
@@ -152,16 +153,19 @@ export async function stopRun(world: World, options: StopRunOptions = {}): Promi
 
   writeJson(
     join(runPath, "run-status.json"),
-    withSchemaUrl("run-status", {
-      namespace: NAMESPACE,
-      shortName,
-      runId,
-      state: "running",
-      createdAt: RUN_CREATED,
-      updatedAt: RUN_CREATED,
-      phasesCount: 4,
-      currentPhaseIndex: 2,
-    }),
+    withSchemaUrl(
+      "run-status",
+      runStatus({
+        namespace: NAMESPACE,
+        shortName,
+        runId,
+        state: "running",
+        createdAt: RUN_CREATED,
+        updatedAt: RUN_CREATED,
+        phasesCount: 4,
+        currentPhaseIndex: 2,
+      }),
+    ),
   );
   for (const [index, id] of ["phase-01", "phase-02"].entries()) {
     writeJson(

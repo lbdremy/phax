@@ -14,6 +14,7 @@ import { Effect, Either } from "effect";
 import {
   AssignmentPreflightError,
   type ConfigValidationError,
+  HoldPreflightError,
   InteractivePreflightError,
   ModelPreflightError,
   OraclePreflightError,
@@ -23,6 +24,7 @@ import {
   type SkillEditConsentError,
   UnsafeGitStateError,
 } from "../domain/errors.js";
+import { resolveHold, type HoldRequest } from "../domain/hold.js";
 import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
 import { reasonLabelFindings, type LintFinding } from "../domain/plan/lint.js";
 import { oracleFindings } from "../domain/plan/oracleCheck.js";
@@ -43,6 +45,7 @@ import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
+import type { RunHold } from "../schemas/status.js";
 import { assignmentBoundFindings } from "./assignmentBounds.js";
 import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
@@ -442,7 +445,7 @@ export function runPreflights(
  * load, the shared set and the read-only clean-tree check. Phase 3's guard
  * table is keyed by this type.
  */
-export type FreshRunPreflightStep = "routing-config" | RunPreflightCheck | "clean-tree";
+export type FreshRunPreflightStep = "routing-config" | RunPreflightCheck | "hold" | "clean-tree";
 
 export interface FreshRunPreflightInput {
   readonly plan: PhaxPlan;
@@ -456,21 +459,25 @@ export interface FreshRunPreflightInput {
   readonly namespace: string;
   readonly allowSkillEdits: boolean;
   readonly allowDirty: boolean;
+  /** What `--hold` asked for; resolved after the shared set, not part of it. */
+  readonly hold: HoldRequest;
   readonly priorityOverride?: NonEmptyArray<ProviderId> | undefined;
 }
 
 /**
  * Clear a fresh `phax run` to be named, or fail with its first refusal. The
  * order reproduces today's first refusal: skill edit consent, the routing
- * config load, the shared run preflight set, then the clean-tree check. Writes
+ * config load, the shared run preflight set, the hold, then the clean-tree check. Writes
  * nothing. On success yields the (overridden) routing and provider config that
  * executePlan needs.
  */
-export function freshRunPreflight(
-  input: FreshRunPreflightInput,
-): Effect.Effect<
-  { readonly routing: ModelRouting; readonly providerConfig: ProviderConfig },
-  RunPreflightError | ConfigValidationError | GitError,
+export function freshRunPreflight(input: FreshRunPreflightInput): Effect.Effect<
+  {
+    readonly routing: ModelRouting;
+    readonly providerConfig: ProviderConfig;
+    readonly hold: RunHold;
+  },
+  HoldPreflightError | RunPreflightError | ConfigValidationError | GitError,
   FileSystem | Git | Shell
 > {
   return Effect.gen(function* () {
@@ -501,8 +508,22 @@ export function freshRunPreflight(
       startIndex: 0,
     });
 
+    const resolved = resolveHold(input.hold, input.plan.phases);
+    if (resolved.hold === null) {
+      const { findings } = resolved;
+      return yield* Effect.fail(
+        new HoldPreflightError({
+          message: [
+            `Hold preflight failed: ${findings.length} error(s).`,
+            ...findings.map((f) => `  ${f.phase ?? "-"}  ${f.message}`),
+          ].join("\n"),
+          findings,
+        }),
+      );
+    }
+
     yield* checkCleanWorkingTree(input.config.repoRoot, input.allowDirty);
 
-    return { routing, providerConfig };
+    return { routing, providerConfig, hold: resolved.hold };
   });
 }

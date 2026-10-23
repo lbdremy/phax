@@ -5,7 +5,7 @@ import type { ShortName, RunId } from "../domain/branded.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
 import { encodePhaxPlanFile, type PhaxPlan } from "../schemas/phaxPlan.js";
-import { type RunStatus } from "../schemas/status.js";
+import { type RunHold, type RunStatus } from "../schemas/status.js";
 import { upsertRun } from "./registry.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
 import { runKey } from "../domain/runRef.js";
@@ -33,6 +33,8 @@ export function createRunFolder(
   planRepoRelPath?: string,
   // `phax run --allow-skill-edits`; recorded only when given, so resume inherits it.
   allowSkillEdits?: boolean,
+  // The hold the fresh-run preflight resolved; recorded so every resume holds the same phases.
+  hold: RunHold = { selection: "none" },
 ): Effect.Effect<RunFolderResult, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -63,6 +65,7 @@ export function createRunFolder(
       phasesCount: plan.phases.length,
       ...(planRepoRelPath !== undefined && planRepoRelPath.length > 0 ? { planRepoRelPath } : {}),
       ...(allowSkillEdits === true ? { allowSkillEdits: true } : {}),
+      hold,
     };
 
     yield* fs.writeAtomic(

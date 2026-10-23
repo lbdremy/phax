@@ -348,8 +348,9 @@ export const readRegistryFile: Reader<Registry> = (file, input) => {
 /**
  * Reads a run's `run-status.json`. The pre-schema run status carries every
  * fact phax needs. One stamped below the format's current stamp is read by
- * the frozen 0.17.0 decoder and lifted unchanged: its states are a subset of
- * the current ones.
+ * the frozen 0.17.0 decoder and lifted with `hold: { selection: "none" }`: its
+ * states are a subset of the current ones, and no earlier phax could hold a
+ * run. A current-stamp document without `hold` stays refused.
  */
 export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("run-status", input)) {
@@ -358,7 +359,7 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
       return Either.left(readError(file, "run-status", formatFirstViolation(older.left)));
     }
     const { $schema: _schema, ...status } = older.right;
-    return Either.right(status);
+    return Either.right({ ...status, hold: { selection: "none" } });
   }
   return readPersisted(input, {
     format: "run-status",
@@ -367,7 +368,8 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
     decodeCurrent: decodeRunStatusFile,
     decodePreSchema: decodeRunStatusPreSchema,
     fromCurrent: ({ $schema: _schema, ...status }) => status,
-    fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
+    fromPreSchema: ({ version: _version, ...status }) =>
+      Either.right({ ...status, hold: { selection: "none" } }),
   });
 };
 

@@ -18,7 +18,8 @@
     "state",
     "createdAt",
     "updatedAt",
-    "phasesCount"
+    "phasesCount",
+    "hold"
   ],
   "properties": {
     "$schema": {
@@ -76,6 +77,100 @@
     },
     "allowSkillEdits": {
       "type": "boolean"
+    },
+    "hold": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "selection"
+          ],
+          "properties": {
+            "selection": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "selection",
+            "phases"
+          ],
+          "properties": {
+            "selection": {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "description": "a string matching the pattern ^phase-\\d{2}$",
+                "pattern": "^phase-\\d{2}$"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "selection",
+            "phases"
+          ],
+          "properties": {
+            "selection": {
+              "type": "string",
+              "enum": [
+                "listed"
+              ]
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "description": "a string matching the pattern ^phase-\\d{2}$",
+                "pattern": "^phase-\\d{2}$"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "selection",
+            "phases"
+          ],
+          "properties": {
+            "selection": {
+              "type": "string",
+              "enum": [
+                "oracle"
+              ]
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "description": "a string matching the pattern ^phase-\\d{2}$",
+                "pattern": "^phase-\\d{2}$"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
     }
   },
   "additionalProperties": true

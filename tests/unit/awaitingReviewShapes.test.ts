@@ -35,6 +35,7 @@ const runStatus = {
   updatedAt: at,
   phasesCount: 4,
   currentPhaseIndex: 2,
+  hold: { selection: "none" },
 };
 
 const registryEntry = {

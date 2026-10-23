@@ -47,6 +47,21 @@ const EffortSchema = Schema.Union(
   Schema.Literal("ultra"),
 );
 
+const HoldPhasesSchema = Schema.NonEmptyArray(Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)));
+
+/**
+ * The hold resolved when the run was named, one struct per selection: `none`
+ * holds nothing; the others list the held phases in plan order.
+ */
+export const RunHoldSchema = Schema.Union(
+  Schema.Struct({ selection: Schema.Literal("none") }),
+  Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
+  Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
+  Schema.Struct({ selection: Schema.Literal("oracle"), phases: HoldPhasesSchema }),
+);
+
+export type RunHold = Schema.Schema.Type<typeof RunHoldSchema>;
+
 const runStatusFields = {
   namespace: Schema.NonEmptyString,
   shortName: Schema.NonEmptyString,
@@ -70,6 +85,10 @@ const runStatusFields = {
   // `phax resume` inherits it. Optional like `planRepoRelPath`: existing
   // run-status.json files must still decode, and absent means no consent.
   allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  // The hold resolved when the run was named (`phax run --hold`) and never
+  // changed, so every `phax resume` holds exactly these phases. Required: the
+  // readers lift a run written before it to `none`.
+  hold: RunHoldSchema,
 };
 
 /** A run's status in memory: never a `version`, never a `$schema`. */

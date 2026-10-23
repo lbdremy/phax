@@ -49,7 +49,8 @@ function runStatus(state: RunStatus["state"]): RunStatus {
     phasesCount: 4,
     currentPhaseIndex: 2,
     lastError: "Close of the stop refused: gate-failed (exit 4)",
-  } as RunStatus;
+    hold: { selection: "none" },
+  };
 }
 
 function phase03(state: PhaseStatus["state"]): PhaseStatus {

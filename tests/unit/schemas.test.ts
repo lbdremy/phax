@@ -323,6 +323,7 @@ describe("decodeRunStatusFile", () => {
     createdAt: now,
     updatedAt: now,
     phasesCount: 3,
+    hold: { selection: "none" },
   };
 
   it("accepts a valid run status", () => {
