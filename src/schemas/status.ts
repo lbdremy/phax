@@ -118,6 +118,10 @@ const OracleStepSchema = Schema.Literal("authored", "none").annotations({
     "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
 });
 
+// The decoder refuses any other key on a stop, so the published JSON Schema
+// does too, although the rest of status.json allows unknown keys.
+const strictStop = { jsonSchema: { additionalProperties: false } } as const;
+
 /**
  * A phase's stop: null for a phase that never stopped; `waiting` while it
  * waits for a person or its close runs; `closed` once the close finished,
@@ -130,34 +134,34 @@ export const PhaseStopSchema = Schema.NullOr(
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("waiting"),
-    }),
+    }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       oracleStep: OracleStepSchema,
-    }),
+    }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
-    }),
+    }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("waiting"),
-    }),
+    }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       reviewCommit: FullCommitShaSchema,
       oracleStep: OracleStepSchema,
-    }),
+    }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
-    }),
+    }).annotations(strictStop),
   ).annotations({ parseOptions: { onExcessProperty: "error" } }),
 );
 

@@ -133,7 +133,7 @@
                   ]
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             {
               "type": "object",
@@ -171,7 +171,7 @@
                   "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             {
               "type": "object",
@@ -200,7 +200,7 @@
                   ]
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             {
               "type": "object",
@@ -222,7 +222,7 @@
                   ]
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             {
               "type": "object",
@@ -266,7 +266,7 @@
                   "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             {
               "type": "object",
@@ -295,7 +295,7 @@
                   ]
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             }
           ]
         },

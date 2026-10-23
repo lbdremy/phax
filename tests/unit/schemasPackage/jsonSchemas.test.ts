@@ -66,7 +66,7 @@ import {
   SpecDocumentFileSchema,
   getSpecDocumentJsonSchema,
 } from "../../../src/schemas/specDocument.js";
-import { validDocuments, withoutKey } from "./documents.js";
+import { phaseStatusStopDocuments, validDocuments, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type JsonSchemaFormatId = FormatId | "record-manifest";
@@ -481,6 +481,24 @@ describe("every exported format has a usable JSON Schema", () => {
       expect(Either.isRight(DECODERS[entry.format as JsonSchemaFormatId](withUnknownKey))).toBe(
         ignores,
       );
+    },
+  );
+});
+
+describe("a phase status's stop", () => {
+  // status.json ignores unknown keys, but its stop refuses one: the published
+  // contract says so too, so a validator and phax's decoder agree on each variant.
+  it.each(Object.entries(phaseStatusStopDocuments))(
+    "is refused with an unknown key in its %s stop, by the JSON Schema and by phax",
+    (_label, document) => {
+      const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === "phase-status");
+      if (entry === undefined) throw new Error("no entry for phase-status");
+      const validate = new Ajv().compile(renderedSchema(entry));
+      const { stop } = document as { stop: object };
+      const withUnknownStopKey = { ...(document as object), stop: { ...stop, unknownKey: true } };
+      expect(validate(document)).toBe(true);
+      expect(validate(withUnknownStopKey)).toBe(false);
+      expect(Either.isRight(DECODERS["phase-status"](withUnknownStopKey))).toBe(false);
     },
   );
 });
