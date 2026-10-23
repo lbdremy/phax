@@ -108,6 +108,13 @@ const SecurityPolicyAppliedTelemetryEventSchema = Schema.Struct({
   ),
 });
 
+const OracleEditsUnjudgedTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("oracle.edits.unjudged"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.String,
+  files: Schema.Array(Schema.String.pipe(Schema.minLength(1))),
+});
+
 export const SemanticTelemetryEventSchema = Schema.Union(
   StateTransitionTelemetryEventSchema,
   AdapterCallStartedTelemetryEventSchema,
@@ -119,6 +126,7 @@ export const SemanticTelemetryEventSchema = Schema.Union(
   ArtifactGeneratedTelemetryEventSchema,
   ModelResolvedTelemetryEventSchema,
   SecurityPolicyAppliedTelemetryEventSchema,
+  OracleEditsUnjudgedTelemetryEventSchema,
 );
 
 export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<

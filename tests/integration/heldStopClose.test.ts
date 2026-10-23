@@ -217,6 +217,8 @@ const closeInput = (r: HeldRun = run) => ({
   gateSteps: GATE_STEPS,
   gateRequest: Effect.succeed("{}"),
   fileReconciliationMode: "report_only" as const,
+  phases: r.plan.phases,
+  oracles: null,
 });
 
 interface CloseOptions {

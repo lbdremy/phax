@@ -6,7 +6,6 @@
 import { Either } from "effect";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { RunHold } from "../schemas/status.js";
-import { oraclePairs } from "./plan/oraclePairs.js";
 
 export type HoldRequest =
   | { readonly kind: "none" }
@@ -130,20 +129,6 @@ function select(
 export function resolveHold(request: HoldRequest, phases: readonly HoldPhase[]): HoldResolution {
   if (request.kind === "none") return { hold: { selection: "none" }, findings: [] };
   const { ids, findings } = select(request, phases);
-  // INTERIM(oracle-pair-hold): removed when reviews inside an oracle pair land
-  for (const pair of oraclePairs(phases)) {
-    const from = phases.findIndex((p) => p.id === pair.oraclePhase);
-    const through = phases.findIndex((p) => p.id === pair.dischargingPhase);
-    for (const id of ids) {
-      const index = phases.findIndex((p) => p.id === id);
-      if (index >= from && index <= through) {
-        findings.push({
-          phase: id,
-          message: `sits in oracle pair ${pair.oraclePhase} → ${pair.dischargingPhase}: this phax does not hold a phase of an oracle pair yet`,
-        });
-      }
-    }
-  }
   const held = nonEmpty(ids);
   if (findings.length > 0 || held === null) return { hold: null, findings };
   return { hold: { selection: request.kind, phases: held }, findings: [] };

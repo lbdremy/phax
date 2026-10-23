@@ -255,13 +255,24 @@ describe("oracleFindings: pairs", () => {
     expect(messages([oraclePhase, { edit: ["tests/refunds.test.ts"] }])).toEqual([]);
   });
 
-  it("§5.11: an interactive phase inside a pair, none once after it", () => {
-    const interactive = { header: ["**Mode:** interactive"] };
+  it("an interactive phase inside a pair, even listing an oracle file, gets no finding", () => {
     const header = ORACLE("`tests/refunds.test.ts`", "discharged by phase-04");
-    expect(messages([{ ...oraclePhase, header }, interactive, plain, plain])).toEqual([
-      "phase-02: interactive phase sits between oracle phase-01 and its discharging phase phase-04",
+    const cases: readonly (readonly [string, PlanPhase])[] = [
+      ["no oracle file", { header: ["**Mode:** interactive"] }],
+      [
+        "an optional oracle file",
+        { header: ["**Mode:** interactive"], optional: ["tests/refunds.test.ts"] },
+      ],
+    ];
+    for (const [label, interactive] of cases) {
+      expect(messages([{ ...oraclePhase, header }, interactive, plain, plain]), label).toEqual([]);
+    }
+    // A headless phase in the same place is still refused the oracle file.
+    expect(
+      messages([{ ...oraclePhase, header }, { optional: ["tests/refunds.test.ts"] }, plain, plain]),
+    ).toEqual([
+      "phase-02: plans tests/refunds.test.ts, an oracle file of phase-01, before phase-04 discharges it",
     ]);
-    expect(messages([{ ...oraclePhase, header }, plain, plain, plain, interactive])).toEqual([]);
   });
 
   it("§5.12: an interactive oracle phase and an interactive discharging phase", () => {

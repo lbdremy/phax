@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   dischargedOracleFiles,
+  latestAuthoredCommit,
   oraclePairs,
   oracleRoleOf,
   oracleSkipRefusal,
+  pairsChangedByCorrections,
   recordOracleRole,
   renderOraclePairsSection,
+  stopOraclePairs,
+  stopSkipOracleRefusal,
+  type AuthoredCommitStatus,
 } from "../../src/domain/plan/oraclePairs.js";
 
 // A five-phase plan with one pair: phase-02 authors tests/prune.test.ts and
@@ -123,5 +128,149 @@ describe("dischargedOracleFiles", () => {
     for (const id of ["phase-01", "phase-02", "phase-03", "phase-05"]) {
       expect(dischargedOracleFiles(phases, id)).toEqual([]);
     }
+  });
+});
+
+describe("stopSkipOracleRefusal", () => {
+  it("names the run and the stopped phase", () => {
+    expect(stopSkipOracleRefusal("invoice-export", "phase-02")).toBe(
+      "--skip-oracle: invoice-export awaits review at phase-02; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.",
+    );
+  });
+});
+
+describe("stopOraclePairs", () => {
+  it.each([
+    ["the oracle phase", "phase-02", [pair]],
+    ["a phase strictly between", "phase-03", [pair]],
+    ["the discharging phase", "phase-04", []],
+    ["a phase before the pair", "phase-01", []],
+    ["a phase after the pair", "phase-05", []],
+    ["a phase the plan does not have", "phase-09", []],
+  ])("a stop at %s", (_label, stop, expected) => {
+    expect(stopOraclePairs(phases, stop)).toEqual(expected);
+  });
+
+  it("lists every pair a stop sits in, in plan order", () => {
+    const overlapping = [
+      { id: "phase-01", oracle: { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] } },
+      { id: "phase-02", oracle: { dischargedBy: "phase-03", files: ["tests/prune.test.ts"] } },
+      { id: "phase-03", oracle: null },
+      { id: "phase-04", oracle: null },
+    ];
+    expect(stopOraclePairs(overlapping, "phase-02").map((p) => p.oraclePhase)).toEqual([
+      "phase-01",
+      "phase-02",
+    ]);
+    // phase-03 discharges phase-02's pair, so it sits only in phase-01's.
+    expect(stopOraclePairs(overlapping, "phase-03").map((p) => p.oraclePhase)).toEqual([
+      "phase-01",
+    ]);
+  });
+});
+
+describe("pairsChangedByCorrections", () => {
+  const other = {
+    oraclePhase: "phase-05",
+    dischargingPhase: "phase-06",
+    files: ["tests/a.test.ts"],
+  };
+
+  it.each([
+    ["an oracle file", ["src/prune.ts", "tests/prune.test.ts"], [pair]],
+    ["no oracle file", ["src/prune.ts"], []],
+    ["nothing", [], []],
+    ["both pairs' files", ["tests/a.test.ts", "tests/prune.test.ts"], [pair, other]],
+  ])("keeps the pairs whose files the corrections change: %s", (_label, paths, expected) => {
+    expect(pairsChangedByCorrections([pair, other], paths)).toEqual(expected);
+  });
+});
+
+type Stop = AuthoredCommitStatus["stop"];
+
+const status = (
+  phaseId: string,
+  commitHash: string | undefined,
+  stop: Stop = null,
+): AuthoredCommitStatus => ({ phaseId, commitHash, stop });
+
+const heldAuthored = (reviewCommit: string): Stop => ({
+  cause: "held",
+  status: "closed",
+  outcome: "corrected",
+  reviewCommit,
+  oracleStep: "authored",
+});
+
+describe("latestAuthoredCommit", () => {
+  const C2 = "c2".repeat(20);
+  const C3 = "c3".repeat(20);
+  const R2 = "a2".repeat(20);
+  const R3 = "a3".repeat(20);
+
+  const declaredAuthored: Stop = {
+    cause: "declared",
+    status: "closed",
+    outcome: "corrected",
+    oracleStep: "authored",
+  };
+
+  it.each<readonly [string, readonly AuthoredCommitStatus[], string | null]>([
+    ["no stop: the oracle phase's commit", [status("phase-02", C2), status("phase-03", C3)], C2],
+    [
+      "a declared authored stop: its commit",
+      [status("phase-02", C2), status("phase-03", C3, declaredAuthored)],
+      C3,
+    ],
+    [
+      "a held authored stop at the oracle phase: its review commit",
+      [status("phase-02", C2, heldAuthored(R2)), status("phase-03", C3)],
+      R2,
+    ],
+    [
+      "a later held authored stop over an earlier one",
+      [status("phase-02", C2, heldAuthored(R2)), status("phase-03", C3, heldAuthored(R3))],
+      R3,
+    ],
+    [
+      "a later declared stop over an earlier held one",
+      [status("phase-02", C2, heldAuthored(R2)), status("phase-03", C3, declaredAuthored)],
+      C3,
+    ],
+    [
+      "an unchanged stop is ignored",
+      [
+        status("phase-02", C2),
+        status("phase-03", C3, { cause: "held", status: "closed", outcome: "unchanged" }),
+      ],
+      C2,
+    ],
+    [
+      "a corrected stop that ran no oracle step is ignored",
+      [
+        status("phase-02", C2),
+        status("phase-03", C3, {
+          cause: "held",
+          status: "closed",
+          outcome: "corrected",
+          reviewCommit: R3,
+          oracleStep: "none",
+        }),
+      ],
+      C2,
+    ],
+    [
+      "a waiting stop is ignored",
+      [status("phase-02", C2), status("phase-03", C3, { cause: "held", status: "waiting" })],
+      C2,
+    ],
+    [
+      "the discharge's own authored stop is ignored",
+      [status("phase-02", C2), status("phase-04", "d4".repeat(20), heldAuthored(R3))],
+      C2,
+    ],
+    ["no commit noted by the oracle phase", [status("phase-02", undefined)], null],
+  ])("%s", (_label, statuses, expected) => {
+    expect(latestAuthoredCommit(pair, phases, statuses)).toBe(expected);
   });
 });

@@ -207,6 +207,9 @@ const closeInput = (run: StoppedRun) => ({
   gateSteps: GATE_STEPS,
   gateRequest: Effect.succeed("{}"),
   fileReconciliationMode: "report_only" as const,
+  // A plan with no oracle pair: the close never runs an oracle step.
+  phases: [PHASE_03],
+  oracles: null,
 });
 
 interface CloseOptions {

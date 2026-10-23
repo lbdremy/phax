@@ -94,16 +94,25 @@ describe("resolveHold", () => {
     });
   });
 
-  it("resolves oracle to the oracle phases (once the interim rule is lifted, they are the pair's)", () => {
-    const result = resolve({ kind: "oracle" }, ORACLE_VARIANT);
-    expect(result.hold).toBeNull();
-    expect(result.findings.map((f) => f.phase)).toEqual(["phase-02"]);
+  it("resolves oracle to the oracle phases", () => {
+    expect(resolve({ kind: "oracle" }, ORACLE_VARIANT)).toEqual({
+      hold: { selection: "oracle", phases: ["phase-02"] },
+      findings: [],
+    });
   });
 
-  it("resolves all on the oracle variant, refusing only the pair's phases", () => {
-    const result = resolve({ kind: "all" }, ORACLE_VARIANT);
-    expect(result.hold).toBeNull();
-    expect(result.findings.map((f) => f.phase)).toEqual(["phase-02", "phase-03"]);
+  it("resolves all on the oracle variant to the pair's phases too", () => {
+    expect(resolve({ kind: "all" }, ORACLE_VARIANT)).toEqual({
+      hold: { selection: "all", phases: ["phase-01", "phase-02", "phase-03"] },
+      findings: [],
+    });
+  });
+
+  it("resolves a list of the pair's phases with no finding", () => {
+    expect(resolve({ kind: "listed", phases: ["phase-03", "phase-02"] }, ORACLE_VARIANT)).toEqual({
+      hold: { selection: "listed", phases: ["phase-02", "phase-03"] },
+      findings: [],
+    });
   });
 
   it.each<readonly [string, HoldRequest, readonly Phase[], readonly (string | null)[], string]>([
@@ -141,13 +150,6 @@ describe("resolveHold", () => {
       [headless("phase-01")],
       [null],
       "--hold selects no phase: the plan has no headless phase before its final phase",
-    ],
-    [
-      "a phase of an oracle pair",
-      { kind: "listed", phases: ["phase-03"] },
-      ORACLE_VARIANT,
-      ["phase-03"],
-      "sits in oracle pair phase-02 → phase-03: this phax does not hold a phase of an oracle pair yet",
     ],
   ])("refuses %s", (_label, request, phases, ids, message) => {
     const result = resolve(request, phases);

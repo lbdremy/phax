@@ -1,7 +1,8 @@
 // The oracle request: what phax writes on the oracles provider's stdin, once
 // per oracle step, and saves as `checks-attempt-NN.oracle-request.json`. Born
 // with `$schema`, two explicit variants keyed by `verdict`, every key required
-// and any other key refused. phax writes the request and never reads it back.
+// and any other key refused. phax reads a request back only to finish a
+// stop's close whose commit already landed (`readOracleRequestFile`).
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";

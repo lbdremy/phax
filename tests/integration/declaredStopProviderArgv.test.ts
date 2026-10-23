@@ -286,6 +286,9 @@ async function closeThroughCli(run: StoppedRun) {
       ],
       gateRequest: Effect.succeed("{}"),
       fileReconciliationMode: "report_only",
+      // A plan with no oracle pair: the close never runs an oracle step.
+      phases: [],
+      oracles: null,
     });
   });
   return Effect.runPromise(

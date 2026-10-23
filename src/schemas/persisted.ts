@@ -116,6 +116,7 @@ import {
 } from "./history/spec-document/pre-schema.js";
 import { decodeInteractiveHandoffFile, type InteractiveHandoffFile } from "./interactiveHandoff.js";
 import { decodeInteractiveSessionFile, type InteractiveSession } from "./interactiveSession.js";
+import { decodeOracleRequestFile, type OracleRequest } from "./oracleRequest.js";
 import { decodePhaxPlanFile, type PhaxPlan, type PhaxPlanFile } from "./phaxPlan.js";
 import {
   decodePlanDocumentFile,
@@ -1106,6 +1107,20 @@ export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, inp
     file,
     decodeCurrent: decodeInteractiveSessionFile,
     fromCurrent: ({ $schema: _schema, ...session }) => session,
+  });
+
+/**
+ * Reads a gate attempt's `checks-attempt-NN.oracle-request.json`. Born with
+ * `$schema`. Read back only by a close finished from a commit that already
+ * landed, to recover whether its gate ran the `authored` step.
+ */
+export const readOracleRequestFile: Reader<OracleRequest> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "oracle-request",
+    label: "oracle request",
+    file,
+    decodeCurrent: decodeOracleRequestFile,
+    fromCurrent: ({ $schema: _schema, ...request }) => request,
   });
 
 /** Reads a run's `review-stop.json`. Born with `$schema`. */

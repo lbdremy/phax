@@ -6,11 +6,13 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
+  makeOracleEditsUnjudgedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
 } from "../../../src/domain/telemetry/events.js";
+import { projectEvent } from "../../../src/domain/telemetry/snapshot.js";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
   decodeSemanticTelemetryEvent,
@@ -249,8 +251,25 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
   });
 });
 
+describe("makeOracleEditsUnjudgedTelemetryEvent", () => {
+  it("produces a value the schema accepts, projected with its files", () => {
+    const event = makeOracleEditsUnjudgedTelemetryEvent({
+      runId,
+      operationId: "phase-03",
+      files: ["tests/export/invoiceRow.test.ts"],
+    });
+    expect(event.type).toBe("oracle.edits.unjudged");
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(projectEvent(event)).toEqual({
+      type: "oracle.edits.unjudged",
+      operationId: "phase-03",
+      files: ["tests/export/invoiceRow.test.ts"],
+    });
+  });
+});
+
 describe("SemanticTelemetryEventSchema accepted types", () => {
-  it("accepts exactly the ten semantic event types", () => {
+  it("accepts exactly the eleven semantic event types", () => {
     const union = SemanticTelemetryEventSchema.ast;
     if (!SchemaAST.isUnion(union)) throw new Error("expected a union schema");
     const types = union.types.map((member) => {
@@ -273,6 +292,7 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
         "artifact.generated",
         "agent.model.resolved",
         "security.policy.applied",
+        "oracle.edits.unjudged",
       ].toSorted(),
     );
   });

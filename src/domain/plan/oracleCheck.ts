@@ -1,7 +1,10 @@
 /**
  * The `oracles` lint check: a phase's `**Oracle phase:**` and
  * `**Oracle files:**` lines, read from the header lines of plan.md
- * (`phaseHeader.ts`). One finding per defect, naming the line.
+ * (`phaseHeader.ts`). One finding per defect, naming the line. An interactive
+ * phase may sit between a pair and list its oracle files: the close of a
+ * review that changes one re-runs the `authored` step. It still takes no
+ * oracle role.
  */
 import type { LintFinding } from "./lint.js";
 import { declaresInteractive, oracleDeclaration, type PhaseHeader } from "./phaseHeader.js";
@@ -146,25 +149,16 @@ function roleFindings(
   return findings;
 }
 
-function interactiveRows(
+// §5.12: an interactive phase takes no oracle role, as an oracle phase or as
+// a discharging one.
+function interactiveRoleFindings(
   headers: readonly PhaseHeader[],
   declared: readonly Declared[],
   pairs: readonly Pair[],
-): { readonly inside: readonly LintFinding[]; readonly role: readonly LintFinding[] } {
-  const inside: LintFinding[] = [];
+): readonly LintFinding[] {
   const role: LintFinding[] = [];
-  headers.forEach((header, index) => {
-    if (!declaresInteractive(header)) return;
-    for (const pair of pairs) {
-      if (index > pair.oracleIndex && index < pair.dischargingIndex) {
-        inside.push(
-          error(
-            header.phase,
-            `interactive phase sits between oracle ${pair.oracle} and its discharging phase ${pair.discharging}`,
-          ),
-        );
-      }
-    }
+  for (const header of headers) {
+    if (!declaresInteractive(header)) continue;
     if (declared.some((d) => d.header.phase === header.phase)) {
       role.push(
         error(
@@ -182,14 +176,16 @@ function interactiveRows(
         ),
       );
     }
-  });
-  return { inside, role };
+  }
+  return role;
 }
 
 /**
  * Every `oracles` error of a plan: the malformed-line rows, then the rule rows
  * grouped in the order of the spec's §5.6 … §5.13, each group in plan order.
- * The rules that read planned files report nothing when `phases` is null.
+ * §5.11 (an interactive phase inside a pair) is no rule any more: the §5.10
+ * row skips an interactive phase. The rules that read planned files report
+ * nothing when `phases` is null.
  */
 export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] {
   const { headers, phases, providerConfigured } = input;
@@ -224,6 +220,8 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
   });
   const between = pairs.flatMap((pair) =>
     headers.slice(pair.oracleIndex + 1, pair.dischargingIndex).flatMap((h) => {
+      // A person reviewing between the pair may touch an oracle file.
+      if (declaresInteractive(h)) return [];
       const phase = phaseById(h.phase);
       if (phase === undefined) return [];
       const listed = [
@@ -241,7 +239,6 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
         );
     }),
   );
-  const interactive = interactiveRows(headers, declared, pairs);
   const noProvider = providerConfigured
     ? []
     : declared.map((d) =>
@@ -258,8 +255,7 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
     ...noFiles,
     ...unplanned,
     ...between,
-    ...interactive.inside,
-    ...interactive.role,
+    ...interactiveRoleFindings(headers, declared, pairs),
     ...noProvider,
   ];
 }
