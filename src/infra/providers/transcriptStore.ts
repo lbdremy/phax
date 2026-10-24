@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { readdir, readFile } from "node:fs/promises";
-import { isSafeSessionId } from "../../domain/interactive/transcripts.js";
+import { isSafeSessionId } from "../../domain/sessionId.js";
 import type { TranscriptRead } from "../../ports/backend.js";
 
 // What the three adapters share to read a transcript from a provider's own

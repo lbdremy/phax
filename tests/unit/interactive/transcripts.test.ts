@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isSafeSessionId } from "../../../src/domain/sessionId.js";
 import {
-  isSafeSessionId,
   recordedSessions,
   sha256Hex,
   transcriptFile,
