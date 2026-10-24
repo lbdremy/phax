@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610211403-interactive-phases.md",
+  "specFingerprint": "86036517883c2008b86c8613dc01d772bc240478118fbc7735e269c080323ede",
+  "approvedAt": "2026-10-24T09:00:01.037Z",
+  "baseline": "6a3531fc7b5a22ef53c161e1c591fe5826bb1488",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
