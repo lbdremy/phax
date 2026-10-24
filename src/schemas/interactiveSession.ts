@@ -4,6 +4,7 @@
 // has exactly its own keys, and any other key is refused.
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
+import { TokenUsageSchema } from "./runRecord.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
@@ -131,6 +132,10 @@ export const InteractiveSessionFileSchema = Schema.Struct({
   transcripts: Schema.NullOr(Schema.Array(TranscriptEntrySchema)).annotations({
     description:
       "Null until a close copies the recorded sessions' transcripts, then one entry per recorded session.",
+  }),
+  builderUsage: Schema.NullOr(TokenUsageSchema).annotations({
+    description:
+      "A held phase's builder usage, read once at the hold point before any closing turn; null at a declared stop.",
   }),
 });
 

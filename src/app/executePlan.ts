@@ -25,7 +25,6 @@ import {
   GateFailedError,
   GateStepRefusedError,
   HandoffPausedError,
-  HeldRecordPausedError,
   HoldPointPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
@@ -44,6 +43,7 @@ import {
   SetupCommandFailedError,
   SkillEditConsentError,
   StopCloseRefusedError,
+  StopRecordPausedError,
   UnsafeGitStateError,
   UsageLimitError,
   WorktreeCreationError,
@@ -89,10 +89,13 @@ import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
-import { writeRecord } from "./writeRecord.js";
+import { writeRecord, type RecordUsageSource } from "./writeRecord.js";
 import { recordsClonePath } from "./recordsSync.js";
 import { runPreflights } from "./runPreflight.js";
-import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
+import type { RecordPhaseOutcome, RecordStop } from "../schemas/runRecord.js";
+import type { PhaseMode } from "../schemas/phaxPlan.js";
+import { recordStopFromPersisted, recordStopOf } from "../domain/records/stopRecord.js";
+import { tracedStep } from "./telemetry/stopTelemetry.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
@@ -122,7 +125,12 @@ import {
   readPreviousReconciliation,
   readReviewCorrections,
 } from "./handoffInjection.js";
-import { readExecutedHandoffs, readPhasePosture } from "./interactiveFiles.js";
+import {
+  readExecutedHandoffs,
+  readInteractiveSession,
+  readModelResolution,
+  readPhasePosture,
+} from "./interactiveFiles.js";
 import { stopAtDeclaredPhase, stopAtHeldPhase } from "./interactiveStop.js";
 import { holdsPhase } from "../domain/hold.js";
 import type { RunHold } from "../schemas/status.js";
@@ -200,8 +208,8 @@ function isHoldPointPausedError(e: unknown): e is HoldPointPausedError {
   return e instanceof HoldPointPausedError;
 }
 
-function isHeldRecordPausedError(e: unknown): e is HeldRecordPausedError {
-  return e instanceof HeldRecordPausedError;
+function isStopRecordPausedError(e: unknown): e is StopRecordPausedError {
+  return e instanceof StopRecordPausedError;
 }
 
 // A stop reached or a close refused leaves the run awaiting review: the
@@ -223,13 +231,40 @@ function copiedHandoffIsValid(
   });
 }
 
-/** What a held phase's record needs: the builder's binding and the phase commit. */
-interface HeldRecord {
+/**
+ * What a stop's record needs, read before RunResumeRequested: the phase's
+ * assignment (a held phase's builder binding, a declared phase's routed
+ * assignment), its usage source, and, on a closed stop's re-entry, the phase
+ * commit and the stop as its files recorded it.
+ */
+interface StopRecordInputs {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
-  readonly sessionId: string | undefined;
-  readonly sourceSha: string;
+  readonly usage: RecordUsageSource;
+  /** The phase commit; unknown before a declared close, which makes it. */
+  readonly sourceSha: string | undefined;
+  /** The record's stop on a closed stop's re-entry; undefined before the close. */
+  readonly closedStop: NonNullable<RecordStop> | undefined;
+}
+
+// The record's stop as a closed stop's files recorded it: its status `stop`
+// and its interactive-session.json, whose transcripts the close set.
+function readClosedStop(
+  phaseFolderPath: string,
+  phaseId: string,
+): Effect.Effect<NonNullable<RecordStop>, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const status = yield* readPhaseStatus(phaseFolderPath);
+    const session = yield* readInteractiveSession(phaseFolderPath);
+    const stop = recordStopFromPersisted(status.stop, session);
+    if (Either.isLeft(stop)) {
+      return yield* Effect.fail(
+        new FsError({ message: `Cannot record the stop of ${phaseId}: ${stop.left}` }),
+      );
+    }
+    return stop.right;
+  });
 }
 
 /** A stop this invocation closed, for the CLI to print; its report says the cause. */
@@ -337,7 +372,7 @@ export type ExecutePlanError =
   | AwaitingReviewStopError
   | StopCloseRefusedError
   | HoldPointPausedError
-  | HeldRecordPausedError
+  | StopRecordPausedError
   | InvalidTransitionError;
 
 export function executePlan(
@@ -400,7 +435,9 @@ export function executePlan(
     readonly provider: ProviderId;
     readonly model: string;
     readonly effort: string;
-    readonly sessionId: string | undefined;
+    readonly mode: PhaseMode;
+    readonly stop: RecordStop;
+    readonly usage: RecordUsageSource;
     readonly outcome: RecordPhaseOutcome;
     readonly sourceSha?: string | undefined;
     // A destination refusal (spec §5.4) is a deliberate policy decision, not
@@ -422,12 +459,16 @@ export function executePlan(
         effort: args.effort,
         outcome: args.outcome,
         oracle: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
+        mode: args.mode,
+        stop: args.stop,
+        // A session's usage reads a vibe session under the ProviderStoreRoots
+        // vibe root the run's layer provides.
+        usage: args.usage,
         records: config.records,
         ...(config.records.destination.kind === "repo"
           ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
           : {}),
         ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
-        ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
       }).pipe(
         // A record-write I/O failure never fails the run — it degrades to a warning.
         Effect.catchAll((e) =>
@@ -462,6 +503,67 @@ export function executePlan(
     });
   }
 
+  // The record a closed stop owes, declared or held, written once from what
+  // the close reported or what was read before RunResumeRequested. A refused
+  // destination is the headless record policy, made resumable: the close
+  // stands, so StopRecordRefused pauses the run with the record still owed,
+  // which the closed stop's re-entry writes once. A failure of that dispatch
+  // still ends in the pause. Traced as the `stop.record` step when records
+  // are configured.
+  function writeStopRecord(args: {
+    readonly phase: PhaxPlanPhase;
+    readonly phaseFolderPath: string;
+    readonly worktreePath: WorktreePath;
+    readonly inputs: StopRecordInputs;
+    /** The declared commit, or a held phase's own commit (never its review commit). */
+    readonly sourceSha: string;
+    readonly stop: NonNullable<RecordStop>;
+  }): Effect.Effect<
+    void,
+    StopRecordPausedError,
+    Git | FileSystem | GitHub | Shell | SystemTelemetry
+  > {
+    const { phase, inputs } = args;
+    const write = writeRecordForPhase({
+      phaseId: phase.id,
+      phaseFolderPath: args.phaseFolderPath,
+      provider: inputs.provider,
+      model: inputs.model,
+      effort: inputs.effort,
+      mode: phase.mode,
+      stop: args.stop,
+      usage: inputs.usage,
+      outcome: "committed",
+      sourceSha: args.sourceSha,
+    }).pipe(
+      Effect.catchAll((refused) =>
+        Effect.gen(function* () {
+          yield* dispatch(
+            {
+              ...eventBase(phase.id),
+              type: "StopRecordRefused",
+              phaseId: phase.id as PhaseId,
+              cause: args.stop.cause,
+              phaseCommit: args.sourceSha,
+              worktreePath: args.worktreePath,
+              reason: refused.message,
+            },
+            dispatchCtx(args.phaseFolderPath, phase.id),
+          ).pipe(Effect.catchAll(() => Effect.void));
+          return yield* Effect.fail(
+            new StopRecordPausedError({
+              message: refused.message,
+              phaseId: phase.id,
+              cause: refused,
+            }),
+          );
+        }),
+      ),
+    );
+    if (!config.records.enabled) return write;
+    return tracedStep({ runId, phaseId: phase.id, step: "stop.record" }, write, () => true);
+  }
+
   // These errors pause the run (interrupted, resumable via `phax resume`) rather
   // than terminally failing it; every other error is a terminal RunFailed. A
   // pause is not a terminal phase outcome — the phase resumes in a later process
@@ -479,7 +581,7 @@ export function executePlan(
       isCleanupPausedError(e) ||
       isArtifactCompletionPausedError(e) ||
       isHoldPointPausedError(e) ||
-      isHeldRecordPausedError(e) ||
+      isStopRecordPausedError(e) ||
       isReviewStopError(e)
     );
   }
@@ -794,11 +896,13 @@ export function executePlan(
   }
 
   // What the record of a held phase needs, read from the phase's own files and
-  // never from HEAD: the builder's binding and the phase commit.
+  // never from HEAD: the builder's binding, the phase commit and the builder's
+  // usage recorded at the hold point; on a closed stop's re-entry, its stop.
   function readHeldRecord(
     phaseFolderPath: string,
     phaseId: string,
-  ): Effect.Effect<HeldRecord, FsError | RegistryCorruptionError, FileSystem> {
+    closed: boolean,
+  ): Effect.Effect<StopRecordInputs, FsError | RegistryCorruptionError, FileSystem> {
     return Effect.gen(function* () {
       const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
       if (Either.isLeft(binding)) {
@@ -815,12 +919,53 @@ export function executePlan(
           new FsError({ message: `${phaseId} is held but noted no commit in its status` }),
         );
       }
+      const session = yield* readInteractiveSession(phaseFolderPath);
+      if (session === null || session.builderUsage === null) {
+        return yield* Effect.fail(
+          new FsError({
+            message: `${phaseId} is held but its interactive-session.json records no builder usage`,
+          }),
+        );
+      }
       return {
         provider: binding.right.provider,
         model: binding.right.model,
         effort: binding.right.effort,
-        sessionId: binding.right.sessionId ?? undefined,
+        usage: { kind: "recorded", usage: session.builderUsage },
         sourceSha: commit,
+        closedStop: closed ? yield* readClosedStop(phaseFolderPath, phaseId) : undefined,
+      };
+    });
+  }
+
+  // What the record of a declared phase needs: its routed assignment, with
+  // the effort the close computes (`model.effort ?? phase.effort`); on a
+  // closed stop's re-entry, the declared commit and its stop. No agent
+  // session built the phase, so its record names no usage.
+  function readDeclaredRecord(
+    phaseFolderPath: string,
+    phase: PhaxPlanPhase,
+    closed: boolean,
+  ): Effect.Effect<StopRecordInputs, FsError, FileSystem> {
+    return Effect.gen(function* () {
+      const model = yield* readModelResolution(phaseFolderPath);
+      const assignment = {
+        provider: model.provider,
+        model: model.model,
+        effort: model.effort ?? phase.effort,
+        usage: { kind: "none" } as const,
+      };
+      if (!closed) return { ...assignment, sourceSha: undefined, closedStop: undefined };
+      const { commit } = yield* readPhaseCommit(phaseFolderPath);
+      if (commit === null) {
+        return yield* Effect.fail(
+          new FsError({ message: `${phase.id} closed its stop but noted no commit in its status` }),
+        );
+      }
+      return {
+        ...assignment,
+        sourceSha: commit,
+        closedStop: yield* readClosedStop(phaseFolderPath, phase.id),
       };
     });
   }
@@ -1161,23 +1306,29 @@ export function executePlan(
       (resumeFromStop || resumeFromHeldStop || resumeFromClosedStop) && resumePhase !== undefined
         ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
         : undefined;
-    // A held stop's record is read now, before RunResumeRequested, so a failure
-    // changes nothing and nothing is read after the close.
-    const heldRecord =
-      (resumeFromHeldStop || (resumeFromClosedStop && resumeClosedCause === "held")) &&
-      resumePhaseFolderPath !== undefined &&
-      resumePhaseId !== undefined
-        ? yield* readHeldRecord(resumePhaseFolderPath, resumePhaseId)
-        : undefined;
-    // A closed held stop owes its record only when none is on the records
-    // branch yet, which is listed now for the same reason.
+    // What a stop's record needs is read now, before RunResumeRequested, for
+    // either cause, so a failure changes nothing and nothing is read after
+    // the close.
+    const stopCause: "declared" | "held" | undefined = resumeFromStop
+      ? "declared"
+      : resumeFromHeldStop
+        ? "held"
+        : resumeFromClosedStop
+          ? resumeClosedCause
+          : undefined;
+    // A closed stop owes its record only when none is on the records branch
+    // yet, which is listed now for the same reason; only then is its stop
+    // read back from its files.
     const closedStopOwesRecord =
-      resumeFromClosedStop &&
-      resumeClosedCause === "held" &&
-      config.records.enabled &&
-      resumePhaseId !== undefined
+      resumeFromClosedStop && config.records.enabled && resumePhaseId !== undefined
         ? !(yield* phaseRecordExists(resumePhaseId))
         : false;
+    const stopRecordInputs =
+      stopCause !== undefined && resumePhase !== undefined && resumePhaseFolderPath !== undefined
+        ? stopCause === "held"
+          ? yield* readHeldRecord(resumePhaseFolderPath, resumePhase.id, closedStopOwesRecord)
+          : yield* readDeclaredRecord(resumePhaseFolderPath, resumePhase, closedStopOwesRecord)
+        : undefined;
     // So is a hold point's: its worktree and branch must still be there.
     const holdPointReentry =
       resumeAtHoldPoint && resumePhase !== undefined
@@ -1241,9 +1392,9 @@ export function executePlan(
       }
 
       if (phase.mode === "interactive") {
-        // A phase no agent builds: no work session, gate, fix loop, handoff
-        // turn or record. Entered fresh, it stops after a read-only first
-        // turn; a resume closes the stop, runs the cleanup and goes on.
+        // A phase no agent builds: no work session, gate, fix loop or handoff
+        // turn. Entered fresh, it stops after a read-only first turn; a resume
+        // closes the stop, writes its record, runs the cleanup and goes on.
         currentPhaseId = phase.id;
         currentWorktreePath = undefined;
         currentSessionId = undefined;
@@ -1269,7 +1420,16 @@ export function executePlan(
           currentPhaseFolderPath = stopFolder;
           currentWorktreePath = reentryWorktree as string;
 
+          // What the record needs was read before RunResumeRequested; a
+          // cleanup re-entry writes no record.
+          const declaredRecord = isResumeFromCleanup ? undefined : stopRecordInputs;
+          if (!isResumeFromCleanup && declaredRecord === undefined) {
+            return yield* Effect.dieMessage(`No record inputs for the stop at ${phase.id}`);
+          }
           if (isResumeFromStop) {
+            // A failure of the close past its commit leaves the run for a
+            // resume to finish: it is never a RunFailed.
+            closeInFlight = true;
             const report = yield* closeStop({
               runId,
               shortName: shortName as string,
@@ -1286,8 +1446,37 @@ export function executePlan(
               oracles: config.oracles ?? null,
               mainCheckout: config.repoRoot,
             });
+            closeInFlight = false;
             committedPhases.push(phase.id);
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
+            if (report.cause !== "declared" || declaredRecord === undefined) {
+              return yield* Effect.dieMessage(`The stop at ${phase.id} did not close as declared`);
+            }
+            yield* writeStopRecord({
+              phase,
+              phaseFolderPath: stopFolder,
+              worktreePath: reentryWorktree,
+              inputs: declaredRecord,
+              sourceSha: report.commit,
+              stop: recordStopOf(report),
+            });
+          } else if (isResumeFromClosedStop && closedStopOwesRecord) {
+            if (
+              declaredRecord?.sourceSha === undefined ||
+              declaredRecord.closedStop === undefined
+            ) {
+              return yield* Effect.dieMessage(
+                `No recorded stop for the closed stop at ${phase.id}`,
+              );
+            }
+            yield* writeStopRecord({
+              phase,
+              phaseFolderPath: stopFolder,
+              worktreePath: reentryWorktree,
+              inputs: declaredRecord,
+              sourceSha: declaredRecord.sourceSha,
+              stop: declaredRecord.closedStop,
+            });
           }
           // The lint keeps an interactive phase off the last place, so it
           // always has a cleanup.
@@ -1426,8 +1615,14 @@ export function executePlan(
         // A held stop's close, or a closed held stop's re-entry. Its worktree
         // and what its record needs were read before RunResumeRequested, and
         // nothing is read after the close: the record is written from them.
-        if (stopReentry === undefined || heldRecord === undefined) {
+        if (stopReentry === undefined || stopRecordInputs === undefined) {
           return yield* Effect.dieMessage(`No checked re-entry for the held stop at ${phase.id}`);
+        }
+        const heldRecord = stopRecordInputs;
+        // The phase commit, never HEAD (which is the review commit).
+        const phaseCommit = heldRecord.sourceSha;
+        if (phaseCommit === undefined) {
+          return yield* Effect.dieMessage(`No phase commit read for the held stop at ${phase.id}`);
         }
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
@@ -1440,44 +1635,17 @@ export function executePlan(
         currentModel = undefined;
         currentEffort = undefined;
 
-        // A refused destination is the headless record policy, made
-        // resumable: the close stands, so HeldRecordRefused pauses the run
-        // with the record still owed, which the closed stop's re-entry writes
-        // once. A failure of that dispatch still ends in the pause.
-        const writeHeldRecord = writeRecordForPhase({
-          phaseId: phase.id,
-          phaseFolderPath: heldFolder,
-          provider: heldRecord.provider,
-          model: heldRecord.model,
-          effort: heldRecord.effort,
-          sessionId: heldRecord.sessionId,
-          outcome: "committed",
-          // The phase commit, never HEAD (which is the review commit).
-          sourceSha: heldRecord.sourceSha,
-        }).pipe(
-          Effect.catchAll((refused) =>
-            Effect.gen(function* () {
-              yield* dispatch(
-                {
-                  ...eventBase(phase.id),
-                  type: "HeldRecordRefused",
-                  phaseId: phase.id as PhaseId,
-                  phaseCommit: heldRecord.sourceSha,
-                  worktreePath: stopReentry.worktree,
-                  reason: refused.message,
-                },
-                dispatchCtx(heldFolder, phase.id),
-              ).pipe(Effect.catchAll(() => Effect.void));
-              return yield* Effect.fail(
-                new HeldRecordPausedError({
-                  message: refused.message,
-                  phaseId: phase.id,
-                  cause: refused,
-                }),
-              );
-            }),
-          ),
-        );
+        // Its usage is the builder's at the hold point, so a closing turn
+        // that grew a vibe session's meta.json is not counted.
+        const writeHeldRecord = (stop: NonNullable<RecordStop>) =>
+          writeStopRecord({
+            phase,
+            phaseFolderPath: heldFolder,
+            worktreePath: stopReentry.worktree,
+            inputs: heldRecord,
+            sourceSha: phaseCommit,
+            stop,
+          });
 
         if (resumeFromHeldStop) {
           // A failure of the close past its commit leaves the run for a
@@ -1502,9 +1670,12 @@ export function executePlan(
           closeInFlight = false;
           committedPhases.push(phase.id);
           opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
-          yield* writeHeldRecord;
+          yield* writeHeldRecord(recordStopOf(report));
         } else if (closedStopOwesRecord) {
-          yield* writeHeldRecord;
+          if (heldRecord.closedStop === undefined) {
+            return yield* Effect.dieMessage(`No recorded stop for the closed stop at ${phase.id}`);
+          }
+          yield* writeHeldRecord(heldRecord.closedStop);
         }
         yield* Effect.promise(() => patchAgentBindingStatus(heldFolder, "completed"));
         yield* cleanupCommittedPhase({
@@ -2130,7 +2301,9 @@ export function executePlan(
           provider: agentOptions.provider,
           model: agentOptions.model,
           effort: agentOptions.effort,
-          sessionId: sessionId as string,
+          mode: phase.mode,
+          stop: null,
+          usage: { kind: "session", sessionId: sessionId as string },
           outcome: "committed",
           ...(recordSourceSha !== undefined ? { sourceSha: recordSourceSha } : {}),
         });
@@ -2295,10 +2468,11 @@ export function executePlan(
     Effect.tapError((e) =>
       Effect.gen(function* () {
         if (isResumablePauseError(e) || currentPhaseId === undefined) return;
-        // No agent session built an interactive phase, so it gets no record
-        // (plan 3 records the stop).
+        // No agent session built an interactive phase, so it gets no `failed`
+        // record: its record is written once, when its stop closes.
         const failedPhaseId = currentPhaseId;
-        if (plan.phases.find((p) => p.id === failedPhaseId)?.mode === "interactive") return;
+        const failedPhase = plan.phases.find((p) => p.id === failedPhaseId);
+        if (failedPhase === undefined || failedPhase.mode === "interactive") return;
         // A held phase committed before it stopped: nothing after its commit
         // writes a `failed` record for it, so a phase with a stop writes none.
         if (currentPhaseFolderPath !== undefined) {
@@ -2328,7 +2502,9 @@ export function executePlan(
             provider: currentProvider,
             model: currentModel,
             effort: currentEffort,
-            sessionId: currentSessionId,
+            mode: failedPhase.mode,
+            stop: null,
+            usage: { kind: "session", sessionId: currentSessionId },
             outcome: "failed",
             failOnRefusal: false,
           }).pipe(Effect.catchAll(() => Effect.void));
@@ -2431,18 +2607,18 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
-    // A records destination that refused a closed held stop's record pauses
-    // the run instead of failing it: HeldRecordRefused was dispatched where the
+    // A records destination that refused a closed stop's record pauses the
+    // run instead of failing it: StopRecordRefused was dispatched where the
     // record was refused (interrupted, the phase committed with its stop
     // closed, resume-instructions.md written), so we just re-raise here.
-    Effect.catchIf(isHeldRecordPausedError, (e) =>
+    Effect.catchIf(isStopRecordPausedError, (e) =>
       Effect.gen(function* () {
         return yield* Effect.fail(e);
       }),
     ),
     // The interactive preflight refusal leaves an existing run's state and last
     // error as they were (spec §5.9): the plan is fixed, then resumed again. A
-    // held close that fails past its commit is finished by a resume, so it
+    // close, declared or held, that fails past its commit is finished by a resume, so it
     // never fails the run either, nor does a re-entry read that fails before
     // RunResumeRequested.
     Effect.tapError((e) =>

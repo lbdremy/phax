@@ -1,8 +1,10 @@
+import type { PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ProviderId } from "../../schemas/providerId.js";
 import type {
   RecordOracleRole,
   RecordPhaseOutcome,
   RecordShape,
+  RecordStop,
   RunRecordManifest,
   TokenUsage,
 } from "../../schemas/runRecord.js";
@@ -28,6 +30,10 @@ export interface AssembleRecordInput {
   readonly verifiedSurfaces: readonly RecordedSurface[];
   /** The phase's role in an oracle pair, or null when it is in none. */
   readonly oracle: RecordOracleRole;
+  /** The plan's mode for the phase. */
+  readonly mode: PhaseMode;
+  /** The phase's stop, or null when it never stopped. */
+  readonly stop: RecordStop;
 }
 
 export interface AssembledRecord {
@@ -67,7 +73,9 @@ export function selectRecordArtifacts(
  * commits what this returns.
  */
 export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
-  // A stop's files are the review's, never the agent's work.
+  // A stop's files are the review's, never the agent's work. Its transcript
+  // copies (`interactive-transcripts/`) are among them, so `records.transcript`
+  // decides only about `output.jsonl`.
   const { shape, artifactPaths } = selectRecordArtifacts(
     input.files.filter((file) => !isStopArtifact(file)),
     input.transcriptEnabled,
@@ -86,6 +94,8 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     usage: input.usage,
     verifiedSurfaces: input.verifiedSurfaces,
     oracle: input.oracle,
+    mode: input.mode,
+    stop: input.stop,
   };
 
   return { manifest, artifactPaths };

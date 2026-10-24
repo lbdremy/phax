@@ -1440,12 +1440,12 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return assertNever(state);
       }
 
-    case "HeldRecordRefused":
+    case "StopRecordRefused":
       switch (state.run) {
         case "running": {
           const ps = state.phase.state;
-          // After HeldStopClosed, or on a closed stop's re-entry: the phase is
-          // committed and its closed stop stays as it is.
+          // After StopCommitted or HeldStopClosed, or on a closed stop's
+          // re-entry: the phase is committed and its closed stop stays as it is.
           if (ps === "committed") {
             return handled(
               { run: "interrupted", phase: { state: "committed", hash: event.phaseCommit } },
@@ -1453,14 +1453,14 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 {
                   type: "PersistState",
                   patch: {
-                    run: { stoppedReason: "held_record_refused", lastError: event.reason },
+                    run: { stoppedReason: "stop_record_refused", lastError: event.reason },
                   },
                 },
                 {
                   type: "WriteResumeInstructions",
                   ctx: {
                     reason: "Records destination refused",
-                    kind: "held_record_refused",
+                    kind: "stop_record_refused",
                     phaseId: event.phaseId,
                     worktreePath: event.worktreePath as string,
                     rawMessage: event.reason,
@@ -1468,10 +1468,10 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 },
                 {
                   type: "EmitTrace",
-                  name: "held.record.refused",
+                  name: "stop.record.refused",
                   status: "failed",
                   boundary: "records",
-                  details: { phaseId: event.phaseId, reason: event.reason },
+                  details: { phaseId: event.phaseId, cause: event.cause, reason: event.reason },
                 },
                 {
                   type: "EmitTrace",
@@ -1483,22 +1483,22 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
               ],
             );
           }
-          return unexpected(`held record refused while phase is ${ps}`);
+          return unexpected(`stop record refused while phase is ${ps}`);
         }
         case "rate_limited":
-          return stale("held record refused on rate-limited run");
+          return stale("stop record refused on rate-limited run");
         case "interrupted":
-          return stale("held record refused on interrupted run");
+          return stale("stop record refused on interrupted run");
         case "created":
         case "review_open":
-          return unexpected(`held record refused while run is ${state.run}`);
+          return unexpected(`stop record refused while run is ${state.run}`);
         case "failed":
         case "completed":
         case "stopped":
         case "archived":
-          return stale(`held record refused on ${state.run} run`);
+          return stale(`stop record refused on ${state.run} run`);
         case "awaiting_review":
-          return stale("HeldRecordRefused while the run awaits review");
+          return stale("StopRecordRefused while the run awaits review");
         default:
           return assertNever(state);
       }

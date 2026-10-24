@@ -258,12 +258,12 @@ function buildHoldPointFailedInstructions(input: ResumeInstructionsInput): strin
   return lines.join("\n");
 }
 
-function buildHeldRecordRefusedInstructions(input: ResumeInstructionsInput): string {
+function buildStopRecordRefusedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
     "",
-    "This run paused after closing a held stop: the records destination refused the",
+    "This run paused after closing a stop: the records destination refused the",
     "phase's record. The close and its commits stand. Apply the remedy below, then",
     "resume: `phax resume` writes the record once, runs the cleanup and goes on.",
     "",
@@ -377,8 +377,8 @@ export function buildResumeInstructions(input: ResumeInstructionsInput): string 
   if (input.kind === "hold_point_failed") {
     return buildHoldPointFailedInstructions(input);
   }
-  if (input.kind === "held_record_refused") {
-    return buildHeldRecordRefusedInstructions(input);
+  if (input.kind === "stop_record_refused") {
+    return buildStopRecordRefusedInstructions(input);
   }
   return buildRateLimitInstructions(input);
 }

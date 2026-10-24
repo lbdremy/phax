@@ -214,10 +214,11 @@ const samples = {
     worktreePath,
     reason: "the seed could not be written",
   },
-  HeldRecordRefused: {
+  StopRecordRefused: {
     ...base,
-    type: "HeldRecordRefused",
+    type: "StopRecordRefused",
     phaseId,
+    cause: "declared",
     phaseCommit: "abc123",
     worktreePath,
     reason: "records destination refused",
@@ -288,8 +289,8 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.phaseCommit}:${event.closure.outcome}`;
     case "HoldPointFailed":
       return `${event.type}:${event.phaseId}:${event.reason}`;
-    case "HeldRecordRefused":
-      return `${event.type}:${event.phaseId}:${event.reason}`;
+    case "StopRecordRefused":
+      return `${event.type}:${event.phaseId}:${event.cause}:${event.reason}`;
     default:
       return assertNever(event);
   }

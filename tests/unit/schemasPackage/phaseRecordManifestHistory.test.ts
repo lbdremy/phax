@@ -66,14 +66,19 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     const result = parsePhaseRecordManifest(preSchema);
     if (!result.ok) throw new Error("expected a pre-schema manifest");
     const latest = toLatestPhaseRecordManifest(result.value);
-    // Older than `oracle`: lifted with oracle null, the only value that is true of it.
-    expect(latest).toEqual({ ...withoutKey(preSchema, "version"), oracle: null });
+    // Older than `oracle`, `mode` and `stop`: lifted with the only values true of it.
+    expect(latest).toEqual({
+      ...withoutKey(preSchema, "version"),
+      oracle: null,
+      mode: "headless",
+      stop: null,
+    });
     expect(latest).not.toHaveProperty("version");
   });
 
-  it("lifts a manifest stamped 0.17.0 to oracle null and keeps its surfaces", () => {
+  it("lifts a manifest stamped 0.17.0 to oracle null, mode headless and stop null, and keeps its surfaces", () => {
     const stamped = withKey(
-      withoutKey(written, "oracle"),
+      withoutKey(withoutKey(withoutKey(written, "oracle"), "mode"), "stop"),
       "$schema",
       schemaUrl("phase-record-manifest", "0.17.0"),
     );
@@ -81,7 +86,18 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     if (!result.ok) throw new Error("expected a 0.17.0 manifest");
     expect(result.shape).toBe("0.17.0");
     const latest = toLatestPhaseRecordManifest(result.value);
-    expect(latest).toEqual({ ...withoutKey(stamped, "$schema"), oracle: null });
+    expect(latest).toEqual({
+      ...withoutKey(stamped, "$schema"),
+      oracle: null,
+      mode: "headless",
+      stop: null,
+    });
+  });
+
+  it("refuses a manifest stamped at the current release without mode or stop", () => {
+    for (const key of ["mode", "stop"]) {
+      expect(parsePhaseRecordManifest(withoutKey(written, key)).ok).toBe(false);
+    }
   });
 
   it("gives the same value for the pre-schema manifest and the one phax writes", () => {

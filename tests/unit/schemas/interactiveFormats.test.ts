@@ -183,6 +183,7 @@ const interactiveSession = {
   firstTurns: [],
   turnInProgress: null,
   transcripts: null,
+  builderUsage: null,
 };
 const stampedSession = (value: object) => withSchemaUrl("interactive-session", value);
 
@@ -374,6 +375,38 @@ describe("interactive-session", () => {
       ).toBe(false);
     }
     const { transcripts: _omitted, ...without } = interactiveSession;
+    expect(accepted(decodeInteractiveSessionFile(stampedSession(without)))).toBe(false);
+  });
+
+  it("decodes builderUsage as null or a token usage, and refuses it missing or with another key", () => {
+    const usage = {
+      available: true,
+      usage: {
+        provider: "mistral-vibe",
+        inputTokens: 10,
+        outputTokens: 5,
+        sessionCostUsd: 0.01,
+        toolCallsAgreed: 1,
+        toolCallsRejected: 0,
+        toolCallsFailed: 0,
+        toolCallsSucceeded: 1,
+      },
+    };
+    for (const builderUsage of [null, usage, { available: false }]) {
+      expect(
+        accepted(
+          decodeInteractiveSessionFile(stampedSession({ ...interactiveSession, builderUsage })),
+        ),
+      ).toBe(true);
+    }
+    expect(
+      accepted(
+        decodeInteractiveSessionFile(
+          stampedSession({ ...interactiveSession, builderUsage: { available: false, extra: 1 } }),
+        ),
+      ),
+    ).toBe(false);
+    const { builderUsage: _omitted, ...without } = interactiveSession;
     expect(accepted(decodeInteractiveSessionFile(stampedSession(without)))).toBe(false);
   });
 

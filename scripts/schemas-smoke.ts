@@ -71,6 +71,8 @@ export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManife
       },
       verifiedSurfaces: ["local", "structural"],
       oracle: null,
+      mode: "headless",
+      stop: null,
     } as const),
   );
 }

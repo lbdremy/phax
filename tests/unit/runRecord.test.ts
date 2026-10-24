@@ -24,6 +24,8 @@ const baseManifest = {
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [] as const,
   oracle: null,
+  mode: "headless" as const,
+  stop: null,
 };
 
 describe("TokenUsageSchema", () => {

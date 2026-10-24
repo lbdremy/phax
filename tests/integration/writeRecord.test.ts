@@ -110,6 +110,9 @@ describe("writeRecord", () => {
       effort: "high",
       outcome: "committed",
       oracle: null,
+      mode: "headless",
+      stop: null,
+      usage: { kind: "session", sessionId: undefined },
       records: inRepoConfig(true),
       ...overrides,
     };
@@ -347,6 +350,88 @@ describe("writeRecord", () => {
       role: "discharging",
       oraclePhase: "phase-01",
     });
+  });
+
+  it("takes the usage from its source: the session's output.jsonl, a recorded usage, or none", async () => {
+    await seedPhaseFolder({
+      "prompt.md": "p\n",
+      "output.jsonl": `${JSON.stringify({
+        type: "result",
+        total_cost_usd: 0.5,
+        usage: {
+          input_tokens: 10,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+          output_tokens: 5,
+        },
+      })}\n`,
+    });
+    const recorded = {
+      available: true,
+      usage: {
+        provider: "claude-code",
+        inputTokens: 1,
+        cacheCreationInputTokens: 2,
+        cacheReadInputTokens: 3,
+        outputTokens: 4,
+        totalCostUsd: 0.01,
+      },
+    } as const;
+
+    // Each records commit holds only its own record: read each as it lands.
+    await run(writeRecord(baseInput({ phaseId: "phase-01" })));
+    expect(readManifest("run-1/phase-01")["usage"]).toMatchObject({
+      available: true,
+      usage: { provider: "claude-code", inputTokens: 10, outputTokens: 5 },
+    });
+    await run(
+      writeRecord(baseInput({ phaseId: "phase-02", usage: { kind: "recorded", usage: recorded } })),
+    );
+    expect(readManifest("run-1/phase-02")["usage"]).toEqual(recorded);
+    await run(writeRecord(baseInput({ phaseId: "phase-03", usage: { kind: "none" } })));
+    expect(readManifest("run-1/phase-03")["usage"]).toEqual({ available: false });
+  });
+
+  it("writes the phase's mode and stop, and no interactive transcript, whatever records.transcript says", async () => {
+    const stop = {
+      cause: "declared",
+      outcome: "corrected",
+      closedBy: { name: "Ada Example", email: "ada@example.test" },
+      sessions: [
+        {
+          provider: "codex-cli",
+          model: "gpt-5.5",
+          effort: "medium",
+          sessionId: "X1",
+          origin: "first-turn",
+          transcript: { status: "captured", sha256: "b".repeat(64) },
+        },
+      ],
+    } as const;
+    await seedPhaseFolder({
+      "prompt.md": "p\n",
+      "phase-handoff.md": "h\n",
+      "interactive-transcripts/X1.jsonl": '{"said":"the secret the person typed"}\n',
+    });
+
+    for (const [phaseId, transcript] of [
+      ["phase-03", true],
+      ["phase-04", false],
+    ] as const) {
+      await run(
+        writeRecord(
+          baseInput({
+            phaseId,
+            mode: "interactive",
+            stop,
+            usage: { kind: "none" },
+            records: inRepoConfig(transcript),
+          }),
+        ),
+      );
+      expect(readManifest(`run-1/${phaseId}`)).toMatchObject({ mode: "interactive", stop });
+      expect(lsRecords().filter((path) => path.includes("interactive-transcripts"))).toEqual([]);
+    }
   });
 
   it("names no verified surfaces when a phase has no gate-attribution.json", async () => {

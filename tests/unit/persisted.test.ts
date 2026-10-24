@@ -43,6 +43,7 @@ import {
 } from "../../src/schemas/schemaUrl.js";
 import {
   EXAMPLE_BASE,
+  heldPhaseRecordManifestDocument,
   latestPreSchema,
   preSchemaDocuments,
   validDocuments,
@@ -681,11 +682,12 @@ describe("format readers", () => {
     (id, label, file) => {
       const { version: _version, ...recorded } = preSchemaDocuments[id];
       // A pre-schema authoring session was never retried: it upgrades with retry none.
-      // A pre-schema phase manifest predates oracle phases: it upgrades with oracle null.
+      // A pre-schema phase manifest predates oracle phases and stops: it
+      // upgrades with oracle null, mode headless and stop null.
       const expected =
         id === "authoring-record-manifest"
           ? { ...recorded, retry: "none" }
-          : { ...recorded, oracle: null };
+          : { ...recorded, oracle: null, mode: "headless", stop: null };
       const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
       const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
       expect(fromPreSchema).toEqual(expected);
@@ -730,18 +732,59 @@ describe("format readers", () => {
     );
   });
 
-  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to oracle null, and refuses a current one without oracle", () => {
+  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to oracle null, mode headless and stop null, and refuses a current one without any of them", () => {
     const file = "run-0001/phase-01/record.json";
+    const unstopped = withoutKey(
+      withoutKey(validDocuments["phase-record-manifest"], "mode"),
+      "stop",
+    );
     const older = withKey(
-      withoutKey(validDocuments["phase-record-manifest"], "oracle"),
+      withoutKey(unstopped, "oracle"),
       "$schema",
       schemaUrl("phase-record-manifest", "0.17.0"),
     );
-    expect(right(readRecordManifestFile(file, older))).toMatchObject({ oracle: null });
+    expect(right(readRecordManifestFile(file, older))).toMatchObject({
+      oracle: null,
+      mode: "headless",
+      stop: null,
+    });
     expect(right(readRecordManifestFile(file, older))).not.toHaveProperty("$schema");
 
-    const current = withoutKey(validDocuments["phase-record-manifest"], "oracle");
-    expect(left(readRecordManifestFile(file, current)).format).toBe("phase-record-manifest");
+    // q-dev-records: a current-stamped manifest without mode or stop stays refused.
+    for (const key of ["oracle", "mode", "stop"]) {
+      const current = withoutKey(validDocuments["phase-record-manifest"], key);
+      expect(left(readRecordManifestFile(file, current)).format).toBe("phase-record-manifest");
+    }
+  });
+
+  it("readRecordManifestFile reads each stop variant, and refuses a stop with an extra key", () => {
+    const file = "run-0001/phase-01/record.json";
+    const held = heldPhaseRecordManifestDocument;
+    const stop = held["stop"] as Doc;
+    const closedBy = stop["closedBy"];
+    const sessions = stop["sessions"];
+    const variants = [
+      stop,
+      { cause: "held", outcome: "unchanged", closedBy, sessions: [] },
+      { cause: "declared", outcome: "corrected", closedBy, sessions },
+      { cause: "declared", outcome: "unchanged", closedBy, sessions: [] },
+    ];
+    for (const variant of variants) {
+      expect(right(readRecordManifestFile(file, withKey(held, "stop", variant)))).toMatchObject({
+        stop: variant,
+      });
+    }
+    expect(
+      left(readRecordManifestFile(file, withKey(held, "stop", withKey(stop, "note", "x")))).format,
+    ).toBe("phase-record-manifest");
+    expect(
+      left(
+        readRecordManifestFile(
+          file,
+          withKey(held, "stop", { ...(variants[3] as Doc), reviewCommit: "2".repeat(40) }),
+        ),
+      ).format,
+    ).toBe("phase-record-manifest");
   });
 
   it("readGateAttributionFile reads a 0.21.0-stamped attribution", () => {
@@ -877,7 +920,7 @@ describe("documents from another release", () => {
       : id === "authoring-record-manifest"
         ? withoutKey(validDocuments[id], "retry")
         : id === "phase-record-manifest"
-          ? withoutKey(validDocuments[id], "oracle")
+          ? withoutKey(withoutKey(withoutKey(validDocuments[id], "oracle"), "mode"), "stop")
           : id === "plan-approval-record" || id === "spec-approval-record"
             ? withoutKey(validDocuments[id], "approvedBy")
             : id === "spec-document"

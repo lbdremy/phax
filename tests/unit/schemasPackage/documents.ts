@@ -752,7 +752,12 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "phase-record-manifest": encoded(
     RunRecordManifestFileSchema,
-    withSchemaUrl("phase-record-manifest", { ...stepped(phaseRecordManifest), oracle: null }),
+    withSchemaUrl("phase-record-manifest", {
+      ...stepped(phaseRecordManifest),
+      oracle: null,
+      mode: "headless",
+      stop: null,
+    }),
   ),
   "authoring-record-manifest": encoded(
     AuthoringRecordManifestFileSchema,
@@ -901,6 +906,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         },
       ],
+      builderUsage: null,
     }),
   ),
   "review-stop": encoded(
@@ -1099,6 +1105,50 @@ export const builderInteractiveSessionDocument: Doc = encoded(
       startedAt: "2026-01-01T09:20:00.000Z",
     },
     transcripts: null,
+    builderUsage: {
+      available: true,
+      usage: {
+        provider: "claude-code",
+        inputTokens: 1200,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 300,
+        outputTokens: 400,
+        totalCostUsd: 0.02,
+      },
+    },
+  }),
+);
+
+/**
+ * A current-shape phase record manifest of a held phase closed with
+ * corrections: its stop names the review commit, its closer and the builder
+ * session with its transcript's digest.
+ */
+export const heldPhaseRecordManifestDocument: Doc = encoded(
+  RunRecordManifestFileSchema,
+  withSchemaUrl("phase-record-manifest", {
+    ...stepped(phaseRecordManifest),
+    oracle: null,
+    mode: "headless",
+    stop: {
+      cause: "held",
+      outcome: "corrected",
+      reviewCommit: "0123456789abcdef0123456789abcdef01234567",
+      closedBy: { name: "Ada Example", email: "ada@example.test" },
+      sessions: [
+        {
+          provider: "claude-code",
+          model: "claude-sonnet-5-5",
+          effort: "high",
+          sessionId: "4f6c1a52-0000-4000-8000-0000000000b1",
+          origin: "builder",
+          transcript: {
+            status: "captured",
+            sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          },
+        },
+      ],
+    },
   }),
 );
 

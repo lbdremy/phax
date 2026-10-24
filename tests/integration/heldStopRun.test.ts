@@ -13,9 +13,9 @@ import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import {
   AwaitingReviewStopError,
   CleanupPausedError,
-  HeldRecordPausedError,
   RateLimitError,
   RegistryCorruptionError,
+  StopRecordPausedError,
 } from "../../src/domain/errors.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -371,13 +371,13 @@ describe("the record of a held phase", { timeout: 60_000 }, () => {
     Object.assign(run.config, { records: { ...records, transcript: true } });
     run.github.impl.setVisibility("public");
 
-    const paused = failedWith(await resumeHeldRun(run), HeldRecordPausedError);
+    const paused = failedWith(await resumeHeldRun(run), StopRecordPausedError);
 
     expect(exitCodeForError(paused)).toBe(1);
     expect(paused.message).toContain("set a records repo, or disable transcripts");
     expect(readRunStatus(run)).toMatchObject({
       state: "interrupted",
-      stoppedReason: "held_record_refused",
+      stoppedReason: "stop_record_refused",
     });
     expect(readPhaseStatus(run, "phase-02")).toMatchObject({
       state: "committed",
