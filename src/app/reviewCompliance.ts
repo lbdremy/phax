@@ -23,6 +23,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
 import { withInvocationCost } from "./costLedger.js";
+import { loadReviewedPhases } from "./loadReviewHandoffInputs.js";
 import {
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -147,6 +148,12 @@ export function reviewCompliance(
       });
     }
 
+    const reviewedPhases = (yield* loadReviewedPhases(info)).map((r) => ({
+      phaseId: r.reviewed.phaseId,
+      cause: r.reviewed.cause,
+      handoffMd: r.handoffMd,
+    }));
+
     const phaxContextPath = join(info.worktreePath, ".phax-context");
     yield* fs.mkdirp(phaxContextPath);
 
@@ -158,6 +165,7 @@ export function reviewCompliance(
       reconciliationMd: reconciliationReadResult.right,
       phases: info.planPhases,
       phaseHandoffs,
+      reviewedPhases,
       worktreePath: info.worktreePath,
       mdArtifactPath: agentMdPath,
       jsonArtifactPath: agentJsonPath,

@@ -5,6 +5,7 @@ import {
   type UnexplainedDeviation,
 } from "../reconciliation/explained.js";
 import type { GlobalFileReconciliation } from "../reconciliation/global.js";
+import { prPhaseStopSuffix, type ReviewedPhase } from "../interactive/reviewedPhases.js";
 import { onOneLine } from "../reportText.js";
 import { renderReviewNotesSection, type ReviewNoteGroup } from "../review/reviewNotes.js";
 
@@ -32,6 +33,8 @@ export interface ShortPrBodyInput {
     readonly phaseId: string;
     readonly title: string;
     readonly status: PrBodyPhaseStatus;
+    // How the phase stopped for a person, or null when it never did.
+    readonly stop: ReviewedPhase | null;
   }>;
   readonly verifiedSurfaces: readonly RecordedSurface[];
   readonly compliance:
@@ -164,7 +167,7 @@ function renderPhases(
   input: ShortPrBodyInput,
   unexplained: ReadonlyArray<UnexplainedDeviation>,
 ): string {
-  const lines = input.phases.map(({ phaseId, title, status }) => {
+  const lines = input.phases.map(({ phaseId, title, status, stop }) => {
     const head = `- \`${phaseId}\` ${title} — `;
     if (status === "skipped") return `${head}skipped`;
     const verdict =
@@ -180,7 +183,7 @@ function renderPhases(
       deviations === 0
         ? "no deviation"
         : `${deviations} ${deviations === 1 ? "deviation" : "deviations"}, ${unexplainedCount} unexplained`;
-    return `${head}${verdict} · ${count}`;
+    return `${head}${verdict} · ${count}${stop === null ? "" : prPhaseStopSuffix(stop)}`;
   });
   return ["## Phases", lines.join("\n")].join("\n\n");
 }

@@ -16,6 +16,11 @@ const baseInput = {
     { phaseId: "phase-01", handoffMd: "## What was delivered\nSetup complete.\n" },
     { phaseId: "phase-02", handoffMd: "## What was delivered\nCore logic done.\n" },
   ],
+  reviewedPhases: [] as ReadonlyArray<{
+    phaseId: string;
+    cause: "declared" | "held";
+    handoffMd: string;
+  }>,
   worktreePath: "/home/user/.phax/worktrees/my-run/phase-02",
   mdArtifactPath: "/home/user/.phax/worktrees/my-run/phase-02/.phax-context/compliance-review.md",
   jsonArtifactPath:
@@ -135,6 +140,53 @@ describe("buildCompliancePrompt", () => {
   it("handles empty phaseHandoffs without emitting a Phase handoffs section header", () => {
     const prompt = buildCompliancePrompt({ ...baseInput, phaseHandoffs: [] });
     expect(prompt).not.toContain("## Phase handoffs");
+  });
+});
+
+const sentence = (cause: string): string =>
+  `A person corrected this phase at a ${cause} stop: judge its review corrections against its interactive handoff under Reviewed phases, not as plan deviations.`;
+
+describe("reviewed phases", () => {
+  const held = {
+    phaseId: "phase-02",
+    cause: "held" as const,
+    handoffMd: "## What was corrected\n- Header renamed.\n",
+  };
+  const declared = {
+    phaseId: "phase-01",
+    cause: "declared" as const,
+    handoffMd: "## What was corrected\n- Order fixed.\n",
+  };
+  it("presents the declared and held phases with their handoffs, after the phase handoffs", () => {
+    const prompt = buildCompliancePrompt({ ...baseInput, reviewedPhases: [declared, held] });
+    expect(prompt).toContain("### Phase phase-01 (declared stop)");
+    expect(prompt).toContain("- Order fixed.");
+    expect(prompt).toContain("### Phase phase-02 (held stop)");
+    expect(prompt).toContain("- Header renamed.");
+    expect(prompt).toContain("never as deviations from the plan");
+    expect(prompt.indexOf("## Phase handoffs")).toBeLessThan(prompt.indexOf("## Reviewed phases"));
+    expect(prompt.indexOf("## Reviewed phases")).toBeLessThan(
+      prompt.indexOf("## Per-phase review instructions"),
+    );
+  });
+
+  it("adds its sentence to a stopped phase's instructions only", () => {
+    const prompt = buildCompliancePrompt({ ...baseInput, reviewedPhases: [held] });
+    const phase01 = prompt.slice(
+      prompt.indexOf('### Phase phase-01 — "Setup"'),
+      prompt.indexOf('### Phase phase-02 — "Core logic"'),
+    );
+    expect(prompt).toContain(sentence("held"));
+    expect(phase01).not.toContain("A person corrected this phase");
+    expect(buildCompliancePrompt({ ...baseInput, reviewedPhases: [declared] })).toContain(
+      sentence("declared"),
+    );
+  });
+
+  it("mentions no stop when no phase stopped", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).not.toContain("Reviewed phases");
+    expect(prompt).not.toContain("A person corrected");
   });
 });
 

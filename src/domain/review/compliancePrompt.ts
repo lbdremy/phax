@@ -6,6 +6,12 @@ export interface BuildCompliancePromptInput {
   readonly reconciliationMd: string;
   readonly phases: ReadonlyArray<{ id: string; title: string }>;
   readonly phaseHandoffs: ReadonlyArray<{ phaseId: string; handoffMd: string }>;
+  // The phases a person reviewed at a stop, with the interactive handoff of each.
+  readonly reviewedPhases: ReadonlyArray<{
+    phaseId: string;
+    cause: "declared" | "held";
+    handoffMd: string;
+  }>;
   readonly worktreePath: string;
   readonly mdArtifactPath: string;
   readonly jsonArtifactPath: string;
@@ -38,10 +44,28 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     reconciliationMd,
     phases,
     phaseHandoffs,
+    reviewedPhases,
     worktreePath,
     mdArtifactPath,
     jsonArtifactPath,
   } = input;
+
+  const reviewedPhasesSection =
+    reviewedPhases.length === 0
+      ? ""
+      : [
+          "## Reviewed phases",
+          "",
+          "A person reviewed and corrected these phases at a stop. Judge their review corrections",
+          "against the interactive handoff shown here, never as deviations from the plan.",
+          "",
+          ...reviewedPhases.flatMap((r) => [
+            `### Phase ${r.phaseId} (${r.cause} stop)`,
+            "",
+            r.handoffMd,
+            "",
+          ]),
+        ].join("\n");
 
   const phaseHandoffsSection =
     phaseHandoffs.length === 0
@@ -51,6 +75,13 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
           "",
           ...phaseHandoffs.flatMap((h) => [`### Phase ${h.phaseId} handoff`, "", h.handoffMd, ""]),
         ].join("\n");
+
+  const stopInstruction = (phaseId: string): string => {
+    const reviewed = reviewedPhases.find((r) => r.phaseId === phaseId);
+    return reviewed === undefined
+      ? ""
+      : `\nA person corrected this phase at a ${reviewed.cause} stop: judge its review corrections against its interactive handoff under Reviewed phases, not as plan deviations.`;
+  };
 
   const perPhaseInstructions = phases
     .map(
@@ -63,7 +94,8 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
         `- **tests**: Are the promised tests from "Test strategy" present at the stated layer?\n` +
         `- **boundaries**: Were the declared "Boundary contracts" respected?\n` +
         `- **commit**: Does the actual commit subject/body match the planned commit?\n` +
-        `- **handoff**: Does the inlined phase-handoff.md for this phase, shown above, cover the required handoff content?`,
+        `- **handoff**: Does the inlined phase-handoff.md for this phase, shown above, cover the required handoff content?` +
+        stopInstruction(p.id),
     )
     .join("\n\n");
 
@@ -101,6 +133,7 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "",
     phaseHandoffsSection,
     "",
+    ...(reviewedPhasesSection === "" ? [] : [reviewedPhasesSection, ""]),
     "## Per-phase review instructions",
     "",
     perPhaseInstructions,

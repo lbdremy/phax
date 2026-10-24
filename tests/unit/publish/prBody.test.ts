@@ -92,9 +92,9 @@ const base: ShortPrBodyInput = {
   sourceSpecOutcome: "`docs/specs/2610091100-greet-cli.md` — completed on this branch (abc1234)\n",
   gateProfileId: "standard",
   phases: [
-    { phaseId: "phase-01", title: "The greet command", status: "passed" },
-    { phaseId: "phase-02", title: "Colored output", status: "passed" },
-    { phaseId: "phase-03", title: "Plain renderer tests", status: "passed" },
+    { phaseId: "phase-01", title: "The greet command", status: "passed", stop: null },
+    { phaseId: "phase-02", title: "Colored output", status: "passed", stop: null },
+    { phaseId: "phase-03", title: "Plain renderer tests", status: "passed", stop: null },
   ],
   verifiedSurfaces: ["local", "structural"],
   compliance: { kind: "reviewed", review },
@@ -117,6 +117,10 @@ const base: ShortPrBodyInput = {
   runFolder: { path: "/home/dev/.phax/runs/acme.greet-cli", homeDir: "/home/dev" },
   records: "not-configured",
 };
+
+function lineOf(text: string, id: string): string {
+  return text.split("\n").find((l) => l.startsWith(`- \`${id}\``)) ?? "";
+}
 
 function build(overrides: Partial<ShortPrBodyInput> = {}): string {
   const result = buildShortPrBody({ ...base, ...overrides });
@@ -200,12 +204,56 @@ describe("buildShortPrBody — shape", () => {
     );
   });
 
+  it("suffixes a stopped phase's line and leaves the others as they are", () => {
+    const ada = { name: "Ada Example", email: "ada@example.com" };
+    const summary = {
+      corrections: ["a", "b"],
+      guards: ["g1", "g2"],
+      noGuard: [],
+      correctedSection: "",
+      guardsSection: "",
+    };
+    const plain = build();
+    const body = build({
+      phases: [
+        base.phases[0]!,
+        {
+          ...base.phases[1]!,
+          stop: {
+            phaseId: "phase-02",
+            cause: "held",
+            outcome: "corrected",
+            closedBy: ada,
+            summary,
+          },
+        },
+        {
+          ...base.phases[2]!,
+          stop: {
+            phaseId: "phase-03",
+            cause: "held",
+            outcome: "unchanged",
+            closedBy: ada,
+            summary,
+          },
+        },
+      ],
+    });
+    expect(lineOf(body, "phase-01")).toBe(lineOf(plain, "phase-01"));
+    expect(lineOf(body, "phase-02")).toBe(
+      `${lineOf(plain, "phase-02")} · held, corrected by Ada Example (2 guards)`,
+    );
+    expect(lineOf(body, "phase-03")).toBe(
+      `${lineOf(plain, "phase-03")} · held, reviewed without change by Ada Example`,
+    );
+  });
+
   it("writes a skipped phase without verdict or counts, and does not count it passed", () => {
     const body = build({
       phases: [
         base.phases[0]!,
         base.phases[1]!,
-        { phaseId: "phase-03", title: "Plain renderer tests", status: "skipped" },
+        { phaseId: "phase-03", title: "Plain renderer tests", status: "skipped", stop: null },
       ],
     });
     expect(body).toContain("- `phase-03` Plain renderer tests — skipped\n");
