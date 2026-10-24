@@ -204,6 +204,13 @@ desktop — none is promised by the announcement.
       counts) and the run name. No session URL: phax's sessions are local and headless. Possibly a
       `phax.json` key to turn it off. After interactive-phases plan 3 merges, because its phase-07
       edits the same file.
+- [ ] **A usage limit during the handoff leaves the next phase without it.** Found 2026-10-24 on
+      interactive-phases plan 3: phase-04 committed, then Claude Code hit its limit inside
+      `handoff.generate`, so the run paused with no `phase-handoff.md`. `phax resume` went straight
+      to phase-05, whose prompt read "(no previous phase)" (`src/app/promptGeneration.ts:60`, the
+      fallback for a missing handoff). Resume should regenerate a committed phase's missing
+      handoff before the next phase starts, and the prompt should not mistake a missing handoff
+      for a first phase.
 - [ ] **The run's final message counts only the last invocation's phases.** `run.ts` and
       `resume.ts` print "The run reached review — N phase(s) complete" from
       `execResult.committedPhases`, which `executePlan` rebuilds on every invocation: after two
