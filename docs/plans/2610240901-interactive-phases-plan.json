@@ -1,0 +1,763 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.26.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610211403-interactive-phases.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "stop-records-transcripts-and-the-run-list",
+    "title": "Stop records, transcripts and the run list",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "Plan 3 of 3 for the interactive-phases spec (`docs/specs/2610211403-interactive-phases.md`). This run completes the spec. Plan 1 (PR #157, `docs/plans/archive/2610220954-interactive-phases-plan.md`) landed the declared stop. Plan 2 (PR #158, `docs/plans/archive/2610231043-interactive-phases-plan.md`) landed the hold. This plan extends their code and builds no copy beside it:\n\n- one close: `src/app/closeStop.ts`;\n- one record writer: `writeRecordForPhase` in `src/app/executePlan.ts` and `src/app/writeRecord.ts`;\n- one stop reader: `readReviewStop` in `src/app/interactiveFiles.ts`, behind `readStopInfo` in `src/app/stopInfo.ts`.\n\nIt replaces the first draft (`docs/plans/archive/2610240822-interactive-phases-plan.md`, abandoned). It keeps that draft's design and applies the review's fixes and the operator's decisions of 2026-10-24.\n\nAfter this plan:\n\n- every close records who closed it, read from the main checkout's git configuration;\n- every close copies each recorded session's transcript into `<run>/<phase>/interactive-transcripts/<session id>.jsonl`, or records it as missing with a reason;\n- a declared phase writes its record at closing, once, as a held phase does;\n- every stop's record names its mode, cause, outcome and closer, and its sessions with their transcript digests, but never a transcript's content;\n- a held record names its review commit, and its usage leaves out the closing turn on every provider;\n- `phax records explain` finds the record from a review commit and shows the stop's lines;\n- the phase's `security.json` says that the person's work ran outside phax's enforcement, and names each turn phax ran;\n- `phax ls --json` prints a versioned `run-list` document whose runs embed their review-stop document;\n- the compliance reviewer, `review-handoff.md` and the PR body show each stop;\n- `phax plans estimate` names an interactive phase and sizes only its turns, at its place in the plan.\n\nThe order runs from the core to the surface:\n\n- phase-01: the closing identity;\n- phase-02: the providers' session stores, behind the Backend port;\n- phase-03: the transcript copy at closing;\n- phase-04: the records of a stop;\n- phase-05: `records explain` on both commits, and the security record;\n- phase-06: the run list;\n- phase-07: the compliance review, the review handoff and the PR body, plus the check that runs without a stop are unchanged;\n- phase-08: cost and the estimate;\n- phase-09: the docs, the privacy statement, the e2e trace snapshots and NEXT_STEPS.\n\nNo phase edits a file under `.claude/`, so the run needs no `--allow-skill-edits`.\n\nTest rules for every phase:\n\n- Fixtures are made up: the invoice-export, credit-notes and payments-fix runs, Ada Example, the session ids X0, X1, X2 and C1, and the commits C2 and R2.\n- Every suite that runs a close, a provider adapter or the CLI stubs HOME to a temporary directory. A shared vitest setup file (phase-02) sets `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` empty for every suite, so the stubbed HOME governs every provider store. Fake provider CLIs keep their session stores under that HOME (`tests/helpers/fakeProviderCli.ts`). No test reads `~/.phax`, a real `~/.claude`, `~/.codex` or `~/.vibe`, or a global git config. Suites mock `loadProviderConfig` and its siblings, as the stopped-run suites do.\n- Tests assert `$schema` URLs by format id and release pattern.\n- A test that starts the phax CLI as a process gives it its own temporary repository as its working directory.\n- The e2e suites run only with `PHAX_E2E_RUN=1`, outside the standard gate.\n\nThe review of plan 2 (#158) left seven lessons, and this plan applies each from the start:\n\n1. Every write at closing has a defined interrupt and refusal path (see Technical arbitrations).\n2. Everything the close and the record need is read inside the close or before `RunResumeRequested`.\n3. HOME is stubbed, and the provider store roots set empty, in every suite.\n4. Published JSON Schemas match their strict decoders.\n5. All I/O goes through ports: no `readFileSync`, `readdirSync` or direct `fs` in `app/`, `domain/` or `cli/` code this plan touches.\n6. Every in-scope §8 criterion has its own test, named on a Test strategy line.\n7. Effects are traced, and the e2e snapshots are updated.",
+    "requiredCommandsNote": "`security.agentCommands` in `phax.json` already allows each command above, so no configuration change is needed. They are declared so the preflight confirms it:\n\n- `pnpm exec tsx` regenerates the schema snapshots (`pnpm exec tsx scripts/schemas-check.ts --write`);\n- `pnpm gen:usage-spec` regenerates `phax.usage.kdl`;\n- `pnpm docs:cli` regenerates `docs/cli/`.\n\nThe e2e command `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts` is not granted to any phase. The operator runs it (see Technical arbitrations).",
+    "technicalArbitrations": [
+      "Persisted shapes. 0.26.0 is uncut: `package.json` says 0.26.0, the last tag is v0.25.0, and `packages/schemas/history.lock.json` freezes nothing at 0.26.0. Every format this plan changes already has a 0.26.0 shape that differs from 0.25.0, so each changes in place. `pnpm exec tsx scripts/schemas-check.ts --write` rewrites its `next.schema.json`, and no frozen module is added:\n- phase-status: its `stop` block landed in plan 1; the closed variants gain `closedBy`;\n- interactive-session: born at 0.26.0; gains `transcripts` and `builderUsage`;\n- phase-record-manifest: oracle-phases plan 1 added `oracle` to the 0.26.0 shape (`CURRENT_STAMPS` names 0.26.0). It gains `mode` and `stop`. Its shape did not change from 0.17.0 to 0.25.0, and every release in that span stamped the manifest 0.17.0. So the existing frozen 0.17.0 decoder reads every released record from 0.17.0 to 0.25.0, and the pre-schema decoder reads the older ones. The freeze is verified, not added. Both lifts gain `mode: headless` and `stop: null` beside `oracle: null`.\nreview-stop and cost-ledger do not change. run-list is new and born with `$schema`, so it has no frozen decoder. `security.json` is not a `$schema` format: it moves from `version: 1` to `version: 2`. A run started by a 0.26.0 development build before this plan, with a closed stop or an interactive-session.json, does not resume, as with plan 2.",
+      "q-dev-records, decided by the operator on 2026-10-24: in place. `mode` and `stop` are added to the 0.26.0 manifest as required keys. Loss accepted: phase records that development builds stamped 0.26.0 since oracle-phases plan 1 no longer read:\n- `phax records explain` on a commit of such a run fails the whole command, naming the malformed manifest (`src/app/recordsExplain.ts`);\n- `phax records list` skips the record;\n- `phaseRecordExists` counts it as absent, so a resume of such a run would write the phase's record again.\nNo released phax wrote these records, and their files stay on the branch.",
+      "Decided by the operator on 2026-10-24: an interactive transcript's content never reaches the records branch, whatever `records.transcript` says. The spec's r-records and ac-records were amended that day to say so, narrowing q-transcript-records `full`. A session the person continued ran outside phax's enforcement and may hold secrets they typed, and a dedicated records repository faces no visibility check (`src/domain/records/destination.ts`).\n- The record names each recorded session and its transcript's sha256, or `missing` with its reason.\n- The copy stays in the run folder under `interactive-transcripts/`.\n- `interactive-transcripts` joins `isStopArtifact`, so no record carries it.\n- `output.jsonl`, the stream of a headless phase phax ran, keeps following `records.transcript`.\nLoss accepted: a records repository cannot replay what the person and the agent said at a stop; only the run folder holds it.",
+      "Each fact of a stop is written in one place and read from there.\n1. `closedBy` lives in the phase status's four closed `stop` variants. The close's state event (`StopCommitted`, `HeldStopClosed`) writes it, so it lands atomically with the transition.\n2. The recorded sessions stay in interactive-session.json (`current` and `history`).\n3. Each recorded session's transcript outcome lives in interactive-session.json's new required `transcripts`: null until a close captures them, then one entry per recorded session.\n4. A held phase's builder usage lives in interactive-session.json's new required `builderUsage`: the `TokenUsage` read once at the hold point, or null at a declared stop.\n5. The record manifest copies 1–4, because the run folder never reaches the records branch and a record must stand alone.\nThe review handoff and the PR body read the phase statuses and the interactive handoff files. `records explain` reads only the manifest.",
+      "The record manifest gains a required `mode` (`headless | interactive`) and a required `stop`. `stop` is null for a phase that never stopped, or one of four strict structs: declared corrected, declared unchanged, held corrected (with `reviewCommit`, a full sha) and held unchanged. Only the held corrected struct names a review commit. Each struct carries `closedBy: { name, email }` and `sessions`, an array that is empty when there were none.\nA session is `{ provider, model, effort, sessionId, origin, transcript }`. `origin` is `first-turn | new-session | builder`. `transcript` is `{ status: captured, sha256 }` or `{ status: missing, reason: not-found | unreadable, detail }`. The close's in-memory `ClosedStopSession` has exactly these keys, so the close, interactive-session.json and the manifest agree: `effort` is in all three, and `startedAt` and the copy's file name are in none.\nA held record's `sourceSha` stays the phase commit. Every struct is decoded with `onExcessProperty: error` and published with `additionalProperties: false`.",
+      "`phax records explain` finds a held phase's record from its review commit through the trailers that commit already carries. `Run-Id` with `Held-Phase` addresses the record `<Run-Id>/<Held-Phase>`. `Run-Id` with `Phase-Id` still takes precedence, so a phase commit, and a declared commit (which carries both `Phase-Id` and `Interactive-Phase`), resolve as today. No manifest is scanned: phax writes the trailers, and the record key is the address.",
+      "A declared phase's record names the phase's routed assignment from its `model-resolution.json`: its provider and concrete model, and the effort `model.effort ?? phase.effort`, as the close computes it, because `thinking` is optional there. Every first and closing turn ran at that assignment (§5.7), whether or not a first turn answered. The record's outcome is `committed`, its `sourceSha` is the declared commit, and its `usage` is `{ available: false }`, because no agent session built the phase; the turns' own cost is in the cost ledger. Loss accepted: a declared record shows no token usage.",
+      "A held record's usage is the builder's usage at the moment the run stopped. The hold point reads it with `computeRecordUsage` and keeps it as `builderUsage`. The record written at closing uses it on every provider:\n- on mistral-vibe, this leaves out the closing turn, whose resume of the builder session grows the session's `meta.json`;\n- on Claude Code and codex, it equals what `output.jsonl` gives, because no closing turn writes that file.\n`writeRecord` takes the usage as an explicit source: `{ kind: session, sessionId }` for a headless phase (as today), `{ kind: recorded, usage }` for a held phase, and `{ kind: none }` for a declared phase.",
+      "Transcripts are found through the existing Backend port, which gains `captureTranscript`. Each provider adapter implements it once (`src/infra/providers/claudeCode.ts`, `codexCli.ts`, `mistralVibe.ts`), and `makeNodeBackendLayer` routes it. Loss accepted: Backend stops being only about running agents (it already holds the Claude-only `probe`). The alternative, a new port, would add a requirement that every suite running `executePlan` or `closeStop` must provide.\nThe adapter only finds and reads the store file. It returns its bytes, or `missing` with a reason, and never fails. The close owns the copy policy:\n- it writes the bytes through the FileSystem port, which gains `readBytes` and `writeAtomicBytes`;\n- it hashes the bytes it wrote, so the recorded sha256 is the copy's, including for a file that is not valid UTF-8;\n- it keeps an earlier attempt's copy when the store file is gone;\n- it refuses the close on a failed write (`files`).",
+      "Provider store roots honour each provider's own variable, so a transcript is found where the provider wrote it: `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME`, else `<home>/.claude`, `<home>/.codex` and `<home>/.vibe`. An empty variable counts as unset.\nThe roots are resolved once per invocation, at the CLI edge, by a pure `resolveProviderStoreRoots(env, home)` (`src/domain/session/storeRoots.ts`), called through `providerStoreRoots()` (`src/cli/providerStoreRoots.ts`). The CLI passes them into `makeNodeBackendLayer(providerConfig, roots)` and into `executePlan`.\nThe vibe root is the same everywhere. Capture, record usage (`computeSessionUsage`, whose `vibeHome` becomes required, with no `homedir()` fallback in `app/`) and vibe session-id discovery (`findVibeSessionId`) all read `roots.vibe`.\nTests: `tests/helpers/isolateProviderStores.ts`, registered as a `setupFiles` entry in `vitest.config.ts` and `vitest.e2e.config.ts`, sets the three variables empty for every suite, beside each suite's HOME stub.",
+      "There is one vibe session finder, in `src/domain/session/vibeSessionStore.ts`, and both usage and capture use it. It moves `readVibeSessionMeta` out of `src/app/recordPlumbing.ts` and narrows what it reads:\n- it lists the names under `<vibe root>/logs/session`;\n- it keeps only `session_*` names whose last `_`-separated segment is a non-empty prefix of the session id: vibe names a directory `session_<timestamp>_<short id>`;\n- it decodes, from a candidate's `meta.json`, only `session_id`.\nIt takes its two reads (list names, read text) as arguments, so the domain does no I/O. The app passes FileSystem-port reads, and the vibe adapter its own. Loss accepted: a vibe release that names its session directories differently gives `missing` for capture and unavailable usage, where today's scan of every `meta.json` would have found the session. The privacy statement (phase-09) says what phax reads, including the session-id discovery that reads recent sessions' `meta.json` by working directory.",
+      "Claude Code's project slug is the cwd with every character outside `[A-Za-z0-9]` replaced by `-`. No phax code computes it yet. On macOS a worktree under `/var` resolves to `/private/var`, so the adapter tries the slug of the raw path, then the slug of its realpath, and only then lists the names under `projects/`.\nEvery adapter refuses, before building any path, a session id that does not match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, which keeps out `.` and `..`. Such an id gives `missing` (`unreadable`, `unsafe session id`).\nAn adapter reads only the transcript file of the session id it is given, and the vibe finder's `session_id`. It never reads a credential or configuration file, and it lists directories only for their names.",
+      "A close captures the recorded sessions of interactive-session.json, `history` then `current`, each session id once. They are the builder, the first turns that answered, and every `--new-session` session. A closing turn that started a new session is not a recorded session (§4 defines only three origins), so it is neither captured nor named in the record; its stream stays in the run folder as `closing-turn-NN.jsonl`. Failed and refused first turns recorded no session.",
+      "Every write at closing has one interrupt and refusal path:\n1. The closer's identity is read first, inside the close. An unset identity refuses the close as `close-error` (`commit`) with exit 1, and the run stays awaiting review. The identity reaches status.json only through the state event.\n2. Transcripts are copied inside the close, after the handoff and the tree check and before the commit, overwriting `interactive-transcripts/<id>.jsonl`. A failed write refuses the close (`files`); a missing transcript never does. An interrupt before the commit means the next close copies again. After the commit, `finishLandedCommit` runs the same step, and an earlier copy is kept when the store file is gone.\n3. The `stop` of `security.json` is written in that same step (phase-05), from the file as it stands: rewriting it is idempotent.\n4. The record, declared or held, is written after the state event and before the cleanup. A refused destination dispatches `StopRecordRefused` and pauses the run. An interrupt there leaves a committed phase with a closed stop. Its re-entry lists the run's records before `RunResumeRequested`, and writes the record only when that phase has none.\n5. `closeInFlight` is set around the close for both causes. So a failure after a declared commit pauses the run for a resume to finish, as a held one does, and never dispatches `RunFailed`.\nSo, whatever the interrupts, each session leaves one transcript file and each phase one record. Each point has a test.",
+      "Nothing the record needs is read after the close. A fresh close hands the record its facts in `CloseReport` (`closedBy`, and `sessions` with their transcript outcomes). The rest is read before `RunResumeRequested`, as `readHeldRecord` already does:\n- for a declared stop, the routed assignment;\n- for a held stop, `agent-binding.json`, `builderUsage` and `commitHash`.\nA closed stop's re-entry reads its status `stop` and interactive-session.json there too.",
+      "Plan 2's `HeldRecordRefused` becomes `StopRecordRefused { phaseId, cause, phaseCommit, worktreePath, reason }`. With it:\n- `HeldRecordPausedError` becomes `StopRecordPausedError`;\n- the resume kind and stopped reason `held_record_refused` become `stop_record_refused`;\n- the trace `held.record.refused` becomes `stop.record.refused`.\nA declared record refused at closing then pauses the run exactly as a held one does. The rename goes through the matrix, the reducer, the effects and the dispatcher, and adds no state. The stopped reason is not a persisted enum, so no snapshot changes.",
+      "§5.70's security record is the phase's `security.json`. Version 2 is strict (`onExcessProperty: error`) and adds a required `stop`, written as null when the phase is entered. At a close, the close sets `stop` to `{ cause, personWork: outside-phax-enforcement, turns }`, and changes no other field. It decodes the file, sets `stop` and encodes it as `resolvePhaseAgent` does, so the other fields keep their bytes. `readPhasePosture` (which reads `agentCommands` from this file) and the held record depend on them.\n`turns` names each first and closing turn phax ran, read from the phase folder's `first-turn-NN` and `closing-turn-NN` streams (retries included), with its read-only narrowing: `read-only-tools` on Claude Code, `read-only-sandbox` on codex and `none` on mistral-vibe. The rest of the file is the phase posture those turns ran under.\nThe file has two readers, `src/app/interactiveFiles.ts` and `src/app/finalReport.ts`. Both go through one `readSecurityPosture`, which lifts a version-1 file with `stop: null`. `finalReport.ts` moves its `readFileSync`, which swallowed decode errors, and its `readdirSync` onto the FileSystem port. A version-1 file rewritten at a close becomes version 2, which is its only other change. The record carries the file, since it is not a stop artifact.",
+      "The run-list rows keep today's keys and values: `qualifiedName`, `namespace`, `shortName`, `state`, `branch`, `currentPhase` as `2/6`, `gateProfile`, `updatedAt` as `YYYY-MM-DD HH:MM`, `lockState`, `recordsPending` and `archivePath`. They add `stop`, and every key is required:\n- `currentPhase` and `gateProfile` are null where the table prints `-`;\n- `recordsPending` and `archivePath` are null where `ls --json` used to drop them.\nls reads each stop through `readStopInfo`, which now also returns the decoded `ReviewStop`. ls stamps it again with its `$schema`, so `stop` equals review-stop.json in content. The table and JSON read it once.\nA close parks the document in the phase folder and moves the run to `running`, so a run being closed lists `state: running` and `stop: null`. A run in `awaiting_review` whose only copy is the parked one (a close that died before restoring it) embeds that copy, which `readReviewStop` already falls back to and which holds the same stop. A document that cannot be read gives `stop: null` and the plain state in the table, as `phax ls` shows it today; ls never fails on it.\nA script reading the output changes once: the bare array becomes `runs`.",
+      "The spec leaves this wording indicative; this plan settles it:\n- `## Reviewed phases` in review-handoff.md holds a table `Phase | Stop | Outcome | Closed by | Corrections | Guards`. Guards read `2`, `2 (1 no guard)`, or `—` when the phase is unchanged. Each corrected stop then gets a `### <phase> (<held|interactive>)` heading with its What was corrected and Guards sections.\n- The PR body's phase line gains a suffix: ` · held, corrected by Ada Example (2 guards)`, ` · interactive, corrected by Ada Example (1 guard)` or ` · held, reviewed without change by Ada Example`.\n- The compliance prompt gains a `## Reviewed phases` section after `## Phase handoffs`, and one sentence in each stopped phase's instructions.\nA phase that never stopped keeps today's line, section and prompt byte for byte.",
+      "Cost and the estimate.\n- The cost ledger stays Claude Code only, as it is for every phase today (`withInvocationCost` in `src/app/costLedger.ts`). That is how the ledger is designed, not a gap left by stops, and NEXT_STEPS stops listing it.\n- The estimate's training samples count only `phase`, `fix` and `handoff` entries, and skip historical interactive phases. Neither a closing turn nor a turn-only phase then distorts the fit.\n- `runLevel` stays the compliance median only. It still renders as the `compliance review` row, and the scenarios still add it to the last phase.\n- A past interactive phase is a turn sample when it has at least one `first-turn` or `closing-turn` entry and those entries' reference-priced volume is at least `MIN_SAMPLE_USD`, as for a headless sample. That keeps out codex and vibe phases, which cost $0 in a Claude-only ledger, and a first turn that started no session.\n- An interactive phase of the plan is sized from those samples: each sample's tokens are repriced at the phase's model (`priceTokens` with its list price), weighted by recency (`sampleWeight`), and read at P10, P50 and P90 with `weightedQuantile`, as `fit.ts` does for phases. It needs at least 3 samples; with fewer it is `thin-interactive-history`. Another provider gives `other-provider`, and a model with no list price gives `no-list-price`.\n- Each estimated interactive phase has its own row, at its plan position in the table. The run range is the fitted run range of the headless phases and the run level, plus the interactive phases' P10, P50 and P90, quantile by quantile. Loss accepted: treating the turns as fully correlated widens the run range a little.\n- In the scenarios, each interactive phase spends its own P50 or P90 at its plan position. The headless phases share what is left of the run's figure, and the run level stays on the last phase.\n- Below `MIN_HISTORY_PHASES` (60) headless samples the report lists no phases, interactive ones included. The §8 test uses a new `generateHistoryWithInteractive` fixture in `tests/helpers/costHistory.ts`: 20 runs of 3 headless phases (60 samples), plus 3 runs that each hold one interactive phase with turn entries.\n- A hold belongs to a run, so the estimate never sizes one and does not mention it.",
+      "Telemetry.\n- The provider-store reads are traced at the close, not in the adapters.\n- The transcript copy runs inside a traced `transcripts` step (`tracedStep`).\n- Each session's outcome is one new semantic event, `stop.transcript { runId, operationId, sessionId, provider, outcome, reason? }`. It joins the event types, their schema, the semantic-trace projection and the OpenTelemetry layer, as `oracle.edits.unjudged` does.\n- When records are configured, the stop's record write runs inside a traced `stop.record` step.\n- The declared and held e2e snapshots are updated in phase-09. The e2e suites are outside the standard gate, and `pnpm exec vitest` is not granted to any phase: granting it would let a phase run any test file. phase-09 edits the snapshots from the projection, and the operator confirms them with `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts`, adding `-u` if a snapshot differs.",
+      "No phase is an oracle phase, although an `oracles` provider is configured. Most of what this plan builds extends the close, the record writer and the estimate from the inside. The spec leaves to this plan the shapes an oracle would freeze: the record's stop, the run-list rows and the wording. Oracles written before the code would pin planning choices rather than spec criteria. Every test is in-phase. No phase is interactive either: no phase sets a pattern that later phases repeat, and the operator can still hold any phase with `phax run --hold`.",
+      "Exit codes: a close refused for an unset git identity exits 1, like the other `close-error` refusals, and `StopRecordPausedError` exits 1, like plan 2's pause. Nothing else changes."
+    ],
+    "openQuestions": [],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Who closed the stop: the closing identity on every closed stop",
+      "objective": "Every close of a stop, declared or held, corrected or unchanged, records the git identity of the checkout that closed it. phax reads that identity from the main checkout's git configuration, through the Git port, inside the close. The close's state event writes it into the closed `stop` of the phase status. The record, the review handoff and the PR body can then name the closer, even when a held close leaves no commit. A checkout with no identity has its close refused, and the run keeps waiting.",
+      "detailedInstructions": [
+        "In `src/ports/git.ts`, add `authorIdentity(repo): Effect.Effect<{ readonly name: string; readonly email: string } | null, GitError>` next to `committerName`. The name is `GIT_AUTHOR_NAME`, else `git config user.name`. The email is `GIT_AUTHOR_EMAIL`, else `git config user.email`. That is the identity git authors a commit under in that checkout. It returns null when either is unset or empty, and never guesses: do not use `git var GIT_AUTHOR_IDENT`, which falls back to the host name. Implement it in `src/infra/git.ts` the way `committerName` is implemented. In `src/infra/fakes/git.ts`, implement it with a settable identity that defaults to `Ada Example <ada@example.com>`.",
+        "In `src/app/closeStop.ts`, `CloseStopInput` gains `mainCheckout: string`, the checkout that `phax resume` runs in. `src/app/executePlan.ts` passes `config.repoRoot` at both `closeStop` calls, the declared one and the held one.",
+        "The first step of `closeSteps`, before step 1 (the close base), reads `authorIdentity(input.mainCheckout)`. When it is null, refuse the close as `close-error` with step `commit` and the message `no git identity in <main checkout>: set user.name and user.email, then run phax resume <run> again`. The refusal goes through `StopCloseRefused` with exit 1, so the run stays awaiting review. A close finished from a landed commit (`finishLandedCommit`) goes through this same first step. Never read the identity from HEAD, the phase commit or the review commit.",
+        "Add `closedBy: { name; email }` to `CloseReportFacts`, and fill it from that read in every return of `closeSteps` and `finishLandedCommit`.",
+        "In `src/domain/events.ts`, every `closure` variant of `StopCommitted` and of `HeldStopClosed` gains `closedBy`. `closedEvent` in `src/app/closeStop.ts` passes `report.closedBy`. In `src/domain/reducer.ts`, both arms persist it into the closed stop they build. Add no event, state or matrix cell.",
+        "In `src/schemas/status.ts`, the four closed variants of `PhaseStopSchema` (declared corrected, declared unchanged, held corrected, held unchanged) gain a required `closedBy: { name: NonEmptyString, email: NonEmptyString }`. Make it a strict struct annotated like the stop variants (`strictStop`), so the published schema says `additionalProperties: false`. Describe it as the git identity of the checkout that closed the stop, read from its configuration and never from a commit. The two `waiting` variants do not change.",
+        "Run `pnpm exec tsx scripts/schemas-check.ts --write`, which rewrites `packages/schemas/snapshots/phase-status/next.schema.json` in place. Add no frozen module, because 0.26.0 is uncut. Update the closed-stop fixtures in `tests/unit/schemasPackage/documents.ts` and `tests/helpers/phaseStatusFixture.ts`, and every test that builds a closed stop or a closure; `pnpm test:type` names them.",
+        "Every test that runs a close sets the main checkout's identity to Ada Example (`git config user.name` and `user.email` in its temporary repository). It stubs HOME, so that no global git config and no `~/.phax` is read."
+      ],
+      "planMarkdownAnchor": "#phase-01-closing-identity",
+      "plannedFilesToCreate": [
+        "tests/integration/gitAuthorIdentity.test.ts",
+        "tests/integration/stopClosedBy.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "src/app/closeStop.ts",
+        "src/app/executePlan.ts",
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "src/schemas/status.ts",
+        "packages/schemas/snapshots/phase-status/next.schema.json",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/reducerHeldStop.test.ts",
+        "tests/unit/reducerAwaitingReview.test.ts",
+        "tests/unit/awaitingReviewShapes.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/cli/commands/stopOutput.ts",
+        "packages/schemas/src/generated/index.ts",
+        "tests/helpers/phaseStatusFixture.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/helpers/stoppedRunFixture.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/heldStopRun.test.ts",
+        "tests/integration/declaredStopRun.test.ts",
+        "tests/integration/oraclePairReview.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/unit/events.test.ts",
+        "tests/unit/schemas/interactiveFormats.test.ts",
+        "tests/e2e/semanticTrace.declaredStop.test.ts",
+        "tests/e2e/semanticTrace.heldStop.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "App → Git port: the close reads the closer only through `authorIdentity` on the main checkout, never from a commit. Close → reducer: `closedBy` travels in the closure of `StopCommitted` and of `HeldStopClosed`, and the dispatcher stays the only writer of status.json. Persisted status → readers: every closed stop names its closer, which the record, the review handoff and the PR body read in later phases.",
+      "testStrategy": "- `authorIdentity` gives the environment's identity over the repository's config, the config's when the environment sets none, and null when the name or the email is unset — medium · table · the returned identity per setup · in-phase\n- a held corrected, a held unchanged, a declared corrected and a declared unchanged close each write `closedBy` Ada Example into the phase status, while the phase commit is authored by another identity — medium · table · the decoded status.json stop · in-phase\n- a close in a checkout with no identity exits 1 naming user.name and user.email, commits nothing, records the refusal in review-stop.json's `lastClose` and leaves the run awaiting review — medium · example · exit code, branch tip and state · in-phase\n- a held close interrupted after its review commit, then finished by the next close, writes `closedBy` from the checkout's configuration — medium · example · the status stop · in-phase\n- each closed stop variant refuses a missing `closedBy` or an extra key in it, and the regenerated snapshot publishes it with `additionalProperties: false` — small · contract · the decoder and the schemas-package suites · in-phase\n- StopCommitted and HeldStopClosed persist their closure's `closedBy` in every closed variant — small · table · the reducer's PersistState patch · in-phase",
+      "implementationOrder": [
+        "the Git port method and its two implementations, with their test",
+        "the status schema and the snapshot",
+        "the events and the reducer arms",
+        "closeStop's identity step and `closedBy` in the report",
+        "executePlan passing the main checkout",
+        "fixtures and tests"
+      ],
+      "excludedScope": [
+        "Naming the closer in the record, the review handoff or the PR body (phase-04, phase-07)",
+        "Transcripts (phase-02, phase-03)",
+        "Any change to how a review commit is authored"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give `authorIdentity`'s signature and lookup order, the new `CloseStopInput.mainCheckout`, and the refusal's message and exit code. Give the `closedBy` shape as written in `src/schemas/status.ts`, `src/domain/events.ts` and `CloseReport`. Confirm that no code reads the closer from a commit. List the snapshot rewritten and the fixtures changed. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(interactive): record who closed each stop",
+        "body": "Every close reads the git identity of the checkout that runs phax\nresume, through the Git port and never from a commit. Its state event\nwrites that identity into the phase status's closed stop, held or\ndeclared, corrected or unchanged. A held phase reviewed without change,\nwhich leaves no commit, still names its closer. A checkout with no\nidentity has its close refused, and the run keeps waiting for review."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "The providers' session stores behind the Backend port",
+      "objective": "phax can find and read the transcript of any recorded session in its provider's own session store, through the Backend port, on Claude Code, codex and mistral-vibe. The stores' roots are resolved once per invocation, at the CLI edge, and passed to the backend and the record writer, so capture, record usage and vibe session discovery read the same roots. Every test keeps those roots under its own HOME. One vibe session finder, which reads less than today's, serves usage and capture. The FileSystem port can read and write bytes, so a later copy hashes exactly what it writes.",
+      "detailedInstructions": [
+        "Create `src/domain/session/storeRoots.ts`, pure. It exports `ProviderStoreRoots = { claude; codex; vibe }`, all absolute paths, and `resolveProviderStoreRoots(env, home)`. Each root is its variable, else its default: `CLAUDE_CONFIG_DIR` else `<home>/.claude`, `CODEX_HOME` else `<home>/.codex`, and `VIBE_HOME` else `<home>/.vibe`. An empty variable counts as unset. Create `src/cli/providerStoreRoots.ts`, whose `providerStoreRoots()` calls it with `process.env` and `os.homedir()`. The CLI is the only place that reads these variables.",
+        "`makeNodeBackendLayer(providerConfig, roots)` in `src/infra/providers/dispatcher.ts` takes the roots as a required argument. Every caller resolves them once with `providerStoreRoots()` and passes them: `src/cli/commands/runLayers.ts` for run and resume, and the other commands the type checker names (artifact, artifact decide, adjust-plan, review-compliance, plans, plans estimate, plans overlap, enter-phase). `runVibeAgent` passes `roots.vibe` to `findVibeSessionId` (`src/schemas/vibeOutput.ts`), which today falls back to `~/.vibe`.",
+        "The record writer reads the same vibe root. `computeSessionUsage` and `computeRecordUsage` in `src/app/recordPlumbing.ts` take `vibeHome` as a required string, and their `?? join(homedir(), '.vibe')` fallback goes, so `app/` reads no home directory. `writeRecord`, `writeAuthoringRecord` and `writeDecisionRecord` pass it through. `executePlan`'s options gain `providerStoreRoots`, which run and resume pass from the same resolution. Every caller the type checker names passes `roots.vibe`; tests pass a fixture root under their HOME.",
+        "Create `src/domain/session/vibeSessionStore.ts` with the one vibe session finder. `findVibeSessionDir(reads, vibeRoot, sessionId)` takes `reads: { list(path): Effect<readonly string[] | null>; readText(path): Effect<string | null> }`, so the domain does no I/O itself. It works in three steps:\n- it lists `<vibeRoot>/logs/session`;\n- it keeps only `session_*` names whose last `_`-separated segment is a non-empty prefix of the session id, since vibe names a directory `session_<timestamp>_<short id>`;\n- for each candidate, it decodes only `session_id` from its `meta.json`, with a one-field schema, and returns the first directory whose id matches, else null.\nAdd `readVibeSessionMetaText(reads, vibeRoot, sessionId)`, which returns that directory's `meta.json` text for usage. Move `readVibeSessionMeta` out of `src/app/recordPlumbing.ts`: usage calls the shared finder with FileSystem-port reads. Update the vibe fixtures whose directory names do not follow the convention (`tests/integration/writeAuthoringRecord.test.ts`, `tests/unit/recordsUsage.test.ts`).",
+        "In `src/ports/fs.ts`, add `readBytes(path): Effect.Effect<Uint8Array, FsError>` and `writeAtomicBytes(path, bytes): Effect.Effect<void, FsError>`. Implement them in `src/infra/fs.ts` (the rooted layer included) and in `src/infra/fakes/fs.ts`, which keeps bytes exactly. Add them to every FileSystem implementation the type checker names in tests.",
+        "In `src/ports/backend.ts`, add `captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>` to `BackendOps`. `TranscriptRequest` is `{ provider, sessionId, startedAt, cwd }`, where `cwd` is the stop's worktree. `TranscriptRead` is `{ status: 'found'; bytes: Uint8Array }` or `{ status: 'missing'; reason: 'not-found' | 'unreadable'; detail: string }`. The adapter only finds and reads; it writes nothing, keeps no earlier copy and never fails. Any I/O error becomes `missing`.",
+        "Create `src/infra/providers/transcriptStore.ts` with what the adapters share:\n- the session-id check `^[A-Za-z0-9][A-Za-z0-9._-]*$`, applied before any path is built. A failing id gives `missing` (`unreadable`, `unsafe session id`);\n- reading a found file's bytes. An absent file gives `not-found`, and an unreadable directory or file gives `unreadable` with the error as its detail;\n- the Claude project slug: every character outside `[A-Za-z0-9]` replaced by `-`.",
+        "Implement `captureTranscript` in each adapter, with its root from `ProviderStoreRoots`:\n- Claude Code (`claudeCode.ts`): look for `<claude>/projects/<slug of cwd>/<id>.jsonl`, then `<slug of realpath(cwd)>/<id>.jsonl`, since macOS resolves `/var` to `/private/var`. If neither exists, list the names under `projects/` and take the first `<name>/<id>.jsonl` that exists.\n- codex (`codexCli.ts`): list the file names of `<codex>/sessions/YYYY/MM/DD/` for the UTC and local dates of `startedAt` and the day after, and take the file named `rollout-*-<id>.jsonl`. If none matches, walk the year, month and day directory names.\n- mistral-vibe (`mistralVibe.ts`): find the directory with `findVibeSessionDir`, using the adapter's own reads, then read its `messages.jsonl`. That file name is unverified against a current vibe, like `vibe --resume`: say so in a comment. A directory without it gives `missing` (`not-found`).\nAn adapter reads only that session's transcript file and the vibe finder's `session_id`. It never reads a credential or configuration file, and it lists directories only for their names. `makeNodeBackendLayer` routes the call by provider.",
+        "In `src/infra/fakes/backend.ts`, `captureTranscript` answers `missing` (`not-found`) unless a test has registered bytes for the session id, which it then returns. Every inline Backend the type checker names in tests gains the method.",
+        "In `tests/helpers/fakeProviderCli.ts`, both fake CLIs append the lines they print to their session store under the stubbed `$HOME`, unless the script sets `keepStore: false`. Claude writes to `.claude/projects/<slug of its cwd>/<id>.jsonl`, and codex to `.codex/sessions/<UTC YYYY>/<MM>/<DD>/rollout-<timestamp>-<id>.jsonl`. A resume of the same id appends to the same file. The vibe tests write their own store fixtures under the test HOME.",
+        "Create `tests/helpers/isolateProviderStores.ts`, which sets `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` to the empty string. Register it as a `setupFiles` entry in `vitest.config.ts` and `vitest.e2e.config.ts`, so every suite runs with them empty, beside its HOME stub."
+      ],
+      "planMarkdownAnchor": "#phase-02-session-stores",
+      "plannedFilesToCreate": [
+        "src/domain/session/storeRoots.ts",
+        "src/domain/session/vibeSessionStore.ts",
+        "src/cli/providerStoreRoots.ts",
+        "src/infra/providers/transcriptStore.ts",
+        "tests/helpers/isolateProviderStores.ts",
+        "tests/unit/session/storeRoots.test.ts",
+        "tests/unit/session/vibeSessionStore.test.ts",
+        "tests/integration/providerTranscriptStores.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/ports/fs.ts",
+        "src/infra/fs.ts",
+        "src/infra/fakes/fs.ts",
+        "src/infra/providers/claudeCode.ts",
+        "src/infra/providers/codexCli.ts",
+        "src/infra/providers/mistralVibe.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/infra/fakes/backend.ts",
+        "src/schemas/vibeOutput.ts",
+        "src/app/recordPlumbing.ts",
+        "src/app/writeRecord.ts",
+        "src/app/executePlan.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/helpers/fakeProviderCli.ts",
+        "vitest.config.ts",
+        "vitest.e2e.config.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/claudeCli.ts",
+        "src/domain/session/index.ts",
+        "src/app/writeAuthoringRecord.ts",
+        "src/app/writeDecisionRecord.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/artifactDecide.ts",
+        "src/cli/commands/adjustPlan.ts",
+        "src/cli/commands/reviewCompliance.ts",
+        "src/cli/commands/plans.ts",
+        "src/cli/commands/plansEstimate.ts",
+        "src/cli/commands/plansOverlap.ts",
+        "src/cli/commands/enterPhase.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/integration/oraclePairReview.test.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopRun.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/declaredStopRun.test.ts",
+        "tests/integration/heldStopCommands.test.ts",
+        "tests/integration/estimatePlan.test.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/pruneCostLedger.test.ts",
+        "tests/integration/writeAuthoringRecord.test.ts",
+        "tests/integration/writeRecord.test.ts",
+        "tests/unit/recordsUsage.test.ts",
+        "tests/unit/providers/claudeCode.test.ts",
+        "tests/unit/providers/codexCli.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/e2e/semanticTrace.declaredStop.test.ts",
+        "tests/e2e/semanticTrace.heldStop.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "CLI edge → backend and record writer: the provider store roots are resolved once per invocation from the environment and the home directory, and passed down as values; no code below the CLI reads those variables. App → Backend port: a caller asks an adapter for one session's transcript by provider, session id, start time and worktree, and gets back its bytes or a typed `missing`. Only the adapter knows where its provider keeps sessions. Domain → its callers: the vibe finder takes its reads as arguments, and both the app's usage reader and the vibe adapter use it.",
+      "testStrategy": "- `resolveProviderStoreRoots` takes each variable when set and non-empty, and the home default otherwise — small · table · the expected roots · in-phase\n- `findVibeSessionDir` returns the directory whose suffix and `meta.json` name the id, never decodes the `meta.json` of a directory whose suffix does not match, ignores a `meta.json` without `session_id`, and returns null when nothing matches — small · table · the returned directory and the paths it read · in-phase\n- each adapter, under a temporary HOME, returns the bytes of a Claude transcript found by its raw slug, by its realpath slug and by listing; of a codex rollout found on its start date and on the next day; and of a vibe `messages.jsonl` found through the finder. Each gives `missing` for an absent file, an unsafe id (`.`, `..`, a slash) and an unreadable directory — medium · table · the read outcome and its bytes · in-phase\n- the adapters return bytes exactly, including a file holding an invalid UTF-8 sequence — medium · example · the returned bytes against the fixture · in-phase\n- record usage on mistral-vibe reads the session's `meta.json` through the shared finder under the passed vibe root, and gives the same usage as before for a well-named directory — medium · example · the computed TokenUsage · in-phase\n- the fake and the node FileSystem round-trip bytes through `writeAtomicBytes` and `readBytes` — medium · contract · the same suite against both implementations · in-phase\n- with `CODEX_HOME` set empty and HOME stubbed, the codex adapter reads only under the stubbed HOME — medium · example · the paths the adapter read · in-phase",
+      "implementationOrder": [
+        "the store roots and their resolution at the edge",
+        "the FileSystem byte methods in the port and both implementations",
+        "the shared vibe finder, and usage moved onto it with a required vibe root",
+        "the port method and the shared adapter helpers",
+        "the three adapters and their tests",
+        "the fake backend, the inline test backends and the fake CLIs' stores",
+        "the vitest setup file"
+      ],
+      "excludedScope": [
+        "Copying transcripts at closing, and recording their outcomes (phase-03)",
+        "Recording transcripts or their digests in a phase record (phase-04)",
+        "Changing how `findVibeSessionId` matches a session by working directory",
+        "Lifting `unverified` interactive resume for mistral-vibe"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give `ProviderStoreRoots`, `resolveProviderStoreRoots` and `providerStoreRoots()`, and list every caller that now passes the roots. Give `captureTranscript`'s signature, `TranscriptRequest` and `TranscriptRead`, and each adapter's lookup as implemented. Give `findVibeSessionDir`'s signature, its suffix rule and what it decodes, and say which fixtures were renamed. Give the FileSystem byte methods. Say how the fake CLIs keep their stores and how the setup file isolates the roots. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(providers): read a recorded session's transcript from its provider's store",
+        "body": "The Backend port can now read the transcript of a recorded session from\nits provider's own session store, on Claude Code, codex and\nmistral-vibe, and returns its bytes or says why it is missing. The\nstores' roots honour CLAUDE_CONFIG_DIR, CODEX_HOME and VIBE_HOME, and\nare resolved once at the CLI edge, so capture, record usage and vibe\nsession discovery read the same roots. One vibe session finder serves\nusage and capture, and decodes only the session_id of the directories\nwhose name matches. Every suite keeps the roots under its own HOME."
+      },
+      "assignmentReason": "It adds an operation to every provider adapter that reads the providers' own session stores, which no phax code reads yet. It also threads a value resolved at the CLI edge through the backend layer and the record writer. No code in the repository shows that design yet, so Opus at high.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-03",
+      "title": "Transcript capture at closing",
+      "objective": "When a stop closes, phax copies the transcript of every recorded session of the stop into `<run>/<phase>/interactive-transcripts/<session id>.jsonl`. The recorded sessions are the held phase's builder session, the first turn's session and every `--new-session` session. The copy happens after the closing turn, whether or not the person continued the session. The close writes the bytes the adapter read and records their sha256. A transcript that cannot be found or read is recorded as missing with its reason, and never blocks the close. Each outcome is kept in interactive-session.json and traced, and no copy ever enters a commit or a record.",
+      "detailedInstructions": [
+        "Create `src/domain/interactive/transcripts.ts`, pure:\n- `recordedSessions(session)` returns interactive-session.json's `history` then `current`, each session id once;\n- `transcriptFile(sessionId)` returns `interactive-transcripts/<id>.jsonl`;\n- `sha256Hex(bytes)` hashes bytes, never a decoded string;\n- the type `ClosedStopSession` is `{ provider, model, effort, sessionId, origin, transcript }`. `transcript` is `{ status: 'captured'; sha256 }` or `{ status: 'missing'; reason: 'not-found' | 'unreadable'; detail }`. The phase-04 manifest session has exactly these keys.",
+        "In `src/schemas/interactiveSession.ts`, add a required, strict `transcripts`. It is null until a close captures the transcripts, then an array of `{ sessionId, status: 'captured', sha256 }` or `{ sessionId, status: 'missing', reason: 'not-found' | 'unreadable', detail }`. Every writer writes it:\n- `src/app/interactiveStop.ts` writes null at both declared and held stops, and so does closeStop's fallback document;\n- `--new-session` in `src/app/enterPhase.ts`, and the closing turn's own writes, keep the value they read.\nRun `pnpm exec tsx scripts/schemas-check.ts --write`, which rewrites interactive-session's `next.schema.json` in place, and update the fixtures in `tests/unit/schemasPackage/documents.ts`.",
+        "In `src/app/closeStop.ts`, add a `transcripts` step after step 5 (the tree check) and before step 6 (the commit). The close owns the copy policy:\n- read interactive-session.json again, because the closing turn rewrote it;\n- for each `recordedSessions` entry, call `captureTranscript` with the stop's worktree and the session's start time;\n- when it is `found`, write its bytes with `writeAtomicBytes` to `<phase folder>/interactive-transcripts/<id>.jsonl` (creating the folder), and record `sha256Hex` of those same bytes;\n- when it is `missing` and that destination already holds a copy from an earlier attempt of this close, read the copy with `readBytes` and record it as captured with its digest; otherwise record the `missing` outcome as given;\n- write the outcomes into interactive-session.json's `transcripts`.\nA failed write refuses the close as `close-error` (`files`); a `missing` outcome never does. The step also runs in an unchanged close, with or without a closing turn. `finishLandedCommit` runs the same step before it reports, so a close interrupted after its commit still captures. `CloseReport`'s facts gain `sessions: readonly ClosedStopSession[]`.",
+        "Telemetry. Run the step inside `tracedStep` with step `transcripts`; it counts as a success when it completes, whatever the outcomes. Add the semantic event `stop.transcript { runId, operationId, sessionId, provider, outcome: 'captured' | 'missing', reason? }` in the same places as `oracle.edits.unjudged`:\n- `src/domain/telemetry/events.ts`, with its maker;\n- `src/schemas/telemetryEvents.ts`;\n- the projection in `src/domain/telemetry/snapshot.ts`;\n- the mapping in `src/infra/telemetry/layer.ts`.\n`traceTranscript(ctx, session, outcome)` in `src/app/telemetry/stopTelemetry.ts` emits one per session.",
+        "In `src/domain/records/stopArtifacts.ts`, `isStopArtifact` also holds for `interactive-transcripts`, so no phase record ever carries the folder, whatever `records.transcript` says. The copies are never staged: they live in the run folder, outside every worktree.",
+        "When `phax reset-phase` removes a stopped phase's recorded sessions, it also removes the phase's `interactive-transcripts/` folder. If it already removes the whole phase folder, add only the test."
+      ],
+      "planMarkdownAnchor": "#phase-03-transcript-capture",
+      "plannedFilesToCreate": [
+        "src/domain/interactive/transcripts.ts",
+        "tests/unit/interactive/transcripts.test.ts",
+        "tests/integration/stopTranscripts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/interactiveSession.ts",
+        "packages/schemas/snapshots/interactive-session/next.schema.json",
+        "src/app/closeStop.ts",
+        "src/app/interactiveStop.ts",
+        "src/app/telemetry/stopTelemetry.ts",
+        "src/domain/telemetry/events.ts",
+        "src/domain/telemetry/snapshot.ts",
+        "src/schemas/telemetryEvents.ts",
+        "src/infra/telemetry/layer.ts",
+        "src/domain/records/stopArtifacts.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/records/stopArtifacts.test.ts",
+        "tests/unit/stopTelemetry.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/enterPhase.ts",
+        "src/app/interactiveFiles.ts",
+        "src/app/resetPhase.ts",
+        "src/app/executePlan.ts",
+        "packages/schemas/src/generated/index.ts",
+        "tests/unit/telemetry/events.test.ts",
+        "tests/unit/telemetry/snapshot.test.ts",
+        "tests/unit/schemas/interactiveFormats.test.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/helpers/stoppedRunFixture.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/enterPhaseStop.test.ts",
+        "tests/integration/heldStopCommands.test.ts",
+        "tests/integration/resetPhase.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "Close → Backend port: the close asks for each recorded session's transcript and gets its bytes or a typed `missing`; keeping an earlier copy and refusing on a failed write are the close's rules, not the adapter's. Close → FileSystem port: the copy is written as bytes, and its digest is the digest of those bytes. Close → interactive-session.json: the outcomes are written before the commit, one per recorded session. The record (phase-04) reads them from that file, or from the CloseReport.",
+      "testStrategy": "- `recordedSessions` gives history then current, each id once, and nothing when there is no session — small · table · the expected list · in-phase\n- `sha256Hex` of a byte sequence that is not valid UTF-8 equals the digest of the file holding those bytes — small · example · node's own digest of the file · in-phase\n- with a test HOME whose fake codex keeps rollouts for X1 (a declared stop's first turn, never continued), X2 (from `--new-session`, continued) and X0 (a held phase's builder), closing both stops leaves `interactive-transcripts/X1.jsonl` and `X2.jsonl` in phase-03's folder and `X0.jsonl` in phase-02's, and X2's copy holds the closing turn — medium · example · the copied files and their bytes · in-phase · §8 The transcripts are captured, even of a session never continued\n- each copied file hashes to the sha256 recorded in interactive-session.json, including a store file with an invalid UTF-8 sequence — medium · example · the digest of the copied file · in-phase\n- with X1's rollout deleted, phase-03 still commits, the run continues, and interactive-session.json records X1 as missing with reason `not-found` — medium · example · state and the transcripts entry · in-phase · §8 A missing transcript never blocks closing\n- an unchanged held close and an unchanged declared close capture their sessions too — medium · example · the copied files · in-phase\n- a close interrupted after the copy and before its commit, then closed again, leaves one file and one outcome per session; a close interrupted after its commit captures in `finishLandedCommit`, keeping the earlier copy when the store file has gone — medium · example · the folder listing, the digests and interactive-session.json · in-phase\n- a failed copy write refuses the close as `files`, commits nothing and leaves the run awaiting review — medium · example · exit code, branch tip and state · in-phase\n- no branch of the run contains a path under `interactive-transcripts/`, and reset-phase removes the folder — medium · example · `git ls-tree` of every run branch, and the phase folder after reset · in-phase · §8 The stop's files are never committed\n- the close emits a `transcripts` step and one `stop.transcript` event per session, with its outcome — small · example · the in-memory telemetry · in-phase",
+      "implementationOrder": [
+        "the domain helpers",
+        "the interactive-session field and its snapshot",
+        "closeStop's step, in the close and in finishLandedCommit",
+        "the telemetry event",
+        "isStopArtifact and reset-phase",
+        "the integration tests"
+      ],
+      "excludedScope": [
+        "Recording transcripts' digests in a phase record (phase-04)",
+        "Naming sessions in records explain (phase-05)",
+        "The security record's stop (phase-05)",
+        "Capturing a closing turn's new session, which is not a recorded session"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give `recordedSessions`, `sha256Hex`, `ClosedStopSession` and the `transcripts` field as written. Say where the step sits in `closeSteps` and in `finishLandedCommit`, how an earlier copy is kept, and what a failed write refuses. Give the `stop.transcript` event's shape. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(interactive): capture each recorded session's transcript at closing",
+        "body": "A close copies the transcript of every recorded session of its stop\n(the builder's, the first turn's and every --new-session session) into\ninteractive-transcripts/, after the closing turn and whether or not the\nperson continued the session. It writes the bytes the provider store\nheld and records their sha256. A transcript that cannot be found or read\nis recorded as missing with its reason, and never blocks the close. The\noutcomes are kept in interactive-session.json and traced, and the\ncopies never enter a commit or a record."
+      },
+      "assignmentReason": "It fits a write step into the close's refusal, interrupt and landed-commit paths so each copy is made once whatever the interrupts. That needs more care than the default effort.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-04",
+      "title": "The record of a stop: the declared record and the stop's review fields",
+      "objective": "Every closed stop writes its phase's record at closing, once, and a declared phase now writes one too. The record manifest names the phase's mode. For a stopped phase, it also names:\n\n- the stop's cause, outcome and closer;\n- its recorded sessions, with each transcript's sha256 or the reason it is missing;\n- at a held corrected close, the review commit.\n\nNo interactive transcript's content reaches the records branch, whatever `records.transcript` says. A held record's usage is the builder's usage at the stop, so on mistral-vibe it no longer counts the closing turn. A refused record write pauses the run whatever the cause, and the next resume writes the record once. A failure after a declared commit pauses the run, as one after a held commit does.",
+      "detailedInstructions": [
+        "In `src/schemas/runRecord.ts`, add two required fields to the manifest: `mode` (the plan's `headless | interactive`) and `stop`. `stop` is null, or one of four strict structs, each with `cause`, `outcome`, `closedBy: { name, email }` and `sessions`: declared corrected, declared unchanged, held corrected (which also has `reviewCommit`, a full sha) and held unchanged. A session is `{ provider, model, effort, sessionId, origin: first-turn | new-session | builder, transcript }`. `transcript` is `{ status: captured, sha256 }` or `{ status: missing, reason: not-found | unreadable, detail }`, the same keys as `ClosedStopSession` (`src/domain/interactive/transcripts.ts`). Decode them with `onExcessProperty: error`, and publish them with `additionalProperties: false`.",
+        "Lift the released shapes:\n- in `src/schemas/persisted.ts`, `readPhaseRecordManifestAs` adds `mode: 'headless'` and `stop: null`, beside `oracle: null`, to a manifest read by the frozen 0.17.0 decoder or the pre-schema decoder;\n- in `packages/schemas/src/formats/recordManifests.ts`, `toLatestPhaseRecordManifest` does the same, with a comment saying why: no earlier phax could stop a phase.\nA manifest stamped at the current release without `mode` or `stop` stays refused (q-dev-records, decided in place). Run `pnpm exec tsx scripts/schemas-check.ts --write`, which rewrites the `next.schema.json` of phase-record-manifest and of interactive-session in place, and update the fixtures in `tests/unit/schemasPackage/documents.ts`.",
+        "In `src/schemas/interactiveSession.ts`, add a required `builderUsage`: the `TokenUsage` from runRecord, or null. Describe it as the held phase's builder usage, read once at the hold point, and null at a declared stop. `stopAtHeldPhase` in `src/app/interactiveStop.ts` computes it with `computeRecordUsage` (`src/app/recordPlumbing.ts`). It uses the phase folder, the builder's session id and the run's vibe root, before any closing turn can grow a vibe session's `meta.json`. A declared stop writes null, and every other writer keeps the value it read.",
+        "Create `src/domain/records/stopRecord.ts`, pure:\n- `recordStopOf` builds the manifest's `stop` from a cause, an outcome, `closedBy`, the review commit of a held corrected close, and the `ClosedStopSession`s;\n- `recordStopFromPersisted` builds the same from a closed status `stop` and an interactive-session document whose `transcripts` is set, and refuses a document whose `transcripts` is null.",
+        "In `src/app/writeRecord.ts`, `WriteRecordInput` gains `mode` and `stop`, and `usage` replaces `sessionId`. `usage` is one of:\n- `{ kind: 'session'; sessionId: string | undefined }`: computed as today;\n- `{ kind: 'recorded'; usage: TokenUsage }`: taken as given;\n- `{ kind: 'none' }`: gives `{ available: false }`.\nIn `src/domain/records/assemble.ts`, `AssembleRecordInput` gains `mode` and `stop`, written into the manifest. Assembly keeps dropping every stop artifact, `interactive-transcripts/` included, so `records.transcript` decides only about `output.jsonl`.",
+        "Rename plan 2's refusal through every layer, so a refused declared record pauses the run as a held one does:\n- `HeldRecordRefused` becomes `StopRecordRefused`, with a `cause`;\n- `HeldRecordPausedError` becomes `StopRecordPausedError`;\n- the resume kind and stopped reason `held_record_refused` become `stop_record_refused`;\n- the trace `held.record.refused` becomes `stop.record.refused`.\nThe rename touches `src/domain/events.ts`, `src/domain/reducer.ts`, `src/domain/matrix.ts`, `src/domain/effects.ts`, `src/domain/errors.ts`, `src/app/resumeInstructions.ts` and `src/app/executePlan.ts`. The reducer arm is otherwise unchanged: running/{committed} to interrupted/{committed}.",
+        "In `src/app/executePlan.ts`, `writeRecordForPhase` takes `mode`, `stop` and `usage`, and passes the run's vibe root. Headless callers pass `phase.mode`, `stop: null` and `{ kind: 'session', sessionId }`. When records are configured, wrap the stop's record write in `tracedStep` (`src/app/telemetry/stopTelemetry.ts`) with step `stop.record`.",
+        "Held record. `readHeldRecord` also reads interactive-session.json's `builderUsage`, before `RunResumeRequested`. After `closeStop`, the record takes `usage: { kind: 'recorded', usage: builderUsage }` and `stop: recordStopOf(...)` from the `CloseReport` (cause, outcome, `closedBy`, `reviewCommit`, `sessions`). Its `sourceSha` is still the phase commit. On a closed held stop's re-entry, read the status `stop` and interactive-session.json before `RunResumeRequested`, and use `recordStopFromPersisted`.",
+        "Declared record. Before `RunResumeRequested`, a declared stop's close or closed-stop re-entry calls `readDeclaredRecord`. It reads the provider and concrete model from `model-resolution.json` (`readModelResolution` in `src/app/interactiveFiles.ts`), with the effort `model.effort ?? phase.effort`, as the close computes it. On a re-entry it also reads the status `commitHash`, the status `stop` and interactive-session.json.\nIn the interactive branch, after `closeStop` and before the cleanup, write the record with `mode: 'interactive'`, `outcome: 'committed'`, `sourceSha: report.commit`, `usage: { kind: 'none' }` and `stop: recordStopOf(...)`. On the closed-stop re-entry, write it from the persisted facts when `phaseRecordExists` finds none; that check now runs for both causes, before `RunResumeRequested`.\nA refused destination dispatches `StopRecordRefused` (cause `declared`) and fails with `StopRecordPausedError`, as the held record does. A cleanup re-entry writes no record.",
+        "Set `closeInFlight = true` around the declared `closeStop` call as around the held one, and back to false after it. A failure of the declared close past its commit then leaves the run for a resume to finish (`finishLandedCommit`), never a `RunFailed`.",
+        "Tests configure records on an in-repo destination in their temporary repository, with `records.transcript` true or false per case. For true, use a fake GitHub port that answers private, or set `records.destination.acknowledgedUnknownVisibility`. Every test stubs HOME and uses a fake backend or the fake CLIs. A vibe case writes its `meta.json` fixtures under the test HOME's vibe root."
+      ],
+      "planMarkdownAnchor": "#phase-04-stop-records",
+      "plannedFilesToCreate": [
+        "src/domain/records/stopRecord.ts",
+        "tests/unit/records/stopRecord.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/integration/declaredCloseInFlight.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/runRecord.ts",
+        "src/schemas/persisted.ts",
+        "packages/schemas/src/formats/recordManifests.ts",
+        "packages/schemas/snapshots/phase-record-manifest/next.schema.json",
+        "src/schemas/interactiveSession.ts",
+        "packages/schemas/snapshots/interactive-session/next.schema.json",
+        "src/app/interactiveStop.ts",
+        "src/app/writeRecord.ts",
+        "src/domain/records/assemble.ts",
+        "src/app/executePlan.ts",
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "src/domain/matrix.ts",
+        "src/domain/effects.ts",
+        "src/domain/errors.ts",
+        "src/app/resumeInstructions.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/recordsAssemble.test.ts",
+        "tests/integration/writeRecord.test.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/unit/reducerHeldStop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/recordPlumbing.ts",
+        "src/app/closeStop.ts",
+        "src/app/interactiveFiles.ts",
+        "src/app/dispatcher.ts",
+        "src/app/telemetry/stopTelemetry.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/cli/interruptHandler.ts",
+        "packages/schemas/src/generated/index.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/unit/events.test.ts",
+        "tests/unit/resumeInstructions.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/integration/heldStopRun.test.ts",
+        "tests/integration/declaredStopRun.test.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/recordsPush.test.ts",
+        "tests/integration/briefRecords.test.ts",
+        "tests/integration/stateMachineContract.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/helpers/stoppedRunFixture.ts",
+        "tests/e2e/semanticTrace.declaredStop.test.ts",
+        "tests/e2e/semanticTrace.heldStop.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "executePlan → record writer: everything a stop's record needs comes from the CloseReport, or from files read before `RunResumeRequested`. `writeRecord` takes the usage as an explicit source. Record writer → records branch: only assembly decides which files a record carries, and a stop's files are never among them. Records → readers: the manifest's `mode` and `stop` are published in `@lbdremy/phax-schemas`, and released shapes are lifted.",
+      "testStrategy": "- `recordStopOf` and `recordStopFromPersisted` give each of the four variants, name `reviewCommit` only on a held corrected close, give an empty `sessions` when there were none, and refuse a closed stop whose `transcripts` is null — small · table · the expected stop · in-phase\n- assembly keeps `output.jsonl` when transcripts are on and drops it when they are off, and never carries `interactive-transcripts/` or another stop artifact either way — small · table · the artifact list and shape · in-phase\n- the manifest round-trips with each stop variant and refuses a missing `mode` or `stop` and an extra key; 0.17.0 and pre-schema manifests read lifted with `mode: headless` and `stop: null`, in phax and in `@lbdremy/phax-schemas` — small · contract · the decoders and the schemas-package suites · in-phase\n- with records on and phase-02 held at C2 with builder X0, the records branch holds no phase-02 record while it is held, and exactly one after it closes corrected with review commit R2. That record names C2 as its source, R2, cause held, outcome corrected, Ada Example, and X0 with its transcript's sha256 — medium · example · the records branch's manifests · in-phase · §8 A held phase's record is written once, at closing\n- of two closed runs, the one whose phase-03 recorded X1 names codex, the model, X1 and its sha256, and the one whose first turn failed names no session. With `records.transcript` true and with it false, no records commit holds a path under `interactive-transcripts/` or any line of X1's transcript, and the first run's folder keeps `interactive-transcripts/X1.jsonl` — medium · example · every records commit's tree and blobs, and the run folder · in-phase · §8 Records and the security record name the review honestly\n- with X1's rollout deleted, phase-03's record names X1's transcript as missing, with reason `not-found` — medium · example · the manifest · in-phase · §8 A missing transcript never blocks closing\n- a declared phase's record is written once at closing, naming the routed provider and model, the effort `model.effort ?? phase.effort` (also when `thinking` is absent), usage unavailable, mode interactive, and the declared commit as its source — medium · example · the manifest · in-phase\n- a declared close interrupted after StopCommitted writes its record on the next resume, and none when resumed again; a refused destination pauses the run (exit 1, `stop_record_refused`), and the next resume writes the record once — medium · example · the records branch count and run-status · in-phase\n- a declared close that fails after its commit leaves the run resumable, never `failed`, and the next resume finishes it from the landed commit — medium · example · run-status and the branch tip · in-phase\n- on mistral-vibe, a held phase whose closing turn resumed builder V0 and grew its `meta.json` records the usage read at the hold point — medium · example · the manifest's usage against `meta.json` before and after · in-phase\n- every StopRecordRefused cell gives the matrix's disposition for both causes — small · table · the reducer matrix · in-phase\n- with records configured, the stop's record write emits a `stop.record` step — small · example · the in-memory telemetry · in-phase",
+      "implementationOrder": [
+        "the manifest schema, the lifts and the snapshots",
+        "builderUsage at the hold point",
+        "stopRecord.ts",
+        "writeRecord and assembly",
+        "the StopRecordRefused rename",
+        "executePlan's held record, with its stop and usage",
+        "the declared record, closeInFlight for both causes, and the closed-stop re-entry for both causes",
+        "the integration tests"
+      ],
+      "excludedScope": [
+        "records explain on a review commit, and the stop's lines (phase-05)",
+        "The security record (phase-05)",
+        "Putting any interactive transcript's content on the records branch",
+        "Recording sessions that phax did not start"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give the manifest's `mode` and `stop` as written, the two lifts, `builderUsage`, `recordStopOf` and `recordStopFromPersisted`, and `WriteRecordInput`'s new fields. Say where executePlan writes the declared record, what it reads before `RunResumeRequested` for each cause, how the re-entry writes the record only once, and where `closeInFlight` is now set. List the renamed identifiers and the snapshots rewritten. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(records): record every stop at closing, declared and held",
+        "body": "A declared phase now writes its record when its stop closes, once, as\na held phase does. A record names the phase's mode. For a stopped phase\nit also names the stop's cause, outcome and closer, its recorded\nsessions with each transcript's digest or why it is missing, and a held\nclose's review commit. No interactive transcript's content reaches the\nrecords branch. A held record's usage is the builder's at the stop, so\na vibe closing turn no longer counts. A refused record write, or a\nfailure after a declared commit, pauses the run for either cause."
+      },
+      "assignmentReason": "It extends a persisted record format with its lifts, the record writer and assembly, the run loop's close and re-entry paths for both causes, and a reducer event across every layer, while keeping each record written exactly once through interrupts. That crosses several parts of the architecture, so Opus at high.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-05",
+      "title": "records explain on both commits, and the security record of a stop",
+      "objective": "`phax records explain` finds a held phase's record from its review commit, as it does from its phase commit. On any commit of a stopped phase, it shows the stop's line and its sessions. The phase's `security.json` states that the person's work, including a session they continued, ran outside phax's enforcement. It also names each first and closing turn phax ran, with the read-only narrowing applied to it. The close adds only that `stop` and keeps every other field, and both readers of the file decode it through one strict reader on the FileSystem port.",
+      "detailedInstructions": [
+        "In `src/app/recordsExplain.ts`, `addressFromTrailers` checks `Run-Id` with `Phase-Id` first. It then addresses a phase record from `Run-Id` with `Held-Phase`, taking the `Held-Phase` value as the phase id, before it checks `Authoring-Id` and `Decision-Id`. `ExplainedRecord` gains `addressedBy: 'phase-commit' | 'review-commit'`. Update the not-a-phax-commit message in `src/cli/commands/records.ts` so it names `Held-Phase` too.",
+        "In `src/cli/commands/records.ts`, when a manifest has a stop, print after the record's first line:\n- for a held stop: `  held: <corrected|reviewed without change> by <name> — phase commit <short>[, review commit <short>]`;\n- for a declared stop: `  interactive: <corrected|reviewed without change> by <name>`;\n- then one line per session: `  sessions: <provider> <model> <id> (<origin>; transcript sha256 <first 4 hex>…)`, with `transcript missing: <reason>` for a missing one, or `  sessions: none` when there is none.\nWhen the record was found from a review commit, say so on the first line (`found from review commit <short>`). A manifest whose stop is null prints exactly what it prints today.",
+        "Create `src/domain/security/stopPosture.ts`, pure:\n- `readOnlyNarrowingOf(provider)` is `read-only-tools` for claude-code, `read-only-sandbox` for codex-cli and `none` for mistral-vibe;\n- `phaxTurnsOf(names)` lists, in run order (first turns, then closing turns), every `first-turn-NN.jsonl` and `closing-turn-NN.jsonl` stream in a phase folder's file names, and its `-retry` stream, as `{ turn: 'first-turn-01', kind: 'first-turn' | 'closing-turn' }`. Export the turn-stream pattern once, from `src/domain/records/stopArtifacts.ts`, and reuse it here and in `finalReport.ts` rather than keeping a second copy;\n- `stopPostureOf({ cause, provider, names })` returns `{ cause, personWork: 'outside-phax-enforcement', turns }`, each turn with its `narrowing`.",
+        "In `src/schemas/securityPosture.ts`, the current schema becomes `version: 2`, strict (`onExcessProperty: error`), with a required, strict `stop`: null, or the struct above. Keep the version-1 struct as `SecurityPostureV1Schema`, and add `readSecurityPosture(input)`, which decodes version 2 or lifts version 1 with `stop: null`. `resolvePhaseAgent` in `src/app/executePlan.ts` writes version 2 with `stop: null`.",
+        "Switch both readers of `security.json` to `readSecurityPosture`, and any other the type checker names:\n- `readPhasePosture` in `src/app/interactiveFiles.ts`;\n- `src/app/finalReport.ts`, whose raw `readFileSync` and `readdirSync` move onto the FileSystem port. A file that exists but does not decode is reported in the final report as unreadable, naming the file and the first violation, rather than swallowed as if absent.",
+        "In `src/app/closeStop.ts`, in the `transcripts` step (so in `finishLandedCommit` too), set `security.json`'s `stop`. Read the file through `readSecurityPosture` and the folder's file names through the FileSystem port. Set `stop` to `stopPostureOf(...)`, change no other field, and encode the file as `resolvePhaseAgent` does, so every other field keeps its bytes. A failed read or write refuses the close as `close-error` (`files`). The record written at closing carries this file, because `security.json` is not a stop artifact.",
+        "Move every test that builds `security.json` through `encodeSecurityPosture` to version 2: `tests/helpers/stoppedRunFixture.ts`, and the suites the type checker names."
+      ],
+      "planMarkdownAnchor": "#phase-05-explain-and-security",
+      "plannedFilesToCreate": [
+        "src/domain/security/stopPosture.ts",
+        "tests/unit/security/stopPosture.test.ts",
+        "tests/integration/recordsExplainStop.test.ts",
+        "tests/integration/stopSecurityRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/recordsExplain.ts",
+        "src/cli/commands/records.ts",
+        "src/schemas/securityPosture.ts",
+        "src/app/executePlan.ts",
+        "src/app/closeStop.ts",
+        "src/app/interactiveFiles.ts",
+        "src/app/finalReport.ts",
+        "src/domain/records/stopArtifacts.ts",
+        "tests/unit/security/posture.test.ts",
+        "tests/helpers/stoppedRunFixture.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/enterPhase.ts",
+        "src/app/reviewCode.ts",
+        "src/domain/security/postureToPolicy.ts",
+        "src/domain/cost/ledger.ts",
+        "tests/integration/recordsExplain.test.ts",
+        "tests/integration/finalReport.test.ts",
+        "tests/integration/skillEditGrants.test.ts",
+        "tests/integration/briefRecords.test.ts",
+        "tests/integration/agentCommandGrants.test.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/unit/records/stopArtifacts.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "Source commit → record: a review commit's `Run-Id` and `Held-Phase` trailers are the address of its record. Close → security.json: the stop section is computed by a pure function from the phase folder's stream names and the provider, and is the only field a close changes. Every reader of the file goes through `readSecurityPosture` and the FileSystem port.",
+      "testStrategy": "- `phax records explain` on C2 and on R2 names the same phase-02 record, the second one found from the review commit, with the held line naming C2 and R2, Ada Example, and X0 with its digest — medium · example · the explain output · in-phase · §8 A held phase's record is written once, at closing\n- on each of two closed runs' phase-03 commits, explain names phase-03 interactive with its outcome and Ada Example, then codex, the model, X1 and its digest for the first run and `sessions: none` for the second. Each phase-03 `security.json` states that the person's work ran outside phax's enforcement, and lists its first and closing turns with their narrowing — medium · example · the explain output and the decoded security.json · in-phase · §8 Records and the security record name the review honestly\n- after a close, every field of `security.json` but `stop` is byte-identical to before, and `readPhasePosture` gives the same policy and agent commands — medium · example · the file text with `stop` removed, and the read posture · in-phase\n- a commit with `Run-Id` and `Phase-Id` resolves by them even when it also carries `Held-Phase`, and a commit with `Held-Phase` and no `Run-Id` is not a phax commit — medium · table · the explain outcome · in-phase\n- `readOnlyNarrowingOf` and `phaxTurnsOf` give the expected values for each provider and stream set — small · table · the expected narrowing and turns · in-phase\n- a version-1 `security.json` reads lifted with `stop: null` in both readers, and a version-2 file without `stop` or with an extra key is refused — small · table · the decode result · in-phase\n- the final report names a `security.json` that does not decode as unreadable, and reads a valid one through the FileSystem port — medium · example · the final report's security section · in-phase\n- a phase that never stopped has `stop: null` in its security.json, and explain prints no stop line for it — medium · example · file and output · in-phase",
+      "implementationOrder": [
+        "explain's address and its CLI lines",
+        "stopPosture.ts and the shared turn-stream pattern",
+        "security.json version 2 and its reader",
+        "both readers switched, finalReport onto the FileSystem port",
+        "closeStop's security write",
+        "fixtures and tests"
+      ],
+      "excludedScope": [
+        "Printing interactive transcripts in records explain",
+        "Any change to how phax enforces a posture",
+        "The record's content (phase-04)"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give the trailer order in `addressFromTrailers`, `addressedBy`, and the exact stop and session lines that explain prints. Give `stopPostureOf`, `readOnlyNarrowingOf`, `phaxTurnsOf` and the version-2 `stop` as written, and `readSecurityPosture` with every reader switched to it. Say where closeStop writes the file and how the other fields keep their bytes. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(records): explain a review commit and record a stop's security posture",
+        "body": "phax records explain now finds a held phase's record from its review\ncommit, through the commit's Run-Id and Held-Phase trailers. It shows a\nstopped phase's cause, outcome and closer, and its sessions with their\ntranscript digests. security.json moves to version 2. At a close, its\nstop section says that the person's work ran outside phax's enforcement,\nand names each first and closing turn phax ran with its read-only\nnarrowing; every other field is kept. Both readers of the file decode it\nstrictly through the FileSystem port."
+      },
+      "assignmentReason": "It versions security.json with a strict reader and a lift for both readers, moves the final report onto the FileSystem port, and threads the stop's posture through the close's idempotent step, besides the explain change. That needs more care than the default effort.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-06",
+      "title": "The versioned run list",
+      "objective": "`phax ls --json` prints one `run-list` document, born with `$schema`. Each of its `runs` carries the run's state and a required `stop`: while the run awaits review, its review-stop document, equal in content to `review-stop.json`; otherwise null. Every row key is required, and null when unknown. `phax ls --awaiting-review --json` lists only the waiting runs. ls reads every stop through `readStopInfo`, so the table and JSON agree, and a defective document never crashes ls. The format is published in `@lbdremy/phax-schemas` for a review UI.",
+      "detailedInstructions": [
+        "Create `src/schemas/runList.ts`:\n- `RunListRowSchema`, with the required keys `qualifiedName`, `namespace`, `shortName`, `state` (the run state enum), `branch`, `currentPhase` (string or null), `gateProfile` (string or null), `updatedAt`, `lockState` (the enum `ls` uses today), `recordsPending` (a non-negative integer or null), `archivePath` (string or null), and `stop` (`ReviewStopFileSchema` from `src/schemas/reviewStop.ts`, with its `$schema`, or null);\n- `RunListFileSchema`: `{ $schema: schemaUrlField('run-list'), runs }`.\nDecode with `onExcessProperty: error`, and annotate each struct so the published JSON Schema says `additionalProperties: false`. Describe `stop` as null when the run is not awaiting review, or when its review-stop document cannot be read. Export the decoder and the encoder.",
+        "Register and publish the format:\n- add `run-list` to `FORMAT_IDS` and `SCHEMA_BORN_FORMAT_IDS` in `src/schemas/schemaUrl.ts`, and extend the doc comment above `SCHEMA_BORN_FORMAT_IDS`;\n- define the package format in `packages/schemas/src/formats/interactive.ts` as `review-stop` is defined (`runListFormat`, `parseRunList`, `toLatestRunList`), and export it from `packages/schemas/src/index.ts`;\n- run `pnpm exec tsx scripts/schemas-check.ts --write`. It creates `packages/schemas/snapshots/run-list/next.schema.json`, and regenerates `packages/schemas/src/generated/index.ts` and `src/schemas/release.ts`;\n- add a current-shape fixture to `tests/unit/schemasPackage/documents.ts`, and extend every exhaustive format list the suites name, such as `packages/schemas/build/jsonSchemas.ts` and `tests/type/schemasPackage.ts`.",
+        "In `src/app/stopInfo.ts`, `StopInfo` gains `reviewStop: ReviewStop`, the document `readReviewStop` decoded. `readStopInfo` is unchanged otherwise:\n- a run not in `awaiting_review` gives null. A close parks the document and moves the run to `running`, so a run being closed lists `stop: null`;\n- a run in `awaiting_review` whose only copy is the parked one (a close that died before restoring it) gives that copy, which holds the same stop.\nDo not re-derive the stopped phase in `ls.ts`.",
+        "Create `src/domain/runList.ts`, pure. `buildRunList(rows)` takes today's ls rows, each with its run's review-stop document or null, and returns the run list in memory. It writes null where the table prints `-` (`currentPhase`, `gateProfile`) and where `ls --json` used to drop a key (`recordsPending`, `archivePath`).",
+        "In `src/cli/commands/ls.ts`, read the stop of each run in `awaiting_review` once, through `readStopInfo`, for the table and for JSON alike. A read that fails gives no stop: the table shows the plain state, as today, JSON writes `stop: null`, and ls still exits 0. For JSON, stamp the document with `withSchemaUrl('review-stop', …)`, then print `encodeRunList(withSchemaUrl('run-list', buildRunList(...)))`. `--complete` and the text table do not change."
+      ],
+      "planMarkdownAnchor": "#phase-06-run-list",
+      "plannedFilesToCreate": [
+        "src/schemas/runList.ts",
+        "src/domain/runList.ts",
+        "packages/schemas/snapshots/run-list/next.schema.json",
+        "tests/unit/runList.test.ts",
+        "tests/integration/runList.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/schemaUrl.ts",
+        "packages/schemas/src/formats/interactive.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "src/schemas/release.ts",
+        "src/app/stopInfo.ts",
+        "src/cli/commands/ls.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/cli/ls.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/build/jsonSchemas.ts",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/integration/stoppedRunCommands.test.ts",
+        "tests/integration/heldStopCommands.test.ts",
+        "src/app/interactiveFiles.ts",
+        "src/cli/commands/sessionInfo.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "CLI → app: ls reads each waiting run's stop only through `readStopInfo`, which returns the decoded review-stop document; nothing is recomputed from git or the phase statuses. phax → review UI: the run-list document is the versioned surface, published in `@lbdremy/phax-schemas`, and its `stop` is the review-stop document a UI can also watch as a file.",
+      "testStrategy": "- with invoice-export held at phase-02, credit-notes stopped at declared phase-03 and payments-fix failed, `phax ls --json` prints one document whose `$schema` names `run-list` (format id and release pattern). The two waiting runs carry `state` `awaiting_review` and a `stop` equal in content to their review-stop.json, and payments-fix carries `stop` null. `phax ls --awaiting-review --json` lists only the two waiting runs — medium · example · the decoded document against the files · in-phase · §8 phax ls --json is a versioned run list\n- `buildRunList` writes every key, with null for an unknown phase, profile, pending count and archive path — small · table · the expected rows · in-phase\n- a waiting run whose review-stop.json is malformed gets `stop` null in JSON and its plain state in the table, and ls exits 0; a waiting run whose only copy is parked embeds the parked copy — medium · example · output and exit code · in-phase\n- the run-list decoder refuses an extra key and a missing `stop`, the published schema says `additionalProperties: false`, and `@lbdremy/phax-schemas` parses the fixture — small · contract · the decoder and the schemas-package suites · in-phase\n- `phax ls --complete`, and the table of runs with no stop, print what they printed before — small · example · the output · in-phase",
+      "implementationOrder": [
+        "the schema and the format registration",
+        "the package format and the snapshot",
+        "readStopInfo returning the review-stop document",
+        "buildRunList",
+        "ls.ts",
+        "tests"
+      ],
+      "excludedScope": [
+        "Moving ls's reconciliation out of the CLI",
+        "A watch or server mode",
+        "The docs, the usage spec and the upgrade note (phase-09)"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give `RunListRowSchema` and `RunListFileSchema` as written, the package exports, the snapshot created, `StopInfo.reviewStop`, and `buildRunList`'s signature. Say how ls reads a stop, how a defective and a parked document are handled, and list every exhaustive format list you extended. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(ls): print a versioned run list with each run's stop",
+        "body": "phax ls --json now prints one run-list document with a $schema. Each\nrun carries its state and a required stop: while the run awaits review,\nits review-stop document as review-stop.json holds it, and null\notherwise. Every row key is required and null when unknown. ls reads\nevery stop through readStopInfo, so the table and JSON agree and a\ndefective document never fails ls. The format is published in\n@lbdremy/phax-schemas for a review UI. It replaces the bare array."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-07",
+      "title": "Stops in the compliance review, the review handoff and the PR body",
+      "objective": "The compliance reviewer sees each stopped phase with its cause and its interactive handoff, so it judges the corrections against that handoff, not as deviations from the plan. `review-handoff.md` gains `## Reviewed phases`, and the PR body's line for a stopped phase shows the cause, the outcome, who closed it and the guard count. A run with no stop keeps every one of these surfaces byte for byte, and a dedicated test proves it.",
+      "detailedInstructions": [
+        "In `src/domain/interactive/handoff.ts`, add `summarizeInteractiveHandoff(text)`. From a valid interactive handoff, it returns `{ corrections, guards, noGuard, correctedSection, guardsSection }`: the `## What was corrected` entries, the `## Guards` entries that name a test, lint rule or gate step, the entries that start with `no guard:`, and the text of the two sections. Reuse the parsing that `validateInteractiveHandoff` does.",
+        "Create `src/domain/interactive/reviewedPhases.ts`, pure:\n- `ReviewedPhase` is `{ phaseId, cause, outcome, closedBy, summary }`;\n- `renderReviewedPhases(phases)` returns `## Reviewed phases`, then a table `Phase | Stop | Outcome | Closed by | Corrections | Guards` (Guards as `2`, `2 (1 no guard)`, or `—` when the phase is unchanged). Then, for each corrected stop, it returns `### <phase> (held)` or `### <phase> (interactive)` with its What was corrected and Guards sections. It returns nothing when the list is empty;\n- `prPhaseStopSuffix(phase)` returns ` · held, corrected by <name> (<n> guard|guards)`, ` · interactive, corrected by <name> (<n> guard|guards)`, or ` · <held|interactive>, reviewed without change by <name>`.",
+        "In `src/app/loadReviewHandoffInputs.ts`, add `loadReviewedPhases(info)`. It returns the phases whose status `stop` is closed, in plan order, each with its `closedBy` from that stop and its interactive handoff: `correction-handoff.md` at a held stop, `phase-handoff.md` at a declared one. A missing handoff counts as a missing phase artifact, as it does in `loadPhaseContents`. In `src/app/reviewHandoff.ts`, render the section after `## Deviations not explained in any handoff` and the oracle pairs, and before the plan compliance review. Omit it when no phase stopped.",
+        "In `src/domain/publish/prBody.ts`, each phase of `ShortPrBodyInput` gains `stop: ReviewedPhase | null`, and `renderPhases` appends `prPhaseStopSuffix` to a stopped phase's line. `src/app/publishRun.ts` fills it with `loadReviewedPhases`. A phase whose stop is null keeps today's line byte for byte.",
+        "In `src/domain/review/compliancePrompt.ts`, `BuildCompliancePromptInput` gains `reviewedPhases: { phaseId, cause, handoffMd }[]`. When it is not empty, add a `## Reviewed phases` section after `## Phase handoffs`. The section says that a person reviewed and corrected these phases at a stop, and that their review corrections are judged against the interactive handoff shown there, never as deviations from the plan. It then gives each phase's cause and handoff. Also append one line to each such phase's instructions: `A person corrected this phase at a <held|declared> stop: judge its review corrections against its interactive handoff under Reviewed phases, not as plan deviations.` With no stop, the prompt is byte-identical. `src/app/reviewCompliance.ts` fills the field from the phase statuses.",
+        "Create `tests/integration/noStopUnchanged.test.ts` for §8's last criterion. A plan with no Mode line runs without `--hold`, with records on. The test checks the outputs against expected values it states literally:\n- the same `phax plans lint` findings;\n- no `## Review corrections` in any prompt;\n- the same states and exit codes;\n- `mode: headless` on every phase, and `hold: { selection: none }`;\n- `mode: headless` and `stop: null` in every record, and no stop line in `phax records explain`;\n- no `## Reviewed phases` in review-handoff.md, and no `## Reviewed phases` in the compliance prompt;\n- PR phase lines with no stop suffix."
+      ],
+      "planMarkdownAnchor": "#phase-07-review-surfaces",
+      "plannedFilesToCreate": [
+        "src/domain/interactive/reviewedPhases.ts",
+        "tests/unit/interactive/reviewedPhases.test.ts",
+        "tests/integration/reviewedPhasesSurfaces.test.ts",
+        "tests/integration/noStopUnchanged.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/interactive/handoff.ts",
+        "src/app/loadReviewHandoffInputs.ts",
+        "src/app/reviewHandoff.ts",
+        "src/domain/publish/prBody.ts",
+        "src/app/publishRun.ts",
+        "src/domain/review/compliancePrompt.ts",
+        "src/app/reviewCompliance.ts",
+        "tests/unit/interactive/handoff.test.ts",
+        "tests/unit/publish/prBody.test.ts",
+        "tests/unit/review/compliancePrompt.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/runReviewInfo.ts",
+        "tests/integration/reviewHandoff.test.ts",
+        "tests/integration/loadReviewHandoffInputs.test.ts",
+        "tests/integration/publishRun.test.ts",
+        "tests/integration/reviewCompliance.test.ts",
+        "tests/integration/finalReview.test.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/helpers/stoppedRunFixture.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "Run folder → review surfaces: each stop's cause, outcome and closer come from its phase status, and its corrections and guards from its interactive handoff file; the renderers are pure. Compliance reviewer: a stopped phase's corrections are framed by its interactive handoff, and the verdict's JSON shape does not change.",
+      "testStrategy": "- a run reaching review_open with held phase-02 corrected, declared phase-03 corrected and held phase-04 unchanged, each closed by Ada Example: review-handoff.md lists the three with their cause, outcome and Ada Example, and phase-02's and phase-03's corrections and guards. The PR lines mark phase-02 held and corrected, phase-03 interactive and corrected, and phase-04 held and reviewed without change, each by Ada Example — medium · example · the built review-handoff.md and PR body · in-phase · §8 The review handoff and the PR show the review\n- `summarizeInteractiveHandoff` counts corrections, named guards and `no guard:` entries — small · table · the expected counts · in-phase\n- `renderReviewedPhases` renders the table and the sections, and nothing when no phase stopped; `prPhaseStopSuffix` says `1 guard` and `2 guards` — small · table · the expected text · in-phase\n- the compliance prompt presents phase-03 as declared and phase-02 as held, each with its interactive handoff, and a run with no stop builds the same prompt as before — small · example · the prompt text · in-phase · §8 Corrections are not deviations\n- a plan with no Mode line run without --hold keeps its lint findings, prompts, states, exit codes, records and their explain output, review handoff and PR lines — medium · example · the expected values · in-phase · §8 Plans and runs without a stop are unchanged",
+      "implementationOrder": [
+        "summarizeInteractiveHandoff",
+        "reviewedPhases.ts",
+        "the review handoff loader and section",
+        "the PR body line",
+        "the compliance prompt",
+        "the integration tests"
+      ],
+      "excludedScope": [
+        "A stop dimension in the compliance verdict's JSON shape",
+        "Any change to compliance-review.json",
+        "The docs (phase-09)"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Give `summarizeInteractiveHandoff`, `ReviewedPhase`, `renderReviewedPhases` and `prPhaseStopSuffix` as written. Say where the section sits in review-handoff.md, which files `loadReviewedPhases` reads, the compliance prompt's new section and sentence, and how the no-stop test pins each surface. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(review): show stops in the compliance review, review handoff and PR body",
+        "body": "The compliance reviewer now sees each stopped phase with its cause and\nits interactive handoff, and judges the review corrections against that\nhandoff rather than as plan deviations. review-handoff.md gains Reviewed\nphases, a table of each stop's cause, outcome, closer, corrections and\nguards. The PR body's phase line shows the same. A run with no stop\nkeeps every surface byte for byte."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-08",
+      "title": "Cost of phax's turns, and the estimate of an interactive phase",
+      "objective": "The cost ledger holds each first and closing turn phax ran, each costed by its own increment. It holds nothing for a session the person continued, or for a session phax did not start, and tests now prove each case. `phax plans estimate` names an interactive phase as interactive and sizes only its first and closing turns, from this repository's past interactive phases, repriced at its model and weighted by recency. It shows them in their own row at the phase's place in the plan, in the text and `--json` output and in the scenarios. Turn-only costs no longer distort the estimate's fit, and the compliance run level stays what it was.",
+      "detailedInstructions": [
+        "Create `tests/integration/stopTurnCosts.test.ts` for §8 Only phax's turns are costed. The ledger already costs each closing turn by its own increment (`src/domain/cost/ledger.ts`); add the cases no test covers yet (check `tests/integration/costLedger.test.ts` and `tests/unit/costLedgerTurnRoles.test.ts` first):\n- a declared phase-03 whose first turn started fake Claude session C1, which the person then continued. The fake writes to its store under the test HOME and nothing to the phase folder. The phase is closed by a turn that resumes C1, whose stream reports a cumulative $1.40 for a turn whose own cost is $0.30;\n- a held phase-02 closed by a turn that resumes its builder.\nThe ledger must hold one `first-turn` and one `closing-turn` entry for phase-03, the latter $0.30. phase-02's builder entries must be unchanged, plus one `closing-turn` entry of its own increment. No entry may cover the person's turns. Change `src/app/costLedger.ts` or `src/domain/cost/ledger.ts` only if a case fails. The ledger stays Claude Code only.",
+        "In `src/domain/cost/history.ts`:\n- `HistoricalPhasePlan` gains `mode`, which `src/app/estimateHistory.ts` fills from each historical plan;\n- `trainingSamples` counts only `phase`, `fix` and `handoff` entries, and skips interactive phases;\n- export `MIN_SAMPLE_USD`;\n- add `interactiveTurnSamples(ledgers, sizedRuns)`. It returns, for each historical interactive phase, `{ tokens, atMs }`: the token mix of its `first-turn` and `closing-turn` entries and its run's start. A phase is a sample only when it has at least one such entry and their reference-priced volume (`priceTokens` at `referencePrice()`) is at least `MIN_SAMPLE_USD`. That keeps out codex and vibe phases, which cost $0 in a Claude-only ledger, and a first turn that started no session.",
+        "In `src/domain/cost/estimate.ts`:\n- `PlanPhaseInput` gains `mode`, and `src/app/estimatePlan.ts` passes it;\n- `PhaseEstimate` becomes explicit per mode. A headless phase is `mode: headless`, estimated as today, with `notEstimated` in `other-provider | no-list-price`. An interactive phase is `mode: interactive`, with `estimate: { p10, p50, p90 }` or `estimate: null` and `notEstimated` in `thin-interactive-history | other-provider | no-list-price`;\n- an interactive phase on Claude Code with a list price and at least 3 turn samples is sized by pricing each sample's tokens at the phase's model (`priceTokens` with `listPriceFor(model)`), weighting it with `sampleWeight(atMs, nowMs)`, and reading `weightedQuantile` at 0.1, 0.5 and 0.9, rounded to cents. With fewer samples it is `thin-interactive-history`;\n- `RunEstimate.runLevel` stays the compliance median only;\n- the run range is the `runQuantiles` range of the headless phases and the run level, plus the estimated interactive phases' P10, P50 and P90, quantile by quantile;\n- in `play`, the headless phases share the run's figure minus the run level minus the interactive phases' own picks. Each interactive phase spends its P50 or P90 at its plan position in `phaseCosts`, and the run level stays on the last phase;\n- below `MIN_HISTORY_PHASES` headless samples the report is thin history and lists no phase, as today.",
+        "In `src/domain/cost/estimateRender.ts`, an estimated interactive phase gets its own row at its plan position: `<id>  <model>  interactive  P10  P50  P90`. When the plan has one, a line under the table reads `Interactive phases: first and closing turns only; the person's work is not estimated.` `thin-interactive-history` renders in the not-estimated line as `<id> (claude-code, too few past interactive phases)`. The `compliance review` row does not change. The `--json` output carries `mode` on every phase. Nothing mentions a hold.",
+        "In `tests/helpers/costHistory.ts`, add `generateHistoryWithInteractive({ seed })`. It returns `generateHistory` with 20 runs of 3 headless phases (60 headless samples, the `MIN_HISTORY_PHASES` minimum), plus 3 runs that each hold one interactive phase with a `first-turn` and a `closing-turn` entry. `PlanFilePhase` and `phaxPlanJson` gain `mode`, and `seedGeneratedRuns` writes it, so the seeded `phax-plan.json` marks those phases interactive. The §8 estimate test and the interactive sizing tests use this fixture."
+      ],
+      "planMarkdownAnchor": "#phase-08-cost-and-estimate",
+      "plannedFilesToCreate": [
+        "tests/integration/stopTurnCosts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/cost/history.ts",
+        "src/domain/cost/estimate.ts",
+        "src/domain/cost/estimateRender.ts",
+        "src/app/estimatePlan.ts",
+        "src/app/estimateHistory.ts",
+        "tests/helpers/costHistory.ts",
+        "tests/unit/cost/history.test.ts",
+        "tests/unit/cost/estimate.test.ts",
+        "tests/unit/cost/estimateRender.test.ts",
+        "tests/integration/estimatePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/costLedger.ts",
+        "src/domain/cost/ledger.ts",
+        "src/domain/cost/fit.ts",
+        "src/cli/commands/plansEstimate.ts",
+        "tests/integration/costLedger.test.ts",
+        "tests/unit/costLedgerTurnRoles.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/estimateHistory.test.ts",
+        "tests/helpers/fakeProviderCli.ts",
+        "tests/unit/cost/ledger.test.ts",
+        "tests/unit/cost/backtest.test.ts",
+        "tests/unit/cost/fit.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "Ledgers → estimate: the estimate reads only the ledgers and the sized history, and a phase's mode decides how it is sized. The cost ledger's entries are written only for turns that phax ran on Claude Code. Estimate → its readers: `--json` gains `mode` on every phase and the interactive variants; the run level keeps its meaning.",
+      "testStrategy": "- the ledger holds one first-turn and one closing-turn entry for phase-03, the closing-turn entry $0.30 and not the cumulative $1.40; phase-02's builder entries unchanged, plus one closing-turn entry of its own increment; and no entry for the person's turns in C1 — medium · example · the decoded cost-ledger.json · in-phase · §8 Only phax's turns are costed, each by its own increment\n- `phax plans estimate <plan> --no-probe --json`, over `generateHistoryWithInteractive`, names phase-03 interactive and sizes only its turns, in its own row, and the text output says so — medium · example · the JSON report and the text · in-phase · §8 Only phax's turns are costed, each by its own increment\n- training samples leave out turn entries and interactive phases, and turn samples leave out a phase with no turn entry and one under `MIN_SAMPLE_USD` — small · table · the expected samples · in-phase\n- an interactive phase gets its range from 3 or more turn samples, repriced at its model and weighted by recency; `thin-interactive-history` from fewer; `other-provider` off Claude Code; `no-list-price` without a list price — small · table · the expected estimate · in-phase\n- `runLevel` equals the compliance median with and without interactive phases, and the run range adds the interactive phases' quantiles — small · example · the run estimate · in-phase\n- in the P50 and P90 scenarios, an interactive phase spends its own figure at its plan position, and the run level stays on the last phase — small · example · the played phase costs · in-phase\n- the rendered rows for a headless and an interactive phase, and the unchanged compliance review row — small · example · the text · in-phase",
+      "implementationOrder": [
+        "the turn-cost tests, and any ledger fix they need",
+        "history: mode, the training filter and interactiveTurnSamples",
+        "the cost-history fixture",
+        "the estimate's interactive sizing, the run range and the scenarios",
+        "the renderer and the JSON output",
+        "the integration test"
+      ],
+      "excludedScope": [
+        "Sizing a hold",
+        "Costing turns on providers other than Claude Code",
+        "The docs (phase-09)"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Say which ledger cases were already tested and which this phase added, and whether any ledger code changed. Give the training filter, `interactiveTurnSamples`, the interactive `PhaseEstimate` variants, the minimum turn samples, how the run range and the scenarios place the turns, the rendered row, and `generateHistoryWithInteractive`. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(estimate): size an interactive phase by its turns only",
+        "body": "phax plans estimate now names an interactive phase as interactive and\nsizes only its first and closing turns, from the turn costs of past\ninteractive phases repriced at its model and weighted by recency, or\nsays there are too few of them. The turns get their own row and their\nown place in the scenarios; the compliance run level is unchanged. The\nfit no longer learns from turn entries or turn-only phases. New tests\ncover phax's turns costed by their own increment, with no entry for a\nperson's turns."
+      },
+      "assignmentReason": "It changes what the estimate learns from history, and adds a sizing, a run range and a scenario placement the cost model does not have yet, inside a fitted model whose verdict depends on them. That needs more care than the default effort.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-09",
+      "title": "Docs, the privacy statement, the e2e trace snapshots and the queue",
+      "objective": "Operators, planners and review-UI authors can read how a stop's transcripts, records, security record, review handoff, PR line and run list work. A privacy statement says what phax reads from a provider's session store. The upgrade notes tell scripts what changed, and the estimate guide covers an interactive phase. The CLI help and the generated references follow. The declared and held e2e trace snapshots pin the transcript step and the stop's record. NEXT_STEPS records the spec as complete.",
+      "detailedInstructions": [
+        "In README.md `### Interactive phases`, replace the closing not-part-of-this-release paragraph with sections on:\n- the transcripts copied at closing into `interactive-transcripts/`, and missing ones recorded with their reason;\n- the records of a stop: mode, cause, outcome, closer, sessions with their digests, the review commit, the declared phase's record, and `phax records explain` on a review commit;\n- interactive transcripts never reach the records branch, whatever `records.transcript` says: the record names each session and its transcript's sha256, and the copy stays in the run folder;\n- `security.json`'s stop section;\n- the review handoff's `## Reviewed phases` and the PR line;\n- `phax ls --json` and `review-stop.json` as the surface for a review UI, with a short example document;\n- closing needs a git identity in the checkout.\nState that the cost ledger covers Claude Code, as a property rather than a gap. Under README.md `## Records`, add one sentence on a stop's record.",
+        "Add the privacy statement, `#### What phax reads from a provider's session store`, under README.md `### Interactive phases`, and the same facts in `docs/security.md`. It says honestly:\n- the store roots, and the variables that move them (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `VIBE_HOME`);\n- at closing, phax reads only the transcript file of each recorded session: Claude Code `projects/<slug>/<id>.jsonl`, listing `projects/` names when the slug misses; codex `sessions/YYYY/MM/DD/rollout-*-<id>.jsonl`, listing the date directories' names; vibe `logs/session/<dir>/messages.jsonl`;\n- to find a vibe session's directory, for capture and for usage, phax lists the names under `logs/session` and reads the `meta.json` only of directories whose name ends with a prefix of the session id, decoding only `session_id`; it reads that session's `meta.json` stats for usage;\n- to learn a new vibe session's id after a turn, phax reads the `meta.json` of the session directories modified since the turn started, matching their working directory;\n- phax never reads a provider's credentials or configuration;\n- the copies stay in the run folder and never enter a commit or a record.",
+        "In `docs/upgrading.md` under `### 0.26.0`, add:\n- the run list replaces the bare array of `phax ls --json`: read `.runs[]` instead of `.[]`; `currentPhase`, `gateProfile`, `recordsPending` and `archivePath` are null when unknown; every run carries `stop`;\n- the record manifest gains `mode` and `stop`. Records written by released phax read as headless phases that never stopped; records written by 0.26.0 development builds before this change no longer read;\n- `security.json` moves to version 2, and a version-1 file reads as a phase that never stopped.\nNothing needs to be run.",
+        "In `docs/plan-estimate.md`, describe how an interactive phase is sized: its first and closing turns, from at least 3 past interactive phases with turn entries, repriced at its model and weighted by recency. Explain its own row and its place in the scenarios, the `mode` key in the JSON output, and that the fit leaves turn costs out. Say that with 3 samples, P10 and P90 are the minimum and the maximum, unless one sample is much older than the others.",
+        "In `src/cli/cliDocs.ts`, update the long help:\n- `ls`: `--json` prints the versioned run list;\n- `records explain`: a review commit, and the stop lines;\n- `plans estimate`: an interactive phase;\n- `resume`: a close captures the transcripts, records the closer and writes the record, and needs a git identity.\nThen run `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "Extend `tests/e2e/semanticTrace.declaredStop.test.ts` and `tests/e2e/semanticTrace.heldStop.test.ts`. Their temporary repository configures records (in-repo, transcript false), and their fake backend registers transcript bytes for their sessions. Update both snapshots for the `transcripts` step, the `stop.transcript` events and the `stop.record` step, editing them from the projection: `pnpm exec vitest` is not granted. Say in the handoff that the operator must run `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts`, with `-u` if a snapshot differs.",
+        "In `NEXT_STEPS.md`, tick `interactive-phases`. Record that plan 3 of 3 (stop records, transcripts and the run list) landed with this run and that the spec is complete, and remove the `Next` and `Gaps until then` items."
+      ],
+      "planMarkdownAnchor": "#phase-09-docs-and-snapshots",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        "docs/upgrading.md",
+        "docs/plan-estimate.md",
+        "docs/security.md",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "NEXT_STEPS.md",
+        "tests/e2e/semanticTrace.declaredStop.test.ts",
+        "tests/e2e/semanticTrace.heldStop.test.ts",
+        "tests/e2e/__snapshots__/semanticTrace.declaredStop.test.ts.snap",
+        "tests/e2e/__snapshots__/semanticTrace.heldStop.test.ts.snap"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "tests/unit/readmeExitCodes.test.ts",
+        "tests/integration/usageSpecDrift.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": null,
+      "testStrategy": "- the generated usage spec and CLI reference match the CLI's options and long help — medium · contract · the usage-spec and CLI-docs drift suites · in-phase\n- the declared and held stops' runs emit the semantic trace pinned by the updated snapshots, the transcript step and the stop's record included — medium · smoke · the semantic trace snapshots under PHAX_E2E_RUN=1, run by the operator · in-phase\n- the README's exit-code table still matches EXIT_CODE_MEANINGS — small · example · the README exit-code test · in-phase",
+      "implementationOrder": [
+        "cliDocs long help and the regeneration",
+        "the README sections and the privacy statement",
+        "docs/security.md, docs/upgrading.md and docs/plan-estimate.md",
+        "the e2e suites and their snapshots",
+        "NEXT_STEPS"
+      ],
+      "excludedScope": [
+        "Any code change other than `src/cli/cliDocs.ts` and the two e2e suites",
+        "The phax-planning skill, which this plan does not change"
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "List each README, privacy-statement, security, upgrade-note and estimate-guide section added or changed, and the stale statements removed. Confirm that the usage spec and the CLI docs were regenerated. Say that the e2e snapshots were edited from the projection, and give the operator the exact command to confirm them. Confirm that NEXT_STEPS marks the spec complete. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "docs(interactive): document transcripts, stop records and the run list",
+        "body": "The README explains the transcripts a close captures, the record and\nsecurity record of a stop, the review handoff and PR lines, and phax ls\n--json with review-stop.json as the surface for a review UI. A privacy\nstatement says what phax reads from a provider's session store. The\n0.26.0 upgrade notes cover the run list, the record manifest and\nsecurity.json, and the estimate guide covers interactive phases. The CLI\nhelp, the generated references and the e2e trace snapshots follow.\nNEXT_STEPS marks the spec complete."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
