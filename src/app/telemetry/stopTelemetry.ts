@@ -9,6 +9,8 @@ import {
   GateFailedError,
   GateStepRefusedError,
 } from "../../domain/errors.js";
+import type { TranscriptOutcome } from "../../domain/interactive/transcripts.js";
+import type { ProviderId } from "../../domain/routing/types.js";
 import { makeSystemErrorReport } from "../../domain/telemetry/errors.js";
 import {
   makeAdapterCallFailedTelemetryEvent,
@@ -18,6 +20,7 @@ import {
   makeOracleEditsUnjudgedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
+  makeStopTranscriptTelemetryEvent,
 } from "../../domain/telemetry/events.js";
 import { GitError } from "../../ports/git.js";
 import { SystemTelemetry } from "../../ports/systemTelemetry.js";
@@ -81,6 +84,27 @@ export function tracedStep<A, E, R>(
       makeStepCompletedTelemetryEvent({ ...at, result: ok ? "success" : "failure" }),
     );
     return yield* outcome;
+  });
+}
+
+/** One recorded session's transcript at a close: captured, or missing with its reason. */
+export function traceTranscript(
+  ctx: StopTraceContext,
+  session: { readonly sessionId: string; readonly provider: ProviderId },
+  outcome: TranscriptOutcome,
+): Effect.Effect<void, never, SystemTelemetry> {
+  return Effect.gen(function* () {
+    const telemetry = yield* SystemTelemetry;
+    yield* telemetry.recordEvent(
+      makeStopTranscriptTelemetryEvent({
+        runId: ctx.runId as RunId,
+        operationId: ctx.phaseId,
+        sessionId: session.sessionId,
+        provider: session.provider,
+        outcome: outcome.status,
+        ...(outcome.status === "missing" ? { reason: outcome.reason } : {}),
+      }),
+    );
   });
 }
 

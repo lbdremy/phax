@@ -15,6 +15,7 @@ describe("isStopArtifact", () => {
     "correction-reconciliation.md",
     "review-diff.patch",
     "review-gate",
+    "interactive-transcripts",
     "review-stop.closing.json",
     "refused-turn-01",
     "refused-turn-12",
@@ -45,6 +46,7 @@ describe("isStopArtifact", () => {
     "closing-turn-01.log",
     "first-turn-01-retry-correction-handoff.md",
     "review-gate.log",
+    "interactive-transcripts.jsonl",
   ])("keeps %s as the phase's own", (name) => {
     expect(isStopArtifact(name)).toBe(false);
   });

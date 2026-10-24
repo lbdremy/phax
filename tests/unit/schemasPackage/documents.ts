@@ -894,6 +894,13 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
         },
       ],
       turnInProgress: null,
+      transcripts: [
+        {
+          sessionId: "4f6c1a52-0000-4000-8000-000000000001",
+          status: "captured",
+          sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
+      ],
     }),
   ),
   "review-stop": encoded(
@@ -1091,6 +1098,7 @@ export const builderInteractiveSessionDocument: Doc = encoded(
       personHandoffBefore: null,
       startedAt: "2026-01-01T09:20:00.000Z",
     },
+    transcripts: null,
   }),
 );
 

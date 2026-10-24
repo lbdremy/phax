@@ -139,6 +139,7 @@ function emptySession(input: FirstTurnInput): InteractiveSession {
     history: [],
     firstTurns: [],
     turnInProgress: null,
+    transcripts: null,
   };
 }
 
@@ -910,6 +911,7 @@ export function stopAtHeldPhase(
       history: [],
       firstTurns: [],
       turnInProgress: null,
+      transcripts: null,
     });
 
     const commands = yield* buildStopCommands({

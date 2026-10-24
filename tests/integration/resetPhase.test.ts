@@ -772,6 +772,31 @@ describe("resetPhase", () => {
       expect(existsSync(join(runPath, "phase-03"))).toBe(false);
     });
 
+    it("leaves no transcript copy in the stopped phase's folder: it goes aside with the whole folder", async () => {
+      const { runPath, stopped } = await seedStoppedRun(stateRoot);
+      const { layers } = stopLayers(stopped);
+      const copies = join(runPath, "phase-03", "interactive-transcripts");
+      await mkdir(copies, { recursive: true });
+      await writeFile(join(copies, "X1.jsonl"), '{"type":"message"}\n');
+
+      const result = await Effect.runPromise(
+        resetPhase({
+          shortName: shortName(),
+          namespace: NAMESPACE,
+          stateRoot,
+          repoRoot: stateRoot,
+        }).pipe(Effect.provide(layers)),
+      );
+
+      // The phase starts again with no copy of the old sessions' transcripts.
+      expect(existsSync(copies)).toBe(false);
+      expect(existsSync(join(runPath, "phase-03"))).toBe(false);
+      // The archive of the reset keeps the folder whole.
+      expect(
+        await readFile(join(result.archivedPath!, "interactive-transcripts", "X1.jsonl"), "utf8"),
+      ).toBe('{"type":"message"}\n');
+    });
+
     it("refuses while the run lock is held, as by an enter-phase turn, and changes nothing", async () => {
       const { runPath, stopped } = await seedStoppedRun(stateRoot);
       const { fakeGit } = stopLayers(stopped);

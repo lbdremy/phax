@@ -98,6 +98,21 @@ const TurnInProgressSchema = Schema.Union(
   }),
 );
 
+// The outcome of copying one recorded session's transcript at a close.
+const TranscriptEntrySchema = Schema.Union(
+  Schema.Struct({
+    sessionId: Schema.NonEmptyString,
+    status: Schema.Literal("captured"),
+    sha256: Sha256Schema.annotations({ description: "The sha256 of the copied file's bytes." }),
+  }),
+  Schema.Struct({
+    sessionId: Schema.NonEmptyString,
+    status: Schema.Literal("missing"),
+    reason: Schema.Literal("not-found", "unreadable"),
+    detail: Schema.NonEmptyString,
+  }),
+);
+
 /**
  * An `interactive-session` document. Exactly the keys of its variants; any
  * other is refused.
@@ -113,6 +128,10 @@ export const InteractiveSessionFileSchema = Schema.Struct({
   history: Schema.Array(SessionSchema),
   firstTurns: Schema.Array(FirstTurnSchema),
   turnInProgress: Schema.NullOr(TurnInProgressSchema),
+  transcripts: Schema.NullOr(Schema.Array(TranscriptEntrySchema)).annotations({
+    description:
+      "Null until a close copies the recorded sessions' transcripts, then one entry per recorded session.",
+  }),
 });
 
 export type InteractiveSessionFile = Schema.Schema.Type<typeof InteractiveSessionFileSchema>;

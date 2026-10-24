@@ -5,6 +5,7 @@ import {
   tracedReviewCommit,
   tracedStep,
   tracedTurnCall,
+  traceTranscript,
 } from "../../src/app/telemetry/stopTelemetry.js";
 import {
   AgentInvocationError,
@@ -79,6 +80,39 @@ describe("tracedStep", () => {
     );
     expect(result).toEqual(Either.left("interrupted"));
     expect(events.at(-1)).toMatchObject({ step: "closing-turn", result: "failure" });
+  });
+});
+
+describe("traceTranscript", () => {
+  it("records one stop.transcript event per session, captured or missing with its reason", () => {
+    const session = { sessionId: "X1", provider: "codex-cli" } as const;
+    const { events } = traced(
+      Effect.gen(function* () {
+        yield* traceTranscript(ctx, session, { status: "captured", sha256: "a".repeat(64) });
+        yield* traceTranscript(ctx, session, {
+          status: "missing",
+          reason: "unreadable",
+          detail: "permission denied",
+        });
+      }),
+    );
+    expect(events).toEqual([
+      {
+        type: "stop.transcript",
+        operationId: "phase-03",
+        sessionId: "X1",
+        provider: "codex-cli",
+        outcome: "captured",
+      },
+      {
+        type: "stop.transcript",
+        operationId: "phase-03",
+        sessionId: "X1",
+        provider: "codex-cli",
+        outcome: "missing",
+        reason: "unreadable",
+      },
+    ]);
   });
 });
 
