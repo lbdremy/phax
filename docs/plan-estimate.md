@@ -48,6 +48,19 @@ Each row is a phase, priced at the model routing actually picks for it on this m
 
 P50 is the middle outcome; one phase in ten costs less than P10, and one in ten more than P90. The `run-level` row is the compliance review, when it is enabled and routed to Claude Code. The `run` row is the whole run's range. It is not the sum of the phase rows: phases rarely all land at P90 together.
 
+## Interactive phases
+
+A phase the plan declares interactive (`**Mode:** interactive`) has no agent building it: phax runs a read-only first turn and, when you resume, a read-only closing turn. The estimate sizes those turns alone, and your time at the stop is not in it. A hold (`phax run --hold`) belongs to a run, not to the plan, so the estimate never sizes one and does not mention it.
+
+An interactive phase is sized from past interactive phases of this repository that have at least one first-turn or closing-turn entry in their ledger and whose turns cost at least the minimum a headless sample needs. That keeps out codex and mistral-vibe phases, which cost nothing in a ledger that covers Claude Code only, and a first turn that started no session. It needs at least 3 such samples. Each sample's tokens are repriced at the phase's own model, weighted by recency (half-life 30 days), and read at P10, P50 and P90.
+
+- **Its own row.** The phase appears in the table at its place in the plan, and `--json` carries `mode: "interactive"` on it. A line below the table says so.
+- **The run range.** The run's P10, P50 and P90 add the interactive phases' figures, quantile by quantile, to the fitted range of the headless phases and the run level. Adding quantiles treats the turns as fully correlated, which widens the range a little.
+- **The scenarios.** Each interactive phase spends its own P50 or P90 at its place in the plan. The headless phases share what is left of the run's figure, and the run level stays on the last phase.
+- **Few samples.** With 3 samples, P10 and P90 are the minimum and the maximum, unless one sample is much older than the others and weighs less. Past that, the quantiles interpolate between samples.
+- **Not estimated.** A phase with fewer than 3 samples is named in the `Not estimated:` line as `too few past interactive phases`; one on another provider is `other-provider`; one on a model with no list price is `no-list-price`.
+- **The fit leaves turn costs out.** The regression behind the headless rows is trained on `phase`, `fix` and `handoff` entries only, so neither a closing turn nor a turn-only phase distorts it. Below the 60-phase minimum no phase is listed, interactive ones included.
+
 ## How the windows are read
 
 By default, phax sends Claude Code one minimal probe: the fixed prompt `Reply with: ok`, on the cheapest Claude model, at low effort, from a temporary directory. The probe never sees the plan. It spends one small request, and Claude Code reports both windows, five-hour and seven-day, in its rate-limit event.

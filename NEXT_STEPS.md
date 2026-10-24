@@ -49,9 +49,9 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         and shipped in no package. It is built on oxc-parser (q-parser chose it over tree-sitter,
         which the spec suggested) and compares syntax trees so reformatting never changes a
         verdict. phax's own `oracles` declaration in phax.json runs it. The spec is complete.
-- [ ] **`interactive-phases`** — `docs/specs/2610211403-interactive-phases.md`. Re-authored and
+- [x] **`interactive-phases`** — `docs/specs/2610211403-interactive-phases.md`. Re-authored and
       approved 2026-10-21, after a friend's fork showed the need for a stop chosen at run time; the
-      2026-10-20 spec is abandoned.
+      2026-10-20 spec is abandoned. All three plans landed and the spec is complete.
       - Two ways into one `awaiting_review` state (exit 13): a phase the plan declares interactive,
         and `phax run --hold [phase-NN,…|oracle]`, which holds the selected headless phases after
         they commit. The final phase never holds.
@@ -75,12 +75,14 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         the phase's record written at closing, and the oracle-pair reviews (the `authored` re-run,
         the latest authored commit, the held discharge). A refused record write at closing pauses
         the run, and the next resume writes it once.
-      - Next: plan 3 (the versioned `phax ls --json` run list, transcript capture, and the
-        records, compliance review and PR body around a stop).
-      - Gaps until then: stops have no review fields in their records; `phax records explain` on
-        a review commit finds no record; on vibe, a held phase's record counts the closing turn
-        in its usage; a declared phase writes no phase record; and the cost ledger covers Claude
-        Code turns only.
+      - Plan 3 of 3, stop records, transcripts and the run list, landed with this run: every
+        close records who closed it and copies each recorded session's transcript into the run
+        folder (never into a record); a declared phase writes its record at closing; every stop's
+        record names its mode, cause, outcome, closer and sessions; `phax records explain` finds a
+        held record from its review commit; `security.json` (version 2) records the stop;
+        `phax ls --json` prints the versioned `run-list`; the compliance review, review handoff
+        and PR body show each stop; and `phax plans estimate` sizes an interactive phase from its
+        turns. The spec is complete.
 
 ### Approved, not yet planned
 

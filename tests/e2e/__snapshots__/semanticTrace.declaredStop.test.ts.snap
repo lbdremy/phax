@@ -59,6 +59,24 @@ exports[`E2E semantic trace — declared interactive stop snapshot > pins the tr
     "type": "step.completed",
   },
   {
+    "operationId": "phase-02",
+    "step": "transcripts",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-02",
+    "outcome": "captured",
+    "provider": "claude-code",
+    "sessionId": "019a2f6e-0000-4000-8000-000000000002",
+    "type": "stop.transcript",
+  },
+  {
+    "operationId": "phase-02",
+    "result": "success",
+    "step": "transcripts",
+    "type": "step.completed",
+  },
+  {
     "adapter": "git",
     "operation": "commit.create",
     "operationId": "phase-02",
@@ -76,6 +94,17 @@ exports[`E2E semantic trace — declared interactive stop snapshot > pins the tr
     "stateAfter": "running:committed",
     "stateBefore": "running:awaiting_review",
     "type": "state.transition",
+  },
+  {
+    "operationId": "phase-02",
+    "step": "stop.record",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-02",
+    "result": "success",
+    "step": "stop.record",
+    "type": "step.completed",
   },
   {
     "dispatcher": "dispatch",
