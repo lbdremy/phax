@@ -98,7 +98,7 @@ The e2e command `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.
   5. The record manifest copies 1–4, because the run folder never reaches the records branch and a record must stand alone.
   The review handoff and the PR body read the phase statuses and the interactive handoff files. `records explain` reads only the manifest.
 - The record manifest gains a required `mode` (`headless | interactive`) and a required `stop`. `stop` is null for a phase that never stopped, or one of four strict structs: declared corrected, declared unchanged, held corrected (with `reviewCommit`, a full sha) and held unchanged. Only the held corrected struct names a review commit. Each struct carries `closedBy: { name, email }` and `sessions`, an array that is empty when there were none.
-  A session is `{ provider, model, effort, sessionId, origin, transcript }`. `origin` is `first-turn | new-session | builder`. `transcript` is `{ status: captured, sha256 }` or `{ status: missing, reason: not-found | unreadable, detail }`. The close's in-memory `ClosedStopSession` has exactly these keys, so the close, interactive-session.json and the manifest agree: `effort` is in all three, and `startedAt` and the copy's file name are in none.
+  A session is `{ provider, model, effort, sessionId, origin, transcript }`. `origin` is `first-turn | new-session | builder`. `transcript` is `{ status: captured, sha256 }` or `{ status: missing, reason: not-found | unreadable, detail }`. The close's in-memory `ClosedStopSession` and the manifest's session have exactly these keys: `effort` is in both, and `startedAt` and the copy's file name are in neither. interactive-session.json's `SessionSchema` keeps its `startedAt` (`src/schemas/interactiveSession.ts`), which the codex lookup reads.
   A held record's `sourceSha` stays the phase commit. Every struct is decoded with `onExcessProperty: error` and published with `additionalProperties: false`.
 - `phax records explain` finds a held phase's record from its review commit through the trailers that commit already carries. `Run-Id` with `Held-Phase` addresses the record `<Run-Id>/<Held-Phase>`. `Run-Id` with `Phase-Id` still takes precedence, so a phase commit, and a declared commit (which carries both `Phase-Id` and `Interactive-Phase`), resolve as today. No manifest is scanned: phax writes the trailers, and the record key is the address.
 - A declared phase's record names the phase's routed assignment from its `model-resolution.json`: its provider and concrete model, and the effort `model.effort ?? phase.effort`, as the close computes it, because `thinking` is optional there. Every first and closing turn ran at that assignment (§5.7), whether or not a first turn answered. The record's outcome is `committed`, its `sourceSha` is the declared commit, and its `usage` is `{ available: false }`, because no agent session built the phase; the turns' own cost is in the cost ledger. Loss accepted: a declared record shows no token usage.
@@ -108,14 +108,15 @@ The e2e command `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.
   `writeRecord` takes the usage as an explicit source: `{ kind: session, sessionId }` for a headless phase (as today), `{ kind: recorded, usage }` for a held phase, and `{ kind: none }` for a declared phase.
 - Transcripts are found through the existing Backend port, which gains `captureTranscript`. Each provider adapter implements it once (`src/infra/providers/claudeCode.ts`, `codexCli.ts`, `mistralVibe.ts`), and `makeNodeBackendLayer` routes it. Loss accepted: Backend stops being only about running agents (it already holds the Claude-only `probe`). The alternative, a new port, would add a requirement that every suite running `executePlan` or `closeStop` must provide.
   The adapter only finds and reads the store file. It returns its bytes, or `missing` with a reason, and never fails. The close owns the copy policy:
-  - it writes the bytes through the FileSystem port, which gains `readBytes` and `writeAtomicBytes`;
+  - it writes the bytes through the FileSystem port, which gains `readBytes` and `writeAtomicBytes(path, bytes, { mode })`. A copy is written with mode 0600 and `interactive-transcripts/` is created with mode 0700, because a continued session may hold secrets the person typed;
   - it hashes the bytes it wrote, so the recorded sha256 is the copy's, including for a file that is not valid UTF-8;
   - it keeps an earlier attempt's copy when the store file is gone;
   - it refuses the close on a failed write (`files`).
 - Provider store roots honour each provider's own variable, so a transcript is found where the provider wrote it: `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME`, else `<home>/.claude`, `<home>/.codex` and `<home>/.vibe`. An empty variable counts as unset.
-  The roots are resolved once per invocation, at the CLI edge, by a pure `resolveProviderStoreRoots(env, home)` (`src/domain/session/storeRoots.ts`), called through `providerStoreRoots()` (`src/cli/providerStoreRoots.ts`). The CLI passes them into `makeNodeBackendLayer(providerConfig, roots)` and into `executePlan`.
-  The vibe root is the same everywhere. Capture, record usage (`computeSessionUsage`, whose `vibeHome` becomes required, with no `homedir()` fallback in `app/`) and vibe session-id discovery (`findVibeSessionId`) all read `roots.vibe`.
-  Tests: `tests/helpers/isolateProviderStores.ts`, registered as a `setupFiles` entry in `vitest.config.ts` and `vitest.e2e.config.ts`, sets the three variables empty for every suite, beside each suite's HOME stub.
+  The roots are an Effect service, `ProviderStoreRoots` (`src/ports/providerStores.ts`), declared as a `Context.Reference` whose default holds no root (`{ claude: null, codex: null, vibe: null }`). With no root, a store read gives `missing` (`not-found`, `no provider store configured`) and vibe usage is unavailable. The node layer `ProviderStoreRootsLive` (`src/infra/providerStoreRoots.ts`, in infra so that it may read `process.env` and `os.homedir()`) resolves them once through the pure `resolveProviderStoreRoots(env, home)` (`src/domain/session/storeRoots.ts`). The CLI provides it beside the backend layer (`src/cli/commands/runLayers.ts` and the other commands the type checker names). No CLI file imports `node:os`, so the architectural guard on `src/cli/` (`tests/unit/architecturalGuards.test.ts`) is unchanged.
+  Neither `executePlan`'s options nor `makeNodeBackendLayer`'s signature change: the adapters and `src/app/recordPlumbing.ts` read the service. So the 34 suites that call `executePlan`, and the suites that build `makeNodeBackendLayer`, get the default and read no store, with no change. Loss accepted: a production command that forgets to provide the layer silently finds no transcript; a test of each command's layer composition proves run, resume and the record writers provide it.
+  The vibe root is the same everywhere. Capture, record usage (`computeSessionUsage` loses its `homedir()` fallback) and vibe session-id discovery (`findVibeSessionId` in `src/schemas/vibeOutput.ts`, which loses its `homedir()` fallback) all read the service's `vibe`.
+  Tests that exercise a store provide `Layer.succeed(ProviderStoreRoots, rootsUnder(testHome))` (`tests/helpers/providerStoreRoots.ts`). A suite that starts the phax CLI as a process passes it an environment copied from `process.env` with `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` deleted and HOME stubbed, so a developer's or CI's variables never reach it. No setup file sets these variables.
 - There is one vibe session finder, in `src/domain/session/vibeSessionStore.ts`, and both usage and capture use it. It moves `readVibeSessionMeta` out of `src/app/recordPlumbing.ts` and narrows what it reads:
   - it lists the names under `<vibe root>/logs/session`;
   - it keeps only `session_*` names whose last `_`-separated segment is a non-empty prefix of the session id: vibe names a directory `session_<timestamp>_<short id>`;
@@ -142,8 +143,8 @@ The e2e command `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.
   - the trace `held.record.refused` becomes `stop.record.refused`.
   A declared record refused at closing then pauses the run exactly as a held one does. The rename goes through the matrix, the reducer, the effects and the dispatcher, and adds no state. The stopped reason is not a persisted enum, so no snapshot changes.
 - §5.70's security record is the phase's `security.json`. Version 2 is strict (`onExcessProperty: error`) and adds a required `stop`, written as null when the phase is entered. At a close, the close sets `stop` to `{ cause, personWork: outside-phax-enforcement, turns }`, and changes no other field. It decodes the file, sets `stop` and encodes it as `resolvePhaseAgent` does, so the other fields keep their bytes. `readPhasePosture` (which reads `agentCommands` from this file) and the held record depend on them.
-  `turns` names each first and closing turn phax ran, read from the phase folder's `first-turn-NN` and `closing-turn-NN` streams (retries included), with its read-only narrowing: `read-only-tools` on Claude Code, `read-only-sandbox` on codex and `none` on mistral-vibe. The rest of the file is the phase posture those turns ran under.
-  The file has two readers, `src/app/interactiveFiles.ts` and `src/app/finalReport.ts`. Both go through one `readSecurityPosture`, which lifts a version-1 file with `stop: null`. `finalReport.ts` moves its `readFileSync`, which swallowed decode errors, and its `readdirSync` onto the FileSystem port. A version-1 file rewritten at a close becomes version 2, which is its only other change. The record carries the file, since it is not a stop artifact.
+  `turns` names each first and closing turn phax ran, read from the phase folder's `first-turn-NN` and `closing-turn-NN` streams (retries included), with the posture that turn actually ran under: `{ turn, kind: first-turn | closing-turn, narrowing: read-only-tools | read-only-sandbox | none, agentCommands: [] }`, where `narrowing` is `read-only-tools` on Claude Code, `read-only-sandbox` on codex and `none` on mistral-vibe. Every first and closing turn runs with no agent commands (`src/app/interactiveStop.ts`, `src/app/closeStop.ts`), so each entry says so. The rest of the file stays the phase posture the builder ran under, which those turns did not have.
+  The file has two readers, `src/app/interactiveFiles.ts` and `src/app/finalReport.ts`. Both go through one `readSecurityPosture`, which lifts a version-1 file with `stop: null`. `finalReport.ts` moves its `existsSync`, its `readFileSync` (which swallowed decode errors) and its `readdirSync` onto the FileSystem port. A version-1 file rewritten at a close becomes version 2, which is its only other change. The record carries the file, since it is not a stop artifact.
 - The run-list rows keep today's keys and values: `qualifiedName`, `namespace`, `shortName`, `state`, `branch`, `currentPhase` as `2/6`, `gateProfile`, `updatedAt` as `YYYY-MM-DD HH:MM`, `lockState`, `recordsPending` and `archivePath`. They add `stop`, and every key is required:
   - `currentPhase` and `gateProfile` are null where the table prints `-`;
   - `recordsPending` and `archivePath` are null where `ls --json` used to drop them.
@@ -170,7 +171,7 @@ The e2e command `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.
   - The transcript copy runs inside a traced `transcripts` step (`tracedStep`).
   - Each session's outcome is one new semantic event, `stop.transcript { runId, operationId, sessionId, provider, outcome, reason? }`. It joins the event types, their schema, the semantic-trace projection and the OpenTelemetry layer, as `oracle.edits.unjudged` does.
   - When records are configured, the stop's record write runs inside a traced `stop.record` step.
-  - The declared and held e2e snapshots are updated in phase-09. The e2e suites are outside the standard gate, and `pnpm exec vitest` is not granted to any phase: granting it would let a phase run any test file. phase-09 edits the snapshots from the projection, and the operator confirms them with `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts`, adding `-u` if a snapshot differs.
+  - The declared and held e2e snapshots are updated in phase-09. The e2e suites are outside the standard gate, and `security.agentCommands` grants no command that sets `PHAX_E2E_RUN`. phase-09 edits the snapshots from the projection, and the operator runs them during the end-to-end verification of the pull request and fixes any difference on the PR with `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts`, adding `-u` if a snapshot differs.
 - No phase is an oracle phase, although an `oracles` provider is configured. Most of what this plan builds extends the close, the record writer and the estimate from the inside. The spec leaves to this plan the shapes an oracle would freeze: the record's stop, the run-list rows and the wording. Oracles written before the code would pin planning choices rather than spec criteria. Every test is in-phase. No phase is interactive either: no phase sets a pattern that later phases repeat, and the operator can still hold any phase with `phax run --hold`.
 - Exit codes: a close refused for an unset git identity exits 1, like the other `close-error` refusals, and `StopRecordPausedError` exits 1, like plan 2's pause. Nothing else changes.
 
@@ -192,7 +193,7 @@ Every close of a stop, declared or held, corrected or unchanged, records the git
 - In `src/domain/events.ts`, every `closure` variant of `StopCommitted` and of `HeldStopClosed` gains `closedBy`. `closedEvent` in `src/app/closeStop.ts` passes `report.closedBy`. In `src/domain/reducer.ts`, both arms persist it into the closed stop they build. Add no event, state or matrix cell.
 - In `src/schemas/status.ts`, the four closed variants of `PhaseStopSchema` (declared corrected, declared unchanged, held corrected, held unchanged) gain a required `closedBy: { name: NonEmptyString, email: NonEmptyString }`. Make it a strict struct annotated like the stop variants (`strictStop`), so the published schema says `additionalProperties: false`. Describe it as the git identity of the checkout that closed the stop, read from its configuration and never from a commit. The two `waiting` variants do not change.
 - Run `pnpm exec tsx scripts/schemas-check.ts --write`, which rewrites `packages/schemas/snapshots/phase-status/next.schema.json` in place. Add no frozen module, because 0.26.0 is uncut. Update the closed-stop fixtures in `tests/unit/schemasPackage/documents.ts` and `tests/helpers/phaseStatusFixture.ts`, and every test that builds a closed stop or a closure; `pnpm test:type` names them.
-- Every test that runs a close sets the main checkout's identity to Ada Example (`git config user.name` and `user.email` in its temporary repository). It stubs HOME, so that no global git config and no `~/.phax` is read.
+- Every test that runs a close sets the main checkout's identity to Ada Example (`git config user.name` and `user.email` in its temporary repository). It stubs HOME, and isolates git the way `tests/integration/gitCommitterName.test.ts` does: `GIT_CONFIG_GLOBAL` pointing at an empty file, `GIT_CONFIG_NOSYSTEM=1`, `XDG_CONFIG_HOME` stubbed, and `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` deleted, except where a test sets them on purpose. No global git config and no `~/.phax` is read.
 
 ### Planned files to create
 
@@ -296,15 +297,15 @@ phax can find and read the transcript of any recorded session in its provider's 
 
 ### Detailed instructions
 
-- Create `src/domain/session/storeRoots.ts`, pure. It exports `ProviderStoreRoots = { claude; codex; vibe }`, all absolute paths, and `resolveProviderStoreRoots(env, home)`. Each root is its variable, else its default: `CLAUDE_CONFIG_DIR` else `<home>/.claude`, `CODEX_HOME` else `<home>/.codex`, and `VIBE_HOME` else `<home>/.vibe`. An empty variable counts as unset. Create `src/cli/providerStoreRoots.ts`, whose `providerStoreRoots()` calls it with `process.env` and `os.homedir()`. The CLI is the only place that reads these variables.
-- `makeNodeBackendLayer(providerConfig, roots)` in `src/infra/providers/dispatcher.ts` takes the roots as a required argument. Every caller resolves them once with `providerStoreRoots()` and passes them: `src/cli/commands/runLayers.ts` for run and resume, and the other commands the type checker names (artifact, artifact decide, adjust-plan, review-compliance, plans, plans estimate, plans overlap, enter-phase). `runVibeAgent` passes `roots.vibe` to `findVibeSessionId` (`src/schemas/vibeOutput.ts`), which today falls back to `~/.vibe`.
-- The record writer reads the same vibe root. `computeSessionUsage` and `computeRecordUsage` in `src/app/recordPlumbing.ts` take `vibeHome` as a required string, and their `?? join(homedir(), '.vibe')` fallback goes, so `app/` reads no home directory. `writeRecord`, `writeAuthoringRecord` and `writeDecisionRecord` pass it through. `executePlan`'s options gain `providerStoreRoots`, which run and resume pass from the same resolution. Every caller the type checker names passes `roots.vibe`; tests pass a fixture root under their HOME.
+- Create `src/domain/session/storeRoots.ts`, pure. It exports `ProviderStoreRootsValue = { claude: string | null; codex: string | null; vibe: string | null }` and `resolveProviderStoreRoots(env, home)`. Each root is its variable, else its default: `CLAUDE_CONFIG_DIR` else `<home>/.claude`, `CODEX_HOME` else `<home>/.codex`, and `VIBE_HOME` else `<home>/.vibe`. An empty variable counts as unset. Create `src/ports/providerStores.ts` with `ProviderStoreRoots`, a `Context.Reference` whose default is all null. Create `src/infra/providerStoreRoots.ts` with `ProviderStoreRootsLive`, which calls `resolveProviderStoreRoots(process.env, os.homedir())` once. It is the only place that reads these variables.
+- `makeNodeBackendLayer` in `src/infra/providers/dispatcher.ts` keeps its signature; the adapters read `ProviderStoreRoots` when the layer is built. The CLI provides `ProviderStoreRootsLive` beside the backend layer: `src/cli/commands/runLayers.ts` for run and resume, and the other commands the type checker names (artifact, artifact decide, adjust-plan, review-compliance, plans, plans estimate, enter-phase). `runVibeAgent` passes the service's `vibe` to `findVibeSessionId` (`src/schemas/vibeOutput.ts`), whose `homedir()` fallback goes; with no vibe root it finds no session.
+- The record writer reads the same vibe root. `computeSessionUsage` and `computeRecordUsage` in `src/app/recordPlumbing.ts` read `ProviderStoreRoots`, and their `?? join(homedir(), '.vibe')` fallback goes, so `app/` reads no home directory; with no vibe root, vibe usage is `{ available: false }`. `executePlan`'s options do not change. Tests of vibe usage provide the service with a fixture root under their HOME (`tests/helpers/providerStoreRoots.ts`).
 - Create `src/domain/session/vibeSessionStore.ts` with the one vibe session finder. `findVibeSessionDir(reads, vibeRoot, sessionId)` takes `reads: { list(path): Effect<readonly string[] | null>; readText(path): Effect<string | null> }`, so the domain does no I/O itself. It works in three steps:
   - it lists `<vibeRoot>/logs/session`;
-  - it keeps only `session_*` names whose last `_`-separated segment is a non-empty prefix of the session id, since vibe names a directory `session_<timestamp>_<short id>`;
+  - it keeps only `session_*` names whose last `_`-separated segment is a non-empty prefix of the session id, since vibe appears to name a directory `session_<timestamp>_<short id>`. That rule is unverified against a current vibe, like `messages.jsonl`: say so in a comment, and when no name passes it, fall back to decoding `session_id` from every `session_*` directory's `meta.json`, as today;
   - for each candidate, it decodes only `session_id` from its `meta.json`, with a one-field schema, and returns the first directory whose id matches, else null.
   Add `readVibeSessionMetaText(reads, vibeRoot, sessionId)`, which returns that directory's `meta.json` text for usage. Move `readVibeSessionMeta` out of `src/app/recordPlumbing.ts`: usage calls the shared finder with FileSystem-port reads. Update the vibe fixtures whose directory names do not follow the convention (`tests/integration/writeAuthoringRecord.test.ts`, `tests/unit/recordsUsage.test.ts`).
-- In `src/ports/fs.ts`, add `readBytes(path): Effect.Effect<Uint8Array, FsError>` and `writeAtomicBytes(path, bytes): Effect.Effect<void, FsError>`. Implement them in `src/infra/fs.ts` (the rooted layer included) and in `src/infra/fakes/fs.ts`, which keeps bytes exactly. Add them to every FileSystem implementation the type checker names in tests.
+- In `src/ports/fs.ts`, add `readBytes(path): Effect.Effect<Uint8Array, FsError>` and `writeAtomicBytes(path, bytes, options?: { mode?: number }): Effect.Effect<void, FsError>`, the mode applied to the written file. Implement them in `src/infra/fs.ts` (the rooted layer included) and in `src/infra/fakes/fs.ts`, which keeps bytes exactly. Add them to every FileSystem implementation the type checker names in tests.
 - In `src/ports/backend.ts`, add `captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>` to `BackendOps`. `TranscriptRequest` is `{ provider, sessionId, startedAt, cwd }`, where `cwd` is the stop's worktree. `TranscriptRead` is `{ status: 'found'; bytes: Uint8Array }` or `{ status: 'missing'; reason: 'not-found' | 'unreadable'; detail: string }`. The adapter only finds and reads; it writes nothing, keeps no earlier copy and never fails. Any I/O error becomes `missing`.
 - Create `src/infra/providers/transcriptStore.ts` with what the adapters share:
   - the session-id check `^[A-Za-z0-9][A-Za-z0-9._-]*$`, applied before any path is built. A failing id gives `missing` (`unreadable`, `unsafe session id`);
@@ -317,15 +318,16 @@ phax can find and read the transcript of any recorded session in its provider's 
   An adapter reads only that session's transcript file and the vibe finder's `session_id`. It never reads a credential or configuration file, and it lists directories only for their names. `makeNodeBackendLayer` routes the call by provider.
 - In `src/infra/fakes/backend.ts`, `captureTranscript` answers `missing` (`not-found`) unless a test has registered bytes for the session id, which it then returns. Every inline Backend the type checker names in tests gains the method.
 - In `tests/helpers/fakeProviderCli.ts`, both fake CLIs append the lines they print to their session store under the stubbed `$HOME`, unless the script sets `keepStore: false`. Claude writes to `.claude/projects/<slug of its cwd>/<id>.jsonl`, and codex to `.codex/sessions/<UTC YYYY>/<MM>/<DD>/rollout-<timestamp>-<id>.jsonl`. A resume of the same id appends to the same file. The vibe tests write their own store fixtures under the test HOME.
-- Create `tests/helpers/isolateProviderStores.ts`, which sets `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` to the empty string. Register it as a `setupFiles` entry in `vitest.config.ts` and `vitest.e2e.config.ts`, so every suite runs with them empty, beside its HOME stub.
+- Create `tests/helpers/providerStoreRoots.ts` with `rootsUnder(home)` and the layer that provides it. A suite that starts the phax CLI as a process (the e2e semantic-trace suites, `tests/helpers/fakeProviderCli.ts` callers) builds its child environment from `process.env` with `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` deleted and HOME stubbed. Never set them to the empty string in a shared setup file: `vitest.e2e.config.ts` also backs `test:e2e:real`, whose real provider binaries would read an empty value.
 
 ### Planned files to create
 
 - `src/domain/session/storeRoots.ts`
 - `src/domain/session/vibeSessionStore.ts`
-- `src/cli/providerStoreRoots.ts`
+- `src/ports/providerStores.ts`
+- `src/infra/providerStoreRoots.ts`
 - `src/infra/providers/transcriptStore.ts`
-- `tests/helpers/isolateProviderStores.ts`
+- `tests/helpers/providerStoreRoots.ts`
 - `tests/unit/session/storeRoots.test.ts`
 - `tests/unit/session/vibeSessionStore.test.ts`
 - `tests/integration/providerTranscriptStores.test.ts`
@@ -344,11 +346,8 @@ phax can find and read the transcript of any recorded session in its provider's 
 - `src/schemas/vibeOutput.ts`
 - `src/app/recordPlumbing.ts`
 - `src/app/writeRecord.ts`
-- `src/app/executePlan.ts`
 - `src/cli/commands/runLayers.ts`
 - `tests/helpers/fakeProviderCli.ts`
-- `vitest.config.ts`
-- `vitest.e2e.config.ts`
 
 ### Optional files that may be edited
 
@@ -385,6 +384,9 @@ phax can find and read the transcript of any recorded session in its provider's 
 - `tests/unit/architecturalGuards.test.ts`
 - `tests/e2e/semanticTrace.declaredStop.test.ts`
 - `tests/e2e/semanticTrace.heldStop.test.ts`
+- `src/app/executePlan.ts`
+- `src/app/dispatcher.ts`
+- `tests/unit/providerDispatcher.test.ts`
 
 ### Boundary contracts
 
@@ -398,7 +400,9 @@ CLI edge → backend and record writer: the provider store roots are resolved on
 - the adapters return bytes exactly, including a file holding an invalid UTF-8 sequence — medium · example · the returned bytes against the fixture · in-phase
 - record usage on mistral-vibe reads the session's `meta.json` through the shared finder under the passed vibe root, and gives the same usage as before for a well-named directory — medium · example · the computed TokenUsage · in-phase
 - the fake and the node FileSystem round-trip bytes through `writeAtomicBytes` and `readBytes` — medium · contract · the same suite against both implementations · in-phase
-- with `CODEX_HOME` set empty and HOME stubbed, the codex adapter reads only under the stubbed HOME — medium · example · the paths the adapter read · in-phase
+- with `CODEX_HOME` deleted and HOME stubbed, the codex adapter reads only under the stubbed HOME — medium · example · the paths the adapter read · in-phase
+- a command's layer composition (run, resume, and the record writers' callers) provides `ProviderStoreRootsLive`, and without it a capture reports `missing` — small · example · the resolved service value · in-phase
+- a transcript copy is written with mode 0600 inside a 0700 `interactive-transcripts/` — medium · example · the file and folder modes · in-phase
 
 ### Implementation order
 
@@ -423,7 +427,7 @@ The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
-Give `ProviderStoreRoots`, `resolveProviderStoreRoots` and `providerStoreRoots()`, and list every caller that now passes the roots. Give `captureTranscript`'s signature, `TranscriptRequest` and `TranscriptRead`, and each adapter's lookup as implemented. Give `findVibeSessionDir`'s signature, its suffix rule and what it decodes, and say which fixtures were renamed. Give the FileSystem byte methods. Say how the fake CLIs keep their stores and how the setup file isolates the roots. Explain any deviation from the planned file lists.
+Give `ProviderStoreRoots`, its default, `resolveProviderStoreRoots` and `ProviderStoreRootsLive`, and list every command that now provides the layer. Give `captureTranscript`'s signature, `TranscriptRequest` and `TranscriptRead`, and each adapter's lookup as implemented. Give `findVibeSessionDir`'s signature, its suffix rule and what it decodes, and say which fixtures were renamed. Give the FileSystem byte methods. Say how the fake CLIs keep their stores and how the CLI-process suites drop the three variables. Explain any deviation from the planned file lists.
 
 ### Commit subject
 
@@ -760,7 +764,7 @@ failure after a declared commit, pauses the run for either cause.
 - Create `src/domain/security/stopPosture.ts`, pure:
   - `readOnlyNarrowingOf(provider)` is `read-only-tools` for claude-code, `read-only-sandbox` for codex-cli and `none` for mistral-vibe;
   - `phaxTurnsOf(names)` lists, in run order (first turns, then closing turns), every `first-turn-NN.jsonl` and `closing-turn-NN.jsonl` stream in a phase folder's file names, and its `-retry` stream, as `{ turn: 'first-turn-01', kind: 'first-turn' | 'closing-turn' }`. Export the turn-stream pattern once, from `src/domain/records/stopArtifacts.ts`, and reuse it here and in `finalReport.ts` rather than keeping a second copy;
-  - `stopPostureOf({ cause, provider, names })` returns `{ cause, personWork: 'outside-phax-enforcement', turns }`, each turn with its `narrowing`.
+  - `stopPostureOf({ cause, provider, names })` returns `{ cause, personWork: 'outside-phax-enforcement', turns }`, each turn with its `narrowing` and `agentCommands: []`, since every first and closing turn runs with no agent commands (`src/app/interactiveStop.ts`, `src/app/closeStop.ts`). The file's other fields stay the builder's phase posture, which those turns did not have.
 - In `src/schemas/securityPosture.ts`, the current schema becomes `version: 2`, strict (`onExcessProperty: error`), with a required, strict `stop`: null, or the struct above. Keep the version-1 struct as `SecurityPostureV1Schema`, and add `readSecurityPosture(input)`, which decodes version 2 or lifts version 1 with `stop: null`. `resolvePhaseAgent` in `src/app/executePlan.ts` writes version 2 with `stop: null`.
 - Switch both readers of `security.json` to `readSecurityPosture`, and any other the type checker names:
   - `readPhasePosture` in `src/app/interactiveFiles.ts`;
@@ -818,6 +822,7 @@ Source commit → record: a review commit's `Run-Id` and `Held-Phase` trailers a
 - a version-1 `security.json` reads lifted with `stop: null` in both readers, and a version-2 file without `stop` or with an extra key is refused — small · table · the decode result · in-phase
 - the final report names a `security.json` that does not decode as unreadable, and reads a valid one through the FileSystem port — medium · example · the final report's security section · in-phase
 - a phase that never stopped has `stop: null` in its security.json, and explain prints no stop line for it — medium · example · file and output · in-phase
+- each `turns` entry of a closed stop's security.json records `agentCommands: []` and its provider's narrowing, while the file's own `agentCommands` keep the phase's grants byte for byte — small · table · the decoded security.json · in-phase
 
 ### Implementation order
 
@@ -871,7 +876,7 @@ strictly through the FileSystem port.
 - Create `src/schemas/runList.ts`:
   - `RunListRowSchema`, with the required keys `qualifiedName`, `namespace`, `shortName`, `state` (the run state enum), `branch`, `currentPhase` (string or null), `gateProfile` (string or null), `updatedAt`, `lockState` (the enum `ls` uses today), `recordsPending` (a non-negative integer or null), `archivePath` (string or null), and `stop` (`ReviewStopFileSchema` from `src/schemas/reviewStop.ts`, with its `$schema`, or null);
   - `RunListFileSchema`: `{ $schema: schemaUrlField('run-list'), runs }`.
-  Decode with `onExcessProperty: error`, and annotate each struct so the published JSON Schema says `additionalProperties: false`. Describe `stop` as null when the run is not awaiting review, or when its review-stop document cannot be read. Export the decoder and the encoder.
+  Decode with `onExcessProperty: error`, and annotate each struct so the published JSON Schema says `additionalProperties: false`. Name `"run-list": "error"` in the `EXCESS` table of `packages/schemas/build/jsonSchemas.ts`, which sets each published schema's `additionalProperties`. Describe `stop` as null when the run is not awaiting review, or when its review-stop document cannot be read. Export the decoder and the encoder.
 - Register and publish the format:
   - add `run-list` to `FORMAT_IDS` and `SCHEMA_BORN_FORMAT_IDS` in `src/schemas/schemaUrl.ts`, and extend the doc comment above `SCHEMA_BORN_FORMAT_IDS`;
   - define the package format in `packages/schemas/src/formats/interactive.ts` as `review-stop` is defined (`runListFormat`, `parseRunList`, `toLatestRunList`), and export it from `packages/schemas/src/index.ts`;
