@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610211432-surface-summary.md
 completes-spec: true
+approved:
+  date: 2026-10-24
+  baseline: ff2be76
 ---
 # Surface summaries
 
