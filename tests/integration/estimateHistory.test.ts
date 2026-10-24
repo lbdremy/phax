@@ -88,7 +88,7 @@ describe("readEstimateHistory", () => {
       `${activeFolder}/phax-plan.json`,
       phaxPlanJson([
         { id: "phase-01", effort: "medium", edit: ["a.ts", "b.ts"], optional: ["c.ts"] },
-        { id: "phase-02", create: ["new.ts", "other.ts"], edit: ["a.ts"] },
+        { id: "phase-02", mode: "interactive", create: ["new.ts", "other.ts"], edit: ["a.ts"] },
       ]),
     );
     fs.setFile(`${archivedFolder}/cost-ledger.json`, ledgerJson([ledgerEntry({ costUsd: 5 })]));
@@ -116,6 +116,7 @@ describe("readEstimateHistory", () => {
             id: "phase-01",
             model: "claude-opus-5-5",
             effort: "medium",
+            mode: "headless",
             editBytes: 1200,
             optionalBytes: 30,
             createCount: 0,
@@ -124,6 +125,7 @@ describe("readEstimateHistory", () => {
             id: "phase-02",
             model: "claude-opus-5-5",
             effort: "high",
+            mode: "interactive",
             editBytes: 1000,
             optionalBytes: 0,
             createCount: 2,
@@ -138,6 +140,7 @@ describe("readEstimateHistory", () => {
             id: "phase-01",
             model: "claude-opus-5-5",
             effort: "high",
+            mode: "headless",
             editBytes: 0,
             optionalBytes: 0,
             createCount: 0,

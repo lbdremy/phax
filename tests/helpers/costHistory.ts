@@ -33,7 +33,7 @@ export interface EntryTokens {
 }
 
 export interface EntryInput {
-  readonly role?: "phase" | "fix" | "handoff" | "compliance";
+  readonly role?: "phase" | "fix" | "handoff" | "first-turn" | "closing-turn" | "compliance";
   /** Ignored for the compliance role. */
   readonly phase?: string;
   readonly model?: string;
@@ -106,6 +106,7 @@ export function historicalPhase(input: Partial<HistoricalPhasePlan> = {}): Histo
     id: "phase-01",
     model: "claude-opus-5-5",
     effort: "high",
+    mode: "headless",
     editBytes: 8000,
     optionalBytes: 2000,
     createCount: 1,
@@ -272,6 +273,53 @@ export function generateHistory(input: {
   return out;
 }
 
+/** The reference-priced USD of the turns of the interactive phases `generateHistoryWithInteractive` adds, one per run. */
+export const INTERACTIVE_TURN_USD = [0.5, 0.8, 1.1] as const;
+
+/**
+ * `generateHistory`'s 20 runs of 3 headless phases (60 headless samples, the
+ * minimum an estimate needs), plus one run per `INTERACTIVE_TURN_USD` that
+ * holds a single interactive phase (`phase-01`) whose ledger has a
+ * `first-turn` and a `closing-turn` entry and nothing else: 70 % and 30 % of
+ * the run's reference USD. Those runs started 5, 15 and 25 days ago.
+ */
+export function generateHistoryWithInteractive(input: { readonly seed: number }): GeneratedRun[] {
+  const headless = generateHistory({ runs: 20, phasesPerRun: 3, seed: input.seed });
+  const interactive = INTERACTIVE_TURN_USD.map((usd, r): GeneratedRun => {
+    const startMs = NOW_MS - (5 + 10 * r) * DAY_MS;
+    const runKey = `demo.generated.turns-${String(r).padStart(2, "0")}`;
+    const plan = historicalPhase({
+      id: "phase-01",
+      mode: "interactive",
+      editBytes: 0,
+      optionalBytes: 2000,
+      createCount: 0,
+    });
+    const entries = [
+      ledgerEntry({
+        role: "first-turn",
+        phase: "phase-01",
+        tokens: tokensForUsd(usd * 0.7),
+        costUsd: usd * 0.7,
+        endedAt: iso(startMs + 10 * 60_000),
+      }),
+      ledgerEntry({
+        role: "closing-turn",
+        phase: "phase-01",
+        tokens: tokensForUsd(usd * 0.3),
+        costUsd: usd * 0.3,
+        endedAt: iso(startMs + HOUR_MS),
+      }),
+    ];
+    return {
+      source: ledgerSource(runKey, entries),
+      sized: sizedRun(runKey, iso(startMs), [plan]),
+      actualUsd: usd,
+    };
+  });
+  return [...headless, ...interactive];
+}
+
 /** A made-up registry entry; defaults to a review-open run created now. */
 export function registryEntry(input: Partial<RegistryEntry> = {}): RegistryEntry {
   return {
@@ -301,6 +349,7 @@ export interface PlanFilePhase {
   readonly id: string;
   readonly model?: string;
   readonly effort?: Effort;
+  readonly mode?: "headless" | "interactive";
   readonly create?: readonly string[];
   readonly edit?: readonly string[];
   readonly optional?: readonly string[];
@@ -316,7 +365,7 @@ function planFilePhase(phase: PlanFilePhase): PhaxPlan["phases"][number] {
     plannedFilesToCreate: [...(phase.create ?? [])],
     plannedFilesToEdit: [...(phase.edit ?? [])],
     optionalFilesToEdit: [...(phase.optional ?? [])],
-    mode: "headless",
+    mode: phase.mode ?? "headless",
     oracle: null,
     commit: { subject: `feat: ${phase.id}`, body: "Made up." },
   };
@@ -368,6 +417,7 @@ export function seedGeneratedRuns(
         id: phase.id,
         model: phase.model,
         effort: phase.effort as Effort,
+        mode: phase.mode,
         create: Array.from({ length: phase.createCount }, (_, i) => `src/${n}/new-${i}.ts`),
         edit: [edit],
         optional: [optional],

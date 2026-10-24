@@ -36,7 +36,11 @@ const UNCALIBRATED_LABEL: Readonly<Record<UncalibratedPart, string>> = {
 const NOT_ESTIMATED_REASON = {
   "other-provider": "other provider",
   "no-list-price": "no list price",
+  "thin-interactive-history": "too few past interactive phases",
 } as const;
+
+const INTERACTIVE_NOTE =
+  "Interactive phases: first and closing turns only; the person's work is not estimated.";
 
 function part(parts: readonly Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes) {
   return parts.find((p) => p.type === type)?.value ?? "";
@@ -102,7 +106,9 @@ function tableLines(report: EstimateReport): string[] {
   for (const phase of report.phases) {
     if (phase.estimate === null) continue;
     const { p10, p50, p90 } = phase.estimate;
-    rows.push([phase.id, phase.model, phase.effort, usd(p10), usd(p50), usd(p90)]);
+    // An interactive phase is sized by its turns alone, whatever its effort.
+    const effort = phase.mode === "interactive" ? "interactive" : phase.effort;
+    rows.push([phase.id, phase.model, effort, usd(p10), usd(p50), usd(p90)]);
   }
   const { run } = report;
   if (run.runLevel > 0) {
@@ -205,7 +211,16 @@ function verdictLine(report: EstimateReport): string {
 /** The report as the operator reads it, one line per entry. */
 export function renderEstimate(report: EstimateReport, opts: RenderEstimateOptions): string {
   const blocks: string[][] = [historyLines(report)];
-  if (report.run !== null) blocks.push([...tableLines(report), notEstimatedLine(report)]);
+  if (report.run !== null) {
+    const estimatedInteractive = report.phases.some(
+      (phase) => phase.mode === "interactive" && phase.estimate !== null,
+    );
+    blocks.push([
+      ...tableLines(report),
+      ...(estimatedInteractive ? [INTERACTIVE_NOTE] : []),
+      notEstimatedLine(report),
+    ]);
+  }
 
   const subscription = subscriptionLines(report, opts);
   if (report.verdict === "uncalibrated") {

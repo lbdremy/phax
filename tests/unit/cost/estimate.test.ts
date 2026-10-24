@@ -10,11 +10,15 @@ import {
   type PlanPhaseInput,
   type WindowsReading,
 } from "../../../src/domain/cost/estimate.js";
+import { priceTokens } from "../../../src/domain/cost/fit.js";
+import { listPriceFor } from "../../../src/domain/routing/prices.js";
 import {
   daysAgo,
   DAY_MS,
   generateHistory,
+  generateHistoryWithInteractive,
   HOUR_MS,
+  INTERACTIVE_TURN_USD,
   iso,
   ledgerEntry,
   ledgerSource,
@@ -49,7 +53,12 @@ const plan: PlanPhaseInput[] = [
   { id: "phase-02", effort: "medium", editBytes: 30_000, optionalBytes: 0, createCount: 0 },
   { id: "phase-03", effort: "xhigh", editBytes: 6000, optionalBytes: 9000, createCount: 1 },
   { id: "phase-04", effort: "low", editBytes: 2000, optionalBytes: 0, createCount: 3 },
-].map((phase) => ({ ...phase, provider: "claude-code", model: "claude-opus-5-5" }));
+].map((phase) => ({
+  ...phase,
+  provider: "claude-code",
+  model: "claude-opus-5-5",
+  mode: "headless",
+}));
 
 const windows = (fiveHour: number, sevenDay: number): WindowsReading => ({
   kind: "windows",
@@ -171,6 +180,7 @@ describe("estimatePlan: phases it does not estimate", () => {
       provider: "codex-cli",
       model: "gpt-5.5",
       effort: "xhigh",
+      mode: "headless",
       estimate: null,
       notEstimated: "other-provider",
     });
@@ -342,5 +352,180 @@ describe("estimatePlan: warnings", () => {
     expect(report.warnings).toEqual([
       "phase-01: only 3 historical phases at effort max; its range is less reliable",
     ]);
+  });
+});
+
+// ── Interactive phases ─────────────────────────────────────────────────────
+
+// 20 runs of 3 headless phases (60 samples) and three runs of one interactive
+// phase whose first and closing turns cost 0.5, 0.8 and 1.1 at the reference
+// model, 5, 15 and 25 days ago.
+const withTurns = generateHistoryWithInteractive({ seed: 21 });
+const turnLedgers = withTurns.map((run) => run.source);
+const turnRuns = withTurns.map((run) => run.sized);
+
+const UNIT_MIX = [1000, 20_000, 2_000_000, 50_000] as const;
+// The same token mix at Sonnet's list price over the reference model's.
+const SONNET_RATIO =
+  priceTokens(UNIT_MIX, listPriceFor("claude-sonnet-5-5")!) /
+  priceTokens(UNIT_MIX, listPriceFor("claude-opus-5-5")!);
+const [LOW, MID, HIGH] = INTERACTIVE_TURN_USD;
+const cents = (value: number): number => Math.round(value * 100) / 100;
+
+const reviewPhase: PlanPhaseInput = {
+  id: "phase-02",
+  provider: "claude-code",
+  model: "claude-sonnet-5-5",
+  effort: "medium",
+  mode: "interactive",
+  editBytes: 0,
+  optionalBytes: 1000,
+  createCount: 0,
+};
+
+function estimateWithTurns(input: Partial<EstimateInput> = {}): EstimateReport {
+  return estimate({
+    phases: [plan[0]!, reviewPhase, plan[3]!],
+    ledgers: [...turnLedgers, calibration(500, 50_000)],
+    sizedRuns: turnRuns,
+    ...input,
+  });
+}
+
+describe("estimatePlan: interactive phases", () => {
+  it("counts only the headless phases as history and gives the interactive phase its own range from the turns", () => {
+    const report = estimateWithTurns();
+    expect(report.history.phases).toBe(60);
+    expect(report.phases.map((phase) => [phase.id, phase.mode])).toEqual([
+      ["phase-01", "headless"],
+      ["phase-02", "interactive"],
+      ["phase-04", "headless"],
+    ]);
+    // Repriced at Sonnet and weighted by recency (5, 15 and 25 days old),
+    // each quantile is one of the three samples.
+    expect(report.phases[1]!.estimate).toEqual({
+      p10: cents(LOW * SONNET_RATIO),
+      p50: cents(MID * SONNET_RATIO),
+      p90: cents(HIGH * SONNET_RATIO),
+    });
+  });
+
+  it.each([
+    [
+      "too few past interactive phases",
+      2,
+      "claude-code",
+      "claude-sonnet-5-5",
+      "thin-interactive-history",
+    ],
+    [
+      "no past interactive phase",
+      0,
+      "claude-code",
+      "claude-sonnet-5-5",
+      "thin-interactive-history",
+    ],
+    ["another provider", 3, "codex-cli", "gpt-5.5", "other-provider"],
+    ["a model with no list price", 3, "claude-code", "claude-house-special", "no-list-price"],
+  ] as const)("does not size the phase for %s", (_name, samples, provider, model, reason) => {
+    const report = estimateWithTurns({
+      ledgers: [...turnLedgers.slice(0, 20 + samples), calibration(500, 50_000)],
+      sizedRuns: turnRuns.slice(0, 20 + samples),
+      phases: [plan[0]!, { ...reviewPhase, provider, model }, plan[3]!],
+    });
+    expect(report.phases[1]).toMatchObject({
+      id: "phase-02",
+      mode: "interactive",
+      estimate: null,
+      notEstimated: reason,
+    });
+    expect(report.phases[0]!.estimate).not.toBeNull();
+    expect(report.run).toEqual(estimateWithTurns({ phases: [plan[0]!, plan[3]!] }).run);
+  });
+
+  it("keeps the run level the compliance median, with and without interactive phases", () => {
+    const compliance = [
+      ledgerSource("demo.c1", [
+        ledgerEntry({ role: "compliance", costUsd: 1.2, endedAt: daysAgo(4) }),
+      ]),
+      ledgerSource("demo.c2", [
+        ledgerEntry({ role: "compliance", costUsd: 3.4, endedAt: daysAgo(9) }),
+      ]),
+      ledgerSource("demo.c3", [
+        ledgerEntry({ role: "compliance", costUsd: 2.6, endedAt: daysAgo(15) }),
+      ]),
+    ];
+    const ledgersWith = [...turnLedgers, ...compliance, calibration(500, 50_000)];
+    const withPhase = estimateWithTurns({
+      ledgers: ledgersWith,
+      compliance: { kind: "claude-code" },
+    });
+    const without = estimateWithTurns({
+      ledgers: ledgersWith,
+      compliance: { kind: "claude-code" },
+      phases: [plan[0]!, plan[3]!],
+    });
+    expect(withPhase.run!.runLevel).toBe(2.6);
+    expect(without.run!.runLevel).toBe(2.6);
+  });
+
+  it("adds the interactive phase's quantiles to the run's, quantile by quantile", () => {
+    const withPhase = estimateWithTurns();
+    const without = estimateWithTurns({ phases: [plan[0]!, plan[3]!] });
+    const range = withPhase.phases[1]!.estimate!;
+    for (const q of ["p10", "p50", "p90"] as const) {
+      // Both are rounded to cents.
+      expect(Math.abs(withPhase.run![q] - without.run![q] - range[q])).toBeLessThan(0.011);
+    }
+  });
+
+  it("plays the run's own P50 and P90 with the interactive phase in it", () => {
+    const report = estimateWithTurns();
+    const burn = report.burnRateUsdPerHour!;
+    const spent = (endsAt: string) => ((Date.parse(endsAt) - NOW_MS) / HOUR_MS) * burn;
+    expect(spent(report.scenarios!.p50.endsAt)).toBeCloseTo(report.run!.p50, 1);
+    expect(spent(report.scenarios!.p90.endsAt)).toBeCloseTo(report.run!.p90, 1);
+  });
+
+  describe("in the scenarios", () => {
+    const own = (pick: "p50" | "p90") => estimateWithTurns().phases[1]!.estimate![pick];
+    // Five-hour capacity is $500: a window with `left` dollars left is
+    // (100 - left / 5) % used.
+    const withRoomLeft = (left: number, input: Partial<EstimateInput> = {}) =>
+      estimateWithTurns({ windows: windows(100 - left / 5, 0), ...input });
+
+    it("spends the interactive phase's own P50 and P90 at its plan position", () => {
+      const interactiveFirst = [reviewPhase, plan[0]!];
+      for (const pick of ["p50", "p90"] as const) {
+        const figure = own(pick);
+        const pauseOf = (left: number) =>
+          withRoomLeft(left, { phases: interactiveFirst }).scenarios![pick].pauses[0]?.phase;
+        // A window that runs out inside the phase's own figure pauses in it;
+        // one with a little more room pauses in the next phase.
+        expect(pauseOf(figure - 0.03)).toBe("phase-02");
+        expect(pauseOf(figure + 0.03)).toBe("phase-01");
+      }
+    });
+
+    it("keeps the run level on the last phase, behind the interactive phase's own figure", () => {
+      const compliance = [
+        ledgerSource("demo.c1", [
+          ledgerEntry({ role: "compliance", costUsd: 2.6, endedAt: daysAgo(4) }),
+        ]),
+      ];
+      const input: Partial<EstimateInput> = {
+        phases: [plan[0]!, reviewPhase],
+        ledgers: [...turnLedgers, ...compliance, calibration(500, 50_000)],
+        compliance: { kind: "claude-code" } as const,
+      };
+      const total = estimateWithTurns(input).run!.p50;
+      const lastPhaseCost = own("p50") + 2.6;
+      const pauseOf = (left: number) =>
+        estimateWithTurns({ ...input, windows: windows(100 - left / 5, 0) }).scenarios!.p50
+          .pauses[0]?.phase;
+      // The headless phase spends everything but the last phase's cost.
+      expect(pauseOf(total - lastPhaseCost - 0.07)).toBe("phase-01");
+      expect(pauseOf(total - lastPhaseCost + 0.07)).toBe("phase-02");
+    });
   });
 });

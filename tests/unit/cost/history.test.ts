@@ -6,7 +6,9 @@ import { priceTokens, referencePrice } from "../../../src/domain/cost/fit.js";
 import {
   burnRate,
   calibrateWindows,
+  interactiveTurnSamples,
   lastObservedWindows,
+  MIN_SAMPLE_USD,
   runLevelMedian,
   trainingSamples,
 } from "../../../src/domain/cost/history.js";
@@ -76,6 +78,110 @@ describe("trainingSamples", () => {
     const run = sizedRun("demo.alpha.r9", daysAgo(1), [historicalPhase()]);
     const other = { runKey: "demo.alpha.r8", ledger: ledger([ledgerEntry({ costUsd: 5 })]) };
     expect(trainingSamples([other], [run])).toEqual([]);
+  });
+
+  it("leaves out turn entries and interactive phases", () => {
+    const source = ledgerSource("demo.alpha.r2", [
+      // A headless phase that somehow has turn entries: only its phase entry counts.
+      ledgerEntry({
+        role: "phase",
+        phase: "phase-01",
+        tokens: { outputTokens: 20_000 },
+        costUsd: 0.4,
+      }),
+      ledgerEntry({
+        role: "first-turn",
+        phase: "phase-01",
+        tokens: { outputTokens: 90_000 },
+        costUsd: 1.8,
+      }),
+      ledgerEntry({
+        role: "closing-turn",
+        phase: "phase-01",
+        tokens: { outputTokens: 90_000 },
+        costUsd: 1.8,
+      }),
+      // An interactive phase: its turns are no sample, and neither is anything else it holds.
+      ledgerEntry({
+        role: "first-turn",
+        phase: "phase-02",
+        tokens: { outputTokens: 90_000 },
+        costUsd: 1.8,
+      }),
+      ledgerEntry({
+        role: "closing-turn",
+        phase: "phase-02",
+        tokens: { outputTokens: 90_000 },
+        costUsd: 1.8,
+      }),
+      ledgerEntry({
+        role: "handoff",
+        phase: "phase-02",
+        tokens: { outputTokens: 90_000 },
+        costUsd: 1.8,
+      }),
+    ]);
+    const run = sizedRun("demo.alpha.r2", daysAgo(3), [
+      historicalPhase({ id: "phase-01" }),
+      historicalPhase({ id: "phase-02", mode: "interactive" }),
+    ]);
+    const samples = trainingSamples([source], [run]);
+    expect(samples).toHaveLength(1);
+    expect(samples[0]!.tokens).toEqual([0, 20_000, 0, 0]);
+    expect(samples[0]!.costUsd).toBeCloseTo(0.4, 12);
+  });
+});
+
+const turn = (role: "first-turn" | "closing-turn", phase: string, outputTokens: number) =>
+  ledgerEntry({ role, phase, tokens: { outputTokens, inputTokens: 100 }, costUsd: 0.5 });
+
+describe("interactiveTurnSamples", () => {
+  it("sums a phase's first and closing turns at the run's start and nothing else of the phase", () => {
+    const source = ledgerSource("demo.alpha.r3", [
+      turn("first-turn", "phase-02", 30_000),
+      turn("closing-turn", "phase-02", 10_000),
+      turn("first-turn", "phase-02", 5000),
+      ledgerEntry({ role: "handoff", phase: "phase-02", tokens: { outputTokens: 99_000 } }),
+      ledgerEntry({ role: "fix", phase: "phase-02", tokens: { outputTokens: 99_000 } }),
+    ]);
+    const run = sizedRun("demo.alpha.r3", daysAgo(6), [
+      historicalPhase({ id: "phase-02", mode: "interactive" }),
+    ]);
+    expect(interactiveTurnSamples([source], [run])).toEqual([
+      { tokens: [300, 45_000, 0, 0], atMs: Date.parse(daysAgo(6)) },
+    ]);
+  });
+
+  it("leaves out a headless phase, a phase with no turn entry and a phase under the minimum", () => {
+    // phase-03's 100 input and 100 output tokens are $0.0024 at the reference model.
+    expect(MIN_SAMPLE_USD).toBe(0.01);
+    const source = ledgerSource("demo.alpha.r4", [
+      turn("first-turn", "phase-01", 50_000),
+      ledgerEntry({ role: "handoff", phase: "phase-02", tokens: { outputTokens: 50_000 } }),
+      turn("first-turn", "phase-03", 100),
+      turn("first-turn", "phase-04", 30_000),
+    ]);
+    const run = sizedRun("demo.alpha.r4", daysAgo(2), [
+      historicalPhase({ id: "phase-01" }),
+      historicalPhase({ id: "phase-02", mode: "interactive" }),
+      historicalPhase({ id: "phase-03", mode: "interactive" }),
+      historicalPhase({ id: "phase-04", mode: "interactive" }),
+    ]);
+    const samples = interactiveTurnSamples([source], [run]);
+    expect(samples).toHaveLength(1);
+    expect(samples[0]!.tokens).toEqual([100, 30_000, 0, 0]);
+  });
+
+  it("leaves out a phase whose turns cost nothing in the ledger and a run with no ledger", () => {
+    // A codex phase writes no entry at all: nothing to sum.
+    const source = ledgerSource("demo.alpha.r5", []);
+    const run = sizedRun("demo.alpha.r5", daysAgo(2), [
+      historicalPhase({ id: "phase-01", mode: "interactive" }),
+    ]);
+    const orphan = sizedRun("demo.alpha.r6", daysAgo(2), [
+      historicalPhase({ id: "phase-01", mode: "interactive" }),
+    ]);
+    expect(interactiveTurnSamples([source], [run, orphan])).toEqual([]);
   });
 });
 
