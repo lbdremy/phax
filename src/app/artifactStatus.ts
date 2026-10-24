@@ -9,6 +9,7 @@ import {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactOpenQuestionsError,
+  SurfaceSummariesUnwrittenError,
   ArtifactQuestionsUnparsedError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
@@ -44,6 +45,7 @@ import {
 } from "../domain/artifact/lineage.js";
 import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifact/frontmatter.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
+import { unwrittenSummaries } from "../domain/artifact/surfaceSummaries.js";
 import {
   type SidecarAgreement,
   describeStampedShape,
@@ -379,6 +381,7 @@ export type TransitionArtifactError =
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactSidecarDivergedError
+  | SurfaceSummariesUnwrittenError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError;
@@ -414,6 +417,19 @@ function readLegalTransition(
     }
     return { md, kind, status };
   });
+}
+
+function refuseUnwrittenSummaries(
+  gesture: "Approval refused" | "Completion refused",
+  path: string,
+  sidecar: { readonly path: string; readonly read: DocumentSidecar | null } | null,
+): Effect.Effect<void, SurfaceSummariesUnwrittenError> {
+  const surfaces = unwrittenSummaries(sidecar?.read ?? null);
+  return sidecar !== null && surfaces.length > 0
+    ? Effect.fail(
+        new SurfaceSummariesUnwrittenError({ gesture, path, sidecarPath: sidecar.path, surfaces }),
+      )
+    : Effect.void;
 }
 
 /** Approve or reopen: also refused while any live sidecar is unmigrated. */
@@ -468,6 +484,11 @@ export function transitionArtifact(
     // rendering at the current shape; an older sidecar is migrated first.
     // Other transitions carry the sidecar along whatever its state.
     const sidecar = yield* readSidecar(repoRelPath, kind, md);
+    // Completion refuses a spec whose current-shape sidecar still holds the
+    // placeholder, before anything is moved or written.
+    if (target === "Completed" && kind === "spec") {
+      yield* refuseUnwrittenSummaries("Completion refused", repoRelPath, sidecar);
+    }
     if (target === "Approved" && sidecar !== null && sidecar.agreement !== "in-sync") {
       const slug =
         parseArtifactName(kind, repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1))?.slug ??
@@ -484,6 +505,10 @@ export function transitionArtifact(
             : sidecarRemedy(kind, slug, sidecar.path),
         }),
       );
+    }
+
+    if (target === "Approved") {
+      yield* refuseUnwrittenSummaries("Approval refused", repoRelPath, sidecar);
     }
 
     // The approval lock: an artifact is approved only once no question is

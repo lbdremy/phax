@@ -102,6 +102,21 @@ describe("renderQuestionCounts", () => {
   });
 });
 
+const artifact = (
+  path: string,
+  status: "Draft" | "Approved",
+  summariesToWrite: number,
+  open: string[],
+  editedSinceApproval: boolean,
+) => ({
+  path,
+  status,
+  questions: { open, arbitrated: 1, lifted: 1 },
+  summariesToWrite,
+  bodyChanged: true,
+  editedSinceApproval,
+});
+
 describe("renderDocumentMigrationReport", () => {
   const DRAFT = "docs/specs/2609281200-log-rotation.md";
   const PRUNE = "docs/specs/2609251400-plan-prune.md";
@@ -127,6 +142,7 @@ describe("renderDocumentMigrationReport", () => {
               path: DRAFT,
               status: "Draft",
               questions: { open: ["Q2"], arbitrated: 3, lifted: 3 },
+              summariesToWrite: 0,
               bodyChanged: true,
               editedSinceApproval: false,
             },
@@ -134,6 +150,7 @@ describe("renderDocumentMigrationReport", () => {
               path: PRUNE,
               status: "Approved",
               questions: { open: [], arbitrated: 2, lifted: 2 },
+              summariesToWrite: 0,
               bodyChanged: true,
               editedSinceApproval: true,
             },
@@ -141,6 +158,7 @@ describe("renderDocumentMigrationReport", () => {
               path: CACHE,
               status: "Approved",
               questions: { open: ["Q3"], arbitrated: 1, lifted: 1 },
+              summariesToWrite: 0,
               bodyChanged: true,
               editedSinceApproval: true,
             },
@@ -155,6 +173,7 @@ describe("renderDocumentMigrationReport", () => {
               path: PLAN,
               status: "Approved",
               questions: { open: [], arbitrated: 0, lifted: 0 },
+              summariesToWrite: 0,
               bodyChanged: false,
               editedSinceApproval: false,
             },
@@ -183,6 +202,38 @@ describe("renderDocumentMigrationReport", () => {
     ]);
     // Only the Approved artifact left with an open question is told to decide.
     expect(lines.filter((l) => l.includes("decide"))).toEqual([lines[5]]);
+  });
+
+  // ac-lift-report
+  it("counts the summaries still to write on a spec's line, and names them before re-approval", () => {
+    const lines = renderDocumentMigrationReport({
+      kind: "migrated",
+      groups: [
+        {
+          format: "spec-document",
+          fromShape: "0.25.0",
+          toShape: "0.27.0",
+          artifacts: [
+            artifact("a.md", "Approved", 3, [], true),
+            artifact("b.md", "Draft", 1, [], false),
+            artifact("c.md", "Draft", 0, [], false),
+            artifact("d.md", "Approved", 2, ["Q1"], true),
+          ],
+        },
+      ],
+      stalePlans: [],
+      commit: { hash: "e5f6a7b8c9d0", subject: "chore: migrate" },
+    });
+    expect(lines).toEqual([
+      "spec-document 0.25.0 → 0.27.0",
+      "  a.md  Approved  open 0 · arbitrated 1 (1 lifted) · 3 summaries to write",
+      "    now edited since approval — write its summaries, then re-approve with `phax artifact approve a.md`",
+      "  b.md  Draft     open 0 · arbitrated 1 (1 lifted) · 1 summary to write",
+      "  c.md  Draft     open 0 · arbitrated 1 (1 lifted)",
+      "  d.md  Approved  open 1 (Q1) · arbitrated 1 (1 lifted) · 2 summaries to write",
+      "    now edited since approval, with open questions Q1 — write its summaries, reopen it and decide Q1 before re-approving",
+      "committed e5f6a7b chore: migrate",
+    ]);
   });
 });
 
