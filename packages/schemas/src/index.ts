@@ -9,10 +9,12 @@ import {
   interactiveHandoffFormat,
   interactiveSessionFormat,
   reviewStopFormat,
+  runListFormat,
   type FirstReadingShapes,
   type InteractiveHandoffShapes,
   type InteractiveSessionShapes,
   type ReviewStopShapes,
+  type RunListShapes,
 } from "./formats/interactive.js";
 import { oracleRequestFormat, type OracleRequestShapes } from "./formats/oracleRequest.js";
 import {
@@ -340,14 +342,20 @@ export {
   type ReviewStopFile as ReviewStop,
 } from "../../../src/schemas/reviewStop.js";
 export {
+  RunListFileSchema as RunListSchema,
+  type RunListFile as RunList,
+} from "../../../src/schemas/runList.js";
+export {
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
   parseReviewStop,
+  parseRunList,
   toLatestFirstReading,
   toLatestInteractiveHandoff,
   toLatestInteractiveSession,
   toLatestReviewStop,
+  toLatestRunList,
   type FirstReadingShape,
   type InteractiveHandoffShape,
   type InteractiveSessionShape,
@@ -355,7 +363,9 @@ export {
   type LatestInteractiveHandoff,
   type LatestInteractiveSession,
   type LatestReviewStop,
+  type LatestRunList,
   type ReviewStopShape,
+  type RunListShape,
 } from "./formats/interactive.js";
 
 // The answer a decide session returns for a hand-authored spec or plan. Its
@@ -540,6 +550,7 @@ type DocumentShapes = EveryFormat<{
   "interactive-handoff": InteractiveHandoffShapes;
   "interactive-session": InteractiveSessionShapes;
   "review-stop": ReviewStopShapes;
+  "run-list": RunListShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
   "cost-ledger": CostLedgerShapes;
 }>;
@@ -585,6 +596,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "interactive-handoff": interactiveHandoffFormat,
     "interactive-session": interactiveSessionFormat,
     "review-stop": reviewStopFormat,
+    "run-list": runListFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
     "cost-ledger": costLedgerFormat,
   });

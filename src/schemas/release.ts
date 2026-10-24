@@ -36,4 +36,5 @@ export const CURRENT_STAMPS = {
   "interactive-handoff": "0.26.0",
   "interactive-session": "0.26.0",
   "review-stop": "0.26.0",
+  "run-list": "0.26.0",
 } as const;

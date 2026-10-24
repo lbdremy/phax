@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { FileSystem, FsError } from "../ports/fs.js";
 import type { ProviderId } from "../schemas/providerId.js";
+import type { ReviewStop } from "../schemas/reviewStop.js";
 import { readReviewStop } from "./interactiveFiles.js";
 
 export interface StopInfo {
@@ -27,6 +28,8 @@ export interface StopInfo {
   } | null;
   /** The command that continues the stop from the main checkout. */
   readonly enterPhase: string;
+  /** The review-stop document as decoded, for `phax ls --json` to embed. */
+  readonly reviewStop: ReviewStop;
 }
 
 /**
@@ -64,6 +67,7 @@ export function readStopInfo(
               origin: reviewStop.session.origin,
             },
       enterPhase: reviewStop.commands.enterPhase.argv.join(" "),
+      reviewStop,
     };
   });
 }

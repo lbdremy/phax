@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Either, Layer, Schema } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
@@ -11,6 +11,12 @@ import { NodeGitLayer } from "../../infra/git.js";
 import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { Lock } from "../../ports/lock.js";
 import type { RegistryEntry } from "../../schemas/registry.js";
+import { withSchemaUrl } from "../../schemas/persisted.js";
+import { encodeRunListFile, type RunListRow } from "../../schemas/runList.js";
+import { RunStateSchema } from "../../schemas/status.js";
+import { buildRunList } from "../../domain/runList.js";
+
+const isRunState = Schema.is(RunStateSchema);
 import { decodeShortName } from "../../domain/branded.js";
 import { runKey } from "../../domain/runRef.js";
 
@@ -29,7 +35,7 @@ type LockState = "none" | "active" | "stale";
 interface LsRow {
   namespace: string;
   shortName: string;
-  state: string;
+  state: RunListRow["state"];
   branch: string;
   currentPhase: string;
   gateProfile: string;
@@ -82,7 +88,7 @@ function reconcileEntry(
     row: {
       namespace: entry.namespace,
       shortName: entry.shortName,
-      state: info.runState,
+      state: isRunState(info.runState) ? info.runState : entry.state,
       branch: info.branch !== "(unknown)" ? info.branch : entry.branch,
       currentPhase: reached ? `${reached.phaseIndex + 1}/${total}` : "-",
       gateProfile: info.gateProfileId ?? "-",
@@ -262,31 +268,35 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
     }),
   );
 
-  if (opts.json) {
-    out.log(
-      JSON.stringify(
-        rows.map((r, i) => ({
-          ...r,
-          archivePath: reconciled[i]?.entry.archivePath,
-          qualifiedName: runKey(r.namespace, r.shortName),
-        })),
-        null,
-        2,
-      ),
+  // The stop of each waiting run, read once through `readStopInfo` for the
+  // table and for JSON alike. A run whose document cannot be read has no stop:
+  // the table keeps its plain state and JSON writes `stop: null`.
+  const stops = new Map<string, StopInfo>();
+  for (const { entry, info } of reconciled) {
+    if (info === undefined || info.runState !== "awaiting_review") continue;
+    const stop = await Effect.runPromise(
+      Effect.either(readStopInfo(info).pipe(Effect.provide(fsLayer))),
     );
-  } else {
-    // The stop of each waiting run, read from its review-stop.json. A run
-    // whose document cannot be read keeps its plain state.
-    const stops = new Map<string, Pick<StopInfo, "cause" | "phaseId">>();
-    for (const { entry, info } of reconciled) {
-      if (info === undefined || info.runState !== "awaiting_review") continue;
-      const stop = await Effect.runPromise(
-        Effect.either(readStopInfo(info).pipe(Effect.provide(fsLayer))),
-      );
-      if (Either.isRight(stop) && stop.right !== null) {
-        stops.set(runKey(entry.namespace, entry.shortName), stop.right);
-      }
+    if (Either.isRight(stop) && stop.right !== null) {
+      stops.set(runKey(entry.namespace, entry.shortName), stop.right);
     }
+  }
+
+  if (opts.json) {
+    const runList = buildRunList(
+      rows.map((r, i) => {
+        const key = runKey(r.namespace, r.shortName);
+        const stop = stops.get(key);
+        return {
+          ...r,
+          qualifiedName: key,
+          archivePath: reconciled[i]?.entry.archivePath,
+          stop: stop === undefined ? null : withSchemaUrl("review-stop", stop.reviewStop),
+        };
+      }),
+    );
+    out.log(JSON.stringify(encodeRunListFile(withSchemaUrl("run-list", runList)), null, 2));
+  } else {
     out.log(formatTable(rows, config.records.enabled, stops));
   }
 

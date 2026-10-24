@@ -25,16 +25,21 @@ import type {
   LatestInteractiveHandoff,
   LatestInteractiveSession,
   LatestReviewStop,
+  LatestRunList,
   ReviewStop,
   ReviewStopShape,
+  RunList,
+  RunListShape,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
   parseReviewStop,
+  parseRunList,
   toLatestFirstReading,
   toLatestInteractiveHandoff,
   toLatestInteractiveSession,
   toLatestReviewStop,
+  toLatestRunList,
   CostLedgerV0_25_0,
   PhaseFileReconciliationV0_17_0,
   AuthoringRecordManifest,
@@ -238,6 +243,10 @@ import type {
   ReviewStop as PhaxReviewStop,
   ReviewStopFile as PhaxReviewStopFile,
 } from "../../src/schemas/reviewStop.js";
+import type {
+  RunList as PhaxRunList,
+  RunListFile as PhaxRunListFile,
+} from "../../src/schemas/runList.js";
 import type {
   CostLedger as PhaxCostLedger,
   CostLedgerFile as PhaxCostLedgerFile,
@@ -523,6 +532,7 @@ const formats: Equals<
   | "interactive-handoff"
   | "interactive-session"
   | "review-stop"
+  | "run-list"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -613,7 +623,8 @@ const shapeIds: Equals<
   | FirstReadingShape
   | InteractiveHandoffShape
   | InteractiveSessionShape
-  | ReviewStopShape,
+  | ReviewStopShape
+  | RunListShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -1078,7 +1089,17 @@ const interactiveTypes: [
   Equals<Value<typeof parseReviewStop>, PhaxReviewStopFile>,
   Equals<LatestReviewStop, PhaxReviewStop>,
   Equals<Parameters<typeof toLatestReviewStop>, [value: PhaxReviewStopFile]>,
+  Equals<RunList, PhaxRunListFile>,
+  Equals<RunListShape, Current<"run-list">>,
+  Equals<Value<typeof parseRunList>, PhaxRunListFile>,
+  Equals<LatestRunList, PhaxRunList>,
+  Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile]>,
 ] = [
+  true,
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,

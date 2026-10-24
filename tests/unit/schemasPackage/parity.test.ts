@@ -9,6 +9,7 @@ import {
   parseInteractiveHandoff,
   parseInteractiveSession,
   parseReviewStop,
+  parseRunList,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -52,6 +53,7 @@ import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHa
 import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
 import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
+import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -352,6 +354,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeReviewStopFile,
     wrongType: ["commands", []],
     required: "commands",
+    excess: "error",
+  },
+  "run-list": {
+    id: "run-list",
+    parse: parseRunList,
+    phax: decodeRunListFile,
+    wrongType: ["runs", {}],
+    required: "runs",
     excess: "error",
   },
 };

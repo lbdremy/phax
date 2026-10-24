@@ -33,6 +33,7 @@ import {
   interactiveHandoffFormat,
   interactiveSessionFormat,
   reviewStopFormat,
+  runListFormat,
 } from "../src/formats/interactive.js";
 import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
@@ -115,6 +116,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "interactive-handoff": interactiveHandoffFormat,
   "interactive-session": interactiveSessionFormat,
   "review-stop": reviewStopFormat,
+  "run-list": runListFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -151,6 +153,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "interactive-handoff": "error",
   "interactive-session": "error",
   "review-stop": "error",
+  "run-list": "error",
   "record-manifest": "error",
 };
 

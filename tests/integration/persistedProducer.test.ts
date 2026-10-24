@@ -750,6 +750,8 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // which removes these two entries.
   "interactive-session",
   "review-stop",
+  // `phax ls --json` prints the run list on stdout and never saves it.
+  "run-list",
 ];
 
 describe("every persisted file phax writes", () => {

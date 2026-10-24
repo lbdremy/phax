@@ -25,6 +25,7 @@ import {
   parseInteractiveHandoff,
   parseInteractiveSession,
   parseReviewStop,
+  parseRunList,
   parseAuthoringRecordManifest,
   parseBriefRecord,
   parseBriefReport,
@@ -55,6 +56,7 @@ import {
   toLatestInteractiveHandoff,
   toLatestInteractiveSession,
   toLatestReviewStop,
+  toLatestRunList,
   toLatestAuthoringRecordManifest,
   toLatestBriefRecord,
   toLatestBriefReport,
@@ -245,6 +247,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
   "review-stop": latest(parseReviewStop, toLatestReviewStop),
+  "run-list": latest(parseRunList, toLatestRunList),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -293,6 +296,8 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "interactive-handoff": undefined,
   "interactive-session": readInteractiveSessionFile,
   "review-stop": readReviewStopFile,
+  // phax writes the run list for `phax ls --json` and never reads it back.
+  "run-list": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

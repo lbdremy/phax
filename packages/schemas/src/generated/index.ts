@@ -39,4 +39,5 @@ export const CURRENT_SHAPES = {
   "interactive-handoff": "next",
   "interactive-session": "next",
   "review-stop": "next",
+  "run-list": "next",
 } as const;
