@@ -417,8 +417,8 @@ export function executePlan(
   let currentProvider: ProviderId | undefined;
   let currentModel: string | undefined;
   let currentEffort: string | undefined;
-  // A held close is running: its failures past the commit leave the run for a
-  // resume to finish, never as RunFailed.
+  // A stop's close is running, held or declared: its failures past the
+  // commit leave the run for a resume to finish, never as RunFailed.
   let closeInFlight = false;
   // A resume is reading what its start phase's re-entry needs, before
   // RunResumeRequested: a failure there leaves the run's state as it was, so
@@ -920,19 +920,22 @@ export function executePlan(
           new FsError({ message: `${phaseId} is held but noted no commit in its status` }),
         );
       }
-      const session = yield* readInteractiveSession(phaseFolderPath);
-      if (session === null || session.builderUsage === null) {
-        return yield* Effect.fail(
-          new FsError({
-            message: `${phaseId} is held but its interactive-session.json records no builder usage`,
-          }),
-        );
-      }
+      // Records off owe no record: the session is not read for its usage. A
+      // close that found no interactive-session.json writes one with no
+      // builder usage, so the record then names none rather than leave the
+      // stop unresumable.
+      const session = config.records.enabled
+        ? yield* readInteractiveSession(phaseFolderPath)
+        : null;
+      const usage: RecordUsageSource =
+        session === null || session.builderUsage === null
+          ? { kind: "none" }
+          : { kind: "recorded", usage: session.builderUsage };
       return {
         provider: binding.right.provider,
         model: binding.right.model,
         effort: binding.right.effort,
-        usage: { kind: "recorded", usage: session.builderUsage },
+        usage,
         sourceSha: commit,
         closedStop: closed ? yield* readClosedStop(phaseFolderPath, phaseId) : undefined,
       };
