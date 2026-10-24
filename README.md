@@ -425,7 +425,7 @@ A stop, held or declared, may sit between the two phases of an [oracle pair](doc
 
 #### Who closed the stop, and the transcripts
 
-A close reads your identity first, from the main checkout's git configuration (`user.name` and `user.email`). An unset identity refuses the close with exit 1 and the run stays in `awaiting_review`: run `git config user.name` and `git config user.email`, then resume. The identity is written in the stop, with the cause and outcome.
+A close reads your identity first, from the main checkout's git configuration (`user.name` and `user.email`, or `author.name` and `author.email` when set). An unset identity refuses the close with exit 1 and the run stays in `awaiting_review`: run `git config user.name` and `git config user.email`, then resume. The identity is written in the stop, with the cause and outcome.
 
 Before it commits, the close copies the transcript of each session it recorded into the phase folder: `<run>/<phase>/interactive-transcripts/<session id>.jsonl`. The recorded sessions are the builder (at a hold), each first turn that answered and every `--new-session` session. A closing turn that started its own session is not one of them; its stream stays in the phase folder as `closing-turn-NN.jsonl`. A copy is written with mode 0600 in a folder with mode 0700, because a continued session may hold secrets you typed. A transcript phax cannot find or read is not an error: the close records it as `missing`, with the reason `not-found` or `unreadable`. A copy that cannot be written refuses the close, and the next close copies again.
 

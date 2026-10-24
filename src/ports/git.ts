@@ -115,9 +115,10 @@ export interface GitOps {
   committerName(repo: string): Effect.Effect<string | null, GitError>;
   /**
    * The identity git authors a commit under in `repo`: the name is
-   * `GIT_AUTHOR_NAME`, else `user.name`; the email is `GIT_AUTHOR_EMAIL`, else
-   * `user.email`. `null` when either is unset or empty — never a guessed
-   * identity (no host-name fallback).
+   * `GIT_AUTHOR_NAME`, else `author.name`, else `user.name`; the email is
+   * `GIT_AUTHOR_EMAIL`, else `author.email`, else `user.email`. `null` when
+   * either is unset or empty — never a guessed identity (no host-name
+   * fallback).
    */
   authorIdentity(
     repo: string,
