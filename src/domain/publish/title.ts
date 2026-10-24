@@ -13,12 +13,12 @@ export function selectPrTitle(candidates: PrTitleCandidates): string {
   }
 
   if (runTitle !== undefined && runTitle.trim() !== "") {
-    return `PHAX: ${runTitle.trim()}`;
+    return runTitle.trim();
   }
 
   if (phaseTitle !== undefined && phaseTitle.trim() !== "") {
-    return `PHAX: ${phaseTitle.trim()}`;
+    return phaseTitle.trim();
   }
 
-  return `PHAX: ${shortName}`;
+  return shortName;
 }
