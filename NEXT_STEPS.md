@@ -69,11 +69,12 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
         preflight no longer refuse a declared phase. The review fixes on #157 also trace the stop's
         effects (turns, closing gate, review commit) and pin them in
         `tests/e2e/semanticTrace.declaredStop.test.ts`.
-      - Plan 2 of 3 lands with this run (`docs/plans/2610231043-interactive-phases-plan.md`):
-        `phax run --hold`, the held stop and its close (one review commit with a `Held-Phase:`
-        trailer on the phase commit), the phase's record written at closing, and the
-        oracle-pair reviews (the `authored` re-run, the latest authored commit, the held
-        discharge).
+      - Plan 2 of 3, the hold, landed with #158
+        (`docs/plans/archive/2610231043-interactive-phases-plan.md`): `phax run --hold`, the held
+        stop and its close (one review commit with a `Held-Phase:` trailer on the phase commit),
+        the phase's record written at closing, and the oracle-pair reviews (the `authored` re-run,
+        the latest authored commit, the held discharge). A refused record write at closing pauses
+        the run, and the next resume writes it once.
       - Next: plan 3 (the versioned `phax ls --json` run list, transcript capture, and the
         records, compliance review and PR body around a stop).
       - Gaps until then: stops have no review fields in their records; `phax records explain` on
@@ -119,6 +120,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-21 | `oracle-phases` plan 2, skip-oracle (#155) | 2 × sonnet-5-5 / medium | $2.88 ($0.97 of it before a usage-limit pause) | 0 / 1 | Execution named the `--skip-oracle` recovery in the reset refusal even when the discharge was already past its gate, where a resume would skip another phase's oracle step. |
 | 2026-10-22 | `oracle-phases` plan 3, Vitest oracles example (#156) | 1 × sonnet-5-5 / high | $1.69 ($1.43 for the phase) | 2 / 3 | The plan let a marked test that never runs (`test.fails.skip`, `describe.skip`, no test function) pass both verdicts, against the spec's "no skip or todo takes a marker's place", and dropped a tagged template's raw text. Execution read `1e999` as `null`, gave a file named twice duplicate finding ids, and left the README's request stamp stale. |
 | 2026-10-22 | `interactive-phases` plan 1, declared stop (#157) | 2 × sonnet-5-5 / medium, 2 × sonnet-5-5 / high, 4 × opus-5-5 / high (with a reason) | $58.92 ($12.38 of it before the first of two usage-limit pauses) | 9 / 6 | The plan kept a refused closing turn's edits in the worktree, so the next close committed them as the person's; let a resume failure after the stop was parked fail the run with the stop stranded; took HEAD at the first close as the base, so a person's commit passed as unchanged; dropped edits made after a half-finished close; gave the turn prompts no `$schema` URL (a real first turn invented one and needed a corrective resume); left `reset-phase` without the run lock and its preview blind to the person's handoff file; tracked a closing turn with an unversioned marker file; and asked for no effect telemetry. Execution let a test read the real `~/.phax`, copied a refused turn's binary files through text, saved an interrupted close as `awaiting_review` with no stop, defaulted a missing `stop` to `declared`, numbered a fallback closing session apart from its record, and documented `enter-phase` as printing the fresh-start command it runs. |
+| 2026-10-23 | `interactive-phases` plan 2, the hold (#158) | 3 × sonnet-5-5 / medium, 2 × sonnet-5-5 / high, 3 × opus-5-5 / high (with a reason) | $43.89 ($26.91 of it before a usage-limit pause) | 3 / 8 | The plan left a held phase interrupted in its handoff turn re-running the phase in a loop, said nothing of a record write refused at closing, and gave `--skip-oracle` at a stop outside any pair the wrong refusal. Execution let a failed read on re-entry fail the run, let `holdCli.test.ts` read the real `~/.phax`, skipped two planned tests, left pulled briefs open at the hold point, published the `stop` schema without `additionalProperties: false`, named no recovery in the `reset-phase` refusal on the oracle commit, read the hold with `readFileSync` around the port, and told the person to commit held corrections. The review also found that the Claude Code, Codex and Vibe adapters resolved a turn before its stream was flushed, so the cost ledger could miss a turn's usage under load; fixed on #158. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
