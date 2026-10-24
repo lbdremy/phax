@@ -96,14 +96,17 @@ const holdPointFailed: PhaxEvent = {
 };
 const REFUSAL =
   'Phase "phase-02" — records destination refused: this repo is public (remedy: set a records repo, or disable transcripts)';
-const heldRecordRefused: PhaxEvent = {
+const stopRecordRefused = (cause: "declared" | "held"): PhaxEvent => ({
   ...base,
-  type: "HeldRecordRefused",
+  type: "StopRecordRefused",
   phaseId,
+  cause,
   phaseCommit: PHASE_COMMIT,
   worktreePath,
   reason: REFUSAL,
-};
+});
+const heldRecordRefused = stopRecordRefused("held");
+const declaredRecordRefused = stopRecordRefused("declared");
 const gateFailed: LastClose = {
   result: "gate-failed",
   at: occurredAt,
@@ -402,55 +405,62 @@ describe("a failed hold point", () => {
   });
 });
 
-describe("a refused record of a closed held stop", () => {
-  it("pauses the run interrupted with the phase committed and its stop left closed", () => {
-    const result = handled(committed, heldRecordRefused);
-    expect(result.nextState).toEqual({
-      run: "interrupted",
-      phase: { state: "committed", hash: PHASE_COMMIT },
-    });
-    expect(result.effects).toEqual([
-      {
-        type: "PersistState",
-        patch: { run: { stoppedReason: "held_record_refused", lastError: REFUSAL } },
-      },
-      {
-        type: "WriteResumeInstructions",
-        ctx: {
-          reason: "Records destination refused",
-          kind: "held_record_refused",
-          phaseId,
-          worktreePath,
-          rawMessage: REFUSAL,
+describe("a refused record of a closed stop, declared or held", () => {
+  it.each(["declared", "held"] as const)(
+    "pauses the run interrupted with the phase committed and its %s stop left closed",
+    (cause) => {
+      const result = handled(committed, stopRecordRefused(cause));
+      expect(result.nextState).toEqual({
+        run: "interrupted",
+        phase: { state: "committed", hash: PHASE_COMMIT },
+      });
+      expect(result.effects).toEqual([
+        {
+          type: "PersistState",
+          patch: { run: { stoppedReason: "stop_record_refused", lastError: REFUSAL } },
         },
-      },
-      {
-        type: "EmitTrace",
-        name: "held.record.refused",
-        status: "failed",
-        boundary: "records",
-        details: { phaseId, reason: REFUSAL },
-      },
-      {
-        type: "EmitTrace",
-        name: "resume.available",
-        status: "info",
-        boundary: "resume-instructions.md",
-        details: { resumeCommand: "phax resume invoice-export" },
-      },
-    ]);
-  });
+        {
+          type: "WriteResumeInstructions",
+          ctx: {
+            reason: "Records destination refused",
+            kind: "stop_record_refused",
+            phaseId,
+            worktreePath,
+            rawMessage: REFUSAL,
+          },
+        },
+        {
+          type: "EmitTrace",
+          name: "stop.record.refused",
+          status: "failed",
+          boundary: "records",
+          details: { phaseId, cause, reason: REFUSAL },
+        },
+        {
+          type: "EmitTrace",
+          name: "resume.available",
+          status: "info",
+          boundary: "resume-instructions.md",
+          details: { resumeCommand: "phax resume invoice-export" },
+        },
+      ]);
+    },
+  );
 
   it("is unexpected while the phase is not committed, and stale on a run that is not running", () => {
-    expect(interpret(phaseRunning, heldRecordRefused).kind).toBe("Unexpected");
-    expect(interpret(heldClosing, heldRecordRefused).kind).toBe("Unexpected");
-    expect(interpret(heldAtStop, heldRecordRefused).kind).toBe("Stale");
-    expect(
-      interpret(
-        { run: "interrupted", phase: { state: "committed", hash: PHASE_COMMIT } },
-        heldRecordRefused,
-      ).kind,
-    ).toBe("Stale");
+    for (const refused of [heldRecordRefused, declaredRecordRefused]) {
+      expect(interpret(phaseRunning, refused).kind).toBe("Unexpected");
+      expect(interpret(heldClosing, refused).kind).toBe("Unexpected");
+      expect(interpret(declaredClosing, refused).kind).toBe("Unexpected");
+      expect(interpret(heldAtStop, refused).kind).toBe("Stale");
+      expect(interpret(declaredAtStop, refused).kind).toBe("Stale");
+      expect(
+        interpret(
+          { run: "interrupted", phase: { state: "committed", hash: PHASE_COMMIT } },
+          refused,
+        ).kind,
+      ).toBe("Stale");
+    }
   });
 });
 
@@ -548,12 +558,13 @@ describe("the matrix cells of the held cause", () => {
   const runningFor: Partial<Record<PhaxEventType, PhaxState>> = {
     HeldStopClosed: heldClosing,
     HoldPointFailed: committed,
-    HeldRecordRefused: committed,
+    StopRecordRefused: committed,
   };
   const events: ReadonlyArray<readonly [PhaxEventType, PhaxEvent]> = [
     ["HeldStopClosed", heldClosedCorrected],
     ["HoldPointFailed", holdPointFailed],
-    ["HeldRecordRefused", heldRecordRefused],
+    ["StopRecordRefused", heldRecordRefused],
+    ["StopRecordRefused", declaredRecordRefused],
     ["ReviewStopReached", declaredReached],
   ];
   const states = Object.keys(representative) as readonly PhaxStateName[];

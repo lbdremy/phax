@@ -228,11 +228,12 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     worktreePath,
     reason: "the seed could not be written",
   },
-  HeldRecordRefused: {
+  StopRecordRefused: {
     ...base,
-    type: "HeldRecordRefused",
+    type: "StopRecordRefused",
     phase: phaseId,
     phaseId,
+    cause: "held",
     phaseCommit: "abc123",
     worktreePath,
     reason: "records destination refused",
@@ -266,7 +267,7 @@ const runningStateFor: Partial<Record<PhaxEventType, PhaxState>> = {
   StopCommitted: { run: "running", phase: { state: "awaiting_review", cause: "declared" } },
   HeldStopClosed: { run: "running", phase: { state: "awaiting_review", cause: "held" } },
   HoldPointFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
-  HeldRecordRefused: { run: "running", phase: { state: "committed", hash: "abc123" } },
+  StopRecordRefused: { run: "running", phase: { state: "committed", hash: "abc123" } },
 };
 
 const runStateNames = Object.keys(representativeState) as readonly PhaxStateName[];

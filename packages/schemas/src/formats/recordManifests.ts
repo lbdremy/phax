@@ -106,23 +106,24 @@ export type LatestPhaseRecordManifest = RunRecordManifest;
 
 /**
  * Upgrades a parsed manifest in memory. Keeps every recorded fact; never
- * invents one: a shape older than `oracle` gets `oracle: null`, because no
- * phax that wrote it could run an oracle phase. Its recorded surfaces are
- * kept as they are.
+ * invents one: a shape older than `oracle`, `mode` and `stop` gets
+ * `oracle: null`, `mode: "headless"` and `stop: null`, because no phax that
+ * wrote it could run an oracle phase or stop a phase. Its recorded surfaces
+ * are kept as they are.
  */
 export function toLatestPhaseRecordManifest(
   value: PhaseRecordManifestPreSchema | PhaseRecordManifestV0_17_0 | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
-  if ("oracle" in value) {
+  if ("stop" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, oracle: null };
+    return { ...recorded, oracle: null, mode: "headless", stop: null };
   }
   const { version: _version, ...recorded } = value;
-  return { ...recorded, oracle: null };
+  return { ...recorded, oracle: null, mode: "headless", stop: null };
 }
 
 // ── authoring record manifest

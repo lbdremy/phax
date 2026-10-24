@@ -21,7 +21,9 @@
     "outcome",
     "usage",
     "verifiedSurfaces",
-    "oracle"
+    "oracle",
+    "mode",
+    "stop"
   ],
   "properties": {
     "$schema": {
@@ -270,6 +272,570 @@
                   "type": "string",
                   "description": "a string matching the pattern ^phase-\\d{2}$",
                   "pattern": "^phase-\\d{2}$"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "headless",
+        "interactive"
+      ]
+    },
+    "stop": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "outcome",
+                "closedBy",
+                "sessions"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "declared"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "corrected"
+                  ]
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop."
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "provider",
+                      "model",
+                      "effort",
+                      "sessionId",
+                      "origin",
+                      "transcript"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "claude-code",
+                          "codex-cli",
+                          "mistral-vibe"
+                        ]
+                      },
+                      "model": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "effort": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "sessionId": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "first-turn",
+                          "new-session",
+                          "builder"
+                        ]
+                      },
+                      "transcript": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "sha256"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "captured"
+                                ]
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "description": "The sha256 of the transcript copy's bytes.",
+                                "pattern": "^[0-9a-f]{64}$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "reason",
+                              "detail"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "missing"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "not-found",
+                                  "unreadable"
+                                ]
+                              },
+                              "detail": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "outcome",
+                "closedBy",
+                "sessions"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "declared"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "unchanged"
+                  ]
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop."
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "provider",
+                      "model",
+                      "effort",
+                      "sessionId",
+                      "origin",
+                      "transcript"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "claude-code",
+                          "codex-cli",
+                          "mistral-vibe"
+                        ]
+                      },
+                      "model": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "effort": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "sessionId": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "first-turn",
+                          "new-session",
+                          "builder"
+                        ]
+                      },
+                      "transcript": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "sha256"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "captured"
+                                ]
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "description": "The sha256 of the transcript copy's bytes.",
+                                "pattern": "^[0-9a-f]{64}$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "reason",
+                              "detail"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "missing"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "not-found",
+                                  "unreadable"
+                                ]
+                              },
+                              "detail": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "outcome",
+                "reviewCommit",
+                "closedBy",
+                "sessions"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "held"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "corrected"
+                  ]
+                },
+                "reviewCommit": {
+                  "type": "string",
+                  "description": "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
+                  "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop."
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "provider",
+                      "model",
+                      "effort",
+                      "sessionId",
+                      "origin",
+                      "transcript"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "claude-code",
+                          "codex-cli",
+                          "mistral-vibe"
+                        ]
+                      },
+                      "model": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "effort": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "sessionId": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "first-turn",
+                          "new-session",
+                          "builder"
+                        ]
+                      },
+                      "transcript": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "sha256"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "captured"
+                                ]
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "description": "The sha256 of the transcript copy's bytes.",
+                                "pattern": "^[0-9a-f]{64}$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "reason",
+                              "detail"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "missing"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "not-found",
+                                  "unreadable"
+                                ]
+                              },
+                              "detail": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cause",
+                "outcome",
+                "closedBy",
+                "sessions"
+              ],
+              "properties": {
+                "cause": {
+                  "type": "string",
+                  "enum": [
+                    "held"
+                  ]
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "unchanged"
+                  ]
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop."
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "provider",
+                      "model",
+                      "effort",
+                      "sessionId",
+                      "origin",
+                      "transcript"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "claude-code",
+                          "codex-cli",
+                          "mistral-vibe"
+                        ]
+                      },
+                      "model": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "effort": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "sessionId": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "first-turn",
+                          "new-session",
+                          "builder"
+                        ]
+                      },
+                      "transcript": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "sha256"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "captured"
+                                ]
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "description": "The sha256 of the transcript copy's bytes.",
+                                "pattern": "^[0-9a-f]{64}$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "reason",
+                              "detail"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "missing"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "not-found",
+                                  "unreadable"
+                                ]
+                              },
+                              "detail": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 }
               },
               "additionalProperties": false

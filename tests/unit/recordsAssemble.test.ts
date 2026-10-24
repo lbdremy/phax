@@ -18,7 +18,41 @@ const baseInput: AssembleRecordInput = {
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [],
   oracle: null,
+  mode: "headless",
+  stop: null,
 };
+
+const HELD_STOP = {
+  cause: "held",
+  outcome: "corrected",
+  reviewCommit: "2".repeat(40),
+  closedBy: { name: "Ada Example", email: "ada@example.test" },
+  sessions: [
+    {
+      provider: "codex-cli",
+      model: "gpt-5.5",
+      effort: "high",
+      sessionId: "X0",
+      origin: "builder",
+      transcript: { status: "captured", sha256: "a".repeat(64) },
+    },
+  ],
+} as const;
+
+// A stopped phase's folder: the agent's work beside the stop's files,
+// interactive-transcripts/ included.
+const STOPPED_FILES = [
+  "agent-binding.json",
+  "closing-turn-01.jsonl",
+  "correction-handoff.md",
+  "diff.patch",
+  "first-turn-01.jsonl",
+  "interactive-session.json",
+  "interactive-transcripts",
+  "output.jsonl",
+  "phase-handoff.md",
+  "review-seed.md",
+];
 
 describe("assembleRecord", () => {
   it("assembles a full record when transcript is enabled and output.jsonl is present", () => {
@@ -125,6 +159,35 @@ describe("assembleRecord", () => {
       "phase-handoff.md",
     ]);
     expect(manifest.shape).toBe("full");
+  });
+
+  it.each([
+    [true, "full", ["agent-binding.json", "diff.patch", "output.jsonl", "phase-handoff.md"]],
+    [false, "skeleton", ["agent-binding.json", "diff.patch", "phase-handoff.md"]],
+  ] as const)(
+    "with transcripts %s, decides only about output.jsonl and never carries interactive-transcripts/ or another stop file",
+    (transcriptEnabled, shape, expected) => {
+      const { artifactPaths, manifest } = assembleRecord({
+        ...baseInput,
+        files: STOPPED_FILES,
+        transcriptEnabled,
+        stop: HELD_STOP,
+      });
+      expect(artifactPaths).toEqual(expected);
+      expect(manifest.shape).toBe(shape);
+    },
+  );
+
+  it("writes the phase's mode and stop into the manifest, after its oracle role", () => {
+    const { manifest } = assembleRecord({ ...baseInput, stop: HELD_STOP });
+    expect(manifest.mode).toBe("headless");
+    expect(manifest.stop).toEqual(HELD_STOP);
+    const keys = Object.keys(manifest);
+    expect(keys.slice(keys.indexOf("oracle"))).toEqual(["oracle", "mode", "stop"]);
+    expect(assembleRecord({ ...baseInput, mode: "interactive" }).manifest).toMatchObject({
+      mode: "interactive",
+      stop: null,
+    });
   });
 
   it("does not mutate the input files array", () => {

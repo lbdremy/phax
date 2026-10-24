@@ -80,6 +80,7 @@ import {
   writeSeed,
   type SeedPaths,
 } from "./interactiveFiles.js";
+import { computeRecordUsage } from "./recordPlumbing.js";
 import { tracedStep, tracedTurnCall } from "./telemetry/stopTelemetry.js";
 
 type Origin = "first-turn" | "new-session";
@@ -140,6 +141,7 @@ function emptySession(input: FirstTurnInput): InteractiveSession {
     firstTurns: [],
     turnInProgress: null,
     transcripts: null,
+    builderUsage: null,
   };
 }
 
@@ -892,6 +894,13 @@ export function stopAtHeldPhase(
       }),
     );
 
+    // The builder's usage now, before any closing turn can grow a vibe
+    // session's meta.json: the record written at closing uses it.
+    const builderUsage = yield* computeRecordUsage({
+      provider: input.provider,
+      folder: input.phaseFolder,
+      sessionId: input.builder?.sessionId,
+    });
     const interactiveResume = getSessionAdapter(input.provider).interactiveResume;
     yield* writeInteractiveSession(input.phaseFolder, {
       phaseId: phase.id,
@@ -912,6 +921,7 @@ export function stopAtHeldPhase(
       firstTurns: [],
       turnInProgress: null,
       transcripts: null,
+      builderUsage,
     });
 
     const commands = yield* buildStopCommands({

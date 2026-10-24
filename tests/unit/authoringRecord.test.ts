@@ -53,6 +53,8 @@ const phaseManifest = {
   usage: { available: false },
   verifiedSurfaces: ["local"],
   oracle: null,
+  mode: "headless",
+  stop: null,
 };
 
 describe("AuthoringRecordManifestSchema", () => {

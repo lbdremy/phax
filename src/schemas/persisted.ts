@@ -1231,7 +1231,8 @@ function isStampedBelowCurrent(
 
 // A phase manifest written before `oracle` (pre-schema, or stamped below the
 // format's current stamp and read by the frozen 0.17.0 decoder) is upgraded
-// with `oracle: null`: no phax before it could run an oracle phase.
+// with `oracle: null`, `mode: "headless"` and `stop: null`: no phax before it
+// could run an oracle phase or stop a phase.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) => {
     if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
@@ -1242,7 +1243,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
         );
       }
       const { $schema: _schema, ...manifest } = older.right;
-      return Either.right({ ...manifest, oracle: null });
+      return Either.right({ ...manifest, oracle: null, mode: "headless", stop: null });
     }
     return readPersisted(input, {
       format: "phase-record-manifest",
@@ -1252,7 +1253,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       decodePreSchema: decodePhaseRecordManifestPreSchema,
       fromCurrent: fromRecordManifestFile,
       fromPreSchema: ({ version: _version, ...manifest }) =>
-        Either.right({ ...manifest, oracle: null }),
+        Either.right({ ...manifest, oracle: null, mode: "headless", stop: null }),
     });
   };
 }

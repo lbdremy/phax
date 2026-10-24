@@ -78,6 +78,7 @@ import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   builderInteractiveSessionDocument,
+  heldPhaseRecordManifestDocument,
   heldReviewStopDocument,
   phaseStatusStopDocuments,
   validDocuments,
@@ -427,6 +428,37 @@ describe("parity: the held cause", () => {
       builderInteractiveSessionDocument,
       "accepted",
     );
+  });
+
+  it("accepts a held record's stop in both, and refuses a stop's extra or missing key in both", () => {
+    const stop = heldPhaseRecordManifestDocument["stop"] as Doc;
+    expectParity(
+      parsePhaseRecordManifest,
+      decodeRunRecordManifestFile,
+      heldPhaseRecordManifestDocument,
+      "accepted",
+    );
+    for (const changed of [
+      withKey(stop, "transcript", "kept"),
+      withoutKey(stop, "reviewCommit"),
+      withoutKey(stop, "closedBy"),
+      { ...withoutKey(stop, "reviewCommit"), cause: "declared", reviewCommit: "0".repeat(40) },
+    ]) {
+      expectParity(
+        parsePhaseRecordManifest,
+        decodeRunRecordManifestFile,
+        withKey(heldPhaseRecordManifestDocument, "stop", changed),
+        "rejected",
+      );
+    }
+    for (const key of ["mode", "stop"]) {
+      expectParity(
+        parsePhaseRecordManifest,
+        decodeRunRecordManifestFile,
+        withoutKey(heldPhaseRecordManifestDocument, key),
+        "rejected",
+      );
+    }
   });
 });
 

@@ -34,6 +34,7 @@ import {
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import type { RunHold } from "../../src/schemas/status.js";
+import { providerStoreRootsUnder } from "./providerStoreRoots.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
 
 // A made-up world for a run that holds phases: the six-phase invoice-export
@@ -136,8 +137,11 @@ const PHASES: readonly { title: string; interactive?: boolean; model?: string }[
 
 const idOf = (index: number): string => `phase-${String(index + 1).padStart(2, "0")}`;
 
-/** The made-up invoice-export plan and its plan.md. */
-function invoiceExportPlan(): { plan: PhaxPlan; planMd: string } {
+/** The made-up invoice-export plan and its plan.md; `models` overrides a phase's model by id. */
+export function invoiceExportPlan(models: Readonly<Record<string, string>> = {}): {
+  plan: PhaxPlan;
+  planMd: string;
+} {
   const plan = {
     run: {
       shortName: SHORT,
@@ -149,7 +153,7 @@ function invoiceExportPlan(): { plan: PhaxPlan; planMd: string } {
       (spec, i): PhaxPlanPhase => ({
         id: idOf(i),
         title: spec.title,
-        model: spec.model ?? "claude-sonnet-5-5",
+        model: models[idOf(i)] ?? spec.model ?? "claude-sonnet-5-5",
         effort: "medium",
         planMarkdownAnchor: `#${idOf(i)}`,
         plannedFilesToCreate: spec.interactive === true ? [] : [`src/${idOf(i)}.ts`],
@@ -263,6 +267,16 @@ interface HeldBackend extends BackendOps {
   onHandoff: ((phase: string, phaseFolderPath: string | undefined) => void) | undefined;
   /** Called when a headless run builds a phase, after it wrote the phase's file: its phase and worktree. */
   onBuild: ((phase: string, worktree: string) => void) | undefined;
+  /** Called before a read-only turn (a first or closing turn) answers: its phase. */
+  onReadOnly: ((phase: string) => void) | undefined;
+  /** The session a first turn reports; F1 by default. */
+  firstTurnSession: string;
+  /** Whether the next first turns fail as the provider erroring; false by default. */
+  firstTurnFails: boolean;
+  /** The builder session a phase's headless run reports, over the default one. */
+  readonly builderSessions: Map<string, string>;
+  /** The provider stores: each session's transcript text; any other is not found. */
+  readonly transcripts: Map<string, string>;
 }
 
 const phaseOf = (options: AgentRunOptions): string =>
@@ -290,13 +304,22 @@ function makeHeldBackend(): HeldBackend {
     rateLimited,
     onHandoff: undefined,
     onBuild: undefined,
+    onReadOnly: undefined,
+    firstTurnSession: "F1",
+    firstTurnFails: false,
+    builderSessions: new Map(),
+    transcripts: new Map(),
     runAgent: (prompt, options) => {
       const phase = phaseOf(options);
       calls.push({ kind: "run", phase, prompt, options });
       stream(options);
       if (options.readOnly === true) {
+        backend.onReadOnly?.(phase);
+        if (backend.firstTurnFails) {
+          return Effect.fail(new AgentInvocationError({ message: "the provider failed" }));
+        }
         return Effect.succeed({
-          sessionId: "F1" as ClaudeSessionId,
+          sessionId: backend.firstTurnSession as ClaudeSessionId,
           outputPath: "",
           finalText: FIRST_READING,
         });
@@ -311,7 +334,9 @@ function makeHeldBackend(): HeldBackend {
           }),
         );
       }
-      const sessionId = (BUILDER_SESSIONS[phase] ?? `X-${phase}`) as ClaudeSessionId;
+      const sessionId = (backend.builderSessions.get(phase) ??
+        BUILDER_SESSIONS[phase] ??
+        `X-${phase}`) as ClaudeSessionId;
       return Effect.promise(async () => {
         writeFileSync(
           join(options.cwd, "src", `${phase}.ts`),
@@ -329,6 +354,7 @@ function makeHeldBackend(): HeldBackend {
       calls.push({ kind: "resume", phase, prompt, options });
       stream(options);
       if (options.readOnly === true) {
+        backend.onReadOnly?.(phase);
         return Effect.succeed({ sessionId, outputPath: "", finalText: CLOSING_ANSWER });
       }
       return Effect.sync(() => {
@@ -343,8 +369,14 @@ function makeHeldBackend(): HeldBackend {
     },
     complete: unused,
     probe: unused,
-    captureTranscript: () =>
-      Effect.succeed({ status: "missing", reason: "not-found", detail: "not played by this test" }),
+    captureTranscript: ({ sessionId }) => {
+      const text = backend.transcripts.get(sessionId);
+      return Effect.succeed(
+        text === undefined
+          ? { status: "missing", reason: "not-found", detail: `no transcript for ${sessionId}` }
+          : { status: "found", bytes: new TextEncoder().encode(text) },
+      );
+    },
   };
   return backend;
 }
@@ -396,10 +428,13 @@ export interface HeldRun {
   readonly github: ReturnType<typeof makeFakeGitHub>;
   /** An atomic write it returns true for fails, as a full disk would; none by default. */
   failWrite: ((path: string, content: string) => boolean) | undefined;
+  readonly providerConfig: ProviderConfig;
 }
 
 export interface HeldRunOptions {
   readonly records?: boolean;
+  /** Another providers.json; the default one with codex enabled by default. */
+  readonly providerConfig?: ProviderConfig;
   /** Another made-up plan and its plan.md; the invoice-export plan by default. */
   readonly plan?: { readonly plan: PhaxPlan; readonly planMd: string };
   /** The configured oracles provider; none by default. */
@@ -435,6 +470,7 @@ async function createHeldRun(
     telemetry: makeFakeSystemTelemetry(),
     github: makeFakeGitHub(),
     failWrite: undefined,
+    providerConfig: opts.providerConfig ?? HELD_PROVIDER_CONFIG,
   };
 }
 
@@ -472,7 +508,7 @@ function executeHeldRun(
       runId: run.runId,
       startIndex,
       routing: DEFAULT_MODEL_ROUTING,
-      providerConfig: HELD_PROVIDER_CONFIG,
+      providerConfig: run.providerConfig,
       onStopClosed: (closed) => run.closed.push(closed),
     }),
   );
@@ -488,6 +524,8 @@ function executeHeldRun(
             run.telemetry.layer,
             run.github.layer,
             run.lock.layer,
+            // The provider stores sit under the world's own HOME.
+            providerStoreRootsUnder(run.world.home),
           ),
         ),
       ),

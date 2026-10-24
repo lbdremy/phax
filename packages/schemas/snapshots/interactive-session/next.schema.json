@@ -24,7 +24,8 @@
     "history",
     "firstTurns",
     "turnInProgress",
-    "transcripts"
+    "transcripts",
+    "builderUsage"
   ],
   "properties": {
     "$schema": {
@@ -525,6 +526,162 @@
         }
       ],
       "description": "Null until a close copies the recorded sessions' transcripts, then one entry per recorded session."
+    },
+    "builderUsage": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "available",
+                "usage"
+              ],
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                },
+                "usage": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cacheCreationInputTokens",
+                        "cacheReadInputTokens",
+                        "outputTokens",
+                        "totalCostUsd"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "claude-code"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cacheCreationInputTokens": {
+                          "type": "number"
+                        },
+                        "cacheReadInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "totalCostUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "reasoningOutputTokens"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "codex-cli"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "reasoningOutputTokens": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "outputTokens",
+                        "sessionCostUsd",
+                        "toolCallsAgreed",
+                        "toolCallsRejected",
+                        "toolCallsFailed",
+                        "toolCallsSucceeded"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "mistral-vibe"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "sessionCostUsd": {
+                          "type": "number"
+                        },
+                        "toolCallsAgreed": {
+                          "type": "number"
+                        },
+                        "toolCallsRejected": {
+                          "type": "number"
+                        },
+                        "toolCallsFailed": {
+                          "type": "number"
+                        },
+                        "toolCallsSucceeded": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "available"
+              ],
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A held phase's builder usage, read once at the hold point before any closing turn; null at a declared stop."
     }
   },
   "additionalProperties": false

@@ -32,7 +32,7 @@ export interface ResumeContext {
     | "cleanup_failed"
     | "artifact_completion_failed"
     | "hold_point_failed"
-    | "held_record_refused"
+    | "stop_record_refused"
     | "awaiting_review";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;

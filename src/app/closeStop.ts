@@ -940,6 +940,7 @@ function runClosingTurn(
       firstTurns: [],
       turnInProgress: null,
       transcripts: null,
+      builderUsage: null,
     };
     const recordInProgress = (n: number, origin: Origin) =>
       writeInteractiveSession(input.phaseFolder, {

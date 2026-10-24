@@ -9,10 +9,14 @@ import type { ProviderId } from "../schemas/providerId.js";
 import { readGateAttributionFile, withSchemaUrl } from "../schemas/persisted.js";
 import type { RecordedSurface } from "../schemas/surface.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import type { PhaseMode } from "../schemas/phaxPlan.js";
 import {
   encodeRunRecordManifest,
+  UNAVAILABLE_TOKEN_USAGE,
   type RecordOracleRole,
   type RecordPhaseOutcome,
+  type RecordStop,
+  type TokenUsage,
 } from "../schemas/runRecord.js";
 import {
   commitRecordTree,
@@ -50,12 +54,24 @@ export interface WriteRecordInput {
   readonly records: ResolvedRecordsConfig;
   /** Back-reference recorded when the phase committed; absent for a phase that never did. */
   readonly sourceSha?: string | undefined;
-  /**
-   * The agent session id, used to locate a vibe session's `meta.json` for
-   * usage under the `ProviderStoreRoots` vibe root.
-   */
-  readonly sessionId?: string | undefined;
+  /** The plan's mode for the phase. */
+  readonly mode: PhaseMode;
+  /** The phase's stop, or null when it never stopped. */
+  readonly stop: RecordStop;
+  /** Where the record's token usage comes from. */
+  readonly usage: RecordUsageSource;
 }
+
+/**
+ * The record's usage source: a headless phase's session, read now (its
+ * `output.jsonl`, or a vibe session's `meta.json` found by its id under the
+ * `ProviderStoreRoots` vibe root); a held phase's builder usage recorded at the
+ * hold point; or none, for a phase no agent session built.
+ */
+export type RecordUsageSource =
+  | { readonly kind: "session"; readonly sessionId: string | undefined }
+  | { readonly kind: "recorded"; readonly usage: TokenUsage }
+  | { readonly kind: "none" };
 
 export type WriteRecordResult = RecordWriteResult;
 
@@ -78,11 +94,7 @@ export function writeRecord(
     const fs = yield* FileSystem;
 
     const files = yield* fs.list(input.phaseFolderPath);
-    const usage = yield* computeRecordUsage({
-      provider: input.provider,
-      folder: input.phaseFolderPath,
-      sessionId: input.sessionId,
-    });
+    const usage = yield* usageOf(input);
     const verifiedSurfacesForPhase = yield* computeVerifiedSurfacesForPhase(
       fs,
       input.phaseFolderPath,
@@ -101,6 +113,8 @@ export function writeRecord(
       usage,
       verifiedSurfaces: verifiedSurfacesForPhase,
       oracle: input.oracle,
+      mode: input.mode,
+      stop: input.stop,
     });
 
     const key = `${input.runId}/${input.phaseId}`;
@@ -123,6 +137,21 @@ export function writeRecord(
 
     return { kind: "written", commitSha, branch, key, shape: manifest.shape, fileCount } as const;
   });
+}
+
+function usageOf(input: WriteRecordInput): Effect.Effect<TokenUsage, never, FileSystem> {
+  switch (input.usage.kind) {
+    case "session":
+      return computeRecordUsage({
+        provider: input.provider,
+        folder: input.phaseFolderPath,
+        sessionId: input.usage.sessionId,
+      });
+    case "recorded":
+      return Effect.succeed(input.usage.usage);
+    case "none":
+      return Effect.succeed(UNAVAILABLE_TOKEN_USAGE);
+  }
 }
 
 /**

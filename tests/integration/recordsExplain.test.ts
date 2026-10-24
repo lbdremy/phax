@@ -212,6 +212,8 @@ describe("records explain and list (real git)", () => {
       },
       verifiedSurfaces: ["local", "product"],
       oracle: null,
+      mode: "headless",
+      stop: null,
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "a".repeat(100),
@@ -324,6 +326,8 @@ describe("records explain and list (real git)", () => {
       },
       verifiedSurfaces: [],
       oracle: null,
+      mode: "headless",
+      stop: null,
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "prompt",
@@ -360,6 +364,8 @@ describe("records explain and list (real git)", () => {
       usage: { available: false },
       verifiedSurfaces: [],
       oracle: null,
+      mode: "headless",
+      stop: null,
     };
     await writeFullRecordCommit(repoDir, failedManifest, {
       "checks-attempt-01.log": "log",
@@ -520,6 +526,8 @@ describe("records explain and list (real git)", () => {
         usage: { available: false },
         verifiedSurfaces: ["local"],
         oracle: null,
+        mode: "headless",
+        stop: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "brief-10.json": '{"n":10}',
@@ -564,6 +572,8 @@ describe("records explain and list (real git)", () => {
         usage: { available: false },
         verifiedSurfaces: ["local"],
         oracle: null,
+        mode: "headless",
+        stop: null,
       };
       await writeFullRecordCommit(repoDir, manifest, { "checks-attempt-01.log": "gate log one" });
 
@@ -589,6 +599,8 @@ describe("records explain and list (real git)", () => {
         usage: { available: false },
         verifiedSurfaces: ["local"],
         oracle: null,
+        mode: "headless",
+        stop: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "checks-attempt-02.request.json": '{"attempt":2}',
@@ -627,6 +639,8 @@ describe("records explain and list (real git)", () => {
         outcome: "committed" as const,
         usage: { available: false as const },
         verifiedSurfaces: ["local", "oracle"] as const,
+        mode: "headless" as const,
+        stop: null,
       };
       const authoredSha = commitWithTrailers(repoDir, runId, "phase-02");
       await writeFullRecordCommit(
@@ -708,6 +722,8 @@ describe("records explain and list (real git)", () => {
         usage: { available: false },
         verifiedSurfaces: ["local"],
         oracle: null,
+        mode: "headless",
+        stop: null,
       };
       // Made-up reports, pretty-printed with a trailing newline as a step
       // might print them; explain shows the stored bytes unchanged.
@@ -777,6 +793,8 @@ describe("records explain and list (real git)", () => {
         usage: { available: false },
         verifiedSurfaces: ["local"],
         oracle: null,
+        mode: "headless",
+        stop: null,
       };
       await writeFullRecordCommit(repoDir, manifest, {
         "prompt.md": prompt,
@@ -1057,6 +1075,8 @@ describe("records explain and list (real git)", () => {
           usage: { available: false },
           verifiedSurfaces: ["local"],
           oracle: null,
+          mode: "headless",
+          stop: null,
         },
         { "prompt.md": "p" },
       );

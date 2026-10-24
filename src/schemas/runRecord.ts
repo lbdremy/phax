@@ -1,6 +1,8 @@
 import { Schema, type Types } from "effect";
+import { PhaseModeSchema } from "./phaxPlan.js";
 import { ProviderIdSchema } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { FullCommitShaSchema } from "./status.js";
 import { RecordedSurfaceSchema } from "./surface.js";
 
 /**
@@ -103,6 +105,79 @@ export const RecordOracleRoleSchema = Schema.NullOr(
 
 export type RecordOracleRole = Schema.Schema.Type<typeof RecordOracleRoleSchema>;
 
+const RecordClosedBySchema = Schema.Struct({
+  name: Schema.NonEmptyString,
+  email: Schema.NonEmptyString,
+}).annotations({
+  description: "The git identity of the checkout that closed the stop.",
+});
+
+/** How a recorded session's transcript came out at the close: its digest, never its content. */
+const RecordTranscriptSchema = Schema.Union(
+  Schema.Struct({
+    status: Schema.Literal("captured"),
+    sha256: Schema.String.pipe(
+      Schema.pattern(/^[0-9a-f]{64}$/),
+      Schema.annotations({ description: "The sha256 of the transcript copy's bytes." }),
+    ),
+  }),
+  Schema.Struct({
+    status: Schema.Literal("missing"),
+    reason: Schema.Literal("not-found", "unreadable"),
+    detail: Schema.NonEmptyString,
+  }),
+);
+
+/** A session the stop recorded: the builder, a first turn that answered, or a `--new-session` one. */
+const RecordStopSessionSchema = Schema.Struct({
+  provider: ProviderIdSchema,
+  model: Schema.NonEmptyString,
+  effort: Schema.NonEmptyString,
+  sessionId: Schema.NonEmptyString,
+  origin: Schema.Literal("first-turn", "new-session", "builder"),
+  transcript: RecordTranscriptSchema,
+});
+
+export type RecordStopSession = Schema.Schema.Type<typeof RecordStopSessionSchema>;
+
+const stopRecordFields = {
+  closedBy: RecordClosedBySchema,
+  sessions: Schema.Array(RecordStopSessionSchema),
+};
+
+/**
+ * The phase's stop: null for a phase that never stopped, else its cause, its
+ * outcome, who closed it and its recorded sessions. Only a held close that
+ * corrected something names its review commit.
+ */
+export const RecordStopSchema = Schema.NullOr(
+  Schema.Union(
+    Schema.Struct({
+      cause: Schema.Literal("declared"),
+      outcome: Schema.Literal("corrected"),
+      ...stopRecordFields,
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("declared"),
+      outcome: Schema.Literal("unchanged"),
+      ...stopRecordFields,
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("held"),
+      outcome: Schema.Literal("corrected"),
+      reviewCommit: FullCommitShaSchema,
+      ...stopRecordFields,
+    }),
+    Schema.Struct({
+      cause: Schema.Literal("held"),
+      outcome: Schema.Literal("unchanged"),
+      ...stopRecordFields,
+    }),
+  ),
+);
+
+export type RecordStop = Schema.Schema.Type<typeof RecordStopSchema>;
+
 /**
  * The record manifest (`record.json`): everything about a phase's record
  * except the artifacts it carries. The source sha is a back-reference that
@@ -121,6 +196,8 @@ const runRecordManifestFields = {
   usage: TokenUsageSchema,
   verifiedSurfaces: Schema.Array(RecordedSurfaceSchema),
   oracle: RecordOracleRoleSchema,
+  mode: PhaseModeSchema,
+  stop: RecordStopSchema,
 };
 
 /** A phase record manifest in memory: never a `version`, never a `$schema`. */
