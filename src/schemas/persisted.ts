@@ -24,9 +24,11 @@
 // shape, so the records already on phax/records/v1 stay listed; a spec or plan
 // approval record stamped below its current stamp is read by its frozen 0.19.0
 // decoder and lifted to an unattributed approval; a spec document stamped
-// below its current stamp is read by the frozen 0.17.0 decoder, and one
-// written before `$schema` by the pre-schema decoder, then lifted by the
-// author's rationale marker (`liftMarkedQuestions`); a plan document stamped
+// below its current stamp is read by the frozen 0.25.0 decoder when stamped
+// 0.25.0 or later, by the frozen 0.17.0 decoder below that, and one written
+// before `$schema` by the pre-schema decoder; each lifts every surface element
+// with the summary placeholder, the two oldest also by the author's rationale
+// marker (`liftMarkedQuestions`); a plan document stamped
 // below its current stamp is read by the frozen 0.25.0 decoder when stamped
 // 0.25.0 or later (its `modelReason` carried over as `assignmentReason`), and
 // by the frozen 0.20.0 decoder below that, lifted with empty preamble
@@ -111,6 +113,10 @@ import {
   type SpecDocumentV0_17_0,
 } from "./history/spec-document/0.17.0.js";
 import {
+  decodeSpecDocumentV0_25_0,
+  type SpecDocumentV0_25_0,
+} from "./history/spec-document/0.25.0.js";
+import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
 } from "./history/spec-document/pre-schema.js";
@@ -148,6 +154,7 @@ import {
 } from "./specApprovalRecord.js";
 import {
   decodeSpecDocumentFile,
+  SURFACE_SUMMARY_PLACEHOLDER,
   type SpecDocument,
   type SpecDocumentFile,
 } from "./specDocument.js";
@@ -569,6 +576,12 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 export type SpecDocumentV0_17_0Value = Omit<SpecDocumentV0_17_0, "$schema">;
 
 /**
+ * A spec document in its 0.25.0 shape, as a 0.25.0 sidecar carried it: surface
+ * elements with no `summary`, no `$schema`.
+ */
+export type SpecDocumentV0_25_0Value = Omit<SpecDocumentV0_25_0, "$schema">;
+
+/**
  * A plan document in its 0.20.0 shape, as a 0.20.0 sidecar or one written
  * before `$schema` with `sourceSpec: null` carried it (its `completesSpec`
  * null): no `$schema`, no `version`.
@@ -588,6 +601,12 @@ export type PlanDocumentV0_25_0Value = DistributiveOmit<PlanDocumentV0_25_0, "$s
  */
 export type SpecDocumentSidecar =
   | { readonly kind: "spec"; readonly shape: "current"; readonly document: SpecDocument }
+  | {
+      readonly kind: "spec";
+      readonly shape: "0.25.0";
+      readonly document: SpecDocument;
+      readonly older: SpecDocumentV0_25_0Value;
+    }
   | {
       readonly kind: "spec";
       readonly shape: "0.17.0" | "pre-schema";
@@ -617,10 +636,31 @@ export type PlanDocumentSidecar =
 
 export type DocumentSidecar = SpecDocumentSidecar | PlanDocumentSidecar;
 
+// An older spec recorded no summary: each surface element is rebuilt in the
+// current key order with the placeholder.
+function liftSurface(surface: SpecDocumentV0_25_0Value["surface"]): SpecDocument["surface"] {
+  return Arr.map(surface, (element) => ({
+    surface: element.surface,
+    summary: SURFACE_SUMMARY_PLACEHOLDER,
+    binding: element.binding,
+    before: element.before,
+    after: element.after,
+  }));
+}
+
 // The marker lift: a question whose rationale opens with the author's marker
 // is arbitrated with a lifted verdict; every other question stays open.
 function liftSpecDocument(older: SpecDocumentV0_17_0Value): SpecDocument {
-  return { ...older, ...liftMarkedQuestions(older.openQuestions) };
+  return {
+    ...older,
+    surface: liftSurface(older.surface),
+    ...liftMarkedQuestions(older.openQuestions),
+  };
+}
+
+// A 0.25.0 spec already carries its questions, kept as recorded.
+function liftSpecDocumentV0_25_0(older: SpecDocumentV0_25_0Value): SpecDocument {
+  return { ...older, surface: liftSurface(older.surface) };
 }
 
 /**
@@ -707,6 +747,21 @@ function readSpecDocumentSidecar(
   input: unknown,
 ): Either.Either<SpecDocumentSidecar, PersistedReadError> {
   if (isDocumentObject(input) && isStampedBelowCurrent("spec-document", input)) {
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.25.0") >= 0) {
+      const frozen = decodeSpecDocumentV0_25_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(readError(file, "spec-document", formatFirstViolation(frozen.left)));
+      }
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({
+        kind: "spec",
+        shape: "0.25.0",
+        document: liftSpecDocumentV0_25_0(value),
+        older: value,
+      });
+    }
     const older = decodeSpecDocumentV0_17_0(input);
     if (Either.isLeft(older)) {
       return Either.left(readError(file, "spec-document", formatFirstViolation(older.left)));
@@ -799,9 +854,11 @@ function readPlanDocumentSidecar(
 /**
  * Reads a spec's or plan's JSON sidecar, reporting the shape it is stamped
  * at. Never throws; never rewrites the file. In order:
- * - a spec stamped below its current stamp is read by the frozen 0.17.0
- *   decoder, and a spec written before `$schema` by the pre-schema decoder;
- *   either is lifted by `liftMarkedQuestions`;
+ * - a spec stamped 0.25.0 or later, below its current stamp, is read by the
+ *   frozen 0.25.0 decoder; one stamped below 0.25.0 by the frozen 0.17.0
+ *   decoder, and one written before `$schema` by the pre-schema decoder, both
+ *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
+ *   on each surface element;
  * - a plan stamped 0.25.0 or later, below its current stamp, is read by the
  *   frozen 0.25.0 decoder and lifted with each `modelReason` carried over as
  *   `assignmentReason`; a plan stamped below 0.25.0 is read by the frozen

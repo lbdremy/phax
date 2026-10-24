@@ -25,6 +25,7 @@ import type { ArtifactKind } from "../../src/domain/artifact/status.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
+import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
 import {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
@@ -39,6 +40,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import {
   type PlanDocumentV0_25_0Value,
   type SpecDocumentV0_17_0Value,
+  type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
   readPlanDocumentFile,
 } from "../../src/schemas/persisted.js";
@@ -46,6 +48,7 @@ import { projectExtractedPlan } from "../../src/schemas/planDocument.js";
 import type { OpenQuestion } from "../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // Real-git acceptance for spec artifact-decide §8 'Plan documents in flight
@@ -207,6 +210,37 @@ function writeOlderSpec(path: string, doc: SpecDocumentV0_17_0Value, frontmatter
   const md = frontmatter + renderSpecBodyV0_17_0(doc);
   writeRepoFile(path, md);
   writeRepoFile(sidecarOf(path), json({ $schema: schemaUrl("spec-document", "0.17.0"), ...doc }));
+  return md;
+}
+
+function surface0_25_0(name: string, binding: "normative" | "indicative", before: string | null) {
+  return { surface: name, binding, before, after: "the new text" };
+}
+
+// The 0.25.0 shape: questions arbitrated, a surface of three elements, no summaries.
+function spec0_25_0(title: string): SpecDocumentV0_25_0Value {
+  const { openQuestions: _open, ...rest } = olderSpec(title, []);
+  return {
+    ...rest,
+    surface: [
+      surface0_25_0("cli: `phax prune <run>`", "normative", null),
+      surface0_25_0("config: `phax.json` `archive.prune`", "indicative", '"archive": {}'),
+      surface0_25_0("internal: phax-plan.json reconciliation", "indicative", null),
+    ],
+    openQuestions: [],
+    arbitratedQuestions: [],
+  };
+}
+
+// A headless spec stamped 0.25.0, its body the frozen 0.25.0 rendering.
+function writeV0_25_0Spec(
+  path: string,
+  doc: SpecDocumentV0_25_0Value,
+  frontmatter: string,
+): string {
+  const md = frontmatter + renderSpecBodyV0_25_0(doc);
+  writeRepoFile(path, md);
+  writeRepoFile(sidecarOf(path), json({ $schema: schemaUrl("spec-document", "0.25.0"), ...doc }));
   return md;
 }
 
@@ -654,6 +688,136 @@ describe("migrate-documents — spec documents in flight", { timeout: 30_000 }, 
     expect(body).toContain("Decision: Q4-b — lifted, unattributed, 2026-09-30");
   });
 });
+
+describe(
+  "migrate-documents — 0.25.0 specs gain the summary placeholder",
+  { timeout: 30_000 },
+  () => {
+    // ac-lift
+    it("lifts an Approved 0.25.0 spec with a placeholder per element, re-renders §6, names the spec and the plan it unsettles", async () => {
+      const doc = spec0_25_0("Plan prune");
+      const frontmatter = specFrontmatter("Approved", approvedStamp());
+      const md = writeV0_25_0Spec(PLAN_PRUNE, doc, frontmatter);
+      const planMd = writeOlderPlan(
+        PLAN_PRUNE,
+        planFrontmatter("Approved", PLAN_PRUNE, approvedStamp()),
+      );
+      writeOlderSpecRecord(PLAN_PRUNE, md);
+      writeOlderPlanRecord(planMd, { path: PLAN_PRUNE, md });
+      commitAll("approve before migration");
+      const head = headSha();
+
+      const result = await migrated();
+      const lines = renderDocumentMigrationReport(result);
+      const report = lines.join("\n");
+
+      const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN_PRUNE))) as {
+        $schema: string;
+        surface: Array<Record<string, unknown>>;
+      };
+      expect(sidecar.$schema).toBe(currentSchemaUrl("spec-document"));
+      expect(sidecar.surface).toHaveLength(3);
+      for (const [i, element] of sidecar.surface.entries()) {
+        expect(Object.keys(element)).toEqual(["surface", "summary", "binding", "before", "after"]);
+        expect(element["summary"]).toBe(SURFACE_SUMMARY_PLACEHOLDER);
+        expect({ ...element, summary: undefined }).toMatchObject({
+          surface: doc.surface[i]?.surface,
+          binding: doc.surface[i]?.binding,
+          before: doc.surface[i]?.before,
+          after: doc.surface[i]?.after,
+        });
+      }
+      const { $schema: _stamp, surface: _surface, ...rest } = sidecar;
+      const { surface: _was, ...recorded } = doc;
+      expect(rest).toEqual(JSON.parse(JSON.stringify(recorded)));
+
+      // §6 is re-rendered with a placeholder line under each heading; the frontmatter is kept.
+      const after = readRepoFile(PLAN_PRUNE);
+      expect(after.startsWith(frontmatter)).toBe(true);
+      expect(after.split(`\nSummary: ${SURFACE_SUMMARY_PLACEHOLDER}\n`)).toHaveLength(4);
+      expect(after).toContain(
+        `### cli: \`phax prune <run>\` — normative\n\nSummary: ${SURFACE_SUMMARY_PLACEHOLDER}\n\n`,
+      );
+      expect(after).toBe(
+        md.replace(
+          /(\n### (?:cli|config|internal): [^\n]+\n\n)/g,
+          `$1Summary: ${SURFACE_SUMMARY_PLACEHOLDER}\n\n`,
+        ),
+      );
+
+      // One migration commit, exactly the spec and its sidecar, and the plan's sidecar.
+      expect(git(["rev-list", "--count", `${head}..HEAD`]).trim()).toBe("1");
+      expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
+      expect(headFiles()).toEqual([PLAN_PRUNE, sidecarOf(PLAN_PRUNE), sidecarOf(PLAN)].toSorted());
+      expect(porcelain()).toBe("");
+
+      expect(report).toContain(
+        `    now edited since approval — write its summaries, then re-approve with \`phax artifact approve ${PLAN_PRUNE}\``,
+      );
+      expect(report).toContain("stale (spec-changed)");
+    });
+
+    // ac-lift-report
+    it("prints the summaries still to write on the lifted spec's line", async () => {
+      const doc = spec0_25_0("Plan prune");
+      writeV0_25_0Spec(PLAN_PRUNE, doc, specFrontmatter("Approved", approvedStamp()));
+      commitAll("approve before migration");
+
+      const lines = renderDocumentMigrationReport(await migrated());
+
+      expect(lines.find((l) => l.includes(PLAN_PRUNE) && l.includes("Approved"))).toMatch(
+        / · 3 summaries to write$/,
+      );
+    });
+
+    // ac-lift-hand-edited
+    it("refuses a hand-edited 0.25.0 spec, writing and committing nothing", async () => {
+      const md = writeV0_25_0Spec(PLAN_PRUNE, spec0_25_0("Plan prune"), specFrontmatter("Draft"));
+      const edited = md.replace("Plan prune matters.", "Plan prune matters a lot.");
+      writeRepoFile(PLAN_PRUNE, edited);
+      commitAll();
+      const head = headSha();
+      const sidecarBefore = readRepoFile(sidecarOf(PLAN_PRUNE));
+
+      const result = await migrate();
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
+        expect(exitCodeForAuthoringError(result.left)).toBe(12);
+        expect(result.left.message.split("\n")[0]).toBe(
+          `migrate refused: ${PLAN_PRUNE} is not its sidecar's spec-document 0.25.0 rendering — a hand edit would be overwritten`,
+        );
+      }
+      expect(headSha()).toBe(head);
+      expect(readRepoFile(PLAN_PRUNE)).toBe(edited);
+      expect(readRepoFile(sidecarOf(PLAN_PRUNE))).toBe(sidecarBefore);
+      expect(porcelain()).toBe("");
+    });
+
+    // ac-archive-untouched
+    it("leaves an archived 0.25.0 spec and its sidecar byte for byte, out of the commit, and approve is not refused on their account", async () => {
+      const archived = "docs/specs/archive/2609011000-old-prune.md";
+      const archivedMd = writeV0_25_0Spec(
+        archived,
+        spec0_25_0("Old prune"),
+        specFrontmatter("Completed"),
+      );
+      const archivedSidecar = readRepoFile(sidecarOf(archived));
+      writeV0_25_0Spec(LOG_ROTATION, spec0_25_0("Log rotation"), specFrontmatter("Draft"));
+      commitAll();
+
+      await migrated();
+
+      expect(headFiles()).toEqual([LOG_ROTATION, sidecarOf(LOG_ROTATION)].toSorted());
+      expect(readRepoFile(archived)).toBe(archivedMd);
+      expect(readRepoFile(sidecarOf(archived))).toBe(archivedSidecar);
+      expect(porcelain()).toBe("");
+      // Nothing left to migrate: the archive is never on the list.
+      expect(await migrated()).toEqual({ kind: "nothing-to-migrate" });
+    });
+  },
+);
 
 describe("migrate-documents — never overwrites a hand edit", { timeout: 30_000 }, () => {
   it("refuses a hand-edited body, then uncommitted changes, then migrates, then has nothing to migrate", async () => {

@@ -237,6 +237,32 @@ describe("phax-review skill", () => {
   });
 });
 
+describe("phax-spec skill — surface summary", () => {
+  const content = readSkill("phax-spec/SKILL.md");
+
+  it("lists the surface summary in the sidecar field table and defines it once (ac-skill)", () => {
+    expect(content).toContain(
+      "| `surface`            | `[{ surface, summary, binding, before, after }]`",
+    );
+    const lines = content.split("\n");
+    const good = lines.filter((line) => line.startsWith("Good:"));
+    const bad = lines.filter((line) => line.startsWith("Bad:"));
+    expect(good).toHaveLength(1);
+    expect(bad).toHaveLength(1);
+    const surface = sectionOf(content, "## Surface — the consumption contract");
+    expect(surface).toContain(good[0]);
+    expect(surface).toContain(bad[0]);
+  });
+
+  it("shows a Summary line directly under a §6 element heading in the template (ac-template)", () => {
+    const template = content.slice(
+      content.indexOf("## 6. Surface"),
+      content.indexOf("## 7. Non-goals"),
+    );
+    expect(template).toMatch(/^### <kind>: <name> — normative \| indicative\n\nSummary: .+\n/m);
+  });
+});
+
 // The text from `heading` up to the next heading of the same or a higher level.
 function sectionOf(content: string, heading: string): string {
   const start = content.indexOf(`\n${heading}\n`);

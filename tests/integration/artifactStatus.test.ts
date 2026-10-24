@@ -1607,16 +1607,26 @@ describe("headless-authored artifacts (JSON sidecar)", () => {
   };
   // The sidecar as 0.16.0 committed it: `version: 1`, no `$schema`.
   const PRE_SCHEMA_SIDECAR_JSON = `${JSON.stringify(SPEC_DOCUMENT, null, 2)}\n`;
+  // The surface as the current shape records it: a summary on each element.
+  const CURRENT_SURFACE = SPEC_DOCUMENT.surface.map(({ surface, ...rest }) => ({
+    surface,
+    summary: "An operator can free the slug of an archived run.",
+    ...rest,
+  }));
   // The sidecar as phax writes it now, at the current shape.
   const SIDECAR_JSON = (() => {
     const { version: _version, ...authored } = SPEC_DOCUMENT;
-    const current = { ...authored, arbitratedQuestions: [] };
+    const current = { ...authored, surface: CURRENT_SURFACE, arbitratedQuestions: [] };
     return `${JSON.stringify(withSchemaUrl("spec-document", current), null, 2)}\n`;
   })();
 
   function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
     // SPEC_DOCUMENT is the 0.16.0 shape; the current one adds arbitratedQuestions.
-    const decoded = decodeSpecDocument({ ...SPEC_DOCUMENT, arbitratedQuestions: [] });
+    const decoded = decodeSpecDocument({
+      ...SPEC_DOCUMENT,
+      surface: CURRENT_SURFACE,
+      arbitratedQuestions: [],
+    });
     if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
     return `---
 status: ${status}

@@ -87,6 +87,7 @@ const SPEC_DOCUMENT = {
   surface: [
     {
       surface: "cli: `phax prune <run>`",
+      summary: "An operator can free the slug of an archived run.",
       binding: "normative",
       before: null,
       after: "phax prune usage-cli\n  pruned usage-cli\n  $? = 0",
@@ -340,6 +341,24 @@ describe("authorArtifact — spec", () => {
     // The authoring contract is unchanged: version 1, never $schema.
     expect(prompt).toContain(JSON.stringify(getSpecDocumentJsonSchema(), null, 2));
     expect(prompt).not.toContain('"$schema": "https://docs.phax.run');
+  });
+
+  // ac-schema: the prompt carries the JSON Schema with the summary required right after surface.
+  it("puts the surface summary in the prompt's JSON Schema, required right after surface", async () => {
+    const { backend, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    await run(input());
+
+    const prompt = backend.runCalls[0]?.prompt ?? "";
+    const item = (
+      getSpecDocumentJsonSchema() as {
+        properties: { surface: { items: { required: string[]; additionalProperties: boolean } } };
+      }
+    ).properties.surface.items;
+    expect(item.required.slice(0, 2)).toEqual(["surface", "summary"]);
+    expect(item.additionalProperties).toBe(false);
+    expect(prompt).toContain(JSON.stringify(getSpecDocumentJsonSchema(), null, 2));
+    expect(prompt).toContain("One sentence, in the consumer's words");
   });
 
   it("accepts a document wrapped in a json code fence", async () => {
@@ -650,6 +669,27 @@ describe("authorArtifact — failures land nothing", () => {
     expect(result.left).toBeInstanceOf(AuthoringDocumentError);
     expect(result.left.message).toContain("spec document rejected twice — ");
     expect(result.left.message).toContain("acceptanceCriteria[0].refs[0]");
+    expect(repoFiles(fs)).toEqual([]);
+    expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
+    expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+  });
+
+  // ac-answer-missing
+  it("an answer whose second surface element has no summary is refused naming surface[1].summary, writing nothing", async () => {
+    const { summary: _dropped, ...second } = {
+      ...SPEC_DOCUMENT.surface[0],
+      surface: "config: `phax.json` `archive.prune`",
+    };
+    const invalid = { ...SPEC_DOCUMENT, surface: [SPEC_DOCUMENT.surface[0], second] };
+    const { fs, git, run } = setup(JSON.stringify(invalid));
+
+    const result = await run(input());
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isRight(result)) return;
+    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.left.message).toContain("spec document rejected twice — ");
+    expect(result.left.message).toContain("surface[1].summary");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);

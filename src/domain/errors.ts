@@ -590,6 +590,25 @@ export class ArtifactOpenQuestionsError extends Data.TaggedError("ArtifactOpenQu
   }
 }
 
+/** Approval or completion refused: a current-shape spec still holds the summary placeholder. */
+export class SurfaceSummariesUnwrittenError extends Data.TaggedError(
+  "SurfaceSummariesUnwrittenError",
+)<{
+  gesture: "Approval refused" | "Completion refused";
+  path: string;
+  sidecarPath: string;
+  surfaces: readonly string[];
+}> {
+  override get message(): string {
+    const n = this.surfaces.length;
+    return [
+      `${this.gesture}: ${this.path} has ${String(n)} surface ${n === 1 ? "summary" : "summaries"} still to write`,
+      ...this.surfaces.map((surface) => `  ${surface}`),
+      `  Write each one in ${this.sidecarPath} and on its §6 \`Summary:\` line, then rerun.`,
+    ].join("\n");
+  }
+}
+
 /** Approval refused: a hand-authored question section departs from the §9 format. */
 export class ArtifactQuestionsUnparsedError extends Data.TaggedError(
   "ArtifactQuestionsUnparsedError",

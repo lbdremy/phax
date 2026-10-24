@@ -5,7 +5,8 @@
 // src/schemas/history/; the approval record files are born with $schema and
 // have no pre-schema shape, and list their 0.19.0 shape, written before they
 // named the approver, as a release; the spec and plan documents list their
-// 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, and the
+// 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, the spec
+// document's 0.25.0 shape, written before the surface summary, and the
 // plan document's 0.25.0 shape, written before `modelReason` became
 // `assignmentReason`, as releases, and lift them as phax's reader does. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
@@ -66,6 +67,11 @@ import {
   decodeSpecDocumentV0_17_0,
   type SpecDocumentV0_17_0,
 } from "../../../../src/schemas/history/spec-document/0.17.0.js";
+import {
+  SpecDocumentV0_25_0Schema,
+  decodeSpecDocumentV0_25_0,
+  type SpecDocumentV0_25_0,
+} from "../../../../src/schemas/history/spec-document/0.25.0.js";
 import {
   SpecDocumentPreSchemaSchema,
   decodeSpecDocumentPreSchema,
@@ -284,6 +290,7 @@ export function toLatestSpecApprovals(
 export type SpecDocumentShapes = {
   "pre-schema": SpecDocumentPreSchema;
   "0.17.0": SpecDocumentV0_17_0;
+  "0.25.0": SpecDocumentV0_25_0;
 } & {
   [K in CurrentShapeName<"spec-document">]: SpecDocumentFile;
 };
@@ -295,7 +302,10 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   id: "spec-document",
   label: "spec document",
   preSchema: { schema: SpecDocumentPreSchemaSchema, decode: decodeSpecDocumentPreSchema },
-  releases: [["0.17.0", { schema: SpecDocumentV0_17_0Schema, decode: decodeSpecDocumentV0_17_0 }]],
+  releases: [
+    ["0.17.0", { schema: SpecDocumentV0_17_0Schema, decode: decodeSpecDocumentV0_17_0 }],
+    ["0.25.0", { schema: SpecDocumentV0_25_0Schema, decode: decodeSpecDocumentV0_25_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["spec-document"],
     shape: { schema: SpecDocumentFileSchema, decode: decodeSpecDocumentFile },
@@ -306,29 +316,63 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
 export const parseSpecDocument: (input: unknown) => ParsedShape<SpecDocumentShapes> =
   specDocumentFormat.parse;
 
-/** The latest spec document: phax's in-memory value, with no `version` and no `$schema`. */
-export type LatestSpecDocument = SpecDocument;
+/**
+ * The latest spec document: phax's in-memory value, with no `version` and no
+ * `$schema`. A document older than the surface summary recorded none: the
+ * `summary` of each of its surface elements is `Unknown`.
+ */
+export type LatestSpecDocument = Omit<SpecDocument, "surface"> & {
+  readonly surface: ReadonlyArray<
+    Omit<SpecDocument["surface"][number], "summary"> & { readonly summary: string | Unknown }
+  >;
+};
+
+type SpecSurfaceElement = SpecDocumentV0_25_0["surface"][number] | SpecDocument["surface"][number];
+
+// Each element without a recorded `summary` gains `Unknown`, in the current key
+// order. Decided per element: an empty surface lifts the same from any shape.
+function liftSpecSurface(
+  surface: ReadonlyArray<SpecSurfaceElement>,
+): LatestSpecDocument["surface"] {
+  return Arr.map(surface, (element) =>
+    "summary" in element
+      ? element
+      : {
+          surface: element.surface,
+          summary: UNKNOWN,
+          binding: element.binding,
+          before: element.before,
+          after: element.after,
+        },
+  );
+}
 
 /**
  * Upgrades a parsed spec document in memory. Keeps every recorded fact; never
  * invents one: a 0.17.0 or pre-schema document, written before verdicts
  * existed, is lifted by the author's rationale marker (`liftMarkedQuestions`),
- * its marked questions arbitrated with a lifted, unattributed verdict.
+ * its marked questions arbitrated with a lifted, unattributed verdict; a
+ * document written before the surface summary (0.25.0 and older) lifts each
+ * surface element's `summary` as `Unknown`, never as invented text.
  */
 export function toLatestSpecDocument(
-  value: SpecDocumentPreSchema | SpecDocumentV0_17_0 | SpecDocumentFile,
+  value: SpecDocumentPreSchema | SpecDocumentV0_17_0 | SpecDocumentV0_25_0 | SpecDocumentFile,
 ): LatestSpecDocument {
   if ("arbitratedQuestions" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    const { $schema: _schema, surface, ...recorded } = value;
+    return { ...recorded, surface: liftSpecSurface(surface) };
   }
-  const { openQuestions } = value;
+  const { openQuestions, surface } = value;
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, ...liftMarkedQuestions(openQuestions) };
+    return {
+      ...recorded,
+      surface: liftSpecSurface(surface),
+      ...liftMarkedQuestions(openQuestions),
+    };
   }
   const { version: _version, ...recorded } = value;
-  return { ...recorded, ...liftMarkedQuestions(openQuestions) };
+  return { ...recorded, surface: liftSpecSurface(surface), ...liftMarkedQuestions(openQuestions) };
 }
 
 // ── plan document

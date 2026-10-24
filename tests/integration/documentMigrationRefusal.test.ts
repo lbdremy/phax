@@ -98,7 +98,7 @@ const FRONTMATTER =
 
 // A headless spec at the current shape.
 function writeCurrentSpec(path: string, title: string): void {
-  const doc = { ...spec(title), arbitratedQuestions: [] };
+  const doc = { ...spec(title), surface: [], arbitratedQuestions: [] };
   writeRepoFile(path, FRONTMATTER + renderSpecBody(doc));
   writeRepoFile(`${path.slice(0, -".md".length)}.json`, json(withSchemaUrl("spec-document", doc)));
 }

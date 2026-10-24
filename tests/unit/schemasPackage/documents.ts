@@ -7,6 +7,7 @@
 // another repository.
 import { Schema } from "effect";
 import { FIRST_SUPPORTED_RELEASE } from "../../../packages/schemas/src/generated/index.js";
+import { UNKNOWN } from "../../../packages/schemas/src/shapes.js";
 import {
   developmentBuildMessage,
   preSchemaUnsupportedMessage,
@@ -117,7 +118,10 @@ import {
   SpecRecordFileSchema,
   type SpecRecord,
 } from "../../../src/schemas/specApprovalRecord.js";
-import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
+import {
+  SURFACE_SUMMARY_PLACEHOLDER,
+  SpecDocumentFileSchema,
+} from "../../../src/schemas/specDocument.js";
 import {
   PhaseStatusFileSchema,
   RunStatusFileSchema,
@@ -693,9 +697,45 @@ function withEmptyQuestions(doc: Doc): Doc {
  * question.
  */
 export function latestPreSchema(id: PreSchemaFormatId): Doc {
+  return liftPreSchema(id, UNKNOWN);
+}
+
+/** The made-up summary `validDocuments["spec-document"]` gives its surface element. */
+export const EXAMPLE_SURFACE_SUMMARY = "An operator can run the example.";
+
+/**
+ * The same value as phax's reader lifts it: a spec document's surface elements,
+ * which recorded no summary, hold the placeholder where the package's
+ * `toLatest*` holds `Unknown` (`latestPreSchema`).
+ */
+export function phaxLatestPreSchema(id: PreSchemaFormatId): Doc {
+  return liftPreSchema(id, SURFACE_SUMMARY_PLACEHOLDER);
+}
+
+/** A latest spec document's surface elements, each with `summary` replaced. */
+export function withSurfaceSummary(doc: Doc, summary: unknown): Doc {
+  const lifted = (doc["surface"] as Doc[]).map((element) => ({
+    surface: element["surface"],
+    summary,
+    binding: element["binding"],
+    before: element["before"],
+    after: element["after"],
+  }));
+  return { ...doc, surface: lifted };
+}
+
+/** A spec document as a sidecar older than the surface summary carried it: no `summary` on any element. */
+export function withoutSurfaceSummary(doc: Doc): Doc {
+  const surface = (doc["surface"] as Doc[]).map(({ summary: _summary, ...element }) => element);
+  return { ...doc, surface };
+}
+
+function liftPreSchema(id: PreSchemaFormatId, summary: unknown): Doc {
   const { version: _version, ...rest } = preSchemaDocuments[id];
   if (id === "plan-document") return withEmptyQuestions({ ...rest, completesSpec: null });
-  if (id === "spec-document") return { ...rest, arbitratedQuestions: [] };
+  if (id === "spec-document") {
+    return withSurfaceSummary({ ...rest, arbitratedQuestions: [] }, summary);
+  }
   if (id === "phax-plan") {
     const phases = (rest["phases"] as Doc[]).map((phase) => ({
       ...phase,
@@ -784,7 +824,17 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "spec-document": encoded(
     SpecDocumentFileSchema,
-    withSchemaUrl("spec-document", { ...stepped(specDocument), arbitratedQuestions: [] }),
+    withSchemaUrl("spec-document", {
+      ...stepped(specDocument),
+      surface: specDocument.surface.map(({ surface, binding, before, after }) => ({
+        surface,
+        summary: EXAMPLE_SURFACE_SUMMARY,
+        binding,
+        before,
+        after,
+      })),
+      arbitratedQuestions: [],
+    }),
   ),
   "plan-document": encoded(
     PlanDocumentFileSchema,

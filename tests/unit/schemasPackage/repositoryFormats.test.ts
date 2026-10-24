@@ -18,7 +18,11 @@ import {
   toLatestSpecApprovals,
   toLatestSpecDocument,
 } from "../../../packages/schemas/src/index.js";
-import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
+import {
+  UNKNOWN,
+  missingSchemaMessage,
+  newerReleaseMessage,
+} from "../../../packages/schemas/src/shapes.js";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -38,6 +42,8 @@ import {
 import {
   latestPreSchema,
   preSchemaDocuments,
+  withSurfaceSummary,
+  withoutSurfaceSummary,
   preSchemaUnsupported,
   validDocuments,
   withKey,
@@ -139,7 +145,12 @@ describe.each(FORMATS)("$id", (format) => {
     const old = format.parse(preSchema);
     const written = format.parse(document);
     if (!old.ok || !written.ok) throw new Error("document rejected");
-    expect(format.toLatest(written.value as never)).toEqual(format.toLatest(old.value as never));
+    // A pre-schema spec document recorded no summary: the package lifts it as
+    // Unknown and keeps the one a current document recorded.
+    const fromWritten = format.toLatest(written.value as never) as Doc;
+    const expected =
+      format.id === "spec-document" ? withSurfaceSummary(fromWritten, UNKNOWN) : fromWritten;
+    expect(format.toLatest(old.value as never)).toEqual(expected);
   });
 
   it("rejects an unknown key, as phax's strict decoder does", () => {
@@ -429,7 +440,10 @@ describe("the spec document's question history", () => {
   };
   // Literal release, not PACKAGE_VERSION: the answer must not change when a release is cut.
   const v0_17_0 = withKey(
-    withKey(withoutKey(current, "arbitratedQuestions"), "openQuestions", [question, marked]),
+    withKey(withoutKey(withoutSurfaceSummary(current), "arbitratedQuestions"), "openQuestions", [
+      question,
+      marked,
+    ]),
     "$schema",
     schemaUrl("spec-document", "0.17.0"),
   );
@@ -444,7 +458,7 @@ describe("the spec document's question history", () => {
     });
     if (!result.ok) throw new Error("document rejected");
     expect(toLatestSpecDocument(result.value)).toEqual({
-      ...withoutKey(v0_17_0, "$schema"),
+      ...withSurfaceSummary(withoutKey(v0_17_0, "$schema"), UNKNOWN),
       openQuestions: [question],
       arbitratedQuestions: [
         {
@@ -472,6 +486,33 @@ describe("the spec document's question history", () => {
     const stamped = parseSpecDocument(v0_17_0);
     if (!old.ok || !stamped.ok) throw new Error("document rejected");
     expect(toLatestSpecDocument(old.value)).toEqual(toLatestSpecDocument(stamped.value));
+  });
+
+  // Literal release again: a 0.25.0 document carries its questions and no summary.
+  it("parses a 0.25.0 document as shape 0.25.0 and lifts each summary as Unknown, keeping a current one", () => {
+    const v0_25_0 = withKey(
+      withoutSurfaceSummary(current),
+      "$schema",
+      schemaUrl("spec-document", "0.25.0"),
+    );
+    const result = parseSpecDocument(v0_25_0);
+    expect(result).toEqual({ ok: true, shape: "0.25.0", value: v0_25_0 });
+    expect(parseDocument(v0_25_0)).toMatchObject({
+      ok: true,
+      format: "spec-document",
+      shape: "0.25.0",
+    });
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(result.value)).toEqual(
+      withSurfaceSummary(withoutKey(v0_25_0, "$schema"), UNKNOWN),
+    );
+    const written = parseSpecDocument(current);
+    if (!written.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(written.value)).toEqual(withoutKey(current, "$schema"));
+    // An empty surface lifts the same from either shape.
+    const empty = parseSpecDocument(withKey(v0_25_0, "surface", []));
+    if (!empty.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(empty.value)).toMatchObject({ surface: [] });
   });
 
   it("refuses arbitratedQuestions in a 0.17.0 document, and a current document without it", () => {

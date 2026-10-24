@@ -442,6 +442,10 @@ export {
   type SpecDocumentV0_17_0,
 } from "../../../src/schemas/history/spec-document/0.17.0.js";
 export {
+  SpecDocumentV0_25_0Schema,
+  type SpecDocumentV0_25_0,
+} from "../../../src/schemas/history/spec-document/0.25.0.js";
+export {
   PhaseFileReconciliationV0_17_0Schema,
   type PhaseFileReconciliationV0_17_0,
 } from "../../../src/schemas/history/phase-file-reconciliation/0.17.0.js";

@@ -342,6 +342,7 @@ import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src
 import type { PlanDocumentV0_20_0 as FrozenPlanDocumentV0_20_0 } from "../../src/schemas/history/plan-document/0.20.0.js";
 import type { PlanDocumentV0_25_0 as FrozenPlanDocumentV0_25_0 } from "../../src/schemas/history/plan-document/0.25.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
+import type { SpecDocumentV0_25_0 as FrozenSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
 import type { RegistryV0_17_0 as FrozenRegistryV0_17_0 } from "../../src/schemas/history/registry/0.17.0.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
@@ -636,7 +637,7 @@ const eachShapeId: [
   Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
-  Equals<SpecDocumentShape, "pre-schema" | "0.17.0" | Current<"spec-document">>,
+  Equals<SpecDocumentShape, "pre-schema" | "0.17.0" | "0.25.0" | Current<"spec-document">>,
   Equals<
     PlanDocumentShape,
     "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | Current<"plan-document">
@@ -706,7 +707,10 @@ const parseValues: [
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
   Equals<
     Value<typeof parseSpecDocument>,
-    FrozenSpecDocument | FrozenSpecDocumentV0_17_0 | PhaxSpecDocumentFile
+    | FrozenSpecDocument
+    | FrozenSpecDocumentV0_17_0
+    | FrozenSpecDocumentV0_25_0
+    | PhaxSpecDocumentFile
   >,
   Equals<
     Value<typeof parsePlanDocument>,
@@ -795,6 +799,14 @@ const frozenTypes: [
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true];
 void frozenTypes;
 
+// A document older than the surface summary lifts each element's summary as
+// Unknown: the package never invents one.
+type PhaxSpecDocumentWithUnknownSummary = Omit<PhaxSpecDocument, "surface"> & {
+  readonly surface: ReadonlyArray<
+    Omit<PhaxSpecDocument["surface"][number], "summary"> & { readonly summary: string | Unknown }
+  >;
+};
+
 // Each Latest type is phax's in-memory type: no version, no $schema
 const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
@@ -807,7 +819,7 @@ const latestTypes: [
   Equals<LatestComplianceReview, PhaxComplianceReview>,
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
-  Equals<LatestSpecDocument, PhaxSpecDocument>,
+  Equals<LatestSpecDocument, PhaxSpecDocumentWithUnknownSummary>,
   Equals<
     LatestPlanDocument,
     | PhaxPlanDocument
@@ -1264,7 +1276,13 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestSpecDocument>,
-    [value: FrozenSpecDocument | FrozenSpecDocumentV0_17_0 | PhaxSpecDocumentFile]
+    [
+      value:
+        | FrozenSpecDocument
+        | FrozenSpecDocumentV0_17_0
+        | FrozenSpecDocumentV0_25_0
+        | PhaxSpecDocumentFile,
+    ]
   >,
   Equals<
     Parameters<typeof toLatestPlanDocument>,

@@ -13,7 +13,9 @@ import {
 // §9b the arbitrated ones with their Decision blocks, and `## 12. Decision
 // log` follows when any question is arbitrated. The body only: the caller
 // prepends the frontmatter. Prose is emitted as given — nothing is wrapped or
-// reflowed. The 0.17.0 layout is frozen in renderSpecV0_17_0.ts.
+// reflowed. A surface element prints its heading, a `Summary:` line, then its
+// blocks. The 0.25.0 layout (no summary line) is frozen in renderSpecV0_25_0.ts
+// and the 0.17.0 layout in renderSpecV0_17_0.ts.
 
 type Surface = SpecDocument["surface"][number];
 
@@ -65,7 +67,7 @@ function renderSurfaceElement(element: Surface): string {
     element.before === null
       ? indentBlock(element.after)
       : `${labelledBlock("before:", element.before)}\n\n${labelledBlock("after:", element.after)}`;
-  return `${heading}\n\n${body}`;
+  return `${heading}\n\nSummary: ${element.summary}\n\n${body}`;
 }
 
 function renderSurface(doc: SpecDocument): string {

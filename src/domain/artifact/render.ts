@@ -106,14 +106,18 @@ export function renderQuestionCounts(summary: QuestionSummary): string {
 }
 
 function migratedArtifactLines(artifact: MigratedArtifact, width: number): string[] {
-  const state = artifact.bodyChanged ? renderQuestionCounts(artifact.questions) : "body unchanged";
+  const n = artifact.summariesToWrite;
+  const counts = artifact.bodyChanged ? renderQuestionCounts(artifact.questions) : "body unchanged";
+  const state =
+    n > 0 ? `${counts} · ${String(n)} ${n === 1 ? "summary" : "summaries"} to write` : counts;
   const lines = [`  ${artifact.path.padEnd(width)}  ${artifact.status.padEnd(8)}  ${state}`];
   if (!artifact.editedSinceApproval) return lines;
   const ids = artifact.questions.open.join(", ");
+  const write = n > 0 ? " — write its summaries," : " —";
   lines.push(
     ids === ""
-      ? `    now edited since approval — re-approve with \`phax artifact approve ${artifact.path}\``
-      : `    now edited since approval, with open questions ${ids} — reopen it and decide ${ids} before re-approving`,
+      ? `    now edited since approval${write} ${n > 0 ? "then re-approve" : "re-approve"} with \`phax artifact approve ${artifact.path}\``
+      : `    now edited since approval, with open questions ${ids}${write} reopen it and decide ${ids} before re-approving`,
   );
   return lines;
 }
@@ -121,8 +125,9 @@ function migratedArtifactLines(artifact: MigratedArtifact, width: number): strin
 /**
  * The stdout lines of `phax artifact migrate-documents`: one group per format
  * and older shape, each artifact with its status and question counts (or
- * `body unchanged`), the Approved artifacts it leaves edited since approval,
- * the plans it leaves stale, and the commit.
+ * `body unchanged`) and, for a spec, the surface summaries left to write, the
+ * Approved artifacts it leaves edited since approval, the plans it leaves
+ * stale, and the commit.
  */
 export function renderDocumentMigrationReport(result: DocumentMigrationResult): readonly string[] {
   if (result.kind === "nothing-to-migrate") {
