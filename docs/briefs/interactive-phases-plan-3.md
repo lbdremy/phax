@@ -37,7 +37,7 @@ In scope, by section:
   - A closed stop's record names the phase's mode, the stop's cause and outcome, and the git identity that closed it. It names the recorded sessions (provider, model, id) or that there were none, and each transcript's sha256 or that it is missing, with the reason.
   - A held phase's record names its phase commit and its review commit when there is one.
   - A declared phase writes its record at closing, once, under the same refused-write rule plan 2 gave the held record.
-  - Where `records.transcript` is true, the transcripts' content is recorded as a phase's `output.jsonl` is, under the same destination checks (`src/app/recordPlumbing.ts`, `src/domain/records/destination.ts`). Where it is false, no transcript content reaches the records branch.
+  - An interactive transcript's content never reaches the records branch, whatever `records.transcript` says (the operator's decision of 2026-10-24, below).
   - `phax records explain` on the phase commit and on the review commit names the record and shows the stop line of §6 (`cli: phax records explain`).
   - The phase's `security.json` states that the person's work, a continued session included, ran outside phax's enforcement, and records the applied posture of each first turn and closing turn phax ran.
   - On vibe, a held phase's agent usage leaves out the closing turn.
@@ -67,7 +67,7 @@ Points the spec leaves to planning (§10 "Left open"). Settle each in Technical 
 - the run-list row keys' spelling (indicative), with `qualifiedName`, `state` and `stop` normative;
 - the wording of `## Reviewed phases`, the PR body line and the compliance prompt section.
 
-Raise an open question, instead of settling it, for any choice that loses security, privacy or autonomy. For example: interactive transcripts hold what a person typed in their own session, which may include secrets. q-transcript-records `full` settles that they are recorded when `records.transcript` is true, under the existing destination checks; raise a question if those checks do not cover the case.
+Raise an open question, instead of settling it, for any choice that loses security, privacy or autonomy.
 
 Lessons from plan 2's review (#158). Its run left three plan defects and eight execution defects; plan for these from the start:
 1. **Every write at closing has a defined interrupt and refusal path.** That covers the transcript copies, the identity, and the declared record. Say what a resume does after an interrupt between each write and the cleanup, and test that each is done exactly once.
@@ -100,11 +100,65 @@ Docs:
 Phase shape: as few phases as the gates allow, from the core outwards, with every commit green. A likely order:
 1. the persisted shapes (the stop's closing identity, the record manifest's stop fields, the transcript outcomes) with their decoders and published schemas;
 2. transcript capture: the session-store port, its three adapters and the copy at closing;
-3. records at closing: the declared record, the held record's review commit, the transcript content, the security record, vibe usage, and `records explain` on both commits;
+3. records at closing: the declared record, the held record's review commit, the transcript digests, the security record, vibe usage, and `records explain` on both commits;
 4. the run list;
 5. the compliance review, the review handoff and the PR body;
 6. cost verification and the estimate;
 7. docs, the skill and the e2e trace snapshots.
 Merge or split by size. The records phase is the largest; split `records explain` and the security record into their own phase if the gates need it.
+
+A first draft of this plan (`docs/plans/archive/2610240822-interactive-phases-plan.md`, abandoned) was reviewed against the code. Read it. Keep what holds:
+- its phase split;
+- the in-place shape changes: phase-record-manifest is already at its 0.26.0 shape, with the 0.17.0 and pre-schema lifts gaining `mode: headless` and `stop: null`;
+- where each fact of a stop lives (`closedBy` in the status `stop`, `transcripts` and `builderUsage` in interactive-session.json, copied into the manifest);
+- the manifest's per-variant `stop`;
+- `records explain` addressing a review commit through `Run-Id` and `Held-Phase`;
+- the declared record's routed assignment and `usage: { available: false }`;
+- the held record's `builderUsage`;
+- `captureTranscript` on the Backend port;
+- the one interrupt and refusal path per write;
+- `StopRecordRefused`;
+- the run-list row keys;
+- the wording settled for `## Reviewed phases`, the PR line and the compliance section;
+- the telemetry.
+
+Decided by the operator on 2026-10-24. Record each in Technical arbitrations with the loss it accepts; do not raise them again:
+- **q-dev-records: in place.** `mode` and `stop` are added to the 0.26.0 manifest as required keys. Records that development builds wrote since oracle-phases plan 1 no longer read. State the real effect:
+  - `phax records explain` fails the whole command on such a record (`src/app/recordsExplain.ts`);
+  - `phax records list` skips it;
+  - `phaseRecordExists` counts it as absent.
+  Every release from 0.17.0 to 0.25.0 stamped the manifest 0.17.0.
+- **An interactive transcript's content never reaches the records branch, whatever `records.transcript` says.** The spec's r-records and ac-records were amended on 2026-10-24 to say so, narrowing q-transcript-records. A session the person continued ran outside phax's enforcement and may hold secrets they typed, and a dedicated records repository faces no visibility check (`src/domain/records/destination.ts`).
+  - The record names each recorded session and its transcript's sha256, or `missing` with its reason.
+  - The copy stays in the run folder under `interactive-transcripts/`.
+  - `interactive-transcripts/` is a stop artifact (`isStopArtifact`), so no record carries it.
+  - A test with `records.transcript` true proves the records branch holds no interactive transcript content.
+
+Fix what the review found:
+1. **security.json keeps every field it had.** A close adds only `stop`, and every other field is kept byte for byte: `readPhasePosture` reads `agentCommands` from this file (`src/app/interactiveFiles.ts`), and a held record carries it. Make version 2 strict. It has two readers: move `src/app/finalReport.ts`'s raw `readFileSync`, which swallows decode errors, onto the FileSystem port, and lift a version-1 file with `stop: null` in both readers.
+2. **The estimate places an interactive phase's turns at the phase.**
+   - Keep `runLevel` as the compliance median only: it renders as the "compliance review" row and the scenarios add it to the last phase (`src/domain/cost/estimateRender.ts`, `src/domain/cost/estimate.ts`).
+   - Give the interactive turns their own figure and row, at the phase's plan position in the scenarios.
+   - Count a past interactive phase as a sample only when it has at least one turn entry and a sum of at least `MIN_SAMPLE_USD` (`src/domain/cost/history.ts`). That keeps out codex or vibe phases, which cost $0 in a Claude-only ledger, and a first turn that started no session.
+   - Reprice the turn samples by model and weight them by recency, as `fit.ts` does for phases.
+   - Below `MIN_HISTORY_PHASES` the report lists no phases (`src/domain/cost/fit.ts`). Name the history fixture in `tests/helpers/costHistory.ts` that gives the §8 test at least that many headless samples plus at least 3 interactive phases.
+   - Say in `docs/plan-estimate.md` that with 3 samples, P10 and P90 are the minimum and the maximum.
+3. **Provider store roots never escape the test HOME.** No code reads `CLAUDE_CONFIG_DIR`, `CODEX_HOME` or `VIBE_HOME` today. If capture honours them:
+   - resolve the roots once at the edge and pass them into the backend layer (`src/app/dispatcher.ts` / `makeNodeBackendLayer`);
+   - have every suite set them empty, beside the HOME stub.
+   Usage and capture must read the same vibe root.
+4. **One vibe session finder.** Today the id match is `readVibeSessionMeta`, private to the app layer (`src/app/recordPlumbing.ts`). It reads the `meta.json` of every `session_*` directory, under `~/.vibe` alone.
+   - Move it into one shared finder that usage and capture both use.
+   - Narrow on the directory-name suffix before decoding a `meta.json`, and decode only `session_id`.
+   - State that read honestly in the privacy statement.
+5. **The digest matches the bytes.** Hash the bytes the copy writes: the adapter returns the bytes, and closeStop writes them through the FileSystem port. Test that the copied file hashes to the recorded `sha256`, including for a file with an invalid UTF-8 sequence.
+6. **The close owns the copy policy.** The adapter only finds and reads the store file and returns its bytes, or `missing` with a reason. Keeping an earlier copy when the store file is gone, and refusing the close on a failed write (`files`), belong to `src/app/closeStop.ts`.
+7. **The declared close is in flight too.** `closeInFlight` is set only for the held close (`src/app/executePlan.ts`). Set it for both causes, so that a failure after the declared commit pauses the run rather than failing it, and test it.
+8. **A declared record's effort** is `model.effort ?? phase.effort`, as the close computes it (`src/app/closeStop.ts`), because `thinking` is optional in `model-resolution.json`.
+9. **`ls --json` reads the stop through `readStopInfo`.** Extend `src/app/stopInfo.ts` to return the `ReviewStop`, and say how a stop document parked during a close is treated, rather than re-deriving the phase in `ls.ts`.
+10. **Claude's project slug.** No code computes it. On macOS a worktree path under `/var` resolves to `/private/var`, so try the raw path's slug and the realpath's slug. A session id must match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, which keeps out `.` and `..`.
+11. **Align the session shape.** The closed stop's session and the manifest's session carry the same keys, `effort` included or excluded in both.
+12. **Planned files.** Put `tests/helpers/phaseStatusFixture.ts` in the optional files, and add `tests/unit/telemetry/events.test.ts` to the optional files of the phase that adds `stop.transcript`. The e2e command is `PHAX_E2E_RUN=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/semanticTrace*.test.ts`, never `npx`.
+13. **Missing cost tests.** The ledger already costs each closing turn by its own increment (`src/domain/cost/ledger.ts`). Add tests for the $1.40 cumulative against $0.30 own-cost case, for the held phase's closing turn, and for the person's turns getting no entry.
 
 Output: your final message is the plan document JSON and nothing else — no sentence before or after it, no code fence.
