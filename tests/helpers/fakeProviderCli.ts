@@ -32,6 +32,16 @@ interface FakeCliScript {
   readonly rateLimit?: boolean;
   /** False keeps the session out of the store, as a provider that lost it would. Default true. */
   readonly keepStore?: boolean;
+  /** The usage of the assistant message Claude prints; a few tokens by default. */
+  readonly assistantUsage?: Readonly<Record<string, number>>;
+  /**
+   * The `modelUsage` of Claude's result, by model id, as Claude Code reports it
+   * (`inputTokens`, `outputTokens`, `cacheReadInputTokens`,
+   * `cacheCreationInputTokens`, `costUSD`); a result with none by default.
+   */
+  readonly resultModelUsage?: Readonly<Record<string, Readonly<Record<string, number>>>>;
+  /** Claude Code's version in the init event, e.g. `2.1.302`; none by default. */
+  readonly claudeCodeVersion?: string;
 }
 
 interface FakeCliInvocation {
@@ -99,7 +109,14 @@ keepInStore(() =>
 );
 process.stdin.on("end", () => answer(() => {
   const id = script.sessionId;
-  print({ type: "system", subtype: "init", session_id: id, model: "claude-sonnet-5-5", tools: [] });
+  print({
+    type: "system",
+    subtype: "init",
+    session_id: id,
+    model: "claude-sonnet-5-5",
+    tools: [],
+    ...(script.claudeCodeVersion === undefined ? {} : { claude_code_version: script.claudeCodeVersion }),
+  });
   if (script.rateLimit) {
     print({ type: "result", subtype: "error", is_error: true, result: "API Error: rate limit exceeded", session_id: id });
     process.exit(1);
@@ -113,10 +130,17 @@ process.stdin.on("end", () => answer(() => {
       role: "assistant",
       model: "claude-sonnet-5-5",
       content: [{ type: "text", text: script.finalText }],
-      usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      usage: script.assistantUsage ?? { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
     },
   });
-  print({ type: "result", subtype: "success", is_error: false, result: script.finalText, session_id: id });
+  print({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: script.finalText,
+    session_id: id,
+    ...(script.resultModelUsage === undefined ? {} : { modelUsage: script.resultModelUsage, duration_ms: 1000 }),
+  });
 }));
 `;
 

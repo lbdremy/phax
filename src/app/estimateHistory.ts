@@ -156,6 +156,7 @@ function sizeRun(
         id: phase.id,
         model: phase.model,
         effort: phase.effort,
+        mode: phase.mode,
         editBytes: sumOf(phase.plannedFilesToEdit, sizes),
         optionalBytes: sumOf(phase.optionalFilesToEdit, sizes),
         createCount: phase.plannedFilesToCreate.length,

@@ -2,11 +2,14 @@
 // ledgers, the sized historical runs and a windows reading become one
 // `EstimateReport`: P10/P50/P90 per phase and per run in API-list dollars,
 // and a verdict on the subscription windows left. The verdict is
-// thin-history below 60 sized phases; else the first of no-subscription,
-// windows-unavailable and uncalibrated that applies; else both scenarios are
-// played forward for fits, risky or wait. `nowMs` comes from outside; dollars
-// are rounded to 2 decimals and instants are ISO-8601 UTC.
-import { listPriceFor } from "../routing/prices.js";
+// thin-history below 60 sized headless phases; else the first of
+// no-subscription, windows-unavailable and uncalibrated that applies; else both
+// scenarios are played forward for fits, risky or wait. An interactive phase is
+// sized apart from the fit, by the turns phax ran in this repository's past
+// interactive phases alone. `nowMs` comes from outside; dollars are rounded to
+// 2 decimals and instants are ISO-8601 UTC.
+import type { PhaseMode } from "../../schemas/phaxPlan.js";
+import { listPriceFor, type ModelListPrice } from "../routing/prices.js";
 import type { ProviderId } from "../routing/types.js";
 import {
   effortLevel,
@@ -15,7 +18,10 @@ import {
   HALF_LIFE_DAYS,
   MIN_HISTORY_PHASES,
   phaseQuantiles,
+  priceTokens,
   runQuantiles,
+  sampleWeight,
+  weightedQuantile,
   type EffortLevel,
   type PhaseQuantiles,
   type TrainingSample,
@@ -24,6 +30,7 @@ import { playForward, verdictOf, type Playthrough, type SubscriptionWindow } fro
 import {
   burnRate,
   calibrateWindows,
+  interactiveTurnSamples,
   runLevelMedian,
   trainingSamples,
   type LedgerSource,
@@ -36,6 +43,7 @@ export interface PlanPhaseInput {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
+  readonly mode: PhaseMode;
   readonly editBytes: number;
   readonly optionalBytes: number;
   readonly createCount: number;
@@ -79,11 +87,23 @@ interface PhaseRouting {
   readonly effort: string;
 }
 
+/**
+ * One phase's estimate, explicit per mode. A headless phase is fitted; an
+ * interactive phase is sized by its first and closing turns alone, from past
+ * interactive phases, and says so when there are too few of them.
+ */
 type PhaseEstimate =
-  | (PhaseRouting & { readonly estimate: UsdRange })
+  | (PhaseRouting & { readonly mode: "headless"; readonly estimate: UsdRange })
   | (PhaseRouting & {
+      readonly mode: "headless";
       readonly estimate: null;
       readonly notEstimated: "other-provider" | "no-list-price";
+    })
+  | (PhaseRouting & { readonly mode: "interactive"; readonly estimate: UsdRange })
+  | (PhaseRouting & {
+      readonly mode: "interactive";
+      readonly estimate: null;
+      readonly notEstimated: "thin-interactive-history" | "other-provider" | "no-list-price";
     });
 
 interface RunEstimate extends UsdRange {
@@ -215,6 +235,8 @@ const ALWAYS_NOT_ESTIMATED: readonly NotEstimatedPart[] = [
 
 /** An effort level with fewer historical samples than this gets a warning. */
 const MIN_EFFORT_SAMPLES = 5;
+/** The past interactive phases an interactive phase's turns need to be sized. */
+const MIN_INTERACTIVE_SAMPLES = 3;
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -240,6 +262,26 @@ function sampleLevel(sample: TrainingSample): EffortLevel {
   }
   return "low";
 }
+
+/** An interactive phase's turns: the weighted P10, P50 and P90 of past turn volumes repriced at `price`. */
+function turnQuantiles(
+  samples: ReturnType<typeof interactiveTurnSamples>,
+  price: ModelListPrice,
+  nowMs: number,
+): UsdRange {
+  const values = samples.map((sample) => priceTokens(sample.tokens, price));
+  const weights = samples.map((sample) => sampleWeight(sample.atMs, nowMs));
+  return {
+    p10: weightedQuantile(values, weights, 0.1),
+    p50: weightedQuantile(values, weights, 0.5),
+    p90: weightedQuantile(values, weights, 0.9),
+  };
+}
+
+/** An estimated phase, in plan order: a headless one is fitted, an interactive one sized by its turns. */
+type EstimatedPhase =
+  | { readonly kind: "headless"; readonly id: string; readonly quantiles: PhaseQuantiles }
+  | { readonly kind: "interactive"; readonly id: string; readonly range: UsdRange };
 
 function scenarioOf(playthrough: Playthrough): Scenario {
   return {
@@ -328,7 +370,8 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
   const runLevel = complianceEstimated ? medianRunLevel : 0;
   const warnings: string[] = [];
   const phases: PhaseEstimate[] = [];
-  const estimated: { readonly id: string; readonly quantiles: PhaseQuantiles }[] = [];
+  const turnSamples = interactiveTurnSamples(ledgers, input.sizedRuns);
+  const estimated: EstimatedPhase[] = [];
   for (const phase of input.phases) {
     const routing: PhaseRouting = {
       id: phase.id,
@@ -337,18 +380,33 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
       effort: phase.effort,
     };
     if (phase.provider !== "claude-code") {
-      phases.push({ ...routing, estimate: null, notEstimated: "other-provider" });
+      phases.push({ ...routing, mode: phase.mode, estimate: null, notEstimated: "other-provider" });
       continue;
     }
     const price = listPriceFor(phase.model);
     if (price === undefined) {
-      phases.push({ ...routing, estimate: null, notEstimated: "no-list-price" });
+      phases.push({ ...routing, mode: phase.mode, estimate: null, notEstimated: "no-list-price" });
+      continue;
+    }
+    if (phase.mode === "interactive") {
+      if (turnSamples.length < MIN_INTERACTIVE_SAMPLES) {
+        phases.push({
+          ...routing,
+          mode: "interactive",
+          estimate: null,
+          notEstimated: "thin-interactive-history",
+        });
+        continue;
+      }
+      const range = turnQuantiles(turnSamples, price, nowMs);
+      phases.push({ ...routing, mode: "interactive", estimate: rangeOf(range) });
+      estimated.push({ kind: "interactive", id: phase.id, range });
       continue;
     }
     const x = features(phase.effort, phase.editBytes, phase.optionalBytes, phase.createCount);
     const quantiles = phaseQuantiles(model, x, price);
-    phases.push({ ...routing, estimate: rangeOf(quantiles) });
-    estimated.push({ id: phase.id, quantiles });
+    phases.push({ ...routing, mode: "headless", estimate: rangeOf(quantiles) });
+    estimated.push({ kind: "headless", id: phase.id, quantiles });
     const level = effortLevel(phase.effort);
     const atLevel = samples.filter((sample) => sampleLevel(sample) === level).length;
     if (atLevel < MIN_EFFORT_SAMPLES) {
@@ -358,11 +416,23 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
     }
   }
 
-  const runRange = runQuantiles(
+  // The headless phases and the run level are drawn together; the interactive
+  // phases' quantiles add to them quantile by quantile, as if their turns were
+  // fully correlated, which widens the range a little.
+  const headless = estimated.flatMap((phase) => (phase.kind === "headless" ? [phase] : []));
+  const interactive = estimated.flatMap((phase) => (phase.kind === "interactive" ? [phase] : []));
+  const fitted = runQuantiles(
     model,
-    estimated.map((phase) => phase.quantiles.base),
+    headless.map((phase) => phase.quantiles.base),
     runLevel,
   );
+  const turnsSum = (which: keyof UsdRange) =>
+    interactive.reduce((sum, phase) => sum + phase.range[which], 0);
+  const runRange: UsdRange = {
+    p10: fitted.p10 + turnsSum("p10"),
+    p50: fitted.p50 + turnsSum("p50"),
+    p90: fitted.p90 + turnsSum("p90"),
+  };
   const run: RunEstimate = { ...rangeOf(runRange), runLevel: round2(runLevel) };
   const common = { history, notEstimated, burnRateUsdPerHour, warnings, phases, run };
 
@@ -408,13 +478,24 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
   }
 
   // Each scenario spends the run's own P50 or P90, so the verdict agrees with
-  // the run line: the phases' quantiles do not add up to the run's, so they
-  // only share the run total out in proportion, the run-level cost on the last.
-  const play = (pick: (quantiles: PhaseQuantiles) => number, runTotalUsd: number): Playthrough => {
-    const picked = estimated.map((phase) => pick(phase.quantiles));
-    const pickedSum = picked.reduce((sum, usd) => sum + usd, 0);
-    const scale = pickedSum > 0 ? (runTotalUsd - runLevel) / pickedSum : 0;
-    const phaseCosts = estimated.map((phase, i) => ({ phase: phase.id, usd: picked[i]! * scale }));
+  // the run line. An interactive phase spends its own figure at its plan
+  // position; the headless phases' quantiles do not add up to the run's, so
+  // they share what is left in proportion, the run-level cost on the last.
+  const play = (which: "p50" | "p90", runTotalUsd: number): Playthrough => {
+    const own = estimated.map((phase) =>
+      phase.kind === "interactive" ? phase.range[which] : phase.quantiles[which],
+    );
+    let headlessSum = 0;
+    let turnsUsd = 0;
+    estimated.forEach((phase, i) => {
+      if (phase.kind === "interactive") turnsUsd += own[i]!;
+      else headlessSum += own[i]!;
+    });
+    const scale = headlessSum > 0 ? (runTotalUsd - runLevel - turnsUsd) / headlessSum : 0;
+    const phaseCosts = estimated.map((phase, i) => ({
+      phase: phase.id,
+      usd: phase.kind === "interactive" ? own[i]! : own[i]! * scale,
+    }));
     const last = phaseCosts.at(-1);
     if (last === undefined) {
       if (runLevel > 0) phaseCosts.push({ phase: "compliance-review", usd: runLevel });
@@ -436,8 +517,8 @@ export function estimatePlan(input: EstimateInput): EstimateReport {
       nowMs,
     });
   };
-  const p50 = play((quantiles) => quantiles.p50, runRange.p50);
-  const p90 = play((quantiles) => quantiles.p90, runRange.p90);
+  const p50 = play("p50", runRange.p50);
+  const p90 = play("p90", runRange.p90);
   return {
     ...common,
     verdict: verdictOf(p50, p90),

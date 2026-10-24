@@ -6,6 +6,7 @@
 // spikes/plan-estimate/phax_estimate.py (`training_set`, `calibrate`,
 // `last_observed_quota`), on ledgers instead of streams.
 import type { CostLedger, CostLedgerEntry, RateLimitSample } from "../../schemas/costLedger.js";
+import type { PhaseMode } from "../../schemas/phaxPlan.js";
 import type { WindowsReading } from "./estimate.js";
 import {
   features,
@@ -27,6 +28,7 @@ export interface HistoricalPhasePlan {
   readonly id: string;
   readonly model: string;
   readonly effort: string;
+  readonly mode: PhaseMode;
   readonly editBytes: number;
   readonly optionalBytes: number;
   readonly createCount: number;
@@ -45,17 +47,44 @@ const BURN_DAYS = 30;
 const RUN_LEVEL_DAYS = 60;
 const CALIBRATION_DAYS = 28;
 /** A phase whose reference-priced volume is under this is not a sample. */
-const MIN_SAMPLE_USD = 0.01;
+export const MIN_SAMPLE_USD = 0.01;
 
 function within(instant: string, days: number, nowMs: number): boolean {
   const at = Date.parse(instant);
   return at <= nowMs && at >= nowMs - days * DAY_MS;
 }
 
+/** The roles a headless phase's samples are made of; the turns of an interactive phase are not among them. */
+const PHASE_ROLES: ReadonlySet<CostLedgerEntry["role"]> = new Set(["phase", "fix", "handoff"]);
+const TURN_ROLES: ReadonlySet<CostLedgerEntry["role"]> = new Set(["first-turn", "closing-turn"]);
+
+/** The summed token mix and cost of a phase's entries in `roles`, across models. */
+function phaseVolume(
+  ledger: CostLedger,
+  phaseId: string,
+  roles: ReadonlySet<CostLedgerEntry["role"]>,
+): { readonly mix: TokenMix; readonly costUsd: number; readonly entries: number } {
+  let [input, output, cacheRead, cacheWrite, costUsd, entries] = [0, 0, 0, 0, 0, 0];
+  for (const entry of ledger.entries) {
+    if (entry.phase !== phaseId || !roles.has(entry.role)) continue;
+    entries += 1;
+    costUsd += entry.costUsd;
+    for (const cost of Object.values(entry.models)) {
+      input += cost.inputTokens;
+      output += cost.outputTokens;
+      cacheRead += cost.cacheReadTokens;
+      cacheWrite += cost.cacheWriteTokens;
+    }
+  }
+  return { mix: [input, output, cacheRead, cacheWrite], costUsd, entries };
+}
+
 /**
- * One sample per sized phase whose ledger holds at least $0.01 of
- * reference-priced volume: the tokens of every entry for the phase (turn,
- * fixes, handoff), summed across models.
+ * One sample per sized headless phase whose ledger holds at least $0.01 of
+ * reference-priced volume: the tokens of its `phase`, `fix` and `handoff`
+ * entries, summed across models. An interactive phase is no sample, and its
+ * turn entries count nowhere here: its work is a person's, which the fit
+ * cannot learn.
  */
 export function trainingSamples(
   ledgers: readonly LedgerSource[],
@@ -68,18 +97,8 @@ export function trainingSamples(
     const ledger = byRun.get(run.runKey);
     if (ledger === undefined) continue;
     for (const phase of run.phases) {
-      let [input, output, cacheRead, cacheWrite, costUsd] = [0, 0, 0, 0, 0];
-      for (const entry of ledger.entries) {
-        if (entry.phase !== phase.id) continue;
-        costUsd += entry.costUsd;
-        for (const cost of Object.values(entry.models)) {
-          input += cost.inputTokens;
-          output += cost.outputTokens;
-          cacheRead += cost.cacheReadTokens;
-          cacheWrite += cost.cacheWriteTokens;
-        }
-      }
-      const mix: TokenMix = [input, output, cacheRead, cacheWrite];
+      if (phase.mode === "interactive") continue;
+      const { mix, costUsd } = phaseVolume(ledger, phase.id, PHASE_ROLES);
       const volume = priceTokens(mix, reference);
       if (volume < MIN_SAMPLE_USD) continue;
       samples.push({
@@ -89,6 +108,39 @@ export function trainingSamples(
         tokens: mix,
         costUsd,
       });
+    }
+  }
+  return samples;
+}
+
+/** The turns phax ran in one past interactive phase, and when its run started. */
+export interface InteractiveTurnSample {
+  readonly tokens: TokenMix;
+  readonly atMs: number;
+}
+
+/**
+ * One sample per sized interactive phase with at least one `first-turn` or
+ * `closing-turn` entry whose reference-priced volume is at least $0.01: the
+ * tokens of those entries, summed across models. That keeps out a phase
+ * whose turns cost $0 in a Claude-only ledger (codex, vibe) and a first turn
+ * that started no session.
+ */
+export function interactiveTurnSamples(
+  ledgers: readonly LedgerSource[],
+  sizedRuns: readonly SizedRun[],
+): InteractiveTurnSample[] {
+  const byRun = new Map(ledgers.map((source) => [source.runKey, source.ledger]));
+  const reference = referencePrice();
+  const samples: InteractiveTurnSample[] = [];
+  for (const run of sizedRuns) {
+    const ledger = byRun.get(run.runKey);
+    if (ledger === undefined) continue;
+    for (const phase of run.phases) {
+      if (phase.mode !== "interactive") continue;
+      const { mix, entries } = phaseVolume(ledger, phase.id, TURN_ROLES);
+      if (entries === 0 || priceTokens(mix, reference) < MIN_SAMPLE_USD) continue;
+      samples.push({ tokens: mix, atMs: Date.parse(run.startedAt) });
     }
   }
   return samples;

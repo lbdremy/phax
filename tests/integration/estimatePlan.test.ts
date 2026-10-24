@@ -6,6 +6,7 @@ import { Cause, Effect, Exit, Layer, Option } from "effect";
 import { describe, expect, it } from "vitest";
 import { estimatePlanCost, readEstimatePlan } from "../../src/app/estimatePlan.js";
 import { PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
+import { renderEstimate } from "../../src/domain/cost/estimateRender.js";
 import { PROBE_PROMPT } from "../../src/domain/cost/probe.js";
 import { ArtifactValidationError, PlanUnparseableError } from "../../src/domain/errors.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
@@ -20,6 +21,8 @@ import {
   NOW_MS,
   daysAgo,
   generateHistory,
+  generateHistoryWithInteractive,
+  INTERACTIVE_TURN_USD,
   iso,
   ledgerEntry,
   ledgerJson,
@@ -50,12 +53,18 @@ const config = {
   complianceReview: { enabled: false, model: "claude-sonnet-5-5", effort: "medium" },
 } as unknown as ResolvedConfig;
 
-function phaseSection(id: string, title: string, model: string, edit: string): string {
+function phaseSection(
+  id: string,
+  title: string,
+  model: string,
+  edit: string,
+  interactive = false,
+): string {
   return `## ${id} — ${title} {#${id}-made-up}
 
 **Recommended model:** ${model}
 **Recommended effort:** high
-
+${interactive ? "**Mode:** interactive\n" : ""}
 ### Planned files to create
 
 - \`src/created-${id}.ts\`
@@ -78,7 +87,8 @@ ${PLAN_MARKER} does ${id}.
 `;
 }
 
-function planMd(phase02Model = "claude-sonnet-5-5"): string {
+/** A third phase, declared interactive, on Opus: its turns are priced as the reference model's. */
+function planMd(phase02Model = "claude-sonnet-5-5", withInteractivePhase = false): string {
   return `---
 status: Approved
 source-spec: null
@@ -93,7 +103,11 @@ approved:
 - (none)
 
 ${phaseSection("phase-01", "First", "claude-opus-5-5", "- `src/a.ts`\n- `src/gone.ts`")}
-${phaseSection("phase-02", "Second", phase02Model, "- (none)")}`;
+${phaseSection("phase-02", "Second", phase02Model, "- (none)")}${
+    withInteractivePhase
+      ? `\n${phaseSection("phase-03", "Third", "claude-opus-5-5", "- (none)", true)}`
+      : ""
+  }`;
 }
 
 /** Every path a FileSystem method was handed, in call order. */
@@ -146,6 +160,8 @@ function setup(
     readonly codexEnabled?: boolean;
     readonly undecodablePlans?: number;
     readonly unledgeredRuns?: readonly string[];
+    /** The history also holds past interactive phases whose turns were costed. */
+    readonly interactiveHistory?: boolean;
   } = {},
 ) {
   const fs = makeFakeFileSystem();
@@ -194,7 +210,10 @@ function setup(
   seedGeneratedRuns(fs.impl, git.impl, {
     stateRoot: STATE,
     namespace: "demo",
-    runs: generateHistory({ runs: 16, phasesPerRun: 4, seed: 3 }),
+    runs:
+      options.interactiveHistory === true
+        ? generateHistoryWithInteractive({ seed: 3 })
+        : generateHistory({ runs: 16, phasesPerRun: 4, seed: 3 }),
     extra: [sampler, ...undecodable, ...unledgered],
   });
   const traced = tracedFileSystem(fs.impl);
@@ -340,9 +359,64 @@ describe("estimatePlanCost", () => {
       provider: "codex-cli",
       model: "gpt-6-sol",
       effort: "high",
+      mode: "headless",
       estimate: null,
       notEstimated: "other-provider",
     });
+  });
+
+  it("names an interactive phase as interactive and sizes only its turns, in its own row (§8 only phax's turns are costed)", async () => {
+    const { backend, layer } = setup({
+      plan: planMd("claude-sonnet-5-5", true),
+      interactiveHistory: true,
+    });
+
+    const exit = await estimate(layer, false);
+
+    if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
+    const { report } = exit.value;
+    // `phax plans estimate <plan> --no-probe --json` prints this report.
+    const json = JSON.parse(JSON.stringify(report)) as typeof report;
+    expect(backend.probeCalls).toHaveLength(0);
+    expect(json.phases.map((phase) => [phase.id, phase.mode])).toEqual([
+      ["phase-01", "headless"],
+      ["phase-02", "headless"],
+      ["phase-03", "interactive"],
+    ]);
+    // 60 headless phases of history: the past interactive phases' turns are no sample.
+    expect(json.history.phases).toBe(60);
+    // The turns of the three past interactive phases, on the same model.
+    const [low, mid, high] = INTERACTIVE_TURN_USD;
+    const turns = json.phases[2]!.estimate!;
+    expect(turns.p10).toBeCloseTo(low, 2);
+    expect(turns.p50).toBeCloseTo(mid, 2);
+    expect(turns.p90).toBeCloseTo(high, 2);
+
+    const text = renderEstimate(report, { timeZone: "UTC", nowMs: NOW_MS });
+    expect(text).toMatch(/^phase-03 +claude-opus-5-5 +interactive +0\.50 +0\.80 +1\.10$/m);
+    expect(text).toContain(
+      "Interactive phases: first and closing turns only; the person's work is not estimated.",
+    );
+    expect(text.indexOf("phase-02 ")).toBeLessThan(text.indexOf("phase-03 "));
+    expect(text.indexOf("phase-03 ")).toBeLessThan(text.indexOf("run  "));
+  });
+
+  it("says an interactive phase has too few past interactive phases when the history holds none", async () => {
+    const { layer } = setup({ plan: planMd("claude-sonnet-5-5", true) });
+
+    const exit = await estimate(layer, false);
+
+    if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
+    const { report } = exit.value;
+    expect(report.phases[2]).toMatchObject({
+      id: "phase-03",
+      mode: "interactive",
+      estimate: null,
+      notEstimated: "thin-interactive-history",
+    });
+    expect(renderEstimate(report, { timeZone: "UTC", nowMs: NOW_MS })).toContain(
+      "phase-03 (claude-code, too few past interactive phases)",
+    );
   });
 
   it("never touches a Claude Code credential path, with or without the probe (§8 no credential is read)", async () => {

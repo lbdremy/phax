@@ -167,6 +167,7 @@ export function estimatePlanCost(
           provider: selected.provider,
           model: selected.concreteModel,
           effort: phase.effort,
+          mode: phase.mode,
           editBytes,
           optionalBytes,
           createCount,

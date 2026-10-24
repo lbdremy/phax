@@ -18,6 +18,7 @@ const phases = [
     provider: "claude-code",
     model: "claude-opus-5-5",
     effort: "high",
+    mode: "headless",
     estimate: { p10: 4.5, p50: 7.83, p90: 15.14 },
   },
   {
@@ -25,6 +26,7 @@ const phases = [
     provider: "claude-code",
     model: "claude-sonnet-5-5",
     effort: "medium",
+    mode: "headless",
     estimate: { p10: 0.67, p50: 1.1, p90: 2.13 },
   },
 ] as const;
@@ -196,6 +198,7 @@ describe("renderEstimate", () => {
           provider: "codex-cli",
           model: "gpt-5.5",
           effort: "high",
+          mode: "headless",
           estimate: null,
           notEstimated: "other-provider",
         },
@@ -207,6 +210,62 @@ describe("renderEstimate", () => {
       "Not estimated: phase-03 (codex-cli, other provider), plan extraction, plan auditor, interactive code review, compliance review.",
     );
     expect(text).not.toMatch(/^phase-03 /m);
+  });
+
+  it("gives an estimated interactive phase its own row at its plan position, and a line under the table", () => {
+    const report: EstimateReport = {
+      ...risky,
+      phases: [
+        phases[0],
+        {
+          id: "phase-02",
+          provider: "claude-code",
+          model: "claude-sonnet-5-5",
+          effort: "medium",
+          mode: "interactive",
+          estimate: { p10: 0.33, p50: 0.53, p90: 0.73 },
+        },
+        { ...phases[1], id: "phase-03" },
+      ],
+    };
+    const lines = renderEstimate(report, opts).split("\n");
+    expect(lines.slice(2, 9)).toEqual([
+      "phase      model              effort        P10   P50    P90",
+      "phase-01   claude-opus-5-5    high         4.50  7.83  15.14",
+      "phase-02   claude-sonnet-5-5  interactive  0.33  0.53   0.73",
+      "phase-03   claude-sonnet-5-5  medium       0.67  1.10   2.13",
+      "run-level  compliance review               0.54  0.54   0.54",
+      "run        API-list $                      6.20  9.40  17.90",
+      "Interactive phases: first and closing turns only; the person's work is not estimated.",
+    ]);
+  });
+
+  it("names an interactive phase with too few past interactive phases in the Not estimated line, with no row", () => {
+    const report: EstimateReport = {
+      ...risky,
+      phases: [
+        ...phases,
+        {
+          id: "phase-03",
+          provider: "claude-code",
+          model: "claude-sonnet-5-5",
+          effort: "medium",
+          mode: "interactive",
+          estimate: null,
+          notEstimated: "thin-interactive-history",
+        },
+      ],
+    };
+    const text = renderEstimate(report, opts);
+    expect(text).toContain(
+      "Not estimated: phase-03 (claude-code, too few past interactive phases), plan extraction, plan auditor, interactive code review.",
+    );
+    expect(text).not.toMatch(/^phase-03 /m);
+    expect(text).not.toContain("Interactive phases:");
+  });
+
+  it("renders a plan with no interactive phase as before", () => {
+    expect(renderEstimate(risky, opts)).not.toContain("Interactive phases:");
   });
 
   it("shows the day of an instant more than a day after the reading", () => {
