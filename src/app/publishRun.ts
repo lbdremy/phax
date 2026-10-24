@@ -28,7 +28,7 @@ import {
 } from "../domain/telemetry/events.js";
 import { writeFinalReport } from "./finalReport.js";
 import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
-import { loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
+import { loadReviewedPhases, loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
 
 export type PublicationResultKind = "published" | "failed";
 
@@ -450,6 +450,7 @@ export function publishRun(
       shortName: info.shortName,
     });
 
+    const reviewedPhases = yield* loadReviewedPhases(info);
     const orderedPhases = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex);
     const phases = orderedPhases.map((p) => ({
       phaseId: p.phaseId,
@@ -460,6 +461,7 @@ export function publishRun(
           : isPhaseTerminal(p.state)
             ? ("passed" as const)
             : ("unfinished" as const),
+      stop: reviewedPhases.find((r) => r.reviewed.phaseId === p.phaseId)?.reviewed ?? null,
     }));
     const verifiedSurfaces = yield* aggregateVerifiedSurfaces(
       info.runPath,

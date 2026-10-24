@@ -6,6 +6,8 @@ import {
   renderGlobalReconciliationMarkdown,
   type GlobalFileReconciliation,
 } from "../domain/reconciliation/global.js";
+import { summarizeInteractiveHandoff } from "../domain/interactive/handoff.js";
+import type { ReviewedPhase } from "../domain/interactive/reviewedPhases.js";
 import { lastRecordedAttempt } from "../domain/gate/attemptFiles.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
 import {
@@ -227,6 +229,45 @@ export function loadPhaseContents(
     }
 
     return { phaseContents, missingPhases, missingPaths };
+  });
+}
+
+export interface LoadedReviewedPhase {
+  readonly reviewed: ReviewedPhase;
+  readonly handoffMd: string;
+}
+
+// The phases whose status `stop` is closed, in plan order, each with its
+// closer from that stop and its interactive handoff: correction-handoff.md at
+// a held stop, phase-handoff.md at a declared one. A missing handoff reads as
+// a placeholder with no corrections, as in `loadPhaseContents`.
+export function loadReviewedPhases(
+  info: RunReviewInfo,
+): Effect.Effect<readonly LoadedReviewedPhase[], never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const loaded: LoadedReviewedPhase[] = [];
+    const ordered = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex);
+    for (const status of ordered) {
+      const stop = status.stop;
+      if (stop === null || stop.status !== "closed") continue;
+      const file = stop.cause === "held" ? "correction-handoff.md" : "phase-handoff.md";
+      const read = yield* Effect.either(fs.readText(join(info.runPath, status.phaseId, file)));
+      const handoffMd = Either.isRight(read)
+        ? read.right
+        : `> PARTIAL — ${file} missing for ${status.phaseId}`;
+      loaded.push({
+        handoffMd,
+        reviewed: {
+          phaseId: status.phaseId,
+          cause: stop.cause,
+          outcome: stop.outcome,
+          closedBy: stop.closedBy,
+          summary: summarizeInteractiveHandoff(handoffMd),
+        },
+      });
+    }
+    return loaded;
   });
 }
 

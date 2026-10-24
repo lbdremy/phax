@@ -151,6 +151,38 @@ export function validateInteractiveHandoff(
   return defects.length === 0 ? Either.right(markdown) : Either.left(defects);
 }
 
+/** What a valid interactive handoff says about its corrections and their guards. */
+export interface InteractiveHandoffSummary {
+  readonly corrections: readonly string[];
+  // The guard entries that name a test, lint rule or gate step.
+  readonly guards: readonly string[];
+  // The guard entries that start with `no guard:`.
+  readonly noGuard: readonly string[];
+  // The text under `## What was corrected` and `## Guards`, without the heading.
+  readonly correctedSection: string;
+  readonly guardsSection: string;
+}
+
+function sectionText(lines: readonly string[] | undefined): string {
+  return (lines ?? []).join("\n").trim();
+}
+
+/** The corrections and guards of an interactive handoff, read as validation reads them. */
+export function summarizeInteractiveHandoff(text: string): InteractiveHandoffSummary {
+  const { sections } = splitSections(text);
+  const corrected = sections.find((s) => s.title === CORRECTED)?.lines;
+  const guards = sections.find((s) => s.title === GUARDS)?.lines;
+  const guardEntries = listEntries(guards ?? []);
+  const isNoGuard = (entry: string): boolean => entry.toLowerCase().startsWith(NO_GUARD_PREFIX);
+  return {
+    corrections: listEntries(corrected ?? []),
+    guards: guardEntries.filter((e) => e.length > 0 && !isNoGuard(e)),
+    noGuard: guardEntries.filter(isNoGuard),
+    correctedSection: sectionText(corrected),
+    guardsSection: sectionText(guards),
+  };
+}
+
 // One line per entry, so a multi-line answer cannot change the entry count.
 function oneLine(text: string): string {
   return text.replace(/\s*\r?\n\s*/g, " ").trim();

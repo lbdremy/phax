@@ -4,6 +4,7 @@ import {
   INTERACTIVE_HANDOFF_SECTIONS,
   REVIEWED_WITHOUT_CHANGE_HANDOFF,
   renderInteractiveHandoff,
+  summarizeInteractiveHandoff,
   validateInteractiveHandoff,
 } from "../../../src/domain/interactive/handoff.js";
 import type { InteractiveHandoff } from "../../../src/schemas/interactiveHandoff.js";
@@ -163,5 +164,12 @@ describe("renderInteractiveHandoff", () => {
 describe("REVIEWED_WITHOUT_CHANGE_HANDOFF", () => {
   it("passes validation", () => {
     expect(Either.isRight(validateInteractiveHandoff(REVIEWED_WITHOUT_CHANGE_HANDOFF))).toBe(true);
+  });
+
+  it("summarizes as one correction line and one no-guard entry", () => {
+    const s = summarizeInteractiveHandoff(REVIEWED_WITHOUT_CHANGE_HANDOFF);
+    expect(s.corrections).toHaveLength(1);
+    expect(s.guards).toEqual([]);
+    expect(s.noGuard).toEqual(["no guard: nothing was corrected."]);
   });
 });
