@@ -113,6 +113,15 @@ export interface GitOps {
    * `user.name`), or `null` when neither is set — never a guessed name.
    */
   committerName(repo: string): Effect.Effect<string | null, GitError>;
+  /**
+   * The identity git authors a commit under in `repo`: the name is
+   * `GIT_AUTHOR_NAME`, else `user.name`; the email is `GIT_AUTHOR_EMAIL`, else
+   * `user.email`. `null` when either is unset or empty — never a guessed
+   * identity (no host-name fallback).
+   */
+  authorIdentity(
+    repo: string,
+  ): Effect.Effect<{ readonly name: string; readonly email: string } | null, GitError>;
 
   /** The full ref names under `prefix` (e.g. `refs/heads/`, `refs/remotes/`), sorted. */
   listRefs(repo: string, prefix: string): Effect.Effect<readonly string[], GitError>;

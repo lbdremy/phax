@@ -58,6 +58,7 @@ const HELD_CORRECTED: PhaseStop = {
   outcome: "corrected",
   reviewCommit: "a".repeat(40),
   oracleStep: "none",
+  closedBy: { name: "Ada Example", email: "ada@example.com" },
 };
 
 function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
@@ -418,7 +419,12 @@ describe("generateGlobalReconciliation", () => {
             {
               phaseId: "phase-01",
               phaseIndex: 0,
-              stop: { cause: "held", status: "closed", outcome: "unchanged" },
+              stop: {
+                cause: "held",
+                status: "closed",
+                outcome: "unchanged",
+                closedBy: { name: "Ada Example", email: "ada@example.com" },
+              },
             },
             {
               phaseId: "phase-02",
@@ -428,6 +434,7 @@ describe("generateGlobalReconciliation", () => {
                 status: "closed",
                 outcome: "corrected",
                 oracleStep: "none",
+                closedBy: { name: "Ada Example", email: "ada@example.com" },
               },
             },
           ],

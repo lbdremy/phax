@@ -141,7 +141,8 @@
                 "cause",
                 "status",
                 "outcome",
-                "oracleStep"
+                "oracleStep",
+                "closedBy"
               ],
               "properties": {
                 "cause": {
@@ -169,6 +170,23 @@
                     "none"
                   ],
                   "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop, read from its configuration and never from a commit."
                 }
               },
               "additionalProperties": false
@@ -178,7 +196,8 @@
               "required": [
                 "cause",
                 "status",
-                "outcome"
+                "outcome",
+                "closedBy"
               ],
               "properties": {
                 "cause": {
@@ -198,6 +217,23 @@
                   "enum": [
                     "unchanged"
                   ]
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop, read from its configuration and never from a commit."
                 }
               },
               "additionalProperties": false
@@ -231,7 +267,8 @@
                 "status",
                 "outcome",
                 "reviewCommit",
-                "oracleStep"
+                "oracleStep",
+                "closedBy"
               ],
               "properties": {
                 "cause": {
@@ -264,6 +301,23 @@
                     "none"
                   ],
                   "description": "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed."
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop, read from its configuration and never from a commit."
                 }
               },
               "additionalProperties": false
@@ -273,7 +327,8 @@
               "required": [
                 "cause",
                 "status",
-                "outcome"
+                "outcome",
+                "closedBy"
               ],
               "properties": {
                 "cause": {
@@ -293,6 +348,23 @@
                   "enum": [
                     "unchanged"
                   ]
+                },
+                "closedBy": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "email": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "The git identity of the checkout that closed the stop, read from its configuration and never from a commit."
                 }
               },
               "additionalProperties": false

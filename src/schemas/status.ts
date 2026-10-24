@@ -113,6 +113,16 @@ export const FullCommitShaSchema = Schema.String.pipe(
   }),
 );
 
+const ClosedBySchema = Schema.Struct({
+  name: Schema.NonEmptyString,
+  email: Schema.NonEmptyString,
+})
+  .annotations({
+    description:
+      "The git identity of the checkout that closed the stop, read from its configuration and never from a commit.",
+  })
+  .annotations({ jsonSchema: { additionalProperties: false } });
+
 const OracleStepSchema = Schema.Literal("authored", "none").annotations({
   description:
     "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
@@ -140,11 +150,13 @@ export const PhaseStopSchema = Schema.NullOr(
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       oracleStep: OracleStepSchema,
+      closedBy: ClosedBySchema,
     }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
+      closedBy: ClosedBySchema,
     }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
@@ -156,11 +168,13 @@ export const PhaseStopSchema = Schema.NullOr(
       outcome: Schema.Literal("corrected"),
       reviewCommit: FullCommitShaSchema,
       oracleStep: OracleStepSchema,
+      closedBy: ClosedBySchema,
     }).annotations(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
+      closedBy: ClosedBySchema,
     }).annotations(strictStop),
   ).annotations({ parseOptions: { onExcessProperty: "error" } }),
 );

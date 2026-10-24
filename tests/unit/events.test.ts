@@ -192,14 +192,19 @@ const samples = {
     type: "StopCommitted",
     phaseId,
     hash: "abc123",
-    closure: { outcome: "unchanged" },
+    closure: { outcome: "unchanged", closedBy: { name: "Ada Example", email: "ada@example.com" } },
   },
   HeldStopClosed: {
     ...base,
     type: "HeldStopClosed",
     phaseId,
     phaseCommit: "abc123",
-    closure: { outcome: "corrected", reviewCommit: "def456", oracleStep: "none" },
+    closure: {
+      outcome: "corrected",
+      reviewCommit: "def456",
+      oracleStep: "none",
+      closedBy: { name: "Ada Example", email: "ada@example.com" },
+    },
   },
   HoldPointFailed: {
     ...base,

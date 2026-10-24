@@ -78,6 +78,8 @@ vi.mock("../../src/cli/commands/runLayers.js", async (importOriginal) => {
 
 const ORACLES = { command: "./fake-oracles" } as const;
 const ORACLE_FILE = "tests/export/invoiceRow.test.ts";
+/** The main checkout's git identity (see `createHeldWorld`), who closes every stop. */
+const ADA_EXAMPLE = { name: "Ada Example", email: "ada@example.test" } as const;
 const PORT_ORACLE_FILE = "tests/export/port.test.ts";
 const SOURCE = "src/export/invoiceRow.ts";
 
@@ -341,7 +343,13 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     expect(phase02).toMatchObject({
       state: "cleaned_up",
       commitHash: c2,
-      stop: { cause: "held", status: "closed", outcome: "corrected", oracleStep: "authored" },
+      stop: {
+        cause: "held",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "authored",
+        closedBy: ADA_EXAMPLE,
+      },
     });
     const reviewCommit = (phase02["stop"] as { reviewCommit: string }).reviewCommit;
     expect(gitIn(tree(run, "phase-02"), "rev-parse", `${reviewCommit}^`)).toBe(c2);
@@ -473,6 +481,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
       status: "closed",
       outcome: "corrected",
       oracleStep: "authored",
+      closedBy: ADA_EXAMPLE,
     });
     expect(requests()[2]?.["oracleCommit"]).toBe(phase03["commitHash"]);
     expect(phase03["commitHash"]).not.toBe(phase02["commitHash"]);
@@ -646,6 +655,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
             fileReconciliationMode: "report_only",
             phases: run.plan.phases,
             oracles: ORACLES,
+            mainCheckout: run.world.repoRoot,
           });
         }).pipe(
           Effect.provide(
@@ -688,6 +698,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
       outcome: "corrected",
       reviewCommit: landed,
       oracleStep: "authored",
+      closedBy: ADA_EXAMPLE,
     });
     // No request at the finishing close: its gate ran before the commit.
     expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-02", "discharged:phase-03"]);

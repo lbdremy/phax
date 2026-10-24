@@ -223,6 +223,12 @@ export interface StopCloseRefused extends PhaxEventBase {
 /** Whether a close's gate ended with the `authored` oracle step, which passed. */
 export type OracleStep = "authored" | "none";
 
+/** Who closed a stop: the git identity of the checkout that ran the close. */
+export interface StopCloser {
+  readonly name: string;
+  readonly email: string;
+}
+
 // A close of a declared stop committed the gated tree: the phase is committed
 // and review-stop.json is discarded.
 export interface StopCommitted extends PhaxEventBase {
@@ -230,8 +236,12 @@ export interface StopCommitted extends PhaxEventBase {
   readonly phaseId: PhaseId;
   readonly hash: string;
   readonly closure:
-    | { readonly outcome: "corrected"; readonly oracleStep: OracleStep }
-    | { readonly outcome: "unchanged" };
+    | {
+        readonly outcome: "corrected";
+        readonly oracleStep: OracleStep;
+        readonly closedBy: StopCloser;
+      }
+    | { readonly outcome: "unchanged"; readonly closedBy: StopCloser };
 }
 
 // A close of a held stop finished: the phase is committed again, at the phase
@@ -246,8 +256,9 @@ export interface HeldStopClosed extends PhaxEventBase {
         readonly outcome: "corrected";
         readonly reviewCommit: string;
         readonly oracleStep: OracleStep;
+        readonly closedBy: StopCloser;
       }
-    | { readonly outcome: "unchanged" };
+    | { readonly outcome: "unchanged"; readonly closedBy: StopCloser };
 }
 
 // The hold point failed before the run reached the held stop: the phase is

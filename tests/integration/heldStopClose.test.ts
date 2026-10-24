@@ -219,6 +219,7 @@ const closeInput = (r: HeldRun = run) => ({
   fileReconciliationMode: "report_only" as const,
   phases: r.plan.phases,
   oracles: null,
+  mainCheckout: r.world.repoRoot,
 });
 
 interface CloseOptions {

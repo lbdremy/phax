@@ -210,6 +210,7 @@ const closeInput = (run: StoppedRun) => ({
   // A plan with no oracle pair: the close never runs an oracle step.
   phases: [PHASE_03],
   oracles: null,
+  mainCheckout: run.world.repoRoot,
 });
 
 interface CloseOptions {
@@ -379,7 +380,13 @@ describe("closing a declared stop", () => {
     expect(phaseStatus(run)).toMatchObject({
       state: "committed",
       commitHash: closed.commit,
-      stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
+      stop: {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.test" },
+      },
     });
     expect(existsSync(reviewStopPath(run))).toBe(false);
     expect(existsSync(parkedPath(run))).toBe(false);
@@ -440,7 +447,12 @@ describe("closing a declared stop", () => {
     );
     expect(phaseStatus(run)).toMatchObject({
       state: "committed",
-      stop: { cause: "declared", status: "closed", outcome: "unchanged" },
+      stop: {
+        cause: "declared",
+        status: "closed",
+        outcome: "unchanged",
+        closedBy: { name: "Ada Example", email: "ada@example.test" },
+      },
     });
     expect(reconciliation(run)).toMatchObject({ reviewCorrections: [], hasDeviations: false });
   });

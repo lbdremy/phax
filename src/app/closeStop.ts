@@ -146,6 +146,14 @@ export interface CloseStopInput {
   readonly phases: readonly PhaxPlanPhase[];
   /** The configured oracles provider, or null when no layer declares one. */
   readonly oracles: { readonly command: string } | null;
+  /** The checkout `phax resume` runs in: its git configuration names who closes the stop. */
+  readonly mainCheckout: string;
+}
+
+/** The git identity of the checkout that closed a stop, as its configuration names it. */
+export interface Closer {
+  readonly name: string;
+  readonly email: string;
 }
 
 /**
@@ -162,6 +170,8 @@ export type HandoffSource =
   | "earlier-close";
 
 interface CloseReportFacts {
+  /** Who closed the stop: the main checkout's git identity, never read from a commit. */
+  readonly closedBy: Closer;
   readonly handoffSource: HandoffSource;
   /** The closing gate attempt's log: the commit's `Gate-Log` trailer. */
   readonly gateLog: string | null;
@@ -370,6 +380,7 @@ function ownCommitRemedy(input: CloseStopInput, base: string): string {
 function finishLandedCommit(
   input: CloseStopInput,
   layout: CloseLayout,
+  closedBy: Closer,
   closeBase: string,
   head: string,
 ): Effect.Effect<CloseReport, CloseRefusal, FileSystem | Git | Shell | SystemTelemetry> {
@@ -419,6 +430,7 @@ function finishLandedCommit(
     const gateLog = trailerValue(message, "Gate-Log");
     const changedPaths = changed.map((c) => c.path).toSorted();
     const facts = {
+      closedBy,
       handoffSource: "earlier-close",
       gateLog,
       gateSteps: [],
@@ -1009,6 +1021,20 @@ function closeSteps(
     const git = yield* Git;
     const fs = yield* FileSystem;
 
+    // 0. The closer: the main checkout's git identity, read before anything
+    // else so an unset one refuses the close with nothing written.
+    const closedBy = yield* at("commit", git.authorIdentity(input.mainCheckout));
+    if (closedBy === null) {
+      return yield* refuse(
+        closeError(
+          "commit",
+          new Error(
+            `no git identity in ${input.mainCheckout}: set user.name and user.email, then run phax resume ${input.shortName} again`,
+          ),
+        ),
+      );
+    }
+
     // 1. Close base.
     const stop = yield* at("files", readReviewStop(input.runPath, input.phaseFolder));
     if (stop === null) {
@@ -1037,7 +1063,7 @@ function closeSteps(
       }
       yield* at("files", rewriteReviewStopAt(stop.path, { ...stop.reviewStop, closeBase: head }));
     } else if (head !== closeBase) {
-      return yield* finishLandedCommit(input, layout, closeBase, head);
+      return yield* finishLandedCommit(input, layout, closedBy, closeBase, head);
     }
     // HEAD is the close base: at a held stop, the phase commit.
     const phaseCommit = head;
@@ -1157,6 +1183,7 @@ function closeSteps(
       yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.diffFile), diff));
     });
     const facts = {
+      closedBy,
       handoffSource: source,
       gateLog: gate.log,
       gateSteps: gate.steps,
@@ -1259,8 +1286,8 @@ function closedEvent(
         hash: report.commit,
         closure:
           report.outcome === "corrected"
-            ? { outcome: "corrected", oracleStep: report.oracleStep }
-            : { outcome: "unchanged" },
+            ? { outcome: "corrected", oracleStep: report.oracleStep, closedBy: report.closedBy }
+            : { outcome: "unchanged", closedBy: report.closedBy },
       };
     case "held":
       return {
@@ -1273,8 +1300,9 @@ function closedEvent(
                 outcome: "corrected",
                 reviewCommit: report.reviewCommit,
                 oracleStep: report.oracleStep,
+                closedBy: report.closedBy,
               }
-            : { outcome: "unchanged" },
+            : { outcome: "unchanged", closedBy: report.closedBy },
       };
   }
 }

@@ -175,7 +175,11 @@ describe("closing a stop", () => {
       type: "StopCommitted",
       phaseId,
       hash: "0123456789abcdef0123456789abcdef01234567",
-      closure: { outcome: "corrected", oracleStep: "none" },
+      closure: {
+        outcome: "corrected",
+        oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     });
     expect(result.nextState).toEqual({
       run: "running",
@@ -193,6 +197,7 @@ describe("closing a stop", () => {
               status: "closed",
               outcome: "corrected",
               oracleStep: "none",
+              closedBy: { name: "Ada Example", email: "ada@example.com" },
             },
           },
         },
@@ -212,7 +217,10 @@ describe("closing a stop", () => {
         type: "StopCommitted",
         phaseId,
         hash: "abc",
-        closure: { outcome: "unchanged" },
+        closure: {
+          outcome: "unchanged",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
+        },
       }).kind,
     ).toBe("Stale");
   });
@@ -228,7 +236,10 @@ describe("closing a stop", () => {
         type: "StopCommitted",
         phaseId,
         hash: "abc",
-        closure: { outcome: "unchanged" },
+        closure: {
+          outcome: "unchanged",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
+        },
       }).kind,
     ).toBe("Unexpected");
   });
