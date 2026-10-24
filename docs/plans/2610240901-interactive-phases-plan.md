@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610211403-interactive-phases.md
 completes-spec: true
+approved:
+  date: 2026-10-24
+  baseline: 3796dd7
 ---
 # Stop records, transcripts and the run list
 
