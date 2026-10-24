@@ -7,12 +7,12 @@ Read the spec in full. These are settled; do not reopen them:
 What already exists (read it before planning):
 - **The spec document format** (`src/schemas/specDocument.ts`). Mind its comment on draft-07 ignoring a `pattern` beside a `$ref`.
 - **The renderer of §6.**
-- **The frozen snapshots** under `src/schemas/history/spec-document/` (0.17.0, pre-schema). `src/schemas/release.ts` stamps spec-document at 0.25.0, and 0.26.0 is the open release (last tag v0.25.0).
+- **The frozen snapshots** under `src/schemas/history/spec-document/` (0.17.0, pre-schema). `src/schemas/release.ts` stamps spec-document at 0.25.0. 0.26.0 was released on 2026-10-24, and 0.27.0 is the open release (package.json is at 0.27.0, last tag v0.26.0).
 - **`phax artifact migrate-documents`** (`src/domain/artifact/documentMigration.ts`), its own-shape check and its report.
 - **`phax artifact approve` and `complete`.**
 - **The headless authoring and decide prompts, and their JSON Schemas.**
 - **The `phax-spec` skill** (`.claude/skills/phax-spec/SKILL.md`): its sidecar field table, its Surface section and its Markdown template.
-- **How plan-document 0.25.0 was frozen when it moved to 0.26.0.** Follow the same path for spec-document: freeze the 0.25.0 schema and its rendering, stamp the new shape 0.26.0, and lift 0.17.0 and pre-schema to the new current shape.
+- **How plan-document 0.25.0 was frozen when it moved to 0.26.0.** Follow the same path for spec-document: freeze the 0.25.0 schema and its rendering, stamp the new shape 0.27.0, and lift 0.17.0, pre-schema and 0.25.0 to the new current shape. `docs/upgrading.md` gets a `### 0.27.0` section. The spec's Context still says package.json is at 0.26.0; that was true when it was written.
 
 Settle in Technical arbitrations (§10 "Left open"):
 - the placeholder text, which must be one line, fixed, and recognised by approve and complete;
@@ -20,7 +20,7 @@ Settle in Technical arbitrations (§10 "Left open"):
 - whether `phax artifact status` reports the summaries still to write.
 
 Settled for this plan, because other runs are in flight:
-- **The run does not migrate this repository's own live sidecars.** Several live specs sit on main beside other runs: `interactive-phases`, whose plan 3 runs at the same time as this plan, plus `test-strategy`, `artifact-decide-verdicts`, `headless-review` and this spec itself. Migrating them on the run branch would conflict with those runs and make their approved specs stale. The operator runs `phax artifact migrate-documents` after merge, as `docs/upgrading.md` instructs.
+- **The run does not migrate this repository's own live sidecars.** Several live specs sit on main: `test-strategy`, `artifact-decide-verdicts`, `headless-review` and this spec itself, and other work may edit them while this plan runs. Migrating them on the run branch would conflict with that work and make their approved specs stale. The operator runs `phax artifact migrate-documents` after merge, as `docs/upgrading.md` instructs.
 - The plan must therefore leave this repository's live sidecars untouched, and the run's own completion of this spec must still work. Check that the run's archival commit of `surface-summary`, written while the spec is at its 0.25.0 shape, passes whatever completion check the plan adds. If it cannot, raise an open question rather than migrating the spec on the branch.
 
 Lessons from recent reviews (#157, #158). Plan for these from the start:
@@ -41,7 +41,7 @@ Constraints:
 - **Test strategy:** write every `### Test strategy` in the phax-planning skill's line format (size · technique · oracle · loop, plus a criterion id).
 
 Docs:
-- `docs/upgrading.md` 0.26.0: the entry of §11;
+- `docs/upgrading.md` 0.27.0: the entry of §11;
 - README, wherever it describes the spec's §6 or migrate-documents;
 - the `phax-spec` skill;
 - `NEXT_STEPS.md`: this spec, landed.
