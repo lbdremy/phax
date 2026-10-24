@@ -197,6 +197,13 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **A phax footer on every run's pull request.** Decided 2026-10-24, emoji 🛤️. The PR body
+      (`src/domain/publish/prBody.ts`) ends with one line in the spirit of Claude Code's: `🛤️
+      Generated with [phax](https://docs.phax.run) <version> — the golden path, just facts`, then
+      the plan and spec as links relative to the branch, the agents (provider, models, phase
+      counts) and the run name. No session URL: phax's sessions are local and headless. Possibly a
+      `phax.json` key to turn it off. After interactive-phases plan 3 merges, because its phase-07
+      edits the same file.
 - [ ] **The run's final message counts only the last invocation's phases.** `run.ts` and
       `resume.ts` print "The run reached review — N phase(s) complete" from
       `execResult.committedPhases`, which `executePlan` rebuilds on every invocation: after two
