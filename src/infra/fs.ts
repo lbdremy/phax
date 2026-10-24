@@ -11,6 +11,7 @@ import {
   readdir,
   lstat,
   stat,
+  chmod,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -54,6 +55,28 @@ async function fileSizeOf(path: string): Promise<number> {
   }
 }
 
+// Write through a temporary sibling renamed into place. A given mode is set on
+// the temporary file before any byte lands, so the file is never readable
+// wider than asked.
+async function writeAtomicFile(
+  resolved: string,
+  content: string | Uint8Array,
+  mode: number | undefined,
+): Promise<void> {
+  await mkdir(dirname(resolved), { recursive: true });
+  const rand = randomBytes(6).toString("hex");
+  const tmpPath = `${resolved}.tmp.${rand}`;
+  const handle = await open(tmpPath, "w", mode);
+  try {
+    if (mode !== undefined) await handle.chmod(mode);
+    await handle.writeFile(content);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await nodeRename(tmpPath, resolved);
+}
+
 export function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
   return {
     readText: (path) =>
@@ -62,23 +85,21 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
         catch: wrapFsError,
       }),
 
+    readBytes: (path) =>
+      Effect.tryPromise({
+        try: async () => new Uint8Array(await readFile(resolvePath(path))),
+        catch: wrapFsError,
+      }),
+
     writeAtomic: (path, content) =>
       Effect.tryPromise({
-        try: async () => {
-          const resolved = resolvePath(path);
-          const dir = dirname(resolved);
-          await mkdir(dir, { recursive: true });
-          const rand = randomBytes(6).toString("hex");
-          const tmpPath = `${resolved}.tmp.${rand}`;
-          const handle = await open(tmpPath, "w");
-          try {
-            await handle.writeFile(content, "utf8");
-            await handle.sync();
-          } finally {
-            await handle.close();
-          }
-          await nodeRename(tmpPath, resolved);
-        },
+        try: () => writeAtomicFile(resolvePath(path), content, undefined),
+        catch: wrapFsError,
+      }),
+
+    writeAtomicBytes: (path, bytes, options) =>
+      Effect.tryPromise({
+        try: () => writeAtomicFile(resolvePath(path), bytes, options?.mode),
         catch: wrapFsError,
       }),
 
@@ -107,9 +128,13 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
         catch: wrapFsError,
       }),
 
-    mkdirp: (path) =>
+    mkdirp: (path, options) =>
       Effect.tryPromise({
-        try: () => mkdir(resolvePath(path), { recursive: true }).then(() => undefined),
+        try: async () => {
+          const resolved = resolvePath(path);
+          await mkdir(resolved, { recursive: true });
+          if (options?.mode !== undefined) await chmod(resolved, options.mode);
+        },
         catch: wrapFsError,
       }),
 

@@ -136,7 +136,6 @@ export function writeDecisionRecord(
           ? [{ transcript: DECIDE_RETRY_TRANSCRIPT_FILENAME, sessionId: undefined }]
           : []),
       ],
-      vibeHome: undefined,
     });
 
     const manifest: DecisionRecordManifest = {

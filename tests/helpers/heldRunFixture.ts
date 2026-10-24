@@ -343,6 +343,8 @@ function makeHeldBackend(): HeldBackend {
     },
     complete: unused,
     probe: unused,
+    captureTranscript: () =>
+      Effect.succeed({ status: "missing", reason: "not-found", detail: "not played by this test" }),
   };
   return backend;
 }

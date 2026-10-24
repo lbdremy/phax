@@ -12,6 +12,8 @@ import {
   type CompletionResult,
   type ProbeOptions,
   type ProbeResult,
+  type TranscriptRead,
+  type TranscriptRequest,
 } from "../../ports/backend.js";
 
 interface RateLimitKnob {
@@ -183,6 +185,31 @@ export class FakeBackendImpl implements BackendOps {
       );
     }
     return Effect.succeed(result);
+  }
+
+  readonly captureCalls: TranscriptRequest[] = [];
+  private readonly transcripts = new Map<string, Uint8Array>();
+
+  /** Make `captureTranscript` find these bytes for `sessionId`, on any provider. */
+  registerTranscript(sessionId: string, bytes: Uint8Array | string): void {
+    this.transcripts.set(
+      sessionId,
+      typeof bytes === "string" ? new TextEncoder().encode(bytes) : Uint8Array.from(bytes),
+    );
+  }
+
+  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never> {
+    this.captureCalls.push(request);
+    const bytes = this.transcripts.get(request.sessionId);
+    return Effect.succeed(
+      bytes === undefined
+        ? {
+            status: "missing",
+            reason: "not-found",
+            detail: `FakeBackend: no transcript registered for ${request.sessionId}`,
+          }
+        : { status: "found", bytes: Uint8Array.from(bytes) },
+    );
   }
 
   probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError> {

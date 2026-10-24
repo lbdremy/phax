@@ -1,9 +1,9 @@
 import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream, realpathSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
   AgentRunResult,
@@ -11,6 +11,8 @@ import type {
   CompletionResult,
   ProbeOptions,
   ProbeResult,
+  TranscriptRead,
+  TranscriptRequest,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
@@ -34,6 +36,13 @@ import {
 import { buildSkillEditGrantSettings } from "./claudeSkillEditSettings.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
+import {
+  captureFromStore,
+  claudeProjectSlug,
+  listStoreNames,
+  notFound,
+  readStoreFile,
+} from "./transcriptStore.js";
 
 function wrapFsError(err: unknown): FsError {
   return new FsError({
@@ -348,6 +357,36 @@ export function runClaudeProbe(
             },
     ),
   );
+}
+
+/**
+ * A Claude Code session's transcript, `<claude root>/projects/<slug>/<id>.jsonl`.
+ * The slug is that of the worktree as given, then of its realpath (macOS
+ * resolves `/var` to `/private/var`, and Claude Code files sessions under the
+ * resolved path); failing both, the first project folder holding `<id>.jsonl`.
+ */
+export function captureClaudeTranscript(
+  claudeRoot: string | null,
+  request: TranscriptRequest,
+): Effect.Effect<TranscriptRead, never> {
+  return captureFromStore(claudeRoot, request.sessionId, async (root) => {
+    const projects = join(root, "projects");
+    const file = `${request.sessionId}.jsonl`;
+    const slugs = [claudeProjectSlug(request.cwd)];
+    const real = await realpath(request.cwd).catch(() => request.cwd);
+    if (claudeProjectSlug(real) !== slugs[0]) slugs.push(claudeProjectSlug(real));
+    for (const slug of slugs) {
+      const read = await readStoreFile(join(projects, slug, file));
+      if (read.status === "found" || read.reason === "unreadable") return read;
+    }
+    const names = await listStoreNames(projects);
+    if (names === "absent") return notFound(`no Claude Code projects folder at ${projects}`);
+    for (const name of names) {
+      const read = await readStoreFile(join(projects, name, file));
+      if (read.status === "found") return read;
+    }
+    return notFound(`no transcript for session ${request.sessionId} under ${projects}`);
+  });
 }
 
 export function runClaudeAgent(

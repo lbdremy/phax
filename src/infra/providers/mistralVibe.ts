@@ -1,9 +1,14 @@
 import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
-import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import type {
+  AgentRunOptions,
+  AgentRunResult,
+  TranscriptRead,
+  TranscriptRequest,
+} from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
@@ -14,6 +19,7 @@ import {
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
 import type { SecurityPolicy } from "../../domain/security/types.js";
+import { findVibeSessionDir, type VibeStoreReads } from "../../domain/session/vibeSessionStore.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import {
   findVibeResultEvent,
@@ -22,6 +28,13 @@ import {
 } from "../../schemas/vibeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
+import {
+  captureFromStore,
+  isAbsence,
+  notFound,
+  readStoreFile,
+  unreadable,
+} from "./transcriptStore.js";
 
 type VibeProviderEntry = {
   readonly executable: string;
@@ -203,10 +216,56 @@ function rateLimitErrorFor(classification: {
     : new RateLimitError({ message: "Vibe stopped: rate limit hit.", ...fields });
 }
 
+// The vibe session finder's reads, straight from disk; a failed read is null.
+// The first error other than absence is kept, so a store that cannot be read
+// is told apart from one that holds no such session.
+function nodeVibeReads(): { reads: VibeStoreReads; firstError: () => unknown } {
+  let error: unknown;
+  const keep = (err: unknown): null => {
+    if (error === undefined && !isAbsence(err)) error = err;
+    return null;
+  };
+  return {
+    reads: {
+      list: (path) => Effect.promise(() => readdir(path).catch(keep)),
+      readText: (path) => Effect.promise(() => readFile(path, "utf8").catch(keep)),
+    },
+    firstError: () => error,
+  };
+}
+
+// vibe's transcript file in a session directory. The name is unverified
+// against a current vibe release, like `vibe --resume`.
+const VIBE_TRANSCRIPT_FILE = "messages.jsonl";
+
+/**
+ * A vibe session's transcript: the `messages.jsonl` of the session directory
+ * the shared finder (`findVibeSessionDir`) locates under
+ * `<vibe root>/logs/session`.
+ */
+export function captureVibeTranscript(
+  vibeRoot: string | null,
+  request: TranscriptRequest,
+): Effect.Effect<TranscriptRead, never> {
+  return captureFromStore(vibeRoot, request.sessionId, async (root) => {
+    const { reads, firstError } = nodeVibeReads();
+    const dir = await Effect.runPromise(findVibeSessionDir(reads, root, request.sessionId));
+    if (dir === null) {
+      const error = firstError();
+      return error === undefined
+        ? notFound(`no vibe session ${request.sessionId} under ${join(root, "logs", "session")}`)
+        : unreadable(error);
+    }
+    return readStoreFile(join(dir, VIBE_TRANSCRIPT_FILE));
+  });
+}
+
 export function runVibeAgent(
   prompt: string,
   options: AgentRunOptions,
   entry: VibeProviderEntry,
+  /** Where the session is discovered (`ProviderStoreRoots`); null finds none. */
+  vibeRoot: string | null,
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
@@ -277,7 +336,7 @@ export function runVibeAgent(
     }
 
     const sessionIdString = yield* Effect.tryPromise({
-      try: () => findVibeSessionId({ cwd: options.cwd, sinceMs: startedAtMs }),
+      try: () => findVibeSessionId({ cwd: options.cwd, sinceMs: startedAtMs, vibeRoot }),
       catch: (err): AgentSessionIdMissingError =>
         new AgentSessionIdMissingError({
           message: `Failed to read vibe session log: ${err instanceof Error ? err.message : String(err)}`,

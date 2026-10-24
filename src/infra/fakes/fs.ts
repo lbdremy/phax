@@ -1,15 +1,24 @@
 import { Effect, Layer } from "effect";
 import { isAbsolute, join } from "node:path/posix";
-import { FileSystem, type FileSystemOps, FsError } from "../../ports/fs.js";
+import { FileSystem, type FileSystemOps, FsError, type WriteModeOptions } from "../../ports/fs.js";
 
 export class FakeFileSystemImpl implements FileSystemOps {
   readonly files = new Map<string, string>();
+  /**
+   * The exact bytes of each file written through `writeAtomicBytes`, kept
+   * until its next text write. `files` holds their UTF-8 decoding, as the node
+   * `readText` would read them.
+   */
+  readonly bytes = new Map<string, Uint8Array>();
+  /** The mode each file or folder was last written or created with, when one was given. */
+  readonly modes = new Map<string, number>();
   readonly dirs = new Set<string>();
   readonly modified = new Map<string, string>();
   private writes = 0;
 
   setFile(path: string, content: string): void {
     this.files.set(path, content);
+    this.bytes.delete(path);
     this.touch(path);
     this.registerParentDirs(path);
   }
@@ -49,9 +58,23 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.succeed(content);
   }
 
+  readBytes(path: string): Effect.Effect<Uint8Array, FsError> {
+    const content = this.files.get(path);
+    if (content === undefined) {
+      return Effect.fail(new FsError({ message: `ENOENT: no such file: ${path}` }));
+    }
+    return Effect.succeed(Uint8Array.from(this.byteContent(path, content)));
+  }
+
+  // A file's bytes: the exact ones written, else its text encoded as UTF-8.
+  private byteContent(path: string, content: string): Uint8Array {
+    return this.bytes.get(path) ?? new TextEncoder().encode(content);
+  }
+
   appendLine(path: string, line: string): Effect.Effect<void, FsError> {
     const existing = this.files.get(path) ?? "";
     this.files.set(path, existing + line + "\n");
+    this.bytes.delete(path);
     this.touch(path);
     this.registerParentDirs(path);
     return Effect.void;
@@ -59,6 +82,21 @@ export class FakeFileSystemImpl implements FileSystemOps {
 
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError> {
     this.files.set(path, content);
+    this.bytes.delete(path);
+    this.touch(path);
+    this.registerParentDirs(path);
+    return Effect.void;
+  }
+
+  writeAtomicBytes(
+    path: string,
+    bytes: Uint8Array,
+    options?: WriteModeOptions,
+  ): Effect.Effect<void, FsError> {
+    this.files.set(path, new TextDecoder().decode(bytes));
+    this.bytes.set(path, Uint8Array.from(bytes));
+    if (options?.mode !== undefined) this.modes.set(path, options.mode);
+    else this.modes.delete(path);
     this.touch(path);
     this.registerParentDirs(path);
     return Effect.void;
@@ -67,13 +105,15 @@ export class FakeFileSystemImpl implements FileSystemOps {
   createExclusive(path: string, content: string): Effect.Effect<boolean, FsError> {
     if (this.files.has(path) || this.dirs.has(path)) return Effect.succeed(false);
     this.files.set(path, content);
+    this.bytes.delete(path);
     this.touch(path);
     this.registerParentDirs(path);
     return Effect.succeed(true);
   }
 
-  mkdirp(path: string): Effect.Effect<void, FsError> {
+  mkdirp(path: string, options?: WriteModeOptions): Effect.Effect<void, FsError> {
     this.dirs.add(path);
+    if (options?.mode !== undefined) this.modes.set(path, options.mode);
     return Effect.void;
   }
 
@@ -96,34 +136,41 @@ export class FakeFileSystemImpl implements FileSystemOps {
       return Effect.fail(new FsError({ message: failure }));
     }
     const prefix = path + "/";
-    this.files.delete(path);
-    this.modified.delete(path);
+    this.forget(path);
     this.dirs.delete(path);
     for (const key of Array.from(this.files.keys())) {
-      if (key.startsWith(prefix)) {
-        this.files.delete(key);
-        this.modified.delete(key);
-      }
+      if (key.startsWith(prefix)) this.forget(key);
     }
     for (const dir of Array.from(this.dirs)) {
-      if (dir.startsWith(prefix)) this.dirs.delete(dir);
+      if (dir.startsWith(prefix)) {
+        this.dirs.delete(dir);
+        this.modes.delete(dir);
+      }
     }
     return Effect.void;
   }
 
+  private forget(path: string): void {
+    this.files.delete(path);
+    this.bytes.delete(path);
+    this.modes.delete(path);
+    this.modified.delete(path);
+  }
+
   apparentSize(path: string): Effect.Effect<number, FsError> {
     const prefix = path + "/";
-    const encoder = new TextEncoder();
     let total = 0;
     for (const [key, content] of this.files) {
-      if (key === path || key.startsWith(prefix)) total += encoder.encode(content).byteLength;
+      if (key === path || key.startsWith(prefix)) {
+        total += this.byteContent(key, content).byteLength;
+      }
     }
     return Effect.succeed(total);
   }
 
   fileSize(path: string): Effect.Effect<number, FsError> {
     const content = this.files.get(path);
-    return Effect.succeed(content === undefined ? 0 : new TextEncoder().encode(content).byteLength);
+    return Effect.succeed(content === undefined ? 0 : this.byteContent(path, content).byteLength);
   }
 
   modifiedAt(path: string): Effect.Effect<string, FsError> {
@@ -165,7 +212,7 @@ export class FakeFileSystemImpl implements FileSystemOps {
       const content = this.files.get(from)!;
       this.files.delete(from);
       this.files.set(to, content);
-      this.moveModified(from, to);
+      this.moveEntry(from, to);
     }
 
     const filesToRename = Array.from(this.files.entries()).filter(([key]) =>
@@ -174,27 +221,37 @@ export class FakeFileSystemImpl implements FileSystemOps {
     for (const [key, val] of filesToRename) {
       this.files.delete(key);
       this.files.set(to + "/" + key.slice(fromPrefix.length), val);
-      this.moveModified(key, to + "/" + key.slice(fromPrefix.length));
+      this.moveEntry(key, to + "/" + key.slice(fromPrefix.length));
     }
 
     if (this.dirs.has(from)) {
       this.dirs.delete(from);
       this.dirs.add(to);
+      this.moveIn(this.modes, from, to);
     }
 
     const dirsToRename = Array.from(this.dirs).filter((dir) => dir.startsWith(fromPrefix));
     for (const dir of dirsToRename) {
       this.dirs.delete(dir);
       this.dirs.add(to + "/" + dir.slice(fromPrefix.length));
+      this.moveIn(this.modes, dir, to + "/" + dir.slice(fromPrefix.length));
     }
 
     return Effect.void;
   }
 
-  private moveModified(from: string, to: string): void {
-    const instant = this.modified.get(from);
-    this.modified.delete(from);
-    if (instant !== undefined) this.modified.set(to, instant);
+  // A renamed file keeps its instant, its exact bytes and its mode.
+  private moveEntry(from: string, to: string): void {
+    this.moveIn(this.modified, from, to);
+    this.moveIn(this.bytes, from, to);
+    this.moveIn(this.modes, from, to);
+  }
+
+  private moveIn<V>(map: Map<string, V>, from: string, to: string): void {
+    const value = map.get(from);
+    map.delete(from);
+    if (value !== undefined) map.set(to, value);
+    else map.delete(to);
   }
 
   rootedAt(root: string): FileSystemOps {
@@ -206,10 +263,13 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
   const resolveKey = (path: string): string => (isAbsolute(path) ? path : join(root, path));
   return {
     readText: (path) => base.readText(resolveKey(path)),
+    readBytes: (path) => base.readBytes(resolveKey(path)),
     writeAtomic: (path, content) => base.writeAtomic(resolveKey(path), content),
+    writeAtomicBytes: (path, bytes, options) =>
+      base.writeAtomicBytes(resolveKey(path), bytes, options),
     createExclusive: (path, content) => base.createExclusive(resolveKey(path), content),
     appendLine: (path, line) => base.appendLine(resolveKey(path), line),
-    mkdirp: (path) => base.mkdirp(resolveKey(path)),
+    mkdirp: (path, options) => base.mkdirp(resolveKey(path), options),
     exists: (path) => base.exists(resolveKey(path)),
     remove: (path) => base.remove(resolveKey(path)),
     rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),

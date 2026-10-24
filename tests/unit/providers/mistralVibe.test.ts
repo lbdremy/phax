@@ -228,7 +228,7 @@ describe("findVibeSessionId", () => {
       session_id: "bbbb-bbbb",
       environment: { working_directory: cwd },
     });
-    const id = await findVibeSessionId({ cwd, sinceMs: 0, vibeHome });
+    const id = await findVibeSessionId({ cwd, sinceMs: 0, vibeRoot: vibeHome });
     expect(id).toBe("bbbb-bbbb");
   });
 
@@ -247,7 +247,7 @@ describe("findVibeSessionId", () => {
     const now = new Date();
     await import("node:fs/promises").then((fs) => fs.utimes(older, past, past));
     await import("node:fs/promises").then((fs) => fs.utimes(newer, now, now));
-    const id = await findVibeSessionId({ cwd, sinceMs: 0, vibeHome });
+    const id = await findVibeSessionId({ cwd, sinceMs: 0, vibeRoot: vibeHome });
     expect(id).toBe("newer-id");
   });
 
@@ -260,7 +260,7 @@ describe("findVibeSessionId", () => {
     });
     const past = new Date("2020-01-01T00:00:00Z");
     await import("node:fs/promises").then((fs) => fs.utimes(stale, past, past));
-    const id = await findVibeSessionId({ cwd, sinceMs: Date.now(), vibeHome });
+    const id = await findVibeSessionId({ cwd, sinceMs: Date.now(), vibeRoot: vibeHome });
     expect(id).toBeUndefined();
   });
 
@@ -268,8 +268,13 @@ describe("findVibeSessionId", () => {
     const id = await findVibeSessionId({
       cwd: "/tmp/whatever",
       sinceMs: 0,
-      vibeHome: join(tmpdir(), `does-not-exist-${Date.now()}`),
+      vibeRoot: join(tmpdir(), `does-not-exist-${Date.now()}`),
     });
+    expect(id).toBeUndefined();
+  });
+
+  it("finds no session when no vibe root is configured", async () => {
+    const id = await findVibeSessionId({ cwd: "/tmp/whatever", sinceMs: 0, vibeRoot: null });
     expect(id).toBeUndefined();
   });
 });

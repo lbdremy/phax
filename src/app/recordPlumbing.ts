@@ -1,5 +1,4 @@
 import { Effect, Either } from "effect";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   extractClaudeUsage,
@@ -12,9 +11,14 @@ import {
   type RepoVisibility,
 } from "../domain/records/destination.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
+import {
+  readVibeSessionMetaText,
+  type VibeStoreReads,
+} from "../domain/session/vibeSessionStore.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
+import { ProviderStoreRoots } from "../ports/providerStores.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
@@ -188,21 +192,19 @@ export function commitRecordTree(
 /**
  * Read a session's token usage from its provider-specific source: Claude and
  * codex carry it in `output.jsonl`, vibe keeps none there and records it in the
- * session `meta.json`. Any failure to read degrades to the explicitly
- * unavailable variant — usage is never reported as zero (spec §5.5).
+ * session `meta.json` under the `ProviderStoreRoots` vibe root. Any failure to
+ * read degrades to the explicitly unavailable variant — usage is never
+ * reported as zero (spec §5.5).
  */
 export function computeRecordUsage(input: {
   readonly provider: ProviderId;
   readonly folder: string;
   readonly sessionId: string | undefined;
-  /** Overridable vibe home (`~/.vibe` by default) so tests can point at a fixture. */
-  readonly vibeHome: string | undefined;
 }): Effect.Effect<TokenUsage, never, FileSystem> {
   return computeSessionUsage({
     provider: input.provider,
     folder: input.folder,
     turns: [{ transcript: RECORD_TRANSCRIPT_FILE, sessionId: input.sessionId }],
-    vibeHome: input.vibeHome,
   });
 }
 
@@ -219,15 +221,14 @@ interface SessionTurn {
  * invocation's usage in that turn's transcript, so the turns are summed field
  * by field. Vibe keeps a session's usage in its `meta.json`, which a resume
  * may keep under the same session id: each distinct session id is counted
- * once. When any turn's usage cannot be read the whole is unavailable, never
- * a partial count shown as a total.
+ * once, under the `ProviderStoreRoots` vibe root; with no vibe root, vibe
+ * usage is unavailable. When any turn's usage cannot be read the whole is
+ * unavailable, never a partial count shown as a total.
  */
 export function computeSessionUsage(input: {
   readonly provider: ProviderId;
   readonly folder: string;
   readonly turns: readonly SessionTurn[];
-  /** Overridable vibe home (`~/.vibe` by default) so tests can point at a fixture. */
-  readonly vibeHome: string | undefined;
 }): Effect.Effect<TokenUsage, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -240,11 +241,15 @@ export function computeSessionUsage(input: {
         counted.push(usage);
       }
     } else {
-      const vibeHome = input.vibeHome ?? join(homedir(), ".vibe");
+      const vibeRoot = (yield* ProviderStoreRoots).vibe;
+      if (vibeRoot === null) return UNAVAILABLE_TOKEN_USAGE;
       const sessionIds = new Set(input.turns.map((turn) => turn.sessionId));
       for (const sessionId of sessionIds) {
-        const metaText = yield* readVibeSessionMeta(fs, vibeHome, sessionId);
-        const usage = metaText === undefined ? undefined : extractVibeUsage(metaText);
+        const metaText =
+          sessionId === undefined
+            ? null
+            : yield* readVibeSessionMetaText(fileSystemReads(fs), vibeRoot, sessionId);
+        const usage = metaText === null ? undefined : extractVibeUsage(metaText);
         if (usage === undefined) return UNAVAILABLE_TOKEN_USAGE;
         counted.push(usage);
       }
@@ -308,42 +313,10 @@ function addUsage(a: ProviderTokenUsage, b: ProviderTokenUsage): ProviderTokenUs
   return undefined;
 }
 
-/**
- * Locate the `meta.json` of the vibe session that produced this record by
- * matching its recorded `session_id`, scanning `<vibeHome>/logs/session`.
- * Returns the raw meta text, or `undefined` when no matching session is found.
- */
-function readVibeSessionMeta(
-  fs: FileSystemOps,
-  vibeHome: string,
-  sessionId: string | undefined,
-): Effect.Effect<string | undefined, never> {
-  return Effect.gen(function* () {
-    if (sessionId === undefined) return undefined;
-    const sessionRoot = join(vibeHome, "logs", "session");
-    const entries = yield* fs
-      .list(sessionRoot)
-      .pipe(Effect.orElseSucceed(() => [] as readonly string[]));
-    for (const name of entries) {
-      if (!name.startsWith("session_")) continue;
-      const metaText = yield* fs
-        .readText(join(sessionRoot, name, "meta.json"))
-        .pipe(Effect.orElseSucceed(() => ""));
-      if (metaText === "") continue;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(metaText) as unknown;
-      } catch {
-        continue;
-      }
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        (parsed as { session_id?: unknown }).session_id === sessionId
-      ) {
-        return metaText;
-      }
-    }
-    return undefined;
-  });
+/** The vibe session finder's reads, through the FileSystem port; a failed read is null. */
+function fileSystemReads(fs: FileSystemOps): VibeStoreReads {
+  return {
+    list: (path) => fs.list(path).pipe(Effect.orElseSucceed(() => null)),
+    readText: (path) => fs.readText(path).pipe(Effect.orElseSucceed(() => null)),
+  };
 }

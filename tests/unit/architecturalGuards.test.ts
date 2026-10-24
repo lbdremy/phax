@@ -222,9 +222,10 @@ describe("architectural guard: infra must not import from app", () => {
 
 // ── CLI → infra import direction ──────────────────────────────────────────────
 // src/cli/**/*.ts may only import layer-composition symbols from src/infra/
-// (identifiers containing "Layer", e.g. NodeFileSystemLayer) or type-only
-// imports. Importing infra behaviour (getSessionAdapter, spawnInteractive, …)
-// bypasses the port abstraction and is forbidden.
+// (identifiers containing "Layer", e.g. NodeFileSystemLayer, or ending in
+// "Live", Effect's name for a live layer, e.g. ProviderStoreRootsLive) or
+// type-only imports. Importing infra behaviour (getSessionAdapter,
+// spawnInteractive, …) bypasses the port abstraction and is forbidden.
 
 const CLI_INFRA_LOGIC_ALLOWLIST: ReadonlySet<string> = new Set([]);
 
@@ -245,7 +246,7 @@ function hasNonLayerBinding(bindingList: string): boolean {
       if (binding.startsWith("type ")) return false;
       // binding alias: `Foo as bar` — check the exported name (Foo)
       const exported = (binding.split(/\s+as\s+/)[0] ?? "").trim();
-      return !exported.includes("Layer");
+      return !exported.includes("Layer") && !exported.endsWith("Live");
     });
 }
 
@@ -465,6 +466,28 @@ describe("architectural guard: cli commands root the FileSystem layer", () => {
     expect(importsIdentityFsLayer(identityImport)).toBe(true);
     expect(importsIdentityFsLayer(rootedImport)).toBe(false);
     expect(importsIdentityFsLayer(bothImport)).toBe(true);
+  });
+});
+
+// ── Provider store roots beside every backend ────────────────────────────────
+// A command that builds the bare backend reads no provider store: its
+// transcript captures are all missing and its vibe usage unavailable, with
+// nothing failing. Every command builds it through makeProviderBackendLayer
+// (runLayers.ts), which provides ProviderStoreRootsLive beside it.
+
+describe("architectural guard: cli commands build the backend with its store roots", () => {
+  it("only runLayers.ts calls makeNodeBackendLayer under src/cli/", () => {
+    const violations: string[] = [];
+    for (const absPath of listTsFiles(join(srcRoot, "cli"))) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      if (rel === "src/cli/commands/runLayers.ts") continue;
+      if (/\bmakeNodeBackendLayer\b/.test(readFileSync(absPath, "utf8"))) violations.push(rel);
+    }
+    expect(
+      violations,
+      "Build the backend through makeProviderBackendLayer from ./runLayers.js, which " +
+        "provides the provider store roots beside it.",
+    ).toEqual([]);
   });
 });
 

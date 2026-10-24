@@ -17,6 +17,7 @@ import { decodeAuthoringRecordManifestFile } from "../../src/schemas/authoringRe
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { providerStoreRootsUnder, rootsUnder } from "../helpers/providerStoreRoots.js";
 
 const fakeGitHub = makeFakeGitHub();
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer);
@@ -377,18 +378,34 @@ describe("writeAuthoringRecord (real git)", () => {
   });
 
   describe("vibe: each distinct session id counted once", () => {
-    let vibeHome: string;
+    let home: string;
 
     beforeEach(() => {
-      vibeHome = mkdtempSync(join(tmpdir(), "phax-authoring-record-vibe-"));
+      home = mkdtempSync(join(tmpdir(), "phax-authoring-record-vibe-"));
     });
 
     afterEach(() => {
-      removeTempDir(vibeHome);
+      removeTempDir(home);
     });
 
+    // vibe's usage is read from the stores under the test's own HOME.
+    function runUnderHome(input: WriteAuthoringRecordInput) {
+      return Effect.runPromise(
+        Effect.provide(
+          writeAuthoringRecord(input),
+          Layer.merge(LAYER, providerStoreRootsUnder(home)),
+        ),
+      );
+    }
+
+    // vibe names a session directory `session_<timestamp>_<short id>`.
     async function seedVibeSession(sessionId: string, promptTokens: number): Promise<void> {
-      const dir = join(vibeHome, "logs", "session", `session_${sessionId}`);
+      const dir = join(
+        rootsUnder(home).vibe ?? "",
+        "logs",
+        "session",
+        `session_20261024_120000_${sessionId}`,
+      );
       await mkdir(dir, { recursive: true });
       await writeFile(
         join(dir, "meta.json"),
@@ -411,13 +428,12 @@ describe("writeAuthoringRecord (real git)", () => {
       await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
       await seedVibeSession("vibe-1", 3000);
 
-      await run(
+      await runUnderHome(
         baseInput({
           provider: "mistral-vibe",
           retry: "retried",
           sessionId: "vibe-1",
           retrySessionId: "vibe-1",
-          vibeHome,
         }),
       );
 
@@ -432,13 +448,12 @@ describe("writeAuthoringRecord (real git)", () => {
       await seedVibeSession("vibe-1", 3000);
       await seedVibeSession("vibe-2", 700);
 
-      await run(
+      await runUnderHome(
         baseInput({
           provider: "mistral-vibe",
           retry: "retried",
           sessionId: "vibe-1",
           retrySessionId: "vibe-2",
-          vibeHome,
         }),
       );
 
@@ -451,6 +466,15 @@ describe("writeAuthoringRecord (real git)", () => {
           toolCallsAgreed: 2,
         },
       });
+    });
+
+    it("with no vibe root, vibe usage is unavailable", async () => {
+      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n" });
+      await seedVibeSession("vibe-1", 3000);
+
+      await run(baseInput({ provider: "mistral-vibe", sessionId: "vibe-1" }));
+
+      expect((readManifest() as Record<string, unknown>)["usage"]).toEqual({ available: false });
     });
   });
 

@@ -8,7 +8,6 @@ import { recordsClonePath } from "../../app/recordsSync.js";
 import { decisionRecordPushWarning, decisionRecordWarning } from "../../app/writeDecisionRecord.js";
 import { DECIDE_SKILL_FOR_KIND } from "../../domain/decide/doctrine.js";
 import { AgentInvocationError } from "../../domain/errors.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
@@ -23,7 +22,11 @@ import type { Prompt } from "../../ports/prompt.js";
 import type { Session } from "../../ports/session.js";
 import type { Terminal } from "../../ports/terminal.js";
 import { defaultBundleRoot } from "./skills.js";
-import { exitCodeForAuthoringError, renderAgentInvocationError } from "./runLayers.js";
+import {
+  exitCodeForAuthoringError,
+  makeProviderBackendLayer,
+  renderAgentInvocationError,
+} from "./runLayers.js";
 
 export interface DecideCommandOptions {
   readonly question?: string;
@@ -102,7 +105,7 @@ export async function runArtifactDecide(
   const layer = Layer.mergeAll(
     fsLayer,
     makeNodeGitLayer(),
-    deps.backendLayer ?? makeNodeBackendLayer(providerConfig.right),
+    deps.backendLayer ?? makeProviderBackendLayer(providerConfig.right),
     deps.sessionLayer ?? makeNodeSessionLayer(),
     deps.promptLayer ?? makeClackPromptLayer(),
     deps.terminalLayer ?? NodeTerminalLayer,

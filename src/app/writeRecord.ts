@@ -50,10 +50,11 @@ export interface WriteRecordInput {
   readonly records: ResolvedRecordsConfig;
   /** Back-reference recorded when the phase committed; absent for a phase that never did. */
   readonly sourceSha?: string | undefined;
-  /** The agent session id, used to locate a vibe session's `meta.json` for usage. */
+  /**
+   * The agent session id, used to locate a vibe session's `meta.json` for
+   * usage under the `ProviderStoreRoots` vibe root.
+   */
   readonly sessionId?: string | undefined;
-  /** Overridable vibe home (`~/.vibe` by default) so tests can point at a fixture. */
-  readonly vibeHome?: string | undefined;
 }
 
 export type WriteRecordResult = RecordWriteResult;
@@ -81,7 +82,6 @@ export function writeRecord(
       provider: input.provider,
       folder: input.phaseFolderPath,
       sessionId: input.sessionId,
-      vibeHome: input.vibeHome,
     });
     const verifiedSurfacesForPhase = yield* computeVerifiedSurfacesForPhase(
       fs,
