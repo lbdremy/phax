@@ -6,6 +6,7 @@ import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 import { TokenUsageSchema } from "./runRecord.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { SafeSessionIdSchema } from "./sessionId.js";
 
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 
@@ -30,7 +31,7 @@ const SessionSchema = Schema.Struct({
   provider: ProviderIdSchema,
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
-  sessionId: Schema.NonEmptyString,
+  sessionId: SafeSessionIdSchema,
   startedAt: InstantSchema,
   origin: SessionOriginSchema,
 });
@@ -41,7 +42,7 @@ const FirstTurnSchema = Schema.Union(
     origin: FirstTurnOriginSchema,
     startedAt: InstantSchema,
     endedAt: InstantSchema,
-    sessionId: Schema.NonEmptyString,
+    sessionId: SafeSessionIdSchema,
   }),
   Schema.Struct({
     outcome: Schema.Literal("refused-change"),
@@ -102,12 +103,12 @@ const TurnInProgressSchema = Schema.Union(
 // The outcome of copying one recorded session's transcript at a close.
 const TranscriptEntrySchema = Schema.Union(
   Schema.Struct({
-    sessionId: Schema.NonEmptyString,
+    sessionId: SafeSessionIdSchema,
     status: Schema.Literal("captured"),
     sha256: Sha256Schema.annotations({ description: "The sha256 of the copied file's bytes." }),
   }),
   Schema.Struct({
-    sessionId: Schema.NonEmptyString,
+    sessionId: SafeSessionIdSchema,
     status: Schema.Literal("missing"),
     reason: Schema.Literal("not-found", "unreadable"),
     detail: Schema.NonEmptyString,

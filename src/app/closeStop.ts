@@ -46,7 +46,9 @@ import {
   sha256Hex,
   TRANSCRIPTS_FOLDER,
   transcriptFile,
+  UNSAFE_SESSION_ID_TRANSCRIPT,
   type ClosedStopSession,
+  type RecordedSession,
   type TranscriptOutcome,
 } from "../domain/interactive/transcripts.js";
 import {
@@ -1051,6 +1053,45 @@ function earlierCopyDigest(destination: string): Effect.Effect<string | null, ne
 }
 
 /**
+ * Copy one recorded session's transcript and give its outcome. An unsafe id
+ * builds no path, neither the store's nor the copy's, and reads nothing: it
+ * is `missing` as `unreadable`.
+ */
+function copyTranscript(
+  input: CloseStopInput,
+  recorded: RecordedSession,
+): Effect.Effect<TranscriptOutcome, CloseRefusal, Backend | FileSystem> {
+  return Effect.gen(function* () {
+    const file = transcriptFile(recorded.sessionId);
+    if (file === null) return UNSAFE_SESSION_ID_TRANSCRIPT;
+    const backend = yield* Backend;
+    const fs = yield* FileSystem;
+    const read = yield* backend.captureTranscript({
+      provider: recorded.provider,
+      sessionId: recorded.sessionId,
+      startedAt: recorded.startedAt,
+      cwd: input.worktree,
+    });
+    const destination = join(input.phaseFolder, file);
+    if (read.status === "found") {
+      yield* at(
+        "files",
+        fs.mkdirp(join(input.phaseFolder, TRANSCRIPTS_FOLDER), { mode: TRANSCRIPT_FOLDER_MODE }),
+      );
+      yield* at(
+        "files",
+        fs.writeAtomicBytes(destination, read.bytes, { mode: TRANSCRIPT_FILE_MODE }),
+      );
+      return { status: "captured", sha256: sha256Hex(read.bytes) } as const;
+    }
+    const kept = yield* earlierCopyDigest(destination);
+    return kept === null
+      ? ({ status: "missing", reason: read.reason, detail: read.detail } as const)
+      : ({ status: "captured", sha256: kept } as const);
+  });
+}
+
+/**
  * Copy the transcript of every session the stop recorded into
  * `interactive-transcripts/<session id>.jsonl`, overwriting an earlier copy,
  * and write each outcome into interactive-session.json. The adapter only
@@ -1067,39 +1108,13 @@ function copyTranscripts(
   Backend | FileSystem | SystemTelemetry
 > {
   return Effect.gen(function* () {
-    const backend = yield* Backend;
-    const fs = yield* FileSystem;
     // Read now: the closing turn rewrote the document after the stop wrote it.
     const session = yield* at("files", readInteractiveSession(input.phaseFolder));
     if (session === null) return [];
     const ctx = { runId: input.runId, phaseId: input.phase.id };
     const closed: ClosedStopSession[] = [];
     for (const recorded of recordedSessions(session)) {
-      const read = yield* backend.captureTranscript({
-        provider: recorded.provider,
-        sessionId: recorded.sessionId,
-        startedAt: recorded.startedAt,
-        cwd: input.worktree,
-      });
-      const destination = join(input.phaseFolder, transcriptFile(recorded.sessionId));
-      let transcript: TranscriptOutcome;
-      if (read.status === "found") {
-        yield* at(
-          "files",
-          fs.mkdirp(join(input.phaseFolder, TRANSCRIPTS_FOLDER), { mode: TRANSCRIPT_FOLDER_MODE }),
-        );
-        yield* at(
-          "files",
-          fs.writeAtomicBytes(destination, read.bytes, { mode: TRANSCRIPT_FILE_MODE }),
-        );
-        transcript = { status: "captured", sha256: sha256Hex(read.bytes) };
-      } else {
-        const kept = yield* earlierCopyDigest(destination);
-        transcript =
-          kept === null
-            ? { status: "missing", reason: read.reason, detail: read.detail }
-            : { status: "captured", sha256: kept };
-      }
+      const transcript = yield* copyTranscript(input, recorded);
       yield* traceTranscript(ctx, recorded, transcript);
       closed.push({
         provider: recorded.provider,

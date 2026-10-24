@@ -378,6 +378,23 @@ describe("interactive-session", () => {
     expect(accepted(decodeInteractiveSessionFile(stampedSession(without)))).toBe(false);
   });
 
+  it.each(["../../x", "..", ".", "a/b", "-X1"])(
+    "refuses the unsafe session id %j wherever a session id is recorded",
+    (id) => {
+      for (const document of [
+        { ...interactiveSession, current: { ...session, sessionId: id } },
+        { ...interactiveSession, history: [{ ...session, sessionId: id }] },
+        { ...interactiveSession, firstTurns: [{ ...answered, sessionId: id }] },
+        {
+          ...interactiveSession,
+          transcripts: [{ sessionId: id, status: "captured", sha256: "a".repeat(64) }],
+        },
+      ]) {
+        expect(accepted(decodeInteractiveSessionFile(stampedSession(document)))).toBe(false);
+      }
+    },
+  );
+
   it("decodes builderUsage as null or a token usage, and refuses it missing or with another key", () => {
     const usage = {
       available: true,

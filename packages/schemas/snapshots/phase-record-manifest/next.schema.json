@@ -7,6 +7,11 @@
       "description": "a non empty string",
       "title": "nonEmptyString",
       "minLength": 1
+    },
+    "SafeSessionId": {
+      "type": "string",
+      "description": "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
     }
   },
   "type": "object",
@@ -360,7 +365,7 @@
                         "$ref": "#/$defs/NonEmptyString"
                       },
                       "sessionId": {
-                        "$ref": "#/$defs/NonEmptyString"
+                        "$ref": "#/$defs/SafeSessionId"
                       },
                       "origin": {
                         "type": "string",
@@ -495,7 +500,7 @@
                         "$ref": "#/$defs/NonEmptyString"
                       },
                       "sessionId": {
-                        "$ref": "#/$defs/NonEmptyString"
+                        "$ref": "#/$defs/SafeSessionId"
                       },
                       "origin": {
                         "type": "string",
@@ -636,7 +641,7 @@
                         "$ref": "#/$defs/NonEmptyString"
                       },
                       "sessionId": {
-                        "$ref": "#/$defs/NonEmptyString"
+                        "$ref": "#/$defs/SafeSessionId"
                       },
                       "origin": {
                         "type": "string",
@@ -771,7 +776,7 @@
                         "$ref": "#/$defs/NonEmptyString"
                       },
                       "sessionId": {
-                        "$ref": "#/$defs/NonEmptyString"
+                        "$ref": "#/$defs/SafeSessionId"
                       },
                       "origin": {
                         "type": "string",

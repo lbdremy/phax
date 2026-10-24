@@ -54,9 +54,32 @@ export function recordedSessions(session: {
   });
 }
 
-/** The copy of a session's transcript, relative to the phase folder. */
-export function transcriptFile(sessionId: string): string {
-  return `${TRANSCRIPTS_FOLDER}/${sessionId}.jsonl`;
+/**
+ * A session id that may be joined into a path: it starts with a letter or
+ * digit and holds only letters, digits, `.`, `_` and `-`, so `.`, `..` and
+ * any slash are refused. The one definition: the documents' schemas, the
+ * provider store adapters and the close's copies all test ids against it.
+ */
+export const SAFE_SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** Whether `sessionId` may be joined into a path (see SAFE_SESSION_ID). */
+export function isSafeSessionId(sessionId: string): boolean {
+  return SAFE_SESSION_ID.test(sessionId);
+}
+
+/** The outcome of a session whose id is unsafe: no path is built from it, nothing is read. */
+export const UNSAFE_SESSION_ID_TRANSCRIPT: TranscriptOutcome = {
+  status: "missing",
+  reason: "unreadable",
+  detail: "unsafe session id",
+};
+
+/**
+ * The copy of a session's transcript, relative to the phase folder; null
+ * when the id is unsafe, so no path is ever built from it.
+ */
+export function transcriptFile(sessionId: string): string | null {
+  return isSafeSessionId(sessionId) ? `${TRANSCRIPTS_FOLDER}/${sessionId}.jsonl` : null;
 }
 
 /** The sha256 of `bytes`, in hex: of the bytes, never of a decoded string. */
