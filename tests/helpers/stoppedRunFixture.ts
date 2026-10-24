@@ -19,6 +19,7 @@ import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { ProviderId } from "../../src/schemas/providerId.js";
 import { encodeSecurityPosture } from "../../src/schemas/securityPosture.js";
+import { isolateGit } from "./isolateGit.js";
 import { phaseStatusFile } from "./phaseStatusFixture.js";
 import { runStatus } from "./runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
@@ -55,7 +56,9 @@ export interface StoppedRun {
   readonly policy: SecurityPolicy;
 }
 
+/** A temporary repository, git isolated from the person's configuration until `cleanup` (isolateGit). */
 export function createWorld(): World {
+  const restoreGit = isolateGit();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-stopped-run-test-")));
   const repoRoot = join(root, "repo");
   const stateRoot = join(root, "state");
@@ -73,7 +76,11 @@ export function createWorld(): World {
   writeFileSync(join(repoRoot, "docs", "notes.md"), "# Export notes\n");
   git("add", "-A");
   git("commit", "-m", "feat(export): invoice CSV record");
-  return { root, repoRoot, stateRoot, cleanup: () => removeTempDir(root) };
+  const cleanup = (): void => {
+    removeTempDir(root);
+    restoreGit();
+  };
+  return { root, repoRoot, stateRoot, cleanup };
 }
 
 function planPhase(id: string, title: string, mode: "headless" | "interactive"): PhaxPlanPhase {
