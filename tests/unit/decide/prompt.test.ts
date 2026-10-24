@@ -221,7 +221,7 @@ describe("buildDecidePrompt", () => {
     expect(item.additionalProperties).toBe(false);
     expect(item.properties["summary"]).toMatchObject({
       type: "string",
-      pattern: "^[^\\n\\r]+$",
+      pattern: "^[^\\n\\r\\u0085\\u2028\\u2029]+$",
     });
     expect(item.properties["summary"]?.description).toContain("in the consumer's words");
   });
