@@ -17,45 +17,43 @@ describe("selectPrTitle", () => {
     expect(selectPrTitle({ configuredTitle: "  trimmed  ", shortName: "x" })).toBe("trimmed");
   });
 
-  it("falls back to runTitle with PHAX prefix when configuredTitle is absent", () => {
+  it("falls back to runTitle when configuredTitle is absent", () => {
     expect(
       selectPrTitle({
         runTitle: "Push branch and create PR",
         phaseTitle: "Phase One",
         shortName: "my-run",
       }),
-    ).toBe("PHAX: Push branch and create PR");
+    ).toBe("Push branch and create PR");
   });
 
-  it("falls back to phaseTitle with PHAX prefix when configuredTitle and runTitle are absent", () => {
+  it("falls back to phaseTitle when configuredTitle and runTitle are absent", () => {
     expect(
       selectPrTitle({
         phaseTitle: "Publication domain model",
         shortName: "my-run",
       }),
-    ).toBe("PHAX: Publication domain model");
+    ).toBe("Publication domain model");
   });
 
-  it("falls back to shortName with PHAX prefix when all other candidates are absent", () => {
-    expect(selectPrTitle({ shortName: "my-run" })).toBe("PHAX: my-run");
+  it("falls back to shortName when all other candidates are absent", () => {
+    expect(selectPrTitle({ shortName: "my-run" })).toBe("my-run");
   });
 
   it("skips empty configuredTitle and uses runTitle", () => {
     expect(selectPrTitle({ configuredTitle: "   ", runTitle: "Run Title", shortName: "x" })).toBe(
-      "PHAX: Run Title",
+      "Run Title",
     );
   });
 
   it("skips empty runTitle and uses phaseTitle", () => {
     expect(selectPrTitle({ runTitle: "", phaseTitle: "Phase Title", shortName: "x" })).toBe(
-      "PHAX: Phase Title",
+      "Phase Title",
     );
   });
 
   it("skips empty phaseTitle and uses shortName", () => {
-    expect(selectPrTitle({ phaseTitle: "  ", shortName: "fallback-name" })).toBe(
-      "PHAX: fallback-name",
-    );
+    expect(selectPrTitle({ phaseTitle: "  ", shortName: "fallback-name" })).toBe("fallback-name");
   });
 
   it("does not prefix configuredTitle even if it looks generated", () => {
