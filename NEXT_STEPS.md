@@ -16,6 +16,14 @@ shipped, and these specs landed and were completed: `approval-record-files` (wit
 
 ### In flight
 
+- [x] **`surface-summary`** — `docs/specs/2610211432-surface-summary.md`, approved 2026-10-21.
+      Every surface element of a spec gains a required one-line `summary` in the consumer's words.
+      - One plan (`surface-summary`) landed: the format, its freeze and lift, the placeholder
+        refusals at `approve` and `complete`, the migration report's count, the skill and the docs.
+      - The operator runs `phax artifact migrate-documents` on main after the merge and writes the
+        live specs' summaries.
+      - The release-notes script that reads the summaries is the next, separate change.
+
 - [x] **`assignment-bounds`** — `docs/specs/2610201350-assignment-bounds.md`, approved 2026-10-20.
       It replaces `phase-model-assignment`.
       - The owner writes ordered bounds in `phax.json` (`part` or `globs`, a model and an effort
