@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610211403-interactive-phases.md
 completes-spec: true
 approved:
