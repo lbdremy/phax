@@ -12,6 +12,7 @@ import type {
   SpecApprovalUnrecordedError,
   SpecEditedSinceApprovalError,
   SpecNotApprovedError,
+  SurfaceSummariesUnwrittenError,
 } from "../domain/errors.js";
 import { SpecRetirementBlockedError } from "../domain/errors.js";
 import {
@@ -95,6 +96,7 @@ export type RunCompletionError =
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactSidecarDivergedError
+  | SurfaceSummariesUnwrittenError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError;

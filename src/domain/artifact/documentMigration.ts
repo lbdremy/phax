@@ -9,6 +9,7 @@ import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
 import { validateArtifact } from "./document.js";
 import { parseArtifactName } from "./name.js";
 import { type QuestionSummary, summarizeDocumentQuestions } from "./questions.js";
+import { summariesToWrite as countSummariesToWrite } from "./surfaceSummaries.js";
 import {
   type DocumentFormat,
   type OlderDocumentShape,
@@ -63,6 +64,8 @@ export interface DocumentMigration {
   /** Whether `md` differs from the artifact as read; an unchanged md is never written. */
   readonly bodyChanged: boolean;
   readonly questions: QuestionSummary;
+  /** Surface summaries the lift left as the placeholder; 0 for a plan. */
+  readonly summariesToWrite: number;
 }
 
 export type DocumentMigrationDecision =
@@ -166,6 +169,7 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
       md: newMd,
       bodyChanged: newMd !== md,
       questions: summarizeDocumentQuestions(arrays),
+      summariesToWrite: document.kind === "spec" ? countSummariesToWrite(document.document) : 0,
     },
   };
 }
@@ -177,6 +181,8 @@ export interface MigratedArtifact {
   readonly path: string;
   readonly status: ArtifactStatus;
   readonly questions: QuestionSummary;
+  /** Surface summaries left as the placeholder, still to write; 0 for a plan. */
+  readonly summariesToWrite: number;
   readonly bodyChanged: boolean;
   /** An Approved artifact whose approval record no longer matches its new text. */
   readonly editedSinceApproval: boolean;
@@ -237,6 +243,7 @@ export function groupMigratedArtifacts(
           path: migration.path,
           status: migration.status,
           questions: migration.questions,
+          summariesToWrite: migration.summariesToWrite,
           bodyChanged: migration.bodyChanged,
           editedSinceApproval,
         }))

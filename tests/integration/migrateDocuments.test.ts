@@ -752,9 +752,22 @@ describe(
       expect(porcelain()).toBe("");
 
       expect(report).toContain(
-        `    now edited since approval — re-approve with \`phax artifact approve ${PLAN_PRUNE}\``,
+        `    now edited since approval — write its summaries, then re-approve with \`phax artifact approve ${PLAN_PRUNE}\``,
       );
       expect(report).toContain("stale (spec-changed)");
+    });
+
+    // ac-lift-report
+    it("prints the summaries still to write on the lifted spec's line", async () => {
+      const doc = spec0_25_0("Plan prune");
+      writeV0_25_0Spec(PLAN_PRUNE, doc, specFrontmatter("Approved", approvedStamp()));
+      commitAll("approve before migration");
+
+      const lines = renderDocumentMigrationReport(await migrated());
+
+      expect(lines.find((l) => l.includes(PLAN_PRUNE) && l.includes("Approved"))).toMatch(
+        / · 3 summaries to write$/,
+      );
     });
 
     // ac-lift-hand-edited

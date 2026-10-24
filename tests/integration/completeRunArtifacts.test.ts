@@ -11,7 +11,12 @@ import {
 } from "../../src/app/completeRunArtifacts.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
-import { InvalidArtifactTransitionError } from "../../src/domain/errors.js";
+import {
+  InvalidArtifactTransitionError,
+  SurfaceSummariesUnwrittenError,
+} from "../../src/domain/errors.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
@@ -420,5 +425,107 @@ describe("renderSourceSpecOutcome", () => {
         keptSpec: { reason: "not-completing", path: SPEC_PATH },
       }),
     ).toBe(`\`${SPEC_PATH}\` — kept: this plan does not complete it (completes-spec: false)`);
+  });
+});
+
+// A spec sidecar for run completion: one surface element, its summary the
+// given text, or absent as in the 0.25.0 shape.
+function specSidecarJson(stamp: "current" | "0.25.0", summary: string): string {
+  const element = {
+    surface: "cli: `phax rotate <run>`",
+    ...(stamp === "current" ? { summary } : {}),
+    binding: "normative",
+    before: null,
+    after: "phax rotate\n  rotated",
+  };
+  const doc = {
+    kind: "spec",
+    title: "Run carry",
+    ground: [],
+    context: "It matters.",
+    problem: "A problem.",
+    productGoal: { statement: "Keep it bounded.", guidingRule: "Kept only while useful." },
+    terminology: [],
+    requirements: [
+      {
+        id: "R-main",
+        title: "Main",
+        pattern: "event",
+        statement: "WHEN a run ends THE system SHALL tidy up.",
+      },
+    ],
+    surface: [element],
+    nonGoals: [],
+    acceptanceCriteria: [
+      {
+        id: "AC-1",
+        name: "It tidies up",
+        given: "a finished run",
+        when: "it is tidied",
+        // oxlint-disable-next-line unicorn/no-thenable -- given/when/then data, never awaited
+        then: "nothing is left behind",
+        refs: ["R-main"],
+      },
+    ],
+    openQuestions: [],
+    arbitratedQuestions: [],
+    planningNote: { settled: [], open: [], constraints: [] },
+    docsPage: { kind: "none", why: "the CLI reference covers it" },
+  };
+  const stamped =
+    stamp === "current"
+      ? withSchemaUrl("spec-document", doc)
+      : { $schema: schemaUrl("spec-document", "0.25.0"), ...doc };
+  return `${JSON.stringify(stamped, null, 2)}\n`;
+}
+
+describe("completeRunArtifacts — surface summaries", () => {
+  const SPEC_SIDECAR = "docs/specs/2609101270-run-carry.json";
+  const SPEC_ARCHIVED_SIDECAR = "docs/specs/archive/2609101270-run-carry.json";
+
+  function seed(sidecar: string): void {
+    writeRepoFile(SPEC_PATH, specMd("Approved"));
+    writeRepoFile(SPEC_SIDECAR, sidecar);
+    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH, true));
+    writePlanRecord(PLAN_PATH, SPEC_PATH);
+    writeSpecRecord(SPEC_PATH);
+    commitAll();
+  }
+
+  it("completes an Approved spec stamped 0.25.0, archiving its sidecar byte for byte", async () => {
+    const sidecar = specSidecarJson("0.25.0", "");
+    seed(sidecar);
+
+    const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(readRepoFile(SPEC_ARCHIVE)).toContain("status: Completed");
+    expect(readRepoFile(SPEC_ARCHIVED_SIDECAR)).toBe(sidecar);
+    expect(readRepoFile(SPEC_SIDECAR)).toBeUndefined();
+    expect(readRepoFile(SPEC_PATH)).toBeUndefined();
+    expect(git(["status", "--porcelain"]).trim()).toBe("");
+  });
+
+  it("fails with SurfaceSummariesUnwrittenError for a current-shape spec holding the placeholder, after the plan is archived", async () => {
+    const sidecar = specSidecarJson("current", SURFACE_SUMMARY_PLACEHOLDER);
+    seed(sidecar);
+    const specMdBefore = readRepoFile(SPEC_PATH);
+
+    const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (!Either.isLeft(result)) return;
+    expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+    expect((result.left as SurfaceSummariesUnwrittenError).surfaces).toEqual([
+      "cli: `phax rotate <run>`",
+    ]);
+    // The plan archived first; the spec and its sidecar stay put, unchanged.
+    expect(readRepoFile(PLAN_ARCHIVE)).toContain("status: Completed");
+    expect(readRepoFile(SPEC_PATH)).toBe(specMdBefore);
+    expect(readRepoFile(SPEC_SIDECAR)).toBe(sidecar);
+    expect(readRepoFile(SPEC_ARCHIVE)).toBeUndefined();
+    expect(readRepoFile(SPEC_ARCHIVED_SIDECAR)).toBeUndefined();
+    expect(readRepoFile(SPEC_RECORD)).toBeDefined();
+    expect(git(["status", "--porcelain"]).trim()).toBe("");
   });
 });

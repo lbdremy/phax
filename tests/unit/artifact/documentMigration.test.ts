@@ -195,6 +195,8 @@ describe("decideDocumentMigration — specs", () => {
     expect(m.format).toBe("spec-document");
     expect(m.fromShape).toBe("0.17.0");
     expect(m.questions).toEqual({ open: ["Q2"], arbitrated: 1, lifted: 1 });
+    // ac-lift-report: every lifted element still holds the placeholder.
+    expect(m.summariesToWrite).toBe(2);
 
     const sidecar = JSON.parse(m.sidecarText) as Record<string, unknown>;
     expect(Object.keys(sidecar)[0]).toBe("$schema");
@@ -340,6 +342,7 @@ describe("decideDocumentMigration — plans", () => {
     expect(m.md).toBe(md);
     expect(m.bodyChanged).toBe(false);
     expect(m.questions).toEqual({ open: [], arbitrated: 0, lifted: 0 });
+    expect(m.summariesToWrite).toBe(0);
     const sidecar = JSON.parse(m.sidecarText) as {
       $schema: string;
       sourceSpec: unknown;
@@ -466,6 +469,7 @@ describe("groupMigratedArtifacts", () => {
         path: SPEC,
         status: "Draft",
         questions: { open: ["Q2"], arbitrated: 1, lifted: 1 },
+        summariesToWrite: 2,
         bodyChanged: true,
         editedSinceApproval: true,
       },

@@ -41,6 +41,7 @@ import {
   DecideRefusedError,
   ArtifactDirtyWriteSetError,
   ArtifactOpenQuestionsError,
+  SurfaceSummariesUnwrittenError,
   ArtifactQuestionsUnparsedError,
   ArtifactSidecarDivergedError,
   ArtifactValidationError,
@@ -236,6 +237,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
     err instanceof ArtifactOpenQuestionsError ||
+    err instanceof SurfaceSummariesUnwrittenError ||
     err instanceof ArtifactQuestionsUnparsedError ||
     err instanceof ArtifactCreationError ||
     err instanceof DecideRefusedError ||

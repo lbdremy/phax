@@ -14,6 +14,7 @@ import {
   type SpecEditedSinceApprovalError,
   type SpecNotApprovedError,
   type SpecRetirementBlockedError,
+  type SurfaceSummariesUnwrittenError,
 } from "../domain/errors.js";
 import {
   archivePathFor,
@@ -261,6 +262,7 @@ export function applyStalenessReport(
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactSidecarDivergedError
+  | SurfaceSummariesUnwrittenError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError,
