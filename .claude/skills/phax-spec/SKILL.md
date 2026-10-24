@@ -152,6 +152,12 @@ verify it verbatim) or **indicative** (intent binds, the planner may adjust the 
 spelling) — an indicative sketch with real fields beats an accurate abstraction. Omit only
 if the change has no consumer-visible surface, and say so in one line.>
 
+### <kind>: <name> — normative | indicative
+
+Summary: <one sentence: what the consumer can now do or sees differently>
+
+    <the element's block: the invocation, config or payload, as the consumer sees it>
+
 ## 7. Non-goals
 
 <What is explicitly NOT in scope. Bounds the agent's exploration and the plan's surface.
@@ -218,6 +224,9 @@ an arbitrated question without one, or a bold `**Q2 — …**` heading departs f
 constraint the plan must respect. Keep it to the contract — do not start planning here.>
 ```
 
+In a hand-authored spec the `Summary:` line under a §6 element heading is guidance phax does
+not check; the headless sidecar's `summary` is what phax requires.
+
 ## EARS — required for every functional requirement
 
 Every requirement in §5 must follow one of the five EARS (Easy Approach to Requirements
@@ -283,6 +292,22 @@ Rules:
 - **No surface, no section?** If the change genuinely has no consumer-visible surface (a pure
   behavioral fix behind an existing interface), say so in one line rather than omitting the
   section silently.
+
+### The summary of each element
+
+Every surface element carries a `summary`: one sentence, in the consumer's words, saying what
+the consumer can now do or sees differently. It never says where the change lives and never
+how it is built. It is one line. The consumer depends on the kind: for `cli:` and `config:`
+it is the operator, for `file:` and `api:` a reading tool or person, for `package:` a
+dependent package, for `internal:` the phax code or agent that relies on it.
+
+Good: `phax validate` checks each assignment bound against the routing catalog.
+Bad: Adds a bounds check to the validate command's config loader.
+
+An element lifted by `phax artifact migrate-documents` carries the placeholder
+`(summary to write — lifted by phax artifact migrate-documents)`. The author replaces it with
+the same sentence in the sidecar and on the §6 `Summary:` line, and `phax artifact approve`
+and `complete` refuse the spec until they do.
 
 ## Acceptance criteria and traceability
 
@@ -403,7 +428,7 @@ Top-level keys, with the section each renders to:
 | `productGoal`        | `{ statement, guidingRule }`                                 | §3, the rule as a blockquote             |
 | `terminology`        | `[{ term, definition }]`                                     | §4 Terminology                           |
 | `requirements`       | non-empty `[{ id, title, pattern, statement }]`              | §5, one `### 5.N` per requirement        |
-| `surface`            | `[{ surface, binding, before, after }]`                      | §6 Surface                               |
+| `surface`            | `[{ surface, summary, binding, before, after }]`             | §6 Surface                               |
 | `nonGoals`           | `[string]`                                                   | §7 Non-goals                             |
 | `acceptanceCriteria` | non-empty `[{ id, name, given, when, then, refs }]`          | §8, "Given …, when …, then …" + refs     |
 | `openQuestions`      | `[{ id, question, options, recommendation, rationale }]`     | §9 Open questions                        |
@@ -417,6 +442,10 @@ The constrained shapes:
   `"unwanted"` or `"optional"` (see EARS above). `statement` is the full EARS sentence.
 - **`surface`** — the element's kind and name, prefixed by one of `cli: `, `config: `,
   `file: `, `api: `, `package: `, `internal: ` (e.g. `"cli: phax artifact schema"`).
+- **`summary`** — one sentence, in the consumer's words: what whoever consumes this element
+  can now do or sees differently. Never where the change lives, never how it is built. One
+  line, no line break; phax refuses a missing, empty or multi-line summary. See the Surface
+  section.
 - **`binding`** — `"normative"` or `"indicative"` (see Surface above).
 - **`before` / `after`** — the materialized element: `after` is the invocation, block or
   payload the consumer sees; `before` is its current form, or `null` for a new element.

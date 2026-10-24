@@ -21,6 +21,11 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.27.0
+
+- **Spec sidecars gain a `summary` on every surface element.** Run `phax artifact migrate-documents` once. It restamps every live spec sidecar, writes a placeholder summary on each element, re-renders §6 and commits; the report counts the summaries left to write per spec. Then write each summary, one sentence in the consumer's words, in the sidecar and on its §6 `Summary:` line. `phax artifact approve` and `complete` refuse (exit 12) a spec until its placeholders are gone, and `approve`, `reopen` and `decide` refuse until the migration has run. Archived specs are not touched.
+- **Hand-authored specs:** add a `Summary:` line under each §6 element heading if you want the same layout; phax does not check it.
+
 ### 0.26.0
 
 - **Oracle phases** need an `oracles` provider: `phax plans lint` and `phax run` refuse an oracle phase without one. Nothing to run; phase records written earlier read with no oracle role.
