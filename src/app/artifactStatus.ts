@@ -442,7 +442,10 @@ export function transitionArtifact(
   TransitionArtifactError | ArbitratedTransitionError,
   FileSystem | Git
 >;
-/** Stale, complete or abandon: carries an older sidecar as it is. */
+/**
+ * Stale, complete or abandon: carries an older sidecar as it is. Complete
+ * still refuses a current-shape spec sidecar holding a summary placeholder.
+ */
 export function transitionArtifact(
   repoRelPath: string,
   target: Exclude<ArtifactStatus, ArbitratedTarget>,

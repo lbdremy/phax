@@ -125,8 +125,9 @@ function migratedArtifactLines(artifact: MigratedArtifact, width: number): strin
 /**
  * The stdout lines of `phax artifact migrate-documents`: one group per format
  * and older shape, each artifact with its status and question counts (or
- * `body unchanged`) and, for a spec, the surface summaries left to write, the Approved artifacts it leaves edited since approval,
- * the plans it leaves stale, and the commit.
+ * `body unchanged`) and, for a spec, the surface summaries left to write, the
+ * Approved artifacts it leaves edited since approval, the plans it leaves
+ * stale, and the commit.
  */
 export function renderDocumentMigrationReport(result: DocumentMigrationResult): readonly string[] {
   if (result.kind === "nothing-to-migrate") {

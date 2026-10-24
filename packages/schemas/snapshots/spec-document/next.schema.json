@@ -158,7 +158,7 @@
           "summary": {
             "type": "string",
             "description": "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
-            "pattern": "^[^\\n\\r]+$"
+            "pattern": "^[^\\n\\r\\u0085\\u2028\\u2029]+$"
           },
           "binding": {
             "type": "string",

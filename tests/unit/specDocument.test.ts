@@ -234,6 +234,9 @@ describe("decodeSpecDocument", () => {
     ["a line feed", "It frees the slug.\nIt also prunes."],
     ["a carriage return", "It frees the slug.\rIt also prunes."],
     ["a CRLF", "It frees the slug.\r\nIt also prunes."],
+    ["a next line", "It frees the slug.\u0085It also prunes."],
+    ["a line separator", "It frees the slug.\u2028It also prunes."],
+    ["a paragraph separator", "It frees the slug.\u2029It also prunes."],
   ])("rejects a summary holding %s, naming surface[0].summary", (_name, summary) => {
     expect(rejection(withSummary(summary))).toMatch(/^surface\[0\]\.summary: /);
   });
@@ -390,7 +393,7 @@ describe("getSpecDocumentJsonSchema", () => {
       type: "string",
       description:
         "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
-      pattern: "^[^\\n\\r]+$",
+      pattern: "^[^\\n\\r\\u0085\\u2028\\u2029]+$",
     });
   });
 

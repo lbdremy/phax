@@ -54,7 +54,7 @@ export const SURFACE_SUMMARY_PLACEHOLDER =
 const SurfaceElementSchema = Schema.Struct({
   surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
   summary: Schema.String.pipe(
-    Schema.pattern(/^[^\n\r]+$/),
+    Schema.pattern(/^[^\n\r\u0085\u2028\u2029]+$/),
     Schema.annotations({
       description:
         "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
