@@ -1,7 +1,4 @@
 import { Effect } from "effect";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeFinalReport } from "../../src/app/finalReport.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -66,7 +63,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
 
 function posture(skillEditGrants: readonly string[]): SecurityPosture {
   return {
-    version: 1,
+    version: 2,
     mode: "secure",
     provider: "claude-code",
     sandboxEnabled: true,
@@ -78,6 +75,7 @@ function posture(skillEditGrants: readonly string[]): SecurityPosture {
     agentCommands: [],
     skillEditGrants,
     providerSkippedForSecurity: [],
+    stop: null,
   };
 }
 
@@ -117,29 +115,77 @@ describe("writeFinalReport", () => {
   });
 
   describe("security section", () => {
-    // security.json is read from disk (not through the fs port), so the run
-    // folder is a real temp dir while the report is written to the fake fs.
+    // security.json is read through the fs port, like the report is written.
+    async function reportWithFiles(
+      files: Record<string, string>,
+      overrides: Partial<RunReviewInfo> = {},
+    ): Promise<string | undefined> {
+      const fs = makeFakeFileSystem();
+      for (const [path, content] of Object.entries(files)) {
+        fs.impl.setFile(`${runPath}/${path}`, content);
+      }
+      await Effect.runPromise(writeFinalReport(makeInfo(overrides)).pipe(Effect.provide(fs.layer)));
+      return fs.impl.getFile(`${runPath}/final-report.md`);
+    }
+
     async function reportWithPostures(
       postures: Record<string, SecurityPosture>,
     ): Promise<string | undefined> {
-      const realRunPath = mkdtempSync(join(tmpdir(), "phax-final-report-"));
-      try {
-        for (const [phaseId, p] of Object.entries(postures)) {
-          mkdirSync(join(realRunPath, phaseId));
-          writeFileSync(
-            join(realRunPath, phaseId, "security.json"),
+      return reportWithFiles(
+        Object.fromEntries(
+          Object.entries(postures).map(([phaseId, p]) => [
+            `${phaseId}/security.json`,
             JSON.stringify(encodeSecurityPosture(p)),
-          );
-        }
-        const fs = makeFakeFileSystem();
-        await Effect.runPromise(
-          writeFinalReport(makeInfo({ runPath: realRunPath })).pipe(Effect.provide(fs.layer)),
-        );
-        return fs.impl.getFile(join(realRunPath, "final-report.md"));
-      } finally {
-        rmSync(realRunPath, { recursive: true, force: true });
-      }
+          ]),
+        ),
+      );
     }
+
+    it("names a security.json that does not decode as unreadable, with its first violation", async () => {
+      const { stop: _stop, ...withoutStop } = encodeSecurityPosture(posture([]));
+      const report = await reportWithFiles({
+        "phase-01/security.json": JSON.stringify(encodeSecurityPosture(posture([]))),
+        "phase-02/security.json": JSON.stringify(withoutStop),
+      });
+      const section = report?.split("### Unreadable Security Files")[1]?.split("##")[0];
+      expect(section).toContain(`${runPath}/phase-02/security.json\` is unreadable:`);
+      expect(section).toContain("stop");
+      expect(section).not.toContain("phase-01");
+      // The readable phase still has its row.
+      expect(report).toMatch(/\| phase-01 \| secure \| claude-code \| /);
+    });
+
+    it("names a security.json that is not JSON as unreadable", async () => {
+      const report = await reportWithFiles({ "phase-01/security.json": "{ not json" });
+      expect(report).toContain("is unreadable: not valid JSON");
+    });
+
+    it("reads a version-1 security.json as a phase that never stopped", async () => {
+      const { stop: _stop, ...rest } = encodeSecurityPosture(posture([]));
+      const report = await reportWithFiles({
+        "phase-01/security.json": JSON.stringify({ ...rest, version: 1 }),
+      });
+      expect(report).toMatch(/\| phase-01 \| secure \| claude-code \| /);
+      expect(report).not.toContain("Unreadable Security Files");
+    });
+
+    it("lists an interactive phase's turn streams from the phase folder, first turns first", async () => {
+      const report = await reportWithFiles(
+        {
+          "phase-01/closing-turn-01.jsonl": "",
+          "phase-01/first-turn-01.jsonl": "",
+          "phase-01/first-turn-01-retry.jsonl": "",
+          "phase-01/output.jsonl": "",
+        },
+        { phaseStatuses: [makePhaseStatus({ phaseId: "phase-01", mode: "interactive" })] },
+      );
+      const turns = [...(report ?? "").matchAll(/- Turn: `[^`]*\/(\S+\.jsonl)`/g)].map((m) => m[1]);
+      expect(turns).toEqual([
+        "first-turn-01.jsonl",
+        "first-turn-01-retry.jsonl",
+        "closing-turn-01.jsonl",
+      ]);
+    });
 
     it("lists each phase's granted skill files", async () => {
       const report = await reportWithPostures({

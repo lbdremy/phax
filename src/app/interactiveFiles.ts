@@ -13,7 +13,11 @@ import type { SecurityPolicy } from "../domain/security/types.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { formatParseError } from "../schemas/formatError.js";
 import { ProviderIdSchema, type ProviderId } from "../schemas/providerId.js";
-import { decodeSecurityPosture } from "../schemas/securityPosture.js";
+import {
+  encodeSecurityPosture,
+  readSecurityPosture,
+  type SecurityPosture,
+} from "../schemas/securityPosture.js";
 import {
   encodeInteractiveSessionFile,
   type InteractiveSession,
@@ -384,6 +388,46 @@ export function readModelResolution(
   });
 }
 
+const SECURITY_FILE = "security.json";
+
+/**
+ * The phase's `security.json`, a version 1 file lifted: a missing or
+ * unreadable file is an FsError naming it.
+ */
+export function readSecurityFile(
+  phaseFolder: string,
+): Effect.Effect<SecurityPosture, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(phaseFolder, SECURITY_FILE);
+    if (!(yield* fs.exists(path))) {
+      return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
+    }
+    const parsed = yield* parseJson(path, yield* fs.readText(path));
+    const decoded = readSecurityPosture(parsed);
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(
+        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+      );
+    }
+    return decoded.right;
+  });
+}
+
+/** Write the phase's `security.json` the way a phase entered fresh writes it. */
+export function writeSecurityFile(
+  phaseFolder: string,
+  posture: SecurityPosture,
+): Effect.Effect<void, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* fs.writeAtomic(
+      join(phaseFolder, SECURITY_FILE),
+      JSON.stringify(encodeSecurityPosture(posture), null, 2),
+    );
+  });
+}
+
 /**
  * The phase's policy and frozen agent commands, rebuilt from its
  * `security.json`: what a continue or fresh-start command carries. A missing
@@ -397,21 +441,10 @@ export function readPhasePosture(
   FileSystem
 > {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(phaseFolder, "security.json");
-    if (!(yield* fs.exists(path))) {
-      return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
-    }
-    const parsed = yield* parseJson(path, yield* fs.readText(path));
-    const decoded = decodeSecurityPosture(parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(
-        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
-      );
-    }
+    const posture = yield* readSecurityFile(phaseFolder);
     return {
-      policy: policyFromPosture(decoded.right),
-      agentCommands: decoded.right.agentCommands.map((c) => c.command),
+      policy: policyFromPosture(posture),
+      agentCommands: posture.agentCommands.map((c) => c.command),
     };
   });
 }

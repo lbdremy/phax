@@ -1,12 +1,13 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
+import { TURN_STREAM_PATTERN } from "../domain/records/stopArtifacts.js";
+import { formatParseError } from "../schemas/formatError.js";
 import type { PublicationRecord } from "../domain/publish/types.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
-import { decodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
+import { readSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
 import type { RecordedSurface } from "../schemas/surface.js";
 import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
 
@@ -26,39 +27,54 @@ function isPhaseSuccessful(p: PhaseStatus): boolean {
   return isPhaseTerminal(p.state) && p.state !== "skipped";
 }
 
-function tryReadSecurityPosture(runPath: string, phaseId: string): SecurityPosture | null {
-  const securityPath = join(runPath, phaseId, "security.json");
-  if (!existsSync(securityPath)) {
-    return null;
-  }
-  try {
-    const raw = JSON.parse(readFileSync(securityPath, "utf8")) as unknown;
-    const decoded = decodeSecurityPosture(raw);
-    if (Either.isRight(decoded)) {
-      return decoded.right;
+/** What reading a phase's `security.json` gave: no file, a posture, or a file that does not decode. */
+type PostureRead =
+  | { readonly kind: "absent" }
+  | { readonly kind: "read"; readonly posture: SecurityPosture }
+  | { readonly kind: "unreadable"; readonly file: string; readonly violation: string };
+
+function readPostureOf(
+  runPath: string,
+  phaseId: string,
+): Effect.Effect<PostureRead, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const file = join(runPath, phaseId, "security.json");
+    if (!(yield* fs.exists(file))) return { kind: "absent" } as const;
+    const text = yield* fs.readText(file);
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text) as unknown;
+    } catch {
+      return { kind: "unreadable", file, violation: "not valid JSON" } as const;
     }
-  } catch {
-    // Ignore parse/read errors
-  }
-  return null;
+    const decoded = readSecurityPosture(raw);
+    if (Either.isLeft(decoded)) {
+      const first = formatParseError(decoded.left).split("\n")[0]?.trim() ?? "does not decode";
+      return { kind: "unreadable", file, violation: first } as const;
+    }
+    return { kind: "read", posture: decoded.right } as const;
+  }).pipe(
+    Effect.catchAll((error) =>
+      Effect.succeed({
+        kind: "unreadable",
+        file: join(runPath, phaseId, "security.json"),
+        violation: error.message,
+      } as const),
+    ),
+  );
 }
 
-const TURN_STREAM = /^(first|closing)-turn-\d{2}(-retry)?\.jsonl$/;
-
 // An interactive phase's first-turn and closing-turn streams, first turns first.
-function turnStreams(phaseFolder: string): string[] {
-  try {
-    // A turn's stream sorts before its `-retry` stream.
-    const streams = readdirSync(phaseFolder)
-      .filter((entry) => TURN_STREAM.test(entry))
-      .toSorted((a, b) => a.replace(".jsonl", "").localeCompare(b.replace(".jsonl", "")));
-    return [
-      ...streams.filter((s) => s.startsWith("first-")),
-      ...streams.filter((s) => s.startsWith("closing-")),
-    ];
-  } catch {
-    return [];
-  }
+function turnStreams(names: readonly string[]): string[] {
+  // A turn's stream sorts before its `-retry` stream.
+  const streams = names
+    .filter((entry) => TURN_STREAM_PATTERN.test(entry))
+    .toSorted((a, b) => a.replace(".jsonl", "").localeCompare(b.replace(".jsonl", "")));
+  return [
+    ...streams.filter((s) => s.startsWith("first-")),
+    ...streams.filter((s) => s.startsWith("closing-")),
+  ];
 }
 
 function formatSecurityPosture(phaseId: string, posture: SecurityPosture): string {
@@ -171,9 +187,16 @@ export function renderPublicationSection(record: PublicationRecord): string {
   return lines.join("\n") + "\n";
 }
 
+interface PhaseFiles {
+  readonly posture: PostureRead;
+  /** The names in the phase folder: an interactive phase's turn streams come from them. */
+  readonly names: readonly string[];
+}
+
 function buildFinalReportMarkdown(
   info: RunReviewInfo,
   verifiedSurfaces: readonly RecordedSurface[],
+  files: ReadonlyMap<string, PhaseFiles>,
   publication?: PublicationRecord,
 ): string {
   const passed = info.phaseStatuses.filter(isPhaseSuccessful).length;
@@ -198,7 +221,7 @@ function buildFinalReportMarkdown(
     .map((p) => {
       const base = `${info.runPath}/${p.phaseId}`;
       if (p.mode === "interactive") {
-        const turns = turnStreams(join(info.runPath, p.phaseId));
+        const turns = turnStreams(files.get(p.phaseId)?.names ?? []);
         return [
           `### ${p.phaseId}`,
           `- Status: \`${base}/status.json\``,
@@ -220,8 +243,19 @@ function buildFinalReportMarkdown(
 
   // Build Security section from security.json artifacts
   const securityPosturePairs = info.phaseStatuses
-    .map((p) => ({ phaseId: p.phaseId, posture: tryReadSecurityPosture(info.runPath, p.phaseId) }))
-    .filter((pair): pair is { phaseId: string; posture: SecurityPosture } => pair.posture !== null);
+    .map((p) => ({ phaseId: p.phaseId, read: files.get(p.phaseId)?.posture }))
+    .flatMap((pair) =>
+      pair.read?.kind === "read" ? [{ phaseId: pair.phaseId, posture: pair.read.posture }] : [],
+    );
+  // A file that exists but does not decode is named, never taken for an absent one.
+  const unreadableSection = info.phaseStatuses
+    .flatMap((p) => {
+      const read = files.get(p.phaseId)?.posture;
+      return read?.kind === "unreadable"
+        ? [`- ${p.phaseId}: \`${read.file}\` is unreadable: ${read.violation}`]
+        : [];
+    })
+    .join("\n");
 
   const hasSecurityData = securityPosturePairs.length > 0;
   const runSecurityMode =
@@ -295,7 +329,7 @@ ${phaseRows}
 | Phase | Mode | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | MCP Allow | Downgraded | Marks | Skipped for Security |
 |-------|------|----------|---------|----------------|----------|------------|-------------|-----------|------------|-------|---------------------|
 ${securityRows}
-${agentCommandsSection.length > 0 ? `\n### Agent Commands\n\n${agentCommandsSection}\n` : ""}${skillEditGrantsSection}
+${unreadableSection.length > 0 ? `\n### Unreadable Security Files\n\n${unreadableSection}\n` : ""}${agentCommandsSection.length > 0 ? `\n### Agent Commands\n\n${agentCommandsSection}\n` : ""}${skillEditGrantsSection}
 ## Per-Phase Artifacts
 
 ${artifactLinks}
@@ -312,7 +346,18 @@ export function writeFinalReport(
       info.runPath,
       info.phaseStatuses.map((p) => p.phaseId),
     );
-    const content = buildFinalReportMarkdown(info, verifiedSurfaces, publication);
+    const files = new Map<string, PhaseFiles>();
+    for (const status of info.phaseStatuses) {
+      // A phase folder that cannot be listed has no turn streams to name.
+      const names = yield* fs
+        .list(join(info.runPath, status.phaseId))
+        .pipe(Effect.orElseSucceed((): readonly string[] => []));
+      files.set(status.phaseId, {
+        posture: yield* readPostureOf(info.runPath, status.phaseId),
+        names,
+      });
+    }
+    const content = buildFinalReportMarkdown(info, verifiedSurfaces, files, publication);
     yield* fs.writeAtomic(join(info.runPath, "final-report.md"), content);
   });
 }

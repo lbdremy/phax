@@ -19,11 +19,16 @@ const STOP_FILES: ReadonlySet<string> = new Set([
   "review-stop.closing.json",
 ]);
 
+/**
+ * A first or closing turn's stream, with its corrective retry. Group 1 is the
+ * kind, group 2 the turn number, group 3 the retry suffix.
+ */
+export const TURN_STREAM_PATTERN = /^(first|closing)-turn-(\d{2})(-retry)?\.jsonl$/;
+
 const STOP_PATTERNS: readonly RegExp[] = [
   // The folders that keep a refused turn's versions.
   /^refused-turn-\d{2}$/,
-  // A first or closing turn's streams, with their corrective retry.
-  /^(first|closing)-turn-\d{2}(-retry)?\.jsonl$/,
+  TURN_STREAM_PATTERN,
   // The person's handoff file as it stood before a turn.
   /^(first|closing)-turn-\d{2}-correction-handoff\.md$/,
 ];
