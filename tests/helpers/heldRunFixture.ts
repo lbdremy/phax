@@ -34,6 +34,7 @@ import {
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import type { RunHold } from "../../src/schemas/status.js";
+import { isolateGit } from "./isolateGit.js";
 import { providerStoreRootsUnder } from "./providerStoreRoots.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
 
@@ -101,10 +102,12 @@ export interface HeldWorld {
 }
 
 /**
- * A temporary repository with one commit and an empty state root. The caller
- * stubs HOME to `home` (vi.stubEnv) and calls `cleanup` after the test.
+ * A temporary repository with one commit and an empty state root, git
+ * isolated from the person's configuration until `cleanup` (isolateGit). The
+ * caller stubs HOME to `home` (vi.stubEnv) and calls `cleanup` after the test.
  */
 export function createHeldWorld(): HeldWorld {
+  const restoreGit = isolateGit();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-held-run-test-")));
   const repoRoot = join(root, "repo");
   const stateRoot = join(root, "state");
@@ -121,7 +124,11 @@ export function createHeldWorld(): HeldWorld {
   writeFileSync(join(repoRoot, "src", "invoiceRow.ts"), "export const header = 'invoice_no';\n");
   git("add", "-A");
   git("commit", "-m", "chore: start");
-  return { root, repoRoot, stateRoot, home, cleanup: () => removeTempDir(root) };
+  const cleanup = (): void => {
+    removeTempDir(root);
+    restoreGit();
+  };
+  return { root, repoRoot, stateRoot, home, cleanup };
 }
 
 // ── The plan ───────────────────────────────────────────────────────────────
