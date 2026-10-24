@@ -535,6 +535,7 @@ const CLOSURE_ALLOWED_DIRS = ["packages/schemas/src/", "src/schemas/", "src/doma
 // import. A new src/ file in the closure is published, so it is named here.
 const CLOSURE_SRC_ALLOWLIST = [
   "src/domain/branded.ts",
+  "src/domain/sessionId.ts",
   "src/schemas/approvalRecord.ts",
   "src/schemas/approvedBy.ts",
   "src/schemas/architecture.ts",
@@ -595,6 +596,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/runList.ts",
   "src/schemas/runRecord.ts",
   "src/schemas/schemaUrl.ts",
+  "src/schemas/sessionId.ts",
   "src/schemas/specApprovalRecord.ts",
   "src/schemas/specDocument.ts",
   "src/schemas/status.ts",
