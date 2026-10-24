@@ -58,6 +58,7 @@ const SPEC_DOCUMENT = {
   surface: [
     {
       surface: "cli: `phax prune <run>`",
+      summary: "An operator can free the slug of an archived run.",
       binding: "normative",
       before: null,
       after: "phax prune usage-cli\n  pruned usage-cli\n  $? = 0",

@@ -30,5 +30,6 @@
   "src/schemas/history/spec-approval-record/0.19.0.ts": "b69884139c63a967316196554cc6fa8446515365e00d58503d22dc28afc28c7a",
   "src/schemas/history/spec-approvals/pre-schema.ts": "c5db6d2c50c37a12c6acc6ee463e82e0f2177a603e62a6fb87ec74ccff2d7333",
   "src/schemas/history/spec-document/0.17.0.ts": "2b9f42941c81325061ae04521a8f80e98d976e905f1ac80bdc821b72450639b5",
+  "src/schemas/history/spec-document/0.25.0.ts": "82777e169b1c8f995310161a11000cb2727ba118905240dc0af810c9ba5c7bc8",
   "src/schemas/history/spec-document/pre-schema.ts": "73a5e5c6ee6c7b83de5859f40eec796f9493a813ac8904e4a0217af4e496c87e"
 }

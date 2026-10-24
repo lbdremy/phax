@@ -39,11 +39,27 @@ const RequirementSchema = Schema.Struct({
   statement: Schema.NonEmptyString,
 });
 
-// `Schema.String` rather than `NonEmptyString` under the pattern: the prefix
-// already rules out the empty string, and a `$ref`-plus-`pattern` pair in the
-// exported JSON Schema would have its pattern ignored by draft-07 validators.
+/**
+ * The one-line value the reader lifts into a surface element that had no
+ * summary (a 0.25.0, 0.17.0 or pre-schema sidecar). The schema accepts it;
+ * `phax artifact approve` and `complete` refuse a spec that still holds it.
+ */
+export const SURFACE_SUMMARY_PLACEHOLDER =
+  "(summary to write — lifted by phax artifact migrate-documents)";
+
+// `Schema.String` rather than `NonEmptyString` under a pattern: the prefix (or
+// the one-line pattern) already rules out the empty string, and a
+// `$ref`-plus-`pattern` pair in the exported JSON Schema would have its
+// pattern ignored by draft-07 validators.
 const SurfaceElementSchema = Schema.Struct({
   surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
+  summary: Schema.String.pipe(
+    Schema.pattern(/^[^\n\r]+$/),
+    Schema.annotations({
+      description:
+        "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
+    }),
+  ),
   binding: Schema.Literal("normative", "indicative"),
   before: Schema.NullOr(Schema.String),
   after: Schema.NonEmptyString,

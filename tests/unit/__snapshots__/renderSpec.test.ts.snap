@@ -40,11 +40,15 @@ IF the run is live THEN the system SHALL refuse to prune it.
 
 ### cli: \`phax prune <run>\` — normative
 
+Summary: An operator can free an archived run's slug with one command.
+
     phax prune usage-cli
       pruned usage-cli (archived 2026-09-01)
       $? = 0
 
 ### config: \`phax.json\` \`archive.prune\` — indicative
+
+Summary: A maintainer can choose whether archived runs are pruned by hand.
 
 before:
 

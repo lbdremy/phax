@@ -54,6 +54,7 @@ const SPEC_DOCUMENT = {
   surface: [
     {
       surface: "cli: `widget export <id>`",
+      summary: "An operator can export a widget to a file.",
       binding: "normative",
       before: null,
       after: "widget export w1\n  wrote w1.json\n  $? = 0",

@@ -5,6 +5,7 @@ import { compareReleases } from "../../schemas/schemaUrl.js";
 import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
+import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
 import { validateArtifact } from "./document.js";
 import { parseArtifactName } from "./name.js";
 import { type QuestionSummary, summarizeDocumentQuestions } from "./questions.js";
@@ -77,11 +78,16 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
 }
 
 // The body the sidecar's own shape renders: the rendering frozen at
-// spec-document 0.17.0, the one frozen at plan-document 0.25.0 (its
+// spec-document 0.25.0 (no `Summary:` lines), the one frozen at spec-document
+// 0.17.0 (positional questions), the one frozen at plan-document 0.25.0 (its
 // `**Model reason:**` lines), or the plan renderer for the older plan shapes,
 // whose lifted reason is null and whose output did not change.
 function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>): string {
-  if (sidecar.kind === "spec") return renderSpecBodyV0_17_0(sidecar.older);
+  if (sidecar.kind === "spec") {
+    return sidecar.shape === "0.25.0"
+      ? renderSpecBodyV0_25_0(sidecar.older)
+      : renderSpecBodyV0_17_0(sidecar.older);
+  }
   return sidecar.shape === "0.25.0"
     ? renderPlanBodyV0_25_0(sidecar.older)
     : renderPlanBody(sidecar.document);

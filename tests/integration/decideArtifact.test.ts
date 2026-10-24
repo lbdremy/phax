@@ -995,6 +995,47 @@ describe("decide — the answer is read at the current shape only", { timeout: 3
   }
 });
 
+function surfaceElement(name: string, summary: string) {
+  return {
+    surface: name,
+    summary,
+    binding: "normative" as const,
+    before: null,
+    after: "phax rotate\n  rotated",
+  };
+}
+
+describe("decide — the surface summary is kept", { timeout: 30_000 }, () => {
+  // ac-decide-drops
+  it("refuses a revised document that drops one element's summary, naming surface[1].summary, and keeps both files", async () => {
+    const doc: SpecDocument = {
+      ...specDocument([Q1, Q2]),
+      surface: [
+        surfaceElement("cli: `phax rotate`", "An operator can rotate a run's log."),
+        surfaceElement("cli: `phax rotate --all`", "An operator can rotate every log at once."),
+      ],
+    };
+    writeSpec(SPEC, doc);
+    commitAll();
+    const spec = readFileSync(join(repoDir, SPEC), "utf8");
+    const sidecar = readFileSync(join(repoDir, SPEC.replace(/\.md$/, ".json")), "utf8");
+    const { summary: _dropped, ...second } = doc.surface[1]!;
+    const revisedDoc = {
+      ...specDocument([Q2], [arbitrated(Q1)]),
+      surface: [doc.surface[0], second],
+    };
+    const revised = answer(revisedDoc);
+    const h = harness({ answers: [revised, revised] });
+
+    const message = expectRefused(await h.run(), 5, headSha());
+
+    expect(message).toContain("revised document rejected twice");
+    expect(message).toContain("surface[1].summary");
+    expect(readFileSync(join(repoDir, SPEC), "utf8")).toBe(spec);
+    expect(readFileSync(join(repoDir, SPEC.replace(/\.md$/, ".json")), "utf8")).toBe(sidecar);
+  });
+});
+
 describe("decide — revision rules", { timeout: 30_000 }, () => {
   it("refuses an edit to open question Q2, which was not decided", async () => {
     writeSpec(SPEC, specDocument([Q1, Q2]));

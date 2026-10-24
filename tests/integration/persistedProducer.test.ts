@@ -162,7 +162,13 @@ const SPEC_DOCUMENT = {
     { id: "req-one", title: "One", pattern: "ubiquitous", statement: "The tool shall work." },
   ],
   surface: [
-    { surface: "cli: example", binding: "normative", before: null, after: "example --flag" },
+    {
+      surface: "cli: example",
+      summary: "An operator can run the example.",
+      binding: "normative",
+      before: null,
+      after: "example --flag",
+    },
   ],
   nonGoals: ["Anything else."],
   acceptanceCriteria: [
