@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
@@ -481,6 +481,38 @@ describe("transcripts at a declared stop's close", () => {
       ["step.started", undefined],
       ["step.completed", "success"],
     ]);
+  });
+
+  it("refuses a session id that would leave the phase folder before any path is built from it", async () => {
+    // `../../x` joined under interactive-transcripts/ names <run>/x.jsonl: an
+    // earlier copy the close would read and record as captured.
+    const escaped = join(run.runPath, "x.jsonl");
+    writeFileSync(escaped, '{"turn":"outside the phase folder"}\n');
+    const doc = sessionDoc(run.phaseFolder);
+    writeFileSync(
+      join(run.phaseFolder, "interactive-session.json"),
+      JSON.stringify({
+        ...doc,
+        history: [{ ...(doc["current"] as object), sessionId: "../../x" }],
+      }),
+    );
+    const touched: string[] = [];
+    const watching = Layer.effect(
+      FileSystem,
+      Effect.map(FileSystem, (fs) => ({
+        ...fs,
+        exists: (path: string) => (touched.push(path), fs.exists(path)),
+        readBytes: (path: string) => (touched.push(path), fs.readBytes(path)),
+        readText: (path: string) => (touched.push(path), fs.readText(path)),
+      })),
+    ).pipe(Layer.provide(NodeFileSystemLayer));
+
+    const { result } = await close(makeFakeBackend().impl, { fs: watching });
+
+    refusalOf(result);
+    expect(touched.map((path) => resolve(path))).not.toContain(escaped);
+    expect(copiesIn(run.phaseFolder)).toEqual([]);
+    expect(transcriptsOf(run.phaseFolder)).toBeNull();
   });
 
   it("captures the sessions of an unchanged close too, with no closing turn", async () => {

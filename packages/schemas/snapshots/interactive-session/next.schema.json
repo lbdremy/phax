@@ -8,6 +8,11 @@
       "title": "nonEmptyString",
       "minLength": 1
     },
+    "SafeSessionId": {
+      "type": "string",
+      "description": "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
     "Int": {
       "type": "integer",
       "description": "an integer",
@@ -82,7 +87,7 @@
               "$ref": "#/$defs/NonEmptyString"
             },
             "sessionId": {
-              "$ref": "#/$defs/NonEmptyString"
+              "$ref": "#/$defs/SafeSessionId"
             },
             "startedAt": {
               "type": "string",
@@ -135,7 +140,7 @@
             "$ref": "#/$defs/NonEmptyString"
           },
           "sessionId": {
-            "$ref": "#/$defs/NonEmptyString"
+            "$ref": "#/$defs/SafeSessionId"
           },
           "startedAt": {
             "type": "string",
@@ -197,7 +202,7 @@
                 "minLength": 1
               },
               "sessionId": {
-                "$ref": "#/$defs/NonEmptyString"
+                "$ref": "#/$defs/SafeSessionId"
               }
             },
             "additionalProperties": false
@@ -471,7 +476,7 @@
                 ],
                 "properties": {
                   "sessionId": {
-                    "$ref": "#/$defs/NonEmptyString"
+                    "$ref": "#/$defs/SafeSessionId"
                   },
                   "status": {
                     "type": "string",
@@ -497,7 +502,7 @@
                 ],
                 "properties": {
                   "sessionId": {
-                    "$ref": "#/$defs/NonEmptyString"
+                    "$ref": "#/$defs/SafeSessionId"
                   },
                   "status": {
                     "type": "string",

@@ -787,6 +787,19 @@ describe("format readers", () => {
     ).toBe("phase-record-manifest");
   });
 
+  it("readRecordManifestFile refuses a stop session whose id is unsafe to join into a path", () => {
+    const file = "run-0001/phase-01/record.json";
+    const held = heldPhaseRecordManifestDocument;
+    const stop = held["stop"] as Doc;
+    const [first] = stop["sessions"] as readonly Doc[];
+    for (const id of ["../../x", "..", "a/b"]) {
+      const unsafe = withKey(stop, "sessions", [withKey(first as Doc, "sessionId", id)]);
+      expect(left(readRecordManifestFile(file, withKey(held, "stop", unsafe))).format).toBe(
+        "phase-record-manifest",
+      );
+    }
+  });
+
   it("readGateAttributionFile reads a 0.21.0-stamped attribution", () => {
     const stamped = withKey(
       validDocuments["gate-attribution"],

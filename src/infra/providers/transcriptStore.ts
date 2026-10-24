@@ -1,21 +1,11 @@
 import { Effect } from "effect";
 import { readdir, readFile } from "node:fs/promises";
+import { isSafeSessionId } from "../../domain/interactive/transcripts.js";
 import type { TranscriptRead } from "../../ports/backend.js";
 
 // What the three adapters share to read a transcript from a provider's own
 // session store. They only find and read: nothing here writes, and a read
 // never fails — every outcome is a `TranscriptRead`.
-
-const SAFE_SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/**
- * Whether `sessionId` may be joined into a store path: it starts with a
- * letter or digit and holds only letters, digits, `.`, `_` and `-`, so `.`,
- * `..` and any slash are refused before a path is built.
- */
-function isSafeSessionId(sessionId: string): boolean {
-  return SAFE_SESSION_ID.test(sessionId);
-}
 
 const UNSAFE_SESSION_ID: TranscriptRead = {
   status: "missing",

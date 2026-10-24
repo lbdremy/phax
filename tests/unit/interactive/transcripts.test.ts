@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  isSafeSessionId,
   recordedSessions,
   sha256Hex,
   transcriptFile,
@@ -45,6 +46,22 @@ describe("transcriptFile", () => {
   it("names the copy under interactive-transcripts/", () => {
     expect(transcriptFile("X1")).toBe("interactive-transcripts/X1.jsonl");
   });
+
+  it.each([".", "..", "../../x", "a/b", "a\\b", "", "-X1", ".X1"])(
+    "names no copy for the unsafe id %j: no path is built from it",
+    (id) => {
+      expect(isSafeSessionId(id)).toBe(false);
+      expect(transcriptFile(id)).toBeNull();
+    },
+  );
+
+  it.each(["X1", "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b", "session_X1.part-2"])(
+    "takes the safe id %j",
+    (id) => {
+      expect(isSafeSessionId(id)).toBe(true);
+      expect(transcriptFile(id)).toBe(`interactive-transcripts/${id}.jsonl`);
+    },
+  );
 });
 
 describe("sha256Hex", () => {

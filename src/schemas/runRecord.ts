@@ -2,6 +2,7 @@ import { Schema, type Types } from "effect";
 import { PhaseModeSchema } from "./phaxPlan.js";
 import { ProviderIdSchema } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { SafeSessionIdSchema } from "./sessionId.js";
 import { FullCommitShaSchema } from "./status.js";
 import { RecordedSurfaceSchema } from "./surface.js";
 
@@ -133,7 +134,7 @@ const RecordStopSessionSchema = Schema.Struct({
   provider: ProviderIdSchema,
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
-  sessionId: Schema.NonEmptyString,
+  sessionId: SafeSessionIdSchema,
   origin: Schema.Literal("first-turn", "new-session", "builder"),
   transcript: RecordTranscriptSchema,
 });
