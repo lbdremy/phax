@@ -11,9 +11,12 @@ import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../../src/domain/authoring/renderSpecV0_17_0.js";
+import { renderSpecBodyV0_25_0 } from "../../../src/domain/authoring/renderSpecV0_25_0.js";
+import { SURFACE_SUMMARY_PLACEHOLDER } from "../../../src/schemas/specDocument.js";
 import {
   type PlanDocumentV0_25_0Value,
   type SpecDocumentV0_17_0Value,
+  type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
   readPlanDocumentFile,
   readSpecDocumentFile,
@@ -65,7 +68,20 @@ const OLDER_SPEC: SpecDocumentV0_17_0Value = {
       statement: "WHEN a run ends THE system SHALL rotate its log.",
     },
   ],
-  surface: [],
+  surface: [
+    {
+      surface: "cli: `phax rotate <run>`",
+      binding: "normative",
+      before: null,
+      after: "phax rotate usage-cli\n  rotated usage-cli",
+    },
+    {
+      surface: "config: `phax.json` `logs.keep`",
+      binding: "indicative",
+      before: '"logs": {}',
+      after: '"logs": { "keep": 10 }',
+    },
+  ],
   nonGoals: [],
   acceptanceCriteria: [
     {
@@ -93,6 +109,15 @@ function json(value: unknown): string {
 const SPEC_0_17_0_JSON = json({ $schema: schemaUrl("spec-document", "0.17.0"), ...OLDER_SPEC });
 const SPEC_PRE_SCHEMA_JSON = json({ version: 1, ...OLDER_SPEC });
 const OLDER_SPEC_MD = SPEC_FRONTMATTER + renderSpecBodyV0_17_0(OLDER_SPEC);
+
+// The same spec as spec-document 0.25.0 recorded it: questions arbitrated, no summaries.
+const SPEC_0_25_0: SpecDocumentV0_25_0Value = {
+  ...OLDER_SPEC,
+  openQuestions: [question("Q2", "it is the cheaper choice")],
+  arbitratedQuestions: [],
+};
+const SPEC_0_25_0_JSON = json({ $schema: schemaUrl("spec-document", "0.25.0"), ...SPEC_0_25_0 });
+const SPEC_0_25_0_MD = SPEC_FRONTMATTER + renderSpecBodyV0_25_0(SPEC_0_25_0);
 
 const PLAN_0_20_0 = {
   kind: "plan",
@@ -194,6 +219,63 @@ describe("decideDocumentMigration — specs", () => {
     expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.right));
     expect(m.md).toContain("## 9b. Arbitrated questions");
     expect(m.bodyChanged).toBe(true);
+  });
+
+  // ac-lift: an older spec's elements gain the placeholder, in the current key order.
+  it("lifts a 0.17.0 spec's surface elements with the placeholder, a Summary line under each heading", () => {
+    const m = migrated(decideSpec(OLDER_SPEC_MD, SPEC_0_17_0_JSON));
+    const sidecar = JSON.parse(m.sidecarText) as { surface: Array<Record<string, unknown>> };
+    expect(sidecar.surface.map((element) => element["summary"])).toEqual([
+      SURFACE_SUMMARY_PLACEHOLDER,
+      SURFACE_SUMMARY_PLACEHOLDER,
+    ]);
+    expect(Object.keys(sidecar.surface[0] ?? {})).toEqual([
+      "surface",
+      "summary",
+      "binding",
+      "before",
+      "after",
+    ]);
+    expect(m.md.split(`Summary: ${SURFACE_SUMMARY_PLACEHOLDER}\n`)).toHaveLength(3);
+  });
+
+  it("rewrites an in-sync 0.25.0 spec at the current shape, with the placeholder, keeping its questions and frontmatter", () => {
+    const m = migrated(decideSpec(SPEC_0_25_0_MD, SPEC_0_25_0_JSON));
+
+    expect(m.fromShape).toBe("0.25.0");
+    expect(m.questions).toEqual({ open: ["Q2"], arbitrated: 0, lifted: 0 });
+    const sidecar = JSON.parse(m.sidecarText) as Record<string, unknown>;
+    expect(sidecar["$schema"]).toBe(currentSchemaUrl("spec-document"));
+    const read = readSpecDocumentFile(SPEC_SIDECAR, sidecar);
+    if (Either.isLeft(read)) throw new Error(read.left.message);
+    expect(read.right.surface.map((element) => element.summary)).toEqual([
+      SURFACE_SUMMARY_PLACEHOLDER,
+      SURFACE_SUMMARY_PLACEHOLDER,
+    ]);
+    expect(read.right.openQuestions).toEqual(SPEC_0_25_0.openQuestions);
+    expect(m.md.startsWith(SPEC_FRONTMATTER)).toBe(true);
+    expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.right));
+    expect(m.md).toContain(
+      `### cli: \`phax rotate <run>\` — normative\n\nSummary: ${SURFACE_SUMMARY_PLACEHOLDER}\n\n`,
+    );
+    expect(m.bodyChanged).toBe(true);
+  });
+
+  // ac-lift-hand-edited
+  it("refuses a hand-edited 0.25.0 body, naming its 0.25.0 rendering", () => {
+    const md = SPEC_0_25_0_MD.replace("Logs pile up.", "Logs pile up fast.");
+    const decision = decideSpec(md, SPEC_0_25_0_JSON);
+    expect(decision.kind).toBe("refuse");
+    if (decision.kind === "refuse") {
+      expect(`migrate refused: ${decision.refusal.path} ${decision.refusal.problem}`).toBe(
+        `migrate refused: ${SPEC} is not its sidecar's spec-document 0.25.0 rendering — a hand edit would be overwritten`,
+      );
+    }
+  });
+
+  it("refuses a 0.25.0 sidecar over a body in the current layout (a Summary line)", () => {
+    const current = migrated(decideSpec(SPEC_0_25_0_MD, SPEC_0_25_0_JSON)).md;
+    expect(decideSpec(current, SPEC_0_25_0_JSON).kind).toBe("refuse");
   });
 
   it("rewrites a spec written before $schema the same way", () => {

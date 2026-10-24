@@ -15,7 +15,10 @@ import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
-import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
+import {
+  SURFACE_SUMMARY_PLACEHOLDER,
+  decodeSpecDocument,
+} from "../../../src/schemas/specDocument.js";
 
 const SPEC_DOCUMENT = {
   version: 1,
@@ -106,7 +109,15 @@ scope: functional behavior and consumption surface
 // SPEC_DOCUMENT and PLAN_DOCUMENT are the shapes 0.16.0 wrote, before
 // questions were arbitrated; the current shape adds the question arrays and,
 // on each plan phase, a `mode`, an `oracle` and an `assignmentReason`.
-const CURRENT_SPEC_DOCUMENT = { ...SPEC_DOCUMENT, arbitratedQuestions: [] };
+const CURRENT_SPEC_DOCUMENT = {
+  ...SPEC_DOCUMENT,
+  surface: SPEC_DOCUMENT.surface.map(({ surface, ...rest }) => ({
+    surface,
+    summary: "An operator can free the slug of an archived run.",
+    ...rest,
+  })),
+  arbitratedQuestions: [],
+};
 const CURRENT_PLAN_DOCUMENT = {
   ...PLAN_DOCUMENT,
   preamble: { ...PLAN_DOCUMENT.preamble, openQuestions: [], arbitratedQuestions: [] },
@@ -223,6 +234,27 @@ describe("sidecarAgreement", () => {
     };
     const OPEN = { ...MARKED, id: "q-scope", rationale: "the scope stays local" };
     const QUESTIONED = { ...SPEC_DOCUMENT, openQuestions: [MARKED, OPEN] };
+
+    it("a spec stamped 0.25.0, whose questions are kept as recorded", () => {
+      const sidecarJson = olderJson("spec-document", "0.25.0", {
+        ...SPEC_DOCUMENT,
+        openQuestions: [MARKED],
+        arbitratedQuestions: [],
+      });
+      for (const md of [SPEC_FRONTMATTER + specBody(), SPEC_FRONTMATTER + "# Edited by hand\n"]) {
+        const inspection = inspectSidecar({ md, sidecarJson, kind: "spec" });
+        expect(inspection.agreement).toEqual({
+          kind: "unmigrated",
+          format: "spec-document",
+          shape: "0.25.0",
+        });
+        expect(inspection.sidecar?.kind === "spec" && inspection.sidecar.document).toMatchObject({
+          openQuestions: [{ id: "q-keep" }],
+          arbitratedQuestions: [],
+          surface: [{ summary: SURFACE_SUMMARY_PLACEHOLDER }],
+        });
+      }
+    });
 
     it.each([
       ["a spec stamped 0.17.0", olderJson("spec-document", "0.17.0", QUESTIONED), "0.17.0"],

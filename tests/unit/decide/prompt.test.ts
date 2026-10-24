@@ -201,6 +201,31 @@ describe("buildDecidePrompt", () => {
     expect(text.slice(schemaAt)).toContain('"arbitratedQuestions"');
   });
 
+  // ac-schema: the revised document's JSON Schema lists the surface summary as required.
+  it("lists the surface summary in the revised document's JSON Schema, required right after surface", () => {
+    const schemaText = text.slice(text.indexOf("## Revised spec document JSON Schema"));
+    const start = schemaText.indexOf("{");
+    const schema = JSON.parse(schemaText.slice(start, schemaText.lastIndexOf("}") + 1)) as {
+      properties: {
+        surface: {
+          items: {
+            required: string[];
+            additionalProperties: boolean;
+            properties: Record<string, { type?: string; pattern?: string; description?: string }>;
+          };
+        };
+      };
+    };
+    const item = schema.properties.surface.items;
+    expect(item.required.slice(0, 2)).toEqual(["surface", "summary"]);
+    expect(item.additionalProperties).toBe(false);
+    expect(item.properties["summary"]).toMatchObject({
+      type: "string",
+      pattern: "^[^\\n\\r]+$",
+    });
+    expect(item.properties["summary"]?.description).toContain("in the consumer's words");
+  });
+
   it("is deterministic", () => {
     expect(prompt({ presented: ["Q-new", "Q-old"], reArbitrated: null })).toBe(text);
   });

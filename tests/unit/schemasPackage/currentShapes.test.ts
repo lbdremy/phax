@@ -102,6 +102,7 @@ import {
   readSpecDocumentFile,
   readSpecRecordFile,
 } from "../../../src/schemas/persisted.js";
+import { SURFACE_SUMMARY_PLACEHOLDER } from "../../../src/schemas/specDocument.js";
 import {
   FORMAT_IDS,
   PRE_SCHEMA_FORMAT_IDS,
@@ -110,7 +111,7 @@ import {
   isRelease,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
-import { preSchemaDocuments, validDocuments } from "./documents.js";
+import { EXAMPLE_SURFACE_SUMMARY, preSchemaDocuments, validDocuments } from "./documents.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const snapshotsDir = join(repoRoot, "packages", "schemas", "snapshots");
@@ -302,13 +303,18 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);
 // phax refuses every pre-schema phase status (it never recorded `base`); the
-// package reads it with `base` Unknown. Covered below where they part.
+// package reads it with `base` Unknown. A pre-schema spec document recorded no
+// surface summary: phax lifts the placeholder, the package `Unknown`. Both are
+// covered below where they part.
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
-  (id) => BRIDGE_READERS[id] !== undefined && id !== "phase-status",
+  (id) => BRIDGE_READERS[id] !== undefined && id !== "phase-status" && id !== "spec-document",
 );
 // A pre-schema phase status upgrades with `base` Unknown, a phax-written one
-// keeps its base, so the two never upgrade alike.
-const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter((id) => id !== "phase-status");
+// keeps its base; a pre-schema spec document upgrades with each summary
+// Unknown, a phax-written one keeps its own: the two never upgrade alike.
+const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
+  (id) => id !== "phase-status" && id !== "spec-document",
+);
 
 describe("phax's bridge and the package agree", () => {
   it.each(PRE_SCHEMA_READ_BY_PHAX)(
@@ -358,6 +364,26 @@ describe("phax's bridge and the package agree", () => {
     const read = readPhaseStatusFile("/work/example-repo/phase-status.json", document);
     expect(Either.isLeft(read)).toBe(true);
     if (Either.isLeft(read)) expect(read.left.message).toContain("lacks base");
+  });
+
+  // Where they part: a pre-schema spec document recorded no surface summary.
+  // The package never invents one and keeps each as Unknown; phax lifts the
+  // fixed placeholder, which approve and complete then refuse.
+  it("spec-document: a pre-schema document's summaries are Unknown to the package, the placeholder to phax", () => {
+    const document = preSchemaDocuments["spec-document"];
+    expect(PACKAGE_LATEST["spec-document"](document)).toMatchObject({
+      surface: [{ summary: UNKNOWN }],
+    });
+    const read = readSpecDocumentFile("/work/example-repo/spec-document.json", document);
+    expect(Either.isRight(read)).toBe(true);
+    if (Either.isRight(read)) {
+      expect(read.right).toMatchObject({ surface: [{ summary: SURFACE_SUMMARY_PLACEHOLDER }] });
+    }
+    // A phax-written document keeps the summary it recorded, in either reading.
+    const written = validDocuments["spec-document"];
+    expect(PACKAGE_LATEST["spec-document"](written)).toMatchObject({
+      surface: [{ summary: EXAMPLE_SURFACE_SUMMARY }],
+    });
   });
 
   it.each(UPGRADED_ALIKE)(

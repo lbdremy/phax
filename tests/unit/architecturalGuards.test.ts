@@ -581,6 +581,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/spec-approval-record/0.19.0.ts",
   "src/schemas/history/spec-approvals/pre-schema.ts",
   "src/schemas/history/spec-document/0.17.0.ts",
+  "src/schemas/history/spec-document/0.25.0.ts",
   "src/schemas/history/spec-document/pre-schema.ts",
   "src/schemas/interactiveHandoff.ts",
   "src/schemas/interactiveSession.ts",

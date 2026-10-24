@@ -10,6 +10,7 @@ import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document
 import * as planDocumentV0_20_0 from "../../../src/schemas/history/plan-document/0.20.0.js";
 import * as planDocumentV0_25_0 from "../../../src/schemas/history/plan-document/0.25.0.js";
 import * as specDocumentV0_17_0 from "../../../src/schemas/history/spec-document/0.17.0.js";
+import * as specDocumentV0_25_0 from "../../../src/schemas/history/spec-document/0.25.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as phaxPlanV0_17_0 from "../../../src/schemas/history/phax-plan/0.17.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
@@ -134,6 +135,7 @@ describe("schemas package entry", () => {
       "SpecDocumentPreSchemaSchema",
       "SpecDocumentSchema",
       "SpecDocumentV0_17_0Schema",
+      "SpecDocumentV0_25_0Schema",
       "UNKNOWN",
       "isUnknown",
       "parseArchitectureReport",
@@ -359,6 +361,9 @@ describe("schemas package entry", () => {
     expect(entry.SpecDocumentV0_17_0Schema).toBe(specDocumentV0_17_0.SpecDocumentV0_17_0Schema);
     expect(entry.PlanDocumentV0_20_0Schema).toBe(planDocumentV0_20_0.PlanDocumentV0_20_0Schema);
     expect(specDocumentV0_17_0.decodeSpecDocumentV0_17_0).toBeDefined();
+    expect(entry.SpecDocumentV0_25_0Schema).toBe(specDocumentV0_25_0.SpecDocumentV0_25_0Schema);
+    expect(specDocumentV0_25_0.decodeSpecDocumentV0_25_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeSpecDocumentV0_25_0");
     expect(entry.PlanDocumentV0_25_0Schema).toBe(planDocumentV0_25_0.PlanDocumentV0_25_0Schema);
     expect(planDocumentV0_20_0.decodePlanDocumentV0_20_0).toBeDefined();
     expect(planDocumentV0_25_0.decodePlanDocumentV0_25_0).toBeDefined();

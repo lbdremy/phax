@@ -35,6 +35,7 @@ import {
   type ReportError,
 } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
+import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
 import {
   FORMAT_IDS,
   compareReleases,
@@ -43,12 +44,16 @@ import {
 } from "../../src/schemas/schemaUrl.js";
 import {
   EXAMPLE_BASE,
+  EXAMPLE_SURFACE_SUMMARY,
   heldPhaseRecordManifestDocument,
   latestPreSchema,
+  phaxLatestPreSchema,
   preSchemaDocuments,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
+  withSurfaceSummary,
+  withoutSurfaceSummary,
   withoutKey,
   withModelReasons,
   withoutPhaseKinds,
@@ -410,11 +415,14 @@ describe("format readers", () => {
       "docs/plans/2609230835-example-plan.json",
     ],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file) => {
-    const expected = latestPreSchema(id);
+    const expected = phaxLatestPreSchema(id);
+    // The current document records a summary; the pre-schema one is lifted with the placeholder.
+    const expectedCurrent =
+      id === "spec-document" ? withSurfaceSummary(expected, EXAMPLE_SURFACE_SUMMARY) : expected;
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);
-    expect(fromCurrent).toEqual(expected);
+    expect(fromCurrent).toEqual(expectedCurrent);
     expect(fromCurrent).not.toHaveProperty("$schema");
     expect(fromPreSchema).not.toHaveProperty("version");
 
@@ -497,15 +505,16 @@ describe("format readers", () => {
       rationale: "ten matches the default keep",
     };
     const older = withKey(
-      withKey(withoutKey(validDocuments["spec-document"], "arbitratedQuestions"), "openQuestions", [
-        marked,
-        unmarked,
-      ]),
+      withKey(
+        withoutKey(withoutSurfaceSummary(validDocuments["spec-document"]), "arbitratedQuestions"),
+        "openQuestions",
+        [marked, unmarked],
+      ),
       "$schema",
       schemaUrl("spec-document", "0.17.0"),
     );
     const lifted = {
-      ...withoutKey(older, "$schema"),
+      ...withSurfaceSummary(withoutKey(older, "$schema"), SURFACE_SUMMARY_PLACEHOLDER),
       openQuestions: [unmarked],
       arbitratedQuestions: [
         {
@@ -554,6 +563,36 @@ describe("format readers", () => {
         shape: "current",
         document: withoutKey(validDocuments["spec-document"], "$schema"),
       });
+    });
+
+    // The 0.25.0 sidecar already carries its questions: they are kept as
+    // recorded, and only the summary is lifted.
+    it("reads a sidecar stamped 0.25.0 as shape 0.25.0, with the placeholder on every element", () => {
+      const v0_25_0 = withKey(
+        withoutSurfaceSummary(validDocuments["spec-document"]),
+        "$schema",
+        schemaUrl("spec-document", "0.25.0"),
+      );
+      const recorded = withoutKey(v0_25_0, "$schema");
+      const expected = withSurfaceSummary(recorded, SURFACE_SUMMARY_PLACEHOLDER);
+      expect(right(readSpecDocumentFile(file, v0_25_0))).toEqual(expected);
+      expect(right(readDocumentSidecar("spec", file, v0_25_0))).toEqual({
+        kind: "spec",
+        shape: "0.25.0",
+        document: expected,
+        older: recorded,
+      });
+    });
+
+    it("refuses a 0.25.0 sidecar carrying a summary, naming the file", () => {
+      const v0_25_0 = withKey(
+        validDocuments["spec-document"],
+        "$schema",
+        schemaUrl("spec-document", "0.25.0"),
+      );
+      expect(left(readSpecDocumentFile(file, v0_25_0)).message).toMatch(
+        new RegExp(`^${file}: surface\\[0\\]\\.summary: is unexpected`),
+      );
     });
   });
 
@@ -924,8 +963,8 @@ describe("documents from another release", () => {
     // An authoring manifest stamped below its current stamp is read as the
     // frozen 0.17.0 shape, which has no retry; an approval record, as the
     // frozen 0.19.0 shape, which has no approvedBy.
-    // A spec document, as the frozen 0.17.0 shape, which has no
-    // arbitratedQuestions; a plan document, as the frozen 0.20.0 shape, which
+    // A spec document, as the frozen 0.25.0 shape (no surface summary) or the
+    // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen 0.20.0 shape, which
     // has no preamble questions.
     const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
     const document = !below
@@ -937,7 +976,9 @@ describe("documents from another release", () => {
           : id === "plan-approval-record" || id === "spec-approval-record"
             ? withoutKey(validDocuments[id], "approvedBy")
             : id === "spec-document"
-              ? withoutKey(validDocuments[id], "arbitratedQuestions")
+              ? compareReleases(release, "0.25.0") >= 0
+                ? withoutSurfaceSummary(validDocuments[id])
+                : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
               : id === "plan-document"
                 ? compareReleases(release, "0.25.0") >= 0
                   ? withModelReasons(validDocuments[id])

@@ -6,6 +6,7 @@ import {
   decodeSpecDocument,
   decodeSpecDocumentFile,
   getSpecDocumentJsonSchema,
+  SURFACE_SUMMARY_PLACEHOLDER,
   type SpecDocument,
 } from "../../src/schemas/specDocument.js";
 import { formatFirstViolation } from "../../src/schemas/formatError.js";
@@ -41,12 +42,14 @@ function validSpecDocument() {
     surface: [
       {
         surface: "cli: `phax prune <run>`",
+        summary: "An operator can free an archived run's slug with one command.",
         binding: "normative",
         before: null,
         after: "phax prune usage-cli\n  pruned usage-cli\n  $? = 0",
       },
       {
         surface: "config: `phax.json` `archive.prune`",
+        summary: "A maintainer can choose whether archived runs are pruned by hand.",
         binding: "indicative",
         before: '"archive": { "keep": 10 }',
         after: '"archive": { "keep": 10, "prune": "manual" }',
@@ -100,6 +103,12 @@ function rejection(doc: unknown): string {
   const result = decodeSpecDocument(doc);
   if (Either.isRight(result)) throw new Error("expected the document to be rejected");
   return formatFirstViolation(result.left);
+}
+
+// The valid document with its first surface element's summary replaced.
+function withSummary(summary: string) {
+  const doc = validSpecDocument();
+  return { ...doc, surface: [{ ...doc.surface[0]!, summary }, ...doc.surface.slice(1)] };
 }
 
 describe("decodeSpecDocument", () => {
@@ -200,6 +209,42 @@ describe("decodeSpecDocument", () => {
   it("rejects a missing arbitratedQuestions", () => {
     const { arbitratedQuestions: _dropped, ...doc } = validSpecDocument();
     expect(rejection(doc)).toBe("arbitratedQuestions: is missing");
+  });
+
+  // ac-internal-too: the summary is required on every kind of element.
+  it("rejects an internal element without a summary, naming surface[0].summary", () => {
+    const { summary: _dropped, ...element } = validSpecDocument().surface[0]!;
+    const doc = {
+      ...validSpecDocument(),
+      surface: [
+        { ...element, surface: "internal: phax-plan.json reconciliation", binding: "indicative" },
+      ],
+    };
+    expect(rejection(doc)).toMatch(/^surface\[0\]\.summary: is missing/);
+  });
+
+  // ac-empty
+  it("rejects an empty summary, naming surface[0].summary", () => {
+    const doc = withSummary("");
+    expect(rejection(doc)).toMatch(/^surface\[0\]\.summary: /);
+  });
+
+  // ac-line-break
+  it.each([
+    ["a line feed", "It frees the slug.\nIt also prunes."],
+    ["a carriage return", "It frees the slug.\rIt also prunes."],
+    ["a CRLF", "It frees the slug.\r\nIt also prunes."],
+  ])("rejects a summary holding %s, naming surface[0].summary", (_name, summary) => {
+    expect(rejection(withSummary(summary))).toMatch(/^surface\[0\]\.summary: /);
+  });
+
+  it("decodes a long one-line summary", () => {
+    const summary = `An operator can ${"free the slug of an archived run and ".repeat(40)}done.`;
+    expect(Either.isRight(decodeSpecDocument(withSummary(summary)))).toBe(true);
+  });
+
+  it("accepts the summary placeholder", () => {
+    expect(Either.isRight(decodeSpecDocument(withSummary(SURFACE_SUMMARY_PLACEHOLDER)))).toBe(true);
   });
 
   it("rejects an authoring answer carrying an arbitrated question, at its first entry (§5.60)", () => {
@@ -326,6 +371,27 @@ describe("getSpecDocumentJsonSchema", () => {
     ]) {
       expect(schema.description).toContain(check);
     }
+  });
+
+  // ac-schema
+  it("lists summary as a required one-line string right after surface, inline", () => {
+    const schema = getSpecDocumentJsonSchema() as {
+      properties: { surface: { items: Record<string, unknown> } };
+    };
+    const item = schema.properties.surface.items as {
+      required: string[];
+      additionalProperties: boolean;
+      properties: Record<string, Record<string, unknown>>;
+    };
+    expect(item.additionalProperties).toBe(false);
+    expect(item.required.slice(0, 2)).toEqual(["surface", "summary"]);
+    expect(Object.keys(item.properties).slice(0, 2)).toEqual(["surface", "summary"]);
+    expect(item.properties["summary"]).toEqual({
+      type: "string",
+      description:
+        "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
+      pattern: "^[^\\n\\r]+$",
+    });
   });
 
   it("says an authoring answer's arbitratedQuestions is empty", () => {
