@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610211432-surface-summary.md
 completes-spec: true
 approved:
