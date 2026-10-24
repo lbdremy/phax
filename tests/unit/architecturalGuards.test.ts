@@ -592,6 +592,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/registry.ts",
   "src/schemas/report.ts",
   "src/schemas/reviewStop.ts",
+  "src/schemas/runList.ts",
   "src/schemas/runRecord.ts",
   "src/schemas/schemaUrl.ts",
   "src/schemas/specApprovalRecord.ts",
@@ -836,6 +837,7 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "interactive-handoff": ["decodeInteractiveHandoffFile"],
   "interactive-session": ["decodeInteractiveSessionFile"],
   "review-stop": ["decodeReviewStopFile"],
+  "run-list": ["decodeRunListFile"],
   "architecture-report": ["decodeArchitectureReportFile"],
 };
 

@@ -163,12 +163,19 @@ describe("runLs — qualified names", () => {
     const code = await runLs({ json: true }, out);
 
     expect(code).toBe(0);
-    const parsed = JSON.parse(lines.join("\n")) as unknown[];
+    const parsed = (JSON.parse(lines.join("\n")) as { runs: unknown[] }).runs;
     expect(parsed).toHaveLength(1);
     const row = parsed[0] as Record<string, unknown>;
     expect(row["namespace"]).toBe("myproject");
     expect(row["shortName"]).toBe("fixbug");
     expect(row["qualifiedName"]).toBe("myproject.fixbug");
+    expect(row).toMatchObject({
+      currentPhase: null,
+      gateProfile: null,
+      recordsPending: null,
+      archivePath: null,
+      stop: null,
+    });
   });
 
   it("includes qualifiedName for both runs when namespaces differ in --json output", async () => {
@@ -187,7 +194,7 @@ describe("runLs — qualified names", () => {
     const code = await runLs({ json: true }, out);
 
     expect(code).toBe(0);
-    const parsed = JSON.parse(lines.join("\n")) as unknown[];
+    const parsed = (JSON.parse(lines.join("\n")) as { runs: unknown[] }).runs;
     expect(parsed).toHaveLength(2);
     const names = (parsed as Record<string, unknown>[]).map((r) => r["qualifiedName"]);
     expect(names).toContain("proj-a.myrun");

@@ -99,6 +99,7 @@ import { InteractiveHandoffFileSchema } from "../../../src/schemas/interactiveHa
 import { InteractiveSessionFileSchema } from "../../../src/schemas/interactiveSession.js";
 import { OracleRequestFileSchema } from "../../../src/schemas/oracleRequest.js";
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
+import { RunListFileSchema } from "../../../src/schemas/runList.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
@@ -712,6 +713,10 @@ export function latestPreSchema(id: PreSchemaFormatId): Doc {
  * `$schema` first, stamped by `withSchemaUrl`.
  */
 export const validDocuments: { readonly [F in FormatId]: Doc } = {
+  // Built on access: the embedded stop is `heldReviewStopDocument`, declared below.
+  get "run-list"(): Doc {
+    return runListDocument();
+  },
   registry: encoded(RegistryFileSchema, withSchemaUrl("registry", { runs: registry.runs })),
   "run-status": encoded(
     RunStatusFileSchema,
@@ -1075,6 +1080,50 @@ export const heldReviewStopDocument: Doc = encoded(
     closeBase: null,
   }),
 );
+
+/**
+ * A current-shape `run-list`: the made-up invoice-export run held at phase-02,
+ * which embeds its review stop, and the payments-fix run that failed, which
+ * has none.
+ */
+function runListDocument(): Doc {
+  const stop = Schema.decodeUnknownSync(ReviewStopFileSchema)(heldReviewStopDocument);
+  return encoded(
+    RunListFileSchema,
+    withSchemaUrl("run-list", {
+      runs: [
+        {
+          qualifiedName: "example.invoice-export",
+          namespace: "example",
+          shortName: "invoice-export",
+          state: "awaiting_review",
+          branch: "phax/invoice-export",
+          currentPhase: "2/4",
+          gateProfile: "standard",
+          updatedAt: "2026-10-24 09:30",
+          lockState: "none",
+          recordsPending: 1,
+          archivePath: null,
+          stop,
+        },
+        {
+          qualifiedName: "example.payments-fix",
+          namespace: "example",
+          shortName: "payments-fix",
+          state: "failed",
+          branch: "phax/payments-fix",
+          currentPhase: null,
+          gateProfile: null,
+          updatedAt: "2026-10-23 17:05",
+          lockState: "none",
+          recordsPending: null,
+          archivePath: null,
+          stop: null,
+        },
+      ],
+    }),
+  );
+}
 
 /**
  * A current-shape `interactive-session` for a held phase: the builder session

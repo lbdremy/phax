@@ -28,6 +28,12 @@ import {
   type ReviewStop,
   type ReviewStopFile,
 } from "../../../../src/schemas/reviewStop.js";
+import {
+  RunListFileSchema,
+  decodeRunListFile,
+  type RunList,
+  type RunListFile,
+} from "../../../../src/schemas/runList.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat, type CurrentShapeName } from "../shapes.js";
@@ -164,6 +170,38 @@ export type LatestReviewStop = ReviewStop;
 
 /** Upgrades a parsed review stop in memory: drops `$schema`, keeps every other fact. */
 export function toLatestReviewStop(value: ReviewStopFile): LatestReviewStop {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
+// ── run list
+
+export type RunListShapes = {
+  [K in CurrentShapeName<"run-list">]: RunListFile;
+};
+
+/** The id of every run list shape the package reads. */
+export type RunListShape = keyof RunListShapes;
+
+export const runListFormat = defineFormat<RunListShapes>({
+  id: "run-list",
+  label: "run list",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["run-list"],
+    shape: { schema: RunListFileSchema, decode: decodeRunListFile },
+  },
+});
+
+/** Reads what `phax ls --json` printed. Never throws. */
+export const parseRunList: (input: unknown) => ParsedShape<RunListShapes> = runListFormat.parse;
+
+/** The latest run list: phax's in-memory value, with no `$schema`. */
+export type LatestRunList = RunList;
+
+/** Upgrades a parsed run list in memory: drops `$schema`, keeps every other fact. */
+export function toLatestRunList(value: RunListFile): LatestRunList {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }

@@ -147,17 +147,17 @@ describe("phax ls and phax session-info on a waiting run", () => {
     expect(rows[0]).toContain("awaiting_review (declared)");
   });
 
-  it("leaves ls --json as it was: the bare state, no stop field", async () => {
-    await threeRuns();
+  it("prints the waiting run's stop in ls --json, the review-stop document as the file holds it", async () => {
+    const { waiting } = await threeRuns();
     const { runLs } = await import("../../src/cli/commands/ls.js");
     const { out, logs } = makeOutput();
 
     expect(await runLs({ json: true, awaitingReview: true }, out)).toBe(0);
 
-    const rows = JSON.parse(logs.join("\n")) as Record<string, unknown>[];
+    const rows = (JSON.parse(logs.join("\n")) as { runs: Record<string, unknown>[] }).runs;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ state: "awaiting_review", currentPhase: "3/4" });
-    expect(rows[0]).not.toHaveProperty("stop");
+    expect(rows[0]!["stop"]).toEqual(readJson(stopPath(waiting)));
   });
 
   it("session-info prints the state, cause, stopped phase, worktree, seed and session", async () => {

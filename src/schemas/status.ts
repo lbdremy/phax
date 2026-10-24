@@ -3,7 +3,7 @@ import { BranchNameSchema } from "../domain/branded.js";
 import { PhaseModeSchema } from "./phaxPlan.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
-const RunStateSchema = Schema.Union(
+export const RunStateSchema = Schema.Union(
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),

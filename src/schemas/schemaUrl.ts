@@ -52,6 +52,7 @@ export const FORMAT_IDS = [
   "interactive-handoff",
   "interactive-session",
   "review-stop",
+  "run-list",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -74,7 +75,8 @@ export function isFormatId(value: string): value is FormatId {
  * provider's stdin, of spec oracle-phases. So are the first reading and the
  * interactive handoff a declared phase's turns answer, which phax reads but
  * never writes, and the interactive session and review stop phax writes, of
- * spec interactive-phases.
+ * spec interactive-phases. So is the run list `phax ls --json` prints, of the
+ * same spec.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -94,6 +96,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "interactive-handoff",
   "interactive-session",
   "review-stop",
+  "run-list",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

@@ -46,6 +46,7 @@ import {
   interactiveHandoffFormat,
   interactiveSessionFormat,
   reviewStopFormat,
+  runListFormat,
 } from "../../../packages/schemas/src/formats/interactive.js";
 import { oracleRequestFormat } from "../../../packages/schemas/src/formats/oracleRequest.js";
 import {
@@ -123,6 +124,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "interactive-handoff": interactiveHandoffFormat.current.shape.decode,
   "interactive-session": interactiveSessionFormat.current.shape.decode,
   "review-stop": reviewStopFormat.current.shape.decode,
+  "run-list": runListFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -192,6 +194,7 @@ describe("the JSON Schema table", () => {
       interactiveHandoffFormat,
       interactiveSessionFormat,
       reviewStopFormat,
+      runListFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -214,10 +217,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 31 files and no failure", () => {
+  it("renders 32 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(31);
+    expect(rendered.files.size).toBe(32);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(
