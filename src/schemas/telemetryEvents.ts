@@ -115,6 +115,16 @@ const OracleEditsUnjudgedTelemetryEventSchema = Schema.Struct({
   files: Schema.Array(Schema.String.pipe(Schema.minLength(1))),
 });
 
+const StopTranscriptTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("stop.transcript"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.String,
+  sessionId: Schema.String.pipe(Schema.minLength(1)),
+  provider: ProviderIdSchema,
+  outcome: Schema.Literal("captured", "missing"),
+  reason: Schema.optional(Schema.Literal("not-found", "unreadable")),
+});
+
 export const SemanticTelemetryEventSchema = Schema.Union(
   StateTransitionTelemetryEventSchema,
   AdapterCallStartedTelemetryEventSchema,
@@ -127,6 +137,7 @@ export const SemanticTelemetryEventSchema = Schema.Union(
   ModelResolvedTelemetryEventSchema,
   SecurityPolicyAppliedTelemetryEventSchema,
   OracleEditsUnjudgedTelemetryEventSchema,
+  StopTranscriptTelemetryEventSchema,
 );
 
 export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<

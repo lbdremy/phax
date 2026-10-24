@@ -7,6 +7,7 @@ import {
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
   makeOracleEditsUnjudgedTelemetryEvent,
+  makeStopTranscriptTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -268,8 +269,42 @@ describe("makeOracleEditsUnjudgedTelemetryEvent", () => {
   });
 });
 
+describe("makeStopTranscriptTelemetryEvent", () => {
+  it("produces a value the schema accepts, projected without any content", () => {
+    const captured = makeStopTranscriptTelemetryEvent({
+      runId,
+      operationId: "phase-03",
+      sessionId: "X1",
+      provider: "codex-cli",
+      outcome: "captured",
+    });
+    expect(captured.type).toBe("stop.transcript");
+    expect(Either.isRight(decodeSemanticTelemetryEvent(captured))).toBe(true);
+    expect(projectEvent(captured)).toEqual({
+      type: "stop.transcript",
+      operationId: "phase-03",
+      sessionId: "X1",
+      provider: "codex-cli",
+      outcome: "captured",
+    });
+  });
+
+  it("carries the reason of a missing transcript", () => {
+    const missing = makeStopTranscriptTelemetryEvent({
+      runId,
+      operationId: "phase-03",
+      sessionId: "X1",
+      provider: "codex-cli",
+      outcome: "missing",
+      reason: "not-found",
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(missing))).toBe(true);
+    expect(projectEvent(missing)).toMatchObject({ outcome: "missing", reason: "not-found" });
+  });
+});
+
 describe("SemanticTelemetryEventSchema accepted types", () => {
-  it("accepts exactly the eleven semantic event types", () => {
+  it("accepts exactly the twelve semantic event types", () => {
     const union = SemanticTelemetryEventSchema.ast;
     if (!SchemaAST.isUnion(union)) throw new Error("expected a union schema");
     const types = union.types.map((member) => {
@@ -293,6 +328,7 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
         "agent.model.resolved",
         "security.policy.applied",
         "oracle.edits.unjudged",
+        "stop.transcript",
       ].toSorted(),
     );
   });

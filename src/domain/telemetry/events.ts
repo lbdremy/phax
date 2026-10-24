@@ -114,6 +114,20 @@ export interface OracleEditsUnjudgedTelemetryEvent {
   readonly files: readonly string[];
 }
 
+/**
+ * A stop's close copied (or failed to find) one recorded session's
+ * transcript. Never carries the transcript's content.
+ */
+export interface StopTranscriptTelemetryEvent {
+  readonly type: "stop.transcript";
+  readonly runId: RunId;
+  readonly operationId: string;
+  readonly sessionId: string;
+  readonly provider: ProviderId;
+  readonly outcome: "captured" | "missing";
+  readonly reason?: "not-found" | "unreadable";
+}
+
 export type SemanticTelemetryEvent =
   | StateTransitionTelemetryEvent
   | AdapterCallStartedTelemetryEvent
@@ -125,7 +139,8 @@ export type SemanticTelemetryEvent =
   | ArtifactGeneratedTelemetryEvent
   | ModelResolvedTelemetryEvent
   | SecurityPolicyAppliedTelemetryEvent
-  | OracleEditsUnjudgedTelemetryEvent;
+  | OracleEditsUnjudgedTelemetryEvent
+  | StopTranscriptTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
   fields: Omit<StateTransitionTelemetryEvent, "type">,
@@ -173,3 +188,7 @@ export const makeSecurityPolicyAppliedTelemetryEvent = (
 export const makeOracleEditsUnjudgedTelemetryEvent = (
   fields: Omit<OracleEditsUnjudgedTelemetryEvent, "type">,
 ): OracleEditsUnjudgedTelemetryEvent => ({ type: "oracle.edits.unjudged", ...fields });
+
+export const makeStopTranscriptTelemetryEvent = (
+  fields: Omit<StopTranscriptTelemetryEvent, "type">,
+): StopTranscriptTelemetryEvent => ({ type: "stop.transcript", ...fields });

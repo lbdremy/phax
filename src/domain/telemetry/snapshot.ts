@@ -42,6 +42,9 @@ export interface SemanticTraceSnapshotEntry {
   readonly skippedForSecurity?: readonly { readonly provider: string; readonly reason: string }[];
   // oracle.edits.unjudged
   readonly files?: readonly string[];
+  // stop.transcript
+  readonly sessionId?: string;
+  readonly outcome?: string;
 }
 
 export type SemanticTraceSnapshot = ReadonlyArray<SemanticTraceSnapshotEntry>;
@@ -113,5 +116,14 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
       };
     case "oracle.edits.unjudged":
       return { type: e.type, ...opId, files: e.files };
+    case "stop.transcript":
+      return {
+        type: e.type,
+        ...opId,
+        sessionId: e.sessionId,
+        provider: e.provider,
+        outcome: e.outcome,
+        ...(e.reason !== undefined ? { reason: e.reason } : {}),
+      };
   }
 };

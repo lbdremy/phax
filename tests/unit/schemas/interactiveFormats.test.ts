@@ -182,6 +182,7 @@ const interactiveSession = {
   history: [],
   firstTurns: [],
   turnInProgress: null,
+  transcripts: null,
 };
 const stampedSession = (value: object) => withSchemaUrl("interactive-session", value);
 
@@ -342,6 +343,38 @@ describe("interactive-session", () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it("decodes transcripts as null or one captured or missing entry per session, each with exactly its keys", () => {
+    const captured = { sessionId: SESSION, status: "captured", sha256: "a".repeat(64) };
+    const missing = {
+      sessionId: "X2",
+      status: "missing",
+      reason: "not-found",
+      detail: "no rollout for X2",
+    };
+    for (const transcripts of [null, [], [captured, missing]]) {
+      expect(
+        accepted(
+          decodeInteractiveSessionFile(stampedSession({ ...interactiveSession, transcripts })),
+        ),
+      ).toBe(true);
+    }
+    for (const transcripts of [
+      [{ ...captured, reason: "not-found" }],
+      [{ ...missing, sha256: "a".repeat(64) }],
+      [{ ...captured, sha256: "abc" }],
+      [{ ...missing, reason: "gone" }],
+      [{ sessionId: SESSION, status: "captured" }],
+    ]) {
+      expect(
+        accepted(
+          decodeInteractiveSessionFile(stampedSession({ ...interactiveSession, transcripts })),
+        ),
+      ).toBe(false);
+    }
+    const { transcripts: _omitted, ...without } = interactiveSession;
+    expect(accepted(decodeInteractiveSessionFile(stampedSession(without)))).toBe(false);
   });
 
   it("is read through its bridge reader", () => {

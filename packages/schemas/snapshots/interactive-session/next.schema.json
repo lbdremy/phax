@@ -23,7 +23,8 @@
     "current",
     "history",
     "firstTurns",
-    "turnInProgress"
+    "turnInProgress",
+    "transcripts"
   ],
   "properties": {
     "$schema": {
@@ -453,6 +454,77 @@
           "type": "null"
         }
       ]
+    },
+    "transcripts": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "status",
+                  "sha256"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "captured"
+                    ]
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "description": "The sha256 of the copied file's bytes.",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "status",
+                  "reason",
+                  "detail"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "missing"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "not-found",
+                      "unreadable"
+                    ]
+                  },
+                  "detail": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Null until a close copies the recorded sessions' transcripts, then one entry per recorded session."
     }
   },
   "additionalProperties": false

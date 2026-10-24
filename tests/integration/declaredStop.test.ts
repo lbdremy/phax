@@ -534,6 +534,7 @@ describe("stopAtDeclaredPhase — a first turn that edits", () => {
         personHandoffBefore: null,
         startedAt: "2026-10-22T09:05:00.000Z",
       },
+      transcripts: null,
     };
     writeJson(
       join(phaseFolder, "interactive-session.json"),
@@ -586,6 +587,7 @@ describe("stopAtDeclaredPhase — a first turn that edits", () => {
           personHandoffBefore: null,
           startedAt: "2026-10-22T09:05:00.000Z",
         },
+        transcripts: null,
       } satisfies InteractiveSession),
     );
     await stop(answering());

@@ -11,6 +11,10 @@ const STOP_FILES: ReadonlySet<string> = new Set([
   "correction-reconciliation.md",
   "review-diff.patch",
   "review-gate",
+  // The copies of the stop's sessions' transcripts: never in a record, whatever
+  // `records.transcript` says, since a continued session ran outside phax's
+  // enforcement and may hold what the person typed.
+  "interactive-transcripts",
   // The review-stop document a close parks in the phase folder.
   "review-stop.closing.json",
 ]);

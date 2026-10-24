@@ -42,6 +42,14 @@ import {
   validateInteractiveHandoff,
 } from "../domain/interactive/handoff.js";
 import {
+  recordedSessions,
+  sha256Hex,
+  TRANSCRIPTS_FOLDER,
+  transcriptFile,
+  type ClosedStopSession,
+  type TranscriptOutcome,
+} from "../domain/interactive/transcripts.js";
+import {
   closingTurnPrompt,
   correctivePrompt,
   cutDiff,
@@ -96,6 +104,7 @@ import {
   fingerprintPersonHandoff,
   keepPersonHandoffCopy,
   keepRefusedTurn,
+  readInteractiveSession,
   readModelResolution,
   readPhasePosture,
   readReviewStop,
@@ -123,6 +132,7 @@ import {
   tracedReviewCommit,
   tracedStep,
   tracedTurnCall,
+  traceTranscript,
   traceUnjudgedOracleEdits,
 } from "./telemetry/stopTelemetry.js";
 
@@ -183,6 +193,8 @@ interface CloseReportFacts {
   readonly restoredClosingTurn: LeftoverSettlement["restoredClosingTurn"];
   /** Whether the close's gate ended with the `authored` oracle step, which passed. */
   readonly oracleStep: OracleStep;
+  /** The stop's recorded sessions with their transcripts' outcomes, oldest first. */
+  readonly sessions: readonly ClosedStopSession[];
 }
 
 /**
@@ -383,7 +395,7 @@ function finishLandedCommit(
   closedBy: Closer,
   closeBase: string,
   head: string,
-): Effect.Effect<CloseReport, CloseRefusal, FileSystem | Git | Shell | SystemTelemetry> {
+): Effect.Effect<CloseReport, CloseRefusal, Backend | FileSystem | Git | Shell | SystemTelemetry> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const fs = yield* FileSystem;
@@ -439,6 +451,9 @@ function finishLandedCommit(
       // Git cannot tell whether the landed commit's gate ran the authored
       // step: the attempt's own files do.
       oracleStep: yield* landedOracleStep(input, layout, gateLog),
+      // The commit landed before the copy, or after it: the same step, which
+      // keeps an earlier copy whose store file has gone.
+      sessions: yield* captureTranscripts(input),
     } as const;
     switch (layout.cause) {
       case "declared":
@@ -924,6 +939,7 @@ function runClosingTurn(
       history: [],
       firstTurns: [],
       turnInProgress: null,
+      transcripts: null,
     };
     const recordInProgress = (n: number, origin: Origin) =>
       writeInteractiveSession(input.phaseFolder, {
@@ -1011,6 +1027,103 @@ function runClosingTurn(
     return attempt;
   });
 }
+
+// ── The transcripts ────────────────────────────────────────────────────────
+
+/** The folder of copies is private, as is each copy: a continued session may hold secrets. */
+const TRANSCRIPT_FOLDER_MODE = 0o700;
+const TRANSCRIPT_FILE_MODE = 0o600;
+
+/**
+ * An earlier attempt's copy of a transcript the store no longer holds: its
+ * digest, or null when there is none or it cannot be read.
+ */
+function earlierCopyDigest(destination: string): Effect.Effect<string | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    if (!(yield* fs.exists(destination))) return null;
+    return sha256Hex(yield* fs.readBytes(destination));
+  }).pipe(Effect.orElseSucceed(() => null));
+}
+
+/**
+ * Copy the transcript of every session the stop recorded into
+ * `interactive-transcripts/<session id>.jsonl`, overwriting an earlier copy,
+ * and write each outcome into interactive-session.json. The adapter only
+ * reads the provider's store; the close owns the policy: the bytes are written
+ * as read and hashed as written, an earlier attempt's copy is kept when the
+ * store file has gone, a `missing` transcript never refuses, and a failed
+ * write refuses as `files`.
+ */
+function copyTranscripts(
+  input: CloseStopInput,
+): Effect.Effect<
+  readonly ClosedStopSession[],
+  CloseRefusal,
+  Backend | FileSystem | SystemTelemetry
+> {
+  return Effect.gen(function* () {
+    const backend = yield* Backend;
+    const fs = yield* FileSystem;
+    // Read now: the closing turn rewrote the document after the stop wrote it.
+    const session = yield* at("files", readInteractiveSession(input.phaseFolder));
+    if (session === null) return [];
+    const ctx = { runId: input.runId, phaseId: input.phase.id };
+    const closed: ClosedStopSession[] = [];
+    for (const recorded of recordedSessions(session)) {
+      const read = yield* backend.captureTranscript({
+        provider: recorded.provider,
+        sessionId: recorded.sessionId,
+        startedAt: recorded.startedAt,
+        cwd: input.worktree,
+      });
+      const destination = join(input.phaseFolder, transcriptFile(recorded.sessionId));
+      let transcript: TranscriptOutcome;
+      if (read.status === "found") {
+        yield* at(
+          "files",
+          fs.mkdirp(join(input.phaseFolder, TRANSCRIPTS_FOLDER), { mode: TRANSCRIPT_FOLDER_MODE }),
+        );
+        yield* at(
+          "files",
+          fs.writeAtomicBytes(destination, read.bytes, { mode: TRANSCRIPT_FILE_MODE }),
+        );
+        transcript = { status: "captured", sha256: sha256Hex(read.bytes) };
+      } else {
+        const kept = yield* earlierCopyDigest(destination);
+        transcript =
+          kept === null
+            ? { status: "missing", reason: read.reason, detail: read.detail }
+            : { status: "captured", sha256: kept };
+      }
+      yield* traceTranscript(ctx, recorded, transcript);
+      closed.push({
+        provider: recorded.provider,
+        model: recorded.model,
+        effort: recorded.effort,
+        sessionId: recorded.sessionId,
+        origin: recorded.origin,
+        transcript,
+      });
+    }
+    yield* at(
+      "files",
+      writeInteractiveSession(input.phaseFolder, {
+        ...session,
+        transcripts: closed.map((s) => ({ sessionId: s.sessionId, ...s.transcript })),
+      }),
+    );
+    return closed;
+  });
+}
+
+/** `copyTranscripts` as the traced `transcripts` step: a success whatever the outcomes. */
+const captureTranscripts = (input: CloseStopInput) =>
+  tracedStep(
+    { runId: input.runId, phaseId: input.phase.id, step: "transcripts" },
+    copyTranscripts(input),
+    () => true,
+  );
 
 // ── The close ──────────────────────────────────────────────────────────────
 
@@ -1161,6 +1274,10 @@ function closeSteps(
       );
     }
 
+    // 5b. Transcripts: copied before the commit, so an interruption before it
+    // copies again at the next close.
+    const sessions = yield* captureTranscripts(input);
+
     // 6. Commit exactly the gated tree.
     yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.handoffFile), handoff));
     const bodyOptions = {
@@ -1191,6 +1308,7 @@ function closeSteps(
       restoredClosingTurn: leftover.restoredClosingTurn,
       // The gate passed, so an oracle step it ran passed too.
       oracleStep: oracle.step === undefined ? "none" : "authored",
+      sessions,
     } as const;
 
     switch (layout.cause) {
