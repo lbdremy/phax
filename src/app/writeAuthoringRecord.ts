@@ -70,7 +70,6 @@ export interface WriteAuthoringRecordInput {
   readonly sessionId?: string | undefined;
   /** The session id the retry reported; absent when there was no retry or it failed. */
   readonly retrySessionId?: string | undefined;
-  readonly vibeHome?: string | undefined;
 }
 
 export type WriteAuthoringRecordResult = RecordWriteResult;
@@ -111,7 +110,6 @@ export function writeAuthoringRecord(
           ? [{ transcript: RETRY_TRANSCRIPT_FILENAME, sessionId: input.retrySessionId }]
           : []),
       ],
-      vibeHome: input.vibeHome,
     });
 
     const manifest: AuthoringRecordManifest = {

@@ -4,11 +4,14 @@ import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { estimatePlanCost } from "../../app/estimatePlan.js";
 import { renderEstimate } from "../../domain/cost/estimateRender.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import {
+  exitCodeForError,
+  makeProviderBackendLayer,
+  makeRepoRootedFileSystemLayer,
+} from "./runLayers.js";
 
 export interface PlansEstimateCommandOptions {
   readonly json?: true;
@@ -45,7 +48,7 @@ export async function runPlansEstimate(
         Layer.mergeAll(
           makeRepoRootedFileSystemLayer(config),
           makeNodeGitLayer(),
-          makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
+          makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG),
           makeNodeLockLayer(config.stateRoot),
         ),
       ),

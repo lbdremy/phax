@@ -227,6 +227,8 @@ const backend: BackendOps = {
   },
   complete: unused,
   probe: unused,
+  captureTranscript: () =>
+    Effect.succeed({ status: "missing", reason: "not-found", detail: "not played by this test" }),
 };
 
 const realShell = Effect.runSync(Effect.provide(Shell, NodeShellLayer));

@@ -9,10 +9,9 @@ import type {
   PlanFootprint,
   ReadjustmentImpactResult,
 } from "../../domain/planOverlap/types.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export interface PlansOverlapCommandOptions {
@@ -34,7 +33,7 @@ function footprintToJson(fp: PlanFootprint) {
 
 function nodeLayer(config: ResolvedConfig) {
   return Layer.mergeAll(
-    makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
+    makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG),
     makeRepoRootedFileSystemLayer(config),
     NoopSystemTelemetryLayer,
   );

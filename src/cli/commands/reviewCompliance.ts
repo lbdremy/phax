@@ -7,8 +7,7 @@ import { effectiveStateRoot } from "../../app/projectContext.js";
 import { reviewCompliance } from "../../app/reviewCompliance.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import type { FileSystem } from "../../ports/fs.js";
 import type { Backend } from "../../ports/backend.js";
@@ -77,7 +76,7 @@ export async function runReviewCompliance(
 
   function buildLayer(): Layer.Layer<Backend | FileSystem | SystemTelemetry> {
     return Layer.mergeAll(
-      makeNodeBackendLayer(providerConfig),
+      makeProviderBackendLayer(providerConfig),
       makeRepoRootedFileSystemLayer(config),
       NoopSystemTelemetryLayer,
     );

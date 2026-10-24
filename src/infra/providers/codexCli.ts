@@ -2,12 +2,14 @@ import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
   AgentRunResult,
   CompletionOptions,
   CompletionResult,
+  TranscriptRead,
+  TranscriptRequest,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
@@ -28,6 +30,7 @@ import { findCodexResultEvent, hasCodexErroredResultEvent } from "../../schemas/
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
+import { captureFromStore, listStoreNames, notFound, readStoreFile } from "./transcriptStore.js";
 
 type CodexProviderEntry = ProviderConfig["providers"][string];
 
@@ -216,6 +219,72 @@ export function runCodexCompletion(
 
     const found = findCodexResultEvent(lines);
     return { finalText: found?.finalText ?? "" };
+  });
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * The `YYYY/MM/DD` folders codex may have filed a session started at
+ * `startedAt` under: its UTC and local dates, and the day after each, since a
+ * session can outlive midnight. Empty for an unparseable instant.
+ */
+export function codexSessionDayFolders(startedAt: string): readonly string[] {
+  const start = Date.parse(startedAt);
+  if (Number.isNaN(start)) return [];
+  const folders = new Set<string>();
+  for (const instant of [new Date(start), new Date(start + DAY_MS)]) {
+    folders.add(
+      `${instant.getUTCFullYear()}/${pad(instant.getUTCMonth() + 1)}/${pad(instant.getUTCDate())}`,
+    );
+    folders.add(
+      `${instant.getFullYear()}/${pad(instant.getMonth() + 1)}/${pad(instant.getDate())}`,
+    );
+  }
+  return [...folders];
+}
+
+/**
+ * A codex session's transcript, `<codex root>/sessions/YYYY/MM/DD/rollout-*-<id>.jsonl`.
+ * The day folders of its start come first (see {@link codexSessionDayFolders});
+ * failing them, every year, month and day folder is listed by name.
+ */
+export function captureCodexTranscript(
+  codexRoot: string | null,
+  request: TranscriptRequest,
+): Effect.Effect<TranscriptRead, never> {
+  return captureFromStore(codexRoot, request.sessionId, async (root) => {
+    const sessions = join(root, "sessions");
+    const suffix = `-${request.sessionId}.jsonl`;
+    const inDay = async (day: string): Promise<TranscriptRead | null> => {
+      const names = await listStoreNames(join(sessions, day));
+      if (names === "absent") return null;
+      const name = names.find((n) => n.startsWith("rollout-") && n.endsWith(suffix));
+      return name === undefined ? null : readStoreFile(join(sessions, day, name));
+    };
+    for (const day of codexSessionDayFolders(request.startedAt)) {
+      const read = await inDay(day);
+      if (read !== null) return read;
+    }
+    const years = await listStoreNames(sessions);
+    if (years === "absent") return notFound(`no codex sessions folder at ${sessions}`);
+    for (const year of years) {
+      const months = await listStoreNames(join(sessions, year));
+      if (months === "absent") continue;
+      for (const month of months) {
+        const days = await listStoreNames(join(sessions, year, month));
+        if (days === "absent") continue;
+        for (const day of days) {
+          const read = await inDay(`${year}/${month}/${day}`);
+          if (read !== null) return read;
+        }
+      }
+    }
+    return notFound(`no rollout for session ${request.sessionId} under ${sessions}`);
   });
 }
 

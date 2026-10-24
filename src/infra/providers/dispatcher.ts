@@ -8,10 +8,16 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import type { FsError } from "../../ports/fs.js";
+import { ProviderStoreRoots } from "../../ports/providerStores.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
-import { runClaudeAgent, runClaudeCompletion, runClaudeProbe } from "./claudeCode.js";
-import { runCodexAgent, runCodexCompletion } from "./codexCli.js";
-import { runVibeAgent } from "./mistralVibe.js";
+import {
+  captureClaudeTranscript,
+  runClaudeAgent,
+  runClaudeCompletion,
+  runClaudeProbe,
+} from "./claudeCode.js";
+import { captureCodexTranscript, runCodexAgent, runCodexCompletion } from "./codexCli.js";
+import { captureVibeTranscript, runVibeAgent } from "./mistralVibe.js";
 
 type RunAgentError =
   | AgentInvocationError
@@ -20,8 +26,23 @@ type RunAgentError =
   | SecurityEnforcementError
   | FsError;
 
+/**
+ * The backend that runs the provider CLIs. Its adapters read the provider
+ * store roots in context when the layer is built: the CLI provides
+ * `ProviderStoreRootsLive`, and without it the default holds no root.
+ */
 export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
-  return Layer.succeed(Backend, {
+  return Layer.effect(
+    Backend,
+    Effect.map(ProviderStoreRoots, (roots) => nodeBackend(providerConfig, roots)),
+  );
+}
+
+function nodeBackend(
+  providerConfig: ProviderConfig,
+  roots: ProviderStoreRoots["Type"],
+): Backend["Type"] {
+  return {
     runAgent: (prompt, options) => {
       if (options.provider === "claude-code") {
         return runClaudeAgent(prompt, options).pipe(
@@ -40,7 +61,7 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
             new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
           );
         }
-        return runVibeAgent(prompt, options, entry).pipe(
+        return runVibeAgent(prompt, options, entry, roots.vibe).pipe(
           Effect.mapError(
             (e): RunAgentError =>
               e instanceof AgentSessionIdMissingError
@@ -112,7 +133,7 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
             new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
           );
         }
-        return runVibeAgent(prompt, options, entry, sessionId);
+        return runVibeAgent(prompt, options, entry, roots.vibe, sessionId);
       }
       if (options.provider === "codex-cli") {
         const entry = providerConfig.providers["codex-cli"];
@@ -129,5 +150,16 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
         }),
       );
     },
-  });
+
+    captureTranscript: (request) => {
+      switch (request.provider) {
+        case "claude-code":
+          return captureClaudeTranscript(roots.claude, request);
+        case "codex-cli":
+          return captureCodexTranscript(roots.codex, request);
+        case "mistral-vibe":
+          return captureVibeTranscript(roots.vibe, request);
+      }
+    },
+  };
 }

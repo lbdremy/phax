@@ -78,6 +78,25 @@ export interface AgentRunResult {
   readonly finalText: string;
 }
 
+/** One recorded session whose transcript is asked for, in its provider's own store. */
+export interface TranscriptRequest {
+  readonly provider: ProviderId;
+  readonly sessionId: string;
+  /** When the session started (ISO-8601): codex files its sessions by date. */
+  readonly startedAt: string;
+  /** The stop's worktree, where the session ran: Claude Code files its sessions by it. */
+  readonly cwd: string;
+}
+
+/** A transcript's bytes exactly as the provider stored them, or why they could not be read. */
+export type TranscriptRead =
+  | { readonly status: "found"; readonly bytes: Uint8Array }
+  | {
+      readonly status: "missing";
+      readonly reason: "not-found" | "unreadable";
+      readonly detail: string;
+    };
+
 export interface BackendOps {
   runAgent(
     prompt: string,
@@ -117,6 +136,16 @@ export interface BackendOps {
    * provider option. A spawn failure is an `AgentInvocationError`.
    */
   probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError>;
+
+  /**
+   * Find one session's transcript in its provider's own session store, under
+   * the `ProviderStoreRoots` the backend was built with, and read its bytes.
+   * It writes nothing and never fails: an unsafe session id, an absent file
+   * or any I/O error is a `missing` read. It reads only that session's
+   * transcript (and, for vibe, the `session_id` of candidate `meta.json`s),
+   * never a credential or configuration file.
+   */
+  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>;
 }
 
 export class Backend extends Context.Tag("phax/Backend")<Backend, BackendOps>() {}

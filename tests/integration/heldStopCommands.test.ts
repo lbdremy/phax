@@ -40,6 +40,7 @@ import {
   type HeldWorld,
 } from "../helpers/heldRunFixture.js";
 import { patchJson, stopRun } from "../helpers/stoppedRunFixture.js";
+import { childEnvUnder } from "../helpers/providerStoreRoots.js";
 
 // The commands that act on a run waiting at a held stop: the made-up
 // invoice-export run holding phase-02 (`--hold phase-02`), built by the real
@@ -563,7 +564,7 @@ describe("the phase guard inside a held phase's worktree", () => {
       const result = spawnSync("tsx", [mainTs, ...args], {
         cwd: tree(),
         encoding: "utf8",
-        env: { ...process.env, HOME: home },
+        env: childEnvUnder(home),
       });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(

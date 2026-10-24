@@ -6,6 +6,7 @@ import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { ProviderStoreRootsLive } from "../../infra/providerStoreRoots.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
 import {
@@ -17,6 +18,7 @@ import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
+import type { ProviderStoreRoots } from "../../ports/providerStores.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
@@ -108,6 +110,20 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
     : NoopSystemTelemetryLayer;
 }
 
+/**
+ * The provider backend with this invocation's provider store roots
+ * (`ProviderStoreRootsLive`), resolved once from the environment and the home
+ * directory. The roots are both read by the backend's adapters and provided to
+ * the use case, so transcript capture, record usage and vibe session discovery
+ * read the same stores. Every command that runs a provider or writes a record
+ * builds its backend through this.
+ */
+export function makeProviderBackendLayer(
+  providerConfig: ProviderConfig,
+): Layer.Layer<Backend | ProviderStoreRoots> {
+  return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
+}
+
 export function provideRunLayers<A, E>(
   effect: Effect.Effect<A, E, Backend | FileSystem | Git | GitHub | Shell | Lock | SystemTelemetry>,
   config: ResolvedConfig,
@@ -115,7 +131,7 @@ export function provideRunLayers<A, E>(
   providerConfig: ProviderConfig,
 ): Effect.Effect<A, E, never> {
   return effect.pipe(
-    Effect.provide(makeNodeBackendLayer(providerConfig)),
+    Effect.provide(makeProviderBackendLayer(providerConfig)),
     Effect.provide(makeRepoRootedFileSystemLayer(config)),
     Effect.provide(NodeGitLayer),
     Effect.provide(NodeGitHubLayer),

@@ -11,11 +11,17 @@ import { join } from "node:path";
  *   writes a file in its cwd, then prints a canned stream (Claude's
  *   stream-json init, assistant message and result; codex's `--json` thread,
  *   item and turn events) carrying the script's final text and session id,
- *   or reports a rate limit and exits 1.
+ *   or reports a rate limit and exits 1;
+ * - appends the lines it printed to its session store under `$HOME`, as the
+ *   real CLI keeps its transcript: Claude to
+ *   `.claude/projects/<slug of its cwd>/<id>.jsonl`, codex to
+ *   `.codex/sessions/<UTC YYYY>/<MM>/<DD>/rollout-<timestamp>-<id>.jsonl`. A
+ *   resume of the same id appends to the same file.
  *
  * phax spawns `claude` by name, so a test prepends `binDir` to PATH (see
  * `env`); codex runs from its provider entry's `executable`, `codexPath`.
- * `env` also points HOME at a temporary directory, so no test reads ~/.phax.
+ * `env` also points HOME at a temporary directory, so no test reads ~/.phax
+ * and the stores land under the test's own HOME.
  */
 interface FakeCliScript {
   readonly sessionId: string;
@@ -24,6 +30,8 @@ interface FakeCliScript {
   readonly writeFile?: { readonly path: string; readonly content: string };
   /** Report a rate limit instead of answering. */
   readonly rateLimit?: boolean;
+  /** False keeps the session out of the store, as a provider that lost it would. Default true. */
+  readonly keepStore?: boolean;
 }
 
 interface FakeCliInvocation {
@@ -51,7 +59,22 @@ fs.appendFileSync(
   JSON.stringify({ executable, argv: process.argv.slice(2), cwd: process.cwd() }) + "\\n",
 );
 const script = JSON.parse(fs.readFileSync(process.env.PHAX_FAKE_CLI_SCRIPT, "utf8"));
-const print = (event) => process.stdout.write(JSON.stringify(event) + "\\n");
+const printed = [];
+const print = (event) => {
+  const line = JSON.stringify(event);
+  printed.push(line);
+  process.stdout.write(line + "\\n");
+};
+// Append what was printed to the session's store file, chosen by \`storeFile\`
+// once the process exits, whichever way it exits.
+function keepInStore(storeFile) {
+  process.on("exit", () => {
+    if (script.keepStore === false || printed.length === 0) return;
+    const file = storeFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.appendFileSync(file, printed.join("\\n") + "\\n");
+  });
+}
 function answer(stream) {
   if (script.writeFile) {
     const target = path.join(process.cwd(), script.writeFile.path);
@@ -65,6 +88,15 @@ process.stdin.on("data", (chunk) => { stdin += chunk; });
 `;
 
 const CLAUDE = `${SHARED}
+keepInStore(() =>
+  path.join(
+    process.env.HOME,
+    ".claude",
+    "projects",
+    process.cwd().replace(/[^A-Za-z0-9]/g, "-"),
+    script.sessionId + ".jsonl",
+  ),
+);
 process.stdin.on("end", () => answer(() => {
   const id = script.sessionId;
   print({ type: "system", subtype: "init", session_id: id, model: "claude-sonnet-5-5", tools: [] });
@@ -89,6 +121,22 @@ process.stdin.on("end", () => answer(() => {
 `;
 
 const CODEX = `${SHARED}
+// The session's existing rollout, so a resume appends to it; else a new one
+// filed under today's UTC date.
+function rolloutFile() {
+  const sessions = path.join(process.env.HOME, ".codex", "sessions");
+  const suffix = "-" + script.sessionId + ".jsonl";
+  const found = fs.existsSync(sessions)
+    ? fs.readdirSync(sessions, { recursive: true }).find((name) => String(name).endsWith(suffix))
+    : undefined;
+  if (found !== undefined) return path.join(sessions, String(found));
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = [now.getUTCFullYear(), pad(now.getUTCMonth() + 1), pad(now.getUTCDate())];
+  const stamp = now.toISOString().slice(0, 19).replace(/:/g, "-");
+  return path.join(sessions, ...day.map(String), "rollout-" + stamp + suffix);
+}
+keepInStore(rolloutFile);
 process.stdin.on("end", () => answer(() => {
   if (script.rateLimit) {
     print({ type: "error", message: "rate limit exceeded" });

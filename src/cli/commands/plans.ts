@@ -13,12 +13,15 @@ import {
   renderStalenessApply,
   type StalenessFlip,
 } from "../../domain/artifact/render.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import {
+  exitCodeForError,
+  makeProviderBackendLayer,
+  makeRepoRootedFileSystemLayer,
+} from "./runLayers.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { runPlansOverlap, type PlansOverlapCommandOptions } from "./plansOverlap.js";
 import { runPlansEstimate, type PlansEstimateCommandOptions } from "./plansEstimate.js";
@@ -30,7 +33,7 @@ export interface PlansStatusCommandOptions {
 
 function nodeLayer(config: ResolvedConfig) {
   return Layer.mergeAll(
-    makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
+    makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG),
     makeRepoRootedFileSystemLayer(config),
     makeNodeGitLayer(),
     NoopSystemTelemetryLayer,

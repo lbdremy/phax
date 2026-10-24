@@ -6,7 +6,6 @@ import type { OutputPort } from "../../ports/output.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
@@ -42,7 +41,11 @@ import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
 import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
 import { defaultBundleRoot } from "./skills.js";
 import { type DecideCommandOptions, runArtifactDecide } from "./artifactDecide.js";
-import { exitCodeForAuthoringError, exitCodeForError } from "./runLayers.js";
+import {
+  exitCodeForAuthoringError,
+  exitCodeForError,
+  makeProviderBackendLayer,
+} from "./runLayers.js";
 
 const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
 
@@ -428,7 +431,7 @@ export async function runCreateArtifactHeadless(
     () => ({ allowed: true }),
   );
 
-  const backendLayer = deps.backendLayer ?? makeNodeBackendLayer(providerConfig);
+  const backendLayer = deps.backendLayer ?? makeProviderBackendLayer(providerConfig);
   const layer = Layer.mergeAll(fsGitLayer, backendLayer, deps.githubLayer ?? NodeGitHubLayer);
 
   const effect = Effect.gen(function* () {

@@ -1,6 +1,5 @@
 import { Either, Schema } from "effect";
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
@@ -87,14 +86,15 @@ const decodeVibeSessionMeta = Schema.decodeUnknownEither(VibeSessionMetaSchema);
 export interface FindVibeSessionOptions {
   readonly cwd: string;
   readonly sinceMs: number;
-  readonly vibeHome?: string;
+  /** vibe's home (`ProviderStoreRoots`); null means no store, so no session is found. */
+  readonly vibeRoot: string | null;
 }
 
 /**
  * Discover the session id of the vibe run we just executed.
  *
  * `vibe -p --output streaming` does not emit a session id in its events; it
- * persists one in `<VIBE_HOME>/logs/session/session_<ts>_<short>/meta.json`.
+ * persists one in `<vibe root>/logs/session/session_<ts>_<short>/meta.json`.
  * We pick the most recent meta whose `environment.working_directory` matches
  * `cwd` and whose containing directory's mtime is at or after `sinceMs`.
  *
@@ -119,7 +119,8 @@ async function sameDirectory(a: string, b: string): Promise<boolean> {
 export async function findVibeSessionId(
   options: FindVibeSessionOptions,
 ): Promise<string | undefined> {
-  const root = join(options.vibeHome ?? join(homedir(), ".vibe"), "logs", "session");
+  if (options.vibeRoot === null) return undefined;
+  const root = join(options.vibeRoot, "logs", "session");
   let entries: string[];
   try {
     entries = await readdir(root);

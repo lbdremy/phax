@@ -6,13 +6,16 @@ import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { enterPhase } from "../../app/enterPhase.js";
-import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { Session } from "../../ports/session.js";
-import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import {
+  exitCodeForError,
+  makeProviderBackendLayer,
+  makeRepoRootedFileSystemLayer,
+} from "./runLayers.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 
 export interface EnterPhaseCommandOptions {
@@ -63,7 +66,7 @@ export async function runEnterPhase(
   const layer = Layer.mergeAll(
     fsLayer,
     NodeGitLayer,
-    makeNodeBackendLayer(providerConfig),
+    makeProviderBackendLayer(providerConfig),
     makeNodeLockLayer(stateRoot),
     NoopSystemTelemetryLayer,
   );
