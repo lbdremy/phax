@@ -50,6 +50,7 @@ afterEach(() => {
 
 const ADA = { name: "Ada Example", email: "ada@example.test" };
 const GRACE = { name: "Grace Example", email: "grace@example.test" };
+const LIN = { name: "Lin Example", email: "lin@example.test" };
 
 describe("Git authorIdentity (Node adapter)", () => {
   it.each([
@@ -83,6 +84,30 @@ describe("Git authorIdentity (Node adapter)", () => {
       env: { GIT_AUTHOR_NAME: "", GIT_AUTHOR_EMAIL: "" },
       expected: ADA,
     },
+    {
+      setup: "author.name and author.email over user.*",
+      config: { ...ADA, authorName: GRACE.name, authorEmail: GRACE.email },
+      env: {},
+      expected: GRACE,
+    },
+    {
+      setup: "author.email alone over user.email, user.name kept",
+      config: { ...ADA, authorEmail: GRACE.email },
+      env: {},
+      expected: { name: ADA.name, email: GRACE.email },
+    },
+    {
+      setup: "author.* and no user.*",
+      config: { authorName: GRACE.name, authorEmail: GRACE.email },
+      env: {},
+      expected: GRACE,
+    },
+    {
+      setup: "the author variables over author.*",
+      config: { authorName: GRACE.name, authorEmail: GRACE.email },
+      env: { GIT_AUTHOR_NAME: LIN.name, GIT_AUTHOR_EMAIL: LIN.email },
+      expected: LIN,
+    },
     { setup: "no name", config: { email: ADA.email }, env: {}, expected: null },
     { setup: "no email", config: { name: ADA.name }, env: {}, expected: null },
     { setup: "an empty email", config: { name: ADA.name, email: "" }, env: {}, expected: null },
@@ -91,6 +116,12 @@ describe("Git authorIdentity (Node adapter)", () => {
     const fields: Readonly<Record<string, string | undefined>> = config;
     if (fields["name"] !== undefined) git(["config", "--local", "user.name", fields["name"]]);
     if (fields["email"] !== undefined) git(["config", "--local", "user.email", fields["email"]]);
+    if (fields["authorName"] !== undefined) {
+      git(["config", "--local", "author.name", fields["authorName"]]);
+    }
+    if (fields["authorEmail"] !== undefined) {
+      git(["config", "--local", "author.email", fields["authorEmail"]]);
+    }
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
     expect(await authorIdentity()).toEqual(Either.right(expected));
   });
