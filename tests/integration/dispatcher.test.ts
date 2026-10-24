@@ -409,14 +409,22 @@ describe("dispatch — review-stop.json lifecycle", () => {
       ...baseEventFields,
       phaseId: "phase-01" as PhaseId,
       hash: "deadbeef12345678",
-      closure: { outcome: "unchanged" },
+      closure: {
+        outcome: "unchanged",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     });
     expect(fakeFs.impl.getFile(live)).toBeUndefined();
     expect(fakeFs.impl.getFile(parked)).toBeUndefined();
     expect(readJson(fakeFs, `${phaseFolderPath}/status.json`)).toMatchObject({
       state: "committed",
       commitHash: "deadbeef12345678",
-      stop: { cause: "declared", status: "closed", outcome: "unchanged" },
+      stop: {
+        cause: "declared",
+        status: "closed",
+        outcome: "unchanged",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     });
   });
 

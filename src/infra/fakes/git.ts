@@ -67,6 +67,7 @@ export type GitCall =
   | { method: "fetchRemote"; remote: string; repo: string }
   | { method: "remoteUrl"; remote: string; repo: string }
   | { method: "committerName"; repo: string }
+  | { method: "authorIdentity"; repo: string }
   | { method: "listRefs"; repo: string; prefix: string }
   | {
       method: "countUnpreservedCommits";
@@ -518,6 +519,23 @@ export class FakeGitImpl implements GitOps {
   committerName(repo: string): Effect.Effect<string | null, GitError> {
     this.calls.push({ method: "committerName", repo });
     return Effect.succeed(this.committerNameValue);
+  }
+
+  /** What `authorIdentity` returns: the identity git authors under, or null when none is set. */
+  authorIdentityValue: { readonly name: string; readonly email: string } | null = {
+    name: "Ada Example",
+    email: "ada@example.com",
+  };
+
+  setAuthorIdentity(identity: { readonly name: string; readonly email: string } | null): void {
+    this.authorIdentityValue = identity;
+  }
+
+  authorIdentity(
+    repo: string,
+  ): Effect.Effect<{ readonly name: string; readonly email: string } | null, GitError> {
+    this.calls.push({ method: "authorIdentity", repo });
+    return Effect.succeed(this.authorIdentityValue);
   }
 
   readonly addedRefs = new Set<string>();

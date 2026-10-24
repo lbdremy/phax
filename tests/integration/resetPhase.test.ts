@@ -475,7 +475,13 @@ describe("resetPhase", () => {
         statusPath,
         JSON.stringify({
           ...status,
-          stop: { cause: "declared", status: "closed", outcome: "corrected", oracleStep },
+          stop: {
+            cause: "declared",
+            status: "closed",
+            outcome: "corrected",
+            oracleStep,
+            closedBy: { name: "Ada Example", email: "ada@example.com" },
+          },
         }),
       );
       const plan: PhaxPlan = {

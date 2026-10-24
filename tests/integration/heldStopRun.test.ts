@@ -323,6 +323,7 @@ describe("the record of a held phase", { timeout: 60_000 }, () => {
         fileReconciliationMode: "report_only" as const,
         phases: run.plan.phases,
         oracles: null,
+        mainCheckout: run.world.repoRoot,
       });
     });
     await Effect.runPromise(

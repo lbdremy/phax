@@ -1284,8 +1284,14 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                             status: "closed",
                             outcome: "corrected",
                             oracleStep: event.closure.oracleStep,
+                            closedBy: event.closure.closedBy,
                           }
-                        : { cause: "declared", status: "closed", outcome: "unchanged" },
+                        : {
+                            cause: "declared",
+                            status: "closed",
+                            outcome: "unchanged",
+                            closedBy: event.closure.closedBy,
+                          },
                   },
                 },
               },
@@ -1337,8 +1343,14 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                               outcome: "corrected",
                               reviewCommit: event.closure.reviewCommit,
                               oracleStep: event.closure.oracleStep,
+                              closedBy: event.closure.closedBy,
                             }
-                          : { cause: "held", status: "closed", outcome: "unchanged" },
+                          : {
+                              cause: "held",
+                              status: "closed",
+                              outcome: "unchanged",
+                              closedBy: event.closure.closedBy,
+                            },
                     },
                   },
                 },

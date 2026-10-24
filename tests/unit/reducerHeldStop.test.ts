@@ -72,14 +72,19 @@ const heldClosedCorrected: PhaxEvent = {
   type: "HeldStopClosed",
   phaseId,
   phaseCommit: PHASE_COMMIT,
-  closure: { outcome: "corrected", reviewCommit: REVIEW_COMMIT, oracleStep: "authored" },
+  closure: {
+    outcome: "corrected",
+    reviewCommit: REVIEW_COMMIT,
+    oracleStep: "authored",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
+  },
 };
 const heldClosedUnchanged: PhaxEvent = {
   ...base,
   type: "HeldStopClosed",
   phaseId,
   phaseCommit: PHASE_COMMIT,
-  closure: { outcome: "unchanged" },
+  closure: { outcome: "unchanged", closedBy: { name: "Ada Example", email: "ada@example.com" } },
 };
 const holdPointFailed: PhaxEvent = {
   ...base,
@@ -205,7 +210,10 @@ describe("a stop that is unexpected", () => {
         type: "StopCommitted",
         phaseId,
         hash: REVIEW_COMMIT,
-        closure: { outcome: "unchanged" },
+        closure: {
+          outcome: "unchanged",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
+        },
       },
     ],
     ["HeldStopClosed while an ordinary phase runs", phaseRunning, heldClosedUnchanged],
@@ -250,6 +258,7 @@ describe("closing a held stop", () => {
               outcome: "corrected",
               reviewCommit: REVIEW_COMMIT,
               oracleStep: "authored",
+              closedBy: { name: "Ada Example", email: "ada@example.com" },
             },
           },
         },
@@ -270,7 +279,12 @@ describe("closing a held stop", () => {
         patch: {
           phase: {
             state: "committed",
-            stop: { cause: "held", status: "closed", outcome: "unchanged" },
+            stop: {
+              cause: "held",
+              status: "closed",
+              outcome: "unchanged",
+              closedBy: { name: "Ada Example", email: "ada@example.com" },
+            },
           },
         },
       },
@@ -300,7 +314,11 @@ describe("closing a held stop", () => {
       type: "StopCommitted",
       phaseId,
       hash: REVIEW_COMMIT,
-      closure: { outcome: "corrected", oracleStep: "authored" },
+      closure: {
+        outcome: "corrected",
+        oracleStep: "authored",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     });
     expect(result.effects).toEqual([
       {
@@ -314,6 +332,7 @@ describe("closing a held stop", () => {
               status: "closed",
               outcome: "corrected",
               oracleStep: "authored",
+              closedBy: { name: "Ada Example", email: "ada@example.com" },
             },
           },
         },

@@ -289,6 +289,7 @@ async function closeThroughCli(run: StoppedRun) {
       // A plan with no oracle pair: the close never runs an oracle step.
       phases: [],
       oracles: null,
+      mainCheckout: run.world.repoRoot,
     });
   });
   return Effect.runPromise(

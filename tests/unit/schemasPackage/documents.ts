@@ -980,11 +980,13 @@ export const phaseStatusStopDocuments: Readonly<Record<string, Doc>> = {
     status: "closed",
     outcome: "corrected",
     oracleStep: "authored",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
   "declared closed unchanged": phaseStatusWithStop("committed", "interactive", {
     cause: "declared",
     status: "closed",
     outcome: "unchanged",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
   "held waiting": phaseStatusWithStop("awaiting_review", "headless", {
     cause: "held",
@@ -996,11 +998,13 @@ export const phaseStatusStopDocuments: Readonly<Record<string, Doc>> = {
     outcome: "corrected",
     reviewCommit: EXAMPLE_REVIEW_COMMIT,
     oracleStep: "none",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
   "held closed unchanged": phaseStatusWithStop("committed", "headless", {
     cause: "held",
     status: "closed",
     outcome: "unchanged",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
 };
 

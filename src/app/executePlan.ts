@@ -1284,6 +1284,7 @@ export function executePlan(
               fileReconciliationMode: config.fileReconciliationMode,
               phases: plan.phases,
               oracles: config.oracles ?? null,
+              mainCheckout: config.repoRoot,
             });
             committedPhases.push(phase.id);
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
@@ -1496,6 +1497,7 @@ export function executePlan(
             fileReconciliationMode: config.fileReconciliationMode,
             phases: plan.phases,
             oracles: config.oracles ?? null,
+            mainCheckout: config.repoRoot,
           });
           closeInFlight = false;
           committedPhases.push(phase.id);

@@ -585,6 +585,40 @@ export const NodeGitLayer = Layer.succeed(Git, {
     );
   },
 
+  // The identity git authors a commit under, in git's own order per field:
+  // GIT_AUTHOR_NAME / GIT_AUTHOR_EMAIL, then user.name / user.email. Never
+  // `git var GIT_AUTHOR_IDENT`, which guesses from the host name.
+  authorIdentity: (repo) => {
+    const readField = (envKey: string, configKey: string) => {
+      const fromEnv = process.env[envKey]?.trim();
+      if (fromEnv !== undefined && fromEnv.length > 0) {
+        return Effect.succeed<string | null>(fromEnv);
+      }
+      return gitRunAllowFail(["config", "--get", configKey], repo).pipe(
+        Effect.flatMap(({ stdout, stderr, exitCode }) => {
+          if (exitCode === 1) return Effect.succeed<string | null>(null);
+          if (exitCode !== 0) {
+            return Effect.fail(
+              new GitError({
+                message: `git config --get ${configKey} failed: ${stderr.trim()}`,
+                command: `git config --get ${configKey}`,
+                stderr,
+                exitCode,
+              }),
+            );
+          }
+          const value = stdout.trim();
+          return Effect.succeed<string | null>(value.length > 0 ? value : null);
+        }),
+      );
+    };
+    return Effect.gen(function* () {
+      const name = yield* readField("GIT_AUTHOR_NAME", "user.name");
+      const email = yield* readField("GIT_AUTHOR_EMAIL", "user.email");
+      return name === null || email === null ? null : { name, email };
+    });
+  },
+
   listRefs: (repo, prefix) =>
     gitRun(["for-each-ref", "--format=%(refname)", prefix], repo).pipe(
       Effect.map(({ stdout }) => parseRefList(stdout).toSorted()),

@@ -87,7 +87,13 @@ beforeEach(() => {
         updatedAt: "2026-10-22T09:00:00.000Z",
         mode: phase.mode,
         stop: interactive
-          ? { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" }
+          ? {
+              cause: "declared",
+              status: "closed",
+              outcome: "corrected",
+              oracleStep: "none",
+              closedBy: { name: "Ada Example", email: "ada@example.com" },
+            }
           : null,
       }),
     );
@@ -188,6 +194,7 @@ describe("later prompts after two closed stops", () => {
                 outcome: "corrected",
                 reviewCommit: "b1c2d3e4f5a60718293a4b5c6d7e8f9012345679",
                 oracleStep: "none",
+                closedBy: { name: "Ada Example", email: "ada@example.com" },
               },
             }
           : s,

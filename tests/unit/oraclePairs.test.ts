@@ -213,6 +213,7 @@ const heldAuthored = (reviewCommit: string): Stop => ({
   outcome: "corrected",
   reviewCommit,
   oracleStep: "authored",
+  closedBy: { name: "Ada Example", email: "ada@example.com" },
 });
 
 describe("latestAuthoredCommit", () => {
@@ -226,6 +227,7 @@ describe("latestAuthoredCommit", () => {
     status: "closed",
     outcome: "corrected",
     oracleStep: "authored",
+    closedBy: { name: "Ada Example", email: "ada@example.com" },
   };
 
   it.each<readonly [string, readonly AuthoredCommitStatus[], string | null]>([
@@ -254,7 +256,12 @@ describe("latestAuthoredCommit", () => {
       "an unchanged stop is ignored",
       [
         status("phase-02", C2),
-        status("phase-03", C3, { cause: "held", status: "closed", outcome: "unchanged" }),
+        status("phase-03", C3, {
+          cause: "held",
+          status: "closed",
+          outcome: "unchanged",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
+        }),
       ],
       C2,
     ],
@@ -268,6 +275,7 @@ describe("latestAuthoredCommit", () => {
           outcome: "corrected",
           reviewCommit: R3,
           oracleStep: "none",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
         }),
       ],
       C2,

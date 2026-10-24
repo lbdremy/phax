@@ -200,7 +200,11 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     phaseId,
     hash: "abc123",
-    closure: { outcome: "corrected", oracleStep: "none" },
+    closure: {
+      outcome: "corrected",
+      oracleStep: "none",
+      closedBy: { name: "Ada Example", email: "ada@example.com" },
+    },
   },
   HeldStopClosed: {
     ...base,
@@ -208,7 +212,12 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     phaseId,
     phaseCommit: "abc123",
-    closure: { outcome: "corrected", reviewCommit: "def456", oracleStep: "none" },
+    closure: {
+      outcome: "corrected",
+      reviewCommit: "def456",
+      oracleStep: "none",
+      closedBy: { name: "Ada Example", email: "ada@example.com" },
+    },
   },
   HoldPointFailed: {
     ...base,

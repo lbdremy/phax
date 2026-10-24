@@ -76,12 +76,23 @@ describe("phase status readers", () => {
     [
       "declared closed corrected",
       "interactive",
-      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "authored" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "authored",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
     [
       "declared closed unchanged",
       "interactive",
-      { cause: "declared", status: "closed", outcome: "unchanged" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "unchanged",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
     ["held waiting", "headless", { cause: "held", status: "waiting" }],
     [
@@ -93,12 +104,18 @@ describe("phase status readers", () => {
         outcome: "corrected",
         reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
         oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     ],
     [
       "held closed unchanged",
       "headless",
-      { cause: "held", status: "closed", outcome: "unchanged" },
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "unchanged",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
   ] as const)("round-trips a current status with a %s stop", (_name, mode, stop) => {
     const document = phaseStatusFile({
@@ -116,7 +133,13 @@ describe("phase status readers", () => {
     ["no stop", null],
     [
       "a closed stop",
-      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "none" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
   ] as const)("refuses a current status awaiting review with %s", (_name, stop) => {
     const document = phaseStatusFile({
@@ -149,7 +172,12 @@ describe("phase status readers", () => {
   it.each([
     [
       "a declared corrected stop without oracleStep",
-      { cause: "declared", status: "closed", outcome: "corrected" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
     [
       "a held corrected stop without oracleStep",
@@ -158,11 +186,18 @@ describe("phase status readers", () => {
         status: "closed",
         outcome: "corrected",
         reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     ],
     [
       "a held corrected stop without reviewCommit",
-      { cause: "held", status: "closed", outcome: "corrected", oracleStep: "none" },
+      {
+        cause: "held",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
     [
       "a held corrected stop with an abbreviated reviewCommit",
@@ -172,6 +207,7 @@ describe("phase status readers", () => {
         outcome: "corrected",
         reviewCommit: "b2c3d4e",
         oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     ],
     [
@@ -181,11 +217,18 @@ describe("phase status readers", () => {
         status: "closed",
         outcome: "unchanged",
         reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     ],
     [
       "a declared unchanged stop naming an oracleStep",
-      { cause: "declared", status: "closed", outcome: "unchanged", oracleStep: "none" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "unchanged",
+        oracleStep: "none",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
     [
       "a declared corrected stop naming a reviewCommit",
@@ -195,11 +238,18 @@ describe("phase status readers", () => {
         outcome: "corrected",
         oracleStep: "none",
         reviewCommit: "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     ],
     [
       "an oracleStep other than authored or none",
-      { cause: "declared", status: "closed", outcome: "corrected", oracleStep: "skipped" },
+      {
+        cause: "declared",
+        status: "closed",
+        outcome: "corrected",
+        oracleStep: "skipped",
+        closedBy: { name: "Ada Example", email: "ada@example.com" },
+      },
     ],
   ] as const)("refuses %s", (_name, stop) => {
     const document = {
