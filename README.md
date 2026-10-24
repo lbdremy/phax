@@ -417,13 +417,79 @@ Leave your corrections uncommitted. A commit of your own in the stopped worktree
 
 The closing turn resumes the builder read-only, on every provider: Claude Code with its reading tools and no shell, codex with `exec resume` under `sandbox_mode=read-only` and `approval_policy=never`. On codex, the read-only override is the provider's to honour: codex merges a rollout's persisted permissions on resume, so a builder that ran with `workspace-write` may keep it. phax compares the worktree after every turn, but cannot see a write outside it. mistral-vibe keeps the phase's own posture.
 
-The phase's record is written at closing, once. It names the builder's provider, model, effort and session, and the phase commit, not the review commit; it does not cover the review commit until the records' review fields land. On mistral-vibe, its usage includes the closing turn. A resume finishes a hold or a close that was interrupted: a held phase that committed but did not stop stops then, and a close that landed but did not clean up runs its cleanup, writing the record only if the phase has none.
+The phase's record is written at closing, once. It names the builder's provider, model, effort and session, the phase commit as its source, and the review commit as part of the stop. Its usage is the builder's, read when the run stopped, so it leaves out the closing turn on every provider. See [The record of a stop](#the-record-of-a-stop). A resume finishes a hold or a close that was interrupted: a held phase that committed but did not stop stops then, and a close that landed but did not clean up runs its cleanup, writing the record only if the phase has none.
 
 #### Reviews inside an oracle pair
 
 A stop, held or declared, may sit between the two phases of an [oracle pair](docs/oracle-phases.md#reviewing-oracles-before-the-discharge), and `--hold oracle` is how you review the oracles before their discharge. When your corrections change an oracle file, the close runs the oracles provider's `authored` verdict again as the last step of its gate. The discharge then judges the latest commit of the pair that passed `authored`. A held discharge closes on its configured steps only, with a warning for each oracle file your corrections changed, because the oracles provider does not see the change. `phax resume --skip-oracle` is refused at a stop.
 
-Not part of this release: the versioned `phax ls --json` run list, captured transcripts, and the records, compliance review and PR body of a stop. A declared phase writes no phase record yet, and the cost ledger covers Claude Code turns only.
+#### Who closed the stop, and the transcripts
+
+A close reads your identity first, from the main checkout's git configuration (`user.name` and `user.email`). An unset identity refuses the close with exit 1 and the run stays in `awaiting_review`: run `git config user.name` and `git config user.email`, then resume. The identity is written in the stop, with the cause and outcome.
+
+Before it commits, the close copies the transcript of each session it recorded into the phase folder: `<run>/<phase>/interactive-transcripts/<session id>.jsonl`. The recorded sessions are the builder (at a hold), each first turn that answered and every `--new-session` session. A closing turn that started its own session is not one of them; its stream stays in the phase folder as `closing-turn-NN.jsonl`. A copy is written with mode 0600 in a folder with mode 0700, because a continued session may hold secrets you typed. A transcript phax cannot find or read is not an error: the close records it as `missing`, with the reason `not-found` or `unreadable`. A copy that cannot be written refuses the close, and the next close copies again.
+
+#### The record of a stop
+
+A stop writes its phase's record at closing, once, declared or held. The record names:
+
+- the mode (`headless` or `interactive`) and the stop's cause (`declared` or `held`);
+- the outcome, corrected or unchanged, and who closed it;
+- for a held stop that you corrected, the review commit;
+- each recorded session with its provider, model, effort, origin (`first-turn`, `new-session` or `builder`) and its transcript's sha256, or `missing` with its reason.
+
+A declared phase's record names the phase's routed provider, model and effort, the declared commit as its source, and no token usage, because no agent session built the phase. A held phase's usage is the builder's, read when the run stopped. If the records destination refuses the write, the run pauses (exit 1) and `phax resume` writes the record again once the destination accepts it.
+
+`phax records explain <commit>` takes a phase commit, a declared commit or a held phase's review commit, and shows the stop's lines beside the usual ones. A review commit finds its record through its `Run-Id` and `Held-Phase` trailers.
+
+An interactive transcript's content never reaches the records branch, whatever `records.transcript` says: a session you continued ran outside phax's enforcement and may hold secrets you typed, and a dedicated records repository faces no visibility check. The record carries the digest; the copy stays in the run folder, so only the run folder can replay what you and the agent said at a stop. `output.jsonl`, the stream of a headless phase phax ran, still follows `records.transcript`.
+
+#### The security record
+
+The phase's `security.json` has a `stop` section, `null` for a phase that never stopped. A close sets it to the cause, `personWork: "outside-phax-enforcement"`, and one entry for each first and closing turn phax ran. Each entry names the turn, its kind, the narrowing it ran under (`read-only-tools` on Claude Code, `read-only-sandbox` on codex, `none` on mistral-vibe) and its agent commands, which are none. The other fields stay the posture the builder ran under, which your own work did not have. The record carries the file.
+
+#### Review handoff, PR and run list
+
+`review-handoff.md` gains a `## Reviewed phases` table (`Phase | Stop | Outcome | Closed by | Corrections | Guards`), and each corrected stop a `### <phase> (<held|interactive>)` section with what was corrected and its guards. The compliance reviewer reads the same section. The PR body's line for a stopped phase ends with ` · held, corrected by Ada Example (2 guards)`, ` · interactive, corrected by Ada Example (1 guard)` or ` · held, reviewed without change by Ada Example`. A run with no stop reads exactly as before.
+
+`phax ls --json` prints one versioned `run-list` document, and each run embeds its `review-stop` document as `stop` (`null` for a run not waiting at a stop). Together with `review-stop.json`, it is what a review UI reads:
+
+```json
+{
+  "$schema": "https://…/run-list/…",
+  "runs": [
+    {
+      "qualifiedName": "example.invoice-export",
+      "namespace": "example",
+      "shortName": "invoice-export",
+      "state": "awaiting_review",
+      "branch": "phax/invoice-export",
+      "currentPhase": "2/6",
+      "gateProfile": "standard",
+      "updatedAt": "2026-10-24 09:30",
+      "lockState": "none",
+      "recordsPending": null,
+      "archivePath": null,
+      "stop": { "$schema": "https://…/review-stop/…", "…": "…" }
+    }
+  ]
+}
+```
+
+A script that read the old bare array now reads `.runs[]`; see [upgrading](docs/upgrading.md). A run being closed lists `running` with `stop: null`.
+
+The cost ledger covers Claude Code invocations, for every phase; a stop's first and closing turns on Claude Code are in it like any other turn. [`phax plans estimate`](docs/plan-estimate.md) sizes an interactive phase from those turns.
+
+#### What phax reads from a provider's session store
+
+At closing, phax reads only what it needs from each provider's own store. The roots are `~/.claude`, `~/.codex` and `~/.vibe`, moved by `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` (an empty variable counts as unset).
+
+- **What it reads at closing:** the transcript file of each recorded session, and nothing else. Claude Code: `projects/<slug>/<session id>.jsonl`, where the slug is the worktree's path with every character outside `A-Z a-z 0-9` replaced by `-`; when that misses, phax lists the names under `projects/`. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names. Mistral Vibe: `logs/session/<directory>/messages.jsonl`.
+- **Finding a Vibe session's directory,** for the transcript and for usage: phax lists the names under `logs/session` and reads the `meta.json` of the directories whose name ends with a prefix of the session id, decoding only `session_id`. For usage it reads that session's `meta.json` statistics.
+- **Learning a new Vibe session's id** after a turn: phax reads the `meta.json` of the session directories modified since the turn started, and keeps the one whose working directory matches.
+- **What it never reads:** a provider's credentials or configuration.
+- **Where the copies go:** the run folder only. They never enter a commit or a record.
+- **Session ids** that are not made of letters, digits, `.`, `_` and `-` are refused before any path is built.
 
 ### See what it is doing
 
@@ -487,7 +553,7 @@ phax records list [--run <id>]  # the records present, by run and phase
 phax records explain <commit>   # a commit's record: prompt, diff, gates, handoff, transcript, usage
 ```
 
-The branch can live in the same repository or in a separate one. Transcripts can hold anything the agent read, so phax refuses to keep them on a public repository's own records branch, and on one it cannot tell is private until you confirm it is (`records.destination.acknowledgedUnknownVisibility`). `records explain` takes `--prompt`, `--diff`, `--transcript` or `--gates` to print each part in full. To read records from another tool, see [Read phax files from code](#read-phax-files-from-code).
+The branch can live in the same repository or in a separate one. Transcripts can hold anything the agent read, so phax refuses to keep them on a public repository's own records branch, and on one it cannot tell is private until you confirm it is (`records.destination.acknowledgedUnknownVisibility`). `records explain` takes `--prompt`, `--diff`, `--transcript` or `--gates` to print each part in full. A phase that stopped for a person's review, declared or held, records its stop too (mode, cause, outcome, closer and sessions, never a transcript's content): see [The record of a stop](#the-record-of-a-stop). To read records from another tool, see [Read phax files from code](#read-phax-files-from-code).
 
 ## Providers and security
 
@@ -954,7 +1020,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax shell <short-name>` — Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree.
 - `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree.
 - `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.
-- `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for machine-readable output.
+- `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for the versioned run list: one run-list document (a $schema and a runs array) whose runs carry qualifiedName, namespace, shortName, state, branch, currentPhase, gateProfile, updatedAt, lockState, recordsPending, archivePath and stop. A value that is unknown is null, and stop is the run's review-stop document, or null when the run is not waiting at a stop.
 - `phax archive [--force] <short-name>` — Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.
 - `phax prune [FLAGS] [short-name]…` — Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.
 - `phax cost <SUBCOMMAND>` — Parent command for the runs' cost ledgers. Every run keeps cost-ledger.json in its run folder: one entry per Claude invocation (phase turn, fix attempt, handoff generation, compliance review) with its own API-list cost, tokens per model, agent duration, end time and subscription-window samples. phax archive moves it with the run, and phax prune keeps a copy under ~/.phax/cost-ledgers/.
@@ -1009,6 +1075,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records sync` — Bring the local records clone in line with its configured remote
 - `phax records status` — Show pending (unpushed) records, by run and phase
 - `phax records list [--run <id>]` — List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact
-- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record
+- `phax records explain [FLAGS] <sha>` — Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.
 
 <!-- END GENERATED CLI REFERENCE -->

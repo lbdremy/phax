@@ -176,7 +176,7 @@ function configOf(): ResolvedConfig {
     extractPlanEffort: "low",
     fileReconciliationMode: "report_only",
     records: {
-      enabled: false,
+      enabled: true,
       transcript: false,
       destination: { kind: "in-repo" },
       autoPush: false,
@@ -239,8 +239,14 @@ const backend: BackendOps = {
   },
   complete: unused,
   probe: unused,
-  captureTranscript: () =>
-    Effect.succeed({ status: "missing", reason: "not-found", detail: "not played by this test" }),
+  // The first turn's session has a transcript in the provider's store; the
+  // close copies it into the run folder.
+  captureTranscript: (request) =>
+    Effect.succeed(
+      request.sessionId === SESSION_FIRST_TURN
+        ? { status: "found", bytes: new TextEncoder().encode('{"type":"summary"}\n') }
+        : { status: "missing", reason: "not-found", detail: "not played by this test" },
+    ),
 };
 
 const realShell = Effect.runSync(Effect.provide(Shell, NodeShellLayer));

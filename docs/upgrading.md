@@ -30,6 +30,13 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **`run-status.json` gains a required `hold`.** Scripts that read it find `{ selection: none }` on every run not started with `--hold`, and runs written by older releases read as `none`. Nothing to run.
 - **New `models` warnings in `phax plans lint`.** Nothing to do. Lint now compares every phase with the policy default (`claude-sonnet-5-5` at `medium`) where no assignment bound governs it, so a phase at another model or effort with no `**Assignment reason:**` line gets a warning. Warnings never fail lint or refuse a run. Add a reason line to silence one, or declare [assignment bounds](assignment-bounds.md).
 
+- **`phax ls --json` prints a run list.** The bare array becomes one `run-list` document: read `.runs[]` instead of `.[]`. `currentPhase`, `gateProfile`, `recordsPending` and `archivePath` are null when unknown, where they used to be dropped or printed as `-`, and every run carries `stop`, its review-stop document or null. Nothing to run.
+- **The record manifest gains `mode` and `stop`.** Records written by released phax read as headless phases that never stopped. Records written by 0.26.0 development builds before this change no longer read: `phax records explain` on a commit of such a run fails and names the malformed manifest, and `phax records list` skips the record.
+- **`security.json` moves to version 2.** It gains a required `stop`. A version-1 file reads as a phase that never stopped; a close rewrites it as version 2. A run started by a 0.26.0 development build with a closed stop or an `interactive-session.json` does not resume.
+- **Closing a stop needs a git identity** (`user.name` and `user.email`) in the main checkout; a close without one is refused with exit 1.
+
+None of these four changes needs a command.
+
 ### 0.25.0
 
 - **Spec and plan sidecars move to their current shapes.** Run `phax artifact migrate-documents` once in each repository with specs or plans under `docs/`. It rewrites every live sidecar below its current shape and commits the result. Until then, `phax artifact approve`, `reopen` and `decide` refuse and name the command.

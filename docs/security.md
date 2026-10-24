@@ -179,7 +179,7 @@ Each phase writes a `security.json` artifact containing:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "mode": "secure",
   "provider": "claude-code",
   "sandboxEnabled": true,
@@ -198,7 +198,8 @@ Each phase writes a `security.json` artifact containing:
   "downgraded": false,
   "marks": [],
   "skillEditGrants": [],
-  "providerSkippedForSecurity": []
+  "providerSkippedForSecurity": [],
+  "stop": null
 }
 ```
 
@@ -207,6 +208,36 @@ These artifacts are:
 - Written to `<run-path>/<phase-id>/security.json`
 - Emitted as `security.policy.applied` semantic telemetry events
 - Included in the `final-report.md` under the **Security** section
+
+### A stop's security record
+
+`stop` is `null` for a phase that never stopped. When a person closes a declared or held stop (see [Interactive phases](../README.md#interactive-phases)), the close sets it and changes no other field:
+
+```json
+"stop": {
+  "cause": "held",
+  "personWork": "outside-phax-enforcement",
+  "turns": [
+    { "turn": "closing-turn-01", "kind": "closing-turn", "narrowing": "read-only-tools", "agentCommands": [] }
+  ]
+}
+```
+
+- `personWork` says that what the person did in the worktree, by hand, with any editor or with any agent, ran outside phax's enforcement. The rest of the file is the posture the builder ran under, which the person's work did not have.
+- `turns` names each first and closing turn phax ran, retries included, with the posture it actually ran under: `read-only-tools` on Claude Code, `read-only-sandbox` on codex, `none` on mistral-vibe. Every such turn runs with no agent commands.
+- `version` moved from 1 to 2. A version-1 file reads as a phase that never stopped, and rewriting it at a close makes it version 2.
+- The phase's record carries the file.
+
+### What phax reads from a provider's session store
+
+A close copies the transcript of each session it recorded into the run folder, `<run>/<phase>/interactive-transcripts/<session id>.jsonl`, with mode 0600 in a folder with mode 0700. The copies stay there: they never enter a commit or a record, whatever `records.transcript` says, because a session the person continued ran outside phax's enforcement and may hold secrets they typed. The record carries each transcript's sha256 only.
+
+- **Roots.** `~/.claude`, `~/.codex` and `~/.vibe`, moved by `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME`. An empty variable counts as unset.
+- **At closing, phax reads only the transcript file of each recorded session.** Claude Code: `projects/<slug>/<session id>.jsonl`, the slug being the worktree path with every character outside `A-Z a-z 0-9` replaced by `-` (when it misses, phax lists the names under `projects/`). Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names. Mistral Vibe: `logs/session/<directory>/messages.jsonl`.
+- **A Vibe session's directory,** for the transcript and for usage: phax lists the names under `logs/session` and reads the `meta.json` only of directories whose name ends with a prefix of the session id, decoding only `session_id`. For usage it reads that session's `meta.json` statistics.
+- **A new Vibe session's id,** after a turn: phax reads the `meta.json` of the session directories modified since the turn started and matches their working directory.
+- **Never read:** a provider's credentials or configuration.
+- **Session ids** outside letters, digits, `.`, `_` and `-` are refused before any path is built.
 
 ## Final Report Security Section
 
