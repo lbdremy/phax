@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -427,6 +427,53 @@ describe("the record of a held phase", { timeout: 60_000 }, () => {
     writeFileSync(bindingPath, binding);
     failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
     expect(await recordsOf(run, "phase-02")).toHaveLength(1);
+  });
+
+  // What a close that found no interactive-session.json leaves: a document
+  // with no builder usage, or none at all before that close.
+  const dropBuilderUsage = (run: HeldRun): void => {
+    const path = join(phaseFolder(run), "interactive-session.json");
+    writeFileSync(path, JSON.stringify({ ...readJson(path), builderUsage: null }, null, 2));
+  };
+
+  it("finishes an interrupted closed stop whose session records no builder usage, with records off", async () => {
+    const { run } = await heldAtPhase02();
+    correct(run);
+    await closeAndInterrupt(run);
+    dropBuilderUsage(run);
+
+    const error = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+
+    expect(error.phase).toBe("phase-03");
+    expect(readPhaseStatus(run, "phase-02")["state"]).toBe("cleaned_up");
+  });
+
+  it("closes a held stop with no interactive-session.json, with records off", async () => {
+    const { run } = await heldAtPhase02();
+    rmSync(join(phaseFolder(run), "interactive-session.json"));
+
+    const error = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+
+    expect(error.phase).toBe("phase-03");
+    expect(readPhaseStatus(run, "phase-02")).toMatchObject({
+      state: "cleaned_up",
+      stop: { cause: "held", status: "closed", outcome: "unchanged" },
+    });
+  });
+
+  it("writes the owed record naming no usage when the session records no builder usage", async () => {
+    const { run, c2 } = await heldAtPhase02({ records: true });
+    correct(run);
+    await closeAndInterrupt(run);
+    dropBuilderUsage(run);
+
+    failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
+
+    expect(await recordsOf(run, "phase-02")).toHaveLength(1);
+    expect(await explainedRecord(run, c2)).toMatchObject({
+      phaseId: "phase-02",
+      usage: { available: false },
+    });
   });
 
   it("writes no failed record and no RunFailed when HeldStopClosed cannot be persisted, and one record naming C2 later", async () => {
