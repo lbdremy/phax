@@ -227,7 +227,7 @@ export async function stopRun(world: World, options: StopRunOptions = {}): Promi
   writeJson(
     join(phaseFolder, "security.json"),
     encodeSecurityPosture({
-      version: 1,
+      version: 2,
       mode: "secure",
       provider,
       sandboxEnabled: true,
@@ -248,6 +248,7 @@ export async function stopRun(world: World, options: StopRunOptions = {}): Promi
       ],
       skillEditGrants: [],
       providerSkippedForSecurity: [],
+      stop: null,
     }),
   );
 

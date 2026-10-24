@@ -67,6 +67,7 @@ import {
   type OraclePair,
 } from "../domain/plan/oraclePairs.js";
 import type { ProviderId } from "../domain/routing/types.js";
+import { stopPostureOf } from "../domain/security/stopPosture.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import { getSessionAdapter } from "../domain/session/index.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
@@ -108,12 +109,14 @@ import {
   readModelResolution,
   readPhasePosture,
   readReviewStop,
+  readSecurityFile,
   restorePersonHandoff,
   restoreWorktreeSeed,
   rewriteReviewStopAt,
   seedPaths,
   SEED_WORKTREE_PATH,
   writeInteractiveSession,
+  writeSecurityFile,
   type PhaseModel,
 } from "./interactiveFiles.js";
 import {
@@ -453,7 +456,7 @@ function finishLandedCommit(
       oracleStep: yield* landedOracleStep(input, layout, gateLog),
       // The commit landed before the copy, or after it: the same step, which
       // keeps an earlier copy whose store file has gone.
-      sessions: yield* captureTranscripts(input),
+      sessions: yield* captureTranscripts(input, layout.cause),
     } as const;
     switch (layout.cause) {
       case "declared":
@@ -1118,11 +1121,43 @@ function copyTranscripts(
   });
 }
 
-/** `copyTranscripts` as the traced `transcripts` step: a success whatever the outcomes. */
-const captureTranscripts = (input: CloseStopInput) =>
+/**
+ * Say in the phase's `security.json` that the person's work ran outside
+ * phax's enforcement, and name each turn phax ran. Only `stop` changes: the
+ * file is decoded, `stop` set, and the file encoded as it was first written,
+ * so the rest keeps its bytes. Computed from the folder as it stands, so
+ * writing it again is idempotent.
+ */
+function writeStopPosture(
+  input: CloseStopInput,
+  cause: Cause,
+): Effect.Effect<void, CloseRefusal, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const posture = yield* at("files", readSecurityFile(input.phaseFolder));
+    const names = yield* at("files", fs.list(input.phaseFolder));
+    yield* at(
+      "files",
+      writeSecurityFile(input.phaseFolder, {
+        ...posture,
+        stop: stopPostureOf({ cause, provider: posture.provider, names }),
+      }),
+    );
+  });
+}
+
+/**
+ * The traced `transcripts` step: the sessions' copies, then the security
+ * record of the stop. A success whatever the transcripts' outcomes.
+ */
+const captureTranscripts = (input: CloseStopInput, cause: Cause) =>
   tracedStep(
     { runId: input.runId, phaseId: input.phase.id, step: "transcripts" },
-    copyTranscripts(input),
+    Effect.gen(function* () {
+      const sessions = yield* copyTranscripts(input);
+      yield* writeStopPosture(input, cause);
+      return sessions;
+    }),
     () => true,
   );
 
@@ -1277,7 +1312,7 @@ function closeSteps(
 
     // 5b. Transcripts: copied before the commit, so an interruption before it
     // copies again at the next close.
-    const sessions = yield* captureTranscripts(input);
+    const sessions = yield* captureTranscripts(input, layout.cause);
 
     // 6. Commit exactly the gated tree.
     yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.handoffFile), handoff));

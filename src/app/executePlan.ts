@@ -780,7 +780,7 @@ export function executePlan(
         );
       }
       const securityPosture: SecurityPosture = {
-        version: 1,
+        version: 2,
         mode: securityPolicy.mode,
         provider: resolution.selected.provider,
         sandboxEnabled: securityPolicy.mode === "secure",
@@ -800,6 +800,7 @@ export function executePlan(
         agentCommands: frozenResult.records,
         skillEditGrants: [...args.skillEditGrants],
         providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
+        stop: null,
       };
       yield* fs.writeAtomic(
         join(phaseFolderPath, "security.json"),

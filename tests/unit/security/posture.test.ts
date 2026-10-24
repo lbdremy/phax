@@ -3,11 +3,12 @@ import { Either } from "effect";
 import {
   decodeSecurityPosture,
   encodeSecurityPosture,
+  readSecurityPosture,
   type SecurityPosture,
 } from "../../../src/schemas/securityPosture.js";
 
 const baseSecurePosture = {
-  version: 1 as const,
+  version: 2 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -27,10 +28,11 @@ const baseSecurePosture = {
   agentCommands: [] as const,
   skillEditGrants: [],
   providerSkippedForSecurity: [],
+  stop: null,
 };
 
 const unsafePosture = {
-  version: 1 as const,
+  version: 2 as const,
   mode: "unsafe" as const,
   provider: "codex-cli" as const,
   sandboxEnabled: false,
@@ -50,10 +52,11 @@ const unsafePosture = {
   agentCommands: [] as const,
   skillEditGrants: [],
   providerSkippedForSecurity: [],
+  stop: null,
 };
 
 const downgradedVibePosture = {
-  version: 1 as const,
+  version: 2 as const,
   mode: "secure" as const,
   provider: "mistral-vibe" as const,
   sandboxEnabled: true,
@@ -73,10 +76,11 @@ const downgradedVibePosture = {
   agentCommands: [] as const,
   skillEditGrants: [],
   providerSkippedForSecurity: [],
+  stop: null,
 };
 
 const withSkippedProviders = {
-  version: 1 as const,
+  version: 2 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -98,6 +102,7 @@ const withSkippedProviders = {
   providerSkippedForSecurity: [
     { provider: "mistral-vibe" as const, reason: "cannot satisfy strict secure mode" },
   ],
+  stop: null,
 };
 
 describe("SecurityPostureSchema", () => {
@@ -184,7 +189,7 @@ describe("SecurityPostureSchema", () => {
     });
 
     it("rejects wrong version", () => {
-      const invalid = { ...baseSecurePosture, version: 2 };
+      const invalid = { ...baseSecurePosture, version: 3 };
       const result = decodeSecurityPosture(invalid);
       expect(Either.isLeft(result)).toBe(true);
     });
@@ -500,7 +505,66 @@ describe("SecurityPostureSchema", () => {
         | "agentCommands"
         | "skillEditGrants"
         | "providerSkippedForSecurity"
+        | "stop"
       >();
+    });
+  });
+
+  describe("the stop section and the one reader", () => {
+    const closedStop = {
+      cause: "held" as const,
+      personWork: "outside-phax-enforcement" as const,
+      turns: [
+        {
+          turn: "first-turn-01",
+          kind: "first-turn" as const,
+          narrowing: "read-only-tools" as const,
+          agentCommands: [] as [],
+        },
+      ],
+    };
+
+    it("round-trips a closed stop", () => {
+      const posture = { ...baseSecurePosture, stop: closedStop };
+      const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
+      expect(Either.isRight(decoded) && decoded.right.stop).toEqual(closedStop);
+    });
+
+    // oxlint-disable-next-line no-unused-vars
+    const { stop: _stop, version: _version, ...v1Fields } = baseSecurePosture;
+    const v1 = { version: 1, ...v1Fields };
+
+    it.each([
+      ["a version-2 file without stop", { ...v1Fields, version: 2 }],
+      ["a version-2 file with an extra key", { ...baseSecurePosture, extra: true }],
+      ["a stop with an extra key", { ...baseSecurePosture, stop: { ...closedStop, extra: 1 } }],
+      [
+        "a turn that ran an agent command",
+        {
+          ...baseSecurePosture,
+          stop: {
+            ...closedStop,
+            turns: [{ ...closedStop.turns[0], agentCommands: ["pnpm test"] }],
+          },
+        },
+      ],
+      ["a version-3 file", { ...baseSecurePosture, version: 3 }],
+    ])("readSecurityPosture refuses %s", (_label, input) => {
+      expect(Either.isLeft(readSecurityPosture(input))).toBe(true);
+    });
+
+    it("readSecurityPosture lifts a version-1 file with stop null", () => {
+      const read = readSecurityPosture(v1);
+      expect(Either.isRight(read)).toBe(true);
+      if (Either.isRight(read)) {
+        expect(read.right).toEqual({ ...baseSecurePosture, version: 2, stop: null });
+      }
+    });
+
+    it("readSecurityPosture reads a version-2 file as decodeSecurityPosture does", () => {
+      const posture = { ...baseSecurePosture, stop: closedStop };
+      const read = readSecurityPosture(encodeSecurityPosture(posture));
+      expect(Either.isRight(read) && read.right).toEqual(posture);
     });
   });
 });

@@ -37,6 +37,8 @@ export interface ExplainedRecord {
   readonly manifest: RunRecordManifest;
   readonly recordCommitSha: string;
   readonly foundVia: "local" | "remote-refresh";
+  /** The commit the record was found from: the phase's own, or a held phase's review commit. */
+  readonly addressedBy: "phase-commit" | "review-commit";
   /** Whether `manifest.sourceSha` still resolves in the source repo. Absent
    * when the manifest carries no `sourceSha` at all (the phase never committed). */
   readonly sourceCommitReachable?: boolean;
@@ -234,19 +236,31 @@ function readCommitMessage(repo: string, sha: string): Effect.Effect<string, She
 
 /**
  * Which record a source commit's trailers name. `Run-Id`/`Phase-Id` (a phase
- * commit) wins over `Authoring-Id` (a headless artifact commit), which wins
+ * commit) wins over `Run-Id`/`Held-Phase` (a held phase's review commit, which
+ * keys the record of the phase it reviewed), which wins over `Authoring-Id` (a headless artifact commit), which wins
  * over `Decision-Id` (a decide commit): a commit carrying the phase pair is a
  * phase commit whatever else it says.
  */
 type RecordAddress =
-  | { readonly kind: "phase"; readonly runId: string; readonly phaseId: string }
+  | {
+      readonly kind: "phase";
+      readonly runId: string;
+      readonly phaseId: string;
+      readonly addressedBy: ExplainedRecord["addressedBy"];
+    }
   | { readonly kind: "authoring"; readonly authoringId: string }
   | { readonly kind: "decision"; readonly decisionId: string };
 
 function addressFromTrailers(trailers: ReadonlyMap<string, string>): RecordAddress | null {
   const runId = trailers.get("Run-Id");
   const phaseId = trailers.get("Phase-Id");
-  if (runId !== undefined && phaseId !== undefined) return { kind: "phase", runId, phaseId };
+  if (runId !== undefined && phaseId !== undefined) {
+    return { kind: "phase", runId, phaseId, addressedBy: "phase-commit" };
+  }
+  const heldPhase = trailers.get("Held-Phase");
+  if (runId !== undefined && heldPhase !== undefined) {
+    return { kind: "phase", runId, phaseId: heldPhase, addressedBy: "review-commit" };
+  }
   const authoringId = trailers.get("Authoring-Id");
   if (authoringId !== undefined) return { kind: "authoring", authoringId };
   const decisionId = trailers.get("Decision-Id");
@@ -458,7 +472,11 @@ function loadRecord(
 
 function explainPhaseRecord(
   loaded: LoadedRecord,
-  address: { readonly runId: string; readonly phaseId: string },
+  address: {
+    readonly runId: string;
+    readonly phaseId: string;
+    readonly addressedBy: ExplainedRecord["addressedBy"];
+  },
   recordCommitSha: string,
   foundVia: "local" | "remote-refresh",
   prefix: string,
@@ -477,6 +495,7 @@ function explainPhaseRecord(
   return Either.right({
     runId: address.runId,
     phaseId: address.phaseId,
+    addressedBy: address.addressedBy,
     manifest,
     recordCommitSha,
     foundVia,

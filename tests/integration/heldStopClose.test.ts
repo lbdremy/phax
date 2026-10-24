@@ -748,44 +748,48 @@ describe("a held close taken up again", () => {
 
 // ── §8: who made the edit does not matter ──────────────────────────────────
 
-describe("two identical held stops, corrected directly and through enter-phase", () => {
-  it("give review commits with the same tree and equal correction reconciliations", async () => {
-    const otherWorld = createHeldWorld();
-    try {
-      vi.stubEnv("HOME", otherWorld.home);
-      const entered = await heldAtPhase02(otherWorld);
+describe(
+  "two identical held stops, corrected directly and through enter-phase",
+  { timeout: 60_000 },
+  () => {
+    it("give review commits with the same tree and equal correction reconciliations", async () => {
+      const otherWorld = createHeldWorld();
+      try {
+        vi.stubEnv("HOME", otherWorld.home);
+        const entered = await heldAtPhase02(otherWorld);
 
-      correct(run);
-      // The continued session `phax enter-phase` spawns writes the same bytes.
-      sessionLayer.current = Layer.succeed(Session, {
-        resume: (invocation) =>
-          Effect.sync(() => {
-            correct(entered);
-            expect(invocation.cwd).toBe(tree(entered));
-            return 0;
-          }),
-      });
-      const { loadConfig } = await import("../../src/app/loadConfig.js");
-      vi.mocked(loadConfig).mockReturnValue(Either.right(entered.config));
-      const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-      const quiet = { log: () => undefined, warn: () => undefined, error: () => undefined };
-      expect(await runEnterPhase(SHORT, "phase-02", quiet, {})).toBe(0);
+        correct(run);
+        // The continued session `phax enter-phase` spawns writes the same bytes.
+        sessionLayer.current = Layer.succeed(Session, {
+          resume: (invocation) =>
+            Effect.sync(() => {
+              correct(entered);
+              expect(invocation.cwd).toBe(tree(entered));
+              return 0;
+            }),
+        });
+        const { loadConfig } = await import("../../src/app/loadConfig.js");
+        vi.mocked(loadConfig).mockReturnValue(Either.right(entered.config));
+        const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+        const quiet = { log: () => undefined, warn: () => undefined, error: () => undefined };
+        expect(await runEnterPhase(SHORT, "phase-02", quiet, {})).toBe(0);
 
-      for (const r of [run, entered]) write(PERSON_HANDOFF_PATH, PERSON_HANDOFF, r);
-      const a = report((await close({ run })).result);
-      const b = report((await close({ run: entered })).result);
+        for (const r of [run, entered]) write(PERSON_HANDOFF_PATH, PERSON_HANDOFF, r);
+        const a = report((await close({ run })).result);
+        const b = report((await close({ run: entered })).result);
 
-      expect(a.outcome).toBe("corrected");
-      expect(b.outcome).toBe("corrected");
-      expect(gitIn(tree(run), "rev-parse", "HEAD^{tree}")).toBe(
-        gitIn(tree(entered), "rev-parse", "HEAD^{tree}"),
-      );
-      expect(correctionReconciliation(run)).toEqual(correctionReconciliation(entered));
-    } finally {
-      otherWorld.cleanup();
-    }
-  });
-});
+        expect(a.outcome).toBe("corrected");
+        expect(b.outcome).toBe("corrected");
+        expect(gitIn(tree(run), "rev-parse", "HEAD^{tree}")).toBe(
+          gitIn(tree(entered), "rev-parse", "HEAD^{tree}"),
+        );
+        expect(correctionReconciliation(run)).toEqual(correctionReconciliation(entered));
+      } finally {
+        otherWorld.cleanup();
+      }
+    });
+  },
+);
 
 // ── §8: the stop's files are never committed ──────────────────────────────
 

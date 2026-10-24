@@ -18,7 +18,7 @@ import {
   type ExplainedRecord,
   type ExplainOutcome,
 } from "../../app/recordsExplain.js";
-import type { RecordShape, TokenUsage } from "../../schemas/runRecord.js";
+import type { RecordShape, RunRecordManifest, TokenUsage } from "../../schemas/runRecord.js";
 import { listRecords } from "../../app/recordsList.js";
 import { readRegistry } from "../../app/registry.js";
 import { PromptCancelled } from "../../ports/prompt.js";
@@ -232,7 +232,7 @@ function renderExplainOutcome(
       return 1;
     case "not-phax-commit":
       out.error(
-        `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session or a decide session (no Run-Id/Phase-Id, Authoring-Id or Decision-Id trailers).`,
+        `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session or a decide session (no Run-Id with Phase-Id or Held-Phase, Authoring-Id or Decision-Id trailers).`,
       );
       return 1;
     case "not-found":
@@ -364,6 +364,36 @@ function renderFoundDecisionRecord(
   return 0;
 }
 
+const shortSha = (sha: string): string => sha.slice(0, 7);
+
+/**
+ * The lines a stopped phase's record adds after its first line: the stop's
+ * cause, outcome and closer, then its recorded sessions with their transcripts'
+ * digests. A phase that never stopped adds none.
+ */
+function stopLines(manifest: RunRecordManifest): readonly string[] {
+  const { stop } = manifest;
+  if (stop === null) return [];
+  const verdict = stop.outcome === "corrected" ? "corrected" : "reviewed without change";
+  const head =
+    stop.cause === "held"
+      ? `  held: ${verdict} by ${stop.closedBy.name} — phase commit ${shortSha(manifest.sourceSha ?? "")}${
+          "reviewCommit" in stop ? `, review commit ${shortSha(stop.reviewCommit)}` : ""
+        }`
+      : `  interactive: ${verdict} by ${stop.closedBy.name}`;
+  const sessions =
+    stop.sessions.length === 0
+      ? ["  sessions: none"]
+      : stop.sessions.map((s) => {
+          const transcript =
+            s.transcript.status === "captured"
+              ? `transcript sha256 ${s.transcript.sha256.slice(0, 4)}…`
+              : `transcript missing: ${s.transcript.reason}`;
+          return `  sessions: ${s.provider} ${s.model} ${s.sessionId} (${s.origin}; ${transcript})`;
+        });
+  return [head, ...sessions];
+}
+
 function renderFoundRecord(
   record: ExplainedRecord,
   opts: RecordsExplainOptions,
@@ -371,7 +401,14 @@ function renderFoundRecord(
 ): number {
   const { manifest } = record;
 
-  out.log(`${record.phaseId} · ${manifest.provider} (${manifest.model}, ${manifest.effort})`);
+  const foundFrom =
+    record.addressedBy === "review-commit"
+      ? ` · found from review commit${manifest.stop?.cause === "held" && "reviewCommit" in manifest.stop ? ` ${shortSha(manifest.stop.reviewCommit)}` : ""}`
+      : "";
+  out.log(
+    `${record.phaseId} · ${manifest.provider} (${manifest.model}, ${manifest.effort})${foundFrom}`,
+  );
+  for (const line of stopLines(manifest)) out.log(line);
   out.log(`run      ${manifest.runId}`);
   out.log(`record   ${shapeAndUsageLabel(record)}`);
 
