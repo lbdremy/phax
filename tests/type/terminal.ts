@@ -1,6 +1,6 @@
 import type { Context, Effect } from "effect";
 import type { FakeTerminalImpl } from "../../src/infra/fakes/terminal.js";
-import type { Terminal, TerminalOps } from "../../src/ports/terminal.js";
+import type { StdinReadError, Terminal, TerminalOps } from "../../src/ports/terminal.js";
 
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -17,6 +17,13 @@ const stdinIsTerminal: Equals<
   Effect.Effect<boolean, never, never>
 > = true;
 void stdinIsTerminal;
+
+// readStdin is an Effect<string, StdinReadError> that needs nothing
+const readStdin: Equals<
+  typeof terminalOps.readStdin,
+  Effect.Effect<string, StdinReadError, never>
+> = true;
+void readStdin;
 
 // The Terminal tag provides exactly TerminalOps
 const tagService: Equals<Context.Tag.Service<typeof Terminal>, TerminalOps> = true;

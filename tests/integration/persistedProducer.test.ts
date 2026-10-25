@@ -629,6 +629,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   seed(`${decisionFolder}/prompt.md`, "# Decide the example spec\n");
   const decided = await run(
     writeDecisionRecord({
+      mode: "interactive",
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
       folder: decisionFolder,

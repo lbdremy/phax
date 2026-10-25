@@ -534,7 +534,12 @@ export class DecideRefusedError extends Data.TaggedError("DecideRefusedError")<{
     | "doctrine"
     | "model"
     | "operator"
-    | "changed";
+    | "changed"
+    | "verdicts-file"
+    | "verdicts-binding"
+    | "by"
+    | "by-machine"
+    | "no-by";
   message: string;
 }> {}
 

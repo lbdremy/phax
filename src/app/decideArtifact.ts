@@ -179,7 +179,7 @@ export type DecideArtifactError =
 // ── What decide reads ──────────────────────────────────────────────────────
 
 /** How the artifact was authored, as decide reads its questions. */
-type Authored =
+export type Authored =
   | {
       readonly variant: "headless";
       readonly sidecarPath: string;
@@ -191,7 +191,7 @@ type Authored =
       readonly parsed: ParsedHandQuestions | null;
     };
 
-interface ArtifactSnapshot {
+export interface ArtifactSnapshot {
   readonly kind: ArtifactKind;
   readonly slug: string;
   /** `<stamp>-<slug>`: the authoring id and the decision folder's parent. */
@@ -202,14 +202,15 @@ interface ArtifactSnapshot {
   readonly authored: Authored;
 }
 
-function refused(reason: DecideRefusedError["reason"], message: string): DecideRefusedError {
+/** A refusal of decide, whichever mode: the reason and the operator-facing message. */
+export function refused(reason: DecideRefusedError["reason"], message: string): DecideRefusedError {
   return new DecideRefusedError({ reason, message: `Decide refused: ${message}` });
 }
 
 // Preconditions (2)–(4): a Draft artifact whose sidecar is in sync, or whose
 // hand-authored §9 parses, with no uncommitted change on what decide writes.
-function readArtifact(
-  input: DecideArtifactInput,
+export function readArtifact(
+  input: Pick<DecideArtifactInput, "path" | "repoRoot">,
 ): Effect.Effect<
   ArtifactSnapshot,
   DecideRefusedError | ArtifactValidationError | FsError | GitError,
@@ -359,7 +360,7 @@ function chooseSession(
 }
 
 // The next two-digit index under `<stateRoot>/decide/<id>/`.
-function nextDecisionIndex(dir: string): Effect.Effect<string, FsError, FileSystem> {
+export function nextDecisionIndex(dir: string): Effect.Effect<string, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const taken = (yield* fs.exists(dir))
@@ -767,6 +768,7 @@ export function decideArtifact(
       recordsClonePath: input.recordsClonePath,
       records: input.records,
       folder,
+      mode: "interactive",
       decisionId,
       artifact: path,
       artifactKind: kind,

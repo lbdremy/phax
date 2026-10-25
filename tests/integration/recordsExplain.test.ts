@@ -1143,7 +1143,7 @@ describe("records explain and list (real git)", () => {
 
     async function recordDecision(
       decisionId: string,
-      overrides: Partial<WriteDecisionRecordInput> = {},
+      overrides: Partial<Extract<WriteDecisionRecordInput, { mode: "interactive" }>> = {},
     ): Promise<void> {
       writeFileSync(join(decisionFolder, "prompt.md"), "the decide prompt\n");
       writeFileSync(join(decisionFolder, "document.json"), '{"kind":"spec"}\n');
@@ -1152,6 +1152,7 @@ describe("records explain and list (real git)", () => {
       await Effect.runPromise(
         Effect.provide(
           writeDecisionRecord({
+            mode: "interactive",
             repoRoot: repoDir,
             records: IN_REPO_CONFIG,
             folder: decisionFolder,
