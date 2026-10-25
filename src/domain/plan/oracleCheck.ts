@@ -77,7 +77,10 @@ interface Pair {
 
 interface Declared {
   readonly header: PhaseHeader;
+  /** The oracle files, each path once, in first-appearance order. */
   readonly files: readonly string[];
+  /** The paths listed more than once, in first-appearance order. */
+  readonly repeatedFiles: readonly string[];
   /** Set when the declaration names a discharging phase that exists and comes after. */
   readonly pair: Pair | null;
   /** Why the declaration forms no pair; null when it does. */
@@ -89,7 +92,11 @@ function declaredOracles(headers: readonly PhaseHeader[]): readonly Declared[] {
   headers.forEach((header, index) => {
     const declaration = oracleDeclaration(header);
     if (declaration === null) return;
-    const { dischargedBy, files } = declaration;
+    const { dischargedBy } = declaration;
+    const files = [...new Set(declaration.files)];
+    const repeatedFiles = files.filter(
+      (file) => declaration.files.filter((f) => f === file).length > 1,
+    );
     const target = dischargedBy.kind === "next" ? headers[index + 1]?.phase : dischargedBy.id;
     const targetIndex = headers.findIndex((h) => h.phase === target);
     let defect: string | null = null;
@@ -112,7 +119,7 @@ function declaredOracles(headers: readonly PhaseHeader[]): readonly Declared[] {
             files,
           }
         : null;
-    declared.push({ header, files, pair, pairDefect: defect });
+    declared.push({ header, files, repeatedFiles, pair, pairDefect: defect });
   });
   return declared;
 }
@@ -183,6 +190,8 @@ function interactiveRoleFindings(
 /**
  * Every `oracles` error of a plan: the malformed-line rows, then the rule rows
  * grouped in the order of the spec's §5.6 … §5.13, each group in plan order.
+ * A path listed twice on an `**Oracle files:**` line is one `repeated` row,
+ * right after the empty-list row; the later rows read each path once.
  * §5.11 (an interactive phase inside a pair) is no rule any more: the §5.10
  * row skips an interactive phase. The rules that read planned files report
  * nothing when `phases` is null.
@@ -205,6 +214,14 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
         "**Oracle files:** lists no file: an oracle phase lists at least one oracle file",
       ),
     );
+  const repeated = declared.flatMap((d) =>
+    d.repeatedFiles.map((file) =>
+      error(
+        d.header.phase,
+        `oracle file ${file} is listed more than once on **Oracle files:**: list each oracle file once`,
+      ),
+    ),
+  );
   const unplanned = declared.flatMap((d) => {
     const phase = phaseById(d.header.phase);
     if (phase === undefined) return [];
@@ -253,6 +270,7 @@ export function oracleFindings(input: OracleCheckInput): readonly LintFinding[] 
     ...discharging,
     ...roleFindings(headers, declared, pairs),
     ...noFiles,
+    ...repeated,
     ...unplanned,
     ...between,
     ...interactiveRoleFindings(headers, declared, pairs),

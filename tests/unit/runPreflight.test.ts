@@ -447,6 +447,21 @@ describe("runPreflights", () => {
     expect(Either.isRight(result)).toBe(true);
   });
 
+  it("oracle-phases refuses a plan whose oracle phase repeats an oracle file", async () => {
+    const result = await run({
+      ...REFUSALS["oracle-phases"].input,
+      config: makeConfig({ oracles: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
+      planMd: `${planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`, `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
+    });
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(OraclePreflightError);
+      expect(result.left.message).toContain(
+        "phase-01  oracle file a.ts is listed more than once on **Oracle files:**: list each oracle file once",
+      );
+    }
+  });
+
   it("oracle-phases refuses a plan with an interactive phase before interactive-phases does", async () => {
     const planMd = [
       planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]),

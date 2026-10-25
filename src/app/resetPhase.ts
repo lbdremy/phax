@@ -5,6 +5,7 @@ import {
   decodeBranchName,
   decodePhaseId,
   decodeWorktreePath,
+  type PhaseId,
   type RunId,
   type ShortName,
 } from "../domain/branded.js";
@@ -14,7 +15,13 @@ import type {
   SetupCommandFailedError,
 } from "../domain/errors.js";
 import { PERSON_HANDOFF_PATH, type ChangedPath } from "../domain/interactive/worktreeChange.js";
-import { interpret } from "../domain/reducer.js";
+import {
+  resetPhaseRefusal,
+  stoppedPhaseOf,
+  TERMINAL_COMMITTED_STATES,
+  type ResetRefusalReason,
+} from "../domain/resetPhaseRefusal.js";
+import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -22,7 +29,6 @@ import type { Lock } from "../ports/lock.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { readPhaxPlanFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
-import { oracleRoleOf, stopOraclePairs } from "../domain/plan/oraclePairs.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
@@ -31,13 +37,7 @@ import { composePhaxState } from "./phaxState.js";
 import { resolveRun } from "./resolveRunInfo.js";
 
 export class ResetPhaseError extends Data.TaggedError("ResetPhaseError")<{
-  readonly reason:
-    | "run_not_found"
-    | "phase_not_found"
-    | "phase_blocked_by_discharge"
-    | "phase_blocked_by_later_committed"
-    | "phase_not_at_stop"
-    | "not_resettable";
+  readonly reason: "run_not_found" | "phase_not_found" | ResetRefusalReason;
   readonly message: string;
 }> {}
 
@@ -78,44 +78,6 @@ export interface ResetPreview {
   readonly phaseCommit: string | null;
   /** The stopped phase's worktree; null away from a stop. */
   readonly worktree: string | null;
-}
-
-const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
-
-// A discharge the next resume restarts at, so `--skip-oracle` reaches its oracle step.
-const STOPPED_AT_GATE_STATES = new Set<PhaseStatus["state"]>([
-  "gates_exhausted",
-  "gates_failed",
-  "failed",
-]);
-
-/** The phase a run in `awaiting_review` waits at; undefined for any other run. */
-function stoppedPhaseOf(info: {
-  readonly runState: string;
-  readonly phaseStatuses: readonly PhaseStatus[];
-}): PhaseStatus | undefined {
-  if (info.runState !== "awaiting_review") return undefined;
-  return info.phaseStatuses
-    .filter((p) => p.state === "awaiting_review")
-    .toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
-}
-
-// While a run awaits review, only the stopped phase can be reset: an earlier
-// phase is committed work the stop sits on, and a later one has not started.
-function checkTargetAtStop(
-  shortName: string,
-  target: PhaseStatus,
-  stopped: PhaseStatus | undefined,
-): ResetPhaseError | undefined {
-  if (stopped === undefined || target.phaseId === stopped.phaseId) return undefined;
-  const why =
-    target.phaseIndex < stopped.phaseIndex
-      ? `Reset "${stopped.phaseId}" first (\`phax reset-phase ${shortName} ${stopped.phaseId}\`).`
-      : `"${target.phaseId}" has not started.`;
-  return new ResetPhaseError({
-    reason: "phase_not_at_stop",
-    message: `Cannot reset "${target.phaseId}" of run "${shortName}": the run is awaiting review at "${stopped.phaseId}". ${why}`,
-  });
 }
 
 function archiveTimestamp(): string {
@@ -189,97 +151,8 @@ function resetPhaseLocked(
     }
 
     const stopped = stoppedPhaseOf(info);
-    const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
-    if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
-
-    // An oracle phase is not reset once its discharge has started: the
-    // discharge judges this phase's commit, which a reset would discard. A
-    // committed oracle phase is never resettable anyway.
-    const planPhases = yield* readPlanPhases(info.runPath);
-    const role = planPhases === undefined ? null : oracleRoleOf(planPhases, target.phaseId);
-    const discharging = role?.role === "oracle" ? role.pair.dischargingPhase : undefined;
-    const dischargingStatus = info.phaseStatuses.find((p) => p.phaseId === discharging);
-    if (dischargingStatus !== undefined && dischargingStatus.state !== "pending") {
-      return yield* Effect.fail(
-        new ResetPhaseError({
-          reason: "phase_blocked_by_discharge",
-          // The skip recovery applies only while the discharge is the stopped
-          // phase: a resume skips the oracle step of the phase it restarts at.
-          message:
-            `Cannot reset "${target.phaseId}" of run "${opts.shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset.` +
-            (STOPPED_AT_GATE_STATES.has(dischargingStatus.state)
-              ? ` To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${opts.shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${opts.shortName} --yes --skip-oracle\`: the configured gate still runs.`
-              : ""),
-        }),
-      );
-    }
-
-    // Nor is a phase whose closed stop ran the `authored` step once its
-    // pair's discharge has started: the discharge judges this phase's commit.
-    const authoredStop =
-      target.stop !== null &&
-      target.stop.status === "closed" &&
-      target.stop.outcome === "corrected" &&
-      target.stop.oracleStep === "authored";
-    if (authoredStop && planPhases !== undefined) {
-      for (const pair of stopOraclePairs(planPhases, target.phaseId)) {
-        const status = info.phaseStatuses.find((p) => p.phaseId === pair.dischargingPhase);
-        if (status === undefined || status.state === "pending") continue;
-        return yield* Effect.fail(
-          new ResetPhaseError({
-            reason: "phase_blocked_by_discharge",
-            // The same recovery as for the oracle phase (§5.36), while the
-            // discharge is the stopped phase.
-            message:
-              `Cannot reset '${target.phaseId}' of run '${opts.shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.` +
-              (STOPPED_AT_GATE_STATES.has(status.state)
-                ? ` To correct the oracle, edit it in ${status.phaseId} (\`phax enter-phase ${opts.shortName} ${status.phaseId}\`), then run \`phax resume ${opts.shortName} --yes --skip-oracle\`: the configured gate still runs.`
-                : ""),
-          }),
-        );
-      }
-    }
-
-    const laterCommitted = info.phaseStatuses.find(
-      (p) => p.phaseIndex > target.phaseIndex && TERMINAL_COMMITTED_STATES.has(p.state),
-    );
-    if (laterCommitted !== undefined) {
-      return yield* Effect.fail(
-        new ResetPhaseError({
-          reason: "phase_blocked_by_later_committed",
-          message: `Cannot reset "${target.phaseId}" of run "${opts.shortName}": later phase "${laterCommitted.phaseId}" is already ${laterCommitted.state}.`,
-        }),
-      );
-    }
-
+    const phaseId = yield* checkResettable(opts, info, target);
     const phaseFolderPath = join(info.runPath, target.phaseId);
-    const phaseIdResult = decodePhaseId(target.phaseId);
-    if (Either.isLeft(phaseIdResult)) {
-      return yield* Effect.fail(
-        new ResetPhaseError({
-          reason: "phase_not_found",
-          message: `Invalid phase id "${target.phaseId}"`,
-        }),
-      );
-    }
-    const phaseId = phaseIdResult.right;
-
-    const state = composePhaxState(info.runState as RunStatus["state"], info.lastError, target);
-    const disposition = interpret(state, {
-      type: "PhaseResetRequested",
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      run: info.runId as unknown as RunId,
-      phaseId,
-    });
-    if (disposition.kind !== "Handled") {
-      return yield* Effect.fail(
-        new ResetPhaseError({
-          reason: "not_resettable",
-          message: `Cannot reset phase "${target.phaseId}" of run "${opts.shortName}": ${disposition.reason ?? "current state does not allow reset"}.`,
-        }),
-      );
-    }
 
     // 1) Dispatch first so the reducer can read/write the phase status file
     //    while the phase folder still exists on disk.
@@ -353,8 +226,9 @@ function resetPhaseLocked(
  * What `resetPhase` would discard, without changing anything: at the stopped
  * phase of a run awaiting review, every uncommitted correction in its
  * worktree (the worktree as it stands against HEAD's tree) and the person's
- * handoff file, which the snapshot leaves out with `.phax-context/`. The same refusals
- * as the reset apply to a phase that is not the stopped one.
+ * handoff file, which the snapshot leaves out with `.phax-context/`. It runs
+ * every refusal of the run's state that the reset runs, with the same reason
+ * and message. It takes no lock; the reset runs the check again under the lock.
  */
 export function previewResetPhase(
   opts: ResetPhaseOptions,
@@ -382,8 +256,7 @@ export function previewResetPhase(
       return yield* Effect.fail(new ResetPhaseError({ reason: "phase_not_found", message: msg }));
     }
     const stopped = stoppedPhaseOf(info);
-    const notAtStop = checkTargetAtStop(opts.shortName, target, stopped);
-    if (notAtStop !== undefined) return yield* Effect.fail(notAtStop);
+    yield* checkResettable(opts, info, target);
     if (stopped === undefined) {
       return {
         phaseId: target.phaseId,
@@ -421,6 +294,47 @@ export function previewResetPhase(
       phaseCommit,
       worktree,
     };
+  });
+}
+
+/**
+ * The refusals of the run's state, shared by the reset and its preview: the
+ * phase id is decoded, the state composed and the reset event built, then the
+ * pure check decides. Returns the decoded phase id.
+ */
+function checkResettable(
+  opts: ResetPhaseOptions,
+  info: RunReviewInfo,
+  target: PhaseStatus,
+): Effect.Effect<PhaseId, ResetPhaseError, FileSystem> {
+  return Effect.gen(function* () {
+    const phaseIdResult = decodePhaseId(target.phaseId);
+    if (Either.isLeft(phaseIdResult)) {
+      return yield* Effect.fail(
+        new ResetPhaseError({
+          reason: "phase_not_found",
+          message: `Invalid phase id "${target.phaseId}"`,
+        }),
+      );
+    }
+    const phaseId = phaseIdResult.right;
+    const refusal = resetPhaseRefusal({
+      shortName: opts.shortName,
+      runState: info.runState,
+      target,
+      phaseStatuses: info.phaseStatuses,
+      planPhases: yield* readPlanPhases(info.runPath),
+      state: () => composePhaxState(info.runState as RunStatus["state"], info.lastError, target),
+      event: {
+        type: "PhaseResetRequested",
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        run: info.runId as unknown as RunId,
+        phaseId,
+      },
+    });
+    if (refusal !== null) return yield* Effect.fail(new ResetPhaseError(refusal));
+    return phaseId;
   });
 }
 

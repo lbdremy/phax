@@ -891,3 +891,202 @@ describe("resetPhase", () => {
     expect((result.left as ResetPhaseError).reason).toBe("run_not_found");
   });
 });
+
+const branch = (id: string) => `ai/my-run--${id}`;
+
+describe("previewResetPhase refuses what resetPhase refuses", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-reset-preview-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  const worktree = (id: string) => join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, id);
+
+  function planOf(phases: PhaxPlan["phases"]) {
+    const plan: PhaxPlan = {
+      run: {
+        shortName: SHORT_NAME,
+        title: "Refunds",
+        branch: "phax/refunds",
+        requiredCommands: [],
+      },
+      phases,
+    };
+    return JSON.stringify(withSchemaUrl("phax-plan", plan), null, 2);
+  }
+
+  /** Both paths fail alike on the run, and neither changes the run folder, a worktree or a branch. */
+  async function expectSameRefusal(runPath: string, phaseId: string | undefined) {
+    const before = await snapshot(runPath);
+    const fakeGit = makeFakeGit();
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      makeFakeShell().layer,
+      makeFakeLock().layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+    const opts = {
+      shortName: shortName(),
+      namespace: NAMESPACE,
+      phaseId,
+      stateRoot,
+      repoRoot: stateRoot,
+    };
+    const previewed = await Effect.runPromise(
+      Effect.either(previewResetPhase(opts).pipe(Effect.provide(layers))),
+    );
+    const reset = await Effect.runPromise(
+      Effect.either(resetPhase(opts).pipe(Effect.provide(layers))),
+    );
+
+    if (Either.isRight(previewed)) throw new Error("expected the preview to be refused");
+    if (Either.isRight(reset)) throw new Error("expected the reset to be refused");
+    expect(previewed.left).toBeInstanceOf(ResetPhaseError);
+    expect(reset.left).toBeInstanceOf(ResetPhaseError);
+    const { reason, message } = reset.left as ResetPhaseError;
+    expect(previewed.left).toMatchObject({ reason, message });
+    expect(await snapshot(runPath)).toEqual(before);
+    expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
+    expect(fakeGit.impl.deletedBranches).toEqual([]);
+    return { reason, message };
+  }
+
+  async function seedPair(phase03State: PhaseStatus["state"]) {
+    const { runPath } = await seedRun(stateRoot, {
+      runState: "failed",
+      phases: [
+        { id: "phase-01", index: 0, state: "committed", branchName: branch("phase-01") },
+        { id: "phase-02", index: 1, state: "committed", branchName: branch("phase-02") },
+        { id: "phase-03", index: 2, state: phase03State, branchName: branch("phase-03") },
+      ],
+    });
+    await writeFile(
+      join(runPath, "phax-plan.json"),
+      planOf([
+        planPhase("phase-01", null),
+        planPhase("phase-02", { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
+        planPhase("phase-03", null),
+      ]),
+    );
+    return runPath;
+  }
+
+  it("refuses a phase whose later phase is committed", async () => {
+    const { runPath } = await seedRun(stateRoot, {
+      runState: "running",
+      phases: [
+        {
+          id: "phase-01",
+          index: 0,
+          state: "gates_exhausted",
+          worktreePath: worktree("phase-01"),
+          branchName: branch("phase-01"),
+        },
+        {
+          id: "phase-02",
+          index: 1,
+          state: "committed",
+          worktreePath: worktree("phase-02"),
+          branchName: branch("phase-02"),
+          commitHash: "aabbccdd",
+        },
+      ],
+    });
+
+    const refusal = await expectSameRefusal(runPath, "phase-01");
+
+    expect(refusal.reason).toBe("phase_blocked_by_later_committed");
+  });
+
+  it("refuses an oracle phase whose discharge is stopped at its gate, with the --skip-oracle recovery", async () => {
+    const runPath = await seedPair("failed");
+
+    const refusal = await expectSameRefusal(runPath, "phase-02");
+
+    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.message).toContain("--skip-oracle");
+  });
+
+  it("refuses an oracle phase whose discharge is past its gate, without the recovery", async () => {
+    const runPath = await seedPair("review_open");
+
+    const refusal = await expectSameRefusal(runPath, "phase-02");
+
+    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.message).not.toContain("--skip-oracle");
+  });
+
+  it("refuses a closed authored stop whose discharge has started", async () => {
+    const { runPath } = await seedRun(stateRoot, {
+      runState: "failed",
+      phases: [
+        { id: "phase-01", index: 0, state: "cleaned_up", branchName: branch("phase-01") },
+        { id: "phase-02", index: 1, state: "cleaned_up", branchName: branch("phase-02") },
+        {
+          id: "phase-03",
+          index: 2,
+          state: "cleaned_up",
+          interactive: true,
+          branchName: branch("phase-03"),
+          commitHash: "c3".repeat(20),
+        },
+        { id: "phase-04", index: 3, state: "failed", branchName: branch("phase-04") },
+      ],
+    });
+    const statusPath = join(runPath, "phase-03", "status.json");
+    const status = JSON.parse(await readFile(statusPath, "utf8")) as Record<string, unknown>;
+    await writeFile(
+      statusPath,
+      JSON.stringify({
+        ...status,
+        stop: {
+          cause: "declared",
+          status: "closed",
+          outcome: "corrected",
+          oracleStep: "authored",
+          closedBy: { name: "Ada Example", email: "ada@example.com" },
+        },
+      }),
+    );
+    await writeFile(
+      join(runPath, "phax-plan.json"),
+      planOf([
+        planPhase("phase-01", null),
+        planPhase("phase-02", { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
+        { ...planPhase("phase-03", null), mode: "interactive" as const },
+        planPhase("phase-04", null),
+        planPhase("phase-05", null),
+      ]),
+    );
+
+    const refusal = await expectSameRefusal(runPath, "phase-03");
+
+    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.message).toContain("'phase-04'");
+  });
+
+  it("refuses a phase the state machine does not reset as not_resettable", async () => {
+    const { runPath } = await seedRun(stateRoot, {
+      runState: "running",
+      phases: [
+        {
+          id: "phase-01",
+          index: 0,
+          state: "running",
+          worktreePath: worktree("phase-01"),
+          branchName: branch("phase-01"),
+        },
+      ],
+    });
+
+    const refusal = await expectSameRefusal(runPath, undefined);
+
+    expect(refusal.reason).toBe("not_resettable");
+  });
+});
