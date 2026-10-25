@@ -177,9 +177,10 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   plans: {
     longHelp:
-      "Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
+      "Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan laid out phase by phase with its planned files by architecture part, its test lines and the coverage of its source spec's criteria (overview), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
     examples: [
       "phax plans lint docs/plans/2609101200-foo-plan.md",
+      "phax plans overview docs/plans/2609101200-foo-plan.md",
       "phax plans status",
       "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
     ],
@@ -191,6 +192,15 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: [
       "phax plans lint docs/plans/2609101200-foo-plan.md",
       "phax plans lint docs/plans/2609101200-foo-plan.md --json",
+    ],
+  },
+
+  "plans overview": {
+    longHelp:
+      "Lays a plan out before it runs. For each phase in plan order it shows the model, effort and mode, the oracle role (an oracle phase and the phase that discharges it, or none), the planned files to create and edit grouped by architecture part, and the test lines. It ends with the coverage of the source spec's acceptance criteria: each criterion with the phases and loops whose test lines name it, then the criteria no line names. Cost is not shown; `phax plans estimate` keeps that.\n\nThe plan is read by the deterministic parser `phax plans lint` uses; no model reads it and no model session starts. It runs in any plan status, reads the plan and the source spec's JSON sidecar (from docs/specs/archive/ when the spec has moved there), and writes nothing. A plan under docs/plans/ is first validated like any artifact.\n\nParts: when phax.json registers an architecture provider, it runs once with the plan's planned files to create and edit (the whole repository when there are none). Each file is shown under every part whose globs match it, in the report's order, and the files no part holds are shown under (no part). Without a provider the planned files are shown as they are, and the header says so. A provider that fails or is refused is not an error: the overview degrades to the planned files, prints one line on stderr, `Warning: architecture provider failed: <message>`, and exits 0.\n\nCoverage: a plan without a source spec prints no criterion coverage. A source spec with no JSON sidecar, one that is not found, or a sidecar that does not read prints the one line `phax plans lint` reports for it, and no coverage.\n\nA plan the deterministic parser cannot read, including one with a test line off the format, prints one line on stderr naming the plan and `phax plans lint <plan>`, and exits 1: lint says what is wrong. A plan that fails artifact validation prints that validation error on one line and exits 1; a plan file that cannot be read prints the read failure and exits 1.\n\n--json prints the overview as one JSON document on stdout, nothing else (warnings go to stderr). It carries the same content as the text: architecture.kind is parts, none or failed; each phase has its oracleRole (oracle with dischargedBy, discharging with oraclePhase, or none), its placement (a list of { part, files } ending with the { part: null } entry of the unplaced files) and its testLines; coverage.kind is criteria, no-source-spec or no-criterion-ids (with a reason). The document is unversioned, like `plans lint`'s.\n\nExit codes: 0 for an overview, a degraded architecture included; 1 for a plan that cannot be read, does not parse or fails artifact validation; 2 for an invalid phax.json.\n\nSide effects: none of its own; the architecture provider is spawned once when one is configured.",
+    examples: [
+      "phax plans overview docs/plans/2609101200-foo-plan.md",
+      "phax plans overview docs/plans/2609101200-foo-plan.md --json",
     ],
   },
 

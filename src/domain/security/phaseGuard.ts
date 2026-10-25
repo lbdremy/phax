@@ -24,6 +24,7 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "session-info": "allowed",
   completions: "allowed",
   "plans lint": "allowed",
+  "plans overview": "allowed",
   "plans status": "allowed",
   "artifact status": "allowed",
   "artifact schema": "allowed",

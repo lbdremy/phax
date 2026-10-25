@@ -26,6 +26,7 @@ describe("phase guard — classification", () => {
       "brief",
       "schema upgrade",
       "plans lint",
+      "plans overview",
       "plans status",
       "artifact status",
       "artifact schema",
