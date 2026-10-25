@@ -1,17 +1,46 @@
-import type { Either } from "effect";
+import { posix } from "node:path";
+import { Either, ParseResult } from "effect";
+import type { HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
+import {
+  decodeCurrentDecideVerdicts,
+  decodeCurrentDocumentSidecar,
+  decodeCurrentHandDecisionAnswer,
+} from "../../schemas/persisted.js";
+import { OTHER_OPTION_ID } from "../../schemas/questions.js";
+import { CURRENT_STAMPS } from "../../schemas/release.js";
+import { parseSchemaUrl, schemaUrl } from "../../schemas/schemaUrl.js";
 import type { ParsedHandQuestions } from "../artifact/questions.js";
 import type { SidecarDocument } from "../artifact/sidecar.js";
 import type { ArtifactKind } from "../artifact/status.js";
-import type { HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
-import type { RevisionRefusal } from "./revision.js";
+import {
+  handAnswerStampViolation,
+  firstHandAnswerViolation,
+  writeHandDecisions,
+} from "./handAuthored.js";
+import {
+  KEPT_FIELDS,
+  answerStampViolation,
+  arraysOf,
+  firstDifference,
+  firstParseIssue,
+  isObject,
+  locate,
+  questionsOf,
+  refusal,
+  sameJson,
+  sameOrder,
+  sameQuestionSet,
+  unchanged,
+  withoutQuestions,
+  type RevisionRefusal,
+} from "./revision.js";
 
 // The pure contract of `phax artifact decide <artifact> --verdicts`: reading a
 // verdicts file, binding it to the artifact's questions, and checking the
 // writer session's transcription of it. The use case reads the file, spawns
-// the session and writes; this module only decides. The types and signatures
-// below are frozen by the oracles in tests/unit/decide/verdicts.test.ts and
-// tests/unit/decide/transcription.test.ts; the functions are stubs until the
-// phase that discharges those oracles implements them.
+// the session and writes; this module only decides. The oracles in
+// tests/unit/decide/verdicts.test.ts and tests/unit/decide/transcription.test.ts
+// pin the types and signatures below.
 
 /** One verdict as the file gives it: the option chosen and the person's note. */
 export type GivenVerdict = {
@@ -29,6 +58,26 @@ export type VerdictsFile = {
 /** Why a verdicts file is refused: a path into the file (`""` at the root) and what is wrong there. */
 export type VerdictsRefusal = { readonly path: string; readonly message: string };
 
+const VERDICTS_FORMAT = "decide-verdicts";
+
+// Why a verdicts file's `$schema` is not the current shape, or undefined.
+function verdictsStampViolation(json: Record<string, unknown>): string | undefined {
+  const reads = schemaUrl(VERDICTS_FORMAT, CURRENT_STAMPS[VERDICTS_FORMAT]);
+  if (!Object.hasOwn(json, "$schema")) return `the file carries no $schema — phax reads ${reads}`;
+  const read = json["$schema"];
+  const named = parseSchemaUrl(read);
+  if (named === undefined) {
+    return `$schema ${JSON.stringify(read)} is not a phax schema URL — phax reads ${reads}`;
+  }
+  if (named.formatId !== VERDICTS_FORMAT) {
+    return `$schema ${String(read)} names ${named.formatId}, not ${VERDICTS_FORMAT} — phax reads ${reads}`;
+  }
+  if (named.release !== CURRENT_STAMPS[VERDICTS_FORMAT]) {
+    return `$schema ${String(read)} names ${VERDICTS_FORMAT} ${named.release}, not its current shape — phax reads ${reads}`;
+  }
+  return undefined;
+}
+
 /**
  * A verdicts file's text as a decoded file, or the first refusal: text that is
  * not JSON (path `""`), a missing `$schema` (path `$schema`, saying there is
@@ -37,8 +86,27 @@ export type VerdictsRefusal = { readonly path: string; readonly message: string 
  * the URL read and the URL phax reads), or the first decoder violation with
  * its path rendered like `verdicts[0].note`.
  */
-export function parseVerdictsFile(_text: string): Either.Either<VerdictsFile, VerdictsRefusal> {
-  throw new Error("not implemented: parseVerdictsFile");
+export function parseVerdictsFile(text: string): Either.Either<VerdictsFile, VerdictsRefusal> {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch (error) {
+    return Either.left({
+      path: "",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+  const reads = schemaUrl(VERDICTS_FORMAT, CURRENT_STAMPS[VERDICTS_FORMAT]);
+  if (!isObject(json)) {
+    return Either.left({
+      path: "",
+      message: `the file is not a JSON object — phax reads ${reads}`,
+    });
+  }
+  const stampViolation = verdictsStampViolation(json);
+  if (stampViolation !== undefined)
+    return Either.left({ path: "$schema", message: stampViolation });
+  return Either.mapLeft(decodeCurrentDecideVerdicts(json), firstParseIssue);
 }
 
 /**
@@ -56,9 +124,35 @@ export type QuestionFacts = {
   readonly rationale: string;
 };
 
+type QuestionLike = {
+  readonly id: string;
+  readonly recommendation: string;
+  readonly rationale: string;
+};
+
+function factsOf(
+  state: QuestionFacts["state"],
+  question: QuestionLike & {
+    readonly options?: ReadonlyArray<{ readonly id: string }>;
+    readonly optionIds?: readonly string[];
+  },
+): QuestionFacts {
+  return {
+    id: question.id,
+    state,
+    optionIds: question.optionIds ?? (question.options ?? []).map((o) => o.id),
+    recommendation: question.recommendation,
+    rationale: question.rationale,
+  };
+}
+
 /** The questions of a headless document: the open ones, then the arbitrated ones, each in document order. */
-export function questionFactsOfDocument(_sidecar: SidecarDocument): readonly QuestionFacts[] {
-  throw new Error("not implemented: questionFactsOfDocument");
+export function questionFactsOfDocument(sidecar: SidecarDocument): readonly QuestionFacts[] {
+  const { openQuestions, arbitratedQuestions } = questionsOf(sidecar);
+  return [
+    ...openQuestions.map((q) => factsOf("open", q)),
+    ...arbitratedQuestions.map((q) => factsOf("arbitrated", q)),
+  ];
 }
 
 /**
@@ -67,8 +161,11 @@ export function questionFactsOfDocument(_sidecar: SidecarDocument): readonly Que
  * question; an artifact with no §9 section at all is not parsed and has no
  * facts to give.
  */
-export function questionFactsOfHand(_parsed: ParsedHandQuestions): readonly QuestionFacts[] {
-  throw new Error("not implemented: questionFactsOfHand");
+export function questionFactsOfHand(parsed: ParsedHandQuestions): readonly QuestionFacts[] {
+  return [
+    ...parsed.open.map((q) => factsOf("open", q)),
+    ...parsed.arbitrated.map((q) => factsOf("arbitrated", q)),
+  ];
 }
 
 /** A given verdict bound to its question. */
@@ -92,6 +189,18 @@ export type BoundVerdicts = {
   readonly open: readonly string[];
 };
 
+function namesAnotherArtifact(given: string, artifactPath: string): boolean {
+  if (posix.isAbsolute(given)) return true;
+  const normalized = posix.normalize(given);
+  return normalized === ".." || normalized.startsWith("../") || normalized !== artifactPath;
+}
+
+function optionsText(optionIds: readonly string[]): string {
+  return optionIds.length === 0
+    ? OTHER_OPTION_ID
+    : `${optionIds.join(", ")}, or ${OTHER_OPTION_ID}`;
+}
+
 /**
  * A verdicts file bound to the artifact's questions, or why it cannot be. The
  * message carries no `Decide refused:` prefix. Checked in this order, and each
@@ -102,13 +211,63 @@ export type BoundVerdicts = {
  * 4. a chosen id neither listed nor `other`: the question's option ids and `other`;
  * 5. a departing verdict, `other` included, with a null note: the question and its recommendation.
  */
-export function bindVerdicts(_input: {
+export function bindVerdicts(input: {
   readonly file: VerdictsFile;
   readonly artifactPath: string;
   readonly questions: readonly QuestionFacts[];
   readonly label: string;
 }): Either.Either<BoundVerdicts, string> {
-  throw new Error("not implemented: bindVerdicts");
+  const { file, artifactPath, questions, label } = input;
+  if (namesAnotherArtifact(file.artifact, artifactPath)) {
+    return Either.left(
+      `${label} is for the artifact ${file.artifact}, not ${artifactPath} — a verdicts file names the artifact it is decided for`,
+    );
+  }
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  for (const { question } of file.verdicts) {
+    if (!byId.has(question)) {
+      const ids = questions.map((q) => q.id);
+      return Either.left(
+        `${label} names ${question}, which is no question of the artifact — its questions are ${ids.join(", ") || "none"}`,
+      );
+    }
+  }
+  const seen = new Set<string>();
+  for (const { question } of file.verdicts) {
+    if (seen.has(question)) return Either.left(`${label} names ${question} twice`);
+    seen.add(question);
+  }
+  const given = new Map(file.verdicts.map((v) => [v.question, v]));
+  for (const { question, chosen } of file.verdicts) {
+    const facts = byId.get(question);
+    if (facts !== undefined && chosen !== OTHER_OPTION_ID && !facts.optionIds.includes(chosen)) {
+      return Either.left(
+        `${label} chooses ${chosen} for ${question} — its options: ${optionsText(facts.optionIds)}`,
+      );
+    }
+  }
+  const verdicts: BoundVerdict[] = [];
+  for (const facts of questions) {
+    const verdict = given.get(facts.id);
+    if (verdict === undefined) continue;
+    const departs = verdict.chosen !== facts.recommendation;
+    if (departs && verdict.note === null) {
+      return Either.left(
+        `${label} chooses ${verdict.chosen} for ${facts.id}, which departs from its recommendation ${facts.recommendation}, with no note — a departing verdict needs a note`,
+      );
+    }
+    verdicts.push({
+      question: facts.id,
+      state: facts.state,
+      chosen: verdict.chosen,
+      note: verdict.note,
+      recommendation: facts.recommendation,
+      departs,
+      why: verdict.note ?? facts.rationale,
+    });
+  }
+  const open = questions.filter((q) => q.state === "open" && !given.has(q.id)).map((q) => q.id);
+  return Either.right({ verdicts, open });
 }
 
 /** A verdict as it landed in the document, with who set it. */
@@ -121,6 +280,257 @@ export type TranscribedVerdict = {
   readonly revised: readonly string[];
   readonly by: { readonly kind: "operator"; readonly name: string };
 };
+
+// A verdict with `why`, `by` and `at` set by phax; a non-object or `lifted`
+// verdict is left for the decoder and the checks to refuse by name.
+function stampedVerdict(
+  verdict: unknown,
+  bound: BoundVerdict,
+  operator: { readonly name: string },
+  atIso: string,
+): unknown {
+  if (!isObject(verdict) || verdict["kind"] === "lifted") return verdict;
+  return { ...verdict, why: bound.why, by: { kind: "operator", name: operator.name }, at: atIso };
+}
+
+function stampEntries(
+  value: unknown,
+  boundById: ReadonlyMap<string, BoundVerdict>,
+  operator: { readonly name: string },
+  atIso: string,
+): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((entry: unknown) => {
+    if (!isObject(entry) || typeof entry["id"] !== "string") return entry;
+    const bound = boundById.get(entry["id"]);
+    if (bound === undefined) return entry;
+    return { ...entry, verdict: stampedVerdict(entry["verdict"], bound, operator, atIso) };
+  });
+}
+
+function stampDocument(
+  json: unknown,
+  original: SidecarDocument,
+  boundById: ReadonlyMap<string, BoundVerdict>,
+  operator: { readonly name: string },
+  atIso: string,
+): unknown {
+  if (!isObject(json)) return json;
+  const stamp = (value: unknown) => stampEntries(value, boundById, operator, atIso);
+  if (original.kind === "spec") {
+    return Object.hasOwn(json, "arbitratedQuestions")
+      ? { ...json, arbitratedQuestions: stamp(json["arbitratedQuestions"]) }
+      : json;
+  }
+  const preamble = json["preamble"];
+  const stamped =
+    isObject(preamble) && Object.hasOwn(preamble, "arbitratedQuestions")
+      ? {
+          ...json,
+          preamble: { ...preamble, arbitratedQuestions: stamp(preamble["arbitratedQuestions"]) },
+        }
+      : json;
+  return {
+    ...stamped,
+    sourceSpec: original.document.sourceSpec,
+    completesSpec: original.document.completesSpec,
+  };
+}
+
+function boundOf(bound: BoundVerdicts): ReadonlyMap<string, BoundVerdict> {
+  return new Map(bound.verdicts.map((v) => [v.question, v]));
+}
+
+function operatorBy(operator: { readonly name: string }) {
+  return { kind: "operator", name: operator.name } as const;
+}
+
+function unlistedPrinciple(id: string, principleIds: ReadonlySet<string>): string {
+  const loaded = [...principleIds];
+  return `"${id}" is no principle id of the loaded doctrine (${loaded.length === 0 ? "none" : loaded.join(", ")})`;
+}
+
+function firstTranscriptionViolation(input: {
+  readonly original: SidecarDocument;
+  readonly revised: SidecarDocument;
+  readonly bound: BoundVerdicts;
+  readonly principleIds: ReadonlySet<string>;
+}): RevisionRefusal | undefined {
+  const { original, revised, bound, principleIds } = input;
+  const named = boundOf(bound);
+  const before = arraysOf(original);
+  const after = arraysOf(revised);
+
+  const setViolation = sameQuestionSet(before, after);
+  if (setViolation !== undefined) return setViolation;
+
+  const afterOpen = locate(after.openQuestions, [...after.basePath, "openQuestions"]);
+  const afterArbitrated = locate(after.arbitratedQuestions, [
+    ...after.basePath,
+    "arbitratedQuestions",
+  ]);
+
+  for (const question of before.openQuestions) {
+    const stillOpen = afterOpen.get(question.id);
+    if (named.has(question.id)) {
+      if (stillOpen !== undefined) {
+        return refusal(
+          [...stillOpen.path, "id"],
+          `"${question.id}" is named in the verdicts file: it is arbitrated`,
+        );
+      }
+      continue;
+    }
+    if (stillOpen === undefined) {
+      const moved = afterArbitrated.get(question.id);
+      return refusal(
+        moved === undefined ? [...after.basePath, "arbitratedQuestions"] : [...moved.path, "id"],
+        `"${question.id}" is not named in the verdicts file: it stays open`,
+      );
+    }
+    const violation = unchanged(
+      question,
+      stillOpen.question,
+      stillOpen.path,
+      `"${question.id}" is not named in the verdicts file: it stays as it was`,
+    );
+    if (violation !== undefined) return violation;
+  }
+  const openOrder = sameOrder(
+    before.openQuestions,
+    after.openQuestions,
+    after.basePath,
+    "openQuestions",
+  );
+  if (openOrder !== undefined) return openOrder;
+
+  for (const question of before.arbitratedQuestions) {
+    const stillArbitrated = afterArbitrated.get(question.id);
+    if (stillArbitrated === undefined) {
+      const reopened = afterOpen.get(question.id);
+      return refusal(
+        reopened === undefined ? [...after.basePath, "openQuestions"] : [...reopened.path, "id"],
+        `"${question.id}" is arbitrated: it stays in arbitratedQuestions`,
+      );
+    }
+    if (named.has(question.id)) continue;
+    const violation = unchanged(
+      question,
+      stillArbitrated.question,
+      stillArbitrated.path,
+      `"${question.id}" is arbitrated and not named in the verdicts file: it stays as it was`,
+    );
+    if (violation !== undefined) return violation;
+  }
+  const arbitratedOrder = sameOrder(
+    before.arbitratedQuestions,
+    after.arbitratedQuestions,
+    after.basePath,
+    "arbitratedQuestions",
+  );
+  if (arbitratedOrder !== undefined) return arbitratedOrder;
+
+  const beforeOpen = locate(before.openQuestions, []);
+  const beforeArbitrated = locate(before.arbitratedQuestions, []);
+  for (const given of bound.verdicts) {
+    const landed = afterArbitrated.get(given.question);
+    if (landed === undefined) continue;
+    const { question, path } = landed;
+    const earlierOpen = beforeOpen.get(given.question)?.question;
+    const earlierArbitrated = beforeArbitrated.get(given.question)?.question;
+    const earlier = earlierOpen ?? earlierArbitrated;
+    if (earlier === undefined) continue;
+    const optionIds = earlier.options.map((o) => o.id);
+    for (const field of KEPT_FIELDS) {
+      const violation = unchanged(
+        earlier[field],
+        question[field],
+        [...path, field],
+        field === "options"
+          ? `a decided question keeps its options (${optionIds.join(", ")})`
+          : `a decided question keeps its ${field}`,
+      );
+      if (violation !== undefined) return violation;
+    }
+    const { verdict } = question;
+    if (verdict.kind !== "decided") {
+      return refusal(
+        [...path, "verdict", "kind"],
+        `"${question.id}" was decided from the verdicts file: its verdict is decided, never lifted`,
+      );
+    }
+    if (verdict.chosen !== given.chosen) {
+      return refusal(
+        [...path, "verdict", "chosen"],
+        `"${verdict.chosen}" is not "${given.chosen}", the option the verdicts file gives for "${question.id}" (its options: ${optionsText(optionIds)})`,
+      );
+    }
+    const expectedAbandoned = optionIds.filter((id) => id !== given.chosen);
+    if (
+      verdict.abandoned.length !== expectedAbandoned.length ||
+      !expectedAbandoned.every((id) => verdict.abandoned.includes(id))
+    ) {
+      return refusal(
+        [...path, "verdict", "abandoned"],
+        `a verdict abandons every listed option it does not choose (${expectedAbandoned.join(", ") || "none"})`,
+      );
+    }
+    const expectedHistory =
+      earlierArbitrated === undefined
+        ? []
+        : [...earlierArbitrated.history, earlierArbitrated.verdict];
+    if (!sameJson(question.history, expectedHistory)) {
+      return refusal(
+        [...path, "history"],
+        earlierArbitrated === undefined
+          ? `"${question.id}" was open: its history is []`
+          : `"${question.id}" was re-arbitrated: its history is its earlier history, then its previous verdict`,
+      );
+    }
+  }
+
+  for (const given of bound.verdicts) {
+    const landed = afterArbitrated.get(given.question);
+    if (landed === undefined || landed.question.verdict.kind !== "decided") continue;
+    for (const [i, id] of landed.question.verdict.principles.entries()) {
+      if (!principleIds.has(id)) {
+        return refusal(
+          [...landed.path, "verdict", "principles", i],
+          unlistedPrinciple(id, principleIds),
+        );
+      }
+    }
+  }
+
+  for (const given of bound.verdicts) {
+    const landed = afterArbitrated.get(given.question);
+    if (landed === undefined || landed.question.verdict.kind !== "decided") continue;
+    const { revised: sections } = landed.question.verdict;
+    if (given.departs && sections.length === 0) {
+      return refusal(
+        [...landed.path, "verdict", "revised"],
+        `"${given.chosen}" departs from the recommendation "${given.recommendation}": name the body sections it revised`,
+      );
+    }
+    if (!given.departs && sections.length > 0) {
+      return refusal(
+        [...landed.path, "verdict", "revised"],
+        `"${given.chosen}" follows the recommendation: its revised is []`,
+      );
+    }
+  }
+
+  if (!bound.verdicts.some((v) => v.departs)) {
+    const differs = firstDifference(withoutQuestions(original), withoutQuestions(revised), []);
+    if (differs !== undefined) {
+      return refusal(
+        differs,
+        "no verdict of the file departs from its recommendation: the body stays as it was",
+      );
+    }
+  }
+  return undefined;
+}
 
 /**
  * A writer's answer for a headless document as a checked document, or the
@@ -145,7 +555,7 @@ export type TranscribedVerdict = {
  * - when no given verdict departs, every field outside the two question
  *   arrays is unchanged.
  */
-export function checkTranscription(_input: {
+export function checkTranscription(input: {
   readonly original: SidecarDocument;
   readonly answer: unknown;
   readonly bound: BoundVerdicts;
@@ -156,7 +566,50 @@ export function checkTranscription(_input: {
   { readonly document: SidecarDocument; readonly verdicts: readonly TranscribedVerdict[] },
   RevisionRefusal
 > {
-  throw new Error("not implemented: checkTranscription");
+  const { original, answer, bound, operator, atIso, principleIds } = input;
+  const stampViolation = answerStampViolation(original.kind, answer);
+  if (stampViolation !== undefined) {
+    return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
+  }
+  const decoded = Either.mapLeft(
+    decodeCurrentDocumentSidecar(
+      original.kind,
+      stampDocument(answer, original, boundOf(bound), operator, atIso),
+    ),
+    firstParseIssue,
+  );
+  if (Either.isLeft(decoded)) return Either.left(decoded.left);
+  const revised: SidecarDocument = decoded.right;
+  const violation = firstTranscriptionViolation({ original, revised, bound, principleIds });
+  if (violation !== undefined) return Either.left(violation);
+
+  const landed = new Map(arraysOf(revised).arbitratedQuestions.map((q) => [q.id, q.verdict]));
+  const verdicts = bound.verdicts.flatMap((given): TranscribedVerdict[] => {
+    const verdict = landed.get(given.question);
+    if (verdict === undefined || verdict.kind !== "decided") return [];
+    return [
+      {
+        question: given.question,
+        chosen: verdict.chosen,
+        recommendation: given.recommendation,
+        departs: given.departs,
+        why: verdict.why,
+        revised: verdict.revised,
+        by: operatorBy(operator),
+      },
+    ];
+  });
+  return Either.right({ document: revised, verdicts });
+}
+
+function stampHandAnswer(
+  json: unknown,
+  boundById: ReadonlyMap<string, BoundVerdict>,
+  operator: { readonly name: string },
+  atIso: string,
+): unknown {
+  if (!isObject(json) || !Array.isArray(json["decisions"])) return json;
+  return { ...json, decisions: stampEntries(json["decisions"], boundById, operator, atIso) };
 }
 
 /**
@@ -169,7 +622,7 @@ export function checkTranscription(_input: {
  * entry per verdict), and `answer` is the decoded answer with `why`, `by` and
  * `at` set by phax.
  */
-export function checkHandTranscription(_input: {
+export function checkHandTranscription(input: {
   readonly kind: ArtifactKind;
   readonly md: string;
   readonly parsed: ParsedHandQuestions;
@@ -187,5 +640,85 @@ export function checkHandTranscription(_input: {
   },
   RevisionRefusal
 > {
-  throw new Error("not implemented: checkHandTranscription");
+  const { kind, md, parsed, answer, bound, operator, atIso } = input;
+  const stampViolation = handAnswerStampViolation(answer);
+  if (stampViolation !== undefined) {
+    return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
+  }
+  const named = boundOf(bound);
+  const decoded = Either.mapLeft(
+    decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso)),
+    (error: ParseResult.ParseError) => firstParseIssue(error),
+  );
+  if (Either.isLeft(decoded)) return Either.left(decoded.left);
+  const handAnswer = decoded.right;
+
+  for (const [i, { id, verdict }] of handAnswer.decisions.entries()) {
+    const given = named.get(id);
+    if (given === undefined) {
+      return Either.left(
+        refusal(["decisions", i, "id"], `"${id}" is not named in the verdicts file`),
+      );
+    }
+    if (verdict.chosen !== given.chosen) {
+      return Either.left(
+        refusal(
+          ["decisions", i, "verdict", "chosen"],
+          `"${verdict.chosen}" is not "${given.chosen}", the option the verdicts file gives for "${id}"`,
+        ),
+      );
+    }
+    if (!given.departs && verdict.revised.length > 0) {
+      return Either.left(
+        refusal(
+          ["decisions", i, "verdict", "revised"],
+          `"${given.chosen}" follows the recommendation: its revised is []`,
+        ),
+      );
+    }
+  }
+  for (const { question } of bound.verdicts) {
+    if (!handAnswer.decisions.some(({ id }) => id === question)) {
+      return Either.left(
+        refusal(["decisions"], `"${question}" is named in the verdicts file: decide it`),
+      );
+    }
+  }
+
+  const violation = firstHandAnswerViolation({
+    kind,
+    md,
+    parsed,
+    answer: handAnswer,
+    scope: { presented: bound.verdicts.map((v) => v.question), reArbitrated: null },
+    principleIds: input.principleIds,
+    phaseIds: input.phaseIds,
+  });
+  if (violation !== undefined) return Either.left(violation);
+
+  const written = writeHandDecisions({
+    kind,
+    md,
+    answer: handAnswer,
+    parsed,
+    reArbitrated: bound.verdicts.filter((v) => v.state === "arbitrated").map((v) => v.question),
+  });
+  if (Either.isLeft(written)) return Either.left(refusal(["markdown"], written.left));
+
+  const verdicts = bound.verdicts.flatMap((given): TranscribedVerdict[] => {
+    const decision = handAnswer.decisions.find(({ id }) => id === given.question);
+    if (decision === undefined) return [];
+    return [
+      {
+        question: given.question,
+        chosen: decision.verdict.chosen,
+        recommendation: given.recommendation,
+        departs: given.departs,
+        why: decision.verdict.why,
+        revised: decision.verdict.revised,
+        by: operatorBy(operator),
+      },
+    ];
+  });
+  return Either.right({ answer: handAnswer, md: written.right, verdicts });
 }

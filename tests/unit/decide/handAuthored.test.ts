@@ -196,7 +196,7 @@ function write(
     md,
     answer,
     parsed: parsedOf(kind, md),
-    reArbitrated: options.reArbitrated ?? null,
+    reArbitrated: typeof options.reArbitrated === "string" ? [options.reArbitrated] : [],
   });
   if (Either.isLeft(written)) throw new Error(written.left);
   return written.right;
@@ -703,7 +703,7 @@ describe("writeHandDecisions", () => {
       md: SPEC_ARBITRATED,
       answer,
       parsed: parsedOf("spec", SPEC_ARBITRATED),
-      reArbitrated: null,
+      reArbitrated: [],
     });
     expect(Either.isLeft(written)).toBe(true);
   });

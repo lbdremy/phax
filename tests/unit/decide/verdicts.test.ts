@@ -77,7 +77,7 @@ function bind(given: VerdictsFile) {
 }
 
 describe("parseVerdictsFile", () => {
-  it.fails("decodes a valid file without its $schema", () => {
+  it("decodes a valid file without its $schema", () => {
     expect(rightOf(parseVerdictsFile(FILE_VALID))).toEqual({
       artifact: SPEC_PATH,
       verdicts: [
@@ -87,24 +87,24 @@ describe("parseVerdictsFile", () => {
     });
   });
 
-  it.fails("refuses text that is not JSON, at the root", () => {
+  it("refuses text that is not JSON, at the root", () => {
     expect(leftOf(parseVerdictsFile(FILE_NOT_JSON)).path).toBe("");
   });
 
-  it.fails("refuses a file with no $schema, naming the URL phax reads", () => {
+  it("refuses a file with no $schema, naming the URL phax reads", () => {
     const refusal = leftOf(parseVerdictsFile(FILE_NO_SCHEMA));
     expect(refusal.path).toBe("$schema");
     expect(refusal.message).toContain(READ_URL);
   });
 
-  it.fails("refuses a $schema naming another format, quoting both URLs", () => {
+  it("refuses a $schema naming another format, quoting both URLs", () => {
     const refusal = leftOf(parseVerdictsFile(FILE_WRONG_FORMAT));
     expect(refusal.path).toBe("$schema");
     expect(refusal.message).toContain(SPEC_DOCUMENT_URL);
     expect(refusal.message).toContain(READ_URL);
   });
 
-  it.fails("refuses a $schema naming another release, quoting both URLs", () => {
+  it("refuses a $schema naming another release, quoting both URLs", () => {
     const refusal = leftOf(parseVerdictsFile(FILE_OTHER_RELEASE));
     expect(refusal.path).toBe("$schema");
     expect(refusal.message).toContain(OTHER_RELEASE_URL);
@@ -118,36 +118,33 @@ describe("parseVerdictsFile", () => {
     ["an empty note", FILE_EMPTY_NOTE, "verdicts[0].note"],
   ];
 
-  it.fails.each(violations)(
-    "refuses %s at the path of the first violation",
-    (_name, text, path) => {
-      expect(leftOf(parseVerdictsFile(text)).path).toBe(path);
-    },
-  );
+  it.each(violations)("refuses %s at the path of the first violation", (_name, text, path) => {
+    expect(leftOf(parseVerdictsFile(text)).path).toBe(path);
+  });
 });
 
 describe("questionFactsOfDocument", () => {
-  it.fails("gives a spec's questions in document order", () => {
+  it("gives a spec's questions in document order", () => {
     expect(questionFactsOfDocument(SPEC)).toEqual(SPEC_FACTS);
   });
 
-  it.fails("gives the open questions, then the arbitrated ones", () => {
+  it("gives the open questions, then the arbitrated ones", () => {
     expect(questionFactsOfDocument(SPEC_KEEP_DECIDED)).toEqual(SPEC_KEEP_DECIDED_FACTS);
   });
 
-  it.fails("gives a plan's questions from its preamble", () => {
+  it("gives a plan's questions from its preamble", () => {
     expect(questionFactsOfDocument(PLAN)).toEqual(PLAN_FACTS);
   });
 });
 
 describe("questionFactsOfHand", () => {
-  it.fails("gives the §9 questions with the parser's whole rationale", () => {
+  it("gives the §9 questions with the parser's whole rationale", () => {
     const facts = questionFactsOfHand(HAND_PARSED);
     expect(facts).toEqual(HAND_FACTS);
     expect(facts[0]?.rationale).toBe(HAND_Q1_RATIONALE);
   });
 
-  it.fails("gives nothing for sections that hold no question", () => {
+  it("gives nothing for sections that hold no question", () => {
     expect(questionFactsOfHand(HAND_NO_QUESTIONS_PARSED)).toEqual([]);
   });
 });
@@ -190,12 +187,12 @@ describe("bindVerdicts: the artifact and the questions (§5.4)", () => {
     ],
   ];
 
-  it.fails.each(refusals)("refuses %s, naming what the caller needs", (_name, given, named) => {
+  it.each(refusals)("refuses %s, naming what the caller needs", (_name, given, named) => {
     const message = leftOf(bind(given));
     for (const fact of named) expect(message).toContain(fact);
   });
 
-  it.fails("checks the artifact before the questions", () => {
+  it("checks the artifact before the questions", () => {
     const message = leftOf(
       bind({
         artifact: OTHER_SPEC_PATH,
@@ -206,7 +203,7 @@ describe("bindVerdicts: the artifact and the questions (§5.4)", () => {
     expect(message).not.toContain("q-nine");
   });
 
-  it.fails("checks an unlisted chosen id before a missing note", () => {
+  it("checks an unlisted chosen id before a missing note", () => {
     const message = leftOf(bind(file({ question: "q-keep", chosen: "keep-30", note: null })));
     expect(message).toContain("keep-20");
   });
@@ -218,7 +215,7 @@ describe("bindVerdicts: a departing verdict needs a note (§5.5)", () => {
     ["other, which always departs", "other"],
   ];
 
-  it.fails.each(refusals)(
+  it.each(refusals)(
     "refuses %s with a null note, naming the question and its recommendation",
     (_name, chosen) => {
       const message = leftOf(bind(file({ question: "q-keep", chosen, note: null })));
@@ -227,18 +224,18 @@ describe("bindVerdicts: a departing verdict needs a note (§5.5)", () => {
     },
   );
 
-  it.fails("accepts a following verdict with a null note", () => {
+  it("accepts a following verdict with a null note", () => {
     const bound = rightOf(bind(file({ question: "q-keep", chosen: "keep-10", note: null })));
     expect(bound.verdicts.map((v) => v.departs)).toEqual([false]);
   });
 });
 
 describe("bindVerdicts: what is bound", () => {
-  it.fails("binds a note as the why, and the rationale when there is none", () => {
+  it("binds a note as the why, and the rationale when there is none", () => {
     expect(rightOf(bind(fileOf(FILE_VALID)))).toEqual(BOUND_FOLLOW);
   });
 
-  it.fails("binds other with a note as a departing verdict whose why is the note", () => {
+  it("binds other with a note as a departing verdict whose why is the note", () => {
     const bound = rightOf(
       bind(
         file({
@@ -261,7 +258,7 @@ describe("bindVerdicts: what is bound", () => {
     ]);
   });
 
-  it.fails("lists the open questions the file does not name", () => {
+  it("lists the open questions the file does not name", () => {
     const bound = rightOf(
       bind(
         file(
@@ -273,7 +270,7 @@ describe("bindVerdicts: what is bound", () => {
     expect(bound.open).toEqual(["q-names"]);
   });
 
-  it.fails("lists no open question when the file names them all", () => {
+  it("lists no open question when the file names them all", () => {
     const bound = rightOf(
       bind(
         file(
@@ -286,12 +283,12 @@ describe("bindVerdicts: what is bound", () => {
     expect(bound.open).toEqual([]);
   });
 
-  it.fails("binds in the artifact's document order, never the file's", () => {
+  it("binds in the artifact's document order, never the file's", () => {
     const bound = rightOf(bind(fileOf(FILE_REVERSED)));
     expect(bound.verdicts.map((v) => v.question)).toEqual(["q-keep", "q-scope"]);
   });
 
-  it.fails("binds an arbitrated question as arbitrated, departing from its recommendation", () => {
+  it("binds an arbitrated question as arbitrated, departing from its recommendation", () => {
     const bound = rightOf(
       bindVerdicts({
         file: file({ question: "q-keep", chosen: "keep-20", note: "A fortnight of runs." }),
@@ -306,7 +303,7 @@ describe("bindVerdicts: what is bound", () => {
     expect(bound.open).toEqual(["q-scope", "q-names"]);
   });
 
-  it.fails("binds a hand-authored question with its whole rationale as the why", () => {
+  it("binds a hand-authored question with its whole rationale as the why", () => {
     const bound = rightOf(
       bindVerdicts({
         file: {

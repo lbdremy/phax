@@ -466,7 +466,7 @@ function checkHand(
     md,
     answer,
     parsed,
-    reArbitrated: ctx.scope.reArbitrated,
+    reArbitrated: ctx.scope.reArbitrated === null ? [] : [ctx.scope.reArbitrated],
   });
   if (Either.isLeft(written)) return Either.left({ path: "markdown", message: written.left });
   const recommendation = new Map(

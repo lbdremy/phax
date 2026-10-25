@@ -417,8 +417,8 @@ export interface HandWriteInput {
   readonly answer: HandDecisionAnswer;
   /** `md` parsed by `parseHandAuthoredQuestions`. */
   readonly parsed: ParsedHandQuestions;
-  /** The arbitrated question this session re-arbitrates (`DecideScope.reArbitrated`). */
-  readonly reArbitrated: string | null;
+  /** The arbitrated questions this session re-arbitrates; interactive decide passes at most one. */
+  readonly reArbitrated: readonly string[];
 }
 
 // A run of lines inserted before an original line (or at the end). A
@@ -518,7 +518,7 @@ function noneLine(lines: readonly string[], section: ParsedSection): number | un
  * - each decided open question's block (its range) is cut from the open
  *   section and appended to the arbitrated section, followed by its Decision
  *   block; an open section left without a question holds `None.`;
- * - the re-arbitrated question's old verdict (its Decision line and its Why
+ * - each re-arbitrated question's old verdict (its Decision line and its Why
  *   paragraph) is replaced by the new one, and its previous Decision line is
  *   added as an `Earlier decision:` line after its earlier decisions; every
  *   other line of its block (earlier decisions, notes) stays in place;
@@ -550,11 +550,10 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
 
   const verdictOf = new Map(decisions.map((d) => [d.id, d.verdict]));
   const moved = current.open.filter((q) => verdictOf.has(q.id));
-  const rearbitrated =
-    reArbitrated !== null && verdictOf.has(reArbitrated)
-      ? current.arbitrated.find((q) => q.id === reArbitrated)
-      : undefined;
-  const written = new Set([...moved.map((q) => q.id), ...(rearbitrated ? [rearbitrated.id] : [])]);
+  const rearbitrated = current.arbitrated.filter(
+    (q) => reArbitrated.includes(q.id) && verdictOf.has(q.id),
+  );
+  const written = new Set([...moved, ...rearbitrated].map((q) => q.id));
   const unwritten = decisions.find((d) => !written.has(d.id));
   if (unwritten !== undefined) {
     return Either.left(`"${unwritten.id}" is neither an open question nor the re-arbitrated one`);
@@ -584,14 +583,14 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
     insert(firstOpen.range.start - 1, ["None.", ""]);
   }
 
-  // The re-arbitrated question: its old verdict's own lines replaced by the
+  // Each re-arbitrated question: its old verdict's own lines replaced by the
   // new verdict's, and the old verdict added after its earlier decisions.
   // Every other line of its block stays where it is.
-  if (rearbitrated !== undefined) {
-    const verdict = verdictOf.get(rearbitrated.id);
-    if (verdict === undefined) return Either.left(`"${rearbitrated.id}" has no verdict`);
-    const from = rearbitrated.decisionLine - 1;
-    const block = decisionBlockOf(lines, rearbitrated);
+  for (const question of rearbitrated) {
+    const verdict = verdictOf.get(question.id);
+    if (verdict === undefined) return Either.left(`"${question.id}" has no verdict`);
+    const from = question.decisionLine - 1;
+    const block = decisionBlockOf(lines, question);
     const previous = `Earlier decision: ${block.decision.slice("Decision: ".length)}`;
     for (const i of block.own) drop(i, i);
     if (block.lastEarlier === undefined) {
@@ -604,7 +603,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
 
   // The decision log entries, one per new verdict, in document order.
   const entries = bulletList(
-    [...moved, ...(rearbitrated ? [rearbitrated] : [])].flatMap((q) => {
+    [...moved, ...rearbitrated].flatMap((q) => {
       const verdict = verdictOf.get(q.id);
       return verdict === undefined ? [] : [renderDecisionLogEntry(q.id, verdict)];
     }),
