@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610231041-test-strategy.md
 completes-spec: true
+approved:
+  date: 2026-10-25
+  baseline: ee7d618
 ---
 # Test strategy as data
 
