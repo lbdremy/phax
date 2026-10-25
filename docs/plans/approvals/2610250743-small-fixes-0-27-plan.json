@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610250743-small-fixes-0-27-plan.md",
+  "planFingerprint": "a861428ac890e11fa7077f2b1cdef84d585c7d03c5261fafbb3d7c80b9ed7fd6",
+  "approvedAt": "2026-10-25T08:23:29.544Z",
+  "baseline": "0ba1aedd450d682359b86479fdd6513f91fefa4a",
+  "sourceSpec": null,
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

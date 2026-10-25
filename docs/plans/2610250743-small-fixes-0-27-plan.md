@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-25
+  baseline: 0ba1aed
 ---
 # Small fixes for 0.27
 
