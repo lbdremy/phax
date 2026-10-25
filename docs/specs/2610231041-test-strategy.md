@@ -154,6 +154,8 @@ The system shall ship the phax-planning skill with its Test strategy section poi
 
 ### file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy` — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     "testStrategy": "- a run folder is created with its layout, and a second create of the same name is refused — medium · example · expected tree and typed error · in-phase\n- an interrupted write leaves the previous file whole — medium · example · file content before and after · in-phase"
@@ -183,6 +185,8 @@ after:
 
 ### file: `phax-plan.json`, phase test lines — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     A phase of `phax-plan.json` carries no test strategy: the `### Test strategy` section is never extracted.
@@ -204,6 +208,8 @@ after:
 
 ### file: plan.md `### Test strategy` section — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     ### Test strategy
@@ -221,6 +227,8 @@ after:
 
 ### cli: phax plans lint <plan> — new test line findings — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     docs/plans/2610240900-invoice-export-plan.md: no findings
@@ -237,6 +245,8 @@ after:
 
 ### cli: phax plans overview <plan> [--json] — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     phax plans overview docs/plans/2610240900-invoice-export-plan.md
     phax plans overview docs/plans/2610240900-invoice-export-plan.md --json
 
@@ -245,6 +255,8 @@ after:
     $? = 2   invalid config
 
 ### cli: phax plans overview — rendered layout — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     invoice-export — Monthly invoice export  (Draft · source spec invoice-export)
     architecture: parts from the configured provider
@@ -274,6 +286,8 @@ after:
     Without a provider, the architecture line reads `architecture: no provider configured — planned files shown`, and each phase lists `files` in place of parts.
 
 ### cli: phax plans overview --json — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     {
       "plan": "docs/plans/2610240900-invoice-export-plan.md",
@@ -307,10 +321,14 @@ after:
 
 ### cli: phax artifact migrate-documents — refusing a prose test strategy — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     ✗ docs/plans/2610230951-interactive-phases-plan.md phase-01 testStrategy line 1 departs from the test line format: "Write `tests/unit/hold.test.ts` first."
       Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.
 
 ### file: .claude/skills/phax-planning/SKILL.md — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 

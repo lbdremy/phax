@@ -544,6 +544,8 @@ WHILE a run has no review pass THE system SHALL build the PR body exactly as it 
 
 ### cli: phax review-code <run> --headless — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     phax review-code usage-cli [--new-session] [--model <model>] [--effort <effort>]
@@ -569,6 +571,8 @@ after:
 
 ### file: code-review document (the headless review session's final message) — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     {
       "version": 1,
       "findings": [
@@ -586,6 +590,8 @@ after:
     # the agent emits no ids and no outcome: phax assigns both
 
 ### file: code-review.json — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     # at <run-dir>/review/pass-01/code-review.json, also committed to the run's records
     # normative: file name, keys and enums. Indicative: directory layout.
@@ -611,6 +617,8 @@ after:
     # ids: run-unique F<n> and C<n>, with numbering continuing across passes
 
 ### cli: phax review-plan <run> — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     phax review-plan usage-cli --headless [--doctrine <file>] [--min-severity bug|deviation|concern] [--model <model>] [--effort <effort>]
     phax review-plan usage-cli [--doctrine <file>] [--min-severity …] [--model …] [--effort …]
@@ -646,6 +654,8 @@ after:
     Exit: 0 planned, no-fix or clean · 1 refused (run not review_open, no pass, latest plan already appended, run completion applied, divergent verdict, a doctrine file unreadable or defining no principle id or redefining a skill id, interactive without a terminal or on a provider other than Claude Code) · 5 result not JSON or rejected · 8 rate/usage limit
 
 ### file: review-plan document and the review plan's sidecar — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     # the session's answer: `version: 1`, then the plan document's `review-plan` variant
     # phax writes it as the sidecar docs/plans/2609251010-usage-cli-review-01-plan.json on the run branch:
@@ -692,6 +702,8 @@ after:
 
 ### file: the review plan's Markdown — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     # docs/plans/2609251010-usage-cli-review-01-plan.md on the run branch, rendered from the sidecar and never written by the agent
     ---
     status: Draft
@@ -724,6 +736,8 @@ after:
 
 ### file: pass.json — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     # <run-dir>/review/pass-01/pass.json, also committed to the run's records
     # normative: the keys, the outcome and mode kinds, and who writes what. Indicative: the layout.
     {
@@ -755,6 +769,8 @@ after:
     # $schema: the `review-pass` format, registered and snapshotted like every persisted format
 
 ### cli: phax run <run> --append --plan <review plan> — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
@@ -792,6 +808,8 @@ after:
 
 ### config: phax.json review.code.{enabled,append,maxPasses} — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     "review": {
@@ -816,6 +834,8 @@ after:
 
 ### config: phax.json review.code.{doctrine,minSeverity} — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     "code": { "model": "claude-opus-5-5", "effort": "high" }
@@ -830,6 +850,8 @@ after:
     }
 
 ### cli: phax artifact approve|status on a review plan — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
@@ -864,6 +886,8 @@ after:
 
 ### cli: phax ls review-pass report — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     phax ls --review-open
@@ -889,6 +913,8 @@ after:
     # open counts only non-info findings
 
 ### file: pr-body.md (the pull request description) — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
@@ -951,6 +977,8 @@ after:
     # a run with no pass gets a body identical to today's
 
 ### cli: phax publish-pr <run> with review passes — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 

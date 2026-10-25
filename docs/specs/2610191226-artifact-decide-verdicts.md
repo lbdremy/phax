@@ -212,6 +212,8 @@ WHEN a writer session ends after spawning and records are enabled THE system SHA
 
 ### cli: phax artifact decide --verdicts — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]
@@ -270,6 +272,8 @@ after:
 
 ### file: verdicts file (given as --verdicts <file|->) — normative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
     {
       "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.26.0.json",
       "artifact": "docs/specs/2610201015-log-rotation.md",
@@ -287,6 +291,8 @@ after:
     # indicative: the format id `decide-verdicts`; 0.26.0 stands for the release that ships this spec.
 
 ### file: docs/specs/<stamp>-<slug>.json a verdict choosing `other`, and the rendered §9 — normative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
@@ -322,6 +328,8 @@ after:
 
 ### cli: phax artifact schema verdicts — indicative
 
+Summary: (summary to write — lifted by phax artifact migrate-documents)
+
 before:
 
     phax artifact schema spec|plan
@@ -337,6 +345,8 @@ after:
     # the verdicts format's JSON Schema, also published under https://docs.phax.run/schemas/ like every phax format
 
 ### cli: phax artifact decide --verdicts --json — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
     $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts - --by operator --json < verdicts.json
     { "artifact": "docs/specs/2610201015-log-rotation.md", "status": "Draft",
@@ -355,6 +365,8 @@ after:
     # one object on stdout, nothing else there; key spelling indicative; its content is the human report's (normative per r-report)
 
 ### cli: the decide commit (git log) — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
@@ -380,6 +392,8 @@ after:
     # normative per r-commit-trailer: trailers naming the operator, the verdicts channel and the decision id; spelling indicative
 
 ### file: decision record on phax/records/v1 — indicative
+
+Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 before:
 
