@@ -140,6 +140,7 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
         spec.dischargedBy === undefined
           ? null
           : { dischargedBy: spec.dischargedBy, files: spec.oracleFiles ?? [ORACLE_FILE] },
+      testLines: [],
       commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
     }),
   );

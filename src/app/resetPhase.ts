@@ -28,8 +28,12 @@ import { Git, type GitError } from "../ports/git.js";
 import type { Lock } from "../ports/lock.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { readPhaxPlanFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
-import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import {
+  readPhaxPlanFile,
+  readRunStatusFile,
+  withSchemaUrl,
+  type AnyShapePhaxPlan,
+} from "../schemas/persisted.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { withRunLock } from "./lock.js";
@@ -358,7 +362,7 @@ function selectTargetPhase(
  */
 function readPlanPhases(
   runPath: string,
-): Effect.Effect<readonly PhaxPlanPhase[] | undefined, never, FileSystem> {
+): Effect.Effect<AnyShapePhaxPlan["phases"] | undefined, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, "phax-plan.json");

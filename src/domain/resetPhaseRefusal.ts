@@ -64,8 +64,11 @@ export interface ResetRefusalInput {
   readonly runState: string;
   readonly target: PhaseStatus;
   readonly phaseStatuses: readonly PhaseStatus[];
-  /** The plan's phases; undefined when `phax-plan.json` is unreadable. */
-  readonly planPhases: readonly PhaxPlanPhase[] | undefined;
+  /**
+   * The plan's phases in any shape, so without test lines; undefined when
+   * `phax-plan.json` is unreadable.
+   */
+  readonly planPhases: readonly Omit<PhaxPlanPhase, "testLines">[] | undefined;
   /**
    * The composed state of the run with `target` as its phase. Read last, so an
    * earlier refusal never composes a state the caller could not (a phase at

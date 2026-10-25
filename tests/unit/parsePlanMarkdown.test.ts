@@ -3,7 +3,11 @@ import { Either } from "effect";
 import {
   extractPlanDeterministic,
   collectPlanStructureErrors,
+  readPlanDeterministic,
+  readPlanTestStrategies,
 } from "../../src/domain/plan/parsePlanMarkdown.js";
+import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
+import { planCacheKey } from "../../src/domain/planCache/key.js";
 
 function makePhase(
   overrides: {
@@ -18,6 +22,8 @@ function makePhase(
     create?: string;
     edit?: string;
     optional?: string;
+    /** The `### Test strategy` section's text, after the optional files; none when absent. */
+    testStrategy?: string;
     subject?: string;
     body?: string;
   } = {},
@@ -52,6 +58,9 @@ function makePhase(
     ``,
     optional,
     ``,
+    ...(overrides.testStrategy === undefined
+      ? []
+      : [`### Test strategy`, ``, overrides.testStrategy, ``]),
     `### Commit subject`,
     ``,
     subject,
@@ -138,6 +147,7 @@ describe("extractPlanDeterministic", () => {
           optionalFilesToEdit: [],
           mode: "headless",
           oracle: null,
+          testLines: [],
           commit: { subject: "feat(a): alpha", body: "Alpha body paragraph." },
         },
         {
@@ -150,6 +160,7 @@ describe("extractPlanDeterministic", () => {
           optionalFilesToEdit: ["src/e.ts"],
           mode: "headless",
           oracle: null,
+          testLines: [],
           commit: { subject: "feat(b): beta", body: "Beta body paragraph." },
         },
       ],
@@ -653,12 +664,13 @@ describe("mode and oracle, read from the header lines", () => {
     expect(extracted.every((p) => p.oracle === null)).toBe(true);
   });
 
-  it("puts mode and oracle directly after optionalFilesToEdit", () => {
+  it("puts mode and oracle directly after optionalFilesToEdit, then testLines", () => {
     const [first] = extractedPhases(plan({}));
-    expect(Object.keys(first!).slice(-4)).toEqual([
+    expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
   });
@@ -704,5 +716,206 @@ describe("mode and oracle, read from the header lines", () => {
     expect(collectPlanStructureErrors(md)).toEqual([]);
     const extracted = extractedPhases(md);
     expect(extracted.map((p) => [p.mode, p.oracle])).toEqual(ids.map(() => ["headless", null]));
+  });
+});
+
+const exporterLine = {
+  guarantee: "an invoice row renders its amount in cents",
+  size: "small",
+  technique: "example",
+  oracle: "the expected CSV row",
+  loop: "in-phase",
+  criterion: "ac-row",
+} as const;
+
+const EXPORTER_LINE_TEXT =
+  "- an invoice row renders its amount in cents — small · example · the expected CSV row · in-phase · ac-row";
+
+describe("test lines, read from each phase's ### Test strategy", () => {
+  it("extracts a hand-written plan's formatted test lines with their coordinates", () => {
+    const md = makePlan({
+      phases: [
+        makePhase({
+          testStrategy: [
+            EXPORTER_LINE_TEXT,
+            "- a malformed row is refused — small · table · the refusal · oracle",
+          ].join("\n"),
+        }),
+      ],
+    });
+    expect(extractedPhases(md)[0]!.testLines).toEqual([
+      exporterLine,
+      {
+        guarantee: "a malformed row is refused",
+        size: "small",
+        technique: "table",
+        oracle: "the refusal",
+        loop: "oracle",
+        criterion: null,
+      },
+    ]);
+  });
+
+  it("carries each phase's lines in plan order, and [] for a phase with none", () => {
+    const md = makePlan({
+      phases: [
+        makePhase({ id: "phase-01", testStrategy: EXPORTER_LINE_TEXT }),
+        makePhase({ id: "phase-02" }),
+        makePhase({ id: "phase-03", testStrategy: "- (none)" }),
+        makePhase({ id: "phase-04", testStrategy: "" }),
+      ],
+    });
+    expect(extractedPhases(md).map((p) => p.testLines)).toEqual([[exporterLine], [], [], []]);
+  });
+
+  it("gives two plans that differ in one line different extractions and cache seeds", () => {
+    const one = makePlan({ phases: [makePhase({ testStrategy: EXPORTER_LINE_TEXT })] });
+    const other = one.replace("· in-phase · ac-row", "· oracle · ac-row");
+    expect(extractedPhases(one)[0]!.testLines[0]!.loop).toBe("in-phase");
+    expect(extractedPhases(other)[0]!.testLines[0]!.loop).toBe("oracle");
+    expect(planCacheKey(one, "m", "low")).not.toBe(planCacheKey(other, "m", "low"));
+  });
+
+  it("matches the heading case-insensitively and ends the section at a thematic break or the next ###", () => {
+    const md = makePlan({
+      phases: [
+        makePhase({
+          testStrategy: [EXPORTER_LINE_TEXT, "", "### Notes", "", "- not a test line"].join("\n"),
+        }),
+        makePhase({ id: "phase-02" }).replace(
+          "### Commit subject",
+          ["### TEST STRATEGY", "", EXPORTER_LINE_TEXT, "", "---", "", "### Commit subject"].join(
+            "\n",
+          ),
+        ),
+      ],
+    });
+    const strategies = readPlanTestStrategies(md);
+    expect(strategies.map((s) => [s.phase, s.departures.length, s.lines.length])).toEqual([
+      ["phase-01", 0, 1],
+      ["phase-02", 0, 1],
+    ]);
+  });
+
+  it("reads from the raw source, skipping the frontmatter, so code spans reach the grammar verbatim", () => {
+    const md = [
+      "---",
+      "status: Draft",
+      "---",
+      makePlan({
+        phases: [
+          makePhase({
+            testStrategy:
+              "- `parse(x)` keeps `a · b` whole — small · example · `parse`'s value · in-phase",
+          }),
+        ],
+      }),
+    ].join("\n");
+    expect(extractedPhases(md)[0]!.testLines).toEqual([
+      {
+        guarantee: "`parse(x)` keeps `a · b` whole",
+        size: "small",
+        technique: "example",
+        oracle: "`parse`'s value",
+        loop: "in-phase",
+        criterion: null,
+      },
+    ]);
+  });
+
+  // Each settled edge case of the grammar reads the same through the parser as
+  // through `readTestStrategyText` on the same section text.
+  it.each([
+    {
+      name: "a guarantee holding ' — ' and ' · '",
+      text: "- a — b · c — small · example · x · in-phase",
+    },
+    { name: "an oracle holding ' · '", text: "- g — small · example · x · y · in-phase · ac-1" },
+    { name: "an oracle holding ' — '", text: "- g — small · example · x — y · in-phase" },
+    { name: "a coordinate in backticks", text: "- g — `small` · example · x · in-phase" },
+    { name: "a backticked criterion", text: "- g — small · example · x · in-phase · `ac-1`" },
+    { name: "doubled spaces around a separator", text: "- g —  small · example · x · in-phase" },
+    { name: "`--` in place of `—`", text: "- g -- small · example · x · in-phase" },
+    { name: "a wrapped continuation line", text: "- g — small · example ·\n  x · in-phase" },
+    { name: "a second paragraph", text: "- g — small · example · x · in-phase\n\n  more prose" },
+    {
+      name: "stray text before the list",
+      text: "Write these first:\n\n- g — small · example · x · in-phase",
+    },
+    { name: "`(none)` beside an entry", text: "- (none)\n- g — small · example · x · in-phase" },
+    { name: "a lone `- (none)`", text: "- (none)" },
+    {
+      name: "`*` and `+` bullets",
+      text: "* g — small · example · x · in-phase\n+ h — large · smoke · y · oracle",
+    },
+    { name: "an unknown size", text: "- g — huge · example · x · in-phase" },
+    { name: "a U+2028 inside an entry", text: "- g h — small · example · x · in-phase" },
+  ])("reads $name as the grammar does", ({ text }) => {
+    const md = makePlan({ phases: [makePhase({ testStrategy: text })] });
+    const grammar = readTestStrategyText(text);
+    const [strategy] = readPlanTestStrategies(md);
+    expect({ lines: strategy!.lines, departures: strategy!.departures }).toEqual(grammar);
+    const reading = readPlanDeterministic(md);
+    if (Either.isLeft(reading)) throw new Error(reading.left.message);
+    expect(reading.right.plan.phases[0].testLines).toEqual(grammar.lines.map((l) => l.line));
+  });
+
+  it("leaves departing entries out of the plan, reports them, and keeps each kept line's source item number", () => {
+    const md = makePlan({
+      phases: [
+        makePhase({
+          id: "phase-01",
+          testStrategy: ["- add unit tests for the exporter", EXPORTER_LINE_TEXT].join("\n"),
+        }),
+        makePhase({ id: "phase-02", testStrategy: EXPORTER_LINE_TEXT }),
+      ],
+    });
+    const reading = readPlanDeterministic(md);
+    if (Either.isLeft(reading)) throw new Error(reading.left.message);
+    expect(reading.right.plan.phases.map((p) => p.testLines)).toEqual([
+      [exporterLine],
+      [exporterLine],
+    ]);
+    expect(reading.right.departures).toEqual([
+      { phase: "phase-01", departure: { line: 1, text: "add unit tests for the exporter" } },
+    ]);
+    expect(reading.right.lineItems).toEqual([
+      { phase: "phase-01", items: [2] },
+      { phase: "phase-02", items: [1] },
+    ]);
+  });
+
+  it("fails readPlanDeterministic only on a structure error, never on a departure", () => {
+    const broken = makePlan({ phases: [makePhase({ testStrategy: "- nope", subject: "" })] });
+    expect(Either.isLeft(readPlanDeterministic(broken))).toBe(true);
+    const departing = makePlan({ phases: [makePhase({ testStrategy: "- nope" })] });
+    expect(Either.isRight(readPlanDeterministic(departing))).toBe(true);
+    expect(collectPlanStructureErrors(departing)).toEqual([]);
+  });
+
+  it("refuses the first departure in plan order through extractPlanDeterministic", () => {
+    const md = makePlan({
+      phases: [
+        makePhase({ id: "phase-01", testStrategy: EXPORTER_LINE_TEXT }),
+        makePhase({ id: "phase-02", testStrategy: `${EXPORTER_LINE_TEXT}\n- add unit tests` }),
+        makePhase({ id: "phase-03", testStrategy: "- also not a line" }),
+      ],
+    });
+    const result = extractPlanDeterministic(md);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe(
+        'phase-02: test line 2 departs from the format: "add unit tests"',
+      );
+    }
+  });
+
+  it("reads a phase whose heading has no anchor, which the walk skips", () => {
+    const md = makePlan({
+      phases: [makePhase({ testStrategy: "- nope" }).replace(" {#phase-01-alpha}", "")],
+    });
+    expect(readPlanTestStrategies(md)).toEqual([
+      { phase: "phase-01", lines: [], departures: [{ line: 1, text: "nope" }] },
+    ]);
   });
 });

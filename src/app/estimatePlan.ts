@@ -23,7 +23,7 @@ import {
   type RegistryCorruptionError,
 } from "../domain/errors.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
-import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import { readPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import { securityFilterFor } from "../domain/security/capabilities.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
@@ -105,9 +105,10 @@ export function readEstimatePlan(
         path: repoRelPath,
         message: `${repoRelPath} cannot be parsed: ${reason}. Run \`phax plans lint ${repoRelPath}\` for every finding.`,
       });
-    const extracted = extractPlanDeterministic(planMd);
+    // A departing test line is left out and never blocks the estimate.
+    const extracted = readPlanDeterministic(planMd);
     if (Either.isLeft(extracted)) return yield* Effect.fail(unparseable(extracted.left.message));
-    const finalized = finalizeExtractedPlan(extracted.right, planMd);
+    const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
     if (Either.isLeft(finalized)) return yield* Effect.fail(unparseable(finalized.left.message));
 
     const phases: SizedPlanPhase[] = [];

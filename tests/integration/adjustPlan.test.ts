@@ -100,6 +100,7 @@ function buildMinimalExtracted() {
         optionalFilesToEdit: [],
         mode: "headless" as const,
         oracle: null,
+        testLines: [],
         commit: {
           subject: "feat: do something",
           body: "Do something useful.",

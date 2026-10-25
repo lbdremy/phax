@@ -25,7 +25,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -36,6 +36,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -211,7 +212,7 @@ function makeFakes(opts: { readonly gateExitCode?: number } = {}) {
 type Fakes = ReturnType<typeof makeFakes>;
 
 async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+  const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
       Effect.provide(layers),

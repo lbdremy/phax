@@ -118,6 +118,7 @@ const PHASE_03: PhaxPlanPhase = {
   optionalFilesToEdit: [],
   mode: "interactive",
   oracle: null,
+  testLines: [],
   commit: { subject: "feat(export): review the export record", body: "Made-up body." },
 };
 

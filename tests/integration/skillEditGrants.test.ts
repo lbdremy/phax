@@ -20,10 +20,10 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -42,7 +42,7 @@ const shortName = Either.getOrThrow(decodeShortName("grant-run"));
 
 function makePlan(plannedFilesToEdit: readonly string[]): PhaxPlan {
   return Either.getOrThrow(
-    readPhaxPlanFile("phax-plan.json", {
+    readCurrentPhaxPlanFile("phax-plan.json", {
       version: 1,
       run: {
         shortName: "grant-run",

@@ -38,6 +38,7 @@ const EXTRACTED: ExtractionAnswer = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      testLines: [],
       commit: { subject: "feat: do thing", body: "Does the thing." },
     },
   ],
@@ -271,6 +272,78 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
     if (Either.isLeft(result)) {
       expect((result.left as PlanValidationError).message).toContain("--no-extract");
     }
+    expect(fakeBackend.impl.completeCalls).toHaveLength(0);
+  });
+});
+
+describe("loadOrExtractPlan — a departing test line", () => {
+  const DEPARTING_PLAN_MD = [
+    PLAN_MD,
+    "### Test strategy",
+    "",
+    "- a row renders — small · example · the row · in-phase",
+    "- add unit tests for the exporter",
+    "",
+  ].join("\n");
+
+  function run(opts: { readonly refresh?: boolean } = {}) {
+    const fakeFs = makeFakeFileSystem();
+    const fakeBackend = makeFakeBackend();
+    fakeFs.impl.setFile(PLAN_MD_PATH, DEPARTING_PLAN_MD);
+    // A cache entry under the plan's own key would be a hit: it is never read.
+    const key = planCacheKey(DEPARTING_PLAN_MD, MODEL, EFFORT);
+    const [phase] = EXTRACTED.phases;
+    const { testLines, commit, ...fields } = phase;
+    fakeFs.impl.setFile(
+      cacheEntryPath(STATE_ROOT, key),
+      JSON.stringify({
+        version: 1,
+        key,
+        planMdSha256: planMdSha256(DEPARTING_PLAN_MD),
+        model: MODEL,
+        effort: EFFORT,
+        extractorVersion: 4,
+        extractedAt: NOW_ISO,
+        extracted: {
+          ...EXTRACTED,
+          phases: [{ ...fields, mode: "headless", oracle: null, testLines, commit }],
+        },
+      }),
+    );
+    fakeBackend.impl.addCompletionResponse({ finalText: EXTRACTED_JSON });
+    const filesBefore = new Map(fakeFs.impl.files);
+    const result = Effect.runPromise(
+      loadOrExtractPlan({
+        planMdPath: PLAN_MD_PATH,
+        model: MODEL,
+        effort: EFFORT,
+        stateRoot: STATE_ROOT,
+        nowIso: NOW_ISO,
+        refresh: opts.refresh,
+      }).pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)), Effect.either),
+    );
+    return { result, fakeFs, fakeBackend, filesBefore };
+  }
+
+  it("refuses before the cache and the model, naming the line and phax plans lint", async () => {
+    const { result, fakeFs, fakeBackend, filesBefore } = run();
+    const either = await result;
+
+    expect(Either.isLeft(either)).toBe(true);
+    if (Either.isLeft(either)) {
+      expect(either.left).toBeInstanceOf(PlanValidationError);
+      expect((either.left as PlanValidationError).message).toBe(
+        `${PLAN_MD_PATH}: phase-01 test line 2 departs from the format: "add unit tests for the exporter" — run phax plans lint ${PLAN_MD_PATH}`,
+      );
+    }
+    expect(fakeBackend.impl.completeCalls).toHaveLength(0);
+    expect(fakeFs.impl.files).toEqual(filesBefore);
+  });
+
+  it("refuses with refresh too, never asking the model", async () => {
+    const { result, fakeBackend } = run({ refresh: true });
+
+    expect(Either.isLeft(await result)).toBe(true);
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
 });

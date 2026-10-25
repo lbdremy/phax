@@ -18,6 +18,7 @@ function extractedJson(phases: ReadonlyArray<{ id: string; anchor: string }>): s
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      testLines: [],
       commit: { subject: `feat: ${p.id}`, body: "body" },
     })),
   });

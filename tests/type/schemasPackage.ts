@@ -104,6 +104,7 @@ import type {
   PhaxPlan,
   PhaxPlanShape,
   PhaxPlanV0_17_0,
+  PhaxPlanV0_26_0,
   PlanApprovalRecord,
   PlanApprovalRecordShape,
   PlanApprovalRecordV0_19_0,
@@ -337,6 +338,7 @@ import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/s
 import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
 import type { PhaxPlanV0_17_0 as FrozenPhaxPlanV0_17_0 } from "../../src/schemas/history/phax-plan/0.17.0.js";
+import type { PhaxPlanV0_26_0 as FrozenPhaxPlanV0_26_0 } from "../../src/schemas/history/phax-plan/0.26.0.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
 import type { PlanApprovalRecordV0_19_0 as FrozenPlanApprovalRecordV0_19_0 } from "../../src/schemas/history/plan-approval-record/0.19.0.js";
 import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
@@ -637,7 +639,7 @@ const eachShapeId: [
   Equals<RegistryShape, "pre-schema" | "0.17.0" | Current<"registry">>,
   Equals<RunStatusShape, "pre-schema" | "0.17.0" | Current<"run-status">>,
   Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"phase-status">>,
-  Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | Current<"phax-plan">>,
+  Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | "0.26.0" | Current<"phax-plan">>,
   Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
@@ -705,7 +707,10 @@ const parseValues: [
     Value<typeof parsePhaseStatus>,
     FrozenPhaseStatus | FrozenPhaseStatusV0_17_0 | FrozenPhaseStatusV0_20_0 | PhaxPhaseStatusFile
   >,
-  Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | PhaxPhaxPlanFile>,
+  Equals<
+    Value<typeof parsePhaxPlan>,
+    FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | FrozenPhaxPlanV0_26_0 | PhaxPhaxPlanFile
+  >,
   Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReviewFile>,
   Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
@@ -826,6 +831,14 @@ type PhaxPlanBodyWithUnknownStrategy = Omit<
   ];
 };
 
+// A phase an older phax extracted holds `Unknown` test lines.
+type PhaxPlanPhaseWithUnknownLines = Omit<PhaxPhaxPlan["phases"][number], "testLines"> & {
+  readonly testLines: PhaxPhaxPlan["phases"][number]["testLines"] | Unknown;
+};
+type PhaxPlanWithUnknownLines = Omit<PhaxPhaxPlan, "phases"> & {
+  readonly phases: readonly [PhaxPlanPhaseWithUnknownLines, ...PhaxPlanPhaseWithUnknownLines[]];
+};
+
 // Each Latest type is phax's in-memory type: no version, no $schema
 const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
@@ -834,7 +847,7 @@ const latestTypes: [
     LatestPhaseStatus,
     PhaxPhaseStatus | (Omit<PhaxPhaseStatus, "base"> & { readonly base: Unknown })
   >,
-  Equals<LatestPhaxPlan, PhaxPhaxPlan>,
+  Equals<LatestPhaxPlan, PhaxPlanWithUnknownLines>,
   Equals<LatestComplianceReview, PhaxComplianceReview>,
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
@@ -1279,7 +1292,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestPhaxPlan>,
-    [value: FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | PhaxPhaxPlanFile]
+    [value: FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | FrozenPhaxPlanV0_26_0 | PhaxPhaxPlanFile]
   >,
   Equals<
     Parameters<typeof toLatestComplianceReview>,
@@ -1366,6 +1379,7 @@ const runStatusV0_17_0IsFrozen: Equals<RunStatusV0_17_0, FrozenRunStatusV0_17_0>
 const registryV0_17_0IsFrozen: Equals<RegistryV0_17_0, FrozenRegistryV0_17_0> = true;
 const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlanFile> = true;
 const phaxPlanV0_17_0IsFrozen: Equals<PhaxPlanV0_17_0, FrozenPhaxPlanV0_17_0> = true;
+const phaxPlanV0_26_0IsFrozen: Equals<PhaxPlanV0_26_0, FrozenPhaxPlanV0_26_0> = true;
 const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReviewFile> = true;
 void registryIsPhax;
 void runStatusIsPhax;
@@ -1376,6 +1390,7 @@ void runStatusV0_17_0IsFrozen;
 void registryV0_17_0IsFrozen;
 void phaxPlanIsPhax;
 void phaxPlanV0_17_0IsFrozen;
+void phaxPlanV0_26_0IsFrozen;
 void complianceReviewIsPhax;
 
 // ── repository formats

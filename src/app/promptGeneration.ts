@@ -88,6 +88,10 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
 
   const briefLines = briefSection !== undefined ? [briefSection, ""] : [];
 
+  // The phase prompt does not act on test lines (test-strategy §7): the agent
+  // reads them from its plan section's text.
+  const { testLines: _lines, ...shown } = currentPhase;
+
   return [
     "# Execute one implementation phase",
     "",
@@ -130,7 +134,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     ...reconciliationSection,
     "## Current phase",
     "",
-    JSON.stringify(currentPhase, null, 2),
+    JSON.stringify(shown, null, 2),
     "",
     ...briefLines,
     "## Execution rules",

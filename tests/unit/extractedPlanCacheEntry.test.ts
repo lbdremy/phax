@@ -23,15 +23,31 @@ const VALID_EXTRACTED = {
       optionalFilesToEdit: [],
       mode: "headless",
       oracle: null,
+      testLines: [
+        {
+          guarantee: "the thing is done",
+          size: "small",
+          technique: "example",
+          oracle: "the thing",
+          loop: "in-phase",
+          criterion: null,
+        },
+      ],
       commit: { subject: "feat: do thing", body: "Does the thing." },
     },
   ],
 } as const;
 
-// The entry's phases as extractor version 2 wrote them: no mode, no oracle.
+// The entry's phases as extractor version 3 wrote them: no testLines.
+const V3_EXTRACTED = {
+  ...VALID_EXTRACTED,
+  phases: VALID_EXTRACTED.phases.map(({ testLines: _lines, ...phase }) => phase),
+};
+
+// The entry's phases as extractor version 2 wrote them: no mode, no oracle, no testLines.
 const V2_EXTRACTED = {
   ...VALID_EXTRACTED,
-  phases: VALID_EXTRACTED.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
+  phases: V3_EXTRACTED.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
 };
 
 function makeEntry(overrides?: Record<string, unknown>) {
@@ -85,6 +101,13 @@ describe("decodeExtractedPlanCacheEntry", () => {
   it("fails when extracted.version is wrong", () => {
     const result = decodeExtractedPlanCacheEntry(
       makeEntry({ extracted: { ...VALID_EXTRACTED, version: 99 } }),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("fails on an entry whose phases carry no testLines", () => {
+    const result = decodeExtractedPlanCacheEntry(
+      makeEntry({ extractorVersion: 3, extracted: V3_EXTRACTED }),
     );
     expect(Either.isLeft(result)).toBe(true);
   });

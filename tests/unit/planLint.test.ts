@@ -11,6 +11,7 @@ import {
   lineageFindings,
   reasonLabelFindings,
   sequenceGapFindings,
+  testLineDepartureFindings,
   unlocatableFindings,
   type LintCheck,
   type LintSeverity,
@@ -103,6 +104,53 @@ function missingSection(phaseId: string) {
     message: `no section for ${phaseId} in plan.md (expected a "## ${phaseId} — …" heading)`,
   };
 }
+
+describe("testLineDepartureFindings", () => {
+  const line = {
+    guarantee: "it works",
+    size: "small",
+    technique: "example",
+    oracle: "the result",
+    loop: "in-phase",
+    criterion: null,
+  } as const;
+
+  it("reports one tests error per phase with a departure, naming its first one, in plan order", () => {
+    expect(
+      testLineDepartureFindings([
+        { phase: "phase-01", lines: [{ item: 1, line }], departures: [] },
+        {
+          phase: "phase-02",
+          lines: [{ item: 2, line }],
+          departures: [
+            { line: 1, text: "write tests" },
+            { line: 3, text: "and more" },
+          ],
+        },
+        { phase: "phase-03", lines: [], departures: [{ line: 1, text: "prose" }] },
+      ]),
+    ).toEqual([
+      {
+        severity: "error",
+        check: "tests",
+        phase: "phase-02",
+        message: 'test line 1 departs from the format: "write tests"',
+      },
+      {
+        severity: "error",
+        check: "tests",
+        phase: "phase-03",
+        message: 'test line 1 departs from the format: "prose"',
+      },
+    ]);
+  });
+
+  it("reports nothing when no phase departs", () => {
+    expect(testLineDepartureFindings([{ phase: "phase-01", lines: [], departures: [] }])).toEqual(
+      [],
+    );
+  });
+});
 
 describe("sequenceGapFindings", () => {
   it("reports one structure error naming the phase missing from the numbering", () => {

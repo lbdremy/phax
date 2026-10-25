@@ -1,5 +1,6 @@
 import { Either } from "effect";
-import { collectPlanStructureErrors } from "./parsePlanMarkdown.js";
+import { collectPlanStructureErrors, type PhaseTestStrategy } from "./parsePlanMarkdown.js";
+import { departureMessage } from "./testLineGrammar.js";
 import type { PhaseHeader } from "./phaseHeader.js";
 import { locatePlanSections, phaseHeadingIds, type LocatablePhase } from "./sections.js";
 import { checkRequiredCommands } from "../security/agentCommands.js";
@@ -16,6 +17,7 @@ export type LintCheck =
   | "models"
   | "interactive"
   | "oracles"
+  | "tests"
   | "advisory";
 
 export interface LintFinding {
@@ -36,6 +38,23 @@ export function structureFindings(planMd: string): readonly LintFinding[] {
     phase: e.phase,
     message: e.message,
   }));
+}
+
+/**
+ * One `tests` error per phase with a departing test line, naming its first
+ * departure. Read from plan.md alone, so it is reported whether or not the
+ * plan parses, and it is never a `structure` error.
+ */
+export function testLineDepartureFindings(
+  strategies: readonly PhaseTestStrategy[],
+): readonly LintFinding[] {
+  return strategies.flatMap((s): LintFinding[] => {
+    const [first] = s.departures;
+    if (first === undefined) return [];
+    return [
+      { severity: "error", check: "tests", phase: s.phase, message: departureMessage(first) },
+    ];
+  });
 }
 
 function missingSectionFinding(phaseId: string): LintFinding {

@@ -14,7 +14,8 @@ const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
 const PHAX_PLAN_URL = schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]);
 
 // The extraction model's answer phase: no `title` (derived from the plan
-// heading), no `mode` and no `oracle` (read from the header lines).
+// heading), no `mode` and no `oracle` (read from the header lines), its own
+// `testLines`.
 const baseAnswerPhase = {
   id: "phase-01",
   model: "claude-sonnet-4-6",
@@ -23,16 +24,28 @@ const baseAnswerPhase = {
   plannedFilesToCreate: [],
   plannedFilesToEdit: [],
   optionalFilesToEdit: [],
+  testLines: [],
   commit: { subject: "feat: do thing", body: "Does the thing." },
 };
 
-// The extracted phase: the answer plus phax's `mode` and `oracle`.
-const { commit: baseCommit, ...baseAnswerFields } = baseAnswerPhase;
+// The extracted phase: the answer plus phax's `mode` and `oracle`, before the test lines.
+const { commit: baseCommit, testLines: baseLines, ...baseAnswerFields } = baseAnswerPhase;
 const baseExtractedPhase = {
   ...baseAnswerFields,
   mode: "headless",
   oracle: null,
+  testLines: baseLines,
   commit: baseCommit,
+};
+
+/** A made-up test line as the model transcribes it. */
+const answerLine = {
+  guarantee: "the first thing is done",
+  size: "small",
+  technique: "example",
+  oracle: "the first thing",
+  loop: "in-phase",
+  criterion: "ac-first",
 };
 
 // The persisted phase carries the heading-derived `title`.
@@ -201,8 +214,57 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
+  });
+
+  it("keeps the answer's test lines, decoded through the test line schema", async () => {
+    const result = await extract(
+      answer([{ ...baseAnswerPhase, testLines: [answerLine] }, secondAnswerPhase]),
+    );
+    if (Either.isLeft(result)) throw new Error(result.left.message);
+    expect(result.right.phases[0].testLines).toEqual([answerLine]);
+    expect(result.right.phases[1]!.testLines).toEqual([]);
+  });
+
+  it("refuses an answer whose test line has a size outside its set, by the strict decode", async () => {
+    const result = await extract(
+      answer([
+        { ...baseAnswerPhase, testLines: [{ ...answerLine, size: "huge" }] },
+        secondAnswerPhase,
+      ]),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toMatch(/^Extracted JSON failed schema validation:/);
+      expect(result.left.message).toContain("testLines");
+    }
+  });
+
+  it("refuses an answer phase with no testLines", async () => {
+    const { testLines: _lines, ...withoutLines } = baseAnswerPhase;
+    const result = await extract(answer([withoutLines, secondAnswerPhase]));
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("asks for each test strategy item's coordinates verbatim, [] for none, and an error for a departing item", async () => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+    backend.impl.addCompletionResponse({ finalText: answer([baseAnswerPhase, secondAnswerPhase]) });
+    await Effect.runPromise(
+      Effect.either(
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(Layer.merge(fs.layer, backend.layer)),
+        ),
+      ),
+    );
+    const prompt = backend.impl.completeCalls[0]!.prompt;
+    expect(prompt).toContain("copy every coordinate verbatim, with criterion null");
+    expect(prompt).toContain(
+      "testLines is [] for a phase whose `### Test strategy` section is absent, empty or `- (none)`",
+    );
+    expect(prompt).toContain("If a test strategy item is not in that line format");
   });
 
   it("refuses an answer whose phases carry mode or oracle", async () => {

@@ -313,6 +313,20 @@ describe("estimatePlanCost", () => {
     expect(backend.completeCalls).toHaveLength(0);
   });
 
+  it("still estimates a plan with a departing test line, its departing entry left out", async () => {
+    const departing = planMd().replace(
+      "### Commit subject\n\nfeat(demo): First",
+      "### Test strategy\n\n- add unit tests for the exporter\n\n### Commit subject\n\nfeat(demo): First",
+    );
+    expect(departing).not.toBe(planMd());
+    const { layer } = setup({ plan: departing });
+
+    const exit = await estimate(layer, false);
+
+    if (!Exit.isSuccess(exit)) throw new Error(`estimate failed: ${String(exit.cause)}`);
+    expect(exit.value.report.phases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
+  });
+
   it("gives one warning per skip reason, naming its first three paths", async () => {
     const { layer } = setup({ undecodablePlans: 5 });
 
@@ -453,6 +467,34 @@ describe("readEstimatePlan", () => {
     ).toEqual([
       { id: "phase-01", editBytes: 2048, optionalBytes: 0, createCount: 1 },
       { id: "phase-02", editBytes: 0, optionalBytes: 0, createCount: 1 },
+    ]);
+  });
+
+  it("reads a plan with a departing test line, keeping only its formatted lines", async () => {
+    const departing = planMd().replace(
+      "### Commit subject\n\nfeat(demo): First",
+      [
+        "### Test strategy",
+        "",
+        "- add unit tests for the exporter",
+        "- a row renders — small · example · the row · in-phase",
+        "",
+        "### Commit subject",
+        "",
+        "feat(demo): First",
+      ].join("\n"),
+    );
+    const { layer } = setup({ plan: departing });
+
+    const phases = await Effect.runPromise(
+      readEstimatePlan({ planMdPath: PLAN_PATH, repoRelPath: PLAN_REL, config }).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    expect(phases.map(({ phase }) => phase.testLines.map((l) => l.guarantee))).toEqual([
+      ["a row renders"],
+      [],
     ]);
   });
 });

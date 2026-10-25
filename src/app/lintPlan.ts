@@ -7,7 +7,7 @@ import { Shell } from "../ports/shell.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
 import { readSourceSpec } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
-import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import { readPlanDeterministic, readPlanTestStrategies } from "../domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import {
   advisoryFindings,
@@ -20,6 +20,7 @@ import {
   reasonLabelFindings,
   sequenceGapFindings,
   structureFindings,
+  testLineDepartureFindings,
   unlocatableFindings,
   type LintFinding,
 } from "../domain/plan/lint.js";
@@ -107,6 +108,8 @@ export function lintPlan(
     const headers = readPhaseHeaders(planMd);
     findings.push(...reasonLabelFindings(headers));
     const oracleInput = { headers, providerConfigured: config.oracles !== undefined };
+    // Test lines too: a departure never hides the checks that need a parsed plan.
+    const departures = testLineDepartureFindings(readPlanTestStrategies(planMd));
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
@@ -117,18 +120,19 @@ export function lintPlan(
       }
     }
 
-    const extracted = extractPlanDeterministic(planMd);
+    const extracted = readPlanDeterministic(planMd);
     if (Either.isLeft(extracted)) {
       // Every later check needs a parsed plan; the structural errors already
       // say why it could not be parsed.
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
         ...oracleFindings({ ...oracleInput, phases: null }),
+        ...departures,
       );
       return { plan: reportPath, findings };
     }
 
-    const finalized = finalizeExtractedPlan(extracted.right, planMd);
+    const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
     if (Either.isLeft(finalized)) {
       findings.push({
         severity: "error",
@@ -139,6 +143,7 @@ export function lintPlan(
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
         ...oracleFindings({ ...oracleInput, phases: null }),
+        ...departures,
       );
       return { plan: reportPath, findings };
     }
@@ -147,6 +152,7 @@ export function lintPlan(
     findings.push(
       ...interactiveFindings({ headers, phases: plan.phases }),
       ...oracleFindings({ ...oracleInput, phases: plan.phases }),
+      ...departures,
     );
     for (const warning of warnings) {
       findings.push({ severity: "warning", check: "structure", phase: null, message: warning });

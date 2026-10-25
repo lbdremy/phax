@@ -125,6 +125,7 @@ function planOf(): { plan: PhaxPlan; planMd: string } {
         optionalFilesToEdit: spec.interactive ? ["src/phase-01.ts"] : [],
         mode: spec.interactive ? "interactive" : "headless",
         oracle: null,
+        testLines: [],
         commit: { subject: `feat(ledger): ${spec.title.toLowerCase()}`, body: "Made-up body." },
       }),
     ) as unknown as PhaxPlan["phases"],

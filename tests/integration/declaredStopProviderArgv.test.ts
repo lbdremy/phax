@@ -277,6 +277,7 @@ async function closeThroughCli(run: StoppedRun) {
         optionalFilesToEdit: [],
         mode: "interactive",
         oracle: null,
+        testLines: [],
         commit: { subject: "feat(export): review the export record", body: "Made-up body." },
       },
       phaseFolder: run.phaseFolder,

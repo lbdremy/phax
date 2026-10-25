@@ -5,7 +5,11 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { PlanValidationError } from "../domain/errors.js";
 import { planCacheKey, EXTRACTOR_VERSION } from "../domain/planCache/key.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
-import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import {
+  extractPlanDeterministic,
+  readPlanTestStrategies,
+} from "../domain/plan/parsePlanMarkdown.js";
+import { departureMessage } from "../domain/plan/testLineGrammar.js";
 import { extractPlanLlm, type ExtractPlanError } from "./extractPlan.js";
 import { readCacheEntry, writeCacheEntry, planMdSha256 } from "./planCacheStore.js";
 
@@ -33,6 +37,18 @@ export function loadOrExtractPlan(
     const fs = yield* FileSystem;
 
     const planMd = yield* fs.readText(opts.planMdPath);
+
+    // A departing test line is refused before the cache and before any model
+    // call: the model is never asked to read a line phax found malformed.
+    const departure = readPlanTestStrategies(planMd).find((s) => s.departures.length > 0);
+    if (departure !== undefined) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `${opts.planMdPath}: ${departure.phase} ${departureMessage(departure.departures[0]!)} — run phax plans lint ${opts.planMdPath}`,
+          path: opts.planMdPath,
+        }),
+      );
+    }
 
     // Attempt deterministic extraction first: pure, instant, no cache access.
     const deterministicResult = extractPlanDeterministic(planMd);

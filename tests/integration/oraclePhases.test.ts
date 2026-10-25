@@ -132,6 +132,7 @@ function planOf(count: number, pairs: Pair | readonly Pair[] | null): PhaxPlan {
         asOracle === undefined
           ? null
           : { dischargedBy: id(asOracle.discharging), files: asOracle.files ?? ORACLE_FILES },
+      testLines: [],
       commit: { subject: `feat: step ${n}`, body: "Made up." },
     };
   });

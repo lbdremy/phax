@@ -25,10 +25,10 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { isolateGit } from "../helpers/isolateGit.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -228,7 +228,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("re-runs only the handoff and continues to the next phase — no second commit", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -351,7 +351,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("pauses again (interrupted) when the handoff re-run fails a second time", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -480,7 +480,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       },
     ],
   };
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", threePhasePlan)).plan;
+  const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", threePhasePlan)).plan;
   const RESUMED_HANDOFF = HANDOFF_CONTENT.replace(
     "Ready to proceed.",
     "Written by the resumed handoff turn.",

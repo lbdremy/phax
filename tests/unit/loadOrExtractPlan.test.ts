@@ -90,6 +90,7 @@ const LLM_EXTRACTED: ExtractionAnswer = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      testLines: [],
       commit: { subject: "feat(test): do thing", body: "Does the thing." },
     },
   ],

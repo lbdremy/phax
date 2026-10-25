@@ -24,9 +24,9 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -126,7 +126,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("stops the run as rate_limited and writes resume-instructions.md", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -202,7 +202,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("classifies a usage limit and exits with code 8", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -253,7 +253,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("resumes a rate-limited run to review_open without re-running committed phases", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -447,7 +447,7 @@ describe("executePlan — rate-limit detection and resume", () => {
 
   it("continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing", async () => {
     const plan = Either.getOrThrow(
-      readPhaxPlanFile("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
+      readCurrentPhaxPlanFile("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
     ).plan;
     const gateCommand = "node scripts/check.mjs";
     const config: ResolvedConfig = {
@@ -596,7 +596,7 @@ describe("executePlan — rate-limit detection and resume", () => {
 
   it("counts every committed phase of the run after a limit at phase-02 of three, not this invocation's", async () => {
     const plan = Either.getOrThrow(
-      readPhaxPlanFile("phax-plan.json", {
+      readCurrentPhaxPlanFile("phax-plan.json", {
         ...rawPlan,
         phases: [
           ...rawPlan.phases,

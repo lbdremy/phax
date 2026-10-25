@@ -6,6 +6,12 @@ import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
+import {
+  departureMessage,
+  readTestStrategyText,
+  type TestLineDeparture,
+  type TestStrategyReading,
+} from "./testLineGrammar.js";
 
 const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -254,6 +260,51 @@ function collectPhaseBlocks(root: Root): PhaseBlock[] {
   return blocks;
 }
 
+// The raw source of a phase block's `### Test strategy` section, read by the
+// test line grammar: from the end of its heading line to the next root-level
+// `###`, `##` or thematic break, or to the end of the phase block. Never the
+// flattened text, so code spans and backticks reach the grammar verbatim.
+// Null when the phase has no such section.
+function testStrategySource(body: string, nodes: readonly RootContent[]): string | null {
+  const at = nodes.findIndex(
+    (n) => isH3(n) && toString(n).trim().toLowerCase() === "test strategy",
+  );
+  if (at < 0) return null;
+  const start = nodes[at]!.position?.end.offset ?? 0;
+  let end = start;
+  for (const node of nodes.slice(at + 1)) {
+    if (isH3(node) || isH2(node) || node.type === "thematicBreak") break;
+    end = node.position?.end.offset ?? end;
+  }
+  return body.slice(start, end);
+}
+
+const NO_TEST_LINES: TestStrategyReading = { lines: [], departures: [] };
+
+function readBlockTestStrategy(body: string, nodes: readonly RootContent[]): TestStrategyReading {
+  const source = testStrategySource(body, nodes);
+  return source === null ? NO_TEST_LINES : readTestStrategyText(source);
+}
+
+/** One phase's `### Test strategy` section read by the test line grammar. */
+export interface PhaseTestStrategy extends TestStrategyReading {
+  readonly phase: string;
+}
+
+/**
+ * One reading per root-level `## phase-NN` heading, in document order, the
+ * frontmatter skipped, recognised as `readPhaseHeaders` recognises them. Reads
+ * plan.md alone: a phase with no `### Test strategy` section has no line and
+ * no departure.
+ */
+export function readPlanTestStrategies(planMd: string): readonly PhaseTestStrategy[] {
+  const body = splitFrontmatter(planMd)?.body ?? planMd;
+  return collectPhaseBlocks(fromMarkdown(body)).map((pb) => ({
+    phase: toString(pb.heading).trim().match(PHASE_HEADING_RE)![1]!.toLowerCase(),
+    ...readBlockTestStrategy(body, pb.body),
+  }));
+}
+
 // Nodes before the first phase h2 — used to find "## Required commands".
 function collectPreamble(root: Root): RootContent[] {
   const preamble: RootContent[] = [];
@@ -313,6 +364,8 @@ interface PlanWalkResult {
     };
     readonly phases: readonly unknown[];
   } | null;
+  /** Each candidate phase's test strategy reading, in `candidate.phases` order. */
+  readonly strategies: readonly PhaseTestStrategy[];
 }
 
 // Walks the plan once, accumulating every structural defect in document
@@ -353,6 +406,7 @@ function walkPlan(planMd: string): PlanWalkResult {
   }
 
   const phases: unknown[] = [];
+  const strategies: PhaseTestStrategy[] = [];
   for (const [index, pb] of phaseBlocks.entries()) {
     const headingText = toString(pb.heading).trim();
     const parsed = parsePhaseHeading(headingText);
@@ -439,6 +493,10 @@ function walkPlan(planMd: string): PlanWalkResult {
         ? (toString(nextBlock.heading).trim().match(PHASE_HEADING_RE)?.[1]?.toLowerCase() ?? null)
         : null;
       const kinds = phaseKinds(readPhaseBlock(id, pb.body, body), nextId);
+      // A departing entry is left out here and never a structure error: the
+      // callers read the departures through `readPlanTestStrategies`.
+      const strategy = readBlockTestStrategy(body, pb.body);
+      strategies.push({ phase: id, ...strategy });
       phases.push({
         id,
         model,
@@ -449,13 +507,14 @@ function walkPlan(planMd: string): PlanWalkResult {
         optionalFilesToEdit: optionalE.right,
         mode: kinds.mode,
         oracle: kinds.oracle,
+        testLines: strategy.lines.map(({ line }) => line),
         commit: { subject: subjectE.right, body: bodyE.right },
       });
     }
   }
 
   if (errors.length > 0) {
-    return { errors, candidate: null };
+    return { errors, candidate: null, strategies };
   }
 
   return {
@@ -465,6 +524,7 @@ function walkPlan(planMd: string): PlanWalkResult {
       run: { shortName: runTitle, title: runTitle, requiredCommands },
       phases,
     },
+    strategies,
   };
 }
 
@@ -482,16 +542,41 @@ export function collectPlanStructureErrors(planMd: string): readonly StructureEr
   }));
 }
 
+/** A departing test line of a phase. */
+interface PlanTestLineDeparture {
+  readonly phase: string;
+  readonly departure: TestLineDeparture;
+}
+
+/** A phase's kept test lines' source item numbers, in `testLines` order. */
+interface PhaseLineItems {
+  readonly phase: string;
+  readonly items: readonly number[];
+}
+
 /**
- * Pure deterministic extractor: parses a conforming `plan.md` into an
- * `ExtractedPhaxPlan` via an mdast tree. The output is decoded through
- * `ExtractedPhaxPlanSchema` so a parser bug cannot inject malformed data —
- * the strict decode rejects it and the caller falls back to the LLM.
+ * The deterministic reading of a plan.md: the plan with each phase's departing
+ * test lines left out, every departure in plan order, and each kept line's
+ * source item number, so a `test line <n>` message names the source item and
+ * never the kept index.
  */
-export function extractPlanDeterministic(
+export interface DeterministicPlanReading {
+  readonly plan: ExtractedPhaxPlan;
+  readonly departures: readonly PlanTestLineDeparture[];
+  readonly lineItems: readonly PhaseLineItems[];
+}
+
+/**
+ * Pure deterministic reader: parses a conforming `plan.md` into an
+ * `ExtractedPhaxPlan` via an mdast tree, leaving departing test lines out and
+ * reporting them beside the plan. Fails only on a structure error or a parser
+ * bug: the output is decoded through `ExtractedPhaxPlanSchema`, so a parser bug
+ * cannot inject malformed data.
+ */
+export function readPlanDeterministic(
   planMd: string,
-): Either.Either<ExtractedPhaxPlan, PlanValidationError> {
-  const { errors, candidate } = walkPlan(planMd);
+): Either.Either<DeterministicPlanReading, PlanValidationError> {
+  const { errors, candidate, strategies } = walkPlan(planMd);
   if (errors.length > 0 || !candidate) {
     return Either.left(new PlanValidationError({ message: errors[0]!.message }));
   }
@@ -504,5 +589,32 @@ export function extractPlanDeterministic(
       }),
     );
   }
-  return Either.right(decoded.right);
+  return Either.right({
+    plan: decoded.right,
+    departures: strategies.flatMap((s) =>
+      s.departures.map((departure) => ({ phase: s.phase, departure })),
+    ),
+    lineItems: strategies.map((s) => ({ phase: s.phase, items: s.lines.map((l) => l.item) })),
+  });
+}
+
+/**
+ * Pure deterministic extractor: `readPlanDeterministic`'s plan, refused at
+ * the first departing test line in plan order, as
+ * `phase-NN: test line <n> departs from the format: "<text>"`. Its caller
+ * falls back to the LLM on a structure error.
+ */
+export function extractPlanDeterministic(
+  planMd: string,
+): Either.Either<ExtractedPhaxPlan, PlanValidationError> {
+  return Either.flatMap(readPlanDeterministic(planMd), ({ plan, departures }) => {
+    const [first] = departures;
+    return first === undefined
+      ? Either.right(plan)
+      : Either.left(
+          new PlanValidationError({
+            message: `${first.phase}: ${departureMessage(first.departure)}`,
+          }),
+        );
+  });
 }

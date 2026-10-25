@@ -179,6 +179,7 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
         optionalFilesToEdit: spec.interactive === true ? ["src/export/invoiceRow.ts"] : [],
         mode: spec.interactive === true ? "interactive" : "headless",
         oracle: null,
+        testLines: [],
         commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
       }),
     ) as unknown as PhaxPlan["phases"],

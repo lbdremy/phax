@@ -277,13 +277,19 @@ export function phaseKinds(header: PhaseHeader, nextPhaseId: string | null): Pha
 
 type AnswerPhase = ExtractionAnswer["phases"][number];
 
-/** An extraction answer phase with `mode` and `oracle` set directly after `optionalFilesToEdit`. */
-type KindedPhase = Omit<AnswerPhase, "commit"> & PhaseKinds & Pick<AnswerPhase, "commit">;
+/**
+ * An extraction answer phase with `mode` and `oracle` set directly after
+ * `optionalFilesToEdit`, before the answer's `testLines`.
+ */
+type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
+  PhaseKinds &
+  Pick<AnswerPhase, "testLines" | "commit">;
 
 /**
  * The extraction model's answer with every phase's `mode` and `oracle` read
  * from plan.md's header lines (`phaseKinds`), placed directly after
- * `optionalFilesToEdit`. An answer phase with no `## phase-NN` heading in
+ * `optionalFilesToEdit` and before the answer's own `testLines`, so the key
+ * order is `…, optionalFilesToEdit, mode, oracle, testLines, commit`. An answer phase with no `## phase-NN` heading in
  * plan.md fails, naming it. The next phase of an oracle is the next heading
  * in plan.md, as on the deterministic path.
  */
@@ -306,8 +312,8 @@ export function withPhaseKinds(
   const phases = answer.phases.map((phase): KindedPhase => {
     const index = headers.findIndex((h) => h.phase === phase.id);
     const kinds = phaseKinds(headers[index]!, headers[index + 1]?.phase ?? null);
-    const { commit, ...fields } = phase;
-    return { ...fields, mode: kinds.mode, oracle: kinds.oracle, commit };
+    const { testLines, commit, ...fields } = phase;
+    return { ...fields, mode: kinds.mode, oracle: kinds.oracle, testLines, commit };
   });
   return Either.right({ ...answer, phases });
 }
