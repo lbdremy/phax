@@ -5,96 +5,25 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-10-19. Since the previous prune (2026-10-05, v0.18.0), releases 0.19.0–0.25.0
-shipped, and these specs landed and were completed: `approval-record-files` (with the
-`own-approval-ground` plan), `completes-spec`, `drop-orient`, `drop-gate-scopes`, `gate-request`,
-`brief-provider`, `open-next-release`, `guarantee-reports`, `gate-attempt-records`,
-`pr-description`, `small-fixes-0-23` and `artifact-decide` (three plans); then the cost specs
-`phase-prompt-scope`, `cost-ledger` and `plan-estimate`, shipped in 0.25.0.
+Last pruned 2026-10-25. Since the previous prune (2026-10-19, v0.25.0), 0.26.0 shipped, and
+these specs landed and were completed: `planning-skill-defaults` (two plans), `assignment-bounds`
+(three plans), `oracle-phases` (three plans) and `interactive-phases` (three plans), all in
+0.26.0; then `surface-summary` (#162) and the specless `small-fixes-0-27` plan (#163), both for
+0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
+`oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-10-19
+## The queue, as of 2026-10-25
 
-### In flight
+### After the 0.27.0 cut
 
-- [x] **`surface-summary`** — `docs/specs/2610211432-surface-summary.md`, approved 2026-10-21.
-      Every surface element of a spec gains a required one-line `summary` in the consumer's words.
-      - One plan (`surface-summary`) landed with #162
-        (`docs/plans/archive/2610241631-surface-summary-plan.md`): the format, its freeze and lift,
-        the placeholder refusals at `approve` and `complete`, the migration report's count, the
-        skill and the docs.
-      - Decided 2026-10-24: once the 0.27.0 release is cut, the operator runs
-        `phax artifact migrate-documents` on main with that binary, writes the live specs'
-        summaries and re-approves what the report names. The installed 0.26.0 migrates nothing.
-      - The release-notes script that reads the summaries is the next, separate change.
-
-- [x] **`assignment-bounds`** — `docs/specs/2610201350-assignment-bounds.md`, approved 2026-10-20.
-      It replaces `phase-model-assignment`.
-      - The owner writes ordered bounds in `phax.json` (`part` or `globs`, a model and an effort
-        range). The first matching bound governs a phase.
-      - Lint and the run preflight share one bounds check (exit 11), and `modelReason` becomes
-        `assignmentReason`.
-      - Plan 1, the architecture report gaining `parts`, landed (PR #150).
-      - Plan 2, the joint plan-document change (`assignmentReason`, `mode`, `oracle`, one lift),
-        landed.
-      - Plan 3, the bounds (`assignments` in `phax.json`, the shared check in lint and the run
-        preflight, `phax architecture` listing them, the skills and docs), landed. The spec is
-        complete.
-- [x] **`planning-skill-defaults`** — `docs/specs/2610171254-planning-skill-defaults.md`. Plan 1 of
-      2 (the phax-planning skill and the per-phase `modelReason`) landed in PR #145. Plan 2
-      (`phax architecture`) landed and the spec is complete.
-
-- [x] **`oracle-phases`** — `docs/specs/2610201518-oracle-phases.md`. Re-authored and approved
-      2026-10-20; the 2026-09-28 spec is abandoned. All three plans landed and the spec is
-      complete.
-      - Any `oracles` provider will do. The provider gets a new `oracle-request` and answers a
-        `gate-report`, both with `$schema`.
-      - Plan 1 of 3 landed (PR #154): the provider block, the shared `oracles` check in lint and
-        the run preflight, the oracle step in the gate loop, the formats, and the surfaces around
-        the run (handoff, records, prompts, skills, docs).
-      - Plan 2 of 3 landed: `phax resume <run> --skip-oracle` (§5.49, §5.50), added 2026-10-21
-        after PR #154's review found that `reset-phase` never resets a committed oracle phase. A
-        wrong oracle is corrected in the stopped phase and closed with the configured gate green
-        and the oracle step recorded `skipped` (never a verified surface). The reset refusal, the
-        next steps, resume-instructions.md, the help and the docs name this recovery.
-      - Plan 3 landed: the example Vitest provider in `examples/vitest-oracles/`, repository only
-        and shipped in no package. It is built on oxc-parser (q-parser chose it over tree-sitter,
-        which the spec suggested) and compares syntax trees so reformatting never changes a
-        verdict. phax's own `oracles` declaration in phax.json runs it. The spec is complete.
-- [x] **`interactive-phases`** — `docs/specs/2610211403-interactive-phases.md`. Re-authored and
-      approved 2026-10-21, after a friend's fork showed the need for a stop chosen at run time; the
-      2026-10-20 spec is abandoned. All three plans landed and the spec is complete.
-      - Two ways into one `awaiting_review` state (exit 13): a phase the plan declares interactive,
-        and `phax run --hold [phase-NN,…|oracle]`, which holds the selected headless phases after
-        they commit. The final phase never holds.
-      - At a held phase the builder's session continues by default. Closing is `phax resume`: the
-        gate first, with a red gate returned to the person; then one review commit on top of the
-        phase commit, and an interactive handoff beside the phase's own.
-      - A review may sit inside an oracle pair. It re-runs the `authored` verdict when it changes an
-        oracle file; a held discharge closes on its configured steps only.
-      - `review-stop.json` and a versioned `phax ls --json` (`run-list`) are the surface a review UI
-        reads.
-      - Plan 1 of 3, the declared stop, landed with #157
-        (`docs/plans/archive/2610220954-interactive-phases-plan.md`): `**Mode:** interactive`, the read-only first turn, `awaiting_review`
-        with exit 13, `phax resume` closing the stop with the gate and a commit of the gated tree,
-        `## Review corrections` in later prompts, and `review-stop.json`. Lint and the run
-        preflight no longer refuse a declared phase. The review fixes on #157 also trace the stop's
-        effects (turns, closing gate, review commit) and pin them in
-        `tests/e2e/semanticTrace.declaredStop.test.ts`.
-      - Plan 2 of 3, the hold, landed with #158
-        (`docs/plans/archive/2610231043-interactive-phases-plan.md`): `phax run --hold`, the held
-        stop and its close (one review commit with a `Held-Phase:` trailer on the phase commit),
-        the phase's record written at closing, and the oracle-pair reviews (the `authored` re-run,
-        the latest authored commit, the held discharge). A refused record write at closing pauses
-        the run, and the next resume writes it once.
-      - Plan 3 of 3, stop records, transcripts and the run list, landed with #161
-        (`docs/plans/archive/2610240901-interactive-phases-plan.md`): every
-        close records who closed it and copies each recorded session's transcript into the run
-        folder (never into a record); a declared phase writes its record at closing; every stop's
-        record names its mode, cause, outcome, closer and sessions; `phax records explain` finds a
-        held record from its review commit; `security.json` (version 2) records the stop;
-        `phax ls --json` prints the versioned `run-list`; the compliance review, review handoff
-        and PR body show each stop; and `phax plans estimate` sizes an interactive phase from its
-        turns. The spec is complete.
+- [ ] **Write the live specs' surface summaries.** Decided 2026-10-24: once 0.27.0 is released,
+      the operator runs `phax artifact migrate-documents` on main with that binary, writes the
+      summaries of the live specs it migrates (`headless-review`, `artifact-decide-verdicts`,
+      `test-strategy`) and re-approves the ones the report names. The installed 0.26.0 migrates
+      nothing.
+- [ ] **The release-notes script** that reads the spec titles, guiding rules and surface
+      summaries, plus the run trailers. Repository only, run at the release cut. A separate
+      change, after the summaries exist.
 
 ### Approved, not yet planned
 
