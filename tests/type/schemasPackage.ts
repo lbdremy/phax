@@ -56,8 +56,11 @@ import type {
   ComplianceReviewShape,
   CostLedger,
   CostLedgerShape,
+  DecideVerdicts,
+  DecideVerdictsShape,
   DecisionRecordManifest,
   DecisionRecordManifestShape,
+  DecisionRecordManifestV0_25_0,
   DocumentFormatId,
   GateAttribution,
   GateAttributionShape,
@@ -73,6 +76,7 @@ import type {
   LatestBriefRequest,
   LatestComplianceReview,
   LatestCostLedger,
+  LatestDecideVerdicts,
   LatestDecisionRecordManifest,
   LatestGateAttribution,
   LatestGateReport,
@@ -161,6 +165,7 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseCostLedger,
+  parseDecideVerdicts,
   parseDecisionRecordManifest,
   parseDocument,
   parseGateAttribution,
@@ -186,6 +191,7 @@ import {
   toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestCostLedger,
+  toLatestDecideVerdicts,
   toLatestDecisionRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
@@ -271,6 +277,11 @@ import type {
   HandDecisionAnswer as PhaxHandDecisionAnswer,
   HandDecisionAnswerFile as PhaxHandDecisionAnswerFile,
 } from "../../src/schemas/handDecisionAnswer.js";
+import type {
+  DecideVerdicts as PhaxDecideVerdicts,
+  DecideVerdictsFile as PhaxDecideVerdictsFile,
+} from "../../src/schemas/decideVerdicts.js";
+import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import type {
   DecisionRecordManifest as PhaxDecisionRecordManifest,
   DecisionRecordManifestFile as PhaxDecisionRecordManifestFile,
@@ -540,6 +551,7 @@ const formats: Equals<
   | "interactive-session"
   | "review-stop"
   | "run-list"
+  | "decide-verdicts"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -631,7 +643,8 @@ const shapeIds: Equals<
   | InteractiveHandoffShape
   | InteractiveSessionShape
   | ReviewStopShape
-  | RunListShape,
+  | RunListShape
+  | DecideVerdictsShape,
   "pre-schema" | "0.19.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -1039,20 +1052,44 @@ if (document.ok && document.format === "hand-decision-answer") {
 // one current shape, and an in-memory value without $schema
 const decisionManifestTypes: [
   Equals<DecisionRecordManifest, PhaxDecisionRecordManifestFile>,
-  Equals<DecisionRecordManifestShape, Current<"decision-record-manifest">>,
-  Equals<Value<typeof parseDecisionRecordManifest>, PhaxDecisionRecordManifestFile>,
+  Equals<DecisionRecordManifestShape, "0.25.0" | Current<"decision-record-manifest">>,
+  Equals<
+    Value<typeof parseDecisionRecordManifest>,
+    FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+  >,
   Equals<LatestDecisionRecordManifest, PhaxDecisionRecordManifest>,
   Equals<
     Parameters<typeof toLatestDecisionRecordManifest>,
-    [value: PhaxDecisionRecordManifestFile]
+    [value: PhaxDecisionRecordManifestFile | FrozenDecisionRecordManifestV0_25_0]
   >,
-] = [true, true, true, true, true];
+  Equals<DecisionRecordManifestV0_25_0, FrozenDecisionRecordManifestV0_25_0>,
+] = [true, true, true, true, true, true];
 void decisionManifestTypes;
 declare const latestDecisionManifest: LatestDecisionRecordManifest;
 // @ts-expect-error: the in-memory decision record manifest carries no $schema
 void latestDecisionManifest.$schema;
 if (document.ok && document.format === "decision-record-manifest") {
-  const exact: Equals<typeof document.value, PhaxDecisionRecordManifestFile> = true;
+  const exact: Equals<
+    typeof document.value,
+    FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+  > = true;
+  void exact;
+}
+// The decide verdicts file is born with $schema: phax's own types, both ways,
+// one current shape, and an in-memory value without $schema
+const decideVerdictsTypes: [
+  Equals<DecideVerdicts, PhaxDecideVerdictsFile>,
+  Equals<DecideVerdictsShape, Current<"decide-verdicts">>,
+  Equals<Value<typeof parseDecideVerdicts>, PhaxDecideVerdictsFile>,
+  Equals<LatestDecideVerdicts, PhaxDecideVerdicts>,
+  Equals<Parameters<typeof toLatestDecideVerdicts>, [value: PhaxDecideVerdictsFile]>,
+] = [true, true, true, true, true];
+void decideVerdictsTypes;
+declare const latestDecideVerdicts: LatestDecideVerdicts;
+// @ts-expect-error: the in-memory decide verdicts carry no $schema
+void latestDecideVerdicts.$schema;
+if (document.ok && document.format === "decide-verdicts") {
+  const exact: Equals<typeof document.value, PhaxDecideVerdictsFile> = true;
   void exact;
 }
 // The cost ledger is born with $schema too: phax's own types, one current
@@ -1487,6 +1524,7 @@ const anyManifestAsParsed: Parsed<
   | AuthoringRecordManifestV0_17_0
   | AuthoringRecordManifest
   | DecisionRecordManifest
+  | FrozenDecisionRecordManifestV0_25_0
 > = anyManifest;
 void anyManifestAsParsed;
 if (anyManifest.ok) {
@@ -1495,6 +1533,7 @@ if (anyManifest.ok) {
     typeof anyManifest.shape,
     | "pre-schema"
     | "0.17.0"
+    | "0.25.0"
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
     | Current<"decision-record-manifest">
@@ -1502,7 +1541,10 @@ if (anyManifest.ok) {
   void format;
   void shape;
   if (anyManifest.format === "decision-record-manifest") {
-    const exact: Equals<typeof anyManifest.value, PhaxDecisionRecordManifestFile> = true;
+    const exact: Equals<
+      typeof anyManifest.value,
+      FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+    > = true;
     void exact;
   } else if (anyManifest.format === "authoring-record-manifest") {
     const exact: Equals<

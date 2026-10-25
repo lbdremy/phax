@@ -358,6 +358,33 @@ Recommendation: keep logs per run.
     );
   });
 
+  // ac-other-reserved
+  it("refuses a hand-authored §9 listing the reserved option id other, naming Q2", async () => {
+    writeRepoFile(
+      SPEC,
+      `${SPEC_FRONTMATTER}# Log rotation
+
+## 9. Open questions
+
+### Q2 — Logs: kept per run, or rotated daily?
+
+- per-run — Kept per run — abandons: a bounded log directory
+- other — Something else — abandons: the listed options
+
+Recommendation: per-run — keep logs per run.
+`,
+    );
+    commitAll();
+
+    const head = headSha();
+    const error = expectRefused(await approve(SPEC), head);
+
+    expect(error).toBeInstanceOf(ArtifactQuestionsUnparsedError);
+    expect((error as ArtifactQuestionsUnparsedError).message).toContain(
+      "Q2 lists the reserved option id other",
+    );
+  });
+
   it("refuses a headless plan with open Q2, naming Q2 alone", async () => {
     const doc = planDocument([Q2], [DECIDED_Q1]);
     writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(doc));

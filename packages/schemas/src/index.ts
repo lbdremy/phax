@@ -43,7 +43,12 @@ import {
   type BriefReportShapes,
   type GateReportShapes,
 } from "./formats/reports.js";
-import { handDecisionAnswerFormat, type HandDecisionAnswerShapes } from "./formats/answers.js";
+import {
+  decideVerdictsFormat,
+  handDecisionAnswerFormat,
+  type DecideVerdictsShapes,
+  type HandDecisionAnswerShapes,
+} from "./formats/answers.js";
 import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
@@ -383,6 +388,19 @@ export {
   type LatestHandDecisionAnswer,
 } from "./formats/answers.js";
 
+// The verdicts file a person writes for `phax artifact decide --verdicts`.
+// Its schema and type are phax's own file schema and type.
+export {
+  DecideVerdictsFileSchema as DecideVerdictsSchema,
+  type DecideVerdictsFile as DecideVerdicts,
+} from "../../../src/schemas/decideVerdicts.js";
+export {
+  parseDecideVerdicts,
+  toLatestDecideVerdicts,
+  type DecideVerdictsShape,
+  type LatestDecideVerdicts,
+} from "./formats/answers.js";
+
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
@@ -459,6 +477,10 @@ export {
   CostLedgerV0_25_0Schema,
   type CostLedgerV0_25_0,
 } from "../../../src/schemas/history/cost-ledger/0.25.0.js";
+export {
+  DecisionRecordManifestV0_25_0Schema,
+  type DecisionRecordManifestV0_25_0,
+} from "../../../src/schemas/history/decision-record-manifest/0.25.0.js";
 export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
@@ -566,6 +588,7 @@ type DocumentShapes = EveryFormat<{
   "review-stop": ReviewStopShapes;
   "run-list": RunListShapes;
   "hand-decision-answer": HandDecisionAnswerShapes;
+  "decide-verdicts": DecideVerdictsShapes;
   "cost-ledger": CostLedgerShapes;
 }>;
 
@@ -612,5 +635,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "review-stop": reviewStopFormat,
     "run-list": runListFormat,
     "hand-decision-answer": handDecisionAnswerFormat,
+    "decide-verdicts": decideVerdictsFormat,
     "cost-ledger": costLedgerFormat,
   });

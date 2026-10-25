@@ -88,6 +88,7 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     "- No code fences, no Markdown, no commentary before or after the JSON.",
     "- Write no files: phax renders the Markdown artifact from your JSON, writes it and commits it.",
     "- The JSON object is your final message.",
+    "- `other` is a reserved id, implicit on every question: never list an option with the id `other`, and never recommend it.",
     ...(input.sourceSpec !== null
       ? [
           `- Set \`sourceSpec\` to \`${input.sourceSpec.path}\`.`,

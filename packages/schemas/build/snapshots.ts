@@ -199,7 +199,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * `description` survives. A subschema under a keyword not listed here keeps
  * its annotations: compared strictly, never missed.
  */
-function withoutAnnotations(schema: unknown): unknown {
+export function withoutAnnotations(schema: unknown): unknown {
   if (!isObject(schema)) return schema;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(schema)) {

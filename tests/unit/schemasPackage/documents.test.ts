@@ -24,6 +24,7 @@ import { decodeComplianceReviewFile } from "../../../src/schemas/complianceRevie
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
+import { decodeDecideVerdictsFile } from "../../../src/schemas/decideVerdicts.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
 import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
@@ -104,6 +105,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "interactive-session": decodeInteractiveSessionFile,
   "review-stop": decodeReviewStopFile,
   "run-list": decodeRunListFile,
+  "decide-verdicts": decodeDecideVerdictsFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

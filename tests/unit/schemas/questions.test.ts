@@ -1,7 +1,9 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  OTHER_OPTION_ID,
   OpenQuestionSchema,
+  QUESTION_CHECKS_DESCRIPTION,
   firstQuestionViolation,
   liftMarkedQuestions,
   type OpenQuestion,
@@ -176,8 +178,69 @@ describe("firstQuestionViolation", () => {
   it("refuses a chosen option that is not listed", () => {
     const verdict = { ...arbitrated.verdict, chosen: "keep-5" };
     expect(render(specViolation([], [{ ...arbitrated, verdict }]))).toBe(
-      'arbitratedQuestions[0].verdict.chosen: "keep-5" names none of the question\'s options (keep-10, keep-20, keep-all)',
+      'arbitratedQuestions[0].verdict.chosen: "keep-5" names none of the question\'s options (keep-10, keep-20, keep-all, other)',
     );
+  });
+
+  describe("the reserved id other", () => {
+    it("is exported as the reserved option id", () => {
+      expect(OTHER_OPTION_ID).toBe("other");
+    });
+
+    it("refuses an option with the id other, naming its question", () => {
+      const options = [...open.options, { id: "other", label: "something else", abandons: "x" }];
+      expect(render(specViolation([{ ...open, options }], []))).toBe(
+        'openQuestions[0].options[3].id: q-keep lists an option with the id "other": "other" is reserved and implicit on every question',
+      );
+    });
+
+    it("refuses an arbitrated question's option with the id other", () => {
+      const options = [
+        ...arbitrated.options,
+        { id: "other", label: "something else", abandons: "x" },
+      ];
+      expect(render(specViolation([], [{ ...arbitrated, options }]))).toBe(
+        'arbitratedQuestions[0].options[3].id: q-scope lists an option with the id "other": "other" is reserved and implicit on every question',
+      );
+    });
+
+    it("refuses a recommendation other, naming its question", () => {
+      expect(render(specViolation([{ ...open, recommendation: "other" }], []))).toBe(
+        'openQuestions[0].recommendation: q-keep recommends "other": "other" is reserved and implicit on every question',
+      );
+    });
+
+    it("accepts a verdict choosing other when it abandons every listed option", () => {
+      const verdict = {
+        ...arbitrated.verdict,
+        chosen: "other",
+        abandoned: ["keep-all", "keep-10", "keep-20"],
+      };
+      expect(specViolation([], [{ ...arbitrated, verdict }])).toBeUndefined();
+    });
+
+    it("refuses a verdict choosing other that leaves a listed option out", () => {
+      const verdict = { ...arbitrated.verdict, chosen: "other", abandoned: ["keep-10", "keep-20"] };
+      expect(render(specViolation([], [{ ...arbitrated, verdict }]))).toBe(
+        'arbitratedQuestions[0].verdict.abandoned: misses "keep-all": a verdict abandons every option it does not choose',
+      );
+    });
+
+    it("refuses a verdict choosing other that also abandons other", () => {
+      const verdict = {
+        ...arbitrated.verdict,
+        chosen: "keep-10",
+        abandoned: ["keep-20", "keep-all", "other"],
+      };
+      expect(render(specViolation([], [{ ...arbitrated, verdict }]))).toBe(
+        'arbitratedQuestions[0].verdict.abandoned[2]: "other" names none of the question\'s options (keep-10, keep-20, keep-all)',
+      );
+    });
+
+    it("states both rules in the checks description", () => {
+      expect(QUESTION_CHECKS_DESCRIPTION).toContain("no option has the id `other`");
+      expect(QUESTION_CHECKS_DESCRIPTION).toContain("or the reserved `other`");
+    });
   });
 
   it("refuses an abandoned list missing an option", () => {

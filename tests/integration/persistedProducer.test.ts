@@ -771,6 +771,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "review-stop",
   // `phax ls --json` prints the run list on stdout and never saves it.
   "run-list",
+  // phax never writes a decide verdicts file: a person writes it, and phax
+  // reads it for `phax artifact decide --verdicts`.
+  "decide-verdicts",
 ];
 
 describe("every persisted file phax writes", () => {

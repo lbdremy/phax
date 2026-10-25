@@ -84,11 +84,13 @@ import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js
 import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
+import { decodeDecideVerdictsFile, type DecideVerdicts } from "./decideVerdicts.js";
 import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDecisionAnswer.js";
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
+import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
@@ -1060,6 +1062,18 @@ export function decodeCurrentHandDecisionAnswer(
   );
 }
 
+/**
+ * Decodes a parsed decide verdicts file with its current file decoder only
+ * and drops `$schema`. For a file whose stamp the caller has already
+ * checked: the file a person writes for `phax artifact decide --verdicts`.
+ * Unknown keys are refused.
+ */
+export function decodeCurrentDecideVerdicts(
+  input: unknown,
+): Either.Either<DecideVerdicts, ParseResult.ParseError> {
+  return Either.map(decodeDecideVerdictsFile(input), ({ $schema: _schema, ...file }) => file);
+}
+
 /** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
   Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);
@@ -1448,15 +1462,28 @@ const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest
 // A non-object names no kind; it fails before either decoder runs.
 const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 
-// Born with `$schema`: a decision manifest without one is unreadable.
-const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) =>
-  readSchemaBornPersisted(input, {
+// Born with `$schema`: a decision manifest without one is unreadable. One
+// stamped below the format's current stamp is read by the frozen 0.25.0
+// decoder and lifted unchanged: it is an interactive record, valid as it is.
+const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("decision-record-manifest", input)) {
+    const older = decodeDecisionRecordManifestV0_25_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(
+        readError(file, "decision-record-manifest", formatFirstViolation(older.left)),
+      );
+    }
+    const { $schema: _schema, ...manifest } = older.right;
+    return Either.right(manifest);
+  }
+  return readSchemaBornPersisted(input, {
     format: "decision-record-manifest",
     label: "decision record manifest",
     file,
     decodeCurrent: decodeDecisionRecordManifestFile,
     fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
   });
+};
 
 /**
  * Reads any `record.json` on phax/records/v1, by its `kind`: "decision" is

@@ -36,6 +36,10 @@ import {
   DecisionRecordManifestFileSchema,
   type DecisionRecordManifest,
 } from "../../../src/schemas/decisionRecord.js";
+import {
+  DecideVerdictsFileSchema,
+  type DecideVerdicts,
+} from "../../../src/schemas/decideVerdicts.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
@@ -436,6 +440,14 @@ const handDecisionAnswer: HandDecisionAnswer = {
     },
   ],
   markdown: "---\nstatus: Draft\n---\n# Example spec\n",
+};
+
+const decideVerdicts: DecideVerdicts = {
+  artifact: "docs/specs/2610250900-example-spec.md",
+  verdicts: [
+    { question: "q-retention", chosen: "keep-30", note: null },
+    { question: "q-format", chosen: "other", note: "Newline-delimited JSON, one record a line." },
+  ],
 };
 
 const decisionRecordManifest: DecisionRecordManifest = {
@@ -924,6 +936,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "hand-decision-answer": encoded(
     HandDecisionAnswerFileSchema,
     withSchemaUrl("hand-decision-answer", handDecisionAnswer),
+  ),
+  "decide-verdicts": encoded(
+    DecideVerdictsFileSchema,
+    withSchemaUrl("decide-verdicts", decideVerdicts),
   ),
   "decision-record-manifest": encoded(
     DecisionRecordManifestFileSchema,

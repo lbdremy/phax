@@ -30,6 +30,17 @@ function refused(value: TestLine): boolean {
   return Either.isLeft(decode(value));
 }
 
+function roundTrips(value: TestLine): boolean {
+  const rendered = renderTestLine(value);
+  const reading = readTestStrategyText(`- ${rendered}`);
+  return (
+    JSON.stringify(parseTestLine(rendered)) === JSON.stringify(value) &&
+    reading.departures.length === 0 &&
+    reading.lines.length === 1 &&
+    JSON.stringify(reading.lines[0]!.line) === JSON.stringify(value)
+  );
+}
+
 // The lines of a section, without their item numbers.
 function linesOf(text: string): TestLine[] {
   return readTestStrategyText(text).lines.map(({ line: l }) => l);
@@ -294,17 +305,6 @@ describe("the render → parse round trip", () => {
       ]),
     ),
   ];
-
-  function roundTrips(value: TestLine): boolean {
-    const rendered = renderTestLine(value);
-    const reading = readTestStrategyText(`- ${rendered}`);
-    return (
-      JSON.stringify(parseTestLine(rendered)) === JSON.stringify(value) &&
-      reading.departures.length === 0 &&
-      reading.lines.length === 1 &&
-      JSON.stringify(reading.lines[0]!.line) === JSON.stringify(value)
-    );
-  }
 
   function check(values: Iterable<TestLine>): { accepted: number; lossy: string[] } {
     let accepted = 0;

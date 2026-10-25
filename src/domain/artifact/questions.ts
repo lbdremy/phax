@@ -36,6 +36,12 @@ export interface ParsedQuestion {
   readonly optionIds: readonly string[];
   /** The option id its Recommendation line names. */
   readonly recommendation: string;
+  /**
+   * Its whole rationale: the Recommendation line's text after `<id> — `, plus
+   * its continuation paragraphs up to the `Decision:` line or the next block,
+   * joined with a blank line.
+   */
+  readonly rationale: string;
   /** The 1-based line of its `### <id> — …` heading, in the whole file. */
   readonly line: number;
   /**
@@ -45,7 +51,10 @@ export interface ParsedQuestion {
   readonly range: LineRange;
 }
 
-/** An arbitrated question: a parsed question, plus the option its Decision line chose. */
+/**
+ * An arbitrated question: a parsed question, plus what its Decision line
+ * chose: one of its options, or the reserved `other`.
+ */
 export interface ParsedArbitratedQuestion extends ParsedQuestion {
   readonly chosen: string;
   /** The Decision line reads `<chosen> — lifted…`: no arbiter is named. */
@@ -163,6 +172,10 @@ const QUESTION_HEADING = /^### (\S+) — \S/;
 const OPTION_BULLET = /^- (\S+) — [\s\S]+ — abandons: \S/;
 const RECOMMENDATION = /^Recommendation: (\S+) —(?: |$)/;
 const DECISION = /^Decision: (\S+) — ([\s\S]*)$/;
+// The reserved id every question implicitly offers; see OTHER_OPTION_ID in
+// src/schemas/questions.ts. A Decision may choose it; an option or a
+// Recommendation may not name it.
+const RESERVED_ID = "other";
 
 // Every line of the file with its 1-based number, the frontmatter skipped, and
 // whether it sits inside a fenced code block.
@@ -212,7 +225,7 @@ function blocksOf(lines: readonly Line[]): Line[][] {
 
 // The option ids of a bullet block: each `- ` line opens an item, any other
 // line continues the one before it.
-function optionIdsOf(block: readonly Line[]): string[] | Departure {
+function optionIdsOf(block: readonly Line[], questionId: string): string[] | Departure {
   const items: Line[][] = [];
   for (const line of block) {
     const last = items.at(-1);
@@ -225,6 +238,13 @@ function optionIdsOf(block: readonly Line[]): string[] | Departure {
     if (first === undefined) continue;
     const match = OPTION_BULLET.exec(item.map((l) => l.text.trim()).join("\n"));
     if (match?.[1] === undefined) return departs(first);
+    if (match[1] === RESERVED_ID) {
+      return {
+        kind: "departs",
+        line: first.n,
+        text: `${questionId} lists the reserved option id ${RESERVED_ID}`,
+      };
+    }
     ids.push(match[1]);
   }
   return ids;
@@ -236,6 +256,8 @@ interface Draft {
   optionIds: string[];
   stage: "heading" | "options" | "recommendation" | "decision";
   recommendation: string;
+  /** The rationale's paragraphs, the Recommendation line's text first. */
+  rationale: string[];
   chosen: string;
   lifted: boolean;
   decisionLine: number;
@@ -268,6 +290,7 @@ function parseSection(
       id: q.id,
       optionIds: q.optionIds,
       recommendation: q.recommendation,
+      rationale: q.rationale.join("\n\n"),
       line: q.heading.n,
       range: { start: q.heading.n, end },
       chosen: q.chosen,
@@ -293,6 +316,7 @@ function parseSection(
         optionIds: [],
         stage: "heading",
         recommendation: "",
+        rationale: [],
         chosen: "",
         lifted: false,
         decisionLine: 0,
@@ -308,14 +332,26 @@ function parseSection(
         if (draft.stage === "options" && /^\s/.test(first.text)) break;
         const recommendation = draft.stage === "options" ? RECOMMENDATION.exec(first.text) : null;
         if (recommendation?.[1] !== undefined) {
+          if (recommendation[1] === RESERVED_ID) {
+            return {
+              kind: "departs",
+              line: first.n,
+              text: `${draft.id} recommends the reserved id ${RESERVED_ID}`,
+            };
+          }
           // It recommends one of the question's own options.
           if (!draft.optionIds.includes(recommendation[1])) return departs(first);
           draft.recommendation = recommendation[1];
+          draft.rationale = [
+            [first.text.slice(recommendation[0].length), ...block.slice(1).map((l) => l.text)]
+              .join("\n")
+              .trim(),
+          ];
           draft.stage = "recommendation";
           break;
         }
         if (!first.text.startsWith("- ")) return departs(first);
-        const ids = optionIdsOf(block);
+        const ids = optionIdsOf(block, draft.id);
         if (!Array.isArray(ids)) return ids;
         draft.optionIds = [...draft.optionIds, ...ids];
         draft.stage = "options";
@@ -323,13 +359,16 @@ function parseSection(
       }
       case "recommendation": {
         // Further paragraphs continue the rationale, until a Decision opens.
-        if (first.fenced || !first.text.startsWith("Decision:")) break;
+        if (first.fenced || !first.text.startsWith("Decision:")) {
+          draft.rationale.push(block.map((l) => l.text).join("\n"));
+          break;
+        }
         const decision = DECISION.exec(block.map((l) => l.text).join("\n"));
-        // It chooses one of the question's own options.
+        // It chooses one of the question's own options, or the reserved id.
         if (
           role === "open" ||
           decision?.[1] === undefined ||
-          !draft.optionIds.includes(decision[1])
+          (decision[1] !== RESERVED_ID && !draft.optionIds.includes(decision[1]))
         ) {
           return departs(first);
         }
@@ -422,10 +461,11 @@ export function parseHandAuthoredQuestions(kind: ArtifactKind, md: string): Hand
     if ("kind" in parsed) return parsed;
     if (span.role === "open") {
       open.push(
-        ...parsed.questions.map(({ id, optionIds, recommendation, line, range }) => ({
+        ...parsed.questions.map(({ id, optionIds, recommendation, rationale, line, range }) => ({
           id,
           optionIds,
           recommendation,
+          rationale,
           line,
           range,
         })),

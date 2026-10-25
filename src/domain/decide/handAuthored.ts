@@ -1,6 +1,7 @@
 import { Either, ParseResult } from "effect";
 import type { HandDecision, HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
 import { decodeCurrentHandDecisionAnswer } from "../../schemas/persisted.js";
+import { OTHER_OPTION_ID } from "../../schemas/questions.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { parseSchemaUrl, schemaUrl } from "../../schemas/schemaUrl.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
@@ -191,10 +192,10 @@ function verdictOptionViolation(
   verdict: HandDecision["verdict"],
   path: ReadonlyArray<PropertyKey>,
 ): RevisionRefusal | undefined {
-  if (!question.optionIds.includes(verdict.chosen)) {
+  if (verdict.chosen !== OTHER_OPTION_ID && !question.optionIds.includes(verdict.chosen)) {
     return refusal(
       [...path, "chosen"],
-      `"${verdict.chosen}" names none of the question's options (${optionList(question)})`,
+      `"${verdict.chosen}" names none of the question's options (${optionList(question)}, ${OTHER_OPTION_ID})`,
     );
   }
   const seen = new Set<string>();

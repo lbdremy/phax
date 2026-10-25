@@ -36,6 +36,7 @@ import {
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
+  parseDecideVerdicts,
   parseHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
@@ -67,6 +68,7 @@ import {
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
+  toLatestDecideVerdicts,
   toLatestHandDecisionAnswer,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -249,6 +251,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
   "review-stop": latest(parseReviewStop, toLatestReviewStop),
   "run-list": latest(parseRunList, toLatestRunList),
+  "decide-verdicts": latest(parseDecideVerdicts, toLatestDecideVerdicts),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -299,6 +302,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "review-stop": readReviewStopFile,
   // phax writes the run list for `phax ls --json` and never reads it back.
   "run-list": undefined,
+  // phax reads the verdicts file a person writes through
+  // decodeCurrentDecideVerdicts, which names no file.
+  "decide-verdicts": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

@@ -37,7 +37,7 @@ import {
 } from "../src/formats/interactive.js";
 import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
-import { handDecisionAnswerFormat } from "../src/formats/answers.js";
+import { decideVerdictsFormat, handDecisionAnswerFormat } from "../src/formats/answers.js";
 import {
   complianceReviewFormat,
   costLedgerFormat,
@@ -117,6 +117,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "interactive-session": interactiveSessionFormat,
   "review-stop": reviewStopFormat,
   "run-list": runListFormat,
+  "decide-verdicts": decideVerdictsFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -154,6 +155,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "interactive-session": "error",
   "review-stop": "error",
   "run-list": "error",
+  "decide-verdicts": "error",
   "record-manifest": "error",
 };
 

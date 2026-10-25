@@ -1,17 +1,22 @@
-import { Either } from "effect";
+import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRecordManifestFile } from "../../src/schemas/authoringRecord.js";
 import {
+  DecisionRecordModeSchema,
+  InteractiveDecisionOutcomeSchema,
+  VerdictsDecisionOutcomeSchema,
   decodeDecisionRecordManifestFile,
   encodeDecisionRecordManifest,
   isDecisionRecordManifest,
   type DecisionRecordManifest,
 } from "../../src/schemas/decisionRecord.js";
+import { decodeDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import {
   currentSchemaUrl,
   readRecordManifestFile,
   withSchemaUrl,
 } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // The decision record manifest (spec artifact-decide §5.30): born with
 // `$schema`, every key required, explicit per-outcome variants, no session id.
@@ -109,6 +114,79 @@ describe("decision record manifest", () => {
     const decoded = decodeRecordManifestFile(FILE);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) expect(isDecisionRecordManifest(decoded.right)).toBe(true);
+  });
+
+  describe("modes and their outcomes", () => {
+    const VERDICTS = {
+      ...MANIFEST,
+      mode: "verdicts",
+      requestedModel: "claude-sonnet-5-5",
+    } as const;
+    const verdictsFile = (extra: Record<string, unknown>) => ({
+      ...withSchemaUrl("decision-record-manifest", VERDICTS),
+      ...extra,
+    });
+
+    it("exports the modes and each mode's outcomes", () => {
+      expect(Either.isRight(Schema.decodeUnknownEither(DecisionRecordModeSchema)("verdicts"))).toBe(
+        true,
+      );
+      expect(Either.isLeft(Schema.decodeUnknownEither(DecisionRecordModeSchema)("headless"))).toBe(
+        true,
+      );
+      for (const outcome of ["committed", "declined", "undecided", "failed"]) {
+        expect(
+          Either.isRight(Schema.decodeUnknownEither(InteractiveDecisionOutcomeSchema)(outcome)),
+        ).toBe(true);
+      }
+      expect(
+        Either.isRight(Schema.decodeUnknownEither(VerdictsDecisionOutcomeSchema)("failed")),
+      ).toBe(true);
+      expect(
+        Either.isLeft(Schema.decodeUnknownEither(VerdictsDecisionOutcomeSchema)("declined")),
+      ).toBe(true);
+    });
+
+    it("decodes a committed and a failed verdicts manifest, each with its requestedModel", () => {
+      expect(decodes(verdictsFile({}))).toBe(true);
+      expect(decodes(verdictsFile({ outcome: "failed", commit: null }))).toBe(true);
+    });
+
+    it("refuses mode verdicts with an outcome only interactive has", () => {
+      for (const outcome of ["declined", "undecided"]) {
+        expect(decodes(verdictsFile({ outcome, commit: null })), outcome).toBe(false);
+      }
+    });
+
+    it("keeps a commit exactly on a committed verdicts manifest", () => {
+      expect(decodes(verdictsFile({ commit: null }))).toBe(false);
+      expect(decodes(verdictsFile({ outcome: "failed" }))).toBe(false);
+    });
+
+    it("requires requestedModel on a verdicts manifest and refuses it on an interactive one", () => {
+      const { requestedModel: _dropped, ...without } = verdictsFile({});
+      expect(decodes(without)).toBe(false);
+      expect(decodes(verdictsFile({ requestedModel: "" }))).toBe(false);
+      expect(decodes({ ...FILE, requestedModel: "claude-opus-5-5" })).toBe(false);
+    });
+
+    it("reads a verdicts manifest through the bridge as it is", () => {
+      const read = readRecordManifestFile("sha:decision/x/01/record.json", verdictsFile({}));
+      expect(read).toEqual(Either.right(VERDICTS));
+    });
+  });
+
+  it("reads a 0.25.0-stamped manifest through the frozen decoder, unchanged", () => {
+    const old = { ...FILE, $schema: schemaUrl("decision-record-manifest", "0.25.0") };
+    expect(Either.isRight(decodeDecisionRecordManifestV0_25_0(old))).toBe(true);
+    expect(readRecordManifestFile("sha:decision/x/01/record.json", old)).toEqual(
+      Either.right(MANIFEST),
+    );
+    // A 0.25.0 manifest is an interactive record: the frozen shape knows no verdicts mode.
+    const verdicts = { ...old, mode: "verdicts", requestedModel: "claude-sonnet-5-5" };
+    expect(Either.isLeft(readRecordManifestFile("sha:decision/x/01/record.json", verdicts))).toBe(
+      true,
+    );
   });
 
   it("is read by the bridge without its $schema, and refused without one", () => {

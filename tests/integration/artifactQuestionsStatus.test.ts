@@ -554,6 +554,38 @@ Recommendation: keep logs per run.
     );
   });
 
+  // ac-other-reserved
+  it("a spec listing the reserved option id other prints the departure naming Q3 and exits 0", async () => {
+    writeRepoFile(
+      SPEC,
+      HAND_SPEC.replace(
+        "- keep-20 — Twenty — abandons: disk space\n",
+        "- keep-20 — Twenty — abandons: disk space\n- other — Something else — abandons: the rest\n",
+      ),
+    );
+    commitAll();
+
+    expect(lineOf(await statusLines(SPEC), "Questions")).toBe(
+      // Line 19 of the file: the other bullet, after six frontmatter lines, the title, the context and §9's first question's two options.
+      "Questions:         does not parse — line 19 departs from the §9 format: Q3 lists the reserved option id other",
+    );
+  });
+
+  it("a headless spec written before the reserved id, with no other anywhere, reads in sync with no migration", async () => {
+    writeHeadlessSpec({
+      ...SPEC_BASE,
+      openQuestions: OPEN_Q3_Q4,
+      arbitratedQuestions: [LIFTED_Q1, DECIDED_Q2],
+    });
+    commitAll();
+
+    const lines = await statusLines(SPEC);
+    expect(lineOf(lines, "Authored")).toBe(
+      `Authored:          headless — sidecar ${SPEC_SIDECAR} (in sync)`,
+    );
+    expect(lines.join("\n")).not.toContain("migrate");
+  });
+
   it("a spec with neither question section prints no Questions line", async () => {
     writeRepoFile(SPEC, `${SPEC_FRONTMATTER}# Log rotation\n\n## 1. Context\n\nText.\n`);
     commitAll();
