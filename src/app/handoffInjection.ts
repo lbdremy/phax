@@ -1,10 +1,11 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { ReviewCorrectionStop } from "../domain/interactive/reviewCorrections.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import type { PhaseMode } from "../schemas/phaxPlan.js";
 import type { PhaseStatus } from "../schemas/status.js";
+import { validateHandoffSections } from "./handoffGeneration.js";
 
 /** What the lookups read of a plan phase: its id and whether an agent built it. */
 export interface InjectionPhase {
@@ -30,28 +31,44 @@ function previousHeadlessPhase(
   return undefined;
 }
 
-export function resolveHandoffPath(
-  runPath: string,
-  phases: readonly InjectionPhase[],
-  currentPhaseIndex: number,
-): Option.Option<string> {
-  const previousPhase = previousHeadlessPhase(phases, currentPhaseIndex);
-  if (previousPhase === undefined) return Option.none();
-  return Option.some(handoffPath(runPath, previousPhase.id));
-}
+/**
+ * What the next phase's prompt carries of the previous headless phase's
+ * handoff: none before the first phase, the file's text, or the phase whose
+ * file is absent (its handoff turn never finished).
+ */
+export type PreviousHandoff =
+  | { readonly kind: "first-phase" }
+  | { readonly kind: "present"; readonly text: string }
+  | { readonly kind: "missing"; readonly phaseId: string };
 
 export function readPreviousHandoff(
   runPath: string,
   phases: readonly InjectionPhase[],
   currentPhaseIndex: number,
-): Effect.Effect<string | undefined, FsError, FileSystem> {
+): Effect.Effect<PreviousHandoff, FsError, FileSystem> {
   return Effect.gen(function* () {
-    const pathOpt = resolveHandoffPath(runPath, phases, currentPhaseIndex);
-    if (Option.isNone(pathOpt)) return undefined;
+    const previousPhase = previousHeadlessPhase(phases, currentPhaseIndex);
+    if (previousPhase === undefined) return { kind: "first-phase" } as const;
     const fs = yield* FileSystem;
-    const exists = yield* fs.exists(pathOpt.value);
-    if (!exists) return undefined;
-    return yield* fs.readText(pathOpt.value);
+    const path = handoffPath(runPath, previousPhase.id);
+    if (!(yield* fs.exists(path))) return { kind: "missing", phaseId: previousPhase.id } as const;
+    return { kind: "present", text: yield* fs.readText(path) } as const;
+  });
+}
+
+/**
+ * Whether a committed phase's handoff was validated and copied to its run
+ * folder: the copy exists and has every required section. A `committed`
+ * phase with no stop for which this is false still owes its handoff.
+ */
+export function committedHandoffIsValid(
+  phaseFolderPath: string,
+): Effect.Effect<boolean, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(phaseFolderPath, "phase-handoff.md");
+    if (!(yield* fs.exists(path))) return false;
+    return validateHandoffSections(yield* fs.readText(path)).length === 0;
   });
 }
 

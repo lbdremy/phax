@@ -87,7 +87,15 @@ const base = {
   currentPhase: phase03,
   gateCommands: sampleGateCommands,
   oracleRole: null,
+  previousHandoff: { kind: "first-phase" } as const,
 };
+
+// The body of the `## Previous phase handoff` section.
+function previousHandoffSection(prompt: string): string {
+  const start =
+    prompt.indexOf("## Previous phase handoff\n\n") + "## Previous phase handoff\n\n".length;
+  return prompt.slice(start, prompt.indexOf("\n\n## Current phase", start));
+}
 
 function pairPrompts(project: { oraclePhase: string; dischargingPhase: string; files: string[] }) {
   const pair = { ...project };
@@ -184,14 +192,28 @@ describe("buildPhasePrompt", () => {
     expect(prompt).not.toContain("phax-plan.json");
   });
 
-  it("uses (no previous phase) when previousHandoff is absent", () => {
-    expect(buildPhasePrompt(base)).toContain("(no previous phase)");
+  it("says (no previous phase) for the first phase", () => {
+    expect(previousHandoffSection(buildPhasePrompt(base))).toBe("(no previous phase)");
   });
 
-  it("injects the previousHandoff content when provided", () => {
+  it("injects the previous handoff's text when it is present", () => {
     const handoff = "## Phase completed\n\nPhase 00 is done.";
-    const prompt = buildPhasePrompt({ ...base, previousHandoff: handoff });
-    expect(prompt).toContain("Phase 00 is done.");
+    const prompt = buildPhasePrompt({
+      ...base,
+      previousHandoff: { kind: "present", text: handoff },
+    });
+    expect(previousHandoffSection(prompt)).toBe(handoff);
+    expect(prompt).not.toContain("(no previous phase)");
+  });
+
+  it("names the phase whose handoff is missing, never as a first phase", () => {
+    const prompt = buildPhasePrompt({
+      ...base,
+      previousHandoff: { kind: "missing", phaseId: "phase-02" },
+    });
+    expect(previousHandoffSection(prompt)).toBe(
+      "(The handoff of phase-02 is missing: that phase committed, but phax holds no phase-handoff.md for it. Read its commit on this branch for what it delivered.)",
+    );
     expect(prompt).not.toContain("(no previous phase)");
   });
 
@@ -236,7 +258,7 @@ describe("buildPhasePrompt", () => {
   it("puts the review corrections right after the previous phase handoff", () => {
     const prompt = buildPhasePrompt({
       ...base,
-      previousHandoff: "phase-02 handoff text",
+      previousHandoff: { kind: "present", text: "phase-02 handoff text" },
       previousReconciliation: "## PHAX File Reconciliation\n\nNo deviations.",
       reviewCorrections: [
         {
@@ -324,7 +346,10 @@ describe("buildPhasePrompt", () => {
   it("matches the expected snapshot", () => {
     const prompt = buildPhasePrompt({
       ...base,
-      previousHandoff: "# Phase handoff\n\n## Phase completed\n\nAll done.",
+      previousHandoff: {
+        kind: "present",
+        text: "# Phase handoff\n\n## Phase completed\n\nAll done.",
+      },
     });
     expect(prompt).toMatchSnapshot();
   });

@@ -19,7 +19,8 @@ import { runKey } from "../../domain/runRef.js";
 import { oracleSkipRefusal, stopSkipOracleRefusal } from "../../domain/plan/oraclePairs.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
-import { inspectResumeFromInfo } from "../../app/resume.js";
+import { inspectResumeFromInfo, readOwedHandoffs } from "../../app/resume.js";
+import { countCompletedPhases } from "../../domain/completedPhases.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { readRunStatusFile } from "../../schemas/persisted.js";
 import { executePlan } from "../../app/executePlan.js";
@@ -119,14 +120,24 @@ export async function runResume(
   }
   const runStatus = runStatusResult.right;
 
-  const decisionResult = inspectResumeFromInfo(info, runStatus.hold);
+  // A committed phase whose handoff turn was cut short owes its handoff.
+  const owedResult = await Effect.runPromise(
+    Effect.either(readOwedHandoffs(runPath, info.phaseStatuses)).pipe(
+      Effect.provide(makeRepoRootedFileSystemLayer(config)),
+    ),
+  );
+  if (Either.isLeft(owedResult)) {
+    out.error(`Cannot read the run's phase handoffs: ${owedResult.left.message}`);
+    return 2;
+  }
+  const owedHandoffs = owedResult.right;
+
+  const decisionResult = inspectResumeFromInfo(info, runStatus.hold, owedHandoffs);
   if (Either.isLeft(decisionResult)) {
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
       out.warn(refusal.message);
-      const phaseCount = info.phaseStatuses.filter(
-        (p) => p.state !== "failed" && p.state !== "skipped",
-      ).length;
+      const phaseCount = countCompletedPhases(info.phaseStatuses);
       let prUrl: string | undefined;
       try {
         const pubRaw = JSON.parse(
@@ -180,6 +191,11 @@ export async function runResume(
   out.log(
     `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
   );
+  if (owedHandoffs.has(decision.nextPhaseId)) {
+    out.log(
+      `  Writing the missing handoff of ${decision.nextPhaseId} first (its handoff turn did not finish).`,
+    );
+  }
   if (opts.skipOracle === true) {
     out.log(
       `  Skipping the oracle step of ${decision.nextPhaseId} (--skip-oracle); its configured gate still runs.`,
@@ -371,7 +387,7 @@ export async function runResume(
     }
 
     const execResult = result.right;
-    const phaseCount = execResult.committedPhases?.length;
+    const phaseCount = execResult.completedPhaseCount;
     const prUrl = execResult.prUrl;
     if (execResult.artifactCompletions !== undefined) {
       for (const line of renderArtifactCompletions(execResult.artifactCompletions)) {

@@ -135,7 +135,7 @@ function makeConfig(namespace = "acme"): ResolvedConfig {
 
 function makeExecutePlanResult(overrides: Partial<ExecutePlanResult> = {}): ExecutePlanResult {
   return {
-    committedPhases: [],
+    completedPhaseCount: 1,
     finalPhaseId: "phase-01",
     finalWorktreePath: "/fake-state/worktrees/acme.fixbug/phase-01" as WorktreePath,
     ...overrides,
@@ -600,7 +600,7 @@ describe("runRun — success recap output", () => {
   });
 
   it("prints a summary line on stdout with phase count", async () => {
-    await setupSuccessRun({ committedPhases: ["phase-01", "phase-02"], finalPhaseId: "phase-02" });
+    await setupSuccessRun({ completedPhaseCount: 2, finalPhaseId: "phase-02" });
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
@@ -613,7 +613,7 @@ describe("runRun — success recap output", () => {
   });
 
   it("includes final-report.md pointer on stdout", async () => {
-    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+    await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
@@ -623,7 +623,7 @@ describe("runRun — success recap output", () => {
   });
 
   it("recap includes phax open, shell, enter, archive steps", async () => {
-    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+    await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
@@ -637,7 +637,7 @@ describe("runRun — success recap output", () => {
   });
 
   it("shows publish-pr command when prUrl is absent", async () => {
-    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+    await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
@@ -650,7 +650,7 @@ describe("runRun — success recap output", () => {
 
   it("shows PR URL when prUrl is present", async () => {
     await setupSuccessRun({
-      committedPhases: ["phase-01"],
+      completedPhaseCount: 1,
       finalPhaseId: "phase-01",
       prUrl: "https://github.com/acme/repo/pull/42",
     });
@@ -673,7 +673,7 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
   it("renders a ✓ completed line with the short commit hash per transition", async () => {
     await setupSuccessRun({
-      committedPhases: ["phase-01"],
+      completedPhaseCount: 1,
       finalPhaseId: "phase-01",
       artifactCompletions: {
         transitions: [
@@ -705,7 +705,7 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
   it("renders the chain-gate skip line and the blocking plan with its status", async () => {
     await setupSuccessRun({
-      committedPhases: ["phase-01"],
+      completedPhaseCount: 1,
       finalPhaseId: "phase-01",
       artifactCompletions: {
         transitions: [
@@ -738,7 +738,7 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
   it("renders the kept line when the plan does not complete its spec", async () => {
     await setupSuccessRun({
-      committedPhases: ["phase-01"],
+      completedPhaseCount: 1,
       finalPhaseId: "phase-01",
       artifactCompletions: {
         transitions: [
@@ -767,7 +767,7 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
   it("renders nothing extra when the completion report is empty", async () => {
     await setupSuccessRun({
-      committedPhases: ["phase-01"],
+      completedPhaseCount: 1,
       finalPhaseId: "phase-01",
       artifactCompletions: { transitions: [] },
     });

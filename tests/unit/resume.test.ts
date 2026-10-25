@@ -12,6 +12,7 @@ import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { phaseStatus, phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import type { PhaseStatus, RunHold } from "../../src/schemas/status.js";
+import { REQUIRED_HANDOFF_SECTIONS } from "../../src/app/handoffGuidance.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -177,7 +178,7 @@ describe("findNextResumablePhase — the run's hold", () => {
     },
   ])("$name → $expected", ({ phase02, hold, expected }) => {
     const statuses = [statusOf("phase-01", 0, "cleaned_up"), phase02];
-    expect(findNextResumablePhase(statuses, planPhases, hold)?.phaseId).toBe(expected);
+    expect(findNextResumablePhase(statuses, planPhases, hold, new Set())?.phaseId).toBe(expected);
   });
 
   it("never holds the final phase: a committed final phase is resumable as before", () => {
@@ -187,7 +188,26 @@ describe("findNextResumablePhase — the run's hold", () => {
       statusOf("phase-03", 2, "committed"),
     ];
     const all: RunHold = { selection: "listed", phases: ["phase-03"] };
-    expect(findNextResumablePhase(statuses, planPhases, all)?.phaseId).toBe("phase-03");
+    expect(findNextResumablePhase(statuses, planPhases, all, new Set())?.phaseId).toBe("phase-03");
+  });
+
+  it.each([
+    { name: "a committed phase owing its handoff", owed: ["phase-02"], expected: "phase-02" },
+    { name: "a committed phase whose handoff is valid", owed: [], expected: "phase-03" },
+    { name: "a later phase owing its handoff", owed: ["phase-03"], expected: "phase-03" },
+  ])("$name → $expected", ({ owed, expected }) => {
+    const statuses = [statusOf("phase-01", 0, "cleaned_up"), statusOf("phase-02", 1, "committed")];
+    expect(findNextResumablePhase(statuses, planPhases, none, new Set(owed))?.phaseId).toBe(
+      expected,
+    );
+  });
+
+  it("an owed handoff makes only a committed phase resumable", () => {
+    const statuses = [statusOf("phase-01", 0, "cleaned_up"), statusOf("phase-02", 1, "cleaned_up")];
+    expect(
+      findNextResumablePhase(statuses, planPhases, none, new Set(["phase-01", "phase-02"]))
+        ?.phaseId,
+    ).toBe("phase-03");
   });
 });
 
@@ -205,6 +225,15 @@ describe("inspectResume", () => {
   afterEach(() => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
+
+  // A committed phase whose handoff turn finished: its run-folder copy has
+  // every required section.
+  function writeValidHandoff(phaseId: string): void {
+    writeFileSync(
+      join(runPath, phaseId, "phase-handoff.md"),
+      `${REQUIRED_HANDOFF_SECTIONS.map((s) => `${s}\n\n- A made-up fact.`).join("\n\n")}\n`,
+    );
+  }
 
   it("refuses runs in created state with reason=created", async () => {
     writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("created")));
@@ -403,6 +432,7 @@ describe("inspectResume", () => {
       join(runPath, "phase-01", "status.json"),
       JSON.stringify({ ...makePhaseStatus("committed"), commitHash: "abc1234" }),
     );
+    writeValidHandoff("phase-01");
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
@@ -437,6 +467,7 @@ describe("inspectResume", () => {
       join(runPath, "phase-01", "status.json"),
       JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
     );
+    writeValidHandoff("phase-01");
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
@@ -472,12 +503,122 @@ describe("inspectResume", () => {
       join(runPath, "phase-01", "status.json"),
       JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
     );
+    writeValidHandoff("phase-01");
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-01");
     expect(result.right.nextPhaseIndex).toBe(0);
+  });
+
+  describe("a committed phase owing its handoff", () => {
+    // phase-01 of two committed on a running run, its handoff turn cut short.
+    function writeOwingRun(
+      phases: readonly string[],
+      owing: { worktreePath?: string; claudeSessionId?: string },
+    ): void {
+      const plan = {
+        version: 1,
+        run: {
+          shortName: "test-run",
+          title: "Test run",
+          branch: "ai/test-run",
+          requiredCommands: [],
+        },
+        phases: phases.map(makePlanPhase),
+      };
+      writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+      writeFileSync(
+        join(runPath, "run-status.json"),
+        JSON.stringify(makeRunStatus("running", { phasesCount: phases.length })),
+      );
+      writeFileSync(
+        join(runPath, "phase-01", "status.json"),
+        JSON.stringify({
+          ...makePhaseStatus("committed"),
+          commitHash: "abc1234",
+          ...owing,
+        }),
+      );
+    }
+
+    it("resumes from it when its worktree and session are recorded", async () => {
+      const worktree = mkdtempSync(join(stateRoot, "wt-"));
+      writeOwingRun(["phase-01", "phase-02"], {
+        worktreePath: worktree,
+        claudeSessionId: "sess-1",
+      });
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+      expect(result.right.nextPhaseId).toBe("phase-01");
+    });
+
+    it("a handoff lacking a section is still owed", async () => {
+      const worktree = mkdtempSync(join(stateRoot, "wt-"));
+      writeOwingRun(["phase-01", "phase-02"], {
+        worktreePath: worktree,
+        claudeSessionId: "sess-1",
+      });
+      writeFileSync(join(runPath, "phase-01", "phase-handoff.md"), "## What was delivered\n");
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+      expect(result.right.nextPhaseId).toBe("phase-01");
+    });
+
+    it("refuses with the git worktree add remedy when its worktree is gone", async () => {
+      const gone = join(stateRoot, "worktrees", "test-run--phase-01");
+      writeOwingRun(["phase-01", "phase-02"], { worktreePath: gone, claudeSessionId: "sess-1" });
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left).toEqual({
+        reason: "handoff_unrecoverable",
+        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists. Restore it with \`git worktree add ${gone} ai/test-run--phase-01\`, then run \`phax resume test-run --yes\`: phax then writes the handoff itself.`,
+      });
+    });
+
+    it("refuses naming the file to write by hand when its session id is gone", async () => {
+      const worktree = mkdtempSync(join(stateRoot, "wt-"));
+      writeOwingRun(["phase-01", "phase-02"], { worktreePath: worktree });
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left).toEqual({
+        reason: "handoff_unrecoverable",
+        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Then run \`phax resume test-run --yes\`.`,
+      });
+    });
+
+    it("a final phase with both gone also names the git worktree add step", async () => {
+      const gone = join(stateRoot, "worktrees", "test-run--phase-01");
+      writeOwingRun(["phase-01"], { worktreePath: gone });
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left).toEqual({
+        reason: "handoff_unrecoverable",
+        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Restore its worktree, which completing the run needs: \`git worktree add ${gone} ai/test-run--phase-01\`. Then run \`phax resume test-run --yes\`.`,
+      });
+    });
+
+    it("a non-final phase with both gone names only the file", async () => {
+      const gone = join(stateRoot, "worktrees", "test-run--phase-01");
+      writeOwingRun(["phase-01", "phase-02"], { worktreePath: gone });
+
+      const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left.reason).toBe("handoff_unrecoverable");
+      expect(result.left.message).not.toContain("git worktree add");
+    });
   });
 });
 

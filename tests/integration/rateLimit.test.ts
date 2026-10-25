@@ -587,4 +587,119 @@ describe("executePlan — rate-limit detection and resume", () => {
       expect(await readFile(join(phaseFolder, name))).toEqual(content);
     }
   });
+
+  it("counts every committed phase of the run after a limit at phase-02 of three, not this invocation's", async () => {
+    const plan = Either.getOrThrow(
+      readPhaxPlanFile("phax-plan.json", {
+        ...rawPlan,
+        phases: [
+          ...rawPlan.phases,
+          {
+            ...rawPlan.phases[1],
+            id: "phase-03",
+            title: "Third Phase",
+            planMarkdownAnchor: "#phase-03-third",
+            commit: { subject: "ai(phase-03): finish", body: "Finishes." },
+          },
+        ],
+      }),
+    ).plan;
+    const config = makeConfig(stateRoot);
+    const worktreeOf = (id: string) => join(stateRoot, "worktrees", "test-project.my-run", id);
+    for (const id of ["phase-01", "phase-02", "phase-03"]) {
+      await mkdir(join(worktreeOf(id), ".phax-context"), { recursive: true });
+    }
+
+    function layersFor(
+      backend: ReturnType<typeof makeFakeBackend>,
+      git: ReturnType<typeof makeFakeGit>,
+    ) {
+      const shell = makeFakeShell();
+      shell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+      shell.impl.setResponse("git rev-parse HEAD", {
+        exitCode: 0,
+        stdout: "deadbeef\n",
+        stderr: "",
+      });
+      shell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+      backend.impl.setAutoHandoffContent(HANDOFF_CONTENT);
+      return Layer.mergeAll(
+        git.layer,
+        shell.layer,
+        backend.layer,
+        NodeFileSystemLayer,
+        NoopSystemTelemetryLayer,
+        makeFakeGitHub().layer,
+      );
+    }
+
+    // First invocation: phase-01 commits, phase-02's agent hits a limit.
+    const firstGit = makeFakeGit();
+    firstGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false, true);
+    const firstBackend = makeFakeBackend();
+    firstBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    firstBackend.impl.addResumeResponse({
+      sessionId: "sess-01-h" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    firstBackend.impl.failRunWithRateLimit(1, { kind: "usage_limit" });
+    const firstLayers = layersFor(firstBackend, firstGit);
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(firstLayers)),
+    );
+    const executeOptions = {
+      shortName,
+      namespace: "test-project",
+      plan,
+      planMd: planMdFor(plan),
+      config,
+      gateProfileId: "full",
+      allowDirty: true,
+      runPath,
+      runId,
+      startIndex: 0,
+    };
+    const first = await Effect.runPromise(
+      Effect.either(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
+    );
+    expect(Either.isLeft(first) && first.left).toBeInstanceOf(UsageLimitError);
+
+    const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+    if (Either.isLeft(decision)) throw new Error(decision.left.message);
+    expect(decision.right.nextPhaseId).toBe("phase-02");
+
+    // The resume commits phase-02 and phase-03 only.
+    const resumeGit = makeFakeGit();
+    resumeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-02"), false, true);
+    resumeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-03"), false);
+    const resumeBackend = makeFakeBackend();
+    for (const id of ["02", "03"]) {
+      resumeBackend.impl.addRunResponse({
+        sessionId: `sess-${id}` as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+      resumeBackend.impl.addResumeResponse({
+        sessionId: `sess-${id}-h` as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+    }
+    const resumed = await Effect.runPromise(
+      Effect.either(
+        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+          Effect.provide(layersFor(resumeBackend, resumeGit)),
+        ),
+      ),
+    );
+
+    if (Either.isLeft(resumed)) throw resumed.left;
+    expect(resumeGit.impl.calls.filter((c) => c.method === "commit")).toHaveLength(2);
+    expect(resumed.right.completedPhaseCount).toBe(3);
+  });
 });

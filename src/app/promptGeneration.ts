@@ -10,6 +10,7 @@ import {
 } from "../domain/interactive/reviewCorrections.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 import { PHASE_PLAN_FILE } from "./worktree.js";
+import type { PreviousHandoff } from "./handoffInjection.js";
 
 export interface BuildPhasePromptOptions {
   /** The plan body before the first phase section, without the frontmatter. */
@@ -19,7 +20,8 @@ export interface BuildPhasePromptOptions {
   /** The whole plan, read only to build the outline. */
   readonly plan: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
-  readonly previousHandoff?: string | undefined;
+  /** The previous headless phase's handoff, or why there is none. */
+  readonly previousHandoff: PreviousHandoff;
   readonly previousReconciliation?: string | undefined;
   /** The run's closed stops before this phase, in plan order; none leaves no section. */
   readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
@@ -44,6 +46,19 @@ function oracleRoleLines(role: OracleRole | null): string[] {
   return ["## Oracle role", "", paragraph, ""];
 }
 
+// The `## Previous phase handoff` body. A missing handoff is never shown as a
+// first phase: the next agent reads the earlier phase's commit instead.
+function renderPreviousHandoff(previous: PreviousHandoff): string {
+  switch (previous.kind) {
+    case "first-phase":
+      return "(no previous phase)";
+    case "present":
+      return previous.text;
+    case "missing":
+      return `(The handoff of ${previous.phaseId} is missing: that phase committed, but phax holds no phase-handoff.md for it. Read its commit on this branch for what it delivered.)`;
+  }
+}
+
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
   const {
     planPreamble,
@@ -57,7 +72,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     briefSection,
     oracleRole,
   } = opts;
-  const handoffSection = previousHandoff ?? "(no previous phase)";
+  const handoffSection = renderPreviousHandoff(previousHandoff);
 
   const reviewCorrectionsSection = renderReviewCorrectionsSection(reviewCorrections ?? []);
   const reviewCorrectionsLines =
@@ -175,7 +190,7 @@ export interface GeneratePhasePromptOptions {
   readonly phaseSection: string;
   readonly plan: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
-  readonly previousHandoff?: string | undefined;
+  readonly previousHandoff: PreviousHandoff;
   readonly previousReconciliation?: string | undefined;
   readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
   readonly gateCommands: string[];

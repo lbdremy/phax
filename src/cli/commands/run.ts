@@ -555,11 +555,10 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     }
 
     const execResult = result.right;
-    const phaseCount = execResult.committedPhases?.length;
+    const phaseCount = execResult.completedPhaseCount;
     const prUrl = execResult.prUrl;
     const qualName = runKey(namespace, shortName);
-    const phaseCountStr = phaseCount !== undefined ? `${phaseCount} phase(s)` : "all phases";
-    out.log(`Run "${qualName}" reached review — ${phaseCountStr} complete.`);
+    out.log(`Run "${qualName}" reached review — ${phaseCount} phase(s) complete.`);
     if (execResult.artifactCompletions !== undefined) {
       for (const line of renderArtifactCompletions(execResult.artifactCompletions)) {
         out.log(line);
