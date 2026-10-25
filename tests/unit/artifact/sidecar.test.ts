@@ -64,6 +64,17 @@ const SPEC_DOCUMENT = {
   docsPage: { kind: "none", why: "the CLI reference covers it" },
 };
 
+const PRUNE_TEST_LINE_TEXT =
+  "Pruning an archived run frees its slug — small · example · the registry after pruning · in-phase";
+const PRUNE_TEST_LINE = {
+  guarantee: "Pruning an archived run frees its slug",
+  size: "small",
+  technique: "example",
+  oracle: "the registry after pruning",
+  loop: "in-phase",
+  criterion: null,
+};
+
 const PLAN_DOCUMENT = {
   version: 1,
   kind: "plan",
@@ -89,7 +100,7 @@ const PLAN_DOCUMENT = {
       objective: "Free a slug once its run is archived.",
       detailedInstructions: ["Add the use case."],
       boundaryContracts: null,
-      testStrategy: "Unit.",
+      testStrategy: `- ${PRUNE_TEST_LINE_TEXT}`,
       implementationOrder: ["Use case"],
       excludedScope: [],
       verification: "The `standard` gate profile.",
@@ -108,7 +119,8 @@ scope: functional behavior and consumption surface
 
 // SPEC_DOCUMENT and PLAN_DOCUMENT are the shapes 0.16.0 wrote, before
 // questions were arbitrated; the current shape adds the question arrays and,
-// on each plan phase, a `mode`, an `oracle` and an `assignmentReason`.
+// on each plan phase, a `mode`, an `oracle` and an `assignmentReason`, and
+// holds the test strategy as test lines.
 const CURRENT_SPEC_DOCUMENT = {
   ...SPEC_DOCUMENT,
   surface: SPEC_DOCUMENT.surface.map(({ surface, ...rest }) => ({
@@ -123,6 +135,7 @@ const CURRENT_PLAN_DOCUMENT = {
   preamble: { ...PLAN_DOCUMENT.preamble, openQuestions: [], arbitratedQuestions: [] },
   phases: PLAN_DOCUMENT.phases.map((phase) => ({
     ...phase,
+    testStrategy: [PRUNE_TEST_LINE],
     mode: "headless",
     oracle: null,
     assignmentReason: null,
@@ -284,9 +297,17 @@ describe("sidecarAgreement", () => {
     ] as const)("%s, lifted with empty preamble questions", (_label, sidecarJson, shape) => {
       const inspection = inspectSidecar({ md: PLAN_MD, sidecarJson, kind: "plan" });
       expect(inspection.agreement).toEqual({ kind: "unmigrated", format: "plan-document", shape });
-      expect(
-        inspection.sidecar?.kind === "plan" && inspection.sidecar.document.preamble,
-      ).toMatchObject({ openQuestions: [], arbitratedQuestions: [] });
+      const lift =
+        inspection.sidecar?.kind === "plan" && inspection.sidecar.shape !== "current"
+          ? inspection.sidecar.lift
+          : null;
+      expect(lift?.kind === "lifted" && lift.document.preamble).toMatchObject({
+        openQuestions: [],
+        arbitratedQuestions: [],
+      });
+      expect(lift?.kind === "lifted" && lift.document.phases[0].testStrategy).toEqual([
+        PRUNE_TEST_LINE,
+      ]);
     });
 
     it("names the stamped shape", () => {

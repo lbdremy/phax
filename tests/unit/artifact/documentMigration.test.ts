@@ -9,12 +9,14 @@ import {
 } from "../../../src/domain/artifact/documentMigration.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../../src/domain/authoring/renderPlanV0_25_0.js";
+import { renderPlanBodyV0_26_0 } from "../../../src/domain/authoring/renderPlanV0_26_0.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../../src/domain/authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../../../src/domain/authoring/renderSpecV0_25_0.js";
 import { SURFACE_SUMMARY_PLACEHOLDER } from "../../../src/schemas/specDocument.js";
 import {
   type PlanDocumentV0_25_0Value,
+  type PlanDocumentV0_26_0Value,
   type SpecDocumentV0_17_0Value,
   type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
@@ -119,6 +121,17 @@ const SPEC_0_25_0: SpecDocumentV0_25_0Value = {
 const SPEC_0_25_0_JSON = json({ $schema: schemaUrl("spec-document", "0.25.0"), ...SPEC_0_25_0 });
 const SPEC_0_25_0_MD = SPEC_FRONTMATTER + renderSpecBodyV0_25_0(SPEC_0_25_0);
 
+// Each older plan's test strategy follows the line format, so its lift reads.
+const STEP_LINE_TEXT = "The step does its work — small · example · the step's output · in-phase";
+const STEP_LINE = {
+  guarantee: "The step does its work",
+  size: "small",
+  technique: "example",
+  oracle: "the step's output",
+  loop: "in-phase",
+  criterion: null,
+};
+
 const PLAN_0_20_0 = {
   kind: "plan",
   sourceSpec: null,
@@ -142,7 +155,7 @@ const PLAN_0_20_0 = {
     objective: "Do the step.",
     detailedInstructions: [],
     boundaryContracts: null,
-    testStrategy: "Unit.",
+    testStrategy: `- ${STEP_LINE_TEXT}`,
     implementationOrder: [],
     excludedScope: [],
     verification: "standard",
@@ -165,6 +178,40 @@ const PLAN_0_25_0 = {
   })),
 } as unknown as PlanDocumentV0_25_0Value;
 const PLAN_0_25_0_JSON = json({ $schema: schemaUrl("plan-document", "0.25.0"), ...PLAN_0_25_0 });
+
+// The 0.26.0 shape: mode, oracle and assignmentReason on each phase, the test
+// strategy still a string.
+const PLAN_0_26_0 = {
+  ...PLAN_0_20_0,
+  preamble: { ...PLAN_0_20_0.preamble, openQuestions: [], arbitratedQuestions: [] },
+  phases: PLAN_0_20_0.phases.map((phase, i) => ({
+    ...phase,
+    mode: "headless",
+    oracle: null,
+    assignmentReason: i === 1 ? REASON : null,
+  })),
+} as unknown as PlanDocumentV0_26_0Value;
+const PLAN_0_26_0_JSON = json({ $schema: schemaUrl("plan-document", "0.26.0"), ...PLAN_0_26_0 });
+
+// The same plan, its phase-02 test strategy written as prose.
+const PROSE = "Write the store test first.";
+const PLAN_0_26_0_PROSE = {
+  ...PLAN_0_26_0,
+  phases: PLAN_0_26_0.phases.map((phase, i) => ({
+    ...phase,
+    testStrategy: i === 1 ? `${PROSE}\n\n- ${STEP_LINE_TEXT}` : phase.testStrategy,
+  })),
+} as unknown as PlanDocumentV0_26_0Value;
+
+function decidePlan(md: string, sidecarJson: string): DocumentMigrationDecision {
+  return decideDocumentMigration({
+    kind: "plan",
+    path: PLAN,
+    sidecarPath: PLAN_SIDECAR,
+    md,
+    sidecarJson,
+  });
+}
 
 function liftedPlan(): PlanDocument {
   const read = readPlanDocumentFile(PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
@@ -399,7 +446,8 @@ describe("decideDocumentMigration — plans", () => {
 
   it("refuses a 0.25.0 plan whose body was edited by hand", () => {
     const md =
-      PLAN_FRONTMATTER + renderPlanBodyV0_25_0(PLAN_0_25_0).replace("Unit.", "Unit, by hand.");
+      PLAN_FRONTMATTER +
+      renderPlanBodyV0_25_0(PLAN_0_25_0).replace("Do the step.", "Do the step, by hand.");
     const decision = decideDocumentMigration({
       kind: "plan",
       path: PLAN,
@@ -413,6 +461,64 @@ describe("decideDocumentMigration — plans", () => {
         "is not its sidecar's plan-document 0.25.0 rendering — a hand edit would be overwritten",
       );
     }
+  });
+
+  it("migrates a 0.26.0 plan whose test strategies follow the line format to their lines, its body unchanged", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(PLAN_0_26_0);
+    const m = migrated(decidePlan(md, PLAN_0_26_0_JSON));
+
+    expect(m.fromShape).toBe("0.26.0");
+    expect(m.md).toBe(md);
+    expect(m.bodyChanged).toBe(false);
+    const sidecar = JSON.parse(m.sidecarText) as {
+      $schema: string;
+      phases: Array<Record<string, unknown>>;
+    };
+    expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.phases.map((phase) => phase["testStrategy"])).toEqual([
+      [STEP_LINE],
+      [STEP_LINE],
+    ]);
+    expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, REASON]);
+  });
+
+  it("refuses a 0.26.0 plan holding a prose test strategy, naming the phase, its first departing line and the remedy", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(PLAN_0_26_0_PROSE);
+    expect(
+      decidePlan(md, json({ $schema: schemaUrl("plan-document", "0.26.0"), ...PLAN_0_26_0_PROSE })),
+    ).toEqual({
+      kind: "refuse",
+      refusal: {
+        path: PLAN,
+        problem: `phase-02 testStrategy line 1 departs from the test line format: "${PROSE}"`,
+        remedy:
+          "Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.",
+      },
+    });
+  });
+
+  it("refuses a prose test strategy before comparing the body, so a hand edit is never what it names", () => {
+    const sidecarJson = json({
+      $schema: schemaUrl("plan-document", "0.20.0"),
+      ...PLAN_0_20_0,
+      phases: PLAN_0_20_0.phases.map((phase) => ({ ...phase, testStrategy: "Unit." })),
+    });
+    const decision = decidePlan(`${PLAN_FRONTMATTER}# Edited by hand\n`, sidecarJson);
+    expect(decision.kind === "refuse" && decision.refusal.problem).toBe(
+      'phase-01 testStrategy line 1 departs from the test line format: "Unit."',
+    );
+  });
+
+  it("renders a 0.20.0 plan's own shape with the frozen 0.26.0 renderer, as 0.26.0 and 0.27.0 did", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(PLAN_0_26_0);
+    // The 0.20.0 sidecar steps to 0.26.0 with no reason: the reasoned body is not its own.
+    expect(decidePlan(md, PLAN_0_20_0_JSON).kind).toBe("refuse");
+    const unreasoned = {
+      ...PLAN_0_26_0,
+      phases: PLAN_0_26_0.phases.map((phase) => ({ ...phase, assignmentReason: null })),
+    } as unknown as PlanDocumentV0_26_0Value;
+    const own = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(unreasoned);
+    expect(migrated(decidePlan(own, PLAN_0_20_0_JSON)).md).toBe(own);
   });
 
   it("refuses a 0.19.0 plan beside a spec as an invalid sidecar naming completesSpec", () => {

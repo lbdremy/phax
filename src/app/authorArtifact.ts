@@ -35,7 +35,7 @@ import { authoringAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
 import { type AuthoringSession, encodeAuthoringSession } from "../schemas/authoringSession.js";
-import { formatFirstViolation } from "../schemas/formatError.js";
+import { formatFirstViolation, formatPlanDocumentViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
 import {
   decodePlanDocument,
@@ -205,7 +205,7 @@ function parseAuthoredDocument(
   }
   const decoded = decodePlanDocument(parsed.right);
   return Either.isLeft(decoded)
-    ? Either.left(formatFirstViolation(decoded.left))
+    ? Either.left(formatPlanDocumentViolation(parsed.right, decoded.left))
     : Either.right({ kind, doc: decoded.right });
 }
 

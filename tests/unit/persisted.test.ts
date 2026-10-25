@@ -35,6 +35,7 @@ import {
   type ReportError,
 } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
+import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
 import {
   FORMAT_IDS,
@@ -56,6 +57,8 @@ import {
   withoutSurfaceSummary,
   withoutKey,
   withModelReasons,
+  withTestStrategyStrings,
+  EXAMPLE_TEST_LINES,
   withoutPhaseKinds,
   withoutPreambleQuestions,
   type Doc,
@@ -104,19 +107,26 @@ function left<A>(result: Either.Either<A, PersistedReadError>): PersistedReadErr
 
 /**
  * A plan document with what an older shape lifts to: the preamble's empty
- * question arrays, and a null `assignmentReason` on every phase.
+ * question arrays, a null `assignmentReason` on every phase, and each test
+ * strategy string read as its test lines.
  */
 function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
   return {
     ...doc,
     preamble: { ...(doc["preamble"] as object), openQuestions: [], arbitratedQuestions: [] },
-    phases: (doc["phases"] as object[]).map((phase) => ({
-      ...phase,
+    phases: (doc["phases"] as Array<Record<string, unknown>>).map((phase) => ({
+      ...withTestLines(phase),
       mode: "headless",
       oracle: null,
       assignmentReason: null,
     })),
   };
+}
+
+/** A phase whose test strategy string is read as its test lines. */
+function withTestLines(phase: Record<string, unknown>) {
+  const text = phase["testStrategy"] as string;
+  return { ...phase, testStrategy: readTestStrategyText(text).lines.map(({ line }) => line) };
 }
 
 /** `readPhaxPlanFile`'s plan, whatever shape it read: the lift the display readers take. */
@@ -631,7 +641,7 @@ describe("format readers", () => {
       expect(lifted).toEqual({
         ...withoutKey(reasoned, "$schema"),
         phases: (reasoned["phases"] as Doc[]).map(({ modelReason, model, effort, ...phase }) => ({
-          ...phase,
+          ...withTestLines(phase),
           mode: "headless",
           oracle: null,
           assignmentReason: modelReason,
@@ -649,6 +659,90 @@ describe("format readers", () => {
         shape: "0.25.0",
         older: withoutKey(reasoned, "$schema"),
       });
+    });
+
+    it("lifts a sidecar stamped 0.26.0 whose test strategies follow the line format to their lines", () => {
+      const v0_26_0 = withKey(
+        withTestStrategyStrings(validDocuments["plan-document"]),
+        "$schema",
+        schemaUrl("plan-document", "0.26.0"),
+      );
+      const read = right(readDocumentSidecar("plan", file, v0_26_0));
+      expect(read).toEqual({
+        kind: "plan",
+        shape: "0.26.0",
+        lift: { kind: "lifted", document: withoutKey(validDocuments["plan-document"], "$schema") },
+        older: withoutKey(v0_26_0, "$schema"),
+      });
+      expect(right(readPlanDocumentFile(file, v0_26_0))).toEqual(
+        withoutKey(validDocuments["plan-document"], "$schema"),
+      );
+    });
+
+    it("reads a 0.26.0 sidecar holding a prose test strategy, its lift refused at the first departing line", () => {
+      const phases = validDocuments["plan-document"]["phases"] as Doc[];
+      const prose = withKey(
+        withTestStrategyStrings({
+          ...validDocuments["plan-document"],
+          phases: phases.map((phase) => ({ ...phase, testStrategy: [] })),
+        }),
+        "$schema",
+        schemaUrl("plan-document", "0.26.0"),
+      );
+      const proseWithText = {
+        ...prose,
+        phases: (prose["phases"] as Doc[]).map((phase) => ({
+          ...phase,
+          testStrategy: "Write the store test first.\nThen the command.",
+        })),
+      };
+      const read = right(readDocumentSidecar("plan", file, proseWithText));
+      expect(read).toMatchObject({
+        shape: "0.26.0",
+        lift: {
+          kind: "refused",
+          phase: "phase-01",
+          departure: { line: 1, text: "Write the store test first. Then the command." },
+        },
+      });
+      expect(left(readPlanDocumentFile(file, proseWithText)).message).toBe(
+        `${file}: phase-01 testStrategy cannot be read as test lines: test line 1 departs from the format: "Write the store test first. Then the command."`,
+      );
+    });
+
+    it("lifts a 0.25.0 sidecar whose lines are formatted with every modelReason as assignmentReason, and refuses a prose one", () => {
+      const reasoned = withKey(
+        withModelReasons(validDocuments["plan-document"]),
+        "$schema",
+        schemaUrl("plan-document", "0.25.0"),
+      );
+      const lifted = right(readDocumentSidecar("plan", file, reasoned));
+      expect(lifted.shape !== "current" && lifted.lift.kind).toBe("lifted");
+      const prose = {
+        ...reasoned,
+        phases: (reasoned["phases"] as Doc[]).map((phase) => ({ ...phase, testStrategy: "Unit." })),
+      };
+      const refused = right(readDocumentSidecar("plan", file, prose));
+      expect(refused.shape !== "current" && refused.lift).toEqual({
+        kind: "refused",
+        phase: "phase-01",
+        departure: { line: 1, text: "Unit." },
+      });
+    });
+
+    it("names the phase and the line when a current sidecar's test line is refused", () => {
+      const phases = validDocuments["plan-document"]["phases"] as Doc[];
+      const { loop: _loop, ...noLoop } = EXAMPLE_TEST_LINES[0];
+      const broken = {
+        ...validDocuments["plan-document"],
+        phases: phases.map((phase) => ({
+          ...phase,
+          testStrategy: [EXAMPLE_TEST_LINES[0], noLoop],
+        })),
+      };
+      expect(left(readPlanDocumentFile(file, broken)).message).toBe(
+        `${file}: phase-01 test line 2 loop: is missing`,
+      );
     });
 
     it("refuses a 0.25.0 sidecar that carries assignmentReason, naming the file", () => {
@@ -685,7 +779,7 @@ describe("format readers", () => {
       expect(right(readDocumentSidecar("plan", file, v0_20_0))).toEqual({
         kind: "plan",
         shape: "0.20.0",
-        document: withEmptyQuestions(withoutKey(v0_20_0, "$schema")),
+        lift: { kind: "lifted", document: withEmptyQuestions(withoutKey(v0_20_0, "$schema")) },
         older: withoutKey(v0_20_0, "$schema"),
       });
       const { version: _version, ...preSchema } = preSchemaDocuments["plan-document"];
@@ -964,8 +1058,9 @@ describe("documents from another release", () => {
     // frozen 0.17.0 shape, which has no retry; an approval record, as the
     // frozen 0.19.0 shape, which has no approvedBy.
     // A spec document, as the frozen 0.25.0 shape (no surface summary) or the
-    // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen 0.20.0 shape, which
-    // has no preamble questions.
+    // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen
+    // 0.26.0 shape (test strategies as strings), the frozen 0.25.0 shape (modelReason) or
+    // the frozen 0.20.0 shape, which has no preamble questions.
     const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
     const document = !below
       ? validDocuments[id]
@@ -980,9 +1075,11 @@ describe("documents from another release", () => {
                 ? withoutSurfaceSummary(validDocuments[id])
                 : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
               : id === "plan-document"
-                ? compareReleases(release, "0.25.0") >= 0
-                  ? withModelReasons(validDocuments[id])
-                  : withoutPreambleQuestions(validDocuments[id])
+                ? compareReleases(release, "0.26.0") >= 0
+                  ? withTestStrategyStrings(validDocuments[id])
+                  : compareReleases(release, "0.25.0") >= 0
+                    ? withModelReasons(validDocuments[id])
+                    : withoutPreambleQuestions(validDocuments[id])
                 : id === "phax-plan"
                   ? withoutPhaseKinds(validDocuments[id])
                   : validDocuments[id];

@@ -379,7 +379,16 @@ describe("Plan approval writes its own record file", () => {
           objective: "Ship the alpha command.",
           detailedInstructions: ["Add the use case."],
           boundaryContracts: null,
-          testStrategy: "Unit.",
+          testStrategy: [
+            {
+              guarantee: "The alpha command exits 0",
+              size: "medium",
+              technique: "example",
+              oracle: "the exit code",
+              loop: "in-phase",
+              criterion: null,
+            },
+          ],
           implementationOrder: ["Use case"],
           excludedScope: [],
           verification: "The `standard` gate profile.",

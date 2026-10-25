@@ -128,7 +128,7 @@ function phase(id: string) {
     objective: "Do the step.",
     detailedInstructions: [],
     boundaryContracts: null,
-    testStrategy: "Unit.",
+    testStrategy: [],
     implementationOrder: [],
     excludedScope: [],
     verification: "standard",

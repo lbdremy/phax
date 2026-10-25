@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Effect, Either, Layer, Option } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
@@ -24,6 +25,7 @@ import { renderDocumentMigrationReport } from "../../src/domain/artifact/render.
 import type { ArtifactKind } from "../../src/domain/artifact/status.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
+import { renderPlanBodyV0_26_0 } from "../../src/domain/authoring/renderPlanV0_26_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
 import {
@@ -39,6 +41,7 @@ import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import {
   type PlanDocumentV0_25_0Value,
+  type PlanDocumentV0_26_0Value,
   type SpecDocumentV0_17_0Value,
   type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
@@ -268,7 +271,7 @@ function olderPlan(sourceSpec: string | null) {
       objective: "Do the step.",
       detailedInstructions: [],
       boundaryContracts: null,
-      testStrategy: "Unit.",
+      testStrategy: `- ${STEP_LINE_TEXT}`,
       implementationOrder: [],
       excludedScope: [],
       verification: "standard",
@@ -276,6 +279,19 @@ function olderPlan(sourceSpec: string | null) {
     })),
   };
 }
+
+// Every older plan here writes its test strategy in the line format, so it lifts.
+const STEP_LINE_TEXT = "The step does its work — small · example · the step's output · in-phase";
+const STEP_LINE = {
+  guarantee: "The step does its work",
+  size: "small",
+  technique: "example",
+  oracle: "the step's output",
+  loop: "in-phase",
+  criterion: null,
+};
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function planFrontmatter(status: string, sourceSpec: string | null, approved = ""): string {
   const lineage =
@@ -322,6 +338,34 @@ function writeV0_25_0Plan(frontmatter: string): string {
   const md = frontmatter + renderPlanBodyV0_25_0(doc);
   writeRepoFile(PLAN, md);
   writeRepoFile(sidecarOf(PLAN), json({ $schema: schemaUrl("plan-document", "0.25.0"), ...doc }));
+  return md;
+}
+
+// The 0.26.0 shape: mode, oracle and assignmentReason on each phase, the test
+// strategy still a string.
+function plan0_26_0(): PlanDocumentV0_26_0Value {
+  const { preamble, phases, ...rest } = olderPlan(null);
+  return {
+    ...rest,
+    kind: "plan",
+    sourceSpec: null,
+    completesSpec: null,
+    preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
+    phases: phases.map((phase, i) => ({
+      ...phase,
+      mode: "headless",
+      oracle: null,
+      assignmentReason: i === 1 ? PHASE_REASON : null,
+    })) as unknown as PlanDocumentV0_26_0Value["phases"],
+  };
+}
+
+// A headless plan stamped 0.26.0, its body the frozen 0.26.0 rendering.
+function writeV0_26_0Plan(frontmatter: string): string {
+  const doc = plan0_26_0();
+  const md = frontmatter + renderPlanBodyV0_26_0(doc);
+  writeRepoFile(PLAN, md);
+  writeRepoFile(sidecarOf(PLAN), json({ $schema: schemaUrl("plan-document", "0.26.0"), ...doc }));
   return md;
 }
 
@@ -597,6 +641,64 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     expect(JSON.parse(readRepoFile(sidecarOf(PLAN))).$schema).toBe(
       schemaUrl("plan-document", "0.25.0"),
     );
+  });
+
+  // ac-migrate-lift
+  it("migrates a live 0.26.0 plan whose every test strategy follows the line format to its lines, its body unchanged, and commits it", async () => {
+    const md = writeV0_26_0Plan(planFrontmatter("Draft", null));
+    commitAll();
+
+    const result = await migrated();
+
+    const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+      $schema: string;
+      phases: Array<Record<string, unknown>>;
+    };
+    expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.phases.map((phase) => phase["testStrategy"])).toEqual([
+      [STEP_LINE],
+      [STEP_LINE],
+    ]);
+    expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, PHASE_REASON]);
+    expect(readRepoFile(PLAN)).toBe(md);
+    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
+    expect(porcelain()).toBe("");
+    expect(renderDocumentMigrationReport(result)).toContain(
+      `plan-document 0.26.0 → ${CURRENT_STAMPS["plan-document"]}`,
+    );
+    expect(lineOf(await statusLines(PLAN), "Authored")).toBe(
+      `Authored:          headless — sidecar ${sidecarOf(PLAN)} (in sync)`,
+    );
+  });
+
+  // ac-migrate-refuse: the interactive-phases plan as it stood, made live.
+  it("refuses a live 0.26.0 plan holding a prose test strategy, naming phase-01, its first departing line and the remedy, leaving it as it was", async () => {
+    const archived = join(REPO_ROOT, "docs/plans/archive/2610230951-interactive-phases-plan");
+    const sidecarText = readFileSync(`${archived}.json`, "utf8");
+    const md = readFileSync(`${archived}.md`, "utf8").replace(
+      /^---\n[\s\S]*?\n---\n/,
+      planFrontmatter("Draft", null),
+    );
+    writeRepoFile(PLAN, md);
+    writeRepoFile(sidecarOf(PLAN), sidecarText);
+    commitAll();
+    const before = headSha();
+
+    const result = await migrate();
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.left.message).toContain(
+        `${PLAN} phase-01 testStrategy line 1 departs from the test line format: "Write \`tests/unit/hold.test.ts\` first."\n` +
+          "  Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.",
+      );
+    }
+    expect(headSha()).toBe(before);
+    expect(readRepoFile(PLAN)).toBe(md);
+    expect(readRepoFile(sidecarOf(PLAN))).toBe(sidecarText);
+    expect(porcelain()).toBe("");
   });
 
   it("refuses a 0.19.0 plan beside a spec as invalid, naming completesSpec, writing nothing", async () => {

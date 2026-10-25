@@ -159,6 +159,19 @@ function authoringOf(sidecar: Sidecar | null): ArtifactAuthoring {
     : { kind: "headless", sidecarPath: sidecar.path, agreement: sidecar.agreement };
 }
 
+// The question arrays of a sidecar as read: a spec's, a current plan's or a
+// lifted plan's preamble. A plan whose lift is refused keeps the questions
+// its frozen value recorded: 0.25.0 and 0.26.0 carry them, older shapes none.
+type QuestionArrays = Parameters<typeof summarizeDocumentQuestions>[0];
+
+function questionArrays(read: DocumentSidecar): QuestionArrays {
+  if (read.kind === "spec") return read.document;
+  if (read.shape === "current") return read.document.preamble;
+  if (read.lift.kind === "lifted") return read.lift.document.preamble;
+  if (read.shape === "0.26.0" || read.shape === "0.25.0") return read.older.preamble;
+  return { openQuestions: [], arbitratedQuestions: [] };
+}
+
 // A headless artifact's questions come from its sidecar, lifted when it is
 // older; a hand-authored one's from its §9 sections. A plan reports questions
 // only when it has some, since its question sections render only then.
@@ -170,8 +183,7 @@ function questionsOf(kind: ArtifactKind, md: string, sidecar: Sidecar | null): A
       : parsed;
   }
   if (sidecar.read === null) return { kind: "none" };
-  const arrays =
-    sidecar.read.kind === "spec" ? sidecar.read.document : sidecar.read.document.preamble;
+  const arrays = questionArrays(sidecar.read);
   if (
     sidecar.read.kind === "plan" &&
     arrays.openQuestions.length === 0 &&

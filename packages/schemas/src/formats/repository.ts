@@ -6,9 +6,11 @@
 // have no pre-schema shape, and list their 0.19.0 shape, written before they
 // named the approver, as a release; the spec and plan documents list their
 // 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, the spec
-// document's 0.25.0 shape, written before the surface summary, and the
-// plan document's 0.25.0 shape, written before `modelReason` became
-// `assignmentReason`, as releases, and lift them as phax's reader does. Each current shape, named by
+// document's 0.25.0 shape, written before the surface summary, the plan
+// document's 0.25.0 shape, written before `modelReason` became
+// `assignmentReason`, and its 0.26.0 shape, written before test lines, as
+// releases, and lift them as phax's reader does, except that an older test
+// strategy that is not wholly in the line format lifts to `Unknown`. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import { Array as Arr } from "effect";
@@ -53,6 +55,11 @@ import {
   type PlanDocumentV0_25_0,
 } from "../../../../src/schemas/history/plan-document/0.25.0.js";
 import {
+  PlanDocumentV0_26_0Schema,
+  decodePlanDocumentV0_26_0,
+  type PlanDocumentV0_26_0,
+} from "../../../../src/schemas/history/plan-document/0.26.0.js";
+import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -77,11 +84,14 @@ import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
 } from "../../../../src/schemas/history/spec-document/pre-schema.js";
+import { readTestStrategyText } from "../../../../src/domain/plan/testLineGrammar.js";
 import {
   PlanDocumentFileSchema,
   decodePlanDocumentFile,
   type PlanDocument,
   type PlanDocumentFile,
+  type PlanDocumentLineage,
+  type PlanDocumentPhase,
 } from "../../../../src/schemas/planDocument.js";
 import { liftMarkedQuestions } from "../../../../src/schemas/questions.js";
 import {
@@ -382,6 +392,7 @@ export type PlanDocumentShapes = {
   "0.17.0": PlanDocumentV0_17_0;
   "0.20.0": PlanDocumentV0_20_0;
   "0.25.0": PlanDocumentV0_25_0;
+  "0.26.0": PlanDocumentV0_26_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -397,6 +408,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
     ["0.17.0", { schema: PlanDocumentV0_17_0Schema, decode: decodePlanDocumentV0_17_0 }],
     ["0.20.0", { schema: PlanDocumentV0_20_0Schema, decode: decodePlanDocumentV0_20_0 }],
     ["0.25.0", { schema: PlanDocumentV0_25_0Schema, decode: decodePlanDocumentV0_25_0 }],
+    ["0.26.0", { schema: PlanDocumentV0_26_0Schema, decode: decodePlanDocumentV0_26_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
@@ -409,38 +421,70 @@ export const parsePlanDocument: (input: unknown) => ParsedShape<PlanDocumentShap
   planDocumentFormat.parse;
 
 /**
+ * A phase of the latest plan document. A phase older than test lines whose
+ * test strategy is not wholly in the line format never stated its lines: its
+ * `testStrategy` is `Unknown`.
+ */
+export type LatestPlanPhase = Omit<PlanDocumentPhase, "testStrategy"> & {
+  readonly testStrategy: PlanDocumentPhase["testStrategy"] | Unknown;
+};
+
+type LatestPlanBody = Omit<PlanDocument, "sourceSpec" | "completesSpec" | "phases"> & {
+  readonly phases: readonly [LatestPlanPhase, ...LatestPlanPhase[]];
+};
+
+/**
  * The latest plan document: phax's in-memory value, with no `version` and no
  * `$schema`. A document older than `completesSpec` that names a source spec
  * never said whether its plan completes it: its `completesSpec` is `Unknown`.
  */
 export type LatestPlanDocument =
-  | PlanDocument
-  | (Omit<PlanDocument, "sourceSpec" | "completesSpec"> & {
+  | (LatestPlanBody & PlanDocumentLineage)
+  | (LatestPlanBody & {
       readonly sourceSpec: string;
       readonly completesSpec: Unknown;
     });
+
+// An older phase's test strategy string: its test lines when every item
+// follows the line format, `Unknown` otherwise. Never an invented line.
+function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
+  const { lines, departures } = readTestStrategyText(text);
+  return departures.length === 0 ? lines.map(({ line }) => line) : UNKNOWN;
+}
 
 /**
  * Upgrades a parsed plan document in memory. Keeps every recorded fact; never
  * invents one: an older shape's `completesSpec` is null beside `sourceSpec:
  * null`, the only value that variant allows, and `Unknown` beside a spec path;
- * a 0.25.0 document carries its questions and its phases' `modelReason`,
- * which becomes `assignmentReason`; an older shape carried no questions, so
- * its preamble's `openQuestions` and `arbitratedQuestions` are empty, and no
- * phase reason, so each phase's `assignmentReason` is null. Every older
- * shape's phases get `mode: "headless"` and `oracle: null`: no phax that
- * wrote them ran an interactive or an oracle phase.
+ * a 0.26.0 document carries its questions, its phases' kinds and reasons; a
+ * 0.25.0 document carries its questions and its phases' `modelReason`, which
+ * becomes `assignmentReason`; an older shape carried no questions, so its
+ * preamble's `openQuestions` and `arbitratedQuestions` are empty, and no
+ * phase reason, so each phase's `assignmentReason` is null. Every shape older
+ * than 0.26.0 gets `mode: "headless"` and `oracle: null` on its phases: no
+ * phax that wrote them ran an interactive or an oracle phase. Every older
+ * shape's `testStrategy` string becomes its test lines when it follows the
+ * line format, and `Unknown` otherwise.
  */
 export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
   if (isCurrentPlanDocument(value)) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if (isPlanDocumentV0_26_0(value)) {
+    const { $schema: _schema, ...recorded } = value;
+    const phases = Arr.map(value.phases, (phase) => ({
+      ...phase,
+      testStrategy: liftTestStrategy(phase.testStrategy),
+    }));
+    return { ...recorded, phases };
+  }
   if (isPlanDocumentV0_25_0(value)) {
     const { $schema: _schema, ...recorded } = value;
     // The reason keeps its place before model and effort; only its key changes.
     const phases = Arr.map(value.phases, ({ modelReason, model, effort, ...phase }) => ({
       ...phase,
+      testStrategy: liftTestStrategy(phase.testStrategy),
       mode: "headless" as const,
       oracle: null,
       assignmentReason: modelReason,
@@ -455,6 +499,7 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
   // memory, never written).
   const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
     ...phase,
+    testStrategy: liftTestStrategy(phase.testStrategy),
     mode: "headless" as const,
     oracle: null,
     assignmentReason: null,
@@ -478,11 +523,18 @@ type PlanDocumentParsed =
   | PlanDocumentV0_17_0
   | PlanDocumentV0_20_0
   | PlanDocumentV0_25_0
+  | PlanDocumentV0_26_0
   | PlanDocumentFile;
 
-/** Whether a parsed plan document is the current shape: only it carries `mode` on its phases. */
+/** Whether a parsed plan document is the current shape: only its phases carry test lines. */
 function isCurrentPlanDocument(value: PlanDocumentParsed): value is PlanDocumentFile {
-  return "mode" in value.phases[0];
+  return Array.isArray(value.phases[0].testStrategy);
+}
+
+/** Whether a parsed plan document is the 0.26.0 shape: phases with `mode` beside a string `testStrategy`. */
+function isPlanDocumentV0_26_0(value: PlanDocumentParsed): value is PlanDocumentV0_26_0 {
+  const [phase] = value.phases;
+  return "mode" in phase && typeof phase.testStrategy === "string";
 }
 
 /** Whether a parsed plan document is the 0.25.0 shape: questions in the preamble, phases with `modelReason`. */
@@ -491,7 +543,7 @@ function isPlanDocumentV0_25_0(value: PlanDocumentParsed): value is PlanDocument
 }
 
 function withUnrecordedCompletesSpec(
-  recorded: Omit<PlanDocument, "sourceSpec" | "completesSpec"> & {
+  recorded: LatestPlanBody & {
     readonly sourceSpec: string | null;
   },
 ): LatestPlanDocument {

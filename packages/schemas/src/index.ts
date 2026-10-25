@@ -172,6 +172,7 @@ export {
   type LatestPlanApprovalRecord,
   type LatestPlanApprovals,
   type LatestPlanDocument,
+  type LatestPlanPhase,
   type LatestSpecApprovalRecord,
   type LatestSpecApprovals,
   type LatestSpecDocument,
@@ -437,6 +438,10 @@ export {
   PlanDocumentV0_25_0Schema,
   type PlanDocumentV0_25_0,
 } from "../../../src/schemas/history/plan-document/0.25.0.js";
+export {
+  PlanDocumentV0_26_0Schema,
+  type PlanDocumentV0_26_0,
+} from "../../../src/schemas/history/plan-document/0.26.0.js";
 export {
   SpecDocumentV0_17_0Schema,
   type SpecDocumentV0_17_0,

@@ -50,6 +50,8 @@ import {
   withoutKey,
   withModelReasons,
   withoutPreambleQuestions,
+  withTestStrategyStrings,
+  EXAMPLE_TEST_LINES,
   type Doc,
 } from "./documents.js";
 
@@ -384,6 +386,7 @@ describe("the plan document's question history", () => {
       preamble: { ...preamble, openQuestions: [], arbitratedQuestions: [] },
       phases: (v0_20_0["phases"] as Doc[]).map((phase) => ({
         ...phase,
+        testStrategy: EXAMPLE_TEST_LINES,
         mode: "headless",
         oracle: null,
         assignmentReason: null,
@@ -420,6 +423,33 @@ describe("the plan document's question history", () => {
     });
     // Stamped with the current shape, a document still carrying modelReason is refused.
     expect(parsePlanDocument(withKey(v0_25_0, "$schema", current["$schema"])).ok).toBe(false);
+  });
+
+  it("parses a 0.26.0 document as shape 0.26.0, lifting a formatted test strategy to its lines and a prose one to Unknown", () => {
+    const v0_26_0 = withKey(
+      withTestStrategyStrings(current),
+      "$schema",
+      schemaUrl("plan-document", "0.26.0"),
+    );
+    const result = parsePlanDocument(v0_26_0);
+    expect(result).toEqual({ ok: true, shape: "0.26.0", value: v0_26_0 });
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(current, "$schema"));
+
+    const prose = {
+      ...v0_26_0,
+      phases: (v0_26_0["phases"] as Doc[]).map((phase) => ({
+        ...phase,
+        testStrategy: "Write the module's test first.",
+      })),
+    };
+    const parsed = parsePlanDocument(prose);
+    expect(parsed).toMatchObject({ ok: true, shape: "0.26.0" });
+    if (!parsed.ok) throw new Error("document rejected");
+    const latest = toLatestPlanDocument(parsed.value);
+    expect(latest.phases.every((phase) => isUnknown(phase.testStrategy))).toBe(true);
+    // Nothing else is touched: the phase keeps every other recorded fact.
+    expect(latest.phases[0].mode).toBe("headless");
   });
 
   it("refuses preamble questions in a 0.20.0 document, and a current document without them", () => {

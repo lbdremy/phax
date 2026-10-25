@@ -151,7 +151,16 @@ const PLAN_DOCUMENT = {
       objective: "Free a slug once its run is archived.",
       detailedInstructions: ["Add the use case."],
       boundaryContracts: null,
-      testStrategy: "Unit and integration.",
+      testStrategy: [
+        {
+          guarantee: "Pruning an archived run frees its slug",
+          size: "medium",
+          technique: "example",
+          oracle: "the registry after pruning",
+          loop: "in-phase",
+          criterion: null,
+        },
+      ],
       implementationOrder: ["Use case", "CLI"],
       excludedScope: [],
       verification: "The `standard` gate profile.",

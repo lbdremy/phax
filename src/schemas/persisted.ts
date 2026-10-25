@@ -29,10 +29,13 @@
 // before `$schema` by the pre-schema decoder; each lifts every surface element
 // with the summary placeholder, the two oldest also by the author's rationale
 // marker (`liftMarkedQuestions`); a plan document stamped
-// below its current stamp is read by the frozen 0.25.0 decoder when stamped
-// 0.25.0 or later (its `modelReason` carried over as `assignmentReason`), and
-// by the frozen 0.20.0 decoder below that, lifted with empty preamble
-// questions and `assignmentReason: null`. A run status or registry stamped
+// below its current stamp is read by the frozen 0.26.0 decoder when stamped
+// 0.26.0 or later, by the frozen 0.25.0 decoder when stamped 0.25.0 or later
+// (its `modelReason` carried over as `assignmentReason`), and by the frozen
+// 0.20.0 decoder below that (empty preamble questions and
+// `assignmentReason: null`); each then lifts every phase's `testStrategy`
+// string through the test line grammar, or records the first departing line
+// as a refused lift, which still reads. A run status or registry stamped
 // below its current stamp is read by its frozen 0.17.0 decoder, and a phase
 // status by its frozen 0.20.0 decoder, lifted with `mode: "headless"` and
 // `stop: null`. `readDocumentSidecar`
@@ -48,6 +51,11 @@
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
 import { Array as Arr, Either, type ParseResult } from "effect";
+import {
+  departureMessage,
+  readTestStrategyText,
+  type TestLineDeparture,
+} from "../domain/plan/testLineGrammar.js";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -71,7 +79,7 @@ import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceR
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
 import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js";
-import { formatFirstViolation } from "./formatError.js";
+import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
 import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDecisionAnswer.js";
@@ -98,6 +106,10 @@ import {
   decodePlanDocumentV0_25_0,
   type PlanDocumentV0_25_0,
 } from "./history/plan-document/0.25.0.js";
+import {
+  decodePlanDocumentV0_26_0,
+  type PlanDocumentV0_26_0,
+} from "./history/plan-document/0.26.0.js";
 import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -189,7 +201,11 @@ export interface PersistedSpec<Current, PreSchema, InMemory> {
   readonly decodePreSchema: Decode<PreSchema>;
   readonly fromCurrent: (value: Current) => InMemory;
   readonly fromPreSchema: (value: PreSchema) => Either.Either<InMemory, MissingFact>;
+  /** How the current decoder's first violation reads; `formatFirstViolation` when absent. */
+  readonly formatViolation?: ViolationFormatter;
 }
+
+type ViolationFormatter = (input: unknown, err: ParseResult.ParseError) => string;
 
 function isDocumentObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -251,6 +267,7 @@ function readCurrent<Current, InMemory>(
     readonly file: string;
     readonly decodeCurrent: Decode<Current>;
     readonly fromCurrent: (value: Current) => InMemory;
+    readonly formatViolation?: ViolationFormatter;
   },
 ): Either.Either<InMemory, PersistedReadError> {
   const { file, format, label } = spec;
@@ -270,7 +287,11 @@ function readCurrent<Current, InMemory>(
   }
   const current = spec.decodeCurrent(input);
   if (Either.isLeft(current)) {
-    return Either.left(readError(file, format, formatFirstViolation(current.left)));
+    const message =
+      spec.formatViolation === undefined
+        ? formatFirstViolation(current.left)
+        : spec.formatViolation(input, current.left);
+    return Either.left(readError(file, format, message));
   }
   return Either.right(spec.fromCurrent(current.right));
 }
@@ -595,6 +616,26 @@ export type PlanDocumentV0_20_0Value = DistributiveOmit<PlanDocumentV0_20_0, "$s
 export type PlanDocumentV0_25_0Value = DistributiveOmit<PlanDocumentV0_25_0, "$schema">;
 
 /**
+ * A plan document in its 0.26.0 shape, as a 0.26.0 sidecar carried it: each
+ * phase's `testStrategy` a string, no `$schema`, no `version`.
+ */
+export type PlanDocumentV0_26_0Value = DistributiveOmit<PlanDocumentV0_26_0, "$schema">;
+
+/**
+ * An older plan document lifted to the current in-memory shape, or the reason
+ * it cannot be: every phase's `testStrategy` string is read as test lines, and
+ * the first phase in plan order holding a departure refuses the lift with its
+ * first departure. A refused lift is not a read error: the sidecar still reads.
+ */
+export type PlanDocumentLift =
+  | { readonly kind: "lifted"; readonly document: PlanDocument }
+  | {
+      readonly kind: "refused";
+      readonly phase: string;
+      readonly departure: TestLineDeparture;
+    };
+
+/**
  * A spec sidecar as read: the document at the current in-memory shape, and
  * the shape the file is stamped at. A sidecar below the current shape also
  * carries the value its frozen decoder read.
@@ -615,22 +656,28 @@ export type SpecDocumentSidecar =
     };
 
 /**
- * A plan sidecar as read: the document at the current in-memory shape, and
- * the shape the file is stamped at. A sidecar below the current shape also
- * carries the value its frozen decoder read.
+ * A plan sidecar as read, and the shape the file is stamped at: the document
+ * at the current shape, or, below it, the value its frozen decoder read and
+ * its lift to the current in-memory shape.
  */
 export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
   | {
       readonly kind: "plan";
+      readonly shape: "0.26.0";
+      readonly lift: PlanDocumentLift;
+      readonly older: PlanDocumentV0_26_0Value;
+    }
+  | {
+      readonly kind: "plan";
       readonly shape: "0.25.0";
-      readonly document: PlanDocument;
+      readonly lift: PlanDocumentLift;
       readonly older: PlanDocumentV0_25_0Value;
     }
   | {
       readonly kind: "plan";
       readonly shape: "0.20.0" | "pre-schema";
-      readonly document: PlanDocument;
+      readonly lift: PlanDocumentLift;
       readonly older: PlanDocumentV0_20_0Value;
     };
 
@@ -664,82 +711,97 @@ function liftSpecDocumentV0_25_0(older: SpecDocumentV0_25_0Value): SpecDocument 
 }
 
 /**
- * Lifts the phases of a plan document older than `modelReason`: each gains
- * `mode: "headless"`, `oracle: null` and `assignmentReason: null`, rebuilt in
- * the current key order.
+ * Steps a plan document older than `modelReason` to the 0.26.0 shape: each
+ * phase gains `mode: "headless"`, `oracle: null` and `assignmentReason: null`,
+ * rebuilt in the 0.26.0 key order, and the preamble, which carried no
+ * questions, gets both arrays empty. This is the value phax 0.26.0 and 0.27.0
+ * read such a sidecar as, and rendered.
  */
-function liftPlanDocumentPhases(
-  phases: PlanDocumentV0_20_0Value["phases"],
-): PlanDocument["phases"] {
-  return Arr.map(phases, (phase) => ({
-    id: phase.id,
-    title: phase.title,
-    objective: phase.objective,
-    detailedInstructions: phase.detailedInstructions,
-    planMarkdownAnchor: phase.planMarkdownAnchor,
-    plannedFilesToCreate: phase.plannedFilesToCreate,
-    plannedFilesToEdit: phase.plannedFilesToEdit,
-    optionalFilesToEdit: phase.optionalFilesToEdit,
-    mode: "headless",
-    oracle: null,
-    boundaryContracts: phase.boundaryContracts,
-    testStrategy: phase.testStrategy,
-    implementationOrder: phase.implementationOrder,
-    excludedScope: phase.excludedScope,
-    verification: phase.verification,
-    expectedHandoff: phase.expectedHandoff,
-    commit: phase.commit,
-    assignmentReason: null,
-    model: phase.model,
-    effort: phase.effort,
-  }));
-}
-
-/**
- * Lifts the phases of a 0.25.0 plan document: `modelReason` becomes
- * `assignmentReason`, and each gains `mode: "headless"` and `oracle: null`,
- * rebuilt in the current key order. No phax before mode and oracle ran an
- * interactive or an oracle phase.
- */
-function liftPlanDocumentV0_25_0Phases(
-  phases: PlanDocumentV0_25_0Value["phases"],
-): PlanDocument["phases"] {
-  return Arr.map(phases, (phase) => ({
-    id: phase.id,
-    title: phase.title,
-    objective: phase.objective,
-    detailedInstructions: phase.detailedInstructions,
-    planMarkdownAnchor: phase.planMarkdownAnchor,
-    plannedFilesToCreate: phase.plannedFilesToCreate,
-    plannedFilesToEdit: phase.plannedFilesToEdit,
-    optionalFilesToEdit: phase.optionalFilesToEdit,
-    mode: "headless",
-    oracle: null,
-    boundaryContracts: phase.boundaryContracts,
-    testStrategy: phase.testStrategy,
-    implementationOrder: phase.implementationOrder,
-    excludedScope: phase.excludedScope,
-    verification: phase.verification,
-    expectedHandoff: phase.expectedHandoff,
-    commit: phase.commit,
-    assignmentReason: phase.modelReason,
-    model: phase.model,
-    effort: phase.effort,
-  }));
-}
-
-// A 0.25.0 plan already carries its preamble questions, kept as recorded.
-function liftPlanDocumentV0_25_0(older: PlanDocumentV0_25_0Value): PlanDocument {
-  return { ...older, phases: liftPlanDocumentV0_25_0Phases(older.phases) };
-}
-
-// A plan written before questions carried none: both arrays lift empty.
-function liftPlanDocument(older: PlanDocumentV0_20_0Value): PlanDocument {
+export function planDocumentV0_20_0AsV0_26_0(
+  older: PlanDocumentV0_20_0Value,
+): PlanDocumentV0_26_0Value {
   return {
     ...older,
     preamble: { ...older.preamble, openQuestions: [], arbitratedQuestions: [] },
-    phases: liftPlanDocumentPhases(older.phases),
+    phases: Arr.map(older.phases, (phase) => ({
+      id: phase.id,
+      title: phase.title,
+      objective: phase.objective,
+      detailedInstructions: phase.detailedInstructions,
+      planMarkdownAnchor: phase.planMarkdownAnchor,
+      plannedFilesToCreate: phase.plannedFilesToCreate,
+      plannedFilesToEdit: phase.plannedFilesToEdit,
+      optionalFilesToEdit: phase.optionalFilesToEdit,
+      mode: "headless",
+      oracle: null,
+      boundaryContracts: phase.boundaryContracts,
+      testStrategy: phase.testStrategy,
+      implementationOrder: phase.implementationOrder,
+      excludedScope: phase.excludedScope,
+      verification: phase.verification,
+      expectedHandoff: phase.expectedHandoff,
+      commit: phase.commit,
+      assignmentReason: null,
+      model: phase.model,
+      effort: phase.effort,
+    })),
   };
+}
+
+/**
+ * Steps a 0.25.0 plan document to the 0.26.0 shape: `modelReason` becomes
+ * `assignmentReason`, and each phase gains `mode: "headless"` and
+ * `oracle: null`, rebuilt in the 0.26.0 key order. No phax before mode and
+ * oracle ran an interactive or an oracle phase. Its preamble questions are
+ * kept as recorded.
+ */
+function planDocumentV0_25_0AsV0_26_0(older: PlanDocumentV0_25_0Value): PlanDocumentV0_26_0Value {
+  return {
+    ...older,
+    phases: Arr.map(older.phases, (phase) => ({
+      id: phase.id,
+      title: phase.title,
+      objective: phase.objective,
+      detailedInstructions: phase.detailedInstructions,
+      planMarkdownAnchor: phase.planMarkdownAnchor,
+      plannedFilesToCreate: phase.plannedFilesToCreate,
+      plannedFilesToEdit: phase.plannedFilesToEdit,
+      optionalFilesToEdit: phase.optionalFilesToEdit,
+      mode: "headless",
+      oracle: null,
+      boundaryContracts: phase.boundaryContracts,
+      testStrategy: phase.testStrategy,
+      implementationOrder: phase.implementationOrder,
+      excludedScope: phase.excludedScope,
+      verification: phase.verification,
+      expectedHandoff: phase.expectedHandoff,
+      commit: phase.commit,
+      assignmentReason: phase.modelReason,
+      model: phase.model,
+      effort: phase.effort,
+    })),
+  };
+}
+
+/**
+ * Lifts a 0.26.0 plan document to the current in-memory shape: every phase's
+ * `testStrategy` string is read as test lines (`readTestStrategyText`), in
+ * its place. The first phase in plan order with a departure refuses the lift,
+ * naming its first departure; nothing else changes.
+ */
+export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentLift {
+  const readings = Arr.map(older.phases, (phase) => readTestStrategyText(phase.testStrategy));
+  for (const [i, reading] of readings.entries()) {
+    const [departure] = reading.departures;
+    if (departure !== undefined) {
+      return { kind: "refused", phase: older.phases[i]?.id ?? `phases[${String(i)}]`, departure };
+    }
+  }
+  const phases = Arr.map(older.phases, (phase, i) => ({
+    ...phase,
+    testStrategy: (readings[i]?.lines ?? []).map(({ line }) => line),
+  }));
+  return { kind: "lifted", document: { ...older, phases } };
 }
 
 function readSpecDocumentSidecar(
@@ -802,6 +864,19 @@ function readPlanDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.26.0") >= 0) {
+      const frozen = decodePlanDocumentV0_26_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(readError(file, "plan-document", formatFirstViolation(frozen.left)));
+      }
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({
+        kind: "plan",
+        shape: "0.26.0",
+        lift: liftPlanDocumentV0_26_0(value),
+        older: value,
+      });
+    }
     if (compareReleases(release, "0.25.0") >= 0) {
       const frozen = decodePlanDocumentV0_25_0(input);
       if (Either.isLeft(frozen)) {
@@ -811,7 +886,7 @@ function readPlanDocumentSidecar(
       return Either.right({
         kind: "plan",
         shape: "0.25.0",
-        document: liftPlanDocumentV0_25_0(value),
+        lift: liftPlanDocumentV0_26_0(planDocumentV0_25_0AsV0_26_0(value)),
         older: value,
       });
     }
@@ -823,7 +898,7 @@ function readPlanDocumentSidecar(
     return Either.right({
       kind: "plan",
       shape: "0.20.0",
-      document: liftPlanDocument(value),
+      lift: liftPlanDocumentV0_26_0(planDocumentV0_20_0AsV0_26_0(value)),
       older: value,
     });
   }
@@ -844,10 +919,11 @@ function readPlanDocumentSidecar(
       return Either.right({
         kind: "plan",
         shape: "pre-schema",
-        document: liftPlanDocument(value),
+        lift: liftPlanDocumentV0_26_0(planDocumentV0_20_0AsV0_26_0(value)),
         older: value,
       });
     },
+    formatViolation: formatPlanDocumentViolation,
   });
 }
 
@@ -859,15 +935,21 @@ function readPlanDocumentSidecar(
  *   decoder, and one written before `$schema` by the pre-schema decoder, both
  *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
  *   on each surface element;
- * - a plan stamped 0.25.0 or later, below its current stamp, is read by the
- *   frozen 0.25.0 decoder and lifted with each `modelReason` carried over as
- *   `assignmentReason`; a plan stamped below 0.25.0 is read by the frozen
- *   0.20.0 decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`,
- *   is refused naming it; a plan written before `$schema` steps to
+ * - a plan stamped 0.26.0 or later, below its current stamp, is read by the
+ *   frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
+ *   decoder, stepped with each `modelReason` carried over as
+ *   `assignmentReason`; one stamped below 0.25.0 by the frozen 0.20.0
+ *   decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`, is
+ *   refused naming it; a plan written before `$schema` steps to
  *   `completesSpec: null` beside `sourceSpec: null` and is refused, naming
- *   `completesSpec`, beside a spec path; either lifts with empty preamble
- *   question arrays and `assignmentReason: null` on every phase;
- * - any other sidecar is read by the current file decoder, shape `current`.
+ *   `completesSpec`, beside a spec path; the last two step with empty
+ *   preamble question arrays and `assignmentReason: null` on every phase.
+ *   Each then carries a `lift` (`liftPlanDocumentV0_26_0`): every phase's
+ *   `testStrategy` string read as test lines, or refused at the first
+ *   departing line. A refused lift still reads;
+ * - any other sidecar is read by the current file decoder, shape `current`;
+ *   a plan's violation under a test line names the phase and the line
+ *   (`formatPlanDocumentViolation`).
  */
 export function readDocumentSidecar(
   kind: "spec",
@@ -951,9 +1033,24 @@ export function decodeCurrentHandDecisionAnswer(
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
   Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);
 
-/** Reads a plan's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
+/**
+ * Reads a plan's JSON sidecar as the current in-memory document; see
+ * `readDocumentSidecar`. An older sidecar whose lift is refused fails, naming
+ * the sidecar, the phase and the departing line.
+ */
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
-  Either.map(readPlanDocumentSidecar(file, input), (sidecar) => sidecar.document);
+  Either.flatMap(readPlanDocumentSidecar(file, input), (sidecar) => {
+    if (sidecar.shape === "current") return Either.right(sidecar.document);
+    const { lift } = sidecar;
+    if (lift.kind === "lifted") return Either.right(lift.document);
+    return Either.left(
+      readError(
+        file,
+        "plan-document",
+        `${lift.phase} testStrategy cannot be read as test lines: ${departureMessage(lift.departure)}`,
+      ),
+    );
+  });
 
 function isPassOrFail<S extends { readonly result: string }>(
   step: S,
