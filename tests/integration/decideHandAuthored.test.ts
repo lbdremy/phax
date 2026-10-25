@@ -326,6 +326,61 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
     expect(headSha()).toBe(head);
   });
 
+  it("refuses a spec whose §9 lists an option with the reserved id other, naming Q1, with no session", async () => {
+    const withOther = HAND_SPEC.replace(
+      "- daily — Rotated daily — abandons: one log per run\n",
+      "- daily — Rotated daily — abandons: one log per run\n- other — Something else — abandons: the listed options\n",
+    );
+    writeRepoFile(SPEC, withOther);
+    commitAll();
+    const head = headSha();
+    const h = harness([]);
+
+    const result = await h.run();
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
+      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.left.message).toContain("Q1 lists the reserved option id other");
+    }
+    expect(h.session.invocations).toEqual([]);
+    expect(h.backend.resumeCalls).toEqual([]);
+    expect(headSha()).toBe(head);
+  });
+
+  it("writes a verdict choosing other as a Decision: other block, in place", async () => {
+    writeRepoFile(SPEC, HAND_SPEC);
+    commitAll();
+    const revisedMd = HAND_SPEC.replace(
+      "Every run writes one log.",
+      "Every run writes one log, compressed after a day.",
+    );
+    const answer = JSON.stringify({
+      $schema: currentSchemaUrl("hand-decision-answer"),
+      kind: "spec",
+      decisions: [
+        {
+          id: "Q1",
+          verdict: decidedVerdict("other", ["per-run", "daily"], { revised: ["§1 Context"] }),
+        },
+      ],
+      markdown: revisedMd,
+    });
+    const h = harness([answer]);
+
+    const result = await h.run();
+
+    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    const md = readRepoFile(SPEC);
+    expect(md).toContain("Decision: other — by operator (Grace Hopper), 2026-10-16");
+    expect(md.slice(md.indexOf("Decision: other"))).toMatch(/^[^\n]*\nWhy: /);
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      arbitrated: [{ id: "Q1", chosen: "other", lifted: false }],
+    });
+  });
+
   it("decides a hand-authored plan's question with its phase, before the first phase", async () => {
     writeRepoFile(PLAN, HAND_PLAN);
     commitAll();

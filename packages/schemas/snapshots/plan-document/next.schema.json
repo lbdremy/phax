@@ -810,5 +810,5 @@
       ]
     }
   ],
-  "description": "Checked by phax's parser, not by this JSON Schema, in the preamble: question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options and `abandoned` hold exactly the others, each once; and a decided verdict's `phase` names one of the plan's phases."
+  "description": "Checked by phax's parser, not by this JSON Schema, in the preamble: question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; no option has the id `other` and no `recommendation` is `other`, because `other` is reserved and implicit on every question; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options or the reserved `other`, and `abandoned` hold exactly the other listed options, each once (every listed option when `chosen` is `other`); and a decided verdict's `phase` names one of the plan's phases."
 }

@@ -16,6 +16,7 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseCostLedger,
+  parseDecideVerdicts,
   parseDecisionRecordManifest,
   parseGateAttribution,
   parseGateReport,
@@ -65,6 +66,7 @@ import {
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
+import { decodeDecideVerdictsFile } from "../../../src/schemas/decideVerdicts.js";
 import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
@@ -288,7 +290,10 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     id: "decision-record-manifest",
     parse: parseDecisionRecordManifest,
     phax: decodeDecisionRecordManifestFile,
-    wrongType: ["arbitrated", "2"],
+    // `mode` selects the union's variant, so a wrong type there fails every
+    // variant at the same path; a wrong `arbitrated` is reported at whichever
+    // variant the union tries last.
+    wrongType: ["mode", 2],
     required: "commit",
     excess: "error",
   },
@@ -362,6 +367,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeRunListFile,
     wrongType: ["runs", {}],
     required: "runs",
+    excess: "error",
+  },
+  "decide-verdicts": {
+    id: "decide-verdicts",
+    parse: parseDecideVerdicts,
+    phax: decodeDecideVerdictsFile,
+    wrongType: ["verdicts", {}],
+    required: "artifact",
     excess: "error",
   },
 };

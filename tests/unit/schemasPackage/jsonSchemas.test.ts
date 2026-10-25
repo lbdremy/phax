@@ -36,7 +36,11 @@ import {
   briefReportFormat,
   gateReportFormat,
 } from "../../../packages/schemas/src/formats/reports.js";
-import { handDecisionAnswerFormat } from "../../../packages/schemas/src/formats/answers.js";
+import { withoutAnnotations } from "../../../packages/schemas/build/snapshots.js";
+import {
+  decideVerdictsFormat,
+  handDecisionAnswerFormat,
+} from "../../../packages/schemas/src/formats/answers.js";
 import {
   architectureReportFormat,
   architectureRequestFormat,
@@ -125,6 +129,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "interactive-session": interactiveSessionFormat.current.shape.decode,
   "review-stop": reviewStopFormat.current.shape.decode,
   "run-list": runListFormat.current.shape.decode,
+  "decide-verdicts": decideVerdictsFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -195,6 +200,7 @@ describe("the JSON Schema table", () => {
       interactiveSessionFormat,
       reviewStopFormat,
       runListFormat,
+      decideVerdictsFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -217,10 +223,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 32 files and no failure", () => {
+  it("renders 33 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(32);
+    expect(rendered.files.size).toBe(33);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(
@@ -264,7 +270,11 @@ describe("renderJsonSchemas over the real table", () => {
       ...file,
       properties: { ...file.properties, arbitratedQuestions: AUTHORING_ARBITRATED_QUESTIONS },
     };
-    expect(withoutTitle(getSpecDocumentJsonSchema())).toEqual(withoutTitle(expected));
+    // Compared without `description`, `title` and `examples`, as the snapshot
+    // tooling's sameShape does: the question checks' description moved with
+    // the reserved `other` id, and the released 0.27.0 snapshot keeps the old
+    // wording. Only the shape must match.
+    expect(withoutAnnotations(getSpecDocumentJsonSchema())).toEqual(withoutAnnotations(expected));
   });
 
   it("keeps the plan-document authoring contract equal to its current file snapshot, with version for $schema and no arbitrated question", () => {

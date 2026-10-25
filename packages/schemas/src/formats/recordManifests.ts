@@ -18,6 +18,11 @@ import {
   type DecisionRecordManifestFile,
 } from "../../../../src/schemas/decisionRecord.js";
 import {
+  DecisionRecordManifestV0_25_0Schema,
+  decodeDecisionRecordManifestV0_25_0,
+  type DecisionRecordManifestV0_25_0,
+} from "../../../../src/schemas/history/decision-record-manifest/0.25.0.js";
+import {
   AuthoringRecordManifestV0_17_0Schema,
   decodeAuthoringRecordManifestV0_17_0,
   type AuthoringRecordManifestV0_17_0,
@@ -201,9 +206,12 @@ export function toLatestAuthoringRecordManifest(
 // ── decision record manifest
 
 // Born with `$schema`: no pre-schema shape, and a manifest without `$schema`
-// is unreadable.
+// is unreadable. The 0.25.0 shape is frozen: every manifest it describes is an
+// interactive record, valid as it is in the current shape.
 
 export type DecisionRecordManifestShapes = {
+  "0.25.0": DecisionRecordManifestV0_25_0;
+} & {
   [K in CurrentShapeName<"decision-record-manifest">]: DecisionRecordManifestFile;
 };
 
@@ -214,7 +222,12 @@ export const decisionRecordManifestFormat = defineFormat<DecisionRecordManifestS
   id: "decision-record-manifest",
   label: "decision record manifest",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.25.0",
+      { schema: DecisionRecordManifestV0_25_0Schema, decode: decodeDecisionRecordManifestV0_25_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["decision-record-manifest"],
     shape: {
@@ -232,9 +245,12 @@ export const parseDecisionRecordManifest: (
 /** The latest decision record manifest: phax's in-memory value, with no `$schema`. */
 export type LatestDecisionRecordManifest = DecisionRecordManifest;
 
-/** Upgrades a parsed decision manifest in memory: drops `$schema`, keeps every other fact. */
+/**
+ * Upgrades a parsed decision manifest in memory: drops `$schema`, keeps every
+ * other fact. A 0.25.0 manifest is an interactive record, valid as it is.
+ */
 export function toLatestDecisionRecordManifest(
-  value: DecisionRecordManifestFile,
+  value: DecisionRecordManifestFile | DecisionRecordManifestV0_25_0,
 ): LatestDecisionRecordManifest {
   const { $schema: _schema, ...recorded } = value;
   return recorded;

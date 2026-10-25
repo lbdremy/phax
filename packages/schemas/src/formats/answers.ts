@@ -1,8 +1,15 @@
 // The answer a decide session returns for a hand-authored spec or plan: the
 // hand decision answer, its verdicts by question id and the artifact's revised
-// Markdown. Its current shape, named by `CURRENT_SHAPES` (`next` until a
-// release renames it), is phax's own file schema and decoder. The package
-// declares none of its own.
+// Markdown; and the verdicts file a person writes for `phax artifact decide
+// --verdicts`. Each format's current shape, named by `CURRENT_SHAPES` (`next`
+// until a release renames it), is phax's own file schema and decoder. The
+// package declares none of its own.
+import {
+  DecideVerdictsFileSchema,
+  decodeDecideVerdictsFile,
+  type DecideVerdicts,
+  type DecideVerdictsFile,
+} from "../../../../src/schemas/decideVerdicts.js";
 import {
   HandDecisionAnswerFileSchema,
   decodeHandDecisionAnswerFile,
@@ -51,4 +58,44 @@ export function toLatestHandDecisionAnswer(
 ): LatestHandDecisionAnswer {
   const { $schema: _schema, ...answer } = value;
   return answer;
+}
+
+// ── decide verdicts
+
+// Born with `$schema`: no pre-schema shape, and a file without `$schema` is
+// unreadable. It refuses a key it does not name, at any level. The latest
+// value is phax's in-memory value, with no `$schema`.
+
+export type DecideVerdictsShapes = {
+  [K in CurrentShapeName<"decide-verdicts">]: DecideVerdictsFile;
+};
+
+/** The id of every decide verdicts shape the package reads. */
+export type DecideVerdictsShape = keyof DecideVerdictsShapes;
+
+export const decideVerdictsFormat = defineFormat<DecideVerdictsShapes>({
+  id: "decide-verdicts",
+  label: "decide verdicts",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["decide-verdicts"],
+    shape: { schema: DecideVerdictsFileSchema, decode: decodeDecideVerdictsFile },
+  },
+});
+
+/**
+ * Reads a decide verdicts file: the decisions a person has already made, for
+ * `phax artifact decide --verdicts`. Never throws.
+ */
+export const parseDecideVerdicts: (input: unknown) => ParsedShape<DecideVerdictsShapes> =
+  decideVerdictsFormat.parse;
+
+/** The latest decide verdicts: phax's in-memory value, with no `$schema`. */
+export type LatestDecideVerdicts = DecideVerdicts;
+
+/** Upgrades parsed decide verdicts in memory: drops `$schema`, keeps every other fact. */
+export function toLatestDecideVerdicts(value: DecideVerdictsFile): LatestDecideVerdicts {
+  const { $schema: _schema, ...verdicts } = value;
+  return verdicts;
 }

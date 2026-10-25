@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax decide verdicts",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "artifact",
+    "verdicts"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The decide-verdicts format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/decide-verdicts/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/decide-verdicts\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "artifact": {
+      "type": "string",
+      "description": "The repo-relative path of the artifact the verdicts are for. phax compares it with the artifact argument and never reads the artifact from it.",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "verdicts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "question",
+          "chosen",
+          "note"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The id of a question of the artifact.",
+            "pattern": "^\\S+$"
+          },
+          "chosen": {
+            "type": "string",
+            "description": "The id of the option chosen: one of the question's option ids, or the reserved `other`.",
+            "pattern": "^\\S+$"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's note: why this option, or what `other` means. null when there is none. phax refuses a null note on a verdict that departs from the question's recommendation, `other` included, a check this schema does not express."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "The verdicts, at most one per question."
+    }
+  },
+  "additionalProperties": false
+}

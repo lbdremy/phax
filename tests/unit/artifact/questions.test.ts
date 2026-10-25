@@ -540,3 +540,143 @@ describe("parseHandAuthoredQuestions — recommendations and line ranges", () =>
     expect(parseHandAuthoredQuestions("spec", md)).toEqual({ kind: "none" });
   });
 });
+
+describe("parseHandAuthoredQuestions — rationale and the reserved id other", () => {
+  const OPTIONS = [
+    "- per-run — Kept per run — abandons: a bounded log directory",
+    "- daily — Rotated daily — abandons: one log per run",
+  ];
+  const head = (section: string) => `${SPEC_FRONTMATTER}# Log rotation\n\n${section}\n`;
+
+  it("reads a Recommendation spread over several paragraphs whole, up to the Decision line", () => {
+    const md = [
+      head("## 9b. Arbitrated questions"),
+      "### Q2 — Logs?",
+      "",
+      ...OPTIONS,
+      "",
+      "Recommendation: daily — a bounded directory",
+      "wins over naming a run.",
+      "",
+      "A second paragraph weighs the cost of rotation.",
+      "",
+      "Decision: per-run — by operator (Ada Lovelace), 2026-10-20",
+      "",
+      "Why: runs are named.",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      arbitrated: [
+        {
+          id: "Q2",
+          rationale:
+            "a bounded directory\nwins over naming a run.\n\nA second paragraph weighs the cost of rotation.",
+        },
+      ],
+    });
+  });
+
+  it("reads an open question's rationale up to the next block", () => {
+    const md = [
+      head("## 9. Open questions"),
+      "### Q2 — Logs?",
+      "",
+      ...OPTIONS,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+      "### Q3 — Format?",
+      "",
+      "- text — Plain text — abandons: structure",
+      "- json — JSON lines — abandons: grep",
+      "",
+      "Recommendation: json — tools read it",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      open: [
+        { id: "Q2", rationale: "bounded" },
+        { id: "Q3", rationale: "tools read it" },
+      ],
+    });
+  });
+
+  it("reports an option bullet with the id other at its line, naming the question and the reserved id", () => {
+    const bullet = "- other — Something else — abandons: the listed options";
+    const md = [
+      head("## 9. Open questions"),
+      "### Q1 — Logs?",
+      "",
+      ...OPTIONS,
+      bullet,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, bullet),
+      text: "Q1 lists the reserved option id other",
+    });
+  });
+
+  it("reports a Recommendation naming other at its line", () => {
+    const recommendation = "Recommendation: other — none of these";
+    const md = [
+      head("## 9. Open questions"),
+      "### Q1 — Logs?",
+      "",
+      ...OPTIONS,
+      "",
+      recommendation,
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, recommendation),
+      text: "Q1 recommends the reserved id other",
+    });
+  });
+
+  it("accepts a Decision line choosing other in an arbitrated question", () => {
+    const md = [
+      head("## 9b. Arbitrated questions"),
+      "### Q2 — Logs?",
+      "",
+      ...OPTIONS,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+      "Decision: other — by operator (Ada Lovelace), 2026-10-20",
+      "",
+      "Why: neither fits.",
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toMatchObject({
+      kind: "parsed",
+      arbitrated: [{ id: "Q2", chosen: "other", lifted: false }],
+    });
+  });
+
+  it("still refuses a Decision line choosing other in the open section", () => {
+    const decision = "Decision: other — by operator (Ada Lovelace), 2026-10-20";
+    const md = [
+      head("## 9. Open questions"),
+      "### Q2 — Logs?",
+      "",
+      ...OPTIONS,
+      "",
+      "Recommendation: daily — bounded",
+      "",
+      decision,
+      "",
+    ].join("\n");
+    expect(parseHandAuthoredQuestions("spec", md)).toEqual({
+      kind: "departs",
+      line: lineOf(md, decision),
+      text: decision,
+    });
+  });
+});

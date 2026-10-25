@@ -809,6 +809,46 @@ describe("authorArtifact — failures land nothing", () => {
     }
   });
 
+  // ac-other-reserved
+  it("an answer listing an option other, or recommending other, exits 5 naming the question, writing nothing", async () => {
+    const [first] = SPEC_DOCUMENT.openQuestions;
+    if (first === undefined) throw new Error("the fixture has no open question");
+    const withOtherOption = {
+      ...first,
+      options: [...first.options, { id: "other", label: "Something else", abandons: "the rest" }],
+    };
+    const cases = [
+      {
+        name: "an option other",
+        question: withOtherOption,
+        path: `openQuestions[0].options[${first.options.length}].id`,
+      },
+      {
+        name: "a recommendation other",
+        question: { ...first, recommendation: "other" },
+        path: "openQuestions[0].recommendation",
+      },
+    ];
+    for (const { name, question, path } of cases) {
+      const { fs, git, backend, run } = setup(
+        JSON.stringify({ ...SPEC_DOCUMENT, openQuestions: [question] }),
+      );
+
+      const result = await run(input());
+
+      expect(Either.isLeft(result), name).toBe(true);
+      if (Either.isRight(result)) return;
+      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.left.message).toContain(path);
+      expect(result.left.message).toContain(`${first.id}`);
+      expect(result.left.message).toContain('"other" is reserved and implicit on every question');
+      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(backend.resumeCalls).toHaveLength(1);
+      expect(repoFiles(fs)).toEqual([]);
+      expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+    }
+  });
+
   it("a document of the other kind is rejected", async () => {
     const { fs, run } = setup(JSON.stringify(PLAN_DOCUMENT));
 

@@ -545,6 +545,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/briefReport.ts",
   "src/schemas/complianceReview.ts",
   "src/schemas/costLedger.ts",
+  "src/schemas/decideVerdicts.ts",
   "src/schemas/decisionRecord.ts",
   "src/schemas/firstReading.ts",
   "src/schemas/gateAttribution.ts",
@@ -556,6 +557,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/brief-record/0.20.0.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",
   "src/schemas/history/cost-ledger/0.25.0.ts",
+  "src/schemas/history/decision-record-manifest/0.25.0.ts",
   "src/schemas/history/gate-attribution/0.17.0.ts",
   "src/schemas/history/gate-attribution/0.20.0.ts",
   "src/schemas/history/gate-attribution/0.21.0.ts",
@@ -845,6 +847,7 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "interactive-session": ["decodeInteractiveSessionFile"],
   "review-stop": ["decodeReviewStopFile"],
   "run-list": ["decodeRunListFile"],
+  "decide-verdicts": ["decodeDecideVerdictsFile"],
   "architecture-report": ["decodeArchitectureReportFile"],
 };
 

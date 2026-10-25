@@ -154,8 +154,20 @@ function render(path: ReadonlyArray<PropertyKey>): string {
     .join("");
 }
 
+/**
+ * The reserved option id every question implicitly offers: a verdict that
+ * chooses it names an answer the listed options do not. No question lists it
+ * as an option or recommends it.
+ */
+export const OTHER_OPTION_ID = "other";
+
 function optionList(question: OpenQuestion): string {
   return question.options.map((o) => o.id).join(", ");
+}
+
+// The ids a verdict may choose: the listed options and the reserved `other`.
+function choosableList(question: OpenQuestion): string {
+  return `${optionList(question)}, ${OTHER_OPTION_ID}`;
 }
 
 function firstVerdictViolation(
@@ -164,10 +176,10 @@ function firstVerdictViolation(
   path: ReadonlyArray<PropertyKey>,
 ): QuestionViolation | undefined {
   const optionIds = question.options.map((o) => o.id);
-  if (!optionIds.includes(verdict.chosen)) {
+  if (verdict.chosen !== OTHER_OPTION_ID && !optionIds.includes(verdict.chosen)) {
     return {
       path: [...path, "chosen"],
-      message: `"${verdict.chosen}" names none of the question's options (${optionList(question)})`,
+      message: `"${verdict.chosen}" names none of the question's options (${choosableList(question)})`,
     };
   }
   const seen = new Set<string>();
@@ -201,11 +213,12 @@ function firstVerdictViolation(
  * violation reported for a given document is stable:
  * 1. question ids are unique across both arrays (the later duplicate is named);
  * 2. option ids are unique within each question;
- * 3. each question's `recommendation` names one of its options;
- * 4. each arbitrated question's verdict, and every verdict in its history,
- *    chooses one of its options and abandons exactly the others, each once,
- *    in any order;
- * 5. on a plan, a current decided verdict's `phase` names one of its phases.
+ * 3. no option has the reserved id `other`, and no recommendation is `other`;
+ * 4. each question's `recommendation` names one of its options;
+ * 5. each arbitrated question's verdict, and every verdict in its history,
+ *    chooses one of its options, or the reserved `other`, and abandons
+ *    exactly every other listed option, each once, in any order;
+ * 6. on a plan, a current decided verdict's `phase` names one of its phases.
  * Paths are document-relative, for `formatFirstViolation`.
  */
 export function firstQuestionViolation(arrays: QuestionArrays): QuestionViolation | undefined {
@@ -248,6 +261,22 @@ export function firstQuestionViolation(arrays: QuestionArrays): QuestionViolatio
   }
 
   for (const { question, path } of located) {
+    const reserved = question.options.findIndex((o) => o.id === OTHER_OPTION_ID);
+    if (reserved !== -1) {
+      return {
+        path: [...path, "options", reserved, "id"],
+        message: `${question.id} lists an option with the id "${OTHER_OPTION_ID}": "${OTHER_OPTION_ID}" is reserved and implicit on every question`,
+      };
+    }
+    if (question.recommendation === OTHER_OPTION_ID) {
+      return {
+        path: [...path, "recommendation"],
+        message: `${question.id} recommends "${OTHER_OPTION_ID}": "${OTHER_OPTION_ID}" is reserved and implicit on every question`,
+      };
+    }
+  }
+
+  for (const { question, path } of located) {
     if (!question.options.some((o) => o.id === question.recommendation)) {
       return {
         path: [...path, "recommendation"],
@@ -283,7 +312,7 @@ export function firstQuestionViolation(arrays: QuestionArrays): QuestionViolatio
 
 /** The JSON Schema description of the question checks a document's decoder runs. */
 export const QUESTION_CHECKS_DESCRIPTION =
-  "question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options and `abandoned` hold exactly the others, each once";
+  "question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; no option has the id `other` and no `recommendation` is `other`, because `other` is reserved and implicit on every question; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options or the reserved `other`, and `abandoned` hold exactly the other listed options, each once (every listed option when `chosen` is `other`)";
 
 const MARKER = /^Decided by the author on (\d{4}-\d{2}-\d{2})/;
 

@@ -323,8 +323,21 @@ describe("firstHandAnswerViolation", () => {
     const violation = check(specAnswer([{ id: "Q1", verdict: verdict("weekly", ["daily"]) }]));
     expect(violation).toEqual({
       path: "decisions[0].verdict.chosen",
-      message: `"weekly" names none of the question's options (per-run, daily)`,
+      message: `"weekly" names none of the question's options (per-run, daily, other)`,
     });
+  });
+
+  it("accepts a verdict choosing other when it abandons every listed option", () => {
+    const answer = specAnswer(
+      [{ id: "Q1", verdict: verdict("other", ["daily", "per-run"], ["§5"]) }],
+      SPEC.replace("keep its log", "keep its log, compressed"),
+    );
+    expect(check(answer)).toBeUndefined();
+  });
+
+  it("refuses a verdict choosing other that leaves a listed option out", () => {
+    const answer = specAnswer([{ id: "Q1", verdict: verdict("other", ["daily"], ["§5"]) }]);
+    expect(check(answer)?.path).toBe("decisions[0].verdict.abandoned");
   });
 
   it("refuses abandoned options that are not exactly the others", () => {
@@ -467,6 +480,22 @@ describe("writeHandDecisions", () => {
     expect(parsedOf("spec", write(answer))).toMatchObject({
       open: [{ id: "Q2" }],
       arbitrated: [{ id: "Q1", chosen: "per-run", lifted: false }],
+    });
+  });
+
+  it("writes a verdict choosing other as a Decision: other line followed by its Why paragraph", () => {
+    const answer = specAnswer([
+      { id: "Q1", verdict: verdict("other", ["per-run", "daily"], ["§5.1"]) },
+    ]);
+    const written = write(answer);
+    expect(written).toContain(
+      [
+        "Decision: other — by operator (Grace Hopper), 2026-10-16",
+        "Why: a report names its run. Advocate: a bounded directory is easier to reason about. Principles: S1. Reversibility: cheap. Revised: §5.1.",
+      ].join("\n"),
+    );
+    expect(parsedOf("spec", written)).toMatchObject({
+      arbitrated: [{ id: "Q1", chosen: "other", lifted: false }],
     });
   });
 

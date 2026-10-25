@@ -603,6 +603,53 @@ describe("decide — an interactive session lands the revised document", { timeo
     expect(Either.getOrThrow(result)).toMatchObject({ decisionId: `${AUTHORING_ID}/02` });
     expect(existsSync(join(decisionFolder("02"), "prompt.md"))).toBe(true);
   });
+
+  it("lands a verdict choosing the reserved other: every option abandoned, a revised section named, Decision: other rendered", async () => {
+    writeSpec(SPEC, specDocument([Q1, Q2]));
+    commitAll();
+    const h = harness({
+      answers: [
+        answer(
+          specDocument(
+            [Q2],
+            [arbitrated(Q1, "other", { revised: ["§5 R-keep"], principles: ["S1"] })],
+          ),
+        ),
+      ],
+    });
+
+    const result = await h.run();
+
+    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    const sidecar = sidecarJson() as unknown as SpecDocument;
+    expect(sidecar.arbitratedQuestions[0]?.verdict).toMatchObject({
+      kind: "decided",
+      chosen: "other",
+      abandoned: ["Q1-a", "Q1-b"],
+      revised: ["§5 R-keep"],
+    });
+    expect(sidecar.arbitratedQuestions[0]?.options.map((o) => o.id)).toEqual(["Q1-a", "Q1-b"]);
+    expect(readRepoFile(SPEC)).toContain(`Decision: other — by operator (${OPERATOR})`);
+    expect(h.lines).toContain("Q1         arbitrated  other — departs: revises §5 R-keep");
+    expect(porcelain()).toBe("");
+  });
+
+  it("refuses a verdict choosing other that keeps a listed option unabandoned, writing nothing", async () => {
+    writeSpec(SPEC, specDocument([Q1, Q2]));
+    commitAll();
+    const head = headSha();
+    const bad = arbitrated(Q1, "other", { revised: ["§5 R-keep"] });
+    const h = harness({
+      answers: [
+        answer(specDocument([Q2], [{ ...bad, verdict: { ...bad.verdict, abandoned: ["Q1-a"] } }])),
+        answer(specDocument([Q2], [{ ...bad, verdict: { ...bad.verdict, abandoned: ["Q1-a"] } }])),
+      ],
+    });
+
+    const message = expectRefused(await h.run(), 5, head);
+
+    expect(message).toContain('misses "Q1-b"');
+  });
 });
 
 describe("decide — model resolves from flag, then catalog", { timeout: 30_000 }, () => {

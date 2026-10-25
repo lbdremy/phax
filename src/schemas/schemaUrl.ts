@@ -18,6 +18,7 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * architecture request and report of spec planning-skill-defaults, then the
  * oracle request of spec oracle-phases, then the first reading, interactive
  * handoff, interactive session and review stop of spec interactive-phases,
+ * then the decide verdicts of spec artifact-decide-verdicts,
  * appended so existing order stays stable. `code-review` joins with the headless-review plan, which ships that
  * document.
  */
@@ -53,6 +54,7 @@ export const FORMAT_IDS = [
   "interactive-session",
   "review-stop",
   "run-list",
+  "decide-verdicts",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -76,7 +78,9 @@ export function isFormatId(value: string): value is FormatId {
  * interactive handoff a declared phase's turns answer, which phax reads but
  * never writes, and the interactive session and review stop phax writes, of
  * spec interactive-phases. So is the run list `phax ls --json` prints, of the
- * same spec.
+ * same spec. So are the decide verdicts a person writes for
+ * `phax artifact decide --verdicts`, which phax reads but never writes, of
+ * spec artifact-decide-verdicts.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -97,6 +101,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "interactive-session",
   "review-stop",
   "run-list",
+  "decide-verdicts",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

@@ -290,4 +290,14 @@ describe("buildAuthoringPrompt", () => {
   it("a spec prompt carries no architecture statement", () => {
     expect(specPrompt()).not.toMatch(/architecture provider|phax architecture/);
   });
+
+  it("states in both kinds' output contract that other is reserved", () => {
+    const sentence =
+      "`other` is a reserved id, implicit on every question: never list an option with the id `other`, and never recommend it.";
+    for (const prompt of [specPrompt(), planPrompt(true)]) {
+      const at = prompt.indexOf(sentence);
+      expect(at).toBeGreaterThan(prompt.indexOf("Return ONLY a JSON object"));
+      expect(at).toBeLessThan(prompt.search(/^## .* JSON Schema$/m));
+    }
+  });
 });
