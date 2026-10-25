@@ -25,6 +25,7 @@ import {
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { runPlansOverlap, type PlansOverlapCommandOptions } from "./plansOverlap.js";
 import { runPlansEstimate, type PlansEstimateCommandOptions } from "./plansEstimate.js";
+import { runPlansOverview } from "./plansOverview.js";
 
 export interface PlansStatusCommandOptions {
   readonly apply?: true;
@@ -158,7 +159,9 @@ export async function runPlansLint(
 export function registerPlansCommand(program: Command, out: OutputPort): void {
   const plansCmd = program
     .command("plans")
-    .description("Lint and estimate a plan, and report plan staleness and cross-plan overlap");
+    .description(
+      "Lint, estimate and lay out a plan, and report plan staleness and cross-plan overlap",
+    );
 
   plansCmd
     .command("status")
@@ -203,6 +206,20 @@ export function registerPlansCommand(program: Command, out: OutputPort): void {
     .option("--json", "Emit the findings as JSON")
     .action(async (plan: string, opts: { json?: boolean }) => {
       const exitCode = await runPlansLint(
+        plan,
+        opts.json === true ? { json: true as const } : {},
+        out,
+      );
+      process.exit(exitCode);
+    });
+
+  plansCmd
+    .command("overview")
+    .description("Lay a plan out phase by phase, with its planned files by part and its test lines")
+    .argument("<plan>", "Path to the plan.md")
+    .option("--json", "Emit the overview as JSON")
+    .action(async (plan: string, opts: { json?: boolean }) => {
+      const exitCode = await runPlansOverview(
         plan,
         opts.json === true ? { json: true as const } : {},
         out,

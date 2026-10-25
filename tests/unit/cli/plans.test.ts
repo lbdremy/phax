@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resolve } from "node:path";
 import { Effect, Either } from "effect";
-import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js";
+import { Command } from "commander";
+import {
+  registerPlansCommand,
+  runPlansStatus,
+  runPlansLint,
+} from "../../../src/cli/commands/plans.js";
+import { runPlansOverview } from "../../../src/cli/commands/plansOverview.js";
+import type { PlanOverview } from "../../../src/domain/plan/overview.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -25,6 +32,10 @@ vi.mock("../../../src/app/planStaleness.js", () => ({
 
 vi.mock("../../../src/app/lintPlan.js", () => ({
   lintPlan: vi.fn(),
+}));
+
+vi.mock("../../../src/app/planOverview.js", () => ({
+  planOverview: vi.fn(),
 }));
 
 function makeOutput() {
@@ -378,5 +389,112 @@ describe("runPlansLint", () => {
 
     expect(code).not.toBe(0);
     expect(errors.join("\n")).toContain("ENOENT");
+  });
+});
+
+const OVERVIEW: PlanOverview = {
+  plan: "plan.md",
+  name: "widget",
+  title: "Made-up widget",
+  status: "Draft",
+  sourceSpec: null,
+  architecture: { kind: "none" },
+  phases: [],
+  coverage: { kind: "no-source-spec" },
+};
+
+async function mockOverview(result: Effect.Effect<PlanOverview> | Effect.Effect<never, unknown>) {
+  const { planOverview } = vi.mocked(await import("../../../src/app/planOverview.js"));
+  planOverview.mockReturnValue(result as never);
+  return planOverview;
+}
+
+describe("runPlansOverview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("exits 2 on an invalid config and reads nothing", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(
+      Either.left(
+        new ConfigValidationError({ message: "bad phax.json", path: "/fake-repo/phax.json" }),
+      ),
+    );
+    const planOverview = await mockOverview(Effect.succeed(OVERVIEW));
+
+    const { out, errors } = makeOutput();
+    const code = await runPlansOverview("plan.md", {}, out);
+
+    expect(code).toBe(2);
+    expect(errors).toEqual(["Config error: bad phax.json"]);
+    expect(planOverview).not.toHaveBeenCalled();
+  });
+
+  it("reads the absolutized path but reports the argument as typed", async () => {
+    await setupConfig();
+    const planOverview = await mockOverview(Effect.succeed(OVERVIEW));
+
+    const { out, lines } = makeOutput();
+    const code = await runPlansOverview("docs/plans/2609101260-foo-plan.md", {}, out);
+
+    expect(code).toBe(0);
+    expect(planOverview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        planMdPath: resolve(process.cwd(), "docs/plans/2609101260-foo-plan.md"),
+        reportPath: "docs/plans/2609101260-foo-plan.md",
+      }),
+    );
+    expect(lines.join("\n")).toContain("widget — Made-up widget  (Draft · no source spec)");
+  });
+
+  it("--json prints the overview as the only thing on stdout", async () => {
+    await setupConfig();
+    await mockOverview(Effect.succeed(OVERVIEW));
+
+    const { out, lines, warnings } = makeOutput();
+    const code = await runPlansOverview("plan.md", { json: true }, out);
+
+    expect(code).toBe(0);
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0]!)).toEqual(OVERVIEW);
+    expect(warnings).toEqual([]);
+  });
+
+  it("warns once on stderr when the architecture failed, and still exits 0", async () => {
+    await setupConfig();
+    await mockOverview(
+      Effect.succeed({ ...OVERVIEW, architecture: { kind: "failed", message: "boom" } }),
+    );
+
+    const { out, warnings } = makeOutput();
+    const code = await runPlansOverview("plan.md", {}, out);
+
+    expect(code).toBe(0);
+    expect(warnings).toEqual(["Warning: architecture provider failed: boom"]);
+  });
+
+  it("prints a failure's line on stderr, nothing on stdout, and exits 1", async () => {
+    await setupConfig();
+    const line = "plan.md: the plan does not parse — run phax plans lint plan.md";
+    await mockOverview(Effect.fail({ kind: "unparsable", line }));
+
+    const { out, errors, lines } = makeOutput();
+    const code = await runPlansOverview("plan.md", {}, out);
+
+    expect(code).toBe(1);
+    expect(errors).toEqual([line]);
+    expect(lines).toEqual([]);
+  });
+
+  it("is registered under plans as overview, with --json", () => {
+    const program = new Command();
+    registerPlansCommand(program, makeOutput().out);
+    const plansCmd = program.commands.find((c) => c.name() === "plans");
+    const overviewCmd = plansCmd?.commands.find((c) => c.name() === "overview");
+
+    expect(overviewCmd).toBeDefined();
+    expect(overviewCmd?.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
+    expect(overviewCmd?.options.map((o) => o.long)).toEqual(["--json"]);
   });
 });
