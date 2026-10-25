@@ -1170,15 +1170,19 @@ phax artifact reopen docs/specs/2609030749-spec-approval-ground.md --by machine:
 
 - **Usage**: `phax artifact decide [FLAGS] <path>`
 
-Decides a Draft spec's or plan's open questions with the operator, in an interactive Claude Code session. The session first raises the framing questions F1–F5, then presents the open questions in document order; --question <id> presents that question alone, an open one or an arbitrated one to re-arbitrate (its previous verdict is kept in its history). The session follows the doctrine skill for the artifact's kind (phax-decide-spec or phax-decide-plan; a project copy under .claude/skills/ replaces the bundled one), with --doctrine <file> appended after it; a verdict may cite only the backticked ids that open list items in that doctrine. It resumes the artifact's headless authoring session when phax kept its id, and starts a new one otherwise, and says which.
+Decides a Draft spec's or plan's open questions in one of two modes: with the operator in an interactive Claude Code session (the default), or from a verdicts file with --verdicts (below).
 
-decide runs on Claude Code only: the model is --model and --effort, else claude-opus-5-5 at high; a model outside the Claude Code catalog, or an effort it does not list, is refused. When the operator exits the session, phax resumes it headless for the revised document — the whole sidecar document of a headless artifact, `$schema` first at its current shape, or a hand-decision-answer for a hand-authored one — and asks once more when the answer is refused. phax stamps each verdict with the committing git identity and the time, checks the answer (only presented questions move, others stay as they were, chosen and abandoned name the question's options, cited principles are loaded ids, a departing verdict names what it revised), shows the body diff and the verdicts, and writes nothing unless the operator accepts the diff.
+In interactive mode the session first raises the framing questions F1–F5, then presents the open questions in document order; --question <id> presents that question alone, an open one or an arbitrated one to re-arbitrate (its previous verdict is kept in its history). The session follows the doctrine skill for the artifact's kind (phax-decide-spec or phax-decide-plan; a project copy under .claude/skills/ replaces the bundled one), with --doctrine <file> appended after it; a verdict may cite only the backticked ids that open list items in that doctrine. It resumes the artifact's headless authoring session when phax kept its id, and starts a new one otherwise, and says which.
 
-Before any session it refuses, writing nothing: a live sidecar not yet migrated (`phax artifact migrate-documents`), an artifact that is not Draft (an Approved or Stale one names `phax artifact reopen <path>`), a diverged or invalid sidecar, a hand-authored §9 that does not parse (naming its first departing line), uncommitted changes on the artifact or its sidecar, an unknown --question (naming the artifact's question ids), no terminal (decide is interactive only), a model outside Claude Code, a doctrine file that is unreadable, defines no principle id or redefines a skill id, and no committing git identity. With no open question and no --question it says there is nothing to decide and exits 0. Inside a phase worktree the phase guard refuses it.
+Interactive decide runs on Claude Code only: the model is --model and --effort, else claude-opus-5-5 at high; a model outside the Claude Code catalog, or an effort it does not list, is refused. When the operator exits the session, phax resumes it headless for the revised document — the whole sidecar document of a headless artifact, `$schema` first at its current shape, or a hand-decision-answer for a hand-authored one — and asks once more when the answer is refused. phax stamps each verdict with the committing git identity and the time, checks the answer (only presented questions move, others stay as they were, chosen and abandoned name the question's options or the reserved `other`, cited principles are loaded ids, a departing verdict names what it revised), shows the body diff and the verdicts, and writes nothing unless the operator accepts the diff.
+
+Before any session it refuses, writing nothing: a live sidecar not yet migrated (`phax artifact migrate-documents`), an artifact that is not Draft (an Approved or Stale one names `phax artifact reopen <path>`), a diverged or invalid sidecar, a hand-authored §9 that does not parse (naming its first departing line), uncommitted changes on the artifact or its sidecar, an unknown --question (naming the artifact's question ids), no terminal (interactive mode needs one), a model outside Claude Code (interactive mode), a doctrine file that is unreadable, defines no principle id or redefines a skill id, and no committing git identity. With no open question and no --question it says there is nothing to decide and exits 0. Inside a phase worktree the phase guard refuses it.
 
 Exit codes: 0 decided and committed, a declined diff, or nothing to decide; 1 inside a phase worktree; 5 no document, not JSON, an answer not stamped with its current shape, or one refused by the schema or its checks (after the one corrective resume), with nothing written; 8 a provider rate or usage limit, with nothing written; 12 an artifact refusal, the artifact changed during the session (its change left in place), or a failed commit (the files left written but uncommitted).
 
-Side effects: spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (only the Read, Grep and Glob tools, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer.
+Verdicts mode: --verdicts <file|-> reads decisions a person has already made, from a file or from stdin (-), and writes them into the artifact without a prompt. The file is JSON with a `$schema` naming the decide-verdicts format of this release (`phax artifact schema verdicts` prints it), an `artifact` key naming the artifact's repo-relative path, and a non-empty `verdicts` list of { question, chosen, note }: `chosen` is one of the question's option ids or the reserved id `other`, and `note` is the person's reason, a non-empty string or null. A note is required when the verdict departs from the recommendation, `other` included. Every key is required and unknown keys are refused. Questions the file does not name stay open; an arbitrated question it names is re-arbitrated. No terminal is needed with --by operator, which names the operator as git commits; --by machine:<grant> is refused, and without --by a terminal is required. One headless writer session, running under the same doctrine, writes the verdicts into the revised document and revises the body where a departing verdict implies it. It runs on the model --model and --effort name, else claude-sonnet-5-5 at medium, routed to a provider like headless authoring (a model with no equivalent on the selected provider runs as the concrete model routing chose, and the report names it beside the requested one). It resumes the kept authoring session when that session ran on the same provider in this checkout, and starts a new one otherwise, and says which. phax refuses a bad file before any session, checks the writer's answer against the file (the question set, each chosen and abandoned option, the history, the revised sections, the body outside them) and asks once more when the check fails, then sets each verdict's why (the note, else the question's rationale), by and at itself. It writes and commits without asking, leaves the artifact Draft, and prints the report to read before approving: each verdict (chosen, followed or departed with the sections revised, and why), the questions left open, the body diff, the commit and the Draft status. With --json it prints that report as one JSON object on stdout (artifact, status, session, provider, model, requestedModel, effort, verdicts, open, diff, commit, decisionId) and sends progress, warnings and record lines to stderr. The commit subject is as in interactive mode, and its body is followed by the trailers Artifact, Decided-By, Decided-Via: verdicts and Decision-Id; the decision record has mode verdicts. --question is refused with --verdicts, and --json and --by are refused without it, exit 12. The exit codes are 0 decided and committed, 1 inside a phase worktree, 5 a refused answer after the one corrective resume, 8 a provider limit, 12 a refusal.
+
+Side effects: in interactive mode, spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (only the Read, Grep and Glob tools, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer. Verdicts mode spawns one headless writer session, read-only like the others, keeps verdicts.json (the file as given) with the prompts, answer and diff in the same folder, and writes and commits the same paths without a prompt.
 
 ### Arguments
 
@@ -1192,13 +1196,25 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 
 Present this question alone: an open one, or re-arbitrate one
 
+#### `--verdicts <file|->`
+
+Decide from a verdicts file, or - for stdin, without an interactive session
+
+#### `--by <arbiter>`
+
+operator: who gave the verdicts; required without a terminal (with --verdicts)
+
+#### `--json`
+
+Print the report as one JSON object (with --verdicts)
+
 #### `--doctrine <file>`
 
 Append this doctrine file after the decide skill
 
 #### `--model <model>`
 
-Override the decide model (a Claude Code model)
+Override the decide model (interactive: a Claude Code model)
 
 #### `--effort <effort>`
 
@@ -1216,6 +1232,14 @@ phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1
 
 ```
 phax artifact decide docs/plans/2609261000-plan-prune-store-plan.md --doctrine docs/doctrine/plan.md --model claude-sonnet-5-5 --effort medium
+```
+
+```
+phax artifact decide docs/specs/2609251400-plan-prune.md --verdicts verdicts.json --by operator
+```
+
+```
+phax artifact decide docs/specs/2609251400-plan-prune.md --verdicts - --by operator --json
 ```
 
 ## `phax artifact new`
@@ -1342,7 +1366,7 @@ phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/
 
 - **Usage**: `phax artifact schema <kind>`
 
-Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.
+Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), or of a decide verdicts file (kind verdicts, the input of `phax artifact decide --verdicts`), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy, or the file to write, without a model call.
 
 Both formats are experimental: outside the version 1 stability promise, they may change between releases, and each schema is titled accordingly. The plan document's extracted fields are the extracted-plan shape phax run reads. The spec document additionally requires traceability — every acceptance criterion references existing requirements, every requirement is covered, every open question has two or more options and a recommendation among them — which the JSON Schema does not express and phax checks when it decodes a document.
 
@@ -1352,7 +1376,7 @@ Side effects: none — read-only.
 
 #### `<kind>`
 
-Document kind: spec or plan
+Document kind: spec, plan or verdicts
 
 ### Examples
 
@@ -1362,6 +1386,10 @@ phax artifact schema spec
 
 ```
 phax artifact schema plan
+```
+
+```
+phax artifact schema verdicts
 ```
 
 ## `phax artifact migrate-approvals`

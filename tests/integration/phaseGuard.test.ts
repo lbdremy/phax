@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,6 +76,24 @@ describe("phase guard — inside a phase worktree", () => {
     const result = runCli(phaseWorktree, ["run", "--plan", "p"]);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(guardMessage("run"));
+  });
+
+  it("refuses phax artifact decide --verdicts with the guard's message and exit 1, writing nothing", () => {
+    writeFileSync(join(phaseWorktree, "verdicts.json"), "{}");
+    const result = runCli(phaseWorktree, [
+      "artifact",
+      "decide",
+      "docs/specs/2610250900-log-rotation.md",
+      "--verdicts",
+      "verdicts.json",
+      "--by",
+      "operator",
+    ]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(guardMessage("artifact decide"));
+    // No session ran and nothing was written: no state root, no commit.
+    expect(result.stdout).toBe("");
+    expect(existsSync(join(home, ".phax"))).toBe(false);
   });
 
   it("refuses from a subdirectory of the phase worktree too", () => {
