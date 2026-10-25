@@ -687,6 +687,7 @@ describe("publishRun — the phax footer", () => {
     info?: RunReviewInfo;
     setup?: (s: ReturnType<typeof setupLayers>) => void;
     phaxVersion?: string;
+    config?: Partial<ResolvedPublishConfig>;
   }) {
     const s = setupLayers();
     seedSuccessPreconditions({
@@ -698,7 +699,7 @@ describe("publishRun — the phax footer", () => {
     const sha = args.head !== undefined ? seedHead(s.git, args.head) : null;
     args.setup?.(s);
     const result = await Effect.runPromise(
-      publishRun(args.info ?? makeInfo(), defaultConfig(), {
+      publishRun(args.info ?? makeInfo(), defaultConfig(args.config), {
         repoRoot,
         now: constNow,
         phaxVersion: args.phaxVersion ?? "0.0.0-test",
@@ -825,6 +826,20 @@ describe("publishRun — the phax footer", () => {
     expect(github.impl.calls.some((c) => c.method === "repoWebUrl")).toBe(false);
     expect(git.impl.calls.some((c) => c.method === "readTree")).toBe(false);
     expect(fs.impl.getFile(`${runPath}/pr-body.md`)).toBeUndefined();
+  });
+
+  it("(j) writes code spans and looks up no web URL when the branch is not pushed", async () => {
+    const { body, result, git, github } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy(LIVE_SPEC),
+      head: [ARCHIVED_PLAN, ARCHIVED_SPEC],
+      config: { pushBranch: false },
+    });
+    expect(result.kind).toBe("published");
+    expect(git.impl.calls.some((c) => c.method === "pushBranch")).toBe(false);
+    expect(github.impl.calls.some((c) => c.method === "repoWebUrl")).toBe(false);
+    expect(body).toContain(`\n**Plan** \`${ARCHIVED_PLAN}\` · **Spec** \`${ARCHIVED_SPEC}\`\\\n`);
+    expect(body).not.toContain("/blob/");
   });
 
   it("(i) names the version from the option in the generated line", async () => {

@@ -1,8 +1,8 @@
-import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
+import { countCompletedPhases } from "../domain/completedPhases.js";
 import { holdsPhase } from "../domain/hold.js";
 import { interpret } from "../domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../domain/state.js";
@@ -23,6 +23,14 @@ export type ResumeRefusalReason =
   | "handoff_unrecoverable"
   | "run_not_found";
 
+/**
+ * What a committed start phase still owes before the run goes on: nothing,
+ * its handoff turn (cut short by a limit), or what follows a valid handoff
+ * (its pulled briefs, its record and its cleanup), which never ran when the
+ * handoff was written by hand.
+ */
+export type OwedStep = "none" | "handoff" | "post-handoff";
+
 export interface ResumeDecision {
   readonly shortName: string;
   readonly nextPhaseId: string;
@@ -31,6 +39,8 @@ export interface ResumeDecision {
   readonly worktreePath: string | undefined;
   /** Phases that were skipped (produced no changes) and will be bypassed on resume. */
   readonly skippedPhaseIds: readonly string[];
+  /** What the start phase owes first; `none` for every phase that is not committed. */
+  readonly owedStep: OwedStep;
 }
 
 export interface ResumeRefusal {
@@ -42,6 +52,47 @@ interface NextResumablePhase {
   readonly phaseId: string;
   readonly phaseIndex: number;
   readonly worktreePath: string | undefined;
+  readonly owedStep: OwedStep;
+}
+
+/**
+ * What the resume decision reads from disk besides the run's statuses: the
+ * run's recorded hold, `readOwedHandoffs` of the run, and which of the
+ * phases' recorded worktrees still exist (`readPresentWorktrees`).
+ */
+export interface ResumeFacts {
+  readonly hold: RunHold;
+  readonly owedHandoffs: ReadonlySet<string>;
+  readonly presentWorktrees: ReadonlySet<string>;
+}
+
+/** The resume decision, with the count of the run's phases that committed. */
+export interface ResumeInspection {
+  readonly decision: Either.Either<ResumeDecision, ResumeRefusal>;
+  /** `countCompletedPhases` of the run's statuses, for a run already at review. */
+  readonly completedPhaseCount: number;
+}
+
+/**
+ * What a phase owes on resume, by its status. A committed phase in
+ * `owedHandoffs` owes its handoff turn. A non-final committed phase outside
+ * the hold whose stop is null and whose handoff is valid owes what follows
+ * the handoff: every such phase moves on to its cleanup in the same
+ * invocation, so a persisted one means its handoff was written by hand after
+ * the turn was cut short.
+ */
+function owedStepOf(
+  status: PhaseStatus,
+  isFinal: boolean,
+  hold: RunHold,
+  owedHandoffs: ReadonlySet<string>,
+): OwedStep {
+  if (status.state !== "committed") return "none";
+  if (owedHandoffs.has(status.phaseId)) return "handoff";
+  if (!isFinal && status.stop === null && !holdsPhase(hold, status.phaseId)) {
+    return "post-handoff";
+  }
+  return "none";
 }
 
 /**
@@ -67,7 +118,9 @@ interface NextResumablePhase {
  *
  * A non-final `committed` phase in `owedHandoffs` is resumable as well: its
  * handoff turn was cut short (a limit inside it leaves the run running), and
- * executePlan re-runs only that turn before going on.
+ * executePlan re-runs only that turn before going on. So is one outside the
+ * hold whose handoff is valid but whose record and cleanup never ran (a
+ * handoff written by hand): executePlan runs only those (`owedStepOf`).
  */
 export function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
@@ -83,7 +136,12 @@ export function findNextResumablePhase(
       const status = statusByPhaseId.get(planPhase.id);
       if (!status) {
         // No on-disk folder yet — this phase hasn't started.
-        return { phaseId: planPhase.id, phaseIndex: i, worktreePath: undefined };
+        return {
+          phaseId: planPhase.id,
+          phaseIndex: i,
+          worktreePath: undefined,
+          owedStep: "none",
+        };
       }
       const isFinalPlanPhase = i === planPhases.length - 1;
       const owesHeldStop =
@@ -95,18 +153,19 @@ export function findNextResumablePhase(
       // close was interrupted between its state event and its cleanup.
       const owesClosedStopCleanup =
         !isFinalPlanPhase && status.state === "committed" && status.stop?.status === "closed";
-      const owesHandoff = status.state === "committed" && owedHandoffs.has(status.phaseId);
+      const owedStep = owedStepOf(status, isFinalPlanPhase, hold, owedHandoffs);
       const resumable =
         !TERMINAL_PHASE_STATES.has(status.state) ||
         (isFinalPlanPhase && status.state === "committed") ||
         owesHeldStop ||
         owesClosedStopCleanup ||
-        owesHandoff;
+        owedStep !== "none";
       if (resumable) {
         return {
           phaseId: status.phaseId,
           phaseIndex: status.phaseIndex,
           worktreePath: status.worktreePath,
+          owedStep,
         };
       }
     }
@@ -116,7 +175,12 @@ export function findNextResumablePhase(
   // Fallback when no plan is available: scan phaseStatuses directly.
   const found = phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
   return found
-    ? { phaseId: found.phaseId, phaseIndex: found.phaseIndex, worktreePath: found.worktreePath }
+    ? {
+        phaseId: found.phaseId,
+        phaseIndex: found.phaseIndex,
+        worktreePath: found.worktreePath,
+        owedStep: "none",
+      }
     : undefined;
 }
 
@@ -160,13 +224,17 @@ function handoffUnrecoverable(
   info: RunReviewInfo,
   status: PhaseStatus,
   isFinal: boolean,
+  presentWorktrees: ReadonlySet<string>,
 ): ResumeRefusal | null {
-  const worktreeGone = status.worktreePath === undefined || !existsSync(status.worktreePath);
+  const worktreeGone =
+    status.worktreePath === undefined || !presentWorktrees.has(status.worktreePath);
   const sessionGone = status.claudeSessionId === undefined;
   if (!worktreeGone && !sessionGone) return null;
   const { shortName } = info;
   const worktree = status.worktreePath ?? "(none recorded)";
-  const restore = `git worktree add ${worktree} ${status.branchName}`;
+  // A deleted worktree directory stays registered in git, and `git worktree
+  // add` refuses a missing but registered worktree until it is pruned.
+  const restore = `\`git worktree prune\` then \`git worktree add ${worktree} ${status.branchName}\``;
   const resumeAgain = `phax resume ${shortName} --yes`;
   const gone = [
     ...(worktreeGone ? [`its worktree "${worktree}" no longer exists`] : []),
@@ -178,29 +246,30 @@ function handoffUnrecoverable(
         `Write ${handoffPath(info.runPath, status.phaseId)} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}.`,
         // Completion runs in the final phase's worktree.
         ...(worktreeGone && isFinal
-          ? [`Restore its worktree, which completing the run needs: \`${restore}\`.`]
+          ? [`Restore its worktree, which completing the run needs: ${restore}.`]
           : []),
         `Then run \`${resumeAgain}\`.`,
       ]
     : [
-        `Restore it with \`${restore}\`, then run \`${resumeAgain}\`: phax then writes the handoff itself.`,
+        `Restore it with ${restore}, then run \`${resumeAgain}\`: phax then writes the handoff itself.`,
       ];
   return { reason: "handoff_unrecoverable", message: [head, ...remedy].join(" ") };
 }
 
 /**
- * The resume decision for a resolved run. `hold` is the run's recorded hold,
- * read from its run-status.json: it makes a held phase whose stop is still
- * owed the start phase. `owedHandoffs` is `readOwedHandoffs` of the run: a
- * committed phase in it is the start phase, or refused when its handoff turn
- * cannot run again.
+ * The resume decision for a resolved run, from what `facts` read of it. The
+ * recorded hold makes a held phase whose stop is still owed the start phase.
+ * A committed phase in `owedHandoffs` is the start phase, or refused when its
+ * handoff turn cannot run again. A worktree missing from `presentWorktrees`
+ * refuses the start phase, except for a phase that owes only what follows its
+ * handoff: its cleanup has nothing left to clean.
  */
 export function inspectResumeFromInfo(
   info: RunReviewInfo,
-  hold: RunHold,
-  owedHandoffs: ReadonlySet<string>,
+  facts: ResumeFacts,
 ): Either.Either<ResumeDecision, ResumeRefusal> {
   const { shortName } = info;
+  const { hold, owedHandoffs, presentWorktrees } = facts;
 
   const currentPhase = findCurrentPhase(info.phaseStatuses);
   const state = composePhaxState(info.runState as RunStatus["state"], info.lastError, currentPhase);
@@ -234,11 +303,20 @@ export function inspectResumeFromInfo(
   if (owingStatus !== undefined) {
     // The plan's last phase; `finalPhaseId` is only the last phase on disk.
     const finalPhaseId = info.planPhases.at(-1)?.id ?? info.finalPhaseId;
-    const refusal = handoffUnrecoverable(info, owingStatus, owingStatus.phaseId === finalPhaseId);
+    const refusal = handoffUnrecoverable(
+      info,
+      owingStatus,
+      owingStatus.phaseId === finalPhaseId,
+      presentWorktrees,
+    );
     if (refusal !== null) return Either.left(refusal);
   }
 
-  if (nextPhase.worktreePath !== undefined && !existsSync(nextPhase.worktreePath)) {
+  if (
+    nextPhase.owedStep !== "post-handoff" &&
+    nextPhase.worktreePath !== undefined &&
+    !presentWorktrees.has(nextPhase.worktreePath)
+  ) {
     return Either.left({
       reason: "missing_worktree",
       message: `Worktree for phase "${nextPhase.phaseId}" at "${nextPhase.worktreePath}" no longer exists. The run cannot be resumed automatically.`,
@@ -256,6 +334,27 @@ export function inspectResumeFromInfo(
     fromState: info.runState,
     worktreePath: nextPhase.worktreePath,
     skippedPhaseIds,
+    owedStep: nextPhase.owedStep,
+  });
+}
+
+/**
+ * The resume decision for a resolved run whose recorded hold is `hold`: reads
+ * the owed handoffs and the present worktrees through the FileSystem port,
+ * decides, and counts the run's committed phases. Fails when a handoff or a
+ * worktree cannot be checked.
+ */
+export function inspectResumeOfRun(
+  info: RunReviewInfo,
+  hold: RunHold,
+): Effect.Effect<ResumeInspection, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const owedHandoffs = yield* readOwedHandoffs(info.runPath, info.phaseStatuses);
+    const presentWorktrees = yield* readPresentWorktrees(info.phaseStatuses);
+    return {
+      decision: inspectResumeFromInfo(info, { hold, owedHandoffs, presentWorktrees }),
+      completedPhaseCount: countCompletedPhases(info.phaseStatuses),
+    };
   });
 }
 
@@ -274,16 +373,30 @@ export function inspectResume(
     );
   }
   const info = infoResult.right;
-  return Effect.all([
-    readRunHold(info.runPath),
-    readOwedHandoffs(info.runPath, info.phaseStatuses),
-  ]).pipe(
+  return readRunHold(info.runPath).pipe(
+    Effect.flatMap((hold) => inspectResumeOfRun(info, hold)),
     Effect.match({
       onFailure: (error): Either.Either<ResumeDecision, ResumeRefusal> =>
         Either.left({ reason: "run_not_found", message: error.message }),
-      onSuccess: ([hold, owedHandoffs]) => inspectResumeFromInfo(info, hold, owedHandoffs),
+      onSuccess: (inspection) => inspection.decision,
     }),
   );
+}
+
+/** The recorded worktree paths of the run's phases that exist on disk. */
+export function readPresentWorktrees(
+  phaseStatuses: readonly Pick<PhaseStatus, "worktreePath">[],
+): Effect.Effect<ReadonlySet<string>, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const present = new Set<string>();
+    for (const { worktreePath } of phaseStatuses) {
+      if (worktreePath !== undefined && (yield* fs.exists(worktreePath))) {
+        present.add(worktreePath);
+      }
+    }
+    return present;
+  });
 }
 
 /**

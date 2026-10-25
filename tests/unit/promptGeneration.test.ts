@@ -217,6 +217,18 @@ describe("buildPhasePrompt", () => {
     expect(prompt).not.toContain("(no previous phase)");
   });
 
+  it("says a skipped previous phase has no handoff and no commit, never that it is missing", () => {
+    const prompt = buildPhasePrompt({
+      ...base,
+      previousHandoff: { kind: "skipped", phaseId: "phase-02" },
+    });
+    expect(previousHandoffSection(prompt)).toBe(
+      "(phase-02 was skipped: it produced no changes, so it has no handoff and no commit. Read the earlier commits on this branch for what came before.)",
+    );
+    expect(prompt).not.toContain("is missing");
+    expect(prompt).not.toContain("(no previous phase)");
+  });
+
   it("includes required output instructions", () => {
     const prompt = buildPhasePrompt(base);
     expect(prompt).toContain("summary.md");

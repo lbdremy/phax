@@ -19,8 +19,7 @@ import { runKey } from "../../domain/runRef.js";
 import { oracleSkipRefusal, stopSkipOracleRefusal } from "../../domain/plan/oraclePairs.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
-import { inspectResumeFromInfo, readOwedHandoffs } from "../../app/resume.js";
-import { countCompletedPhases } from "../../domain/completedPhases.js";
+import { inspectResumeOfRun } from "../../app/resume.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { readRunStatusFile } from "../../schemas/persisted.js";
 import { executePlan } from "../../app/executePlan.js";
@@ -121,24 +120,20 @@ export async function runResume(
   }
   const runStatus = runStatusResult.right;
 
-  // A committed phase whose handoff turn was cut short owes its handoff.
-  const owedResult = await Effect.runPromise(
-    Effect.either(readOwedHandoffs(runPath, info.phaseStatuses)).pipe(
+  const inspectionResult = await Effect.runPromise(
+    Effect.either(inspectResumeOfRun(info, runStatus.hold)).pipe(
       Effect.provide(makeRepoRootedFileSystemLayer(config)),
     ),
   );
-  if (Either.isLeft(owedResult)) {
-    out.error(`Cannot read the run's phase handoffs: ${owedResult.left.message}`);
+  if (Either.isLeft(inspectionResult)) {
+    out.error(`Cannot read the run's phases: ${inspectionResult.left.message}`);
     return 2;
   }
-  const owedHandoffs = owedResult.right;
-
-  const decisionResult = inspectResumeFromInfo(info, runStatus.hold, owedHandoffs);
+  const { decision: decisionResult, completedPhaseCount } = inspectionResult.right;
   if (Either.isLeft(decisionResult)) {
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
       out.warn(refusal.message);
-      const phaseCount = countCompletedPhases(info.phaseStatuses);
       let prUrl: string | undefined;
       try {
         const pubRaw = JSON.parse(
@@ -153,7 +148,10 @@ export async function runResume(
       }
       out.warn(
         renderWhatsNext(
-          buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),
+          buildWhatsNext(
+            { kind: "review_open", shortName, prUrl, phaseCount: completedPhaseCount },
+            new Date(),
+          ),
         ),
       );
       return 0;
@@ -192,9 +190,13 @@ export async function runResume(
   out.log(
     `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
   );
-  if (owedHandoffs.has(decision.nextPhaseId)) {
+  if (decision.owedStep === "handoff") {
     out.log(
       `  Writing the missing handoff of ${decision.nextPhaseId} first (its handoff turn did not finish).`,
+    );
+  } else if (decision.owedStep === "post-handoff") {
+    out.log(
+      `  Finishing ${decision.nextPhaseId} first: its handoff is in place, its record and cleanup did not run.`,
     );
   }
   if (opts.skipOracle === true) {

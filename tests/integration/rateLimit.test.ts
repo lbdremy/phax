@@ -269,7 +269,7 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     const now = new Date().toISOString();
 
-    // phase-01 already completed before the limit was hit.
+    // phase-01 already completed, its cleanup included, before the limit was hit.
     const phase01FolderPath = join(runPath, "phase-01");
     await mkdir(phase01FolderPath, { recursive: true });
     await writeFile(
@@ -278,7 +278,7 @@ describe("executePlan — rate-limit detection and resume", () => {
         phaseStatusFile({
           phaseId: "phase-01",
           phaseIndex: 0,
-          state: "committed",
+          state: "cleaned_up",
           model: "claude-sonnet-4-6",
           effort: "low",
           branchName: "ai/my-run--phase-01",
@@ -421,11 +421,11 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
-    // phase-01 was not touched — still committed, no worktree re-created.
+    // phase-01 was not touched — still cleaned up, no worktree re-created.
     const phase01Status = JSON.parse(
       await readFile(join(phase01FolderPath, "status.json"), "utf8"),
     ) as { state: string };
-    expect(phase01Status.state).toBe("committed");
+    expect(phase01Status.state).toBe("cleaned_up");
     expect(fakeGit.impl.calls.some((c) => c.method === "addWorktree")).toBe(false);
 
     // phase-02 ran to completion and the run reached review_open.
