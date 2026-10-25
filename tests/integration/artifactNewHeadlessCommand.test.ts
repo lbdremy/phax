@@ -11,12 +11,19 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { runCreateArtifactHeadless } from "../../src/cli/commands/artifact.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+
+// The helper moves homedir() for the modules that compute ~/.phax paths at
+// import; the HOME stub in beforeEach alone came after those were computed.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 
 // End-to-end through the command function: real temp git and filesystem, a
 // fake backend swapped in through runCreateArtifactHeadless's deps seam — the
@@ -93,8 +100,7 @@ const SPEC_DOCUMENT = {
 };
 
 let repoDir: string;
-let tempHome: string;
-let originalHome: string | undefined;
+let home: ReturnType<typeof isolatePhaxHome>;
 let originalCwd: string;
 
 beforeEach(() => {
@@ -115,19 +121,15 @@ beforeEach(() => {
   );
   writeFileSync(join(repoDir, "brief.md"), "Prune archived runs.\nFree their slugs.\n");
 
-  tempHome = mkdtempSync(join(tmpdir(), "phax-headless-cmd-home-"));
-  originalHome = process.env["HOME"];
-  process.env["HOME"] = tempHome;
+  home = isolatePhaxHome();
 
   process.chdir(repoDir);
 });
 
 afterEach(() => {
   process.chdir(originalCwd);
-  if (originalHome === undefined) delete process.env["HOME"];
-  else process.env["HOME"] = originalHome;
   removeTempDir(repoDir);
-  removeTempDir(tempHome);
+  home.restore();
 });
 
 function headCommitPaths(): string[] {

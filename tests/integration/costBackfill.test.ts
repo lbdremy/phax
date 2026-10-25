@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, utimesSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Effect } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backfillCostLedgers } from "../../src/app/costBackfill.js";
 import { runCostBackfill } from "../../src/cli/commands/cost.js";
 import { runKey } from "../../src/domain/runRef.js";
@@ -18,6 +18,7 @@ import { Lock } from "../../src/ports/lock.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodeRegistryFile, type RegistryEntry } from "../../src/schemas/registry.js";
 import type { CostLedgerEntry } from "../../src/schemas/costLedger.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import {
   createPruneRepo,
   recordingOutput,
@@ -26,10 +27,17 @@ import {
   type PruneRepo,
 } from "./helpers/pruneRepo.js";
 
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
+
 let roots: PruneRepo;
 let originalCwd: string;
+let home: ReturnType<typeof isolatePhaxHome>;
 
 beforeEach(() => {
+  home = isolatePhaxHome();
   roots = createPruneRepo();
   originalCwd = process.cwd();
   process.chdir(roots.repo);
@@ -38,6 +46,7 @@ beforeEach(() => {
 afterEach(() => {
   process.chdir(originalCwd);
   removePruneRepo(roots);
+  home.restore();
 });
 
 function entry(shortName: string, overrides: Partial<RegistryEntry> = {}): RegistryEntry {

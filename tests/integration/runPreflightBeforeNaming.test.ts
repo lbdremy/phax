@@ -30,6 +30,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan } from "../../src/app/lintPlan.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   createPreflightRepo,
@@ -42,6 +43,10 @@ import {
   writeFixtureFile,
 } from "./helpers/preflightRepo.js";
 
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 // Telemetry on, so a run that got as far as executePlan would leave a
 // semantic.jsonl (with --trace) under its run folder.
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
@@ -368,15 +373,18 @@ const SCENARIO_CASES = [...Object.entries(SCENARIOS), ...Object.entries(EXTRA_SC
 describe("phax run — a preflight refusal precedes naming", () => {
   let roots: PreflightRepo | undefined;
   let origCwd: string;
+  let home: ReturnType<typeof isolatePhaxHome>;
 
   beforeEach(() => {
     origCwd = process.cwd();
+    home = isolatePhaxHome();
   });
 
   afterEach(() => {
     process.chdir(origCwd);
     removePreflightRepo(roots);
     roots = undefined;
+    home.restore();
     vi.resetAllMocks();
   });
 

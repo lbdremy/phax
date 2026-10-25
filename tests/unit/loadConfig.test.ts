@@ -3,8 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import {
   DEFAULT_EXTRACT_MODEL,
@@ -23,15 +24,23 @@ const baseConfig = {
   gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 };
 
+// loadConfig reads homedir()/.phax/config.json: give it a temporary home.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
+
 let repoDir: string;
+let home: ReturnType<typeof isolatePhaxHome>;
 
 beforeEach(() => {
+  home = isolatePhaxHome();
   repoDir = mkdtempSync(join(tmpdir(), "phax-loadconfig-test-"));
   execSync("git init", { cwd: repoDir, stdio: "ignore" });
 });
 
 afterEach(() => {
   rmSync(repoDir, { recursive: true, force: true });
+  home.restore();
 });
 
 function writePhaxJson(config: object): void {
