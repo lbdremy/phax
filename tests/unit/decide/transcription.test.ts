@@ -110,7 +110,7 @@ function decidedOf(sidecar: SidecarDocument, id: string) {
 }
 
 describe("a valid transcription", () => {
-  it.fails("lands each named question as arbitrated, as given, and leaves the others open", () => {
+  it("lands each named question as arbitrated, as given, and leaves the others open", () => {
     const { document, verdicts } = landed(SPEC, ANSWER_FOLLOW, BOUND_FOLLOW);
     const spec = specOf(document);
     expect(spec.arbitratedQuestions.map((q) => q.id)).toEqual(["q-keep", "q-scope"]);
@@ -126,7 +126,7 @@ describe("a valid transcription", () => {
     expect(verdicts).toEqual(TRANSCRIBED_FOLLOW);
   });
 
-  it.fails("lands the note as the why, and the rationale when there is no note", () => {
+  it("lands the note as the why, and the rationale when there is no note", () => {
     const { document } = landed(SPEC, ANSWER_FOLLOW, BOUND_FOLLOW);
     expect(decidedOf(document, "q-keep").why).toBe("Ten logs cover a week of runs.");
     expect(decidedOf(document, "q-scope").why).toBe(
@@ -134,7 +134,7 @@ describe("a valid transcription", () => {
     );
   });
 
-  it.fails("sets why, by and at over whatever the writer returned", () => {
+  it("sets why, by and at over whatever the writer returned", () => {
     const { document, verdicts } = landed(SPEC, ANSWER_WRITER_STAMPS, BOUND_FOLLOW);
     for (const id of ["q-keep", "q-scope"]) {
       expect(decidedOf(document, id)).toMatchObject({
@@ -146,14 +146,14 @@ describe("a valid transcription", () => {
     expect(verdicts).toEqual(TRANSCRIBED_FOLLOW);
   });
 
-  it.fails("leaves every field outside the question arrays as it was when every verdict follows", () => {
+  it("leaves every field outside the question arrays as it was when every verdict follows", () => {
     const { document } = landed(SPEC, ANSWER_FOLLOW, BOUND_FOLLOW);
     const { openQuestions: _open, arbitratedQuestions: _arbitrated, ...rest } = specOf(document);
     const { openQuestions: _o, arbitratedQuestions: _a, ...original } = specOf(SPEC);
     expect(rest).toEqual(original);
   });
 
-  it.fails("keeps an unnamed open question exactly as it was", () => {
+  it("keeps an unnamed open question exactly as it was", () => {
     const { document } = landed(SPEC, ANSWER_FOLLOW, BOUND_FOLLOW);
     expect(specOf(document).openQuestions).toEqual(
       specOf(SPEC).openQuestions.filter((q) => q.id === "q-names"),
@@ -209,32 +209,29 @@ describe("a transcription is refused (§5.15)", () => {
     ],
   ];
 
-  it.fails.each(refusals)(
-    "refuses %s, at the violating path",
-    (_name, original, answer, bound, path) => {
-      expect(refusalOf(original, answer, bound).path).toBe(path);
-    },
-  );
+  it.each(refusals)("refuses %s, at the violating path", (_name, original, answer, bound, path) => {
+    expect(refusalOf(original, answer, bound).path).toBe(path);
+  });
 
-  it.fails("names the unlisted principle it refuses", () => {
+  it("names the unlisted principle it refuses", () => {
     expect(refusalOf(SPEC, ANSWER_CITES_S12, BOUND_KEEP_FOLLOWS).message).toContain("S12");
   });
 
-  it.fails("refuses an option added to a question, naming the question's options", () => {
+  it("refuses an option added to a question, naming the question's options", () => {
     const refusal = refusalOf(SPEC, ANSWER_ADDS_OPTION, BOUND_NAMES_OTHER);
     expect(refusal.path).toMatch(/^arbitratedQuestions\[0\]\.(options|verdict\.chosen)/);
     expect(refusal.message).toContain("by-date");
     expect(refusal.message).toContain("by-run");
   });
 
-  it.fails("refuses an answer that is not stamped with the document's current shape", () => {
+  it("refuses an answer that is not stamped with the document's current shape", () => {
     const { $schema: _schema, ...unstamped } = ANSWER_FOLLOW as Record<string, unknown>;
     expect(refusalOf(SPEC, unstamped, BOUND_FOLLOW).path).toBe("$schema");
   });
 });
 
 describe("a departing verdict", () => {
-  it.fails("lands with the note as its why and the sections it revised", () => {
+  it("lands with the note as its why and the sections it revised", () => {
     const { document, verdicts } = landed(SPEC, ANSWER_DEPARTS, BOUND_KEEP_20);
     expect(decidedOf(document, "q-keep")).toMatchObject({
       chosen: "keep-20",
@@ -259,7 +256,7 @@ describe("a departing verdict", () => {
 });
 
 describe("other", () => {
-  it.fails("lands chosen other, every listed option abandoned and the note as its why", () => {
+  it("lands chosen other, every listed option abandoned and the note as its why", () => {
     const { document, verdicts } = landed(SPEC, ANSWER_OTHER, BOUND_NAMES_OTHER);
     expect(decidedOf(document, "q-names")).toMatchObject({
       chosen: "other",
@@ -272,7 +269,7 @@ describe("other", () => {
     ]);
   });
 
-  it.fails("leaves the question's options unchanged, with no other among them", () => {
+  it("leaves the question's options unchanged, with no other among them", () => {
     const { document } = landed(SPEC, ANSWER_OTHER, BOUND_NAMES_OTHER);
     const options = arbitratedOf(document, "q-names").options;
     expect(options).toEqual(specOf(SPEC).openQuestions.find((q) => q.id === "q-names")?.options);
@@ -281,7 +278,7 @@ describe("other", () => {
 });
 
 describe("a re-arbitrated question", () => {
-  it.fails("lands the new verdict with the previous one at the end of its history", () => {
+  it("lands the new verdict with the previous one at the end of its history", () => {
     const { document } = landed(
       SPEC_KEEP_DECIDED,
       ANSWER_REARBITRATE_KEEP_20,
@@ -296,7 +293,7 @@ describe("a re-arbitrated question", () => {
     expect(question.history).toEqual([PREVIOUS_KEEP]);
   });
 
-  it.fails("leaves every other question as it was", () => {
+  it("leaves every other question as it was", () => {
     const { document } = landed(
       SPEC_KEEP_DECIDED,
       ANSWER_REARBITRATE_KEEP_20,
@@ -305,7 +302,7 @@ describe("a re-arbitrated question", () => {
     expect(specOf(document).openQuestions).toEqual(specOf(SPEC_KEEP_DECIDED).openQuestions);
   });
 
-  it.fails("appends the previous verdict to the history even when the choice is the same", () => {
+  it("appends the previous verdict to the history even when the choice is the same", () => {
     const { document, verdicts } = landed(
       SPEC_KEEP_DECIDED,
       ANSWER_REARBITRATE_SAME,
@@ -319,7 +316,7 @@ describe("a re-arbitrated question", () => {
 });
 
 describe("a plan's verdict", () => {
-  it.fails("lands bearing on a phase of the plan", () => {
+  it("lands bearing on a phase of the plan", () => {
     const { document } = landed(PLAN, ANSWER_PLAN_PHASE_02, BOUND_PLAN_Q1);
     if (document.kind !== "plan") throw new Error("expected a plan");
     const [question] = document.document.preamble.arbitratedQuestions;
@@ -332,14 +329,14 @@ describe("a plan's verdict", () => {
     expect(document.document.preamble.openQuestions.map((q) => q.id)).toEqual(["Q2"]);
   });
 
-  it.fails("restores the plan's lineage over whatever the writer returned", () => {
+  it("restores the plan's lineage over whatever the writer returned", () => {
     const { document } = landed(PLAN, ANSWER_PLAN_PHASE_02, BOUND_PLAN_Q1);
     if (document.kind !== "plan" || PLAN.kind !== "plan") throw new Error("expected a plan");
     expect(document.document.sourceSpec).toBe(PLAN.document.sourceSpec);
     expect(document.document.completesSpec).toBe(PLAN.document.completesSpec);
   });
 
-  it.fails("refuses a phase the plan does not have, at the verdict's phase", () => {
+  it("refuses a phase the plan does not have, at the verdict's phase", () => {
     const refusal = refusalOf(PLAN, ANSWER_PLAN_PHASE_07, BOUND_PLAN_Q1);
     expect(refusal.path).toBe("preamble.arbitratedQuestions[0].verdict.phase");
     expect(refusal.message).toContain("phase-07");
@@ -354,7 +351,7 @@ describe("a hand decision answer", () => {
     return checked.right;
   }
 
-  it.fails("lands the named question in the arbitrated section and leaves the other open", () => {
+  it("lands the named question in the arbitrated section and leaves the other open", () => {
     const { md, verdicts } = handLanded(HAND_ANSWER_Q1, BOUND_HAND_Q1);
     const parsed = parseHandAuthoredQuestions("spec", md);
     if (parsed.kind !== "parsed") throw new Error("the written Markdown does not parse");
@@ -363,7 +360,7 @@ describe("a hand decision answer", () => {
     expect(verdicts).toEqual(TRANSCRIBED_HAND_Q1);
   });
 
-  it.fails("writes the Decision block and one decision-log entry for the named question", () => {
+  it("writes the Decision block and one decision-log entry for the named question", () => {
     const { md } = handLanded(HAND_ANSWER_Q1, BOUND_HAND_Q1);
     expect(md).toContain("Decision: keep-10 — by operator (Ada Lovelace), 2026-10-25");
     const entries = md.split("\n").filter((line) => /\bQ\d+ decided\b/.test(line));
@@ -371,7 +368,7 @@ describe("a hand decision answer", () => {
     expect(entries[0]).toContain("Q1 decided keep-10");
   });
 
-  it.fails("sets why, by and at on the decoded answer over whatever the writer returned", () => {
+  it("sets why, by and at on the decoded answer over whatever the writer returned", () => {
     const { answer } = handLanded(HAND_ANSWER_Q1, BOUND_HAND_Q1);
     expect(answer.decisions.map((d) => d.id)).toEqual(["Q1"]);
     expect(answer.decisions[0]?.verdict).toMatchObject({
@@ -383,7 +380,7 @@ describe("a hand decision answer", () => {
     expect(answer.decisions[0]?.verdict.why).toBe(BOUND_HAND_Q1.verdicts[0]?.why);
   });
 
-  it.fails("refuses an answer choosing another option than the one given", () => {
+  it("refuses an answer choosing another option than the one given", () => {
     const checked = checkHand(HAND_ANSWER_WRONG_OPTION, BOUND_HAND_Q1);
     if (Either.isRight(checked)) throw new Error("expected a refusal");
     expect(checked.left.path).toBe("decisions[0].verdict.chosen");

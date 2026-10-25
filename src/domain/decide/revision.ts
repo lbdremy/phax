@@ -62,7 +62,7 @@ function renderPath(path: ReadonlyArray<PropertyKey>): string {
     .join("");
 }
 
-function refusal(path: ReadonlyArray<PropertyKey>, message: string): RevisionRefusal {
+export function refusal(path: ReadonlyArray<PropertyKey>, message: string): RevisionRefusal {
   return { path: renderPath(path), message };
 }
 
@@ -70,12 +70,12 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
   return kind === "spec" ? "spec-document" : "plan-document";
 }
 
-interface LocatedArrays extends DecideQuestions {
+export interface LocatedArrays extends DecideQuestions {
   /** `[]` for a spec, `["preamble"]` for a plan. */
   readonly basePath: ReadonlyArray<PropertyKey>;
 }
 
-function arraysOf(sidecar: SidecarDocument): LocatedArrays {
+export function arraysOf(sidecar: SidecarDocument): LocatedArrays {
   return sidecar.kind === "spec"
     ? {
         basePath: [],
@@ -130,7 +130,7 @@ export function decideScope(
 
 // ── The answer's stamp ─────────────────────────────────────────────────────
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -172,14 +172,14 @@ export interface DecideContext {
 }
 
 // Deep structural equality over parsed JSON.
-function sameJson(a: unknown, b: unknown): boolean {
+export function sameJson(a: unknown, b: unknown): boolean {
   return firstDifference(a, b, []) === undefined;
 }
 
 // The path of the first place two parsed JSON values differ, or undefined.
 // Object keys are compared as sets (key order is not content); arrays by
 // index, then length.
-function firstDifference(
+export function firstDifference(
   a: unknown,
   b: unknown,
   path: ReadonlyArray<PropertyKey>,
@@ -279,7 +279,7 @@ export function stampSessionVerdicts(json: unknown, context: DecideContext): unk
 
 // ── Decoding ───────────────────────────────────────────────────────────────
 
-function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
+export function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
   const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
   if (first === undefined) return { path: "", message: error.message };
   return refusal(first.path, first.message);
@@ -329,19 +329,19 @@ export interface SessionDecision {
   readonly departs: boolean;
 }
 
-interface Located<Q> {
+export interface Located<Q> {
   readonly question: Q;
   readonly path: ReadonlyArray<PropertyKey>;
 }
 
-function locate<Q extends { readonly id: string }>(
+export function locate<Q extends { readonly id: string }>(
   questions: ReadonlyArray<Q>,
   path: ReadonlyArray<PropertyKey>,
 ): Map<string, Located<Q>> {
   return new Map(questions.map((question, i) => [question.id, { question, path: [...path, i] }]));
 }
 
-const KEPT_FIELDS = ["id", "question", "options", "recommendation", "rationale"] as const;
+export const KEPT_FIELDS = ["id", "question", "options", "recommendation", "rationale"] as const;
 
 // The arbitrated questions of `after` that carry a verdict given in this
 // session: a presented question that was open, and the re-arbitrated one when
@@ -383,7 +383,7 @@ export function decidedInSession(input: RevisionDocuments): readonly SessionDeci
   }));
 }
 
-function unchanged(
+export function unchanged(
   before: unknown,
   after: unknown,
   path: ReadonlyArray<PropertyKey>,
@@ -394,7 +394,10 @@ function unchanged(
 }
 
 // (1) The same questions, by id, before and after.
-function sameQuestionSet(before: LocatedArrays, after: LocatedArrays): RevisionRefusal | undefined {
+export function sameQuestionSet(
+  before: LocatedArrays,
+  after: LocatedArrays,
+): RevisionRefusal | undefined {
   const afterIds = new Set([...after.openQuestions, ...after.arbitratedQuestions].map((q) => q.id));
   const beforeIds = new Set(
     [...before.openQuestions, ...before.arbitratedQuestions].map((q) => q.id),
@@ -431,7 +434,7 @@ function sameQuestionSet(before: LocatedArrays, after: LocatedArrays): RevisionR
 // The questions of `after`'s array that were in `before`'s, in the order
 // they were: a question that did not move keeps its place among the others.
 // Refused at the first one out of place.
-function sameOrder(
+export function sameOrder(
   before: ReadonlyArray<{ readonly id: string }>,
   after: ReadonlyArray<{ readonly id: string }>,
   path: ReadonlyArray<PropertyKey>,
@@ -642,7 +645,7 @@ export function firstRevisionViolation(input: RevisionCheckInput): RevisionRefus
 }
 
 // A document with its two question arrays left out, for comparing the rest.
-function withoutQuestions(sidecar: SidecarDocument): unknown {
+export function withoutQuestions(sidecar: SidecarDocument): unknown {
   if (sidecar.kind === "spec") {
     const { openQuestions: _open, arbitratedQuestions: _arbitrated, ...rest } = sidecar.document;
     return rest;
