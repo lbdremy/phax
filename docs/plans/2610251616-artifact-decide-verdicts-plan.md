@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610191226-artifact-decide-verdicts.md
 completes-spec: true
+approved:
+  date: 2026-10-25
+  baseline: 3598faf
 ---
 # Decide from verdicts
 
