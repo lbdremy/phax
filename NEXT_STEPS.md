@@ -14,13 +14,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ## The queue, as of 2026-10-25
 
-### After the 0.27.0 cut
+### Next, after the surface summaries (written 2026-10-25)
 
-- [ ] **Write the live specs' surface summaries.** Decided 2026-10-24: once 0.27.0 is released,
-      the operator runs `phax artifact migrate-documents` on main with that binary, writes the
-      summaries of the live specs it migrates (`headless-review`, `artifact-decide-verdicts`,
-      `test-strategy`) and re-approves the ones the report names. The installed 0.26.0 migrates
-      nothing.
 - [ ] **The release-notes script** that reads the spec titles, guiding rules and surface
       summaries, plus the run trailers. Repository only, run at the release cut. A separate
       change, after the summaries exist.
@@ -80,6 +75,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-24 | `interactive-phases` plan 3, stop records, transcripts and the run list (#161) | 4 × sonnet-5-5 / medium, 3 × sonnet-5-5 / high, 2 × opus-5-5 / high (with a reason) | $34.35 ($23.41 of it before a usage-limit pause) | 2 / 4 | The plan contradicted itself twice: on a shared test setup file for the provider store variables, and on whether the Vibe finder falls back to every `session_*` folder (the code followed the phase, the docs the arbitration). Execution built a transcript path from a session id it had not checked, left a held stop whose session recorded no builder usage stuck on resume even with records off, let most close suites read the machine's git config, and read the closer from `user.*` ahead of git's `author.*`. The usage limit hit inside phase-04's handoff generation, and resume went on without it (now in Small follow-ups); the operator rebuilt that handoff before the review handoff would run. |
 | 2026-10-24 | `surface-summary` (#162) | 3 × sonnet-5-5 / medium | $6.24 ($1.15 of it before a usage-limit pause) | 1 / 2 | The plan dictated a one-line pattern that refused only `\n` and `\r`, so U+0085, U+2028 and U+2029 passed and would break a release-notes bullet. Execution's README left `decide` out of the commands refused before migration, limited the lift to 0.25.0 and 0.17.0 sidecars and said nothing of run completion refusing a placeholder; two code comments went stale. All three phases passed their gate first try. |
 | 2026-10-25 | `small-fixes-0-27` (#163) | 1 × sonnet-5-5 / high, 1 × sonnet-5-5 / medium, 2 × opus-5-5 / medium (with a reason) | $14.62 | 3 / 5 | The plan dictated a worktree remedy (`git worktree add`) that fails on a deleted but still registered worktree, let a hand-written handoff leave its phase `committed` with no record and no cleanup, and owed a handoff to a phase an older phax had resumed past, which would have re-run finished phases. Execution described a skipped previous phase as committed with its handoff missing, left the test guard blind in `afterAll` and to a symlinked `~/.phax`, let the final count fail a finished run, linked permalinks for an unpushed branch, and called `existsSync` in `app/`. The plan review caught a guard that would have failed every test inside a phax worktree before approval. |
+| 2026-10-25 | `test-strategy` (#164) | 2 × opus-5-5 / medium (with a reason), 3 × sonnet-5-5 / medium, 1 × sonnet-5-5 / high, with one oracle pair | $35.30 ($29.25 of it the two Opus phases) | 3 / 5 | The plan gave headless plan authoring the spec's Markdown only, so no headless plan could name a criterion id; joined `source-spec` onto the repository with no guard, so lint and the overview could read files outside it; and claimed a lossless round trip that an oracle starting with `— ` broke. Execution read undecodable frontmatter as none, repeated a phase per line in the coverage block, left the overview's invalid-artifact line without the path, kept the bullet in a U+2028 departure message, and left four overview outputs undocumented. The plan review caught nine defects before approval, among them a missing `plans status` refusal and source item numbering. The oracle pair (phase-03 to phase-04) discharged cleanly: eleven `it.fails` markers removed, no assertion edited. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -142,7 +138,14 @@ desktop — none is promised by the announcement.
       2026-10-25 while verifying #163: `artifact new plan tally --spec …-tally-counter.md` makes a
       plan that `phax plans lint` refuses (`slug "tally" differs from source spec slug
       "tally-counter"`), and `approve` still approves it. Approve should refuse what lint
-      reports as an error, or at least this one.
+      reports as an error, or at least this one. Since #164 the same holds for a plan with a
+      test line that departs from the format: `approve` accepts it, and `phax run` and
+      `phax plans status` then refuse it.
+- [ ] **The npm `phax` shim does not forward SIGINT to its binary.** Found 2026-10-25 while
+      verifying #164 with the released 0.27.0: a SIGINT to the node shim left
+      `~/.phax/bin/0.27.0/phax-darwin-arm64` running, and it went on with the phase (a session,
+      the gate, a fix attempt) until the binary itself was signalled. Forward SIGINT and SIGTERM
+      to the child and exit with its status.
 - [ ] **The cost ledger drops interrupted provider calls.** Found 2026-10-25 while verifying #163:
       a run SIGINT-ed twice (once in each of two handoff turns) has 4 ledger entries for 6
       provider invocations. Check whether an interrupted turn's usage is ever written, and write
