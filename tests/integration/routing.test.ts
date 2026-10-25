@@ -214,6 +214,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "routing-test",
           plan,

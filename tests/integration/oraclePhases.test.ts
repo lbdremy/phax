@@ -316,6 +316,7 @@ describe("oracle phases in a run", () => {
       Effect.runPromise(
         Effect.either(
           executePlan({
+            phaxVersion: "0.0.0-test",
             shortName,
             namespace: NAMESPACE,
             plan,

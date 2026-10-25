@@ -529,6 +529,19 @@ phax publish-pr <run>           # push the final branch and open a pull request,
 
 The compliance review changes nothing. `phax publish-pr <run>` writes a short description: a run summary with the compliance verdict, one line per phase, what needs your review (unexplained deviations, compliance attention points), the review notes, and where to read the full review handoff, `~/.phax/runs/<namespace>.<name>/review-handoff.md`, on the machine that ran it. The compliance review's model is `review.compliance`, `claude-sonnet-5-5` at `medium` by default. `publish-pr` needs a GitHub remote and an authenticated `gh`; the remote, base branch and title are set under `publish`.
 
+The description ends with a phax footer, for example:
+
+```markdown
+---
+
+🛤️ Generated with [phax](https://docs.phax.run) 0.27.0 — the golden path, just facts\
+**Plan** [`docs/plans/archive/2610101200-greet-cli-plan.md`](https://github.com/acme/greet/blob/3f2a…/docs/plans/archive/2610101200-greet-cli-plan.md) · **Spec** [`docs/specs/archive/2610091100-greet-cli.md`](https://github.com/acme/greet/blob/3f2a…/docs/specs/archive/2610091100-greet-cli.md)\
+**Agents** claude-code `claude-sonnet-5-5` at medium: 2 phases; codex-cli `gpt-5.5` at high: 1 phase\
+**Run** `acme.greet-cli`
+```
+
+The plan and the spec (the `source-spec` of the run's plan) are permalinks at the head commit of the published branch, each named where it lives in that commit's tree: its recorded path, else its `archive/` counterpart. The summary's `**Plan**` names the plan the same way. A loose plan, a web URL `gh repo view` cannot give, or a head commit phax cannot read gives a code span instead of a link; with no readable head, the plan is named at its `archive/` counterpart and the spec is left out. A plan with no spec has no `**Spec**` part. The agents are the provider, model and effort each phase ran with, counted per assignment. When the description is shortened to fit GitHub's limit, the footer is never cut. A pull request that already exists keeps its description: `publish-pr` reuses it as it is. There is no setting to turn the footer off.
+
 ### After the merge
 
 ```bash

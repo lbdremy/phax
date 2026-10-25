@@ -201,6 +201,8 @@ describe("runPublishPr", () => {
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
     expect(code).toBe(0);
     expect(lines.join("")).toContain(FAKE_PR_URL);
+    const { readPackageVersion } = await import("../../../src/cli/commands/usage.js");
+    expect(publishRun.mock.calls[0]?.[2].phaxVersion).toBe(readPackageVersion());
   });
 
   it("returns 1 and prints failure reason + retry hint on failed publication", async () => {

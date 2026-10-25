@@ -172,6 +172,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — happy-path snapshot", () => 
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           namespace: "test-project",
           shortName,
           plan,

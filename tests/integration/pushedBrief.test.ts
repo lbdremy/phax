@@ -290,6 +290,7 @@ async function startRun(rawPlan: unknown, brief: BriefConfig | undefined, layers
     Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

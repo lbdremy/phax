@@ -213,44 +213,12 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
-- [ ] **A phax footer on every run's pull request.** Decided 2026-10-24, emoji 🛤️. The PR body
-      (`src/domain/publish/prBody.ts`) ends with one line in the spirit of Claude Code's: `🛤️
-      Generated with [phax](https://docs.phax.run) <version> — the golden path, just facts`, then
-      the plan and spec as links relative to the branch, the agents (provider, models, phase
-      counts) and the run name. No session URL: phax's sessions are local and headless. Possibly a
-      `phax.json` key to turn it off. After interactive-phases plan 3 merges, because its phase-07
-      edits the same file.
-- [ ] **A usage limit during the handoff leaves the next phase without it.** Found 2026-10-24 on
-      interactive-phases plan 3: phase-04 committed, then Claude Code hit its limit inside
-      `handoff.generate`, so the run paused with no `phase-handoff.md`. `phax resume` went straight
-      to phase-05, whose prompt read "(no previous phase)" (`src/app/promptGeneration.ts:60`, the
-      fallback for a missing handoff). Resume should regenerate a committed phase's missing
-      handoff before the next phase starts, and the prompt should not mistake a missing handoff
-      for a first phase.
-- [ ] **The run's final message counts only the last invocation's phases.** `run.ts` and
-      `resume.ts` print "The run reached review — N phase(s) complete" from
-      `execResult.committedPhases`, which `executePlan` rebuilds on every invocation: after two
-      usage-limit pauses the eight-phase interactive-phases run printed "3 phase(s) complete".
-      `final-report.md` is right, and the refusal branch in `resume.ts` counts from disk. Present
-      since 2026-06-23 (`69fb0ee4`). Count the committed phases from the run folder.
-- [ ] **Five older tests read the real `~/.phax`.** Found 2026-10-22 with an fs-access guard while
-      fixing #157: `runPreflightBeforeNaming`, `resumePreflightRechecks` and three others read
-      `~/.phax/config.json` and `telemetry.json`. Point HOME at a temporary directory, or mock the
-      loaders, as the newer suites do.
 - [ ] **A person's handoff written after a crashed turn is set aside.** When a closing or first
       turn is left in progress by a crash and the person then writes
       `.phax-context/correction-handoff.md` before resuming, the settle step reads the changed file
       as the turn's and moves it to `refused-turn-NN/`. Nothing is lost, but the person must copy
       it back. Compare against the fingerprint only for a turn that could write, or name the file
       in the resume output.
-- [ ] **`phax plans lint` accepts an oracle file listed twice.** The `**Oracle files:**` line takes a
-  repeated path, and phax sends it twice in the `oracle-request`. The Vitest example judges it once;
-  another provider may report duplicate finding ids, which phax refuses. Lint should report it on the
-  `oracles` check.
-- [ ] **`phax reset-phase` without `--yes` previews a reset it would refuse.** The preview prints
-      "Would reset …" before the use case runs its refusals (a later committed phase, an oracle phase
-      whose discharge has started), so the refusal only shows with `--yes`. Run the refusals first, as
-      `phax resume` now does for its preview.
 - [ ] **A refused `phax resume` should leave the run as it was.** Today `RunResumeRequested` moves the
       run to `running` before the start preflight re-checks it. A refusal (exit 11) then reaches the
       `RunFailed` guard in `executePlan`, and the run becomes `failed`, which `resume` refuses for

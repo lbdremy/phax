@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import { makeFakeGitHub } from "../../../src/infra/fakes/github.js";
+import { GitHubError } from "../../../src/ports/github.js";
 
 describe("FakeGitHubImpl contract", () => {
   it("isAvailable returns true by default and records the call", async () => {
@@ -62,6 +63,30 @@ describe("FakeGitHubImpl contract", () => {
     impl.setDefaultBranch("develop");
     const result = await Effect.runPromise(impl.defaultBaseBranch("/repo"));
     expect(result).toBe("develop");
+  });
+
+  it("repoWebUrl returns the default web URL and records the call", async () => {
+    const { impl } = makeFakeGitHub();
+    const result = await Effect.runPromise(impl.repoWebUrl("/repo"));
+    expect(result).toBe("https://github.com/example/repo");
+    expect(impl.calls).toEqual([{ method: "repoWebUrl", repo: "/repo" }]);
+  });
+
+  it("repoWebUrl returns the configured web URL", async () => {
+    const { impl } = makeFakeGitHub();
+    impl.setWebUrl("https://github.example.org/acme/greet");
+    const result = await Effect.runPromise(impl.repoWebUrl("/repo"));
+    expect(result).toBe("https://github.example.org/acme/greet");
+  });
+
+  it("repoWebUrl fails once with a GitHubError after failNextRepoWebUrl", async () => {
+    const { impl } = makeFakeGitHub();
+    impl.failNextRepoWebUrl("no remote");
+    const failed = await Effect.runPromise(Effect.flip(impl.repoWebUrl("/repo")));
+    expect(failed).toBeInstanceOf(GitHubError);
+    expect(failed.stderr).toBe("no remote");
+    const next = await Effect.runPromise(impl.repoWebUrl("/repo"));
+    expect(next).toBe("https://github.com/example/repo");
   });
 
   it("findPullRequestForBranch returns null when no PR seeded", async () => {

@@ -163,6 +163,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     const firstResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           namespace: "test-project",
           shortName,
           plan,
@@ -259,6 +260,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     const resumeResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           namespace: "test-project",
           shortName,
           plan,

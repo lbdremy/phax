@@ -10,6 +10,17 @@ import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { readComplianceReviewFile, readRunStatusFile } from "../schemas/persisted.js";
 import { selectPrTitle } from "../domain/publish/title.js";
 import { buildShortPrBody, type ShortPrBodyInput } from "../domain/publish/prBody.js";
+import {
+  groupAgents,
+  locateAtHead,
+  permalink,
+  type PrAgentGroup,
+  type PrPlanRef,
+  type PrSpecRef,
+} from "../domain/publish/prFooter.js";
+import { archivePathFor, classifyArtifactPath } from "../domain/artifact/document.js";
+import { readSourceSpec } from "../domain/artifact/lineage.js";
+import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
 import type { PublicationRecord, PrStatus, PushStatus } from "../domain/publish/types.js";
 import { encodePublication } from "../schemas/publication.js";
 import type { RunId } from "../domain/branded.js";
@@ -49,26 +60,125 @@ export interface PublishRunOpts {
   readonly recordsClonePath?: string | undefined;
   /** The home directory the PR body writes as `~`; defaults to `homedir()`, so tests can pin the rewrite. */
   readonly homeDir?: string;
+  /** The phax version the pull request footer names; the CLI reads it from package.json. */
+  readonly phaxVersion: string;
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
 const RUN_STATUS_FILENAME = "run-status.json";
 const PUBLICATION_FILENAME = "publication.json";
 const PR_BODY_FILENAME = "pr-body.md";
+const PLAN_COPY_FILENAME = "plan.md";
+const AGENT_BINDING_FILENAME = "agent-binding.json";
 
-// The plan path run-status.json records, or a loose plan when it records none.
-function loadPlanRef(
+// The plan path run-status.json records, or null for a loose plan.
+function loadRecordedPlanPath(
   runPath: string,
-): Effect.Effect<ShortPrBodyInput["plan"], { readonly message: string }, FileSystem> {
+): Effect.Effect<string | null, { readonly message: string }, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, RUN_STATUS_FILENAME);
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const status = yield* readRunStatusFile(path, parsed);
-    return status.planRepoRelPath !== undefined
-      ? { kind: "path", path: status.planRepoRelPath }
-      : { kind: "loose" };
+    return status.planRepoRelPath ?? null;
+  });
+}
+
+// What the footer links against: the final phase branch's head commit, the
+// paths of its tree and the repository's web URL. Each is null when its
+// lookup fails, so a footer lookup never fails a publish.
+interface HeadFacts {
+  readonly sha: string | null;
+  readonly headPaths: ReadonlySet<string> | null;
+  readonly webUrl: string | null;
+}
+
+function loadHeadFacts(
+  info: RunReviewInfo,
+  repoRoot: string,
+): Effect.Effect<HeadFacts, never, Git | GitHub> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const github = yield* GitHub;
+    // The full ref name, so a tag named like the branch is never picked.
+    const sha = yield* git
+      .resolveRef(repoRoot, `refs/heads/${info.finalPhaseBranch}`)
+      .pipe(Effect.orElseSucceed(() => null));
+    const headPaths =
+      sha === null
+        ? null
+        : yield* git.readTree(repoRoot, sha).pipe(
+            Effect.map((entries): ReadonlySet<string> => new Set(entries.map((e) => e.path))),
+            Effect.orElseSucceed(() => null),
+          );
+    const webUrl = yield* github.repoWebUrl(repoRoot).pipe(Effect.orElseSucceed(() => null));
+    return { sha, headPaths, webUrl };
+  });
+}
+
+// A path located at the head commit, linked when the sha and web URL are known.
+function locatedRef(
+  path: string,
+  head: HeadFacts,
+):
+  | { readonly kind: "permalink"; readonly path: string; readonly url: string }
+  | { readonly kind: "path"; readonly path: string } {
+  return head.sha !== null && head.webUrl !== null
+    ? { kind: "permalink", path, url: permalink(head.webUrl, head.sha, path) }
+    : { kind: "path", path };
+}
+
+// The plan where it lives at the head commit. Run completion moves a
+// lifecycle plan to archive/ before review opens, so a plan found nowhere
+// (or an unreadable head) is named at its archive counterpart.
+function planRefAtHead(recorded: string | null, head: HeadFacts): PrPlanRef {
+  if (recorded === null) return { kind: "unrecorded" };
+  if (classifyArtifactPath(recorded) === null) return { kind: "path", path: recorded };
+  const located = head.headPaths === null ? null : locateAtHead(recorded, head.headPaths);
+  return located === null
+    ? { kind: "path", path: archivePathFor(recorded) }
+    : locatedRef(located, head);
+}
+
+// The source spec the run's plan.md copy declares, where it lives at the
+// head commit; none when the copy is unreadable, declares none, or the spec
+// is in neither place.
+function loadSpecRef(
+  runPath: string,
+  head: HeadFacts,
+): Effect.Effect<PrSpecRef, never, FileSystem> {
+  const none: PrSpecRef = { kind: "none" };
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const md = yield* fs.readText(join(runPath, PLAN_COPY_FILENAME));
+    const declared = readSourceSpec(md);
+    if (declared === null || declared.kind === "none" || head.headPaths === null) return none;
+    const located = locateAtHead(declared.path, head.headPaths);
+    return located === null ? none : locatedRef(located, head);
+  }).pipe(Effect.orElseSucceed(() => none));
+}
+
+// The agent each passed phase ran with, in plan order, grouped. A phase
+// without a decodable agent-binding.json (an interactive one) is left out.
+function loadAgentGroups(
+  runPath: string,
+  phaseIds: readonly string[],
+): Effect.Effect<PrAgentGroup[], never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const bindings: Array<{ provider: string; model: string; effort: string }> = [];
+    for (const phaseId of phaseIds) {
+      const binding = yield* fs.readText(join(runPath, phaseId, AGENT_BINDING_FILENAME)).pipe(
+        Effect.flatMap((raw) => Effect.try(() => JSON.parse(raw) as unknown)),
+        Effect.map((parsed) => Either.getOrNull(decodePhaseAgentBinding(parsed))),
+        Effect.orElseSucceed(() => null),
+      );
+      if (binding !== null) {
+        bindings.push({ provider: binding.provider, model: binding.model, effort: binding.effort });
+      }
+    }
+    return groupAgents(bindings);
   });
 }
 
@@ -433,7 +543,7 @@ export function publishRun(
     }
     const { global, phaseContents, sourceSpecOutcomeMd, reviewNoteGroups } = loadResult.right;
 
-    const planResult = yield* Effect.either(loadPlanRef(info.runPath));
+    const planResult = yield* Effect.either(loadRecordedPlanPath(info.runPath));
     if (Either.isLeft(planResult)) {
       return yield* fail(
         `Could not load run status: ${planResult.left.message}`,
@@ -469,10 +579,25 @@ export function publishRun(
     );
     const compliance = yield* loadCompliance(info.runPath);
 
+    // The footer's facts, gathered only for a new pull request: a reused one
+    // keeps its body, so it needs no lookup.
+    const qualifiedName = runKey(info.namespace, info.shortName);
+    const head = yield* loadHeadFacts(info, opts.repoRoot);
+    const footer = {
+      version: opts.phaxVersion,
+      plan: planRefAtHead(planResult.right, head),
+      spec: yield* loadSpecRef(info.runPath, head),
+      agents: yield* loadAgentGroups(
+        info.runPath,
+        phases.filter((p) => p.status === "passed").map((p) => p.phaseId),
+      ),
+      qualifiedName,
+    };
+
     const built = buildShortPrBody({
-      qualifiedName: runKey(info.namespace, info.shortName),
+      qualifiedName,
       shortName: info.shortName,
-      plan: planResult.right,
+      footer,
       sourceSpecOutcome: sourceSpecOutcomeMd,
       gateProfileId: info.gateProfileId,
       phases,

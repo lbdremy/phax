@@ -278,6 +278,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -478,6 +479,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

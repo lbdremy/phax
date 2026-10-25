@@ -273,6 +273,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -447,6 +448,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -568,6 +570,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -662,6 +665,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -851,6 +855,7 @@ describe("executePlan — firing scheduling", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -962,6 +967,7 @@ describe("executePlan — binding status lifecycle", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1015,6 +1021,7 @@ describe("executePlan — binding status lifecycle", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1132,6 +1139,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1218,6 +1226,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1364,6 +1373,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1438,6 +1448,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1508,6 +1519,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1603,6 +1615,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1770,6 +1783,7 @@ describe("executePlan — auto-publish after final review", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1830,6 +1844,7 @@ describe("executePlan — auto-publish after final review", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -1889,6 +1904,7 @@ describe("executePlan — auto-publish after final review", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2012,6 +2028,7 @@ describe("executePlan — security preflight", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2157,6 +2174,7 @@ describe("executePlan — security preflight", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2312,6 +2330,7 @@ describe("executePlan — records destination refusal", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2453,6 +2472,7 @@ function makeBaselineScenario(root: string) {
     Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2743,6 +2763,7 @@ describe("executePlan — resumed-session prompts", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -2876,6 +2897,7 @@ describe("executePlan — a green gate-report gate", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

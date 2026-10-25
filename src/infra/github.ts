@@ -1,8 +1,19 @@
-import { Effect, Layer } from "effect";
+import { Effect, Either, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { GitHub, GitHubError } from "../ports/github.js";
 import type { BranchName } from "../domain/branded.js";
 import type { RepoVisibility } from "../domain/records/destination.js";
+import { formatParseError } from "../schemas/formatError.js";
+import { decodeGithubRepoView } from "../schemas/githubRepoView.js";
+
+// A multi-line decode report on one line, for a GitHubError message.
+function onOneLine(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .join("; ");
+}
 
 function ghRun(
   args: readonly string[],
@@ -77,6 +88,33 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
       ["repo", "view", "--json", "defaultBranchRef", "-q", ".defaultBranchRef.name"],
       repo,
     ).pipe(Effect.map(({ stdout }) => stdout.trim())),
+
+  repoWebUrl: (repo) => {
+    const args = ["repo", "view", "--json", "url"] as const;
+    const command = `gh ${args.join(" ")}`;
+    const refuse = (message: string) => new GitHubError({ message, command, args: [...args] });
+    return ghRun(args, repo).pipe(
+      Effect.flatMap(({ stdout }) =>
+        Effect.try({
+          try: () => JSON.parse(stdout) as unknown,
+          catch: () => refuse(`${command} did not answer JSON`),
+        }),
+      ),
+      Effect.flatMap((parsed) =>
+        decodeGithubRepoView(parsed).pipe(
+          Either.match({
+            onLeft: (err) =>
+              Effect.fail(
+                refuse(
+                  `${command} answered an unexpected shape: ${onOneLine(formatParseError(err))}`,
+                ),
+              ),
+            onRight: (view) => Effect.succeed(view.url),
+          }),
+        ),
+      ),
+    );
+  },
 
   findPullRequestForBranch: (branch: BranchName, repo: string) =>
     ghRun(

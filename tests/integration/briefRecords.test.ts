@@ -221,6 +221,7 @@ async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
     Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

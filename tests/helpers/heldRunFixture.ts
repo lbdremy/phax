@@ -504,6 +504,7 @@ function executeHeldRun(
   const program = withRunLock(
     RUN_KEY,
     executePlan({
+      phaxVersion: "0.0.0-test",
       shortName,
       namespace: NAMESPACE,
       plan: run.plan,

@@ -207,6 +207,7 @@ async function startRun(rawPlan: unknown, layers: ReturnType<typeof makeFakes>["
     Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

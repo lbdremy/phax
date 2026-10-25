@@ -4,6 +4,7 @@ import {
   PR_BODY_MAX_BYTES,
   type ShortPrBodyInput,
 } from "../../../src/domain/publish/prBody.js";
+import { renderPrFooter } from "../../../src/domain/publish/prFooter.js";
 import type {
   GlobalFileEntry,
   GlobalFileReconciliation,
@@ -88,7 +89,6 @@ const noteGroups = gatherReviewNotes([
 const base: ShortPrBodyInput = {
   qualifiedName: "acme.greet-cli",
   shortName: "greet-cli",
-  plan: { kind: "path", path: "docs/plans/2610101200-greet-cli-plan.md" },
   sourceSpecOutcome: "`docs/specs/2610091100-greet-cli.md` — completed on this branch (abc1234)\n",
   gateProfileId: "standard",
   phases: [
@@ -116,7 +116,16 @@ const base: ShortPrBodyInput = {
   reviewNoteGroups: noteGroups,
   runFolder: { path: "/home/dev/.phax/runs/acme.greet-cli", homeDir: "/home/dev" },
   records: "not-configured",
+  footer: {
+    version: "9.8.7",
+    plan: { kind: "path", path: "docs/plans/2610101200-greet-cli-plan.md" },
+    spec: { kind: "none" },
+    agents: [{ provider: "claude", model: "claude-made-up-1", effort: "medium", phases: 3 }],
+    qualifiedName: "acme.greet-cli",
+  },
 };
+
+const FOOTER = renderPrFooter(base.footer);
 
 function lineOf(text: string, id: string): string {
   return text.split("\n").find((l) => l.startsWith(`- \`${id}\``)) ?? "";
@@ -183,7 +192,7 @@ describe("buildShortPrBody — shape", () => {
 
   it("writes loose plan, no spec line, no gate profile and no surface when absent", () => {
     const body = build({
-      plan: { kind: "loose" },
+      footer: { ...base.footer, plan: { kind: "unrecorded" } },
       sourceSpecOutcome: undefined,
       gateProfileId: undefined,
       verifiedSurfaces: [],
@@ -411,7 +420,7 @@ describe("buildShortPrBody — size cap", () => {
 
     expect(shortened).toBe(true);
     expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(PR_BODY_MAX_BYTES);
-    expect(body.endsWith(SHORTENED_NOTE)).toBe(true);
+    expect(body.endsWith(`${SHORTENED_NOTE}\n\n${FOOTER}`)).toBe(true);
 
     const kept = body.match(/- `src\/generated\/module-\d{4}\/index\.ts`/g) ?? [];
     expect(kept.length).toBeGreaterThan(0);
@@ -470,7 +479,7 @@ describe("buildShortPrBody — size cap", () => {
     expect(notes).toContain("- Review the generated greeting variant number 0 for tone");
     expect(notes).toMatch(/- …and \d+ more review notes\n*$/);
     expect(body.indexOf("## Review notes")).toBeLessThan(body.indexOf("## Full detail"));
-    expect(body.endsWith(SHORTENED_NOTE)).toBe(true);
+    expect(body.endsWith(`${SHORTENED_NOTE}\n\n${FOOTER}`)).toBe(true);
   });
 
   it("keeps the notes heading and intro when every note is cut", () => {
@@ -499,7 +508,7 @@ describe("buildShortPrBody — size cap", () => {
     expect(body).toContain("- …and 2 more review notes");
     expect(body).toContain("## Phases");
     expect(body).toContain("## Full detail");
-    expect(body.endsWith(SHORTENED_NOTE)).toBe(true);
+    expect(body.endsWith(`${SHORTENED_NOTE}\n\n${FOOTER}`)).toBe(true);
   });
 
   it("writes the singular count line for one cut entry", () => {
@@ -513,5 +522,47 @@ describe("buildShortPrBody — size cap", () => {
       maxBytes: Buffer.byteLength(full, "utf8") - 1,
     });
     expect(body).toContain("### Unexplained deviations\n\n- …and 1 more unexplained deviation\n");
+  });
+});
+
+describe("buildShortPrBody — footer", () => {
+  it("ends the body with the footer, after Full detail", () => {
+    const body = build();
+    expect(body.endsWith(`\n\n${FOOTER}`)).toBe(true);
+    expect(body.indexOf("## Full detail")).toBeLessThan(body.indexOf(FOOTER));
+  });
+
+  it("keeps the footer whole after the shortened note, at every cut stage", () => {
+    for (const maxBytes of [100, 4000, PR_BODY_MAX_BYTES]) {
+      const { body, shortened } = buildShortPrBody({
+        ...base,
+        global: makeGlobal(manyDeviations(2000), []),
+        maxBytes,
+      });
+      expect(shortened).toBe(true);
+      expect(body.endsWith(`${SHORTENED_NOTE}\n\n${FOOTER}`)).toBe(true);
+    }
+  });
+
+  it("shortens a body pushed over the cap only by the footer", () => {
+    const withoutFooter = buildShortPrBody(base).body.slice(0, -`\n\n${FOOTER}`.length);
+    const { body, shortened } = buildShortPrBody({
+      ...base,
+      maxBytes: Buffer.byteLength(withoutFooter, "utf8") + 1,
+    });
+    expect(shortened).toBe(true);
+    expect(body.endsWith(FOOTER)).toBe(true);
+  });
+
+  it("names the plan in the summary as the footer does", () => {
+    const plan = {
+      kind: "permalink",
+      path: "docs/plans/archive/2610101200-greet-cli-plan.md",
+      url: "https://github.com/example/repo/blob/abc/docs/plans/archive/2610101200-greet-cli-plan.md",
+    } as const;
+    const body = build({ footer: { ...base.footer, plan } });
+    const link = `[\`${plan.path}\`](${plan.url})`;
+    expect(body.split("\n")[0]).toContain(`**Plan** ${link} · **Gate profile**`);
+    expect(body).toContain(`\n**Plan** ${link}\\\n`);
   });
 });

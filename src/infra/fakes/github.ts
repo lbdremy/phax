@@ -9,6 +9,7 @@ export type GitHubCall =
   | { method: "repoRecognized"; repo: string }
   | { method: "visibility"; repo: string }
   | { method: "defaultBaseBranch"; repo: string }
+  | { method: "repoWebUrl"; repo: string }
   | { method: "findPullRequestForBranch"; branch: string; repo: string }
   | {
       method: "createPullRequest";
@@ -31,6 +32,8 @@ export class FakeGitHubImpl implements GitHubOps {
   // that never call setVisibility() keep an in-repo destination allowed.
   configuredVisibility: RepoVisibility = "private";
   configuredDefaultBranch = "main";
+  configuredWebUrl = "https://github.com/example/repo";
+  private nextRepoWebUrlError: string | undefined;
   readonly existingPrs = new Map<string, string>();
   createdPrUrl = "https://github.com/owner/repo/pull/1";
   createdIssueUrl = "https://github.com/owner/repo/issues/1";
@@ -57,6 +60,14 @@ export class FakeGitHubImpl implements GitHubOps {
 
   setDefaultBranch(branch: string): void {
     this.configuredDefaultBranch = branch;
+  }
+
+  setWebUrl(url: string): void {
+    this.configuredWebUrl = url;
+  }
+
+  failNextRepoWebUrl(stderr: string): void {
+    this.nextRepoWebUrlError = stderr;
   }
 
   seedExistingPr(branch: string, url: string): void {
@@ -110,6 +121,23 @@ export class FakeGitHubImpl implements GitHubOps {
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError> {
     this.calls.push({ method: "defaultBaseBranch", repo });
     return Effect.succeed(this.configuredDefaultBranch);
+  }
+
+  repoWebUrl(repo: string): Effect.Effect<string, GitHubError> {
+    this.calls.push({ method: "repoWebUrl", repo });
+    if (this.nextRepoWebUrlError !== undefined) {
+      const stderr = this.nextRepoWebUrlError;
+      this.nextRepoWebUrlError = undefined;
+      return Effect.fail(
+        new GitHubError({
+          message: `gh repo view failed: ${stderr}`,
+          command: "gh repo view --json url",
+          stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    return Effect.succeed(this.configuredWebUrl);
   }
 
   findPullRequestForBranch(

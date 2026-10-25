@@ -158,6 +158,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -227,6 +228,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -402,6 +404,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -490,6 +493,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(firstLayers)),
     );
     const executeOptions = {
+      phaxVersion: "0.0.0-test",
       shortName,
       namespace: "test-project",
       plan,
@@ -653,6 +657,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(firstLayers)),
     );
     const executeOptions = {
+      phaxVersion: "0.0.0-test",
       shortName,
       namespace: "test-project",
       plan,

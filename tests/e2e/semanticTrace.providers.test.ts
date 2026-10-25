@@ -248,6 +248,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
       const result = await Effect.runPromise(
         Effect.either(
           executePlan({
+            phaxVersion: "0.0.0-test",
             namespace: "test-project",
             shortName,
             plan,
