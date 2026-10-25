@@ -87,7 +87,7 @@ What still runs inside:
 - `phax brief [path…]`;
 - `phax architecture [path…]`;
 - the read-only commands: `validate`, `ls`, `path`, `session-info`, `completions`,
-  `plans lint`, `plans status`, `artifact status`, `artifact schema`, `records explain`,
+  `plans lint`, `plans overview`, `plans status`, `artifact status`, `artifact schema`, `records explain`,
   `records status`, `records list`, `security status`;
 - `schema upgrade`, which writes only the working tree's local schemas.
 

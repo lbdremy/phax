@@ -17,6 +17,7 @@ const SOURCE_FILES = [
   "docs/model-catalog.md",
   "docs/arbitration.md",
   "docs/plan-estimate.md",
+  "docs/plan-overview.md",
   "docs/architecture-provider.md",
   "docs/oracle-phases.md",
   "docs/assignment-bounds.md",
