@@ -1,0 +1,1021 @@
+---
+status: Draft
+source-spec: docs/specs/2610231041-test-strategy.md
+completes-spec: true
+---
+# Test strategy as data
+
+The only plan of the approved spec `test-strategy`. A phase's test strategy becomes data: a list of test lines, each a guarantee placed on the four closed coordinates of the phax-planning skill (size, technique, oracle, loop) plus an optional criterion id. Any plan.md is parsed into test lines, which are carried in the plan document and in `phax-plan.json`. `phax plans lint` grades them against the oracle pairs and the source spec's acceptance criteria. A new read-only, model-free `phax plans overview <plan> [--json]` lays the plan out phase by phase, places its planned files in the architecture's parts, and ends with the criterion coverage.
+
+Six phases, from the core outwards, every commit green:
+- phase-01: the test line schema and grammar, and the plan document's `testStrategy` as lines. plan-document 0.26.0 and its renderer are frozen. Older sidecars are lifted, and `phax artifact migrate-documents` parses a formatted string or refuses a prose one.
+- phase-02: the deterministic parser reads `### Test strategy` from any plan.md. `phax-plan.json`, the model fallback and the cache seed carry `testLines`, and phax-plan 0.26.0 is frozen. A format departure becomes a lint `tests` error, and extraction refuses it.
+- phase-03 (oracle phase) and phase-04 (its discharge): the lint rules on oracle-loop lines and on the source spec's criteria.
+- phase-05: `phax plans overview`.
+- phase-06: the phax-planning skill, the new docs page, `docs/upgrading.md` 0.28.0, the README and `NEXT_STEPS.md`.
+
+Operator notes:
+- Start the run with `phax run --allow-skill-edits`, as the brief directs. Only phase-06 writes `.claude/skills/phax-planning/SKILL.md`, and it lists that exact file.
+- The installed phax (0.27.0) drives the run. Do not install a build of this branch before the run completes.
+- This plan's own sidecar is written by the installed phax at plan-document 0.26.0. Its test strategies are strings, every one in the line format. No phase migrates it, and the phase guard refuses `migrate-documents` in a worktree anyway. The run's completion is applied by the installed 0.27.0, which knows no new check, and archives the plan with its spec. After the merge, the archived sidecar reads under the new code with its lift `lifted`, because every string follows the format. phase-01 also makes every archived sidecar readable whatever its test strategy holds. There is then no live plan sidecar to migrate. The live spec sidecars (`headless-review`, `artifact-decide-verdicts` and this spec's) are not touched by any phase.
+- `docs/acceptance-coverage.md` is not touched (spec §7).
+
+## Required commands
+
+- (none)
+
+No new command is needed. Phases run the `standard` gate profile's commands and commands `phax.json` already allows. `pnpm exec tsx scripts/schemas-check.ts --write` regenerates the schema snapshots, the current stamps and the history lock. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl`, `docs/cli/reference.md` and the README's generated CLI section. `phax.json` needs no change. The run needs `phax run --allow-skill-edits`, because phase-06 edits `.claude/skills/phax-planning/SKILL.md`.
+
+## Technical arbitrations
+
+- Phase shape: six phases. The test line format goes first, because the plan-document lift needs the grammar as soon as the shape changes. Extraction comes next, then one oracle pair on the lint rules, then the overview, then the docs. The lint rules are the pair because spec §5 states their input and output exactly, and `lintPlan` is a stable entry the oracles can call before the code exists. The grammar is not paired: phase-01 needs it to lift older sidecars, so its edge cases are in-phase tests. Loss: one more phase and review than the five-phase outline, and the grammar's edge cases are not frozen before their code.
+- Key spellings: the plan document keeps `testStrategy`, now an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }` in that key order. `phax-plan.json` carries the same line shape under `testLines`, directly after `oracle`. The lint check is `tests`. Every key is required, and `criterion` is a string or null. Loss: one line shape under two key names, `testStrategy` in the document and `testLines` in the extracted plan.
+- Line grammar. An entry is `<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, read from the right. The coordinates start at the last ` — ` that is followed by a size, ` · `, a technique and ` · `. If the last ` · ` field is `oracle` or `in-phase`, it is the loop and there is no criterion. Otherwise the last field is the criterion and the field before it must be the loop. The oracle is everything between the technique and the loop. So a guarantee may contain ` — ` and ` · `, and an oracle may contain ` · ` but never ` — `. A criterion is a run of non-whitespace characters that is not `oracle` or `in-phase`. Loss: an oracle cannot contain an em dash, and a criterion id cannot be a loop word.
+- Line grammar, text. The section is read from the plan.md's raw source, never from the flattened Markdown, and the renderer writes each line verbatim, unescaped. So backticks and code spans round-trip byte for byte. A ` · ` or ` — ` inside a code span is still a separator, and a coordinate in backticks departs. Each source line's trailing whitespace is dropped and each entry is trimmed, but separators must be exactly a space, `—` (U+2014) or `·` (U+00B7), and a space: `--`, `-` or doubled spaces depart. Loss: a hand-written line that is close but not exact fails lint and must be fixed by hand.
+- Line grammar, structure. An entry starts at a `- `, `* ` or `+ ` bullet. A following non-blank line with no blank line in between continues it, joined with one space, which covers the skill's wrapped example. Any other non-blank text, such as a prose paragraph or a second paragraph after a blank line, is a stray item. Every item is numbered from 1 in order, and a stray item departs at its number. A line holding U+2028, U+2029 or U+0085 departs, and the schema refuses those characters in a guarantee or oracle. A lone `- (none)`, an empty section or a missing `### Test strategy` section means no line. `(none)` beside other entries departs. Loss: a prose sentence that introduces the list (for example `Write these first:`) is a lint error.
+- A departing line is a lint `tests` error read from plan.md alone: one per phase, naming its first departing item as `test line <n> departs from the format: "<text>"`. It is not a `structure` error, so lint, estimate and the overview still parse the rest. Lint and estimate read the plan with the departing entries left out. The overview and the run's extraction refuse it. `loadOrExtractPlan`, behind `phax run`, `plans overlap` and `adjust-plan`, fails on any departure before the cache and before the model, naming the line and `phax plans lint`. The model is never asked to read a line phax has already found malformed. Loss: a hand-written plan with a prose test strategy, which the model fallback used to extract, no longer runs, overlaps or adjusts until it is rewritten.
+- The model fallback emits `testLines` through the same `TestLineSchema`, as spec §10 requires: `ExtractionAnswerSchema` keeps the key, and `mode` and `oracle` stay phax's own reading. The prompt asks for each entry's coordinates copied verbatim. A malformed answer is refused by the existing strict decode (`Extracted JSON failed schema validation`) and stops the extraction: no repair and no retry. Loss: on the fallback path, which runs only for a plan whose structure the parser cannot read, the lines are the model's transcription and are not checked against plan.md.
+- Plan-document 0.26.0 is frozen in a self-contained module beside a frozen renderer, and the new shape is stamped 0.28.0. Every older shape lifts its `testStrategy` string through the same grammar. A plan sidecar's lift is a result, not a read error: an older variant of `PlanDocumentSidecar` carries `lift`, which is either `lifted` with the document or `refused` with the first phase and departure. So archived sidecars with prose strategies, which are every archived plan, stay readable. `migrate-documents` lifts a formatted string, or refuses with spec §6's message and remedy (q-migrate parse-or-refuse). 0.20.0 and pre-schema sidecars get their own-shape body from the frozen 0.26.0 renderer. The schemas package lifts an unliftable phase strategy to `Unknown`. Loss: every consumer of an older plan sidecar reads `lift` in place of `document`.
+- `phax-plan` 0.26.0 is frozen. A `phax-plan.json` an older phax wrote is refused by `phax resume` and `phax validate --plan` (exit 2), with the existing remedy: finish with the release that started it, or `phax archive <run> --force` and run the plan again. The display and sizing readers (`resolveRunInfo`, `estimateHistory`, `loadReviewHandoffInputs`, `resetPhase`) read older shapes typed without `testLines`, so no reader is told that a past run tested nothing. The package lifts them to `Unknown`. `EXTRACTOR_VERSION` goes to 4. Loss: a run in flight across the upgrade cannot be resumed by the new phax.
+- The phase prompt's `## Current phase` JSON omits `testLines`, so the prompt and its snapshots do not change (spec §7: the phase prompt does not act on test lines). Loss: the phase agent reads its lines from its plan section's text, not as data.
+- Criterion ids come only from the source spec's JSON sidecar. The spec's `source-spec` path is tried first, then its `docs/specs/archive/` path. The sidecar is read in any shape, lifted. With no source spec, nothing is checked and nothing is said. A spec with no sidecar, a spec not found at either path, or a sidecar that cannot be read gives one `tests` warning naming the spec and why, and no criterion is checked. Lint and the overview share that line. Loss: a warning on every lint of a plan whose spec is hand-written, which is the one line §5.12 asks for, carried as a finding so the lint report's shape does not change.
+- Lint rules, graded as q-lint decided. Errors are a departure, an oracle-loop line on a phase that is not an oracle phase, an oracle phase with no oracle-loop line, and an unknown criterion id. An uncovered criterion is a warning with phase `-`. An ordinary phase with no line gets no finding. An oracle phase with no line at all is the §5.8 error, because §5.11's exemption covers phases with nothing to state. The order is: departures, then each phase in plan order (per line, the oracle-loop error before the unknown-criterion error, then the phase's silent-oracle error), then the spec-level warning or the uncovered warnings in spec order. Loss: an oracle phase cannot omit its test strategy.
+- The overview reads the plan with the strict deterministic parse. A structure error, a departing line, a failed artifact validation or a plan file that cannot be read exits 1 with one stderr line naming `phax plans lint <plan>`. An invalid config exits 2. It runs on FileSystem and Shell only, with no Backend layer. It runs the architecture provider once with the plan's planned files to create and edit, or the whole repository when there are none. A failed or refused call degrades to files, prints one warning line on stderr and exits 0. The phase guard classifies it as allowed, like `plans lint`, which already spawns the same provider, so no new reach is granted. Loss: an operator cannot see the overview of a plan whose test strategy still departs.
+- Overview layout. The header line is `<name> — <title>  (<status> · source spec <slug>)`. `<name>` is the plan's artifact slug, or the run short name for a loose plan.md. `<status>` is the frontmatter status or `no frontmatter`. `no source spec` stands in for a plan without one. The architecture line follows. Each phase block holds a title line with model, effort and mode, the oracle role, one row per part that holds a planned file, then `(no part)` or `files`, then its rendered test lines or `(no test lines)`. The coverage block ends the overview. The JSON document carries the same content with explicit per-variant kinds: `architecture.kind` is `parts`, `none` or `failed`. `oracleRole.kind` is `oracle` with `dischargedBy`, `discharging` with `oraclePhase`, or `none`. `coverage.kind` is `criteria`, `no-source-spec` or `no-criterion-ids` with `reason` `no-sidecar`, `not-found` or `unreadable`. `placement` ends with a `{ part: null }` entry. Loss: the JSON is unversioned like lint's and estimate's, so a script reads it without a `$schema` guarantee.
+
+---
+
+## phase-01 — Test lines in the plan document, with plan-document 0.26.0 frozen and lifted {#phase-01-plan-document-lines}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+**Assignment reason:** Designs the line grammar and a plan sidecar lift that can be refused, which no earlier lift did. The change crosses the schemas, the persisted bridge, the schemas package and migrate-documents in one change to a persisted format.
+
+A plan document's `testStrategy` becomes a list of test lines on closed coordinates. The plan renders them in the skill's line format, and the exported JSON Schema states the format. One grammar reads a section's text back into lines. The 0.26.0 shape and its renderer are frozen. Every older sidecar lifts its string through the grammar, or records why it cannot. `phax artifact migrate-documents` migrates a formatted sidecar and refuses a prose one, naming the phase, the line and the remedy.
+
+### Detailed instructions
+
+- Create `src/schemas/testLine.ts`. It imports only `effect`, because the schemas package publishes it. It defines:
+  - `TestSizeSchema = Schema.Literal("small", "medium", "large")`;
+  - `TestTechniqueSchema = Schema.Literal("example", "table", "property", "metamorphic", "stateful", "fuzz", "contract", "smoke")`;
+  - `TestLoopSchema = Schema.Literal("oracle", "in-phase")`;
+  - `TestLineSchema = Schema.Struct({ guarantee, size, technique, oracle, loop, criterion })`, in exactly that key order.
+  The text coordinates are refined as follows:
+  - `guarantee` is non-empty, trimmed (no leading or trailing whitespace) and on one line: no `\n`, `\r`, U+2028, U+2029, U+0085 or other control character.
+  - `oracle` follows the same rules and never contains ` — `.
+  - `criterion` is `Schema.NullOr` of a run of non-whitespace characters that is neither `oracle` nor `in-phase`.
+  Express each refinement as a `Schema.pattern`, or as a filter with a `jsonSchema` annotation, so the exported JSON Schema states what the decoder refuses. Each refusal message names the rule it breaks. Annotate `TestLineSchema` with a description stating the rendered line, `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. The description also says the criterion is an acceptance criterion id from the source spec's JSON sidecar, or null. Export the types `TestLine`, `TestSize`, `TestTechnique` and `TestLoop`, and the value lists the grammar needs, read from the literals (`TestSizeSchema.literals`). Do not copy the values.
+- Create `src/domain/plan/testLineGrammar.ts`, pure. It imports only `effect` and `src/schemas/testLine.ts`, because the schemas package will import it. It exports:
+  - `renderTestLine(line)`: `<guarantee> — <size> · <technique> · <oracle> · <loop>`, plus ` · <criterion>` when the criterion is not null. No leading `- ` and no escaping.
+  - `parseTestLine(text)`: a `TestLine` or null, following the arbitrated grammar:
+    1. find the last ` — ` that is followed by a size, ` · `, a technique and ` · `; the guarantee is everything before it;
+    2. split the rest on ` · `;
+    3. if the last field is a loop value, it is the loop and the criterion is null; otherwise the last field is the criterion, and the field before it must be a loop value;
+    4. the oracle is the fields in between, joined with ` · `.
+    Decode the result through `TestLineSchema`. Anything it refuses is null.
+  - `readTestStrategyText(text)`: `{ lines, departures }`, where a departure is `{ line: number; text: string }`. It splits on `\r?\n` and drops each line's trailing whitespace.
+    - A line that starts with `- `, `* ` or `+ `, after at most three spaces, starts an entry whose text is the rest of the line, trimmed.
+    - A following non-blank line with no blank line in between continues the current item: trimmed, then joined with one space.
+    - Any other non-blank line starts a stray item.
+    - Items are numbered from 1 in order.
+    - A lone item whose text is `(none)`, matched case-insensitively with the parentheses optional as the planned-file lists match it, means no line. So does a text with no item.
+    - An entry that `parseTestLine` reads becomes a line. Every other item departs with its number and joined text: a stray item, a departing entry, an item holding U+2028, U+2029 or U+0085, or `(none)` beside other items.
+  - `departureMessage(d)`: `test line <n> departs from the format: "<text>"`.
+- In `src/schemas/planDocument.ts`, set each phase's `testStrategy` to `Schema.Array(TestLineSchema)`. It stays in its place between `boundaryContracts` and `implementationOrder`. Its description says each item renders as one `- ` line in the format above, and that `[]` is a phase that tests nothing and renders `- (none)`. Update the module comments. `projectExtractedPlan` is unchanged in this phase.
+- Name a refused test line's phase and position. Add `formatPlanDocumentViolation(input, error)` beside `formatFirstViolation` (in `src/schemas/planDocument.ts`, or in `src/schemas/formatError.ts` if that reads better).
+  - When the first violation's path is `phases[i].testStrategy[j]` or below, it returns `<phase id> test line <j + 1> <path inside the line>: <message>`, for example `phase-02 test line 2 loop: is missing`. The phase id is `input.phases[i].id` when that is a string, `phases[i]` otherwise. A path that stops at the line itself has no inner path. An unknown key is named by its key.
+  - Every other violation keeps `formatFirstViolation`'s text.
+  Use it where a plan document or plan sidecar is decoded and its first violation is printed: the authoring answer in `src/app/authorArtifact.ts`, the plan sidecar read error in `src/schemas/persisted.ts`, and decide's revised plan document if it is decoded outside those (check `src/app/decideArtifact.ts` and `src/domain/decide/revision.ts`).
+- Freeze plan-document 0.26.0. Create `src/schemas/history/plan-document/0.26.0.ts`, a self-contained module that imports only `effect`, like the 0.25.0 module. It reproduces exactly the sidecar shape `PlanDocumentFileSchema` decodes today, keys in today's order:
+  - the `plan-document` `$schema` pattern, then `kind`, `sourceSpec`, `completesSpec`, `run`, and a `preamble` with `openQuestions` and `arbitratedQuestions`;
+  - phases with `mode` and `oracle` after `optionalFilesToEdit`, `testStrategy` as a non-empty string, and `commit, assignmentReason, model, effort` last;
+  - the lineage filter and the question checks with their JSON Schema annotations.
+  Copy their logic from `src/schemas/questions.ts`, `src/schemas/phaxPlan.ts` and the current `planDocument.ts`. Never import them. Export `PlanDocumentV0_26_0Schema`, `type PlanDocumentV0_26_0` and `decodePlanDocumentV0_26_0` (`onExcessProperty: "error"`). Give it the header comment of the other frozen modules. Its JSON Schema must equal `packages/schemas/snapshots/plan-document/0.26.0.schema.json`; if `scripts/schemas-check.ts` does not compare the two, add a unit test that does.
+- Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/plan-document/next.schema.json`, moves `CURRENT_STAMPS["plan-document"]` in `src/schemas/release.ts` to 0.28.0, sets `CURRENT_SHAPES["plan-document"]` in `packages/schemas/src/generated/index.ts`, and adds the lock entry to `packages/schemas/history.lock.json`. Never hand-edit those four files. Rerun it after every later schema change in this phase. At the end, the check without `--write` must report nothing.
+- Create `src/domain/authoring/renderPlanV0_26_0.ts`, the frozen plan rendering of plan-document 0.26.0: exactly today's `renderPlanBody` output, with the header lines (Assignment reason, Mode and oracle lines) and the `testStrategy` string written as is. It takes a `PlanDocumentV0_26_0Value` imported from `src/schemas/persisted.ts`, as `renderPlanV0_25_0.ts` takes its value. It copies the Markdown helpers and question renderers it needs rather than importing `markdown.ts` or `renderQuestions.ts`. Its header comment says only `phax artifact migrate-documents` uses it, as the own-shape rendering of a 0.26.0 sidecar.
+- In `src/domain/authoring/renderPlan.ts`, render the `### Test strategy` section as one `- ${renderTestLine(line)}` per line, joined with `\n`, or `- (none)` for `[]`. Never pass a line through the inline escaping the prose lists get. Note the module property in its comment: `readTestStrategyText` of the rendered section returns the document's lines.
+- In `src/schemas/persisted.ts`, read plan sidecars stamped below the current stamp as follows:
+  - at 0.26.0 or later: the frozen 0.26.0 decoder, shape `0.26.0`;
+  - at 0.25.0 or later: the frozen 0.25.0 decoder, as today;
+  - below 0.25.0: the frozen 0.20.0 decoder;
+  - with no `$schema`: the pre-schema decoder, as today.
+  Replace the older variants' `document` with `lift: PlanDocumentLift`:
+  - `{ kind: "lifted"; document: PlanDocument }`, or
+  - `{ kind: "refused"; phase: string; departure: TestLineDeparture }`.
+  Each lift does what it does today (mode, oracle, assignmentReason, questions) and reads every phase's `testStrategy` string with `readTestStrategyText`. The first phase in plan order with a departure refuses the lift, with its first departure. A refused lift is not a read error: the sidecar still reads.
+  Export `PlanDocumentV0_26_0Value` (the 0.26.0 value without `$schema`) and the lift type. `readPlanDocumentFile` fails on a refused lift with a message naming the sidecar, the phase and the departure. Update the module header and `readDocumentSidecar`'s doc. Spec sidecars are unchanged.
+- Update every consumer of an older plan sidecar to read `lift`:
+  - `src/app/artifactStatus.ts` `questionsOf` takes the questions from the lifted document's preamble. When the lift is refused, it takes them from the frozen value's preamble: 0.25.0 and 0.26.0 carry questions, older shapes none. So status still summarises them.
+  - `src/domain/artifact/sidecar.ts`, if a type there needs it.
+  - Confirm that decide and approval only ever take a current sidecar.
+- In `src/domain/artifact/documentMigration.ts`:
+  - `renderOwnShape` renders shape `0.26.0` with `renderPlanBodyV0_26_0(older)` and shape `0.25.0` with `renderPlanBodyV0_25_0(older)`. Shapes `0.20.0` and `pre-schema` are rendered with `renderPlanBodyV0_26_0`, applied to the value lifted to the 0.26.0 shape: `mode: "headless"`, `oracle: null`, `assignmentReason: null`, empty questions, and the string `testStrategy` kept. That is exactly the body phax 0.26.0 and 0.27.0 rendered for them.
+  - In `decideDocumentMigration`, after the already-current refusal and before the own-shape comparison, a refused lift is refused. The problem is `<phase> testStrategy line <n> departs from the test line format: "<text>"`, and the remedy is `Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.`
+  - Otherwise the flow stays as it is: the body is compared with the own-shape rendering, the sidecar is rewritten at the current shape, the body is re-rendered (and left untouched when its rendering does not change), the cache is re-seeded, and exactly those paths are committed.
+- Update the schemas package in `packages/schemas/src/formats/repository.ts`:
+  - `planDocumentFormat.releases` gains `0.26.0`, and `PlanDocumentShapes` gains `"0.26.0"`.
+  - The current shape is recognised by an array `testStrategy` on its first phase. 0.26.0 is recognised by `mode` on a phase beside a string `testStrategy`.
+  - `toLatestPlanDocument` lifts each older phase's string with `readTestStrategyText`: its lines when it has no departure, `Unknown` otherwise. It never invents a line. `LatestPlanDocument` admits that `Unknown`.
+  Update the header comments. Export `PlanDocumentV0_26_0Schema` and `type PlanDocumentV0_26_0` from `packages/schemas/src/index.ts`.
+- In `tests/unit/architecturalGuards.test.ts`, add `src/schemas/testLine.ts`, `src/domain/plan/testLineGrammar.ts` and `src/schemas/history/plan-document/0.26.0.ts` to the schemas package's closure allowlist.
+- Fixtures:
+  - Every current-shape plan document fixture's `testStrategy` becomes an array of made-up lines, or `[]`.
+  - Fixtures that stand for a 0.26.0 sidecar keep a string and stamp `schemaUrl("plan-document", "0.26.0")` literally. Fixtures of 0.25.0 and 0.20.0 sidecars keep their strings.
+  - Tests assert the current stamp by format id and release pattern, or through `currentSchemaUrl`, never through a literal 0.28.0.
+- Update `tests/unit/archivedPlanSidecars.test.ts`. Every archived plan sidecar stamped 0.20.0 or later must read without error. Its lift is either `lifted`, or `refused` naming a phase that exists in the file and a line number of at least 1. A 0.25.0 sidecar whose lift is `lifted` still carries every `modelReason` over as `assignmentReason`. Edit nothing under `docs/`.
+- Write `tests/unit/testLineGrammar.test.ts`, one `it` per edge case. Each case asserts the lines and departures of `readTestStrategyText` or `parseTestLine`, and, where the case concerns a value, the schema's refusal of it:
+  - a guarantee holding ` — ` and ` · ` reads whole;
+  - an oracle holding ` · ` reads whole, with and without a criterion;
+  - an oracle holding ` — ` departs, and the schema refuses it;
+  - code spans and backticks in the guarantee and oracle are kept verbatim, and a coordinate in backticks departs;
+  - trailing spaces and a two-space hard break are dropped, and doubled spaces around a separator depart;
+  - a wrapped continuation line joins with one space, and a second paragraph after a blank line departs as its own item;
+  - U+2028, U+2029 and U+0085 each depart, and the schema refuses them;
+  - `- (none)` and empty text give no line, and `(none)` beside an entry departs;
+  - a last field equal to a loop value is the loop, and the schema refuses `oracle` as a criterion;
+  - `--` or `-` in place of `—`, and an unknown size, depart;
+  - stray text before the list departs as line 1, and the entries after it are numbered from 2;
+  - a table of lines with and without a criterion renders and reads back unchanged.
+- Leave alone: the deterministic plan.md parser, `phax-plan.json`, the extraction cache, lint, the overview, and the phax-planning skill. Later phases change them.
+
+### Planned files to create
+
+- `src/schemas/testLine.ts`
+- `src/domain/plan/testLineGrammar.ts`
+- `src/schemas/history/plan-document/0.26.0.ts`
+- `src/domain/authoring/renderPlanV0_26_0.ts`
+- `packages/schemas/snapshots/plan-document/next.schema.json`
+- `tests/unit/testLineGrammar.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/planDocument.ts`
+- `src/schemas/persisted.ts`
+- `src/domain/authoring/renderPlan.ts`
+- `src/domain/artifact/documentMigration.ts`
+- `src/app/artifactStatus.ts`
+- `src/app/authorArtifact.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/history.lock.json`
+- `packages/schemas/src/formats/repository.ts`
+- `packages/schemas/src/index.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/planDocument.test.ts`
+- `tests/unit/renderPlan.test.ts`
+- `tests/unit/persisted.test.ts`
+- `tests/unit/archivedPlanSidecars.test.ts`
+- `tests/unit/artifact/documentMigration.test.ts`
+- `tests/unit/artifact/sidecar.test.ts`
+- `tests/unit/decide/revision.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/repositoryFormats.test.ts`
+- `tests/integration/migrateDocuments.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/authorArtifact.test.ts`
+- `tests/integration/lintPlan.test.ts`
+- `tests/integration/decideLifecycle.test.ts`
+- `tests/integration/decideArtifact.test.ts`
+- `tests/integration/artifactQuestionsStatus.test.ts`
+- `tests/integration/approvalRecordMerge.test.ts`
+- `tests/integration/approvalLock.test.ts`
+
+### Optional files that may be edited
+
+- `src/schemas/formatError.ts`
+- `src/domain/artifact/sidecar.ts`
+- `src/app/migrateDocuments.ts`
+- `src/app/decideArtifact.ts`
+- `src/app/unmigratedDocuments.ts`
+- `src/domain/decide/revision.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/preSchemaModules.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/frozenHistory.test.ts`
+- `tests/unit/artifact/questions.test.ts`
+- `tests/type/schemasPackage.ts`
+
+### Boundary contracts
+
+- `src/domain/plan/testLineGrammar.ts` (producer) serves the renderer, the persisted lifts and the schemas package now, and the deterministic parser, lint and the overview later. The contract: one grammar, `renderTestLine`, `parseTestLine` and `readTestStrategyText`, where reading a rendered section returns its lines.
+- `src/schemas/persisted.ts` (producer) serves every reader of a plan sidecar: artifact status, approve, reopen, decide, migrate-documents and the archive corpus test. The contract is the `PlanDocumentSidecar` union. An older variant carries `older` and a `lift` that is `lifted` with the document or `refused` with a phase and a departure, and reading never fails on a prose strategy.
+- `src/domain/artifact/documentMigration.ts` (consumer) uses the frozen renderers (producers). The contract: one own-shape rendering per older shape, exactly what that release wrote.
+
+### Test strategy
+
+- a plan document whose test lines use every size, technique and loop value is accepted, and the same document with size unit on one line is refused — small · table · the skill's closed sets · in-phase · ac-closed-values
+- a plan document whose phase-02 second test line has no loop key is refused with a message naming phase-02, test line 2 and loop — small · example · the refusal message · in-phase · ac-refusal-names
+- a missing coordinate, a value outside its set and an unknown key are each refused naming the phase, the line and the coordinate — small · table · the refusal message per defect · in-phase · ac-refusal-names
+- each settled edge case of the grammar reads as the arbitration says, with its schema refusal where it concerns a value — small · example · the settled reading per case · in-phase
+- rendering lines with and without a criterion, and a phase with none, then reading the section back gives the same lines, with the criterion suffix only where a line names one — small · table · the lines before and after · in-phase · ac-render-roundtrip
+- phax artifact schema plan lists size, technique and loop as enums of exactly the skill's values, describes the line format and publishes additionalProperties false on a line — small · example · the exported JSON Schema · in-phase · ac-schema-describes
+- the frozen 0.26.0 module renders the committed 0.26.0 snapshot, and its frozen renderer reproduces a 0.26.0 body — small · example · the committed snapshot and body · in-phase
+- a live 0.26.0 sidecar whose every test strategy follows the format is migrated to the equivalent lines and committed, its body unchanged — medium · example · the committed sidecar and body · in-phase · ac-migrate-lift
+- a live 0.26.0 sidecar holding a prose test strategy is refused naming phase-01, its first departing line and the remedy, and is left as it was — medium · example · the refusal text and the unchanged files · in-phase · ac-migrate-refuse
+- every archived plan sidecar still reads, its lift lifted or refused naming a phase and a line — small · table · the archive corpus · in-phase
+- the schemas package lifts a formatted 0.26.0 string to lines and a prose one to Unknown — small · example · the lifted document · in-phase
+
+### Implementation order
+
+1. `src/schemas/testLine.ts`, then `src/domain/plan/testLineGrammar.ts` and its test.
+2. The frozen 0.26.0 module, then the plan document's `testStrategy`, then `schemas-check --write`.
+3. The renderer, then the frozen 0.26.0 renderer.
+4. The lifts and the `lift` union in `persisted.ts`, the refusal formatting, then the consumers (artifact status, migration).
+5. The schemas package and the closure allowlist.
+6. Fixtures, the archive corpus test, and a final `schemas-check` without `--write`.
+
+### Excluded scope
+
+- The deterministic plan.md parser, `phax-plan.json`, the model fallback and the extraction cache (phase-02).
+- Any lint finding (phase-02 for departures, phase-04 for the rules).
+- `phax plans overview` (phase-05).
+- The phax-planning skill, `docs/upgrading.md`, README and `NEXT_STEPS.md` (phase-06).
+- Editing any file under `docs/`, live or archived.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The paths and exports of `src/schemas/testLine.ts` and `src/domain/plan/testLineGrammar.ts`: `TestLineSchema`, the literal schemas, `renderTestLine`, `parseTestLine`, `readTestStrategyText`, `TestLineDeparture` and `departureMessage`.
+- The frozen module's exports, and confirmation that its JSON Schema equals the 0.26.0 snapshot.
+- `PlanDocumentLift` and the new older variants of `PlanDocumentSidecar`, and which consumers were changed to read them.
+- `formatPlanDocumentViolation`'s path and the message format.
+- The stamps after `--write`: plan-document at 0.28.0 with a `next` snapshot.
+- How `renderOwnShape` dispatches for each older shape.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(plans): hold a plan document's test strategy as test lines`
+
+### Commit body
+
+A plan document's testStrategy is now a list of test lines: a guarantee
+on the skill's four closed coordinates (size, technique, oracle, loop)
+and an optional criterion id. Each line renders under ### Test strategy
+in the line format, and one grammar reads a section back into lines.
+A refused line names its phase, its position and the coordinate.
+
+Freeze plan-document 0.26.0 and its renderer. Every older sidecar lifts
+its string through the grammar, or records the first departing line, so
+the archived sidecars still read. phax artifact migrate-documents lifts a
+formatted sidecar and refuses a prose one, naming the phase, the line and
+the remedy. The schemas package lifts an unformatted strategy to Unknown.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.1–§5.3, §5.21, §5.22
+
+---
+
+## phase-02 — Test lines in phax-plan.json, read from any plan.md {#phase-02-extracted-lines}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+**Assignment reason:** Changes phax-plan.json's shape across the parser, both extraction paths, the cache, lint, the persisted readers with a new typed split, the schemas package and some sixty fixtures, and keeps them consistent.
+
+The deterministic parser reads every phase's `### Test strategy` from any plan.md, headless or hand-written. Each phase of the extracted plan, the extraction cache seed and `phax-plan.json` carries its `testLines`, and the model fallback emits them through the same schema. A departing line is a `phax plans lint` `tests` error, and extraction refuses it before any model call. phax-plan 0.26.0 is frozen, and a run an older phax extracted is refused on resume, naming the way out.
+
+### Detailed instructions
+
+- In `src/schemas/phaxPlan.ts`, add `testLines: Schema.Array(TestLineSchema)` to `ExtractedPhaseFields`, then to `ExtractedPhaseSchema` and the persisted `PhaseSchema`, directly after `oracle`. `ExtractionAnswerSchema` keeps `testLines`, so the model emits them through the same `TestLineSchema`. It still leaves out `mode` and `oracle`. Update the comments: test lines are extracted on both paths, while mode and oracle stay phax's own reading.
+- In `src/schemas/planDocument.ts`, make `projectExtractedPlan` copy `testLines: phase.testStrategy` directly after `oracle`. A headless plan's cache seed then carries its lines.
+- In `src/domain/plan/parsePlanMarkdown.ts`:
+  - Add `readPlanTestStrategies(planMd)`. It returns one `{ phase, lines, departures }` per root `## phase-NN` heading, recognised as `readPhaseHeaders` recognises them, with the frontmatter skipped. It reads the raw source of the phase's `### Test strategy` section with `readTestStrategyText`. The section runs from the end of its heading line to the next root-level `###`, `##` or thematic break, or to the end of the phase block. The heading is matched case-insensitively, as the other sections are. A phase with no section has no line and no departure.
+  - `walkPlan` puts each candidate phase's conforming lines under `testLines`, directly after `oracle`, and leaves the departing entries out. A departure is never a structure error, so `collectPlanStructureErrors` does not change.
+  - Add `readPlanDeterministic(planMd)`. It returns `Either<PlanValidationError, { plan: ExtractedPhaxPlan; departures: ReadonlyArray<{ phase: string; departure: TestLineDeparture }> }>` and fails only where `extractPlanDeterministic` fails today.
+  - `extractPlanDeterministic` also fails on the first departure, in plan order, with `phase-NN: test line <n> departs from the format: "<text>"`.
+- In `src/domain/plan/phaseHeader.ts`, `withPhaseKinds` keeps the answer's `testLines` and places `mode` and `oracle` before them. The kinded phase's key order is `…, optionalFilesToEdit, mode, oracle, testLines, commit`.
+- In `src/app/extractPlan.ts`, add these rules to the extraction prompt:
+  - `testLines` holds one entry per item of the phase's `### Test strategy` section, each coordinate copied verbatim, with `criterion` null when the line names none.
+  - `[]` stands for a phase whose section is absent, empty or `- (none)`.
+  - An item that is not in the line format is reported as `{"error": …}`.
+  A malformed answer stays refused by the strict decode as today (`Extracted JSON failed schema validation`). It is never repaired or retried.
+- In `src/app/loadOrExtractPlan.ts`, before the cache lookup and before any model call, read `readPlanTestStrategies(planMd)`. The first departure fails with a `PlanValidationError`: `<plan path>: phase-NN test line <n> departs from the format: "<text>" — run phax plans lint <plan path>`. Nothing is read from or written to the cache, and the Backend is never called. This covers every caller: `phax run`, `plans overlap` and `adjust-plan`.
+- In `src/domain/planCache/key.ts`, set `EXTRACTOR_VERSION` to 4, with the comment line `4: phases carry testLines.`.
+- In `src/domain/plan/lint.ts`, add `"tests"` to `LintCheck`, and add `testLineDepartureFindings(strategies)`: one `error` per phase with a departure, naming its first one with `departureMessage`. In `src/app/lintPlan.ts`, read the strategies from plan.md alone, as the headers are read. Push the departure findings directly after the `interactive` and `oracles` findings, in every branch. Replace `extractPlanDeterministic` with `readPlanDeterministic`, so a departure no longer hides the files, commands, models and advisory checks. `lintRender.ts` keeps its widths: `structure` is still the widest check.
+- In `src/app/estimatePlan.ts`, read the plan with `readPlanDeterministic`. A departing entry is left out and does not block the estimate.
+- In `src/app/promptGeneration.ts`, the `## Current phase` JSON omits `testLines` (`const { testLines: _lines, ...shown } = currentPhase`). Add a comment: the phase prompt does not act on test lines (test-strategy §7). Prompt snapshots must not change.
+- Freeze phax-plan 0.26.0. Create `src/schemas/history/phax-plan/0.26.0.ts`, a self-contained copy of today's `PhaxPlanFileSchema`: phases with `mode` and `oracle`, and no `testLines`. It imports only `effect` and exports `PhaxPlanV0_26_0Schema`, `type PhaxPlanV0_26_0` and `decodePhaxPlanV0_26_0` (`onExcessProperty: "error"`), with the frozen-module header comment. Its JSON Schema must equal `packages/schemas/snapshots/phax-plan/0.26.0.schema.json`. Then run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/phax-plan/next.schema.json`, moves the phax-plan stamp to 0.28.0 and pins the module. At the end, the check without `--write` must report nothing.
+- In `src/schemas/persisted.ts`, `readPhaxPlanFile` reads each shape with its own decoder:
+  - a file stamped 0.26.0 or later, below the current stamp, with the 0.26.0 decoder (shape `0.26.0`);
+  - one stamped lower with the 0.17.0 decoder;
+  - one without `$schema` with the pre-schema decoder.
+  An older shape is never given `testLines`. Make `PhaxPlanRead` `{ shape: "current"; plan: PhaxPlan }` or `{ shape: older; plan }`, where the older plan's phases have no `testLines` key. Export the plan type both satisfy, and type the display and sizing readers against it: `src/app/resolveRunInfo.ts`, `src/app/estimateHistory.ts`, `src/app/loadReviewHandoffInputs.ts` and `src/app/resetPhase.ts`. 0.17.0 and pre-schema keep their mode and oracle lift. `loadPlan` refuses every older shape with `olderPhaxPlanMessage`, which names `in the 0.26.0 shape`; exit 2 as today, with the run's state unchanged.
+- Update the schemas package. In `packages/schemas/src/formats/runDirectory.ts`, `phaxPlanFormat.releases` gains `0.26.0` and `PhaxPlanShapes` gains `"0.26.0"`. `toLatestPhaxPlan` gives every older phase `testLines: Unknown`, documenting that this invents no fact. Export the frozen module from `packages/schemas/src/index.ts`. Add `src/schemas/history/phax-plan/0.26.0.ts` to the closure allowlist in `tests/unit/architecturalGuards.test.ts`.
+- Fixtures. Every typed `PhaxPlan`, `ExtractedPhaxPlan` or extraction answer phase gains `testLines: []` (or made-up lines where a test needs them) directly after `oracle`. Fixtures of older shapes stay without the key and keep their literal stamps. A snapshot may change only by `testLines`, and the prompt snapshots must not change at all.
+- Leave alone: the oracle-loop and criterion lint rules (phase-04), the overview (phase-05), the `plans lint` help text (phase-04) and the skill (phase-06).
+
+### Planned files to create
+
+- `src/schemas/history/phax-plan/0.26.0.ts`
+- `packages/schemas/snapshots/phax-plan/next.schema.json`
+
+### Planned files to edit
+
+- `src/schemas/phaxPlan.ts`
+- `src/schemas/planDocument.ts`
+- `src/schemas/persisted.ts`
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/domain/plan/phaseHeader.ts`
+- `src/domain/plan/lint.ts`
+- `src/domain/planCache/key.ts`
+- `src/app/lintPlan.ts`
+- `src/app/estimatePlan.ts`
+- `src/app/extractPlan.ts`
+- `src/app/loadOrExtractPlan.ts`
+- `src/app/promptGeneration.ts`
+- `src/app/resolveRunInfo.ts`
+- `src/app/estimateHistory.ts`
+- `src/app/loadReviewHandoffInputs.ts`
+- `src/app/resetPhase.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/history.lock.json`
+- `packages/schemas/src/formats/runDirectory.ts`
+- `packages/schemas/src/index.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/renderPlan.test.ts`
+- `tests/unit/planDocument.test.ts`
+- `tests/unit/persisted.test.ts`
+- `tests/unit/schemas.test.ts`
+- `tests/unit/extractPlan.test.ts`
+- `tests/unit/extractedPlanCacheEntry.test.ts`
+- `tests/unit/planLint.test.ts`
+- `tests/unit/promptGeneration.test.ts`
+- `tests/unit/cli/validate.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/runDirectoryFormats.test.ts`
+- `tests/integration/loadOrExtractPlan.test.ts`
+- `tests/integration/planCacheStore.test.ts`
+- `tests/integration/lintPlan.test.ts`
+- `tests/integration/estimatePlan.test.ts`
+- `tests/integration/resume.test.ts`
+- `tests/helpers/costHistory.ts`
+
+### Optional files that may be edited
+
+- `src/app/loadPlan.ts`
+- `src/schemas/extractedPlanCacheEntry.ts`
+- `src/domain/plan/finalize.ts`
+- `src/cli/commands/resume.ts`
+- `src/cli/commands/validate.ts`
+- `tests/unit/loadOrExtractPlan.test.ts`
+- `tests/unit/extractPlanFinalize.test.ts`
+- `tests/unit/phaseHeader.test.ts`
+- `tests/unit/oraclePairs.test.ts`
+- `tests/unit/dryRun.test.ts`
+- `tests/unit/hold.test.ts`
+- `tests/unit/resume.test.ts`
+- `tests/unit/cli/resume.test.ts`
+- `tests/unit/cli/run.test.ts`
+- `tests/unit/runPreflight.test.ts`
+- `tests/unit/gateRequest.test.ts`
+- `tests/unit/planProjection.test.ts`
+- `tests/unit/planOutline.test.ts`
+- `tests/unit/security/skillEditGrants.test.ts`
+- `tests/unit/decide/revision.test.ts`
+- `tests/unit/artifact/sidecar.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/preSchemaModules.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/repositoryFormats.test.ts`
+- `tests/type/schemasPackage.ts`
+- `tests/unit/__snapshots__/promptGeneration.test.ts.snap`
+- `tests/integration/__snapshots__/executePlan.test.ts.snap`
+- `tests/helpers/stoppedRunFixture.ts`
+- `tests/helpers/heldRunFixture.ts`
+- `tests/e2e/resetPhase.test.ts`
+- `tests/e2e/gateExhaustionResume.test.ts`
+- `tests/e2e/semanticTrace.test.ts`
+- `tests/e2e/semanticTrace.providers.test.ts`
+- `tests/e2e/semanticTrace.declaredStop.test.ts`
+- `tests/e2e/semanticTrace.heldStop.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/plansOverlapLanded.test.ts`
+- `tests/integration/plansOverlapCommand.test.ts`
+- `tests/integration/analyzePlanOverlap.test.ts`
+- `tests/integration/extractPlanSealed.test.ts`
+- `tests/integration/stateMachineContract.test.ts`
+- `tests/integration/runCarriesCompletion.test.ts`
+- `tests/integration/runFolder.test.ts`
+- `tests/integration/resumeFromCleanup.test.ts`
+- `tests/integration/resumeHandoff.test.ts`
+- `tests/integration/resumeFromCompletion.test.ts`
+- `tests/integration/resumeFromCommit.test.ts`
+- `tests/integration/reviewCode.test.ts`
+- `tests/integration/decideArtifact.test.ts`
+- `tests/integration/decideLifecycle.test.ts`
+- `tests/integration/authorArtifact.test.ts`
+- `tests/integration/approvalLock.test.ts`
+- `tests/integration/approvalRecordMerge.test.ts`
+- `tests/integration/migrateDocuments.test.ts`
+- `tests/integration/skillEditConsent.test.ts`
+- `tests/integration/skillEditGrants.test.ts`
+- `tests/integration/resetResume.test.ts`
+- `tests/integration/gateRefusal.test.ts`
+- `tests/integration/modelPreflight.test.ts`
+- `tests/integration/costLedger.test.ts`
+- `tests/integration/agentCommandGrants.test.ts`
+- `tests/integration/extractPlanTitles.test.ts`
+- `tests/integration/reconciliation.test.ts`
+- `tests/integration/run.test.ts`
+- `tests/integration/executePlan.test.ts`
+- `tests/integration/rateLimit.test.ts`
+- `tests/integration/gateRequest.test.ts`
+- `tests/integration/runBranchDirtyTree.test.ts`
+- `tests/integration/pushedBrief.test.ts`
+- `tests/integration/perPhaseBranch.test.ts`
+- `tests/integration/adjustPlan.test.ts`
+- `tests/integration/adjustPlanCommand.test.ts`
+- `tests/integration/routing.test.ts`
+- `tests/integration/setupFailure.test.ts`
+- `tests/integration/telemetry/end-to-end.test.ts`
+- `tests/integration/briefRecords.test.ts`
+- `tests/integration/gateLogTrailer.test.ts`
+- `tests/integration/estimateHistory.test.ts`
+- `tests/integration/runPreflightBeforeNaming.test.ts`
+- `tests/integration/resumePreflightRechecks.test.ts`
+- `tests/integration/holdPreflight.test.ts`
+- `tests/integration/declaredStop.test.ts`
+- `tests/integration/declaredStopRun.test.ts`
+- `tests/integration/declaredStopClose.test.ts`
+- `tests/integration/declaredStopProviderArgv.test.ts`
+- `tests/integration/stopRecords.test.ts`
+- `tests/integration/stopTranscripts.test.ts`
+- `tests/integration/stopTurnCosts.test.ts`
+- `tests/integration/noStopUnchanged.test.ts`
+- `tests/integration/reviewCorrectionsPrompt.test.ts`
+- `tests/integration/recordsExplain.test.ts`
+- `tests/integration/recordsExplainStop.test.ts`
+- `tests/integration/writeRecord.test.ts`
+- `tests/integration/oraclePhases.test.ts`
+
+### Boundary contracts
+
+- `src/domain/plan/parsePlanMarkdown.ts` (producer) serves lint, estimate, extraction, and the overview later. The contract: `readPlanTestStrategies` reads plan.md alone; `readPlanDeterministic` leaves departing entries out and reports them beside the plan; `extractPlanDeterministic` refuses them.
+- `src/app/loadOrExtractPlan.ts` (producer) serves `phax run`, `plans overlap` and `adjust-plan`. The contract: a departure fails before the cache and the Backend, naming the line and `phax plans lint`.
+- `src/schemas/persisted.ts` `readPhaxPlanFile` (producer) serves `loadPlan`, which accepts only `current`, and the display and sizing readers, which take any shape typed without `testLines`.
+- `projectExtractedPlan` (producer) serves the cache seed and `phax-plan.json`. The contract: `testLines` equals the document's `testStrategy`, directly after `oracle`.
+
+### Test strategy
+
+- rendering a plan document and reading it back with the deterministic parser gives each phase's test lines unchanged, and a phase with none gives [] — small · table · the document's test lines · in-phase · ac-render-roundtrip
+- a hand-written plan.md with no sidecar has its formatted test lines extracted with their coordinates — small · example · the expected test lines · in-phase · ac-hand-plan-parsed
+- each phase of the extracted plan carries its lines in plan order, a phase with no line carries [], and two plans that differ in one line get different cache seeds — small · example · the extracted plan and the two seeds · in-phase · ac-lines-extracted
+- a plan.md whose phase-01 lists add unit tests for the exporter fails lint with exit 1 and one tests error naming phase-01 and that line, while the files and models checks still run — small · example · the lint findings · in-phase · ac-departure
+- each settled edge case reads the same through the deterministic parser as through the line grammar on the same section — small · metamorphic · the grammar's reading of the section · in-phase
+- a plan with a departing line is refused by extraction before the cache and the model, naming the line and phax plans lint — small · example · the refusal and a backend never called · in-phase
+- a model answer whose test line has a size outside its set is refused by the strict decode — small · example · the decode refusal · in-phase
+- a plan with a departing line is still estimated, its departing entry left out — small · example · the estimate report · in-phase
+- a run folder whose phax-plan.json is stamped 0.26.0 makes phax resume and phax validate --plan exit 2 with the remedy, its state unchanged — medium · example · exit code, message and run state · in-phase
+- the phase prompt's current phase carries no testLines key — small · example · the unchanged prompt snapshot · in-phase
+
+### Implementation order
+
+1. The schemas: `phaxPlan.ts`, then the projection.
+2. `readPlanTestStrategies`, the walk, `readPlanDeterministic`, then `extractPlanDeterministic`'s refusal.
+3. The model answer path, the prompt rules, `loadOrExtractPlan`'s refusal and the cache version.
+4. Lint's `tests` departure findings, estimate, and the prompt's omission.
+5. The frozen phax-plan module, `schemas-check --write`, the reader's shapes and the typed display readers.
+6. The schemas package, fixtures and snapshots, then a final `schemas-check` without `--write`.
+
+### Excluded scope
+
+- The oracle-loop, oracle-phase and criterion lint rules, and reading the source spec (phase-04).
+- `phax plans overview` (phase-05).
+- The `plans lint` long help and the generated CLI docs (phase-04).
+- Any run preflight check on test lines, and any use of them by the phase prompt or the records (test-strategy §7).
+- The skill and the docs (phase-06).
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exports of `parsePlanMarkdown.ts` (`readPlanTestStrategies`, `readPlanDeterministic`, `extractPlanDeterministic`'s new refusal) and their result types.
+- `testLines`' position in every schema, and `ExtractionAnswerSchema`'s key order.
+- `loadOrExtractPlan`'s departure refusal text.
+- `EXTRACTOR_VERSION` 4.
+- `LintCheck` with `tests`, `testLineDepartureFindings`, and where lintPlan pushes it.
+- `readPhaxPlanFile`'s shapes, the exported older-plan type, and which readers take it.
+- The stamps after `--write`, and which snapshots changed (only by `testLines`).
+- Any deviation from the planned file lists, with the reason. Fixture files edited from the optional list need no explanation.
+
+### Commit subject
+
+`feat(plans): carry each phase's test lines in phax-plan.json`
+
+### Commit body
+
+The deterministic parser reads every phase's ### Test strategy from any
+plan.md into test lines. The extracted plan, the extraction cache seed
+and phax-plan.json carry them as testLines, directly after oracle, and
+the model fallback emits them through the same schema.
+
+A departing line is a phax plans lint tests error, read from plan.md
+alone, and the other checks still run. Extraction refuses a departure
+before the cache and the model, naming the line and phax plans lint. The
+phase prompt does not show the lines.
+
+Freeze phax-plan 0.26.0. phax resume and phax validate --plan refuse a
+phax-plan.json an older phax wrote and name the way out. The display
+readers still read it, without test lines. The extractor version moves
+to 4.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.4–§5.6
+
+---
+
+## phase-03 — Oracles for the lint rules on test lines {#phase-03-lint-oracles}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+**Oracle phase:** discharged by phase-04
+**Oracle files:** `tests/integration/lintTestLines.test.ts`
+
+The acceptance tests of lint's test-line rules are written before their code and frozen: an oracle-loop line on a phase that is not an oracle phase, an oracle phase without an oracle line, a criterion id the source spec lacks, an uncovered criterion, and a source spec that has no criterion ids. Every test is marked as expected to fail, so the gate stays green until phase-04 removes the markers.
+
+### Detailed instructions
+
+- Create `tests/integration/lintTestLines.test.ts` and nothing else. Do not touch `src/`. `lintPlan` already exists, and phase-02 added the `tests` check, so every test compiles and loads.
+- Build the harness as `tests/integration/lintPlan.test.ts` does: `makeFakeFileSystem` and `makeFakeShell` from `src/infra/fakes/`, and a made-up `ResolvedConfig` with `repoRoot` `/repo`, a `standard` gate profile, `agentCommands: ["pnpm"]` and an `oracles` entry (`{ command: "node made-up-oracles.mjs" }`), so an oracle pair raises no `oracles` error. Copy what you need into this file; do not import from `lintPlan.test.ts`.
+- Write the fixtures inside this file: they are frozen with the oracles.
+  - A `planMd(...)` builder writes a Draft plan at `docs/plans/2610240900-invoice-export-plan.md`, with frontmatter `source-spec: docs/specs/2610231100-invoice-export.md` and `completes-spec: true`. Each phase has the policy default `claude-sonnet-5-5` / `medium`, its planned-file sections, optional oracle header lines, a `### Test strategy` section with the given entries written by hand in the line format, and the commit sections.
+  - A made-up spec document has acceptance criteria `ac-a` and `ac-b`, or `ac-a`, `ac-b` and `ac-c` where a case needs them. Write it as `JSON.stringify(encodeSpecDocumentFile(withSchemaUrl("spec-document", doc)), null, 2)` to `docs/specs/2610231100-invoice-export.json`, beside its `.md`.
+  Keep every fixture otherwise clean, so that before the rules exist the plan has no error at all.
+- Write each case as its own `it.fails(...)`. Each asserts `report.findings.filter((f) => f.check === "tests")` with `toEqual` against exactly these rows, plus `hasLintErrors` where stated:
+  1. An oracle pair: phase-01 has `**Oracle phase:** yes` and `**Oracle files:** tests/unit/invoiceExport.test.ts` (a file it plans to create) and an oracle-loop line naming `ac-a`. phase-02 has an in-phase line naming `ac-b`, then an oracle-loop line. Rows: one error, phase `phase-02`, message `test line 2 is in the oracle loop, but phase-02 is not an oracle phase`. `hasLintErrors` is true.
+  2. A one-phase plan with no pair, whose only line is in the oracle loop and names `ac-a`, with the spec holding only `ac-a`. Rows: the same error for `phase-01`, `test line 1`.
+  3. An oracle phase whose lines are all in-phase. Rows: one error, phase `phase-01`, message `phase-01 is an oracle phase, but none of its test lines is in the oracle loop`.
+  4. An oracle phase with no test line at all (`- (none)`). Rows: the same error.
+  5. The spec has `ac-a` and `ac-b`; phase-01's lines name `ac-a`, `ac-b`, then `ac-c`. Rows: one error, phase `phase-01`, message `test line 3 names criterion "ac-c", which invoice-export does not have`. `hasLintErrors` is true.
+  6. The spec has `ac-a` and `ac-b`; the lines name only `ac-a`. Rows: one warning, phase null, message `criterion "ac-b" of invoice-export is named by no test line`. `hasLintErrors` is false.
+  7. The spec is a hand-written `.md` with no `.json` beside it, and one line names `ac-a`. Rows: one warning, phase null, message `source spec docs/specs/2610231100-invoice-export.md has no JSON sidecar: no criterion id is checked`.
+  8. The spec and its sidecar sit only under `docs/specs/archive/`, with `ac-a` and `ac-b`; the lines name `ac-a`, `ac-b` and `ac-c`. Rows: case 5's error, which shows the reader fell back to the archive.
+  9. No spec at either path. Rows: one warning, phase null, message `source spec docs/specs/2610231100-invoice-export.md is not found, here or under docs/specs/archive/: no criterion id is checked`.
+  10. A sidecar that is not JSON. Rows: one warning, phase null, whose message matches `/^source spec sidecar docs\/specs\/2610231100-invoice-export\.json cannot be read \(.+\): no criterion id is checked$/` (use `expect.stringMatching`).
+  11. Order: a one-phase plan whose line 1 is in the oracle loop and names `ac-z`, with the spec holding `ac-a` and `ac-b`. Rows, in this order: the oracle-loop error for line 1; `test line 1 names criterion "ac-z", which invoice-export does not have`; then the uncovered warnings for `ac-a` and `ac-b`, in that order.
+- Each test must fail today on its assertion, never on a missing module, export or type. Run `pnpm test` and confirm the file reports every test as an expected failure. A case that passes today is not an oracle: drop it here. phase-04 writes the no-source-spec and empty-phase cases in-phase.
+- No randomness and no clock. Do not mark any other test file.
+
+### Planned files to create
+
+- `tests/integration/lintTestLines.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+- The oracles (consumer) call `lintPlan` in `src/app/lintPlan.ts` (producer), its stable entry. The contract: the `tests` findings (severity, phase, message) and their order, read from a plan.md and a source spec sidecar through the FileSystem port.
+
+### Test strategy
+
+- a discharging phase listing a line in the oracle loop gets a tests error naming it and the line — small · example · the tests findings · oracle · ac-oracle-loop-misplaced
+- an ordinary phase listing a line in the oracle loop gets the same error — small · example · the tests findings · oracle · ac-oracle-loop-misplaced
+- an oracle phase whose lines are all in-phase, or that lists none, gets a tests error naming it — small · example · the tests findings · oracle · ac-oracle-phase-silent
+- a line naming ac-c against a spec sidecar with ac-a and ac-b gets a tests error naming the phase, the line and ac-c, also when the spec sits under the archive — small · example · the tests findings · oracle · ac-unknown-criterion
+- a plan naming ac-a and never ac-b lints with no error and one tests warning naming ac-b — small · example · the tests findings and the error flag · oracle · ac-uncovered-warning
+- a spec with no sidecar, a spec not found and an unreadable sidecar each give one tests warning and no criterion finding — small · example · the tests findings · oracle · ac-no-ids
+- the tests findings of one plan come in the settled order — small · example · the ordered findings · oracle
+
+### Implementation order
+
+1. The harness and the fixture builders.
+2. Cases 1 to 4 (the oracle loop), then 5 to 10 (the criteria), then 11 (the order).
+3. `pnpm test`, to confirm every case is an expected failure.
+
+### Excluded scope
+
+- Any change under `src/`.
+- The no-source-spec and empty-phase cases, which pass today (phase-04, in-phase).
+- Departure findings (phase-02) and the overview (phase-05).
+
+### Verification
+
+The `standard` gate profile in `phax.json`, with the `oracles` provider's `authored` verdict on the oracle file.
+
+### Expected handoff content
+
+- The oracle file's path, its case list and the exact expected rows, so phase-04 implements to them.
+- Confirmation that each case fails on its assertion today.
+- Any case dropped because it passed, with the reason.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(plans): write the oracles of lint's test-line rules`
+
+### Commit body
+
+Write the acceptance tests of phax plans lint's test-line rules before
+their code, each marked as an expected failure: an oracle-loop line on a
+phase that is not an oracle phase, an oracle phase without an oracle
+line, a criterion id the source spec lacks, an uncovered criterion, and
+a source spec with no sidecar, not found or unreadable, with the
+findings' order. phase-04 removes the markers and writes the rules.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.7–§5.10, §5.12
+
+---
+
+## phase-04 — Lint grades test lines against the oracle pairs and the source spec {#phase-04-lint-rules}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+`phax plans lint` reports an oracle-loop line on a phase that is not an oracle phase, an oracle phase without an oracle line, and a criterion id the source spec lacks, as errors. A criterion no line names, and a source spec whose criterion ids cannot be read, are warnings. phase-03's oracles pass with their markers removed. The coverage computation and the source spec reader are ready for the overview.
+
+### Detailed instructions
+
+- In `tests/integration/lintTestLines.test.ts`, remove each `.fails` marker. That is the only change to that file. If an oracle seems wrong, do not edit it: say so in the handoff.
+- Create `src/app/sourceSpecCriteria.ts`. `readSourceSpecCriteria({ planMd, repoRoot })` runs through the FileSystem port only and returns an explicit union:
+  - `{ kind: "no-source-spec" }` when `readSourceSpec` gives null or `none`;
+  - `{ kind: "criteria"; spec; slug; ids }`, with `spec` the path it read and `ids` in spec order;
+  - `{ kind: "no-criterion-ids"; spec; reason: "no-sidecar" | "not-found" | "unreadable"; message }`.
+  It tries the `source-spec` path first, then `archivePathFor` of it under `docs/specs/archive/`. The sidecar is `sidecarPathFor` of the `.md` found, read with `readDocumentSidecar("spec", …)` in any shape, lifted. `slug` is `parseArtifactName("spec", …)?.slug`, or the path when the name does not parse. The messages are exactly:
+  - `source spec <path> has no JSON sidecar: no criterion id is checked`
+  - `source spec <path> is not found, here or under docs/specs/archive/: no criterion id is checked`
+  - `source spec sidecar <sidecar path> cannot be read (<reason>): no criterion id is checked`
+  Keep the message builders pure, in `src/domain/plan/criterionCoverage.ts`, so the overview prints the same line.
+- Create `src/domain/plan/criterionCoverage.ts`, pure. `criterionCoverage(phases, ids)` returns three things:
+  - for each id in spec order, the `{ phase, loop }` of every line naming it, in plan and line order;
+  - `uncovered`, the ids no line names, in spec order;
+  - `unknown`, as `{ phase, line, id }`, for every line naming an id outside `ids`.
+  It also holds the shared no-criterion-ids messages.
+- Create `src/domain/plan/testLineCheck.ts`, pure. `testLineFindings({ phases, criteria })` takes the parsed phases (`id`, `oracle`, `testLines`) and the reader's result, and returns `tests` findings in the settled order:
+  - for each phase in plan order, and each of its lines in order: an oracle-loop line on a phase that is not an oracle phase (`phase.oracle === null`) gives `test line <n> is in the oracle loop, but <phase> is not an oracle phase`; an unknown criterion gives `test line <n> names criterion "<id>", which <slug> does not have`;
+  - then, for an oracle phase with no oracle-loop line (none at all included), `<phase> is an oracle phase, but none of its test lines is in the oracle loop`;
+  - then the plan level: a `no-criterion-ids` result is one warning with phase null and the reader's message; a `criteria` result gives one warning per uncovered id, `criterion "<id>" of <slug> is named by no test line`; `no-source-spec` gives nothing.
+  An ordinary phase with no line gives nothing (§5.11).
+- In `src/app/lintPlan.ts`, once the plan parses, read the criteria with `readSourceSpecCriteria` and push `testLineFindings` directly after phase-02's departure findings. A plan that does not parse gets only its departure findings, as today.
+- Write the in-phase tests:
+  - `tests/unit/testLineCheck.test.ts`: every message, the order, an empty last phase with no finding, and a plan with no source spec getting no criterion finding.
+  - `tests/unit/criterionCoverage.test.ts`: a table of coverage cases.
+  - `tests/unit/sourceSpecCriteria.test.ts`: the reader over a fake FileSystem, for a live spec, an archived spec, no sidecar, not found, an unreadable sidecar and a sidecar of an older spec shape.
+  - `tests/integration/lintPlan.test.ts`: ac-empty-phase end to end.
+- In `src/cli/cliDocs.ts`, update the `plans lint` long help: eight checks now. Add `tests`: a line off the format is an error; so is an oracle-loop line off an oracle phase, an oracle phase with no oracle-loop line, and a criterion id the source spec's sidecar lacks; a criterion no line names, and a source spec with no readable criterion ids, are warnings. Say that a departing line no longer stops the other checks, and that the source spec's sidecar is read, from the archive when the spec has moved. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`. Never edit their output by hand.
+
+### Planned files to create
+
+- `src/app/sourceSpecCriteria.ts`
+- `src/domain/plan/criterionCoverage.ts`
+- `src/domain/plan/testLineCheck.ts`
+- `tests/unit/testLineCheck.test.ts`
+- `tests/unit/criterionCoverage.test.ts`
+- `tests/unit/sourceSpecCriteria.test.ts`
+
+### Planned files to edit
+
+- `tests/integration/lintTestLines.test.ts`
+- `src/app/lintPlan.ts`
+- `tests/integration/lintPlan.test.ts`
+- `src/cli/cliDocs.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+
+### Optional files that may be edited
+
+- `src/domain/plan/lint.ts`
+- `docs/cli/inventory.md`
+- `README.md`
+
+### Boundary contracts
+
+- `src/app/sourceSpecCriteria.ts` (producer) serves lint now and the overview in phase-05. The contract: the `no-source-spec` | `criteria` | `no-criterion-ids` union, read through FileSystem only, with the archive fallback.
+- `src/domain/plan/criterionCoverage.ts` (producer) serves the lint rules and the overview. The contract: coverage per criterion in spec order, uncovered ids, unknown references, and the shared one-line messages.
+
+### Test strategy
+
+- a plan whose last phase has an empty test strategy and no other defect gets no finding for that phase — small · example · an empty findings list · in-phase · ac-empty-phase
+- a plan with no source spec gets no criterion finding whatever its lines name — small · example · the tests findings · in-phase
+- coverage lists each criterion with the phase and loop of every line naming it, then the uncovered ids, then the unknown references — small · table · the expected coverage · in-phase · ac-coverage
+- the source spec reader resolves a live spec, falls back to the archive, and names a spec with no sidecar, not found or unreadable — small · table · the reader's result per case · in-phase · ac-no-ids
+- the plans lint long help names the tests check and the generated CLI docs match it — small · example · the drift tests · in-phase
+
+### Implementation order
+
+1. Remove the markers.
+2. `criterionCoverage.ts` and its messages, then `testLineCheck.ts`.
+3. `sourceSpecCriteria.ts`, then the wiring in `lintPlan.ts`.
+4. The in-phase tests, then the help text and the regenerated CLI docs.
+
+### Excluded scope
+
+- Any change to the oracle file beyond removing its markers.
+- `phax plans overview` (phase-05).
+- The run preflight, which never refuses on test lines (test-strategy §7).
+- The skill and the docs pages (phase-06).
+
+### Verification
+
+The `standard` gate profile in `phax.json`, with the `oracles` provider's `discharged` verdict on `tests/integration/lintTestLines.test.ts`.
+
+### Expected handoff content
+
+- The paths and signatures of `readSourceSpecCriteria`, `criterionCoverage`, the message builders and `testLineFindings`, and their result unions. phase-05 reuses the first three.
+- Where lintPlan pushes the findings.
+- Confirmation that the oracles pass with only their markers removed.
+- Any oracle you think is wrong, left unedited, with the reason.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(plans): lint test lines against the oracle pairs and the source spec`
+
+### Commit body
+
+phax plans lint grades each phase's test lines. An oracle-loop line on a
+phase that is not an oracle phase, an oracle phase with no oracle-loop
+line, and a criterion id the source spec's sidecar lacks are tests
+errors. A criterion no line names is a warning, and so is a source spec
+whose criterion ids cannot be read, because it has no sidecar, cannot be
+found here or under the archive, or does not read. A phase that tests
+nothing is not flagged.
+
+Discharges phase-03's oracles.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.7–§5.12
+
+---
+
+## phase-05 — phax plans overview {#phase-05-plans-overview}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Assignment reason:** A new command and report with no existing layout to copy: it joins the parser, one architecture provider call, glob placement and criterion coverage, and has per-variant JSON kinds and a read-only contract to prove.
+
+A new read-only, model-free `phax plans overview <plan> [--json]` lays a plan out before it runs. For each phase in plan order it shows the model, effort and mode, the oracle role, the planned files grouped by architecture part, and the test lines. It ends with the coverage of the source spec's acceptance criteria. It starts no model session, writes nothing, runs the architecture provider once, and degrades to files when the provider fails.
+
+### Detailed instructions
+
+- Create `src/domain/plan/overview.ts`, pure. It defines the overview as explicit unions and builds it from the parsed plan, the plan's name, title and status, the architecture outcome and the criteria result (phase-04's `readSourceSpecCriteria` union, with `criterionCoverage`). The shape:
+  - `{ plan, name, title, status, sourceSpec, architecture, phases, coverage }`;
+  - `architecture` is `{ kind: "parts" }`, `{ kind: "none" }` or `{ kind: "failed"; message }`;
+  - each phase is `{ id, title, model, effort, mode, oracleRole, placement, testLines }`;
+  - `oracleRole` is `{ kind: "oracle"; dischargedBy }`, `{ kind: "discharging"; oraclePhase }` or `{ kind: "none" }`, from `oracleRoleOf` in `src/domain/plan/oraclePairs.ts`;
+  - `placement` is a list of `{ part: string | null; files }`;
+  - `coverage` is `{ kind: "criteria"; spec; criteria: [{ id, lines: [{ phase, loop }] }]; uncovered }`, `{ kind: "no-source-spec" }` or `{ kind: "no-criterion-ids"; spec; reason; message }`.
+  Placement covers a phase's planned files to create and edit, deduplicated in order. With parts, each file goes under every part whose globs match it (`matchesGlob` in `src/domain/architecture/glob.ts`), in report order, and only parts that hold a file are listed. A final `{ part: null, files }` entry is always present, possibly empty. Without parts, the placement is a single `{ part: null, files }`. Coverage ignores ids the spec does not have: lint reports them.
+- Create `src/domain/plan/overviewRender.ts`, pure, which renders the text layout:
+  - line 1: `<name> — <title>  (<status> · source spec <spec slug>)`, with `no source spec` in place of the second part when there is none and `no frontmatter` as the status of a loose plan.md;
+  - line 2: `architecture: parts from the configured provider`, `architecture: no provider configured — planned files shown` or `architecture: provider failed — planned files shown`;
+  - then, for each phase, a blank line and `<id> — <title>  <model> · <effort> · <mode>`, followed by two-space-indented rows with labels padded to the block's widest label:
+    - `oracle role  oracle phase, discharged by <id>`, `discharges <id>` or `none`;
+    - one row per part, `<part id>  <files joined with ", ">`;
+    - `(no part)  <files>` when unplaced files remain, with the label `files` when there are no parts, and `(no planned files)` for a phase with none;
+    - each test line as `- <renderTestLine(line)>`, or `(no test lines)`;
+  - then a blank line and the coverage:
+    - `acceptance criteria of <slug>`, one row per criterion `<id>  <phase> <loop>, <phase> <loop>` (`(no test line)` when none), and `uncovered  <ids>` or `uncovered  (none)`;
+    - `no source spec: no criterion coverage` for a plan without one;
+    - the shared one-line message for `no-criterion-ids`.
+- Create `src/app/planOverview.ts`, the use case. Its requirements are `FileSystem | Shell`, never `Backend`. It:
+  1. reads the plan;
+  2. for a plan under `docs/plans/`, validates it with `validateArtifact`; its status is the frontmatter's, and a loose plan.md's status is its frontmatter status when it decodes, null otherwise;
+  3. parses with `extractPlanDeterministic` and `finalizeExtractedPlan` for the titles;
+  4. reads the criteria with `readSourceSpecCriteria`;
+  5. without `config.architecture`, sets the architecture to `none`; otherwise calls `pullArchitecture` once, with `root` and `cwd` at `config.repoRoot` and `paths` set to the plan's planned files to create and edit (deduplicated, plan order; empty for the whole repository). `answered` gives the parts; `failed` or `refused` gives `failed` with its message;
+  6. returns the overview.
+  If the file cannot be read, does not parse (a structure error or a departing line) or fails artifact validation, the use case fails with a typed error carrying the line the CLI prints.
+- Create `src/cli/commands/plansOverview.ts`, the thin command, wired like `plans lint`. It absolutizes the argument against the invocation directory and provides `makeRepoRootedFileSystemLayer(config)` and `NodeShellLayer` only.
+  - An invalid config exits 2.
+  - The use case's failure exits 1 with one stderr line: `<plan>: the plan does not parse — run phax plans lint <plan>`, or, for an unreadable file, `<plan>: cannot be read (<reason>)`.
+  - A failed architecture prints one stderr line, `Warning: architecture provider failed: <message>`.
+  - `--json` prints the overview with `JSON.stringify(overview, null, 2)` as the only thing on stdout; otherwise it prints the rendering.
+  - It exits 0 otherwise.
+  Register it in `src/cli/commands/plans.ts` as `plans overview <plan>` with `--json`, and update the parent's description.
+- In `src/domain/security/phaseGuard.ts`, classify `"plans overview": "allowed"` beside `plans lint`. It only reads, and the architecture provider it spawns is the one `plans lint` and `phax architecture` already spawn.
+- In `src/cli/cliDocs.ts`, write the `plans overview` long help:
+  - what it shows, and that it reads with the deterministic parser `plans lint` uses, with no model;
+  - that it runs in any status and is read-only;
+  - that the architecture provider runs once, with the planned files;
+  - the failure line on stderr;
+  - `--json`;
+  - the exit codes 0, 1 and 2;
+  - side effects: none of its own, plus the provider spawned once.
+  Add examples, and add the command to the `plans` parent help. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`. Their output (`phax.usage.kdl`, `docs/cli/reference.md`, the README's generated CLI section) is never edited by hand.
+- Write the tests:
+  - `tests/unit/planOverview.test.ts` (domain): the layout for an oracle phase, its discharging phase and an interactive phase; the placement with parts, with an unmatched file, and without parts; the coverage block for criteria, no source spec and no criterion ids; and the JSON value against the rendering.
+  - `tests/integration/planOverview.test.ts`: the use case over the fake FileSystem and the fake Shell, with a provider answer, no provider, a failing provider (and its call count), and an unparsable plan.
+  - `tests/type/planOverview.ts`: the use case's requirement type excludes `Backend`.
+  - `tests/integration/plansOverviewCommand.test.ts`: the real CLI from source in a temp git repository, spawned with `env: phaxHomeEnv()`, with `isolateGit` and the fake provider CLIs of `tests/helpers/fakeProviderCli.ts` on PATH. It never reads a real `~/.phax`, `~/.claude`, `~/.codex`, `~/.vibe` or the global git config. It covers: a clean Draft plan exiting 0 with no fake CLI invoked and an empty `git status --porcelain`; a made-up architecture provider script in the repo that counts its calls; one that exits 1; `--json` stdout being one parseable document; and a plan with a heading missing its anchor exiting 1 with the lint line.
+  - `tests/unit/cli/plans.test.ts`: the registration.
+
+### Planned files to create
+
+- `src/domain/plan/overview.ts`
+- `src/domain/plan/overviewRender.ts`
+- `src/app/planOverview.ts`
+- `src/cli/commands/plansOverview.ts`
+- `tests/unit/planOverview.test.ts`
+- `tests/integration/planOverview.test.ts`
+- `tests/integration/plansOverviewCommand.test.ts`
+- `tests/type/planOverview.ts`
+
+### Planned files to edit
+
+- `src/cli/commands/plans.ts`
+- `src/cli/cliDocs.ts`
+- `src/domain/security/phaseGuard.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `README.md`
+- `tests/unit/cli/plans.test.ts`
+
+### Optional files that may be edited
+
+- `src/app/sourceSpecCriteria.ts`
+- `src/domain/plan/criterionCoverage.ts`
+- `src/app/architectureProvider.ts`
+- `src/cli/program.ts`
+- `docs/cli/inventory.md`
+- `tests/unit/security/phaseGuard.test.ts`
+- `tests/helpers/fakeProviderCli.ts`
+
+### Boundary contracts
+
+- `src/cli/commands/plansOverview.ts` (consumer) calls `src/app/planOverview.ts` (producer). The contract: the overview value, or a typed failure carrying its one line. The command holds no logic beyond rendering and exit codes.
+- `src/app/planOverview.ts` (consumer) uses the parser, `readSourceSpecCriteria`, `criterionCoverage` and `pullArchitecture` (producers). The contract: FileSystem and Shell only, one provider call, and a failure degrading to `architecture.kind: failed`.
+
+### Test strategy
+
+- a hand-written plan.md with no sidecar shows each phase's test lines with their coordinates — medium · smoke · the rendered overview · in-phase · ac-hand-plan-parsed
+- on a Draft plan in a clean repository the overview exits 0, invokes no provider CLI and leaves git status empty — medium · smoke · exit code, fake CLI markers and git status · in-phase · ac-readonly
+- the overview's use case requires FileSystem and Shell and never Backend — small · example · the type-level requirement check · in-phase · ac-readonly
+- an oracle phase, its discharging phase and an interactive phase appear in plan order with id, title, model, effort, mode, oracle role and test lines — small · example · the expected layout · in-phase · ac-phase-layout
+- with parts domain and app, src/domain/x.ts shows under domain and scripts/y.sh under (no part), and the provider runs once — small · example · the placement and the provider's call count · in-phase · ac-parts
+- without a provider the header says so and each phase lists its planned files to create and edit — small · example · the rendered overview · in-phase · ac-no-provider
+- a provider that exits non-zero leaves exit 0, the planned files listed and one warning line on stderr — medium · smoke · exit code, stdout and stderr · in-phase · ac-provider-fails
+- the overview ends with ac-a against phase-01 oracle and phase-02 in-phase, ac-b against phase-03, and ac-c uncovered — small · example · the rendered coverage block · in-phase · ac-coverage
+- with --json stdout is one JSON document whose phases, placement, test lines and coverage match the rendering, and nothing else — medium · smoke · the parsed document against the rendering · in-phase · ac-json
+- a plan.md with a phase heading missing its anchor exits 1 with one line naming phax plans lint — medium · smoke · exit code and stderr · in-phase · ac-unparsable
+- a plan whose source spec has no sidecar prints the one no-criterion-ids line and carries coverage kind no-criterion-ids — small · example · the rendered line and the JSON coverage · in-phase · ac-no-ids
+- plans overview is classified allowed by the phase guard and the generated CLI docs match its help — small · example · the classification and the drift tests · in-phase
+
+### Implementation order
+
+1. `overview.ts` (types, placement, roles, coverage), then `overviewRender.ts`.
+2. `planOverview.ts`, then the command and its registration.
+3. The phase guard, the help text, then the regenerated CLI docs.
+4. The unit, use-case, type-level and CLI tests.
+
+### Excluded scope
+
+- Cost in the overview: `phax plans estimate` keeps that (test-strategy §7).
+- A graphical view.
+- Lint rules (phase-04) and the docs page (phase-06).
+- Any write, cache read or model call.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The command, the use case and the domain module paths, the overview's type and its JSON shape.
+- The exact header, architecture and failure lines, and the exit codes.
+- The phase guard classification.
+- What the regenerated CLI docs changed.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(plans): add phax plans overview`
+
+### Commit body
+
+phax plans overview <plan> [--json] lays a plan out before it runs: each
+phase in plan order with its model, effort and mode, its oracle role,
+its planned files grouped by architecture part, and its test lines, then
+the coverage of the source spec's acceptance criteria.
+
+Read-only and model-free. It reads with the deterministic parser, runs
+on the file system and the shell only, and runs the architecture
+provider once with the planned files. A failing provider degrades to
+files, with one warning on stderr. A plan that does not parse exits 1,
+naming phax plans lint.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.13–§5.20
+
+---
+
+## phase-06 — The planning skill, the plan overview page and the 0.28.0 upgrade steps {#phase-06-skill-and-docs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The phax-planning skill teaches test lines as data: its Test strategy section says lint checks them and the overview shows them, and its headless section documents `testStrategy` as an array of test lines. A new docs page shows the overview. `docs/upgrading.md` names the 0.28.0 steps. The README and `NEXT_STEPS.md` describe what landed.
+
+### Detailed instructions
+
+- Edit `.claude/skills/phax-planning/SKILL.md`. Never edit inside the generated `phase-model-policy` and `model-catalog` blocks.
+  - Rename `## Test strategy (informational)` to `## Test strategy`, and update every link to its anchor (`#test-strategy-informational` becomes `#test-strategy`). Say that phax reads each line as data, that `phax plans lint` checks the lines, and that `phax plans overview` shows them with the criterion coverage. Keep the line format text, the coordinates, the defaults table and the rules.
+  - State the grammar's settled points briefly: separators exactly ` — ` and ` · `; an oracle never holds ` — `; a criterion is the source spec sidecar's id; `- (none)` for a phase with no line; a wrapped line continues the entry; any other text in the section is an error.
+  - In the per-phase field table, mark the test strategy as extracted (`testLines` in `phax-plan.json`).
+  - In "Lint before you run", the checks become eight. Add `tests`: a line off the format, an oracle-loop line off an oracle phase, an oracle phase with no oracle-loop line and an unknown criterion id are errors; an uncovered criterion, and a source spec with no readable criterion ids, are warnings; a phase with no line is not flagged. Add that extraction refuses a departing line before any model call.
+  - In "Headless authoring", replace the `testStrategy` bullet with: `testStrategy`: an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }`, every key required and `criterion` null when the line names none; `[]` for a phase that tests nothing. Then add: `verification`, `expectedHandoff`: strings.
+  - Mention `phax plans overview` where the skill tells a planner to check a plan.
+- Update `tests/unit/skills.test.ts`:
+  - the test reading `## Test strategy (informational)` reads `## Test strategy` and also expects `phax plans lint` and `phax plans overview` in it (ac-skill);
+  - the headless section describes `testStrategy` as an array of test lines naming the six keys;
+  - every `- ` line of the skill's Test strategy examples, and the example phase's `### Test strategy` section, reads through `readTestStrategyText` with no departure.
+  Keep the other skill tests passing, including `tests/unit/planningSkillOracles.test.ts`.
+- Create `docs/plan-overview.md` (spec §11). Its reader is an operator with a plan in hand who wants its shape, oracle pairs and criterion coverage before approving or running it.
+  - Example: `phax plans overview docs/plans/2610240900-invoice-export-plan.md` on a made-up three-phase plan with an oracle pair, an architecture provider configured, and one criterion uncovered.
+  - Show the rendered layout, the parts each phase touches and the coverage block, then the matching `phax plans lint` warning.
+  - Then cover: without a provider; a failing provider; `--json` with its kinds; exit codes 0, 1 and 2; and what it never does (no model, no write, any status).
+  Check every sentence against phase-05's code and phase-04's messages. Register the page in `site/pages.ts` (route `/guide/plan-overview`, next to `/guide/plan-estimate`) and in `site/build/sources.ts`.
+- In `docs/upgrading.md`, add a `### 0.28.0` entry above `### 0.27.0`. Keep the guide's style: steps only, each naming its command.
+  - Plan sidecars: `testStrategy` becomes a list of test lines. Run `phax artifact migrate-documents` once. A sidecar whose every test strategy follows the line format is lifted and committed. One holding prose is refused, naming the phase and the line: rewrite it in the line format in the sidecar and plan.md alike, or re-author the plan, then rerun. Until then `phax artifact approve`, `reopen` and `decide` refuse and name the command. Archived plans are not touched and still read.
+  - Hand-written plans: write each `### Test strategy` entry in the line format. `phax plans lint` reports a departing line as a `tests` error. `phax run`, `plans overlap` and `adjust-plan` refuse such a plan before any model call, and `phax plans overview` exits 1. A phase with no section, or `- (none)`, has no line.
+  - Runs in flight: a `phax-plan.json` extracted by an older phax is refused by `phax resume` and `phax validate --plan`. Finish the run with the release that started it, or `phax archive <run> --force` and run its plan again. `phax ls` and `phax session-info` still show it.
+  - New `tests` warnings in `phax plans lint`: nothing to do. An uncovered criterion, or a source spec without a readable sidecar, is a warning that never fails lint or refuses a run.
+- In `README.md`:
+  - in `### Check a plan`, add `phax plans overview <plan>` beside lint and estimate, with one sentence and a link to `docs/plan-overview.md`, and add the `tests` check to the list of what lint checks;
+  - in the headless authoring text, say that a plan document's test strategy is a list of test lines;
+  - in the `migrate-documents` paragraph, add the plan sidecar's test-strategy lift and its refusal;
+  - in the paragraph on older `phax-plan.json` shapes, if there is one, name the 0.26.0 shape.
+  Grep the README for `plans lint`, `testStrategy`, `Test strategy` and `migrate-documents` to find every place. Do not edit the generated CLI section by hand.
+- In `NEXT_STEPS.md`, remove the `test-strategy` entry from `### Approved, not yet planned`. In the `review-map` entry, replace `After \`test-strategy\`.` with a note that its dependency is met: test lines and coverage are in `phax-plan.json` and `phax plans overview`. Keep the file's style: it records the open queue, not landed work.
+- If `docs/plan-extraction-model.md` describes what the fallback extracts, add that it emits `testLines` through the same schema, and that a departing line is refused before the fallback. If `docs/oracle-phases.md` describes an oracle phase's test strategy, add that its lines sit in the `oracle` loop and that lint checks it. Leave both untouched otherwise. Leave `docs/acceptance-coverage.md` untouched.
+
+### Planned files to create
+
+- `docs/plan-overview.md`
+
+### Planned files to edit
+
+- `.claude/skills/phax-planning/SKILL.md`
+- `tests/unit/skills.test.ts`
+- `docs/upgrading.md`
+- `README.md`
+- `NEXT_STEPS.md`
+- `site/pages.ts`
+- `site/build/sources.ts`
+
+### Optional files that may be edited
+
+- `docs/plan-extraction-model.md`
+- `docs/oracle-phases.md`
+- `tests/unit/planningSkillOracles.test.ts`
+- `tests/unit/completesSpecDocs.test.ts`
+- `tests/unit/readmeExitCodes.test.ts`
+- `src/cli/cliDocs.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+
+### Test strategy
+
+- the shipped skill's headless section describes testStrategy as an array of test lines with the coordinate keys, and its Test strategy section names phax plans lint and phax plans overview — small · example · the skill text · in-phase · ac-skill
+- every test line the skill shows, its wrapped example included, reads through the line grammar with no departure — small · example · the grammar's reading of the skill · in-phase
+- the docs site builds with the plan overview page registered — medium · smoke · the site build · in-phase
+
+### Implementation order
+
+1. The skill, then `tests/unit/skills.test.ts`.
+2. `docs/plan-overview.md` and its site registration.
+3. `docs/upgrading.md`, README and `NEXT_STEPS.md`.
+
+### Excluded scope
+
+- Any change to code under `src/` beyond help text, if a check finds one wrong.
+- `docs/acceptance-coverage.md` (test-strategy §7).
+- Editing any spec or plan under `docs/specs/` or `docs/plans/`.
+
+### Verification
+
+The `standard` gate profile in `phax.json`, including its terminal steps (`pnpm build`, `pnpm site:build` and the Deno smokes).
+
+### Expected handoff content
+
+- The skill sections changed, and confirmation that the generated blocks are untouched.
+- The new page's route and sources entry.
+- The `### 0.28.0` bullets as written.
+- Every README place changed.
+- Any sentence you could not match to the code, and how you resolved it.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`docs(plans): teach test lines and document phax plans overview`
+
+### Commit body
+
+The phax-planning skill's Test strategy section says phax reads each line
+as data, that phax plans lint checks the lines and that phax plans
+overview shows them. Its headless section documents testStrategy as an
+array of test lines. A new page, docs/plan-overview.md, walks through the
+overview of a plan with an oracle pair and an uncovered criterion.
+docs/upgrading.md names the 0.28.0 steps: the plan sidecar migration,
+hand-written test strategies, and runs extracted before the release. The
+README and NEXT_STEPS.md follow.
+
+Refs: docs/specs/2610231041-test-strategy.md §5.23, §11
