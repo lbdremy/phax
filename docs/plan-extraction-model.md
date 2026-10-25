@@ -35,6 +35,10 @@ mismatch) the run has not yet started — no worktree, no state has been committ
 retrying with a stronger model configured via `agent.extractPlan` is cheap. Run `phax
 plans lint <plan>` first to catch structural defects without invoking a model at all.
 
+## Test lines
+
+The fallback emits each phase's `testLines` through the same schema as the deterministic parser, copying each line's coordinates verbatim from the plan. A plan with a test line off the format is refused before the fallback runs, naming the line and `phax plans lint`: the model is never asked to read a line phax has already found malformed.
+
 ## Local validation policy
 
 Regardless of which model is used, the extraction fallback always validates the raw JSON

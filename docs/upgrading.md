@@ -21,6 +21,13 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.28.0
+
+- **Plan sidecars: `testStrategy` becomes a list of test lines.** Run `phax artifact migrate-documents` once in each repository with plans under `docs/`. A sidecar whose every test strategy follows the line format is lifted and committed. One holding prose is refused, naming the phase and the line: rewrite it in the line format in the sidecar and in plan.md alike, or re-author the plan, then run the command again. Until then, `phax artifact approve`, `reopen` and `decide` refuse and name the command. Archived plans are not touched and still read.
+- **Hand-written plans.** Write each `### Test strategy` entry in the line format: `<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`. `phax plans lint` reports a departing line as a `tests` error. `phax run`, `phax plans overlap`, `phax adjust-plan` and `phax plans status` refuse such a plan before any model call, naming the line and `phax plans lint`, and `phax plans overview` exits 1. A phase with no section, or with `- (none)`, has no line.
+- **Runs in flight.** A `phax-plan.json` extracted by an older phax is refused by `phax resume` and `phax validate --plan`. Finish the run with the release that started it, or archive it with `phax archive <run> --force` and run its plan again. `phax ls` and `phax session-info` still show it.
+- **New `tests` warnings in `phax plans lint`.** Nothing to do. An uncovered acceptance criterion, or a source spec without a readable sidecar, is a warning that never fails lint or refuses a run.
+
 ### 0.27.0
 
 - **Spec sidecars gain a `summary` on every surface element.** Run `phax artifact migrate-documents` once. It restamps every live spec sidecar, writes a placeholder summary on each element, re-renders §6 and commits; the report counts the summaries left to write per spec. Then write each summary, one sentence in the consumer's words, in the sidecar and on its §6 `Summary:` line. `phax artifact approve` and `complete` refuse (exit 12) a spec until its placeholders are gone, and `approve`, `reopen` and `decide` refuse until the migration has run. Archived specs are not touched.

@@ -209,6 +209,13 @@ export default definePageMap({
         "Estimate a plan's API-list cost from your cost ledgers with phax plans estimate, and whether it fits your Claude subscription windows now.",
     },
     {
+      route: "/guide/plan-overview",
+      title: "Reading a plan's overview",
+      source: "docs/plan-overview.md",
+      description:
+        "See a plan phase by phase before you approve or run it: planned files by architecture part, oracle pairs, test lines and the coverage of its spec's criteria.",
+    },
+    {
       route: "/guide/architecture-provider",
       title: "Architecture provider",
       source: "docs/architecture-provider.md",

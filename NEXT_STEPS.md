@@ -27,12 +27,6 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ### Approved, not yet planned
 
-- [ ] **`test-strategy`** — `docs/specs/2610231041-test-strategy.md`. Approved 2026-10-23, from
-      `docs/briefs/test-strategy.md`. A plan's test strategy becomes data: test lines on four closed
-      coordinates (size, technique, oracle, loop) plus an optional criterion id, parsed from any
-      plan.md and carried in `phax-plan.json`; graded lint against the oracle pairs and the source
-      spec's criteria; a new read-only `phax plans overview <plan> [--json]` that runs the
-      architecture provider. The `review-map` spec below depends on it.
 - [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`.
       Approved 2026-10-19. A headless verdicts mode for decide: a verdicts file is transcribed by a
       headless writer under the doctrine, checked deterministically and committed, the artifact
@@ -50,7 +44,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       `headless-review` gets a plan.
 - [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23). phax computes, without a model,
       where review attention belongs (criteria no test proves, skipped oracles, phases that needed
-      fixes, the run's review notes) and gives it to the review session. After `test-strategy`.
+      fixes, the run's review notes) and gives it to the review session. Its dependency is met:
+      test lines and criterion coverage are in `phax-plan.json` and `phax plans overview`.
 
 ### Drafts
 

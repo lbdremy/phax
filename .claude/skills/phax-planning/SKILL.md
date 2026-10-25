@@ -40,7 +40,7 @@ executing agent to explain any deviation in its handoff (see
 
 `phax plans lint <plan>` reports every mechanical defect of a plan before a run
 touches it — read-only, and model-free, so it never falls back to the extraction
-model. Seven checks: **structure** (every field the deterministic parse requires,
+model. Eight checks: **structure** (every field the deterministic parse requires,
 reported in full rather than stopping at the first, plus an error for a phase
 number missing from phase-01 … phase-NN, such as phase-02 in a plan with phase-01
 and phase-03), **files** (the planned
@@ -49,7 +49,7 @@ file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
-and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured and an interactive phase in an oracle role; one inside a pair is allowed), and **advisory** (when `phax.json` registers a `planAuditor`, every
+and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured and an interactive phase in an oracle role; one inside a pair is allowed), **tests** (a test line off the format, an oracle-loop line on a phase that is not an oracle phase, an oracle phase with no oracle-loop line and a criterion id the source spec does not have are errors; a criterion no phase covers, and a source spec with no readable criterion ids, are warnings; a phase with no line is not flagged), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -62,7 +62,10 @@ is located by its `## phase-NN` id heading or by its `{#anchor}`. It refuses the
 without a reason, an invalid bound, or a part bound the architecture provider does not
 resolve (provider missing or failing, or the part gone) stops `phax run` before the run is
 named and `phax resume` before its next phase starts ("Assignment preflight failed"), and
-`phax plans lint` shows the same findings first.
+`phax plans lint` shows the same findings first. Extraction refuses a plan with a departing test line
+before any model call, naming the line and `phax plans lint`. To see a plan's shape before you approve
+or run it, `phax plans overview <plan>` lays it out phase by phase, with its planned files in the
+architecture's parts and its criterion coverage.
 
 ## Run title and short name
 
@@ -148,7 +151,7 @@ informational for the executing agent.
 | Objective                | Opening paragraph of the phase section                  | no         |
 | Detailed instructions    | `### Detailed instructions` bullet list                 | no         |
 | Boundary contracts       | `### Boundary contracts` subsection                     | no         |
-| Test strategy            | `### Test strategy` subsection                          | no         |
+| Test strategy            | `### Test strategy` subsection (`testLines`)            | no         |
 | Implementation order     | `### Implementation order` subsection                   | no         |
 | Excluded scope           | `### Excluded scope` list                               | no         |
 | Verification             | `### Verification` (names the `phax.json` gate profile) | no         |
@@ -365,10 +368,12 @@ consumer/producer terms: who needs something, who provides it, and the stable
 shape between them. Be strict on the semantic need, adaptable on the exact
 interface shape. These are not extracted (human-readable only). Omit the section for a phase that crosses no boundary.
 
-## Test strategy (informational)
+## Test strategy
 
-A phase's `### Test strategy` is not extracted, but it is held to a strict shape: one line
-per guarantee the phase adds or changes, each placed on four coordinates.
+A phase's `### Test strategy` is data. phax reads each line into a test line (`testLines` in
+`phax-plan.json`), `phax plans lint` checks the lines, and `phax plans overview <plan>` shows them
+phase by phase with the coverage of the source spec's criteria. One line per guarantee the phase
+adds or changes, each placed on four coordinates.
 
 ```markdown
 - <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]
@@ -416,6 +421,16 @@ from its default and depart only for a reason:
 | Adapter to an external tool or service              | medium       | example against the real thing, contract          | no: its behaviour is the tool's         |
 | Composition root, CLI entry, route                  | medium/large | smoke                                             | yes, for the surface the spec shows     |
 | Architecture rule (layering, dependency direction)  | small        | fitness check the project already runs            | no                                      |
+
+**The grammar's settled points.**
+
+- Separators are exactly ` — ` (U+2014) and ` · ` (U+00B7), each with one space either side; `--`, `-`
+  or doubled spaces are errors.
+- An oracle may hold ` · ` but never ` — `. A guarantee may hold both.
+- The criterion is an id from the source spec's sidecar, and the last field when present.
+- A phase that tests nothing writes `- (none)`, or omits the section.
+- A wrapped line (no blank line between) continues its entry; any other text in the section, such as a
+  sentence introducing the list, is an error.
 
 **Rules.**
 
@@ -818,9 +833,10 @@ and the fields that only render the phase:
   string arrays.
 - `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
   section is then omitted rather than filled.
-- `testStrategy`, `verification`, `expectedHandoff`: strings. `testStrategy` holds the
-  guarantee lines of [Test strategy](#test-strategy-informational), one `- ` line each,
-  separated by newlines.
+- `testStrategy`: an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }`,
+  every key required and `criterion` null when the line names none; `[]` for a phase that tests
+  nothing. See [Test strategy](#test-strategy).
+- `verification`, `expectedHandoff`: strings.
 - `assignmentReason` — why the phase leaves its governing bound or the default assignment, rendered as an
   `**Assignment reason:**` line under its effort line. Put each departure's reason in that
   phase's `assignmentReason`, and `assignmentReason: null` on every phase that conforms to its governing

@@ -6,6 +6,7 @@ import {
   END_POLICY_MARKER,
   renderPhaseModelPolicy,
 } from "../../scripts/generate-model-catalog.js";
+import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import { PHASE_MODEL_POLICY } from "../../src/domain/routing/phaseModelPolicy.js";
 
 const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
@@ -159,13 +160,43 @@ describe("phax-planning skill", () => {
   });
 
   it("keys test defaults on the kind of code, one line per guarantee on four coordinates", () => {
-    const tests = sectionOf(content, "## Test strategy (informational)");
+    const tests = sectionOf(content, "## Test strategy");
     expect(tests).toContain("Read the kind from the repository's architecture");
     expect(tests).toMatch(/\| Kind of code\s+\|/);
     expect(tests).not.toMatch(/\| Layer\s+\|/);
     expect(tests).toContain(
       "- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]",
     );
+    expect(tests).toContain("`phax plans lint`");
+    expect(tests).toContain("phax plans overview");
+  });
+
+  it("describes testStrategy as an array of test lines in the headless section", () => {
+    const section = sectionOf(content, "## Headless authoring");
+    expect(section).toContain("`testStrategy`: an array of test lines");
+    expect(section).toContain("{ guarantee, size, technique, oracle, loop, criterion }");
+    expect(section).toContain("`criterion` null");
+  });
+
+  it("shows only test lines that read through the grammar with no departure", () => {
+    const tests = sectionOf(content, "## Test strategy");
+    const blocks = [...tests.matchAll(/```markdown\n([\s\S]*?)```/g)].map((m) => m[1] ?? "");
+    const shown = blocks
+      .join("")
+      .split("\n")
+      .filter((line) => !line.startsWith("- <guarantee>"))
+      .join("\n");
+    // The example phase sits in a code fence whose own `## phase-NN` heading would cut sectionOf short.
+    const example = content.slice(content.indexOf("\n## Example well-formed phase\n"));
+    const heading = "### Test strategy\n";
+    const start = example.indexOf(heading);
+    expect(start).toBeGreaterThan(-1);
+    const end = example.indexOf("\n### Excluded scope", start);
+    for (const text of [shown, example.slice(start + heading.length, end)]) {
+      const reading = readTestStrategyText(text);
+      expect(reading.departures).toEqual([]);
+      expect(reading.lines.length).toBeGreaterThan(0);
+    }
   });
 
   it("holds oracles to the acceptance loop", () => {
