@@ -237,7 +237,7 @@ spec document refused — acceptanceCriteria[0].refs: is missing
   resuming the session once to ask for the whole document again
 ```
 
-A not-JSON refusal names the parser's error and the position where parsing failed. If the retry's document is refused too, the authoring fails with exit 5, naming both refusals, and nothing is written. Rate and usage limits, provider errors and a failed commit are never retried. The record's `retry` field says whether a retry ran (`none` or `retried`), and the record keeps the retry's prompt and transcript beside the first answer's. `phax artifact schema spec|plan` prints the document's JSON Schema. Headless authoring is experimental: the two document formats may still change.
+A not-JSON refusal names the parser's error and the position where parsing failed. If the retry's document is refused too, the authoring fails with exit 5, naming both refusals, and nothing is written. Rate and usage limits, provider errors and a failed commit are never retried. The record's `retry` field says whether a retry ran (`none` or `retried`), and the record keeps the retry's prompt and transcript beside the first answer's. `phax artifact schema spec|plan` prints the document's JSON Schema, and `phax artifact schema verdicts` prints the verdicts file's for `phax artifact decide --verdicts`. Headless authoring is experimental: the two document formats may still change.
 
 If you edit the Markdown of a headless document, edit its sidecar too: `phax artifact status` tells you whether the body is still the sidecar's rendering, and approving a document whose body has diverged is refused.
 
@@ -275,7 +275,16 @@ phax artifact decide <path> --doctrine docs/doctrine.md      # add project rules
 phax artifact decide <path> --model claude-sonnet-5-5 --effort medium
 ```
 
-The agent raises five framing questions first, then presents the questions, and you decide. When you exit, phax asks the session for the revised document, checks it, shows the body diff and writes only what you accept: the artifact and its sidecar, committed together. `--question` re-arbitrates one question and keeps its previous verdict in its history; reopen an Approved artifact first. The session follows `phax-decide-spec` or `phax-decide-plan`; a copy in `.claude/skills/` replaces the bundled one, and `--doctrine` appends a file after it. decide needs a terminal and a Draft artifact, runs on Claude Code only (default `claude-opus-5-5` at `high`), and is refused inside a phase worktree. Every session leaves a decision record when records are on. [Deciding open questions](docs/arbitration.md) covers the flow.
+The agent raises five framing questions first, then presents the questions, and you decide. When you exit, phax asks the session for the revised document, checks it, shows the body diff and writes only what you accept: the artifact and its sidecar, committed together. `--question` re-arbitrates one question and keeps its previous verdict in its history; reopen an Approved artifact first. The session follows `phax-decide-spec` or `phax-decide-plan`; a copy in `.claude/skills/` replaces the bundled one, and `--doctrine` appends a file after it. Interactive decide needs a terminal and a Draft artifact, runs on Claude Code only (default `claude-opus-5-5` at `high`), and is refused inside a phase worktree. Every session leaves a decision record when records are on. [Deciding open questions](docs/arbitration.md) covers the flow.
+
+When you already know your verdicts, write them in a file and pass it with `--verdicts <file|->`; `--by operator` replaces the terminal, and `--json` prints the report as one object:
+
+```bash
+phax artifact decide <path> --verdicts verdicts.json --by operator
+phax artifact schema verdicts                                # the file's JSON Schema
+```
+
+A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider) records the verdicts and revises the body where a departing verdict implies it; phax checks its answer against the file, commits, and leaves the artifact Draft for you to read before approving. `other` is a reserved choice on every question. See [Deciding from a verdicts file](docs/arbitration.md#deciding-from-a-verdicts-file).
 
 **The approval lock.** `phax artifact approve` refuses, with exit 12, while a spec or plan has an open question, and names `phax artifact decide`. Hand-authored artifacts are locked too, and an artifact with no question section is approved as before.
 

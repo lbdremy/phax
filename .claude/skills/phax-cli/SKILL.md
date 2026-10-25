@@ -182,7 +182,8 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   Reopening a spec names its bound plans and leaves them unchanged. A `Draft`, `Completed`
   or `Abandoned` artifact is refused with exit 12.
 - `phax artifact decide [--question <id>] [--doctrine <file>] [--model <m>] [--effort <e>] <path>` —
-  decide a Draft spec's or plan's open questions in an interactive Claude Code session. The agent
+  decide a Draft spec's or plan's open questions in an interactive Claude Code session (the
+  verdicts form is below). The agent
   raises the framing questions F1–F5, then presents the open questions; the operator decides.
   When the operator exits, phax asks the session for the revised document, checks it, prints the
   body diff, and writes and commits the artifact and its sidecar only after the operator accepts
@@ -195,6 +196,16 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   under `.claude/skills/` wins), with `--doctrine` appended. **The approval lock:** `approve`
   refuses with exit 12 while any question is open, naming the ids and `phax artifact decide`;
   a loop cannot approve past an open question. See `docs/arbitration.md`.
+  **Verdicts form:** `phax artifact decide <path> --verdicts <file|-> [--by operator]
+  [--doctrine <file>] [--model <m>] [--effort <e>] [--json]` decides from a file of choices a
+  person already made (`phax artifact schema verdicts` prints its format): `{ question, chosen,
+  note }` per question, `chosen` an option id or the reserved `other`, a note required when the
+  verdict departs from the recommendation. No terminal is needed with `--by operator`; `--by
+  machine:<grant>` is refused. One headless writer (default `claude-sonnet-5-5` at `medium`,
+  routed to a provider) records the verdicts; phax checks its answer, sets `why`, `by` and
+  `at`, commits without asking and leaves the artifact Draft, so read the printed report (or
+  the `--json` object) before `approve`. `--question` is refused with `--verdicts`; `--json`
+  and `--by` need it.
 - `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
   into the matching `archive/` directory and deletes its record file as part of the transition.
   Reopen deletes the artifact's record file the same way. No transition touches another
