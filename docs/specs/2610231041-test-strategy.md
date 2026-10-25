@@ -154,7 +154,7 @@ The system shall ship the phax-planning skill with its Test strategy section poi
 
 ### file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy` — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: A plan's test strategy is a list of test lines a tool can read, each with its size, technique, oracle, loop and the criterion it proves.
 
 before:
 
@@ -185,7 +185,7 @@ after:
 
 ### file: `phax-plan.json`, phase test lines — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: The extracted plan carries each phase's test lines, so scripts and later commands can see what each phase tests.
 
 before:
 
@@ -208,7 +208,7 @@ after:
 
 ### file: plan.md `### Test strategy` section — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You write each test of a phase as one line (the guarantee, then size, technique, oracle, loop and an optional criterion), and phax reads it.
 
 before:
 
@@ -227,7 +227,7 @@ after:
 
 ### cli: phax plans lint <plan> — new test line findings — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: plans lint names the test lines that break the format, misuse the oracle loop or cite a criterion the spec lacks, and the spec criteria no test proves.
 
 before:
 
@@ -245,7 +245,7 @@ after:
 
 ### cli: phax plans overview <plan> [--json] — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can see a whole plan at a glance before running it: each phase's model, oracle role, files and tests.
 
     phax plans overview docs/plans/2610240900-invoice-export-plan.md
     phax plans overview docs/plans/2610240900-invoice-export-plan.md --json
@@ -256,7 +256,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: phax plans overview — rendered layout — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: The overview lists each phase in turn with its model, its oracle role, its files grouped by architecture part and its test lines.
 
     invoice-export — Monthly invoice export  (Draft · source spec invoice-export)
     architecture: parts from the configured provider
@@ -287,7 +287,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: phax plans overview --json — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: A script or review tool can read the plan overview as JSON.
 
     {
       "plan": "docs/plans/2610240900-invoice-export-plan.md",
@@ -321,14 +321,14 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: phax artifact migrate-documents — refusing a prose test strategy — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: migrate-documents names each plan whose test strategy is still prose, and says how to rewrite it in the line format.
 
     ✗ docs/plans/2610230951-interactive-phases-plan.md phase-01 testStrategy line 1 departs from the test line format: "Write `tests/unit/hold.test.ts` first."
       Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.
 
 ### file: .claude/skills/phax-planning/SKILL.md — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: Agents writing plans with the phax-planning skill write test strategies in the line format that lint checks and the overview shows.
 
 before:
 

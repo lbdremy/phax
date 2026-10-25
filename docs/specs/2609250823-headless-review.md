@@ -544,7 +544,7 @@ WHILE a run has no review pass THE system SHALL build the PR body exactly as it 
 
 ### cli: phax review-code <run> --headless — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can review a finished run's code without driving a session: phax prints the findings and keeps them with the run.
 
 before:
 
@@ -571,7 +571,7 @@ after:
 
 ### file: code-review document (the headless review session's final message) — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: A headless review session answers with one versioned list of findings, each with a severity, a place and a suggestion, and phax refuses any other answer.
 
     {
       "version": 1,
@@ -591,7 +591,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### file: code-review.json — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: Each review pass leaves a findings file you can read or script against, giving each finding's id, severity and what became of it.
 
     # at <run-dir>/review/pass-01/code-review.json, also committed to the run's records
     # normative: file name, keys and enums. Indicative: directory layout.
@@ -618,7 +618,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: phax review-plan <run> — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can turn a review's findings into a plan of fix phases, either headless or deciding each finding yourself with the agent.
 
     phax review-plan usage-cli --headless [--doctrine <file>] [--min-severity bug|deviation|concern] [--model <model>] [--effort <effort>]
     phax review-plan usage-cli [--doctrine <file>] [--min-severity …] [--model …] [--effort …]
@@ -655,7 +655,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### file: review-plan document and the review plan's sidecar — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: A review plan says which findings each fix phase addresses, which ones await your decision, and how cheap each fix is to undo.
 
     # the session's answer: `version: 1`, then the plan document's `review-plan` variant
     # phax writes it as the sidecar docs/plans/2609251010-usage-cli-review-01-plan.json on the run branch:
@@ -702,7 +702,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### file: the review plan's Markdown — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You read a review plan like any other plan, with the findings it addresses and the ones awaiting you listed at the top.
 
     # docs/plans/2609251010-usage-cli-review-01-plan.md on the run branch, rendered from the sidecar and never written by the agent
     ---
@@ -736,7 +736,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### file: pass.json — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: Each review pass records how it ended (clean, planned, nothing to fix, blocked or failed) and which phases it appended.
 
     # <run-dir>/review/pass-01/pass.json, also committed to the run's records
     # normative: the keys, the outcome and mode kinds, and who writes what. Indicative: the layout.
@@ -770,7 +770,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: phax run <run> --append --plan <review plan> — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can add a review plan's fix phases to the end of a finished run, which then runs again from its last phase.
 
 before:
 
@@ -808,7 +808,7 @@ after:
 
 ### config: phax.json review.code.{enabled,append,maxPasses} — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can have every run review its own code when it reaches review, then append and re-review the fixes up to a set number of passes.
 
 before:
 
@@ -834,7 +834,7 @@ after:
 
 ### config: phax.json review.code.{doctrine,minSeverity} — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can set the review doctrine and the lowest severity worth fixing once in phax.json, instead of on every command.
 
 before:
 
@@ -851,7 +851,7 @@ after:
 
 ### cli: phax artifact approve|status on a review plan — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You approve and inspect a review plan from your checkout although it lives on the run's branch, and status names the run and pass it belongs to.
 
 before:
 
@@ -886,7 +886,7 @@ after:
 
 ### cli: phax ls review-pass report — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: phax ls shows each run's review passes, and how many findings were fixed, await you, were dismissed or are still open.
 
 before:
 
@@ -914,7 +914,7 @@ after:
 
 ### file: pr-body.md (the pull request description) — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: The pull request shows each review pass's findings and their outcomes, and while it is a draft it says what it is waiting for.
 
 before:
 
@@ -978,7 +978,7 @@ after:
 
 ### cli: phax publish-pr <run> with review passes — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: While a review item awaits you, the pull request opens as a draft; phax completes the run and marks it ready only once nothing is pending.
 
 before:
 

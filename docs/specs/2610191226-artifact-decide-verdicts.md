@@ -212,7 +212,7 @@ WHEN a writer session ends after spawning and records are enabled THE system SHA
 
 ### cli: phax artifact decide --verdicts — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can record decisions you have already made on a spec's or plan's questions from a file, without an interactive session.
 
 before:
 
@@ -272,7 +272,7 @@ after:
 
 ### file: verdicts file (given as --verdicts <file|->) — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You write your decisions in one small file that names, for each question, the option you chose and an optional note.
 
     {
       "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.26.0.json",
@@ -292,7 +292,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### file: docs/specs/<stamp>-<slug>.json a verdict choosing `other`, and the rendered §9 — normative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can choose none of a question's options and say what you want instead, and the spec shows that choice and why.
 
 before:
 
@@ -328,7 +328,7 @@ after:
 
 ### cli: phax artifact schema verdicts — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: You can print the verdicts file's JSON Schema to check or generate a verdicts file.
 
 before:
 
@@ -346,7 +346,7 @@ after:
 
 ### cli: phax artifact decide --verdicts --json — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: A script can read what decide recorded: each verdict, whether it departs from the recommendation, and which sections changed.
 
     $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts - --by operator --json < verdicts.json
     { "artifact": "docs/specs/2610201015-log-rotation.md", "status": "Draft",
@@ -366,7 +366,7 @@ Summary: (summary to write — lifted by phax artifact migrate-documents)
 
 ### cli: the decide commit (git log) — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: The decide commit says the decisions came from a verdicts file, and who made them.
 
 before:
 
@@ -393,7 +393,7 @@ after:
 
 ### file: decision record on phax/records/v1 — indicative
 
-Summary: (summary to write — lifted by phax artifact migrate-documents)
+Summary: The records say a decision was transcribed from a verdicts file, which questions it settled and how many departed from the recommendation.
 
 before:
 
