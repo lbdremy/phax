@@ -101,7 +101,7 @@ Declare an oracle phase only when a provider is configured. In `plan.md`, phase-
 **Oracle files:** tests/refunds.test.ts
 ```
 
-`yes` means the next phase in plan order; `**Oracle phase:** discharged by phase-04` names it. The oracle files are a subset of the phase's planned files, so the phase may also plan a stub, such as `src/refunds/index.ts`, that is not an oracle. No phase in between plans an oracle file, an interactive phase may sit in between and takes no role, and one phase discharges one oracle phase. `phax plans lint` checks all of it.
+`yes` means the next phase in plan order; `**Oracle phase:** discharged by phase-04` names it. The oracle files are a subset of the phase's planned files, so the phase may also plan a stub, such as `src/refunds/index.ts`, that is not an oracle. No phase in between plans an oracle file, an interactive phase may sit in between and takes no role, and one phase discharges one oracle phase. Each oracle file is listed once: a repeated path is an error on the `oracles` check of `phax plans lint`, and `phax run` and `phax resume` refuse the plan with exit 11. `phax plans lint` checks all of it.
 
 phase-02 adds its tests with the framework's expected-failure marker, so the test command stays green:
 

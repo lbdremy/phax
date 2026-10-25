@@ -345,6 +345,8 @@ phax unlock <run>                     # remove a stale lock left by a process th
 
 `resume` never re-runs a committed phase. A run stopped by a provider rate or usage limit (exit 8), by a phase with no changes (exit 9) or at an interactive phase (exit 13, see [Interactive phases](#interactive-phases)) is meant to be resumed. A run already at review is not resumed: use `phax enter`.
 
+Without `--yes`, `phax reset-phase` previews the reset, and it applies the same refusals of the run's state as `--yes`, with the same message and exit 1. (Only `--yes` takes the run lock, so a held lock is refused there alone, with its own exit code.)
+
 ### Interactive phases
 
 A plan can ask for a person to review the work after a phase, before the phases that repeat its pattern begin. Say so on the phase, after its model, effort and assignment-reason lines:

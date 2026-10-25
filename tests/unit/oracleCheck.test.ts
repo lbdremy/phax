@@ -74,6 +74,56 @@ const oraclePhase = {
   create: ["tests/refunds.test.ts", "src/refunds/index.ts"],
 } satisfies PlanPhase;
 
+const REPEAT = (path: string) =>
+  `phase-01: oracle file ${path} is listed more than once on **Oracle files:**: list each oracle file once`;
+
+describe("oracleFindings: a repeated oracle file", () => {
+  const two = [{ header: ORACLE("`a.ts`, `a.ts`"), create: ["a.ts"] }, plain];
+
+  it("reports a path listed twice once", () => {
+    expect(messages(two)).toEqual([REPEAT("a.ts")]);
+  });
+
+  it("reports a path listed three times once", () => {
+    expect(
+      messages([{ header: ORACLE("`a.ts`, `a.ts`, `a.ts`"), create: ["a.ts"] }, plain]),
+    ).toEqual([REPEAT("a.ts")]);
+  });
+
+  it("reports two repeated paths in first-appearance order", () => {
+    const phases = [
+      { header: ORACLE("`b.ts`, `a.ts`, `a.ts`, `b.ts`"), create: ["a.ts", "b.ts"] },
+      plain,
+    ];
+    expect(messages(phases)).toEqual([REPEAT("b.ts"), REPEAT("a.ts")]);
+  });
+
+  it("reports a repeated unplanned path once as unplanned", () => {
+    expect(messages([{ header: ORACLE("`a.ts`, `a.ts`") }, plain])).toEqual([
+      REPEAT("a.ts"),
+      "phase-01: oracle file a.ts is not among this phase's planned files to create or to edit",
+    ]);
+  });
+
+  it("still reports the repeat for an unparsed plan", () => {
+    expect(messages(two, { parsed: false })).toEqual([REPEAT("a.ts")]);
+  });
+
+  it("sits between the empty-list row and the unplanned row", () => {
+    const phases = [
+      { header: ORACLE("`a.ts`, `a.ts`", "discharged by phase-03") },
+      { header: ORACLE("", "discharged by phase-03") },
+      plain,
+    ];
+    expect(messages(phases)).toEqual([
+      "phase-03: discharges more than one oracle phase (phase-01, phase-02): one discharging phase per oracle phase",
+      "phase-02: **Oracle files:** lists no file: an oracle phase lists at least one oracle file",
+      REPEAT("a.ts"),
+      "phase-01: oracle file a.ts is not among this phase's planned files to create or to edit",
+    ]);
+  });
+});
+
 describe("oracleFindings: malformed lines", () => {
   it("gives nothing without an oracle line", () => {
     expect(
