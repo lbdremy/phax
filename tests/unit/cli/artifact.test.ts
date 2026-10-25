@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { Command } from "commander";
+import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
 import {
   registerArtifactCommand,
   runArtifactStatus,
@@ -776,6 +777,16 @@ describe("runArtifactSchema", () => {
       expect(lines[0]).toContain('\n  "');
     },
   );
+
+  it("verdicts: prints the decide-verdicts JSON Schema the decoder renders, exits 0", () => {
+    const { out, lines, errors } = makeOutput();
+
+    const code = runArtifactSchema("verdicts", out);
+
+    expect(code).toBe(0);
+    expect(errors).toEqual([]);
+    expect(lines).toEqual([JSON.stringify(getDecideVerdictsFileJsonSchema(), null, 2)]);
+  });
 
   it("an unknown kind is a Commander usage error", async () => {
     const program = new Command().exitOverride().configureOutput({ writeErr: () => {} });

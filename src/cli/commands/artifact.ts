@@ -36,6 +36,7 @@ import {
   renderQuestionCounts,
 } from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
+import { getDecideVerdictsFileJsonSchema } from "../../schemas/decideVerdicts.js";
 import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
 import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
@@ -484,12 +485,15 @@ export async function runCreateArtifactHeadless(
   return 0;
 }
 
-const DOCUMENT_JSON_SCHEMAS: Readonly<Record<ArtifactKind, () => object>> = {
+type SchemaKind = ArtifactKind | "verdicts";
+
+const DOCUMENT_JSON_SCHEMAS: Readonly<Record<SchemaKind, () => object>> = {
   spec: getSpecDocumentJsonSchema,
   plan: getPlanDocumentJsonSchema,
+  verdicts: getDecideVerdictsFileJsonSchema,
 };
 
-export function runArtifactSchema(kind: ArtifactKind, out: OutputPort): number {
+export function runArtifactSchema(kind: SchemaKind, out: OutputPort): number {
   out.log(JSON.stringify(DOCUMENT_JSON_SCHEMAS[kind](), null, 2));
   return 0;
 }
@@ -575,12 +579,21 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
   artifactCmd
     .command("decide")
     .description(
-      "Decide a Draft spec's or plan's open questions in an interactive Claude Code session",
+      "Decide a Draft spec's or plan's open questions, in an interactive Claude Code session or from a verdicts file",
     )
     .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
     .option("--question <id>", "Present this question alone: an open one, or re-arbitrate one")
+    .option(
+      "--verdicts <file|->",
+      "Decide from a verdicts file, or - for stdin, without an interactive session",
+    )
+    .option(
+      "--by <arbiter>",
+      "operator: who gave the verdicts; required without a terminal (with --verdicts)",
+    )
+    .option("--json", "Print the report as one JSON object (with --verdicts)")
     .option("--doctrine <file>", "Append this doctrine file after the decide skill")
-    .option("--model <model>", "Override the decide model (a Claude Code model)")
+    .option("--model <model>", "Override the decide model (interactive: a Claude Code model)")
     .option("--effort <effort>", "Override the decide effort")
     .action(async (path: string, cmdOpts: DecideCommandOptions) => {
       const exitCode = await runArtifactDecide(path, cmdOpts, out);
@@ -643,13 +656,15 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
 
   artifactCmd
     .command("schema")
-    .description("Print the JSON Schema of the spec or plan document (experimental)")
+    .description(
+      "Print the JSON Schema of the spec or plan document, or of a decide verdicts file (experimental)",
+    )
     .addArgument(
-      new Argument("<kind>", "Document kind: spec or plan").choices(
+      new Argument("<kind>", "Document kind: spec, plan or verdicts").choices(
         Object.keys(DOCUMENT_JSON_SCHEMAS),
       ),
     )
-    .action((kind: ArtifactKind) => {
+    .action((kind: SchemaKind) => {
       const exitCode = runArtifactSchema(kind, out);
       process.exit(exitCode);
     });

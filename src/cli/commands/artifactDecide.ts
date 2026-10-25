@@ -2,7 +2,8 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { type DecideArtifactResult, decideArtifact } from "../../app/decideArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { loadProviderConfig } from "../../app/loadRouting.js";
+import { type DecideVerdictsResult, decideVerdicts } from "../../app/decideVerdicts.js";
+import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import { decisionRecordPushWarning, decisionRecordWarning } from "../../app/writeDecisionRecord.js";
@@ -33,6 +34,9 @@ export interface DecideCommandOptions {
   readonly doctrine?: string;
   readonly model?: string;
   readonly effort?: string;
+  readonly verdicts?: string;
+  readonly by?: string;
+  readonly json?: boolean;
 }
 
 /** Layers a test swaps for fakes; each defaults to the real adapter. */
@@ -74,6 +78,89 @@ function renderResult(result: DecideArtifactResult, out: OutputPort): void {
   if (pushWarning !== undefined) out.warn(pushWarning);
 }
 
+function reportDecideError(err: { readonly message: string }, out: OutputPort): void {
+  if (err instanceof AgentInvocationError) {
+    // A handback that could not resume says why (Claude Code's stderr).
+    const { message, logHint } = renderAgentInvocationError(err);
+    out.error(`✗ ${message}`);
+    if (logHint !== undefined) out.error(`  ${logHint}`);
+  } else {
+    out.error(`✗ ${err.message}`);
+  }
+}
+
+/** The report a verdicts-mode decide prints, as lines (the record lines follow it). */
+export function renderVerdictsReport(result: DecideVerdictsResult): readonly string[] {
+  const ids = [...result.verdicts.map((v) => v.question), ...result.open];
+  const idWidth = Math.max(10, ...ids.map((id) => id.length)) + 1;
+  const chosenWidth = Math.max(9, ...result.verdicts.map((v) => v.chosen.length)) + 1;
+  const lines: string[] = [];
+  for (const v of result.verdicts) {
+    const outcome = v.departs
+      ? `departs from ${v.recommendation} — revised: ${v.revised.join(", ")}`
+      : "(recommended)";
+    lines.push(`${v.question.padEnd(idWidth)}${v.chosen.padEnd(chosenWidth)}${outcome}`);
+    lines.push(`${" ".repeat(idWidth)}why: ${v.why}`);
+  }
+  for (const id of result.open) {
+    lines.push(`${id.padEnd(idWidth)}${"open".padEnd(chosenWidth)}(not in the verdicts file)`);
+  }
+  if (result.diff.trim() !== "") lines.push(result.diff.replace(/\n+$/, ""));
+  lines.push(`commit     ${result.commit.hash.slice(0, 7)} — ${result.commit.subject}`);
+  lines.push(
+    `status     Draft — read the verdicts and the diff above, then \`phax artifact approve ${result.path}\``,
+  );
+  return lines;
+}
+
+/** The `--json` report: exactly the keys scripts read, no `$schema`. */
+export function verdictsReportJson(result: DecideVerdictsResult): object {
+  return {
+    artifact: result.path,
+    status: result.status,
+    session: result.session,
+    provider: result.provider,
+    model: result.model,
+    requestedModel: result.requestedModel,
+    effort: result.effort,
+    verdicts: result.verdicts.map((v) => ({
+      question: v.question,
+      chosen: v.chosen,
+      recommendation: v.recommendation,
+      departs: v.departs,
+      why: v.why,
+      revised: v.revised,
+      by: v.by,
+    })),
+    open: result.open,
+    diff: result.diff,
+    commit: { hash: result.commit.hash, subject: result.commit.subject },
+    decisionId: result.decisionId,
+  };
+}
+
+function renderRecordLines(
+  result: Pick<DecideVerdictsResult, "record" | "recordPush">,
+  out: Pick<OutputPort, "log" | "warn">,
+): void {
+  const { record, recordPush } = result;
+  if (record.kind === "written") out.log(`record     ${record.key}`);
+  else if (record.kind === "records-off") out.log("record     off");
+  else out.warn(decisionRecordWarning(record) ?? "decision record not written");
+  const pushWarning = decisionRecordPushWarning(recordPush);
+  if (pushWarning !== undefined) out.warn(pushWarning);
+}
+
+function renderVerdictsResult(result: DecideVerdictsResult, out: OutputPort, json: boolean): void {
+  if (json) {
+    out.log(JSON.stringify(verdictsReportJson(result)));
+    renderRecordLines(result, { log: out.warn, warn: out.warn });
+    return;
+  }
+  for (const line of renderVerdictsReport(result)) out.log(line);
+  renderRecordLines(result, out);
+}
+
 /**
  * `phax artifact decide <artifact>`: resolves phax.json, the state root and
  * the bundled doctrine skills, then calls `decideArtifact` once and renders
@@ -85,6 +172,20 @@ export async function runArtifactDecide(
   out: OutputPort,
   deps: DecideCommandDeps = {},
 ): Promise<number> {
+  const flagRefusal =
+    opts.verdicts === undefined
+      ? opts.json === true
+        ? "--json needs --verdicts"
+        : opts.by !== undefined
+          ? "--by needs --verdicts"
+          : null
+      : opts.question !== undefined
+        ? "--question and --verdicts are exclusive — the verdicts file names the questions"
+        : null;
+  if (flagRefusal !== null) {
+    out.error(`✗ ${flagRefusal}`);
+    return 12;
+  }
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
     out.error(`Config error: ${configResult.left.message}`);
@@ -111,6 +212,56 @@ export async function runArtifactDecide(
     deps.terminalLayer ?? NodeTerminalLayer,
     deps.githubLayer ?? NodeGitHubLayer,
   );
+
+  if (opts.verdicts !== undefined) {
+    const source = opts.verdicts;
+    const json = opts.json === true;
+    // --json keeps stdout for the one report object: progress goes to stderr.
+    const progress = json ? { log: out.warn, warn: out.warn } : out;
+    const verdictsEffect = Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const skillText = (name: string) => fs.readText(join(defaultBundleRoot(), name, "SKILL.md"));
+      const routing = yield* loadModelRouting();
+      return yield* decideVerdicts({
+        path: toRepoRelativePath(pathArg, repoRoot),
+        verdicts:
+          source === "-"
+            ? { kind: "stdin" }
+            : { kind: "file", path: toRepoRelativePath(source, repoRoot) },
+        label: source === "-" ? "stdin" : source,
+        by: opts.by,
+        doctrinePath:
+          opts.doctrine === undefined ? null : toRepoRelativePath(opts.doctrine, repoRoot),
+        model: opts.model,
+        effort: opts.effort,
+        routing,
+        providerConfig: providerConfig.right,
+        bundledSkills: {
+          spec: yield* skillText(DECIDE_SKILL_FOR_KIND.spec),
+          plan: yield* skillText(DECIDE_SKILL_FOR_KIND.plan),
+        },
+        security: config.security,
+        repoRoot,
+        stateRoot: effectiveStateRoot(config),
+        extractPlanModel: config.extractPlanModel,
+        extractPlanEffort: config.extractPlanEffort,
+        nowIso: new Date().toISOString(),
+        records: config.records,
+        publishRemote: config.publish.remote,
+        ...(config.records.destination.kind === "repo"
+          ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }
+          : {}),
+        output: progress,
+      });
+    }).pipe(Effect.provide(layer));
+    const verdictsResult = await Effect.runPromise(Effect.either(verdictsEffect));
+    if (Either.isLeft(verdictsResult)) {
+      reportDecideError(verdictsResult.left, out);
+      return exitCodeForAuthoringError(verdictsResult.left);
+    }
+    renderVerdictsResult(verdictsResult.right, out, json);
+    return 0;
+  }
 
   const effect = Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -143,16 +294,8 @@ export async function runArtifactDecide(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    const err = result.left;
-    if (err instanceof AgentInvocationError) {
-      // A handback that could not resume says why (Claude Code's stderr).
-      const { message, logHint } = renderAgentInvocationError(err);
-      out.error(`✗ ${message}`);
-      if (logHint !== undefined) out.error(`  ${logHint}`);
-    } else {
-      out.error(`✗ ${err.message}`);
-    }
-    return exitCodeForAuthoringError(err);
+    reportDecideError(result.left, out);
+    return exitCodeForAuthoringError(result.left);
   }
   renderResult(result.right, out);
   return 0;
