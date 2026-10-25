@@ -10,6 +10,7 @@ import type { LintFinding } from "./lint.js";
 /** What the source spec reader found, as the rules read it. */
 export type CriteriaInput =
   | { readonly kind: "no-source-spec" }
+  | { readonly kind: "frontmatter-undecodable"; readonly message: string }
   | { readonly kind: "criteria"; readonly slug: string; readonly ids: readonly string[] }
   | {
       readonly kind: "no-criterion-ids";
@@ -39,7 +40,9 @@ const finding = (
  * The `tests` findings of lint's rules on test lines (test-strategy §5.7–§5.12),
  * departures excluded: per phase in plan order, each line's oracle-loop error
  * then its unknown-criterion error, then the phase's silent-oracle error; then
- * the plan-level warnings. A phase with nothing to state gets no finding.
+ * the plan-level warnings: the one line saying why no criterion is checked, or
+ * the uncovered criteria in spec order. A phase with nothing to state gets no
+ * finding.
  */
 export function testLineFindings(input: {
   readonly phases: readonly TestLineCheckPhase[];
@@ -79,7 +82,7 @@ export function testLineFindings(input: {
       );
     }
   }
-  if (criteria.kind === "no-criterion-ids") {
+  if (criteria.kind === "no-criterion-ids" || criteria.kind === "frontmatter-undecodable") {
     findings.push(finding("warning", null, criteria.message));
   } else if (criteria.kind === "criteria") {
     const { uncovered } = criterionCoverage(

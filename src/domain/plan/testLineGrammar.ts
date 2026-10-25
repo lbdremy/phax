@@ -100,7 +100,9 @@ export function parseTestLine(text: string): TestLine | null {
   return Either.isRight(decoded) ? decoded.right : null;
 }
 
-const BULLET = /^ {0,3}[-*+] (.*)$/;
+// `[\s\S]`, not `.`, which stops at U+2028 and U+2029: an entry holding one is
+// still an entry, and its departure quotes it without the bullet.
+const BULLET = /^ {0,3}[-*+] ([\s\S]*)$/;
 const NONE_ITEM = /^\(?none\)?$/i;
 // Line breaks a `\r?\n` split leaves inside a line.
 const UNICODE_BREAK = new RegExp("[\\u2028\\u2029\\u0085]");

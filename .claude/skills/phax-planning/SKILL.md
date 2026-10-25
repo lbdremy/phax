@@ -426,8 +426,10 @@ from its default and depart only for a reason:
 
 - Separators are exactly ` — ` (U+2014) and ` · ` (U+00B7), each with one space either side; `--`, `-`
   or doubled spaces are errors.
-- An oracle may hold ` · ` but never ` — `. A guarantee may hold both.
-- The criterion is an id from the source spec's sidecar, and the last field when present.
+- An oracle may hold ` · ` but never ` — `, and never starts with `— ` or ends with ` ·`. A guarantee
+  may hold both.
+- The criterion is an id from the source spec's sidecar (a headless session is given the list), and
+  the last field when present.
 - A phase that tests nothing writes `- (none)`, or omits the section.
 - A wrapped line (no blank line between) continues its entry; any other text in the section, such as a
   sentence introducing the list, is an error.

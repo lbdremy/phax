@@ -26,7 +26,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -214,7 +214,7 @@ async function runResume(opts: {
   runPath: string;
   runId: RunId;
 }) {
-  const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const config = makeConfig(opts.stateRoot);
   return Effect.runPromise(
     Effect.either(
@@ -248,7 +248,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("re-enters at the completion step, spawning no agent and re-running no gate", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -325,7 +325,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("creates no second commit when the plan on the branch is already Completed", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

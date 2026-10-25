@@ -27,7 +27,7 @@ import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -77,7 +77,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
   });
 
   it("pauses in gates_exhausted then gate-first resumes and commits without a fresh agent invocation", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const config: ResolvedConfig = {

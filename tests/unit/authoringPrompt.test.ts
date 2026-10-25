@@ -3,6 +3,7 @@ import {
   AUTHORING_PROMPT_FILENAME,
   buildAuthoringPrompt,
 } from "../../src/domain/authoring/prompt.js";
+import type { SpecCriteria } from "../../src/domain/plan/criterionCoverage.js";
 
 const JSON_SCHEMA = { title: "phax spec document (experimental)", type: "object" };
 
@@ -21,11 +22,23 @@ function specPrompt(): string {
   });
 }
 
+const SPEC_PATH = "docs/specs/2609091412-plan-prune.md";
+const CRITERIA: SpecCriteria = {
+  kind: "criteria",
+  spec: SPEC_PATH,
+  slug: "plan-prune",
+  criteria: [
+    { id: "ac-prune", name: "Pruning frees the slug" },
+    { id: "ac-keep", name: "A live run is kept" },
+  ],
+};
+
 function planPrompt(
   completesSpec: boolean,
   architectureProvider = false,
   assignmentBounds = false,
   oraclesProvider = false,
+  criteria: SpecCriteria = CRITERIA,
 ): string {
   return buildAuthoringPrompt({
     kind: "plan",
@@ -33,8 +46,9 @@ function planPrompt(
     jsonSchema: { title: "phax plan document (experimental)" },
     brief: "BRIEF-MARKER",
     sourceSpec: {
-      path: "docs/specs/2609091412-plan-prune.md",
+      path: SPEC_PATH,
       markdown: "---\nstatus: Approved\n---\n# SPEC-BODY-MARKER\n",
+      criteria,
     },
     completesSpec,
     slug: "plan-prune",
@@ -164,7 +178,63 @@ describe("buildAuthoringPrompt", () => {
 
     expect(prompt).toContain("Set `sourceSpec` to null");
     expect(prompt).toContain("- Set `completesSpec` to null: this plan has no source spec.");
+    expect(prompt).toContain(
+      "- Set every test line's `criterion` to null: this plan has no source spec.",
+    );
     expect(prompt).not.toContain("## Source spec");
+  });
+
+  it("a plan prompt lists the source spec's criterion ids and names after the spec, before the brief", () => {
+    const prompt = planPrompt(true);
+    const heading = prompt.indexOf(
+      `## Source spec acceptance criteria (${SPEC_PATH}, ids from its JSON sidecar)`,
+    );
+
+    expect(heading).toBeGreaterThan(prompt.indexOf("SPEC-BODY-MARKER"));
+    expect(prompt.indexOf("BRIEF-MARKER")).toBeGreaterThan(heading);
+    expect(prompt.slice(heading)).toContain(
+      "\n\n- `ac-prune` — Pruning frees the slug\n- `ac-keep` — A live run is kept\n",
+    );
+  });
+
+  it("a plan prompt asks for the id on each line that proves a criterion, in the output contract", () => {
+    const prompt = planPrompt(true);
+    const line =
+      "- On each test line that proves one of the source spec's acceptance criteria, set `criterion` to that criterion's id, from the list under \"Source spec acceptance criteria\" below; a line that proves none has `criterion` null.";
+
+    expect(prompt).toContain(line);
+    expect(prompt.indexOf(line)).toBeLessThan(prompt.indexOf('"title": "phax plan document'));
+  });
+
+  it("a plan prompt whose source spec has no sidecar says so and lists no criterion", () => {
+    const prompt = planPrompt(true, false, false, false, {
+      kind: "no-criterion-ids",
+      spec: SPEC_PATH,
+      reason: "no-sidecar",
+      message: `source spec ${SPEC_PATH} has no JSON sidecar: no criterion id is checked`,
+    });
+
+    expect(prompt).toContain(
+      "- The source spec has no JSON sidecar, so its acceptance criteria carry no id: set every test line's `criterion` to null.",
+    );
+    expect(prompt).not.toContain("## Source spec acceptance criteria");
+    expect(prompt).not.toContain("On each test line that proves");
+  });
+
+  it("a plan prompt whose source spec's sidecar cannot be read names why", () => {
+    const message =
+      "source spec sidecar docs/specs/x.json cannot be read (bad JSON): no criterion id is checked";
+    const prompt = planPrompt(true, false, false, false, {
+      kind: "no-criterion-ids",
+      spec: SPEC_PATH,
+      reason: "unreadable",
+      message,
+    });
+
+    expect(prompt).toContain(
+      `- The source spec's criterion ids cannot be read (${message}): set every test line's \`criterion\` to null.`,
+    );
+    expect(prompt).not.toContain("## Source spec acceptance criteria");
   });
 
   it("a plan prompt with a provider tells the planner to run phax architecture, before the output contract", () => {

@@ -4,12 +4,12 @@ import { readPhaxPlanFile, type PhaxPlanRead } from "../../src/schemas/persisted
 type CurrentPhaxPlanRead = Extract<PhaxPlanRead, { readonly shape: "current" }>;
 
 /**
- * `readPhaxPlanFile` for a fixture a run is handed, as the current plan: a
- * fixture in an older shape, which the reader never gives test lines, has
- * `testLines: []` on every phase. A test-only convenience: phax itself never
- * hands an older plan to a run (`loadPlan`).
+ * Lifts a test fixture to the current `phax-plan.json` shape: `readPhaxPlanFile`,
+ * then a fixture written in an older shape gets `testLines: []` on every phase.
+ * A test-only convenience for fixtures that predate test lines; phax itself
+ * never hands an older plan to a run (`loadPlan`).
  */
-export function readCurrentPhaxPlanFile(
+export function liftFixturePhaxPlanToCurrent(
   file: string,
   input: unknown,
 ): Either.Either<CurrentPhaxPlanRead, unknown> {

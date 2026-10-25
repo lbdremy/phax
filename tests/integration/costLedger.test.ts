@@ -44,7 +44,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -342,7 +342,7 @@ describe("cost ledger at run time", () => {
     readonly prepare?: (backend: ReturnType<typeof makeFakeBackend>) => void;
   }) {
     const plan = Either.getOrThrow(
-      readCurrentPhaxPlanFile("phax-plan.json", rawPlan(opts.phase02Model)),
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan(opts.phase02Model)),
     ).plan;
     const config = makeConfig(stateRoot, opts.complianceReview);
     const { backend, layers } = fakes(opts.gateFailsOnce);

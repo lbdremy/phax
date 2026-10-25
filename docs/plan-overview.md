@@ -39,11 +39,11 @@ acceptance criteria of invoice-export
 
 ## Reading it
 
-- **The header** names the plan (its artifact slug, or the run's short name for a loose plan.md), its title, its frontmatter status (`no frontmatter` without one) and its source spec (`no source spec` without one).
+- **The header** names the plan (its artifact slug, or the run's short name for a loose plan.md), its title, its frontmatter status and its source spec (`no source spec` without one). A loose plan.md with no frontmatter block says `no frontmatter`. One whose block does not decode, for example a `source-spec` with no `status`, says `frontmatter does not decode: status: is missing · source spec not read`: nothing is taken from a block that does not decode, its `source-spec` included. A plan under `docs/plans/` never gets that far: it fails artifact validation first.
 - **Each phase block** starts with the phase's model, effort and mode. The `oracle role` row says whether the phase writes oracles (`oracle phase, discharged by phase-02`), discharges an earlier oracle phase (`discharges phase-01`), or neither (`none`). See [Oracle phases](oracle-phases.md).
-- **The parts.** Each row is a part of the repository's architecture and the planned files, to create or to edit, that part holds, in the order the provider reports its parts. A file is shown under every part whose globs match it. Files no part holds sit under `(no part)`. Phase-02 touches two parts, so it is the phase to read for boundary crossings.
+- **The parts.** Each row is a part of the repository's architecture and the planned files, to create or to edit, that part holds, in the order the provider reports its parts. A file is shown under every part whose globs match it. Files no part holds sit under `(no part)`. Phase-02 touches two parts, so it is the phase to read for boundary crossings. A phase that plans no file to create or edit has no such row, and shows `(no planned files)` in its place.
 - **The test lines** are the phase's `### Test strategy` lines in the line format of the phax-planning skill (`<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`), or `(no test lines)`. A phase that tests nothing is not flagged.
-- **The coverage block** ends the overview: each acceptance criterion of the source spec, with the phases and loops whose lines name it, then the criteria no line names. Here `ac-3` has no test, and `phax plans lint` says so as a warning:
+- **The coverage block** ends the overview: each acceptance criterion of the source spec, with the phases and loops whose lines name it, then the criteria no line names. When several lines of one phase and loop name the same criterion, the pair is shown once with its count, `phase-02 in-phase ×2`. A criterion no line names shows `(no test line)`, and the `uncovered` row reads `(none)` when every criterion is named. Here `ac-3` has no test, and `phax plans lint` says so as a warning:
 
 ```
 docs/plans/2610240900-invoice-export-plan.md: 0 errors, 1 warning
@@ -62,24 +62,29 @@ The provider runs once, on the plan's planned files to create and edit, or on th
 
 ## Coverage without criteria
 
-A plan with no source spec prints `no source spec: no criterion coverage`. A source spec with no JSON sidecar, one that cannot be found (here or under `docs/specs/archive/`), or a sidecar that cannot be read prints the one line `phax plans lint` reports for it instead of the coverage, for example `source spec invoice-export has no JSON sidecar: no criterion id is checked`.
+A plan with no source spec prints `no source spec: no criterion coverage`. A source spec with no JSON sidecar, one that cannot be found (here or under `docs/specs/archive/`), or a sidecar that cannot be read prints the one line `phax plans lint` reports for it instead of the coverage, for example `source spec docs/specs/2610231100-invoice-export.md has no JSON sidecar: no criterion id is checked`.
+
+A `source-spec` that is not a spec path inside the repository, such as `../other-repo/docs/specs/x.md` or an absolute path, is never read: the line is `source spec <path> is not a spec path under docs/specs/: no criterion id is checked`. A loose plan.md whose frontmatter does not decode prints `the plan's frontmatter does not decode (<problem>): no source spec is read, no criterion id is checked`. Lint reports the same two lines as warnings.
 
 ## `--json`
 
-`--json` prints one JSON document on stdout and nothing else; warnings stay on stderr. It carries the same content as the text, with a `kind` on every variant:
+`--json` prints one JSON document on stdout and nothing else; warnings stay on stderr. It carries the same content as the text, with a `kind` on every variant. Its top-level keys, in order, are `plan` (the path as you typed it), `name`, `title`, `frontmatter`, `sourceSpec`, `architecture`, `phases` and `coverage`:
 
-- `architecture.kind`: `parts`, `none` or `failed`.
+- `frontmatter.kind`: `decoded` (with `status`), `none`, or `undecodable` (with `problem`).
+- `sourceSpec`: `{ path, slug }` as the frontmatter declares it, or `null` without one (or when the frontmatter does not decode).
+- `architecture.kind`: `parts`, `none` or `failed` (with `message`).
+- `phases[]`: `id`, `title`, `model`, `effort`, `mode`, `oracleRole`, `placement` and `testLines`.
 - `phases[].oracleRole.kind`: `oracle` (with `dischargedBy`), `discharging` (with `oraclePhase`) or `none`.
 - `phases[].placement`: a list of `{ part, files }`, ending with the `{ part: null }` entry of the files no part holds.
 - `phases[].testLines`: the phase's lines as `{ guarantee, size, technique, oracle, loop, criterion }`.
-- `coverage.kind`: `criteria` (each criterion with the lines naming it, and `uncovered`), `no-source-spec`, or `no-criterion-ids` with a `reason` of `no-sidecar`, `not-found` or `unreadable`.
+- `coverage.kind`: `criteria` (with `spec`, `slug`, `criteria` as a list of `{ id, lines }` where `lines` holds one `{ phase, loop }` per naming line, uncounted, and `uncovered`), `no-source-spec`, `frontmatter-undecodable` (with `message`), or `no-criterion-ids` (with `spec`, `message` and a `reason` of `not-a-spec-path`, `no-sidecar`, `not-found` or `unreadable`).
 
 The document is unversioned, like `plans lint`'s: a script reads it without a `$schema` guarantee.
 
 ## Exit codes
 
 - **0**: an overview, a degraded architecture included.
-- **1**: the plan cannot be read, does not parse, or fails artifact validation. A plan with a structure error, or with a test line off the format, prints one line on stderr naming `phax plans lint <plan>`; lint says what is wrong, so fix it there first. A plan that cannot be read, or that fails validation, prints that error on one line.
+- **1**: the plan cannot be read, does not parse, or fails artifact validation. A plan with a structure error, or with a test line off the format, prints one line on stderr naming `phax plans lint <plan>`; lint says what is wrong, so fix it there first. A plan that cannot be read, or that fails validation, prints the plan path and that error on one line.
 - **2**: an invalid `phax.json`.
 
 ## What it never does

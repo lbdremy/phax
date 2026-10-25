@@ -23,7 +23,7 @@ import {
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeRunStatusFile } from "../../src/schemas/status.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -53,7 +53,7 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n}.` },
   });
   return Either.getOrThrow(
-    readCurrentPhaxPlanFile("phax-plan.json", {
+    liftFixturePhaxPlanToCurrent("phax-plan.json", {
       version: 1,
       run: {
         shortName: "skill-run",

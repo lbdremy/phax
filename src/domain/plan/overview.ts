@@ -21,6 +21,11 @@ export type ArchitectureOutcome =
 export type OverviewCriteriaInput =
   | { readonly kind: "no-source-spec" }
   | {
+      readonly kind: "frontmatter-undecodable";
+      readonly problem: string;
+      readonly message: string;
+    }
+  | {
       readonly kind: "criteria";
       /** The spec path that was read, repo-relative. */
       readonly spec: string;
@@ -74,6 +79,8 @@ export type OverviewCoverage =
       readonly uncovered: readonly string[];
     }
   | { readonly kind: "no-source-spec" }
+  /** The plan's frontmatter does not decode, so no source spec is read. */
+  | { readonly kind: "frontmatter-undecodable"; readonly message: string }
   | {
       readonly kind: "no-criterion-ids";
       readonly spec: string;
@@ -81,13 +88,22 @@ export type OverviewCoverage =
       readonly message: string;
     };
 
+/**
+ * The plan's frontmatter: decoded with its status, absent, or a block that does
+ * not decode, with its problem in brief. Only a loose plan.md can be the last
+ * two: a plan under `docs/plans/` passes artifact validation first.
+ */
+export type OverviewFrontmatter =
+  | { readonly kind: "decoded"; readonly status: string }
+  | { readonly kind: "none" }
+  | { readonly kind: "undecodable"; readonly problem: string };
+
 export interface PlanOverview {
   /** The plan path as the caller wants it reported. */
   readonly plan: string;
   readonly name: string;
   readonly title: string;
-  /** The frontmatter status, or null for a plan.md without a readable frontmatter. */
-  readonly status: string | null;
+  readonly frontmatter: OverviewFrontmatter;
   readonly sourceSpec: { readonly path: string; readonly slug: string } | null;
   readonly architecture: OverviewArchitecture;
   readonly phases: readonly OverviewPhase[];
@@ -150,6 +166,9 @@ function coverageOf(
   phases: readonly OverviewPlanPhase[],
   criteria: OverviewCriteriaInput,
 ): OverviewCoverage {
+  if (criteria.kind === "frontmatter-undecodable") {
+    return { kind: "frontmatter-undecodable", message: criteria.message };
+  }
   if (criteria.kind !== "criteria") return criteria;
   const covered = criterionCoverage(
     phases.map((phase) => ({
@@ -177,7 +196,7 @@ export function buildOverview(input: {
   readonly plan: string;
   readonly name: string;
   readonly title: string;
-  readonly status: string | null;
+  readonly frontmatter: OverviewFrontmatter;
   readonly sourceSpec: { readonly path: string; readonly slug: string } | null;
   readonly phases: readonly OverviewPlanPhase[];
   readonly architecture: ArchitectureOutcome;
@@ -188,7 +207,7 @@ export function buildOverview(input: {
     plan: input.plan,
     name: input.name,
     title: input.title,
-    status: input.status,
+    frontmatter: input.frontmatter,
     sourceSpec: input.sourceSpec,
     architecture:
       architecture.kind === "parts"

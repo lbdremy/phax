@@ -40,19 +40,36 @@ function renderPhase(phase: OverviewPhase, hasParts: boolean): string[] {
   return lines;
 }
 
+type CriterionLines = Extract<OverviewCoverage, { kind: "criteria" }>["criteria"][number]["lines"];
+
+/**
+ * The lines naming one criterion, one entry per (phase, loop) pair in order of
+ * first appearance, with `×<n>` when more than one line shares the pair. The
+ * JSON keeps one entry per line.
+ */
+function namingText(lines: CriterionLines): string {
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    const pair = `${line.phase} ${line.loop}`;
+    counts.set(pair, (counts.get(pair) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([pair, count]) => (count === 1 ? pair : `${pair} ×${String(count)}`))
+    .join(", ");
+}
+
 function renderCoverage(coverage: OverviewCoverage): string[] {
   switch (coverage.kind) {
     case "no-source-spec":
       return ["no source spec: no criterion coverage"];
+    case "frontmatter-undecodable":
     case "no-criterion-ids":
       return [coverage.message];
     case "criteria": {
       const rows = coverage.criteria.map(
         (criterion): Row => [
           criterion.id,
-          criterion.lines.length === 0
-            ? "(no test line)"
-            : criterion.lines.map((line) => `${line.phase} ${line.loop}`).join(", "),
+          criterion.lines.length === 0 ? "(no test line)" : namingText(criterion.lines),
         ],
       );
       rows.push([
@@ -75,11 +92,26 @@ function architectureLine(architecture: PlanOverview["architecture"]): string {
   }
 }
 
+function frontmatterText(frontmatter: PlanOverview["frontmatter"]): string {
+  switch (frontmatter.kind) {
+    case "decoded":
+      return frontmatter.status;
+    case "none":
+      return "no frontmatter";
+    case "undecodable":
+      return `frontmatter does not decode: ${frontmatter.problem}`;
+  }
+}
+
+function sourceText(overview: PlanOverview): string {
+  if (overview.sourceSpec !== null) return `source spec ${overview.sourceSpec.slug}`;
+  // A frontmatter that does not decode is not read for its `source-spec`.
+  return overview.frontmatter.kind === "undecodable" ? "source spec not read" : "no source spec";
+}
+
 export function renderOverview(overview: PlanOverview): string {
-  const source =
-    overview.sourceSpec === null ? "no source spec" : `source spec ${overview.sourceSpec.slug}`;
   const lines = [
-    `${overview.name} — ${overview.title}  (${overview.status ?? "no frontmatter"} · ${source})`,
+    `${overview.name} — ${overview.title}  (${frontmatterText(overview.frontmatter)} · ${sourceText(overview)})`,
     architectureLine(overview.architecture),
   ];
   const hasParts = overview.architecture.kind === "parts";

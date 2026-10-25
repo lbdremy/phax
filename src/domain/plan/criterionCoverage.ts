@@ -57,8 +57,32 @@ export function criterionCoverage(
   };
 }
 
-/** Why a source spec's criterion ids are not known. */
-export type NoCriterionIdsReason = "no-sidecar" | "not-found" | "unreadable";
+/**
+ * Why a source spec's criterion ids are not known. `not-a-spec-path`: the
+ * declared path is not a spec path inside the repository, so nothing is read.
+ */
+export type NoCriterionIdsReason = "not-a-spec-path" | "no-sidecar" | "not-found" | "unreadable";
+
+/** A spec's acceptance criteria as its JSON sidecar declares them, or why they are not known. */
+export type SpecCriteria =
+  | {
+      readonly kind: "criteria";
+      /** The spec path that was read, repo-relative. */
+      readonly spec: string;
+      readonly slug: string;
+      /** In spec order. */
+      readonly criteria: ReadonlyArray<{ readonly id: string; readonly name: string }>;
+    }
+  | {
+      readonly kind: "no-criterion-ids";
+      readonly spec: string;
+      readonly reason: NoCriterionIdsReason;
+      readonly message: string;
+    };
+
+export function notASpecPathMessage(spec: string): string {
+  return `source spec ${spec} is not a spec path under docs/specs/: no criterion id is checked`;
+}
 
 export function noSidecarMessage(spec: string): string {
   return `source spec ${spec} has no JSON sidecar: no criterion id is checked`;
@@ -70,6 +94,10 @@ export function specNotFoundMessage(spec: string): string {
 
 export function sidecarUnreadableMessage(sidecar: string, reason: string): string {
   return `source spec sidecar ${sidecar} cannot be read (${reason}): no criterion id is checked`;
+}
+
+export function frontmatterUndecodableMessage(problem: string): string {
+  return `the plan's frontmatter does not decode (${problem}): no source spec is read, no criterion id is checked`;
 }
 
 export function uncoveredCriterionMessage(id: string, slug: string): string {

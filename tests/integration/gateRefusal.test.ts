@@ -23,7 +23,7 @@ import {
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 // A report step that refuses to run, on fakes over a real run folder. The
 // report and the run are made up, after the spec's examples.
@@ -69,7 +69,7 @@ const failingReport = JSON.stringify({
 const shortName = Either.getOrThrow(decodeShortName("greet"));
 
 const plan: PhaxPlan = Either.getOrThrow(
-  readCurrentPhaxPlanFile("phax-plan.json", {
+  liftFixturePhaxPlanToCurrent("phax-plan.json", {
     version: 1,
     run: { shortName: "greet", title: "Greet", branch: "ai/greet", requiredCommands: [] },
     phases: [

@@ -21,7 +21,7 @@ import { SystemTelemetry } from "../../src/ports/systemTelemetry.js";
 import type { TelemetryAttributes } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -108,7 +108,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
   });
 
   it("resolves claude-sonnet-4-6/medium to mistral-vibe with the phax alias", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

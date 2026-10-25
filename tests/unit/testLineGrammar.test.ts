@@ -85,6 +85,16 @@ describe("test line grammar", () => {
     expect(refused(line({ criterion: "`ac-a`" }))).toBe(true);
   });
 
+  // After the ` · ` before it, `— ` is a ` — `: with a size and a technique
+  // after it, it would read back as the guarantee's end.
+  it("refuses an oracle starting with '— ', which would read back as another line", () => {
+    const value = line({ oracle: "— small · example · x" });
+    expect(refused(value)).toBe(true);
+    expect(parseTestLine(renderTestLine(value))).not.toEqual(value);
+    expect(refused(line({ oracle: "— x" }))).toBe(true);
+    expect(refused(line({ oracle: "—x" }))).toBe(false);
+  });
+
   it("refuses an oracle ending in ' ·', and renders and reads awkward oracles back unchanged", () => {
     expect(refused(line({ oracle: "the output ·" }))).toBe(true);
     const awkward = ["a · b", "`x · y`", "the output.", "x", "·", "· leading dot", "a ·· b"];
@@ -141,6 +151,20 @@ describe("test line grammar", () => {
     expect(readTestStrategyText(text).departures).toHaveLength(1);
     expect(refused(line({ guarantee: `a${ch}b` }))).toBe(true);
     expect(refused(line({ oracle: `a${ch}b` }))).toBe(true);
+  });
+
+  it.each([
+    ["U+2028", LS],
+    ["U+2029", PS],
+    ["U+0085", NEL],
+  ])("quotes a bullet holding %s without the bullet, as its own item", (_name, ch) => {
+    const entry = `g — small · example · o${ch}p · in-phase`;
+    const reading = readTestStrategyText(`- g — small · example · o · in-phase\n- ${entry}`);
+    expect(reading.lines).toHaveLength(1);
+    expect(reading.departures).toEqual([{ line: 2, text: entry }]);
+    expect(departureMessage(reading.departures[0]!)).toBe(
+      `test line 2 departs from the format: "${entry}"`,
+    );
   });
 
   it("reads `- (none)` and empty text as no line, and departs `(none)` beside an entry", () => {
@@ -226,5 +250,106 @@ describe("test line grammar", () => {
     expect(renderTestLine(line({ criterion: "ac-store" }))).toBe(
       "the store keeps every entry — small · example · the stored entries · in-phase · ac-store",
     );
+  });
+});
+
+// Every line the schema accepts renders and reads back equal, built from
+// fragments that sit next to the grammar's separators and words.
+describe("the render → parse round trip", () => {
+  const FRAGMENTS = [
+    " — ",
+    " · ",
+    "—",
+    "·",
+    "— ",
+    " —",
+    "· ",
+    " ·",
+    "`",
+    "`x · y`",
+    "oracle",
+    "in-phase",
+    "small",
+    "large",
+    "example",
+    "fuzz",
+    "small · example",
+    " — small · example · ",
+    " · in-phase",
+    "- ",
+    "(none)",
+  ];
+  const CRITERIA = [null, "ac-1", "—", "·", "small", "example", "a—b", "x·y", "`ac`", "oracle"];
+  const LOOPS = ["oracle", "in-phase"] as const;
+
+  // Each fragment alone, around a word, and each pair around and between words.
+  const texts = [
+    ...new Set(
+      FRAGMENTS.flatMap((a) => [
+        a,
+        `x${a}`,
+        `${a}x`,
+        `x${a}y`,
+        ...FRAGMENTS.flatMap((b) => [`${a}${b}`, `x${a}y${b}z`, `${a}x${b}`]),
+      ]),
+    ),
+  ];
+
+  function roundTrips(value: TestLine): boolean {
+    const rendered = renderTestLine(value);
+    const reading = readTestStrategyText(`- ${rendered}`);
+    return (
+      JSON.stringify(parseTestLine(rendered)) === JSON.stringify(value) &&
+      reading.departures.length === 0 &&
+      reading.lines.length === 1 &&
+      JSON.stringify(reading.lines[0]!.line) === JSON.stringify(value)
+    );
+  }
+
+  function check(values: Iterable<TestLine>): { accepted: number; lossy: string[] } {
+    let accepted = 0;
+    const lossy: string[] = [];
+    for (const value of values) {
+      if (refused(value)) continue;
+      accepted += 1;
+      if (!roundTrips(value)) lossy.push(renderTestLine(value));
+    }
+    return { accepted, lossy };
+  }
+
+  function* withEveryLoopAndCriterion(base: TestLine): Generator<TestLine> {
+    for (const loop of LOOPS) for (const criterion of CRITERIA) yield { ...base, loop, criterion };
+  }
+
+  it("reads back every accepted guarantee", () => {
+    const { accepted, lossy } = check(
+      (function* () {
+        for (const guarantee of texts) yield* withEveryLoopAndCriterion(line({ guarantee }));
+      })(),
+    );
+    expect(lossy).toEqual([]);
+    expect(accepted).toBeGreaterThan(1000);
+  });
+
+  it("reads back every accepted oracle", () => {
+    const { accepted, lossy } = check(
+      (function* () {
+        for (const oracle of texts) yield* withEveryLoopAndCriterion(line({ oracle }));
+      })(),
+    );
+    expect(lossy).toEqual([]);
+    expect(accepted).toBeGreaterThan(1000);
+  });
+
+  it("reads back every accepted guarantee and oracle together", () => {
+    const { accepted, lossy } = check(
+      (function* () {
+        for (const a of FRAGMENTS)
+          for (const b of FRAGMENTS)
+            yield* withEveryLoopAndCriterion(line({ guarantee: `x${a}`, oracle: `${b}y` }));
+      })(),
+    );
+    expect(lossy).toEqual([]);
+    expect(accepted).toBeGreaterThan(1000);
   });
 });

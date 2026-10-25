@@ -59,6 +59,7 @@ import {
   type CompletionFlags,
 } from "./createArtifact.js";
 import { seedPlanCache } from "./planCacheStore.js";
+import { readSpecCriteria } from "./sourceSpecCriteria.js";
 import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
 import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
 import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
@@ -480,12 +481,24 @@ export function authorArtifact(
 
     const authoringId = `${formatStamp(input.nowIso)}-${input.slug}`;
     const folder = authoringSessionFolder(input.stateRoot, authoringId);
+    // The rendered spec shows each criterion's name, never its id: the session
+    // reads the ids from the spec's JSON sidecar, through lint's reader.
+    const sourceSpec =
+      target.sourceSpec === null
+        ? null
+        : {
+            ...target.sourceSpec,
+            criteria: yield* readSpecCriteria({
+              specPath: target.sourceSpec.path,
+              repoRoot: input.repoRoot,
+            }),
+          };
     const prompt = buildAuthoringPrompt({
       kind: input.kind,
       skillText: input.skillText,
       jsonSchema: input.kind === "spec" ? getSpecDocumentJsonSchema() : getPlanDocumentJsonSchema(),
       brief: input.brief.text,
-      sourceSpec: target.sourceSpec,
+      sourceSpec,
       completesSpec: target.completesSpec,
       slug: input.slug,
       architectureProvider: input.kind === "plan" ? input.architectureProvider : null,
