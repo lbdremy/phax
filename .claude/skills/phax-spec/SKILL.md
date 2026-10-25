@@ -451,7 +451,8 @@ The constrained shapes:
   payload the consumer sees; `before` is its current form, or `null` for a new element.
 - **Open questions** — each has two or more `options` of `{ id, label, abandons }`
   (`abandons` is the option's dominant loss — see Arbitration), and `recommendation` is the
-  `id` of one of them, argued in `rationale`.
+  `id` of one of them, argued in `rationale`. `other` is a reserved id, implicit on every
+  question: never list it among the options and never recommend it. A decision may choose it.
 - **`arbitratedQuestions`** — required and always `[]`: an authoring session leaves every
   question open, and a non-empty array is refused as an invalid document. Each question renders
   under its id, with option ids on its bullets and its recommendation.

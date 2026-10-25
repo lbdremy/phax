@@ -799,7 +799,8 @@ Top-level keys:
   empty). `openQuestions` and `arbitratedQuestions` are required. Leave each arbitration you
   cannot settle in `openQuestions`, in the same shape as a spec's: `{ id, question, options:
   [{ id, label, abandons }], recommendation, rationale }`, with `recommendation` naming one
-  option id. Settled arbitrations stay prose in `technicalArbitrations`. `arbitratedQuestions`
+  option id. `other` is a reserved id, implicit on every question: never list it among the
+  options and never recommend it. Settled arbitrations stay prose in `technicalArbitrations`. `arbitratedQuestions`
   is always `[]`: an authoring session arbitrates no question, and a non-empty one is refused
   as an invalid document. `phax artifact decide <plan>` answers the open questions, and
   approval waits until none is open.

@@ -22,12 +22,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ### Approved, not yet planned
 
-- [ ] **`artifact-decide-verdicts`** — `docs/specs/2610191226-artifact-decide-verdicts.md`.
-      Approved 2026-10-19. A headless verdicts mode for decide: a verdicts file is transcribed by a
-      headless writer under the doctrine, checked deterministically and committed, the artifact
-      staying Draft. It replaces the hand-edited sidecar used today to record decisions. Its format
-      changes (the `other` option, the decision record's mode, a new `decide-verdicts` input) land
-      in the open release.
+- `artifact-decide-verdicts` (`docs/specs/2610191226-artifact-decide-verdicts.md`) is implemented
+  by the `artifact-decide-verdicts` plan (this run).
 
 ### Briefs written, spec not yet authored
 

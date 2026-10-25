@@ -123,6 +123,12 @@ grows toward production; only the destructive is a floor). Three modes:
   written for this mode first: arbitration is where human attention belongs.
 - **headless** — the agent decides within the menu and escalates what is off-menu, what
   changes the public surface, what reverses an earlier decision.
+- **verdicts** — `phax artifact decide --verdicts`: not the agent-decides `headless` mode
+  above. A person has already chosen, and the writer transcribes their choices. For each
+  verdict it writes the advocate, the principles, the reversibility, the `phase` the question
+  belongs to and, for a departure, the plan revisions the choice implies and `revised`. phax
+  sets `why` (the person's note, or the question's rationale when there is none), `by` and
+  `at`. The writer never adds an option and never changes a choice.
 - **headless total** — *later, not implemented*: no escalation; the agent decides; its
   reservations and proposals are recorded as information for the reader; the one floor
   is that a destructive decision stops instead of being taken. What the headless mode
@@ -146,7 +152,9 @@ a required `phase`. A decided question keeps its `id`, `question`, `options`,
   "revised": [], "phase": "phase-02" }
 ```
 
-- The choice: `chosen` is an option `id`; `abandoned` is exactly the other option ids.
+- The choice: `chosen` is an option `id`, or the reserved `other`, implicit on every question
+  and never listed among the options; `abandoned` is exactly the other listed option ids, so
+  every listed option when `chosen` is `other`.
 - The citations: `principles` lists ids that open list items in the loaded doctrine (this
   skill and any `--doctrine` file).
 - The body: `revised` names the plan sections the verdict changed, empty when none; a
