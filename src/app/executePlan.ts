@@ -115,12 +115,9 @@ import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./p
 import { closePulledBriefs } from "./pullBrief.js";
 import { readRunHold } from "./resume.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
+import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import {
-  generatePhaseHandoff,
-  HandoffValidationError,
-  validateHandoffSections,
-} from "./handoffGeneration.js";
-import {
+  committedHandoffIsValid,
   readPreviousHandoff,
   readPreviousReconciliation,
   readReviewCorrections,
@@ -147,6 +144,7 @@ import {
 } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRun } from "./resolveRunInfo.js";
+import { countCompletedPhases } from "../domain/completedPhases.js";
 import { setupPhase } from "./setup.js";
 import {
   createPhaseWorktree,
@@ -216,19 +214,6 @@ function isStopRecordPausedError(e: unknown): e is StopRecordPausedError {
 // reducer already moved it there, so nothing more is dispatched.
 function isReviewStopError(e: unknown): e is AwaitingReviewStopError | StopCloseRefusedError {
   return e instanceof AwaitingReviewStopError || e instanceof StopCloseRefusedError;
-}
-
-// Whether the phase's handoff was validated and copied to its run folder:
-// the copy exists and has every required section.
-function copiedHandoffIsValid(
-  phaseFolderPath: string,
-): Effect.Effect<boolean, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(phaseFolderPath, "phase-handoff.md");
-    if (!(yield* fs.exists(path))) return false;
-    return validateHandoffSections(yield* fs.readText(path)).length === 0;
-  });
 }
 
 /**
@@ -329,7 +314,8 @@ export interface ExecutePlanOptions {
 }
 
 export interface ExecutePlanResult {
-  readonly committedPhases: readonly string[];
+  /** Every phase of the run that committed, across resumes (`countCompletedPhases`). */
+  readonly completedPhaseCount: number;
   readonly finalPhaseId: string;
   readonly finalWorktreePath: WorktreePath;
   readonly prUrl?: string;
@@ -1113,7 +1099,7 @@ export function executePlan(
           owesHeldStop &&
           (phaseStatus.state === "committed" || phaseStatus.state === "handoff_failed") &&
           resumePhaseFolderPath !== undefined &&
-          (yield* copiedHandoffIsValid(resumePhaseFolderPath))
+          (yield* committedHandoffIsValid(resumePhaseFolderPath))
         ) {
           resumeAtHoldPoint = true;
           resumeWorktreePath = phaseStatus.worktreePath;
@@ -1134,8 +1120,20 @@ export function executePlan(
           resumeFromCleanup = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (
+          phaseStatus?.state === "committed" &&
+          phaseStatus.stop === null &&
+          resumePhaseFolderPath !== undefined &&
+          !(yield* committedHandoffIsValid(resumePhaseFolderPath))
+        ) {
+          // A limit inside the handoff turn leaves the run running and the
+          // phase committed with no valid handoff, final or not: it owes the
+          // handoff, and re-runs only that turn before going on.
+          resumeFromHandoff = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
         } else if (phaseStatus?.state === "committed" && startIndex === plan.phases.length - 1) {
-          // A `committed` final phase means the run paused at artifact completion
+          // A `committed` final phase (its handoff valid) means the run paused at artifact completion
           // (ArtifactCompletionFailed): commit/handoff already landed, only the
           // completion step remains. `committed` is transient for non-final
           // phases (they pause as `cleaning_up`), so the final-phase guard is what
@@ -1352,7 +1350,6 @@ export function executePlan(
     const setupCommands: readonly string[] = config.raw.commands?.setup ?? [];
     const cleanupCommands: readonly string[] = config.raw.commands?.cleanup ?? [];
 
-    const committedPhases: string[] = [];
     let finalWorktreePath: WorktreePath | undefined;
     let finalPhaseId: string | undefined;
     let publishedPrUrl: string | undefined;
@@ -1451,7 +1448,6 @@ export function executePlan(
               mainCheckout: config.repoRoot,
             });
             closeInFlight = false;
-            committedPhases.push(phase.id);
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
             if (report.cause !== "declared" || declaredRecord === undefined) {
               return yield* Effect.dieMessage(`The stop at ${phase.id} did not close as declared`);
@@ -1672,7 +1668,6 @@ export function executePlan(
             mainCheckout: config.repoRoot,
           });
           closeInFlight = false;
-          committedPhases.push(phase.id);
           opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
           yield* writeHeldRecord(recordStopOf(report));
         } else if (closedStopOwesRecord) {
@@ -2145,7 +2140,6 @@ export function executePlan(
           ),
         );
 
-        committedPhases.push(phase.id);
         yield* telemetry.recordEvent(
           makeAdapterCallSucceededTelemetryEvent({
             runId,
@@ -2451,8 +2445,20 @@ export function executePlan(
       );
     }
 
+    // Every phase of the run that committed, across resumes, read from disk
+    // once the review opened: this invocation alone may have started late.
+    const finalInfo = resolveRun(namespace, shortName, config.stateRoot);
+    if (Either.isLeft(finalInfo)) {
+      return yield* Effect.fail(
+        new RegistryCorruptionError({
+          message: `Failed to resolve run "${shortName}" after review opened: ${finalInfo.left}`,
+          registryPath: join(config.stateRoot, "registry.json"),
+        }),
+      );
+    }
+
     return {
-      committedPhases,
+      completedPhaseCount: countCompletedPhases(finalInfo.right.phaseStatuses),
       finalPhaseId,
       finalWorktreePath,
       ...(publishedPrUrl !== undefined ? { prUrl: publishedPrUrl } : {}),

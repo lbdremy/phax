@@ -335,7 +335,7 @@ A phase that changes nothing stops the run (exit 9). The last phase runs the gat
 ### When a run stops
 
 ```bash
-phax resume <run>                     # continue from the next phase that has not committed
+phax resume <run>                     # continue from the next phase, or finish a committed phase's cut-short handoff
 phax resume <run> --yes --provider-priority codex-cli,claude-code
 phax reset-phase <run> [phase-id]     # throw a stuck phase's worktree away so resume starts it over
 phax enter-phase <run> <phase-id>     # open that phase's agent session
@@ -343,7 +343,9 @@ phax session-info <run>               # state, phase, worktree, agent session id
 phax unlock <run>                     # remove a stale lock left by a process that died
 ```
 
-`resume` never re-runs a committed phase. A run stopped by a provider rate or usage limit (exit 8), by a phase with no changes (exit 9) or at an interactive phase (exit 13, see [Interactive phases](#interactive-phases)) is meant to be resumed. A run already at review is not resumed: use `phax enter`.
+`resume` never re-runs a committed phase's work; it only runs that phase's handoff turn again when the turn was cut short. A run stopped by a provider rate or usage limit (exit 8), by a phase with no changes (exit 9) or at an interactive phase (exit 13, see [Interactive phases](#interactive-phases)) is meant to be resumed. A run already at review is not resumed: use `phax enter`.
+
+A phase that committed but whose handoff turn was cut short (a rate or usage limit) gets its handoff written first: `phax resume` runs the handoff turn again in that phase's session and worktree, then goes on. When that worktree is gone, resume refuses with exit 1 and names the `git worktree add` command that restores it; when the session id is gone, it names the `phase-handoff.md` file to write by hand. The final message counts every phase of the run that committed, across resumes.
 
 Without `--yes`, `phax reset-phase` previews the reset, and it applies the same refusals of the run's state as `--yes`, with the same message and exit 1. (Only `--yes` takes the run lock, so a held lock is refused there alone, with its own exit code.)
 

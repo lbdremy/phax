@@ -463,7 +463,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right.committedPhases).toEqual(["phase-01", "phase-02"]);
+      expect(result.right.completedPhaseCount).toBe(2);
       expect(result.right.finalPhaseId).toBe("phase-02");
       expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
     }

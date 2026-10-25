@@ -13,11 +13,14 @@ import type { RunHold, RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRun, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
+import { REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
+import { committedHandoffIsValid, handoffPath } from "./handoffInjection.js";
 
 export type ResumeRefusalReason =
   | RunStatus["state"]
   | "no_pending_phases"
   | "missing_worktree"
+  | "handoff_unrecoverable"
   | "run_not_found";
 
 export interface ResumeDecision {
@@ -61,11 +64,16 @@ interface NextResumablePhase {
  * executePlan re-enters it there. So is a non-final `committed` phase whose
  * stop is closed, of either cause: its close was interrupted before the
  * cleanup, and executePlan finishes what it still owes.
+ *
+ * A non-final `committed` phase in `owedHandoffs` is resumable as well: its
+ * handoff turn was cut short (a limit inside it leaves the run running), and
+ * executePlan re-runs only that turn before going on.
  */
 export function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
   planPhases: readonly { id: string; title: string }[],
   hold: RunHold,
+  owedHandoffs: ReadonlySet<string>,
 ): NextResumablePhase | undefined {
   if (planPhases.length > 0) {
     const statusByPhaseId = new Map(phaseStatuses.map((p) => [p.phaseId, p]));
@@ -87,11 +95,13 @@ export function findNextResumablePhase(
       // close was interrupted between its state event and its cleanup.
       const owesClosedStopCleanup =
         !isFinalPlanPhase && status.state === "committed" && status.stop?.status === "closed";
+      const owesHandoff = status.state === "committed" && owedHandoffs.has(status.phaseId);
       const resumable =
         !TERMINAL_PHASE_STATES.has(status.state) ||
         (isFinalPlanPhase && status.state === "committed") ||
         owesHeldStop ||
-        owesClosedStopCleanup;
+        owesClosedStopCleanup ||
+        owesHandoff;
       if (resumable) {
         return {
           phaseId: status.phaseId,
@@ -142,13 +152,53 @@ export function canResume(state: PhaxState): boolean {
 }
 
 /**
+ * Refuses the resume of a phase that owes its handoff when the handoff turn
+ * cannot run again: its worktree or its session id is gone. Names what is
+ * gone and the remedy for that case. Null when the turn can run.
+ */
+function handoffUnrecoverable(
+  info: RunReviewInfo,
+  status: PhaseStatus,
+  isFinal: boolean,
+): ResumeRefusal | null {
+  const worktreeGone = status.worktreePath === undefined || !existsSync(status.worktreePath);
+  const sessionGone = status.claudeSessionId === undefined;
+  if (!worktreeGone && !sessionGone) return null;
+  const { shortName } = info;
+  const worktree = status.worktreePath ?? "(none recorded)";
+  const restore = `git worktree add ${worktree} ${status.branchName}`;
+  const resumeAgain = `phax resume ${shortName} --yes`;
+  const gone = [
+    ...(worktreeGone ? [`its worktree "${worktree}" no longer exists`] : []),
+    ...(sessionGone ? ["no session id is recorded for it"] : []),
+  ].join(" and ");
+  const head = `Phase "${status.phaseId}" of run "${shortName}" committed, but its handoff turn did not finish, and ${gone}.`;
+  const remedy = sessionGone
+    ? [
+        `Write ${handoffPath(info.runPath, status.phaseId)} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}.`,
+        // Completion runs in the final phase's worktree.
+        ...(worktreeGone && isFinal
+          ? [`Restore its worktree, which completing the run needs: \`${restore}\`.`]
+          : []),
+        `Then run \`${resumeAgain}\`.`,
+      ]
+    : [
+        `Restore it with \`${restore}\`, then run \`${resumeAgain}\`: phax then writes the handoff itself.`,
+      ];
+  return { reason: "handoff_unrecoverable", message: [head, ...remedy].join(" ") };
+}
+
+/**
  * The resume decision for a resolved run. `hold` is the run's recorded hold,
  * read from its run-status.json: it makes a held phase whose stop is still
- * owed the start phase.
+ * owed the start phase. `owedHandoffs` is `readOwedHandoffs` of the run: a
+ * committed phase in it is the start phase, or refused when its handoff turn
+ * cannot run again.
  */
 export function inspectResumeFromInfo(
   info: RunReviewInfo,
   hold: RunHold,
+  owedHandoffs: ReadonlySet<string>,
 ): Either.Either<ResumeDecision, ResumeRefusal> {
   const { shortName } = info;
 
@@ -169,12 +219,23 @@ export function inspectResumeFromInfo(
     });
   }
 
-  const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases, hold);
+  const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases, hold, owedHandoffs);
   if (!nextPhase) {
     return Either.left({
       reason: "no_pending_phases",
       message: `No resumable phases found for run "${shortName}". All phases are committed or skipped.`,
     });
+  }
+
+  // Before the generic worktree check, so the refusal names its remedy.
+  const owingStatus = owedHandoffs.has(nextPhase.phaseId)
+    ? info.phaseStatuses.find((p) => p.phaseId === nextPhase.phaseId)
+    : undefined;
+  if (owingStatus !== undefined) {
+    // The plan's last phase; `finalPhaseId` is only the last phase on disk.
+    const finalPhaseId = info.planPhases.at(-1)?.id ?? info.finalPhaseId;
+    const refusal = handoffUnrecoverable(info, owingStatus, owingStatus.phaseId === finalPhaseId);
+    if (refusal !== null) return Either.left(refusal);
   }
 
   if (nextPhase.worktreePath !== undefined && !existsSync(nextPhase.worktreePath)) {
@@ -213,13 +274,37 @@ export function inspectResume(
     );
   }
   const info = infoResult.right;
-  return readRunHold(info.runPath).pipe(
+  return Effect.all([
+    readRunHold(info.runPath),
+    readOwedHandoffs(info.runPath, info.phaseStatuses),
+  ]).pipe(
     Effect.match({
       onFailure: (error): Either.Either<ResumeDecision, ResumeRefusal> =>
         Either.left({ reason: "run_not_found", message: error.message }),
-      onSuccess: (hold) => inspectResumeFromInfo(info, hold),
+      onSuccess: ([hold, owedHandoffs]) => inspectResumeFromInfo(info, hold, owedHandoffs),
     }),
   );
+}
+
+/**
+ * The ids of the run's phases that owe their handoff: `committed`, with no
+ * stop, and no valid `phase-handoff.md` in their run folder. executePlan's
+ * re-entry applies the same predicate, `committedHandoffIsValid`.
+ */
+export function readOwedHandoffs(
+  runPath: string,
+  phaseStatuses: readonly Pick<PhaseStatus, "phaseId" | "state" | "stop">[],
+): Effect.Effect<ReadonlySet<string>, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const owed = new Set<string>();
+    for (const status of phaseStatuses) {
+      if (status.state !== "committed" || status.stop !== null) continue;
+      if (!(yield* committedHandoffIsValid(join(runPath, status.phaseId)))) {
+        owed.add(status.phaseId);
+      }
+    }
+    return owed;
+  });
 }
 
 /**

@@ -252,14 +252,19 @@ describe("buildWhatsNext", () => {
 
   describe("review_open scenario", () => {
     it("without prUrl: first step is publish-pr command", () => {
-      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
       expect(wn.steps[0]?.title).toContain("Publish a pull request");
       expect(wn.steps[0]?.command).toContain("phax publish-pr proj");
     });
 
     it("with prUrl: first step shows URL in detail with no command", () => {
       const wn = buildWhatsNext(
-        { kind: "review_open", shortName: "proj", prUrl: "https://github.com/org/repo/pull/1" },
+        {
+          kind: "review_open",
+          shortName: "proj",
+          prUrl: "https://github.com/org/repo/pull/1",
+          phaseCount: 2,
+        },
         NOW,
       );
       expect(wn.steps[0]?.title).toContain("View the pull request");
@@ -268,7 +273,7 @@ describe("buildWhatsNext", () => {
     });
 
     it("steps appear in order: PR, open, shell, enter, archive", () => {
-      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
       expect(wn.steps).toHaveLength(5);
       expect(wn.steps[0]?.command).toContain("phax publish-pr proj");
       expect(wn.steps[1]?.command).toContain("phax open proj");
@@ -279,7 +284,12 @@ describe("buildWhatsNext", () => {
 
     it("always includes open, shell, enter, and archive steps", () => {
       const wn = buildWhatsNext(
-        { kind: "review_open", shortName: "proj", prUrl: "https://github.com/org/repo/pull/1" },
+        {
+          kind: "review_open",
+          shortName: "proj",
+          prUrl: "https://github.com/org/repo/pull/1",
+          phaseCount: 2,
+        },
         NOW,
       );
       const commands = wn.steps.map((s) => s.command);
@@ -289,40 +299,34 @@ describe("buildWhatsNext", () => {
       expect(commands).toContain("phax archive proj");
     });
 
-    it("headline includes phaseCount when provided", () => {
+    it("headline carries the phase count", () => {
       const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 3 }, NOW);
-      expect(wn.headline).toContain("3 phase(s) complete");
-    });
-
-    it("headline falls back to generic wording when phaseCount is absent", () => {
-      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
-      expect(wn.headline).toContain("review");
-      expect(wn.headline).toContain("complete");
+      expect(wn.headline).toBe("The run reached review — 3 phase(s) complete.");
     });
   });
 });
 
 describe("renderWhatsNext", () => {
   it("starts with a blank line then the headline", () => {
-    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
     const rendered = renderWhatsNext(wn);
     expect(rendered).toMatch(/^\n/);
     expect(rendered).toContain(wn.headline);
   });
 
   it("includes the Next steps: label", () => {
-    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
     expect(renderWhatsNext(wn)).toContain("Next steps:");
   });
 
   it("renders bullet titles with • prefix", () => {
-    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
     const rendered = renderWhatsNext(wn);
     expect(rendered).toContain("  • Open the review worktree");
   });
 
   it("renders commands on indented lines without a shell prefix", () => {
-    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+    const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 2 }, NOW);
     const rendered = renderWhatsNext(wn);
     expect(rendered).toContain("    phax open proj");
     expect(rendered).not.toContain("$ phax");

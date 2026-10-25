@@ -49,7 +49,7 @@ export type WhatsNextScenario =
       readonly kind: "review_open";
       readonly shortName: string;
       readonly prUrl?: string | undefined;
-      readonly phaseCount?: number | undefined;
+      readonly phaseCount: number;
     };
 
 export const RESUME_BUFFER_SECONDS = 60;
@@ -206,10 +206,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
       };
     }
     case "review_open": {
-      const headline =
-        scenario.phaseCount !== undefined
-          ? `The run reached review — ${scenario.phaseCount} phase(s) complete.`
-          : "The run reached review — all phases are complete.";
+      const headline = `The run reached review — ${scenario.phaseCount} phase(s) complete.`;
       const prStep: NextStep =
         scenario.prUrl !== undefined
           ? { title: "View the pull request", detail: [scenario.prUrl] }

@@ -739,6 +739,8 @@ Shell to generate completions for (zsh, bash, fish, nu, powershell)
 
 Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
 
+A committed phase whose handoff turn was cut short (a rate or usage limit) gets its handoff written first: resume runs that phase's handoff turn again, in its session and its worktree, then goes on. When that worktree is gone, or its session id, resume refuses with exit 1 and nothing changes; the message names the remedy: restore the worktree with git worktree add <recorded worktree path> <phase branch>, or write <run folder>/<phase>/phase-handoff.md with its four sections by hand, then resume again. The final message counts every phase of the run that committed, across resumes.
+
 A run whose phax-plan.json was written by an older phax, in an older shape, is refused with exit 2: finish it with the phax release that started it, or archive it with phax archive <run> --force and run its plan again.
 
 The same preflight as phax run applies: a phase that departs from the owner's assignment bounds without an **Assignment reason:** line, or an invalid bound, refuses with exit 11 ("Assignment preflight failed"), and so does every error of the plan's oracle phases: a malformed declaration, a broken pair, or an oracle phase with no "oracles" provider configured ("Oracle preflight failed"). The preflight re-checks the current configuration, so a run whose "oracles" block was removed since it started is refused too.

@@ -14,7 +14,13 @@ import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
 vi.mock("../../../src/app/resolveRunRef.js", () => ({ resolveRunRef: vi.fn() }));
-vi.mock("../../../src/app/resume.js", () => ({ inspectResumeFromInfo: vi.fn() }));
+vi.mock("../../../src/app/resume.js", async () => {
+  const effect = await import("effect");
+  return {
+    inspectResumeFromInfo: vi.fn(),
+    readOwedHandoffs: vi.fn(() => effect.Effect.succeed(new Set<string>())),
+  };
+});
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
 vi.mock("../../../src/app/loadPlan.js", () => ({ loadPlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({
@@ -209,7 +215,7 @@ describe("runResume --skip-oracle", () => {
     );
     loadModelRouting.mockReturnValue(Effect.succeed(undefined) as never);
     loadProviderConfig.mockReturnValue(Effect.succeed({}) as never);
-    executePlan.mockReturnValue(Effect.succeed({ committedPhases: [] }) as never);
+    executePlan.mockReturnValue(Effect.succeed({ completedPhaseCount: 2 }) as never);
     return executePlan;
   }
 
@@ -285,6 +291,90 @@ describe("runResume --skip-oracle", () => {
 
     expect(lines.join("\n")).not.toContain("Skipping the oracle step");
     expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: false });
+  });
+
+  it("the final message counts every committed phase, from executePlan's completedPhaseCount", async () => {
+    await setupMocks("phase-02", false);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, warnings } = makeOutput();
+
+    expect(await runResume("my-run", { yes: true }, out)).toBe(0);
+    expect(warnings.join("\n")).toContain("The run reached review — 2 phase(s) complete.");
+  });
+});
+
+describe("runResume — a committed phase owing its handoff", () => {
+  let stateRoot: string;
+  let runPath: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-owed-"));
+    runPath = join(stateRoot, "runs", "test-ns.my-run");
+    mkdirSync(runPath, { recursive: true });
+    writeRunStatus(runPath, "running");
+  });
+
+  afterEach(() => {
+    rmSync(stateRoot, { recursive: true, force: true });
+  });
+
+  async function setupMocks(owed: readonly string[]) {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    const { inspectResumeFromInfo, readOwedHandoffs } = vi.mocked(
+      await import("../../../src/app/resume.js"),
+    );
+    const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-ns",
+        shortName: "my-run",
+        info: { runPath, phaseStatuses: [] } as unknown as RunReviewInfo,
+        crossProject: false,
+      }),
+    );
+    readOwedHandoffs.mockReturnValue(Effect.succeed(new Set(owed)));
+    inspectResumeFromInfo.mockReturnValue(
+      Either.right({
+        shortName: "my-run",
+        nextPhaseId: "phase-01",
+        nextPhaseIndex: 0,
+        fromState: "running",
+        worktreePath: undefined,
+        skippedPhaseIds: [],
+      }),
+    );
+    loadPlan.mockReturnValue(Either.right({ phases: [{ id: "phase-01", oracle: null }] } as never));
+    return inspectResumeFromInfo;
+  }
+
+  it("passes the owed handoffs to the decision and previews the handoff line", async () => {
+    const inspect = await setupMocks(["phase-01"]);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, lines } = makeOutput();
+
+    expect(await runResume("my-run", {}, out)).toBe(0);
+    expect(inspect.mock.calls[0]?.[2]).toEqual(new Set(["phase-01"]));
+    expect(lines).toEqual([
+      'Run "test-ns.my-run" (state: running) — would resume from phase 1: phase-01',
+      "  Writing the missing handoff of phase-01 first (its handoff turn did not finish).",
+      "Pass --yes to proceed.",
+    ]);
+  });
+
+  it("prints no handoff line when the phase owes none", async () => {
+    await setupMocks([]);
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, lines } = makeOutput();
+
+    await runResume("my-run", {}, out);
+    expect(lines.join("\n")).not.toContain("Writing the missing handoff");
   });
 });
 
