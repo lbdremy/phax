@@ -4,8 +4,8 @@ date: 2026-10-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
-  date: 2026-10-23
-  baseline: f2118ff
+  date: 2026-10-25
+  baseline: a18346b
 ---
 # Test strategy as data, and the plan overview
 

@@ -1,9 +1,9 @@
 {
   "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
   "artifact": "docs/specs/2610231041-test-strategy.md",
-  "specFingerprint": "e2e2ce69c4b48ba7d21d447159897ead0004ed10856270a0da80e5e99f927b33",
-  "approvedAt": "2026-10-23T12:44:43.459Z",
-  "baseline": "f2118ff1b54e28a7bc9393d5a2188b792f898f07",
+  "specFingerprint": "bd2b710dd459b2129a0daff79dc2234885d6a5eb3adf1970d8c1d7cd6c718882",
+  "approvedAt": "2026-10-25T11:17:03.289Z",
+  "baseline": "a18346be15738a37bad28fa9c77fd930b92461fe",
   "approvedBy": {
     "kind": "operator",
     "name": "Rémy Loubradou"
