@@ -1,5 +1,5 @@
 import fs, { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { glob as globPromise, readFile, watch as watchPromise } from "node:fs/promises";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import {
   assertNoGuardViolations,
   installPhaxHomeGuard,
   isInsidePhaxHome,
+  markCollecting,
   takeGuardViolations,
 } from "../setup/phaxHomeGuard.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
@@ -23,6 +24,11 @@ const IMPORT_TIME_HOME = homedir();
 const REAL_HOME = userInfo().homedir;
 const PROBE = join(REAL_HOME, ".phax", "guard-probe-does-not-exist");
 
+async function firstOf(iterable: AsyncIterable<unknown>): Promise<unknown> {
+  for await (const entry of iterable) return entry;
+  return undefined;
+}
+
 function inside(path: string, home: string): boolean {
   const rel = relative(home, path);
   return rel === "" || (!rel.startsWith("..") && !rel.startsWith("/"));
@@ -34,6 +40,29 @@ describe("isInsidePhaxHome", () => {
 
   it.each([
     ["the root itself", root, [], true],
+    ["the root, case-folded", "/home/dev/.PHAX/config.json", [], true],
+    [
+      "the exempted repository, case-folded",
+      "/home/dev/.phax/Worktrees/phax.x/PHASE-01/a",
+      [repo],
+      false,
+    ],
+    ["the sibling ~/.phaxx, case-folded", "/home/dev/.PHAXX/config.json", [], false],
+  ])("%s with foldCase", (_name, path, exempt, expected) => {
+    expect(isInsidePhaxHome(path, [root], exempt, true)).toBe(expected);
+  });
+
+  it("compares exactly without foldCase", () => {
+    expect(isInsidePhaxHome("/home/dev/.PHAX/config.json", [root], [], false)).toBe(false);
+  });
+
+  it("guards every root: ~/.phax and its realpath", () => {
+    const roots = [root, "/data/dev-phax"];
+    expect(isInsidePhaxHome("/data/dev-phax/runs/a.json", roots, [], false)).toBe(true);
+    expect(isInsidePhaxHome("/data/dev-phaxx/a.json", roots, [], false)).toBe(false);
+  });
+
+  it.each([
     ["a file below the root", `${root}/config.json`, [], true],
     ["a deep path below the root", `${root}/runs/a/b/c.json`, [], true],
     ["the sibling ~/.phaxx", "/home/dev/.phaxx/config.json", [], false],
@@ -46,7 +75,7 @@ describe("isInsidePhaxHome", () => {
     ["a sibling worktree of the exempted one", `${root}/worktrees/phax.x/phase-02/a`, [repo], true],
     ["a sibling directory sharing the repository's prefix", `${repo}-2/a`, [repo], true],
   ])("%s", (_name, path, exempt, expected) => {
-    expect(isInsidePhaxHome(path, root, exempt)).toBe(expected);
+    expect(isInsidePhaxHome(path, [root], exempt, false)).toBe(expected);
   });
 });
 
@@ -60,7 +89,9 @@ describe("the guard on the real ~/.phax", () => {
     }
     expect(thrown).toMatchObject({ code: "EACCES", path: PROBE });
     expect(String((thrown as Error).message)).toContain("tests/helpers/isolatePhaxHome.ts");
-    expect(takeGuardViolations()).toEqual([{ call: "fs.readFileSync", path: PROBE }]);
+    expect(takeGuardViolations()).toEqual([
+      { call: "fs.readFileSync", path: PROBE, during: "test" },
+    ]);
   });
 
   it("rejects a promise call instead of throwing", async () => {
@@ -69,7 +100,9 @@ describe("the guard on the real ~/.phax", () => {
       call = readFile(PROBE);
     }).not.toThrow();
     await expect(call).rejects.toMatchObject({ code: "EACCES", path: PROBE });
-    expect(takeGuardViolations()).toEqual([{ call: "fs.promises.readFile", path: PROBE }]);
+    expect(takeGuardViolations()).toEqual([
+      { call: "fs.promises.readFile", path: PROBE, during: "test" },
+    ]);
   });
 
   it("calls a callback call back with the error", async () => {
@@ -77,7 +110,7 @@ describe("the guard on the real ~/.phax", () => {
       fs.readFile(PROBE, (err) => resolve(err));
     });
     expect(error).toMatchObject({ code: "EACCES", path: PROBE });
-    expect(takeGuardViolations()).toEqual([{ call: "fs.readFile", path: PROBE }]);
+    expect(takeGuardViolations()).toEqual([{ call: "fs.readFile", path: PROBE, during: "test" }]);
   });
 
   it("returns a stream that emits the error", async () => {
@@ -85,13 +118,15 @@ describe("the guard on the real ~/.phax", () => {
       fs.createReadStream(PROBE).on("error", resolve);
     });
     expect(error).toMatchObject({ code: "EACCES", path: PROBE });
-    expect(takeGuardViolations()).toEqual([{ call: "fs.createReadStream", path: PROBE }]);
+    expect(takeGuardViolations()).toEqual([
+      { call: "fs.createReadStream", path: PROBE, during: "test" },
+    ]);
   });
 
   it("checks both paths of a two-path call", () => {
     const outside = join(tmpdir(), "phax-guard-never-created");
     expect(() => fs.renameSync(outside, PROBE)).toThrow(/EACCES/);
-    expect(takeGuardViolations()).toEqual([{ call: "fs.renameSync", path: PROBE }]);
+    expect(takeGuardViolations()).toEqual([{ call: "fs.renameSync", path: PROBE, during: "test" }]);
   });
 
   it("refuses a relative path that resolves into ~/.phax", () => {
@@ -124,6 +159,94 @@ describe("the guard on the real ~/.phax", () => {
     expect(message).toContain(`fs.readFileSync ${PROBE}`);
     expect(message).toContain("tests/helpers/isolatePhaxHome.ts");
     expect(takeGuardViolations()).toEqual([]);
+  });
+
+  it("labels a refusal recorded while the file is collected", () => {
+    markCollecting(true);
+    try {
+      readFileSync(PROBE);
+    } catch {
+      // swallowed
+    } finally {
+      markCollecting(false);
+    }
+    let message = "";
+    try {
+      assertNoGuardViolations();
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain(`fs.readFileSync ${PROBE} (during collection)`);
+  });
+
+  it.runIf(process.platform === "darwin")(
+    "refuses a case variant of the path on darwin's case-insensitive volumes",
+    () => {
+      const variant = join(REAL_HOME, ".PHAX", "guard-probe-does-not-exist");
+      expect(() => readFileSync(variant)).toThrow(/EACCES/);
+      expect(takeGuardViolations()).toEqual([
+        { call: "fs.readFileSync", path: variant, during: "test" },
+      ]);
+    },
+  );
+
+  it.each([
+    ["fs.statfsSync", () => fs.statfsSync(PROBE)],
+    ["fs.chownSync", () => fs.chownSync(PROBE, 0, 0)],
+    ["fs.lchownSync", () => fs.lchownSync(PROBE, 0, 0)],
+    ["fs.lutimesSync", () => fs.lutimesSync(PROBE, 0, 0)],
+    ["fs.watch", () => fs.watch(PROBE)],
+    ["fs.globSync", () => fs.globSync(`${PROBE}/*.json`)],
+  ])("throws EACCES for %s", (call, run) => {
+    expect(run).toThrow(/EACCES/);
+    expect(takeGuardViolations().map((v) => v.call)).toEqual([call]);
+  });
+
+  it("refuses a glob whose cwd is inside ~/.phax, and a relative pattern under it", () => {
+    expect(() => fs.globSync("*.json", { cwd: PROBE })).toThrow(/EACCES/);
+    expect(takeGuardViolations()).toEqual([
+      { call: "fs.globSync", path: join(PROBE, "*.json"), during: "test" },
+    ]);
+  });
+
+  it.each([
+    ["fs.promises.statfs", () => fs.promises.statfs(PROBE)],
+    ["fs.promises.chown", () => fs.promises.chown(PROBE, 0, 0)],
+    ["fs.promises.lutimes", () => fs.promises.lutimes(PROBE, 0, 0)],
+    ["fs.openAsBlob", () => fs.openAsBlob(PROBE)],
+  ])("rejects %s", async (call, run) => {
+    await expect(run()).rejects.toMatchObject({ code: "EACCES", path: PROBE });
+    expect(takeGuardViolations().map((v) => v.call)).toEqual([call]);
+  });
+
+  it("calls fs.glob and fs.statfs back with the error", async () => {
+    const globError = await new Promise<unknown>((resolve) => {
+      fs.glob(`${PROBE}/*`, (err) => resolve(err));
+    });
+    const statfsError = await new Promise<unknown>((resolve) => {
+      fs.statfs(PROBE, (err) => resolve(err));
+    });
+    expect(globError).toMatchObject({ code: "EACCES" });
+    expect(statfsError).toMatchObject({ code: "EACCES", path: PROBE });
+    expect(takeGuardViolations().map((v) => v.call)).toEqual(["fs.glob", "fs.statfs"]);
+  });
+
+  it("fails the iteration of fs.promises.glob and fs.promises.watch", async () => {
+    await expect(firstOf(globPromise(`${PROBE}/*`))).rejects.toMatchObject({ code: "EACCES" });
+    await expect(firstOf(watchPromise(PROBE))).rejects.toMatchObject({ code: "EACCES" });
+    expect(takeGuardViolations().map((v) => v.call)).toEqual([
+      "fs.promises.glob",
+      "fs.promises.watch",
+    ]);
+  });
+
+  it("records fs.watchFile and returns a watcher that never fires", () => {
+    const listener = vi.fn();
+    const watcher = fs.watchFile(PROBE, listener);
+    expect(watcher.unref()).toBe(watcher);
+    fs.unwatchFile(PROBE, listener);
+    expect(listener).not.toHaveBeenCalled();
+    expect(takeGuardViolations()).toEqual([{ call: "fs.watchFile", path: PROBE, during: "test" }]);
   });
 
   it("passes a call outside ~/.phax through unchanged", async () => {
@@ -197,23 +320,74 @@ function suites(dir: string): string[] {
     .map((file) => join(dir, file));
 }
 
-// Spawned children are out of the guard's reach: a suite that runs the phax CLI
-// gives the child a temporary HOME, or is listed here with the reason.
+// Spawned children are out of the guard's reach: every call that spawns the
+// phax CLI must give the child a temporary HOME in its `env`.
+//
+// The check reads source text, so it is a tripwire, not a proof. It finds a
+// spawn-family call (spawn, spawnSync, exec, execSync, execFile, execFileSync,
+// fork) whose arguments name the entry point, literally or through a `const`
+// assigned from it, and requires an `env:` option whose expression calls
+// phaxHomeEnv() or childEnvUnder() or sets HOME. It cannot tell that the HOME
+// is a temporary one, nor see a spawn whose entry point reaches it through a
+// helper in another file.
+const NEEDLES = ["src/cli/main.ts", "dist/cli/main.js"];
+const SPAWN_CALL = /\b(?:spawnSync|spawn|execFileSync|execFile|execSync|exec|fork)\(/g;
+const TEMP_HOME_ENV = /phaxHomeEnv\(|childEnvUnder\(|\bHOME:/;
+
+// The index just past the expression that starts at `from`, stopping at the
+// first `stop` character outside brackets and strings (or the closing bracket
+// of the enclosing call).
+function scanExpression(text: string, from: number, stop: string): number {
+  let depth = 0;
+  for (let i = from; i < text.length; i++) {
+    const c = text[i]!;
+    if (c === '"' || c === "'" || c === "`") {
+      for (i++; i < text.length && text[i] !== c; i++) if (text[i] === "\\") i++;
+    } else if ("([{".includes(c)) {
+      depth++;
+    } else if (")]}".includes(c)) {
+      if (depth === 0) return i;
+      depth--;
+    } else if (depth === 0 && stop.includes(c)) {
+      return i;
+    }
+  }
+  return text.length;
+}
+
+/** A suite's CLI spawns, by line, and whether each gives the child a temporary HOME. */
+function cliSpawns(text: string): { readonly line: number; readonly tempHome: boolean }[] {
+  const entryNames = [...text.matchAll(/\bconst\s+(\w+)\s*=([^;]*);/g)]
+    .filter((m) => NEEDLES.some((needle) => (m[2] ?? "").includes(needle)))
+    .map((m) => m[1] ?? "");
+  const namesEntry = (args: string) =>
+    NEEDLES.some((needle) => args.includes(needle)) ||
+    entryNames.some((name) => new RegExp(`\\b${name}\\b`).test(args));
+  const spawns: { line: number; tempHome: boolean }[] = [];
+  for (const match of text.matchAll(SPAWN_CALL)) {
+    const open = (match.index ?? 0) + match[0].length;
+    const args = text.slice(open, scanExpression(text, open, ""));
+    if (!namesEntry(args)) continue;
+    const env = /\benv:/.exec(args);
+    const envExpression =
+      env === null ? "" : args.slice(env.index, scanExpression(args, env.index + 4, ","));
+    spawns.push({
+      line: text.slice(0, match.index).split("\n").length,
+      tempHome: TEMP_HOME_ENV.test(envExpression),
+    });
+  }
+  return spawns;
+}
+
+function unguardedCliSpawns(text: string): number[] {
+  return cliSpawns(text)
+    .filter((spawn) => !spawn.tempHome)
+    .map((spawn) => spawn.line);
+}
+
 describe("suites that spawn the phax CLI", () => {
   const TESTS_DIR = join(process.cwd(), "tests");
   const SELF = "unit/phaxHomeGuard.test.ts";
-  const EXEMPT: Readonly<Record<string, string>> = {
-    "integration/heldStopCommands.test.ts":
-      "its child runs with childEnvUnder(home), a temporary HOME",
-    "integration/stoppedRunCommands.test.ts":
-      "its child runs with HOME set to the world's temporary home",
-    "integration/phaseGuard.test.ts": "its child runs with HOME set to a temporary home",
-    "integration/plansEstimateCommand.test.ts": "its child runs with HOME set to a temporary home",
-    "integration/authorArtifact.test.ts":
-      "names src/cli/main.ts only as a planned file in a fixture; spawns nothing",
-  };
-  const NEEDLES = ["src/cli/main.ts", "dist/cli/main.js"];
-  const REMEDIES = ["phaxHomeEnv", "isolatePhaxHome"];
 
   const naming = [...suites(join(TESTS_DIR, "unit")), ...suites(join(TESTS_DIR, "integration"))]
     .map((file) => ({ rel: relative(TESTS_DIR, file), text: readFileSync(file, "utf8") }))
@@ -224,23 +398,32 @@ describe("suites that spawn the phax CLI", () => {
     expect(naming.length).toBeGreaterThan(5);
   });
 
-  it("gives every one a temporary HOME for its child, or lists it with a reason", () => {
-    const unguarded = naming
-      .filter(({ text }) => !REMEDIES.some((remedy) => text.includes(remedy)))
-      .map(({ rel }) => rel)
-      .filter((rel) => !(rel in EXEMPT));
+  it("flags a CLI spawn without a temporary HOME, by name or literal, and passes one with it", () => {
+    const entry = 'const mainTs = join(root, "src/cli/main.ts");\n';
+    expect(unguardedCliSpawns(`${entry}spawnSync("tsx", [mainTs], { encoding: "utf8" });`)).toEqual(
+      [2],
+    );
     expect(
-      unguarded,
-      "pass phaxHomeEnv() as the child's env, or list the suite with a reason",
+      unguardedCliSpawns("execSync(`tsx src/cli/main.ts ls`, { env: { ...process.env } });"),
+    ).toEqual([1]);
+    expect(
+      unguardedCliSpawns(
+        `${entry}spawnSync("tsx", [mainTs], { env: { ...process.env, HOME: h } });`,
+      ),
     ).toEqual([]);
+    expect(
+      unguardedCliSpawns(`${entry}spawnSync("tsx", [mainTs], { env: phaxHomeEnv() });`),
+    ).toEqual([]);
+    expect(unguardedCliSpawns(`${entry}execFileSync("git", ["status"], { cwd: root });`)).toEqual(
+      [],
+    );
   });
 
-  it("lists only suites that still name the CLI entry point and do not use the helper", () => {
-    const names = new Map(naming.map(({ rel, text }) => [rel, text]));
-    const stale = Object.keys(EXEMPT).filter((rel) => {
-      const text = names.get(rel);
-      return text === undefined || REMEDIES.some((remedy) => text.includes(remedy));
-    });
-    expect(stale).toEqual([]);
+  it("gives every CLI child a temporary HOME in its env", () => {
+    expect(naming.flatMap(({ text }) => cliSpawns(text)).length).toBeGreaterThan(5);
+    const unguarded = naming.flatMap(({ rel, text }) =>
+      unguardedCliSpawns(text).map((line) => `${rel}:${line}`),
+    );
+    expect(unguarded, "pass phaxHomeEnv() as the child's env").toEqual([]);
   });
 });

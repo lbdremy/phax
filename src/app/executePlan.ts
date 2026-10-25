@@ -130,7 +130,7 @@ import {
 } from "./interactiveFiles.js";
 import { stopAtDeclaredPhase, stopAtHeldPhase } from "./interactiveStop.js";
 import { holdsPhase } from "../domain/hold.js";
-import type { RunHold } from "../schemas/status.js";
+import type { PhaseStatus, RunHold } from "../schemas/status.js";
 import { closeStop, type CloseReport } from "./closeStop.js";
 import { listRecords } from "./recordsList.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
@@ -231,6 +231,23 @@ interface StopRecordInputs {
   readonly sourceSha: string | undefined;
   /** The record's stop on a closed stop's re-entry; undefined before the close. */
   readonly closedStop: NonNullable<RecordStop> | undefined;
+}
+
+// What follows the valid handoff of a committed phase whose record and cleanup
+// never ran (its handoff was written by hand), read before RunResumeRequested:
+// its branch, its worktree (null when the directory is gone) and what its
+// record names.
+interface PostHandoffInputs {
+  readonly branch: BranchName;
+  readonly worktree: WorktreePath | null;
+  /** The builder's binding; null when records are off, which read none. */
+  readonly assignment: {
+    readonly provider: ProviderId;
+    readonly model: string;
+    readonly effort: string;
+  } | null;
+  /** The phase commit noted in its status, or undefined when none is noted. */
+  readonly sourceSha: string | undefined;
 }
 
 // The record's stop as a closed stop's files recorded it: its status `stop`
@@ -963,6 +980,65 @@ export function executePlan(
     });
   }
 
+  // What a committed phase owes after its valid handoff needs, read from its
+  // own files: the commit noted in its status (never HEAD) and, when records
+  // are on, the builder's binding. Its worktree is checked, not required: a gone
+  // one has nothing left for the cleanup to clean.
+  function readPostHandoffInputs(
+    phaseFolderPath: string,
+    phaseId: string,
+    worktreePath: string | undefined,
+  ): Effect.Effect<
+    PostHandoffInputs,
+    FsError | RegistryCorruptionError | UnsafeGitStateError | WorktreeCreationError,
+    FileSystem
+  > {
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const branchStr = `${plan.run.branch}--${phaseId}`;
+      const phaseBranch = decodeBranchName(branchStr);
+      if (Either.isLeft(phaseBranch)) {
+        return yield* Effect.fail(
+          new UnsafeGitStateError({
+            message: `Invalid phase branch "${branchStr}"`,
+            repoPath: config.repoRoot,
+          }),
+        );
+      }
+      let worktree: WorktreePath | null = null;
+      if (worktreePath !== undefined && (yield* fs.exists(worktreePath))) {
+        const decoded = decodeWorktreePath(worktreePath);
+        if (Either.isLeft(decoded)) {
+          return yield* Effect.fail(
+            new WorktreeCreationError({
+              message: `Invalid worktree path "${worktreePath}"`,
+              branch: phaseBranch.right,
+              path: worktreePath,
+            }),
+          );
+        }
+        worktree = decoded.right;
+      }
+      let assignment: PostHandoffInputs["assignment"] = null;
+      if (config.records.enabled) {
+        const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
+        if (Either.isLeft(binding)) {
+          return yield* Effect.fail(
+            new RegistryCorruptionError({
+              message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.left}).`,
+              registryPath: join(phaseFolderPath, "agent-binding.json"),
+            }),
+          );
+        }
+        const { provider, model, effort } = binding.right;
+        assignment = { provider, model, effort };
+      }
+      // A back-reference only, as the committed path's HEAD lookup is.
+      const { commitHash } = yield* readPhaseStatus(phaseFolderPath);
+      return { branch: phaseBranch.right, worktree, assignment, sourceSha: commitHash };
+    });
+  }
+
   // Whether the records branch already holds a phase record of this run's
   // phase. A listing failure fails before RunResumeRequested.
   function phaseRecordExists(phaseId: string) {
@@ -1065,6 +1141,12 @@ export function executePlan(
     let resumeFromCommit = false;
     let resumeFromCleanup = false;
     let resumeFromCompletion = false;
+    // A non-final committed phase outside the hold whose handoff is valid but
+    // whose cleanup never started: a person wrote its handoff by hand after
+    // its handoff turn was cut short, or an interrupt came between the handoff
+    // and the cleanup. Only its briefs, its record (when owed) and its cleanup
+    // run.
+    let resumeAfterHandoff = false;
     // An interactive phase awaiting review: the resume closes its stop.
     let resumeFromStop = false;
     // A headless phase awaiting review: a held stop, closed by this resume.
@@ -1133,6 +1215,19 @@ export function executePlan(
           // phase committed with no valid handoff, final or not: it owes the
           // handoff, and re-runs only that turn before going on.
           resumeFromHandoff = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (
+          phaseStatus?.state === "committed" &&
+          phaseStatus.stop === null &&
+          startIndex < plan.phases.length - 1
+        ) {
+          // Its handoff is valid (the branch above took an invalid one) and
+          // it is outside the hold (a held one re-enters its hold point).
+          // Every such phase goes on to its cleanup in the invocation that
+          // validates its handoff, so only what follows the handoff is owed:
+          // a handoff written by hand, or an interrupt before the cleanup.
+          resumeAfterHandoff = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
         } else if (phaseStatus?.state === "committed" && startIndex === plan.phases.length - 1) {
@@ -1339,6 +1434,16 @@ export function executePlan(
       resumeAtHoldPoint && resumePhase !== undefined
         ? yield* interactiveReentry(resumePhase.id, resumeWorktreePath)
         : undefined;
+    // So is what follows a valid handoff, its record owed only when none is
+    // on the records branch yet: an interrupt may have come after it.
+    const postHandoffInputs =
+      resumeAfterHandoff && resumePhase !== undefined && resumePhaseFolderPath !== undefined
+        ? yield* readPostHandoffInputs(resumePhaseFolderPath, resumePhase.id, resumeWorktreePath)
+        : undefined;
+    const postHandoffOwesRecord =
+      resumeAfterHandoff && config.records.enabled && resumePhaseId !== undefined
+        ? !(yield* phaseRecordExists(resumePhaseId))
+        : false;
     reentryReading = false;
 
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
@@ -1355,6 +1460,8 @@ export function executePlan(
 
     let finalWorktreePath: WorktreePath | undefined;
     let finalPhaseId: string | undefined;
+    // The phase statuses read for the final review, before it opened.
+    let finalReviewStatuses: readonly PhaseStatus[] = [];
     let publishedPrUrl: string | undefined;
     let artifactCompletions: RunCompletionReport | undefined;
 
@@ -1373,7 +1480,11 @@ export function executePlan(
       // phase's gate already ran.
       const gateAlreadyRan =
         i === startIndex &&
-        (resumeFromStop || resumeFromHeldStop || resumeFromClosedStop || resumeAtHoldPoint);
+        (resumeFromStop ||
+          resumeFromHeldStop ||
+          resumeFromClosedStop ||
+          resumeAtHoldPoint ||
+          resumeAfterHandoff);
       const phaseOracleRole = oracleRoleOf(plan.phases, phase.id);
       if (phaseOracleRole?.role === "discharging" && !gateAlreadyRan) {
         yield* oracleCommitOf(phaseOracleRole.pair);
@@ -1687,6 +1798,76 @@ export function executePlan(
           cleanupCommands,
         });
         previousPhaseBranch = stopReentry.branch;
+        continue;
+      }
+
+      if (i === startIndex && resumeAfterHandoff) {
+        // What follows a valid handoff on the committed path, in its order:
+        // the pulled briefs, the record and the cleanup. No agent turn, gate,
+        // commit or handoff turn runs.
+        if (postHandoffInputs === undefined) {
+          return yield* Effect.dieMessage(
+            `No checked inputs for what follows ${phase.id}'s handoff`,
+          );
+        }
+        const { worktree, assignment } = postHandoffInputs;
+        const folder = join(runPath, phase.id);
+        currentPhaseId = phase.id;
+        currentPhaseFolderPath = folder;
+        currentWorktreePath = worktree === null ? undefined : (worktree as string);
+        currentSessionId = undefined;
+        // Left unset: the phase committed, so no failure from here writes a
+        // `failed` record, and the record below is passed its values.
+        currentProvider = undefined;
+        currentModel = undefined;
+        currentEffort = undefined;
+
+        // Briefs pulled into a gone worktree are gone with it; collecting
+        // would only recreate its directory.
+        if (config.brief !== undefined && worktree !== null) {
+          yield* closePulledBriefs({
+            worktreePath: worktree as string,
+            phaseFolderPath: folder,
+            phaseId: phase.id,
+          });
+        }
+        if (assignment !== null && postHandoffOwesRecord) {
+          yield* writeRecordForPhase({
+            phaseId: phase.id,
+            phaseFolderPath: folder,
+            provider: assignment.provider,
+            model: assignment.model,
+            effort: assignment.effort,
+            mode: phase.mode,
+            stop: null,
+            usage: { kind: "session", sessionId: resumeSessionId },
+            outcome: "committed",
+            sourceSha: postHandoffInputs.sourceSha,
+          });
+        }
+        yield* Effect.promise(() => patchAgentBindingStatus(folder, "completed"));
+        if (worktree !== null) {
+          yield* cleanupCommittedPhase({
+            phase,
+            worktreePath: worktree,
+            phaseFolderPath: folder,
+            cleanupCommands,
+          });
+        } else {
+          // A gone worktree leaves nothing for the cleanup commands to clean:
+          // only the cleanup's state events run, so the phase is cleaned up
+          // and the run goes on instead of pausing in a cleanup it can never
+          // finish.
+          yield* dispatch(
+            { ...eventBase(phase.id), type: "CleanupStarted" },
+            dispatchCtx(folder, phase.id),
+          );
+          yield* dispatch(
+            { ...eventBase(phase.id), type: "CleanupCompleted" },
+            dispatchCtx(folder, phase.id),
+          );
+        }
+        previousPhaseBranch = postHandoffInputs.branch;
         continue;
       }
 
@@ -2323,6 +2504,7 @@ export function executePlan(
             }),
           );
         }
+        finalReviewStatuses = infoResult.right.phaseStatuses;
         // Run completion (spec 27): apply the plan's Approved → Completed
         // transition on the run branch — riding the source spec along where the
         // chain gate allows — BEFORE review opens, so the reviewer sees the
@@ -2451,18 +2633,18 @@ export function executePlan(
 
     // Every phase of the run that committed, across resumes, read from disk
     // once the review opened: this invocation alone may have started late.
-    const finalInfo = resolveRun(namespace, shortName, config.stateRoot);
-    if (Either.isLeft(finalInfo)) {
-      return yield* Effect.fail(
-        new RegistryCorruptionError({
-          message: `Failed to resolve run "${shortName}" after review opened: ${finalInfo.left}`,
-          registryPath: join(config.stateRoot, "registry.json"),
-        }),
-      );
-    }
+    // The run is complete by now, so an unreadable run folder never fails
+    // it: the count falls back to the statuses read for the final review,
+    // which hold the same committed phases (the final one `committed` then).
+    const completedPhaseCount = countCompletedPhases(
+      Either.match(resolveRun(namespace, shortName, config.stateRoot), {
+        onLeft: () => finalReviewStatuses,
+        onRight: (info) => info.phaseStatuses,
+      }),
+    );
 
     return {
-      completedPhaseCount: countCompletedPhases(finalInfo.right.phaseStatuses),
+      completedPhaseCount,
       finalPhaseId,
       finalWorktreePath,
       ...(publishedPrUrl !== undefined ? { prUrl: publishedPrUrl } : {}),

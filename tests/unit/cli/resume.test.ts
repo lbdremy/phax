@@ -9,18 +9,13 @@ import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import type { PhaseState } from "../../../src/domain/state.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { PhaseStatus } from "../../../src/schemas/status.js";
+import type { OwedStep, ResumeDecision, ResumeRefusal } from "../../../src/app/resume.js";
 import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
 vi.mock("../../../src/app/resolveRunRef.js", () => ({ resolveRunRef: vi.fn() }));
-vi.mock("../../../src/app/resume.js", async () => {
-  const effect = await import("effect");
-  return {
-    inspectResumeFromInfo: vi.fn(),
-    readOwedHandoffs: vi.fn(() => effect.Effect.succeed(new Set<string>())),
-  };
-});
+vi.mock("../../../src/app/resume.js", () => ({ inspectResumeOfRun: vi.fn() }));
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
 vi.mock("../../../src/app/loadPlan.js", () => ({ loadPlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({
@@ -144,6 +139,31 @@ function writeRunStatus(
   );
 }
 
+/** What the mocked inspectResumeOfRun answers: the decision, with the run's count. */
+function inspection(
+  decision: Either.Either<ResumeDecision, ResumeRefusal>,
+  completedPhaseCount = 0,
+) {
+  return Effect.succeed({ decision, completedPhaseCount });
+}
+
+function decisionAt(
+  nextPhaseId: string,
+  nextPhaseIndex: number,
+  fromState: string,
+  owedStep: OwedStep = "none",
+): Either.Either<ResumeDecision, ResumeRefusal> {
+  return Either.right({
+    shortName: "my-run",
+    nextPhaseId,
+    nextPhaseIndex,
+    fromState,
+    worktreePath: undefined,
+    skippedPhaseIds: [],
+    owedStep,
+  });
+}
+
 function makeReviewOpenRefusal() {
   return {
     reason: "review_open" as const,
@@ -175,7 +195,7 @@ describe("runResume --skip-oracle", () => {
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    const { inspectResumeFromInfo } = vi.mocked(await import("../../../src/app/resume.js"));
+    const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
@@ -192,15 +212,8 @@ describe("runResume --skip-oracle", () => {
         crossProject: false,
       }),
     );
-    inspectResumeFromInfo.mockReturnValue(
-      Either.right({
-        shortName: "my-run",
-        nextPhaseId: restartPhase,
-        nextPhaseIndex: restartPhase === "phase-01" ? 0 : 1,
-        fromState: "interrupted",
-        worktreePath: undefined,
-        skippedPhaseIds: [],
-      }),
+    inspectResumeOfRun.mockReturnValue(
+      inspection(decisionAt(restartPhase, restartPhase === "phase-01" ? 0 : 1, "interrupted")),
     );
     loadPlan.mockReturnValue(
       Either.right({
@@ -321,15 +334,13 @@ describe("runResume — a committed phase owing its handoff", () => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
 
-  async function setupMocks(owed: readonly string[]) {
+  async function setupMocks(owedStep: OwedStep) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    const { inspectResumeFromInfo, readOwedHandoffs } = vi.mocked(
-      await import("../../../src/app/resume.js"),
-    );
+    const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
@@ -341,28 +352,17 @@ describe("runResume — a committed phase owing its handoff", () => {
         crossProject: false,
       }),
     );
-    readOwedHandoffs.mockReturnValue(Effect.succeed(new Set(owed)));
-    inspectResumeFromInfo.mockReturnValue(
-      Either.right({
-        shortName: "my-run",
-        nextPhaseId: "phase-01",
-        nextPhaseIndex: 0,
-        fromState: "running",
-        worktreePath: undefined,
-        skippedPhaseIds: [],
-      }),
-    );
+    inspectResumeOfRun.mockReturnValue(inspection(decisionAt("phase-01", 0, "running", owedStep)));
     loadPlan.mockReturnValue(Either.right({ phases: [{ id: "phase-01", oracle: null }] } as never));
-    return inspectResumeFromInfo;
+    return inspectResumeOfRun;
   }
 
-  it("passes the owed handoffs to the decision and previews the handoff line", async () => {
-    const inspect = await setupMocks(["phase-01"]);
+  it("previews the handoff line when the decision's phase owes its handoff", async () => {
+    await setupMocks("handoff");
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     expect(await runResume("my-run", {}, out)).toBe(0);
-    expect(inspect.mock.calls[0]?.[2]).toEqual(new Set(["phase-01"]));
     expect(lines).toEqual([
       'Run "test-ns.my-run" (state: running) — would resume from phase 1: phase-01',
       "  Writing the missing handoff of phase-01 first (its handoff turn did not finish).",
@@ -370,13 +370,27 @@ describe("runResume — a committed phase owing its handoff", () => {
     ]);
   });
 
+  it("previews the finishing line when only what follows the handoff is owed", async () => {
+    await setupMocks("post-handoff");
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const { out, lines } = makeOutput();
+
+    expect(await runResume("my-run", {}, out)).toBe(0);
+    expect(lines).toEqual([
+      'Run "test-ns.my-run" (state: running) — would resume from phase 1: phase-01',
+      "  Finishing phase-01 first: its handoff is in place, its record and cleanup did not run.",
+      "Pass --yes to proceed.",
+    ]);
+  });
+
   it("prints no handoff line when the phase owes none", async () => {
-    await setupMocks([]);
+    await setupMocks("none");
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     await runResume("my-run", {}, out);
     expect(lines.join("\n")).not.toContain("Writing the missing handoff");
+    expect(lines.join("\n")).not.toContain("Finishing");
   });
 });
 
@@ -401,7 +415,7 @@ describe("runResume — the recorded hold", () => {
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    const { inspectResumeFromInfo } = vi.mocked(await import("../../../src/app/resume.js"));
+    const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
     resolveRunRef.mockReturnValue(
@@ -412,10 +426,10 @@ describe("runResume — the recorded hold", () => {
         crossProject: false,
       }),
     );
-    inspectResumeFromInfo.mockReturnValue(
-      Either.left({ reason: "failed" as const, message: "Run failed." }),
+    inspectResumeOfRun.mockReturnValue(
+      inspection(Either.left({ reason: "failed" as const, message: "Run failed." })),
     );
-    return inspectResumeFromInfo;
+    return inspectResumeOfRun;
   }
 
   it("reads the hold from run-status.json and passes it to the decision", async () => {
@@ -456,13 +470,13 @@ describe("runResume — review_open early branch recap", () => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
 
-  async function setupMocks(phaseStatuses: PhaseStatus[]) {
+  async function setupMocks(completedPhaseCount: number) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    const { inspectResumeFromInfo } = vi.mocked(await import("../../../src/app/resume.js"));
+    const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
 
     loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
@@ -482,7 +496,7 @@ describe("runResume — review_open early branch recap", () => {
       worktreePath: join(stateRoot, "worktrees", "test-ns.my-run", "phase-01"),
       claudeSessionId: undefined,
       gateProfileId: "full",
-      phaseStatuses,
+      phaseStatuses: [makePhaseStatus("review_open", 0)],
       planPhases: [{ id: "phase-01", title: "Phase 01" }],
       updatedAt: new Date().toISOString(),
       stoppedReason: undefined,
@@ -492,11 +506,13 @@ describe("runResume — review_open early branch recap", () => {
     resolveRunRef.mockReturnValue(
       Either.right({ namespace: "test-ns", shortName: "my-run", info, crossProject: false }),
     );
-    inspectResumeFromInfo.mockReturnValue(Either.left(makeReviewOpenRefusal()));
+    inspectResumeOfRun.mockReturnValue(
+      inspection(Either.left(makeReviewOpenRefusal()), completedPhaseCount),
+    );
   }
 
-  it("shows the committed-phase count in the recap headline", async () => {
-    await setupMocks([makePhaseStatus("committed", 0), makePhaseStatus("review_open", 1)]);
+  it("shows the inspection's committed-phase count in the recap headline", async () => {
+    await setupMocks(2);
 
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, warnings } = makeOutput();
@@ -507,23 +523,8 @@ describe("runResume — review_open early branch recap", () => {
     expect(recap).toContain("2 phase(s) complete");
   });
 
-  it("excludes failed and skipped phases from the phase count", async () => {
-    await setupMocks([
-      makePhaseStatus("committed", 0),
-      makePhaseStatus("failed", 1),
-      makePhaseStatus("skipped", 2),
-    ]);
-
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
-    await runResume("my-run", {}, out);
-
-    const recap = warnings.join("\n");
-    expect(recap).toContain("1 phase(s) complete");
-  });
-
   it("shows the PR URL and omits publish-pr suggestion when publication.json has a URL", async () => {
-    await setupMocks([makePhaseStatus("committed", 0)]);
+    await setupMocks(1);
 
     writeFileSync(
       join(runPath, "publication.json"),
@@ -550,7 +551,7 @@ describe("runResume — review_open early branch recap", () => {
   });
 
   it("shows publish-pr when no publication.json exists", async () => {
-    await setupMocks([makePhaseStatus("committed", 0)]);
+    await setupMocks(1);
 
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, warnings } = makeOutput();
@@ -561,7 +562,7 @@ describe("runResume — review_open early branch recap", () => {
   });
 
   it("shows publish-pr when publication.json has no pullRequestUrl", async () => {
-    await setupMocks([makePhaseStatus("committed", 0)]);
+    await setupMocks(1);
 
     writeFileSync(
       join(runPath, "publication.json"),

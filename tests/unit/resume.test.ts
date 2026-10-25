@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
-import { findNextResumablePhase, readRunHold } from "../../src/app/resume.js";
+import { findNextResumablePhase, inspectResumeOfRun, readRunHold } from "../../src/app/resume.js";
+import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { FsError } from "../../src/ports/fs.js";
 import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
@@ -143,10 +144,10 @@ describe("findNextResumablePhase — the run's hold", () => {
       expected: "phase-02",
     },
     {
-      name: "a committed phase outside the hold",
+      name: "a committed phase outside the hold: what follows its handoff is owed",
       phase02: statusOf("phase-02", 1, "committed"),
       hold: none,
-      expected: "phase-03",
+      expected: "phase-02",
     },
     {
       name: "a committed held phase whose stop is closed: its cleanup is owed",
@@ -192,14 +193,47 @@ describe("findNextResumablePhase — the run's hold", () => {
   });
 
   it.each([
-    { name: "a committed phase owing its handoff", owed: ["phase-02"], expected: "phase-02" },
-    { name: "a committed phase whose handoff is valid", owed: [], expected: "phase-03" },
-    { name: "a later phase owing its handoff", owed: ["phase-03"], expected: "phase-03" },
-  ])("$name → $expected", ({ owed, expected }) => {
+    {
+      name: "a committed phase owing its handoff",
+      owed: ["phase-02"],
+      hold: none,
+      expected: { phaseId: "phase-02", owedStep: "handoff" },
+    },
+    {
+      name: "a committed phase whose handoff is valid, its record and cleanup owed",
+      owed: [],
+      hold: none,
+      expected: { phaseId: "phase-02", owedStep: "post-handoff" },
+    },
+    {
+      name: "a committed held phase whose handoff is valid: its stop, not its cleanup, is owed",
+      owed: [],
+      hold: listed,
+      expected: { phaseId: "phase-02", owedStep: "none" },
+    },
+    {
+      name: "a later phase owing its handoff",
+      owed: ["phase-03"],
+      hold: none,
+      expected: { phaseId: "phase-02", owedStep: "post-handoff" },
+    },
+  ])("$name → $expected.phaseId", ({ owed, hold, expected }) => {
     const statuses = [statusOf("phase-01", 0, "cleaned_up"), statusOf("phase-02", 1, "committed")];
-    expect(findNextResumablePhase(statuses, planPhases, none, new Set(owed))?.phaseId).toBe(
+    expect(findNextResumablePhase(statuses, planPhases, hold, new Set(owed))).toMatchObject(
       expected,
     );
+  });
+
+  it("a committed final phase owes nothing after its handoff: completion re-enters it", () => {
+    const statuses = [
+      statusOf("phase-01", 0, "cleaned_up"),
+      statusOf("phase-02", 1, "cleaned_up"),
+      statusOf("phase-03", 2, "committed"),
+    ];
+    expect(findNextResumablePhase(statuses, planPhases, none, new Set())).toMatchObject({
+      phaseId: "phase-03",
+      owedStep: "none",
+    });
   });
 
   it("an owed handoff makes only a committed phase resumable", () => {
@@ -443,10 +477,10 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseIndex).toBe(0);
   });
 
-  it("non-final committed phase stays terminal → resumes from the next phase, not the committed one", async () => {
-    // Guard on the special-case scoping: only the FINAL phase's `committed` is
-    // resumable. A non-final `committed` phase must remain terminal so the scan
-    // advances to the next (unstarted) phase.
+  it("a non-final committed phase with a valid handoff → resumes from it, owing its record and cleanup", async () => {
+    // A non-final phase moves on to its cleanup in the invocation that
+    // validates its handoff, so a persisted `committed` one outside the hold
+    // had its handoff written by hand: its record and cleanup never ran.
     const plan = {
       version: 1,
       run: {
@@ -462,7 +496,8 @@ describe("inspectResume", () => {
       join(runPath, "run-status.json"),
       JSON.stringify(makeRunStatus("interrupted", { phasesCount: 2 })),
     );
-    // phase-01 committed (non-final, terminal); phase-02 folder does not exist.
+    // phase-01 committed (non-final) with no worktree recorded; phase-02
+    // folder does not exist.
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
@@ -473,8 +508,42 @@ describe("inspectResume", () => {
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
-    expect(result.right.nextPhaseId).toBe("phase-02");
-    expect(result.right.nextPhaseIndex).toBe(1);
+    expect(result.right.nextPhaseId).toBe("phase-01");
+    expect(result.right.nextPhaseIndex).toBe(0);
+    expect(result.right.owedStep).toBe("post-handoff");
+  });
+
+  it("a non-final committed phase with a valid handoff and a gone worktree is resumed, not refused", async () => {
+    // Its cleanup has nothing left to clean, so the gone worktree is no
+    // reason to refuse.
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        requiredCommands: [],
+      },
+      phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02")],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(makeRunStatus("running", { phasesCount: 2 })),
+    );
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({
+        ...makePhaseStatus("committed"),
+        worktreePath: join(stateRoot, "worktrees", "test-run--phase-01"),
+      }),
+    );
+    writeValidHandoff("phase-01");
+
+    const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
+
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
   });
 
   it("a non-final committed phase of the recorded hold, its stop owed → resumes from it", async () => {
@@ -554,6 +623,7 @@ describe("inspectResume", () => {
 
       if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
       expect(result.right.nextPhaseId).toBe("phase-01");
+      expect(result.right.owedStep).toBe("handoff");
     });
 
     it("a handoff lacking a section is still owed", async () => {
@@ -579,7 +649,7 @@ describe("inspectResume", () => {
       if (Either.isRight(result)) throw new Error("expected refusal");
       expect(result.left).toEqual({
         reason: "handoff_unrecoverable",
-        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists. Restore it with \`git worktree add ${gone} ai/test-run--phase-01\`, then run \`phax resume test-run --yes\`: phax then writes the handoff itself.`,
+        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists. Restore it with \`git worktree prune\` then \`git worktree add ${gone} ai/test-run--phase-01\`, then run \`phax resume test-run --yes\`: phax then writes the handoff itself.`,
       });
     });
 
@@ -605,7 +675,7 @@ describe("inspectResume", () => {
       if (Either.isRight(result)) throw new Error("expected refusal");
       expect(result.left).toEqual({
         reason: "handoff_unrecoverable",
-        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Restore its worktree, which completing the run needs: \`git worktree add ${gone} ai/test-run--phase-01\`. Then run \`phax resume test-run --yes\`.`,
+        message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Restore its worktree, which completing the run needs: \`git worktree prune\` then \`git worktree add ${gone} ai/test-run--phase-01\`. Then run \`phax resume test-run --yes\`.`,
       });
     });
 
@@ -647,5 +717,76 @@ describe("readRunHold", () => {
     const refused = read(JSON.stringify(withoutHold));
     if (Either.isRight(refused)) throw new Error("expected a refusal");
     expect(refused.left).toBeInstanceOf(FsError);
+  });
+});
+
+describe("inspectResumeOfRun", () => {
+  const runPath = "/example/runs/test-project.test-run";
+  const worktree = "/example/worktrees/test-project.test-run/phase-03";
+  const statusOf = (phaseId: string, phaseIndex: number, state: PhaseStatus["state"]) =>
+    phaseStatus({
+      phaseId,
+      phaseIndex,
+      state,
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      branchName: `ai/test-run--${phaseId}`,
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      createdAt: now,
+      updatedAt: now,
+      ...(phaseId === "phase-03" ? { worktreePath: worktree } : {}),
+    });
+
+  function inspect(runState: string, statuses: readonly PhaseStatus[], files: string[] = []) {
+    const info: RunReviewInfo = {
+      namespace: "test-project",
+      shortName: "test-run",
+      runId: "test-run-123",
+      runState,
+      branch: "ai/test-run",
+      runTitle: undefined,
+      finalPhaseBranch: "ai/test-run--phase-03" as RunReviewInfo["finalPhaseBranch"],
+      stateRoot: "/example",
+      runPath,
+      finalPhaseId: "phase-03",
+      finalPhaseTitle: "phase-03",
+      worktreePath: worktree,
+      claudeSessionId: undefined,
+      gateProfileId: "full",
+      phaseStatuses: statuses,
+      planPhases: ["phase-01", "phase-02", "phase-03"].map((id) => ({ id, title: id })),
+      updatedAt: now,
+      stoppedReason: undefined,
+      lastError: undefined,
+    };
+    const fs = makeFakeFileSystem();
+    for (const file of files) fs.impl.setFile(file, "");
+    return Effect.runSync(
+      inspectResumeOfRun(info, { selection: "none" }).pipe(Effect.provide(fs.layer)),
+    );
+  }
+
+  it("counts the run's committed phases with the decision, for a run at review", () => {
+    const inspection = inspect("review_open", [
+      statusOf("phase-01", 0, "cleaned_up"),
+      statusOf("phase-02", 1, "skipped"),
+      statusOf("phase-03", 2, "review_open"),
+    ]);
+    expect(inspection.completedPhaseCount).toBe(2);
+    expect(Either.isLeft(inspection.decision) && inspection.decision.left.reason).toBe(
+      "review_open",
+    );
+  });
+
+  it("reads the worktrees through the FileSystem port: a gone one refuses its phase", () => {
+    const statuses = [
+      statusOf("phase-01", 0, "cleaned_up"),
+      statusOf("phase-02", 1, "cleaned_up"),
+      statusOf("phase-03", 2, "running"),
+    ];
+    const gone = inspect("interrupted", statuses);
+    expect(Either.isLeft(gone.decision) && gone.decision.left.reason).toBe("missing_worktree");
+    const present = inspect("interrupted", statuses, [`${worktree}/.phax-context/plan.md`]);
+    expect(Either.isRight(present.decision) && present.decision.right.nextPhaseId).toBe("phase-03");
   });
 });

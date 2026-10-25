@@ -87,7 +87,9 @@ function loadRecordedPlanPath(
 
 // What the footer links against: the final phase branch's head commit, the
 // paths of its tree and the repository's web URL. Each is null when its
-// lookup fails, so a footer lookup never fails a publish.
+// lookup fails, so a footer lookup never fails a publish. The web URL is also
+// null when this publish did not push the branch (`publish.pushBranch: false`):
+// the host may not hold that commit, so a permalink to it could be dead.
 interface HeadFacts {
   readonly sha: string | null;
   readonly headPaths: ReadonlySet<string> | null;
@@ -97,6 +99,7 @@ interface HeadFacts {
 function loadHeadFacts(
   info: RunReviewInfo,
   repoRoot: string,
+  pushStatus: PushStatus,
 ): Effect.Effect<HeadFacts, never, Git | GitHub> {
   return Effect.gen(function* () {
     const git = yield* Git;
@@ -112,7 +115,10 @@ function loadHeadFacts(
             Effect.map((entries): ReadonlySet<string> => new Set(entries.map((e) => e.path))),
             Effect.orElseSucceed(() => null),
           );
-    const webUrl = yield* github.repoWebUrl(repoRoot).pipe(Effect.orElseSucceed(() => null));
+    const webUrl =
+      pushStatus === "pushed"
+        ? yield* github.repoWebUrl(repoRoot).pipe(Effect.orElseSucceed(() => null))
+        : null;
     return { sha, headPaths, webUrl };
   });
 }
@@ -582,7 +588,7 @@ export function publishRun(
     // The footer's facts, gathered only for a new pull request: a reused one
     // keeps its body, so it needs no lookup.
     const qualifiedName = runKey(info.namespace, info.shortName);
-    const head = yield* loadHeadFacts(info, opts.repoRoot);
+    const head = yield* loadHeadFacts(info, opts.repoRoot, pushStatus);
     const footer = {
       version: opts.phaxVersion,
       plan: planRefAtHead(planResult.right, head),

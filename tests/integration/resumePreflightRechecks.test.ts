@@ -91,8 +91,9 @@ const ALL_PROVIDERS_DISABLED: ProviderConfig = {
 };
 
 /**
- * Create a two-phase run with the real createRunFolder, then pause it after a
- * committed phase-01 so `phax resume` picks it up at phase-02.
+ * Create a two-phase run with the real createRunFolder, then pause it after
+ * phase-01 committed and was cleaned up, so `phax resume` picks it up at
+ * phase-02.
  */
 async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
   const config = Either.getOrThrow(loadConfig(roots.repo));
@@ -123,7 +124,7 @@ async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
       phaseStatusFile({
         phaseId: "phase-01",
         phaseIndex: 0,
-        state: "committed",
+        state: "cleaned_up",
         model: FIXTURE_MODEL,
         effort: FIXTURE_EFFORT,
         branchName: `${plan.run.branch}--phase-01`,

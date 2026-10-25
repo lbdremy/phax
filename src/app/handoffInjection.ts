@@ -6,6 +6,7 @@ import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import type { PhaseMode } from "../schemas/phaxPlan.js";
 import type { PhaseStatus } from "../schemas/status.js";
 import { validateHandoffSections } from "./handoffGeneration.js";
+import { readPhaseStatus } from "./phaseStatusUpdates.js";
 
 /** What the lookups read of a plan phase: its id and whether an agent built it. */
 export interface InjectionPhase {
@@ -33,12 +34,15 @@ function previousHeadlessPhase(
 
 /**
  * What the next phase's prompt carries of the previous headless phase's
- * handoff: none before the first phase, the file's text, or the phase whose
- * file is absent (its handoff turn never finished).
+ * handoff: none before the first phase, the file's text, the phase that was
+ * skipped (it produced no changes, so it has no handoff and no commit), or the
+ * phase whose file is absent although it committed (its handoff turn never
+ * finished).
  */
 export type PreviousHandoff =
   | { readonly kind: "first-phase" }
   | { readonly kind: "present"; readonly text: string }
+  | { readonly kind: "skipped"; readonly phaseId: string }
   | { readonly kind: "missing"; readonly phaseId: string };
 
 export function readPreviousHandoff(
@@ -51,8 +55,12 @@ export function readPreviousHandoff(
     if (previousPhase === undefined) return { kind: "first-phase" } as const;
     const fs = yield* FileSystem;
     const path = handoffPath(runPath, previousPhase.id);
-    if (!(yield* fs.exists(path))) return { kind: "missing", phaseId: previousPhase.id } as const;
-    return { kind: "present", text: yield* fs.readText(path) } as const;
+    if (yield* fs.exists(path)) return { kind: "present", text: yield* fs.readText(path) } as const;
+    const folder = join(runPath, previousPhase.id);
+    const skipped =
+      (yield* fs.exists(join(folder, "status.json"))) &&
+      (yield* readPhaseStatus(folder)).state === "skipped";
+    return { kind: skipped ? "skipped" : "missing", phaseId: previousPhase.id } as const;
   });
 }
 

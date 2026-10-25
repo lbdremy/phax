@@ -47,13 +47,16 @@ function oracleRoleLines(role: OracleRole | null): string[] {
 }
 
 // The `## Previous phase handoff` body. A missing handoff is never shown as a
-// first phase: the next agent reads the earlier phase's commit instead.
+// first phase: the next agent reads the earlier phase's commit instead. A
+// skipped phase has neither, which the body says.
 function renderPreviousHandoff(previous: PreviousHandoff): string {
   switch (previous.kind) {
     case "first-phase":
       return "(no previous phase)";
     case "present":
       return previous.text;
+    case "skipped":
+      return `(${previous.phaseId} was skipped: it produced no changes, so it has no handoff and no commit. Read the earlier commits on this branch for what came before.)`;
     case "missing":
       return `(The handoff of ${previous.phaseId} is missing: that phase committed, but phax holds no phase-handoff.md for it. Read its commit on this branch for what it delivered.)`;
   }

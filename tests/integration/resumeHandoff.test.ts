@@ -10,7 +10,8 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { HandoffPausedError, UsageLimitError } from "../../src/domain/errors.js";
 import { validateHandoffSections } from "../../src/app/handoffGeneration.js";
 import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
-import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -27,6 +28,7 @@ import {
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { isolateGit } from "../helpers/isolateGit.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -434,6 +436,29 @@ async function readJson(path: string): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
 }
 
+// `git` in `cwd`, isolated from the person's configuration by the caller,
+// with its messages in English.
+function git(cwd: string, args: readonly string[]): string {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: "pipe",
+    env: { ...process.env, LC_ALL: "C" },
+  });
+}
+
+/** A command line's arguments after the program; its paths hold no space. */
+function argsOf(command: string): string[] {
+  return command.split(" ").slice(1);
+}
+
+// The record writes of an invocation, as the phase id of each.
+function recordedPhases(fakeGit: ReturnType<typeof makeFakeGit>): (string | undefined)[] {
+  return fakeGit.impl.calls.flatMap((call) =>
+    call.method === "writeTreeCommit" ? [call.paths[0]?.split("/")[1]] : [],
+  );
+}
+
 // A limit inside a committed phase's handoff turn: RateLimitDetected is
 // ignored on a committed phase, so the run stays running with the phase
 // committed and no run-folder phase-handoff.md.
@@ -697,9 +722,37 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
   });
 
-  it("(d) refuses an owing phase whose worktree is gone, and resumes once it is restored", async () => {
+  it("(d) refuses an owing phase whose worktree is gone, and resumes once its remedy restores it", async () => {
     await pauseInPhase01Handoff();
-    await rm(worktreeOf("phase-01"), { recursive: true, force: true });
+    const restoreGit = isolateGit();
+    try {
+      // A real main checkout holding the phase branch, whose worktree at the
+      // recorded path was added and then deleted: git still registers it.
+      const repo = join(stateRoot, "repo");
+      git(stateRoot, ["init", "-q", "-b", "main", repo]);
+      writeFileSync(join(repo, "README.md"), "A made-up repository.\n");
+      git(repo, ["add", "README.md"]);
+      git(repo, [
+        "-c",
+        "user.name=Ada Example",
+        "-c",
+        "user.email=ada@example.com",
+        "commit",
+        "-q",
+        "-m",
+        "Initial commit",
+      ]);
+      git(repo, ["branch", "ai/my-run--phase-01"]);
+      await rm(worktreeOf("phase-01"), { recursive: true, force: true });
+      git(repo, ["worktree", "add", "-q", worktreeOf("phase-01"), "ai/my-run--phase-01"]);
+      await rm(worktreeOf("phase-01"), { recursive: true, force: true });
+      await refuseThenRestore(repo);
+    } finally {
+      restoreGit();
+    }
+  });
+
+  async function refuseThenRestore(repo: string): Promise<void> {
     const before = {
       run: await readFile(join(runPath, "run-status.json"), "utf8"),
       phase: await readFile(join(runPath, "phase-01", "status.json"), "utf8"),
@@ -711,13 +764,20 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     expect(refused.left.message).toContain(
       `its worktree "${worktreeOf("phase-01")}" no longer exists`,
     );
-    expect(refused.left.message).toContain(
-      `git worktree add ${worktreeOf("phase-01")} ai/my-run--phase-01`,
-    );
     expect(await readFile(join(runPath, "run-status.json"), "utf8")).toBe(before.run);
     expect(await readFile(join(runPath, "phase-01", "status.json"), "utf8")).toBe(before.phase);
 
-    // `git worktree add` restores the worktree at its recorded path.
+    // The remedy's git commands, run as the message names them.
+    const commands = [...refused.left.message.matchAll(/`(git [^`]+)`/g)].map((m) => m[1] ?? "");
+    expect(commands).toEqual([
+      "git worktree prune",
+      `git worktree add ${worktreeOf("phase-01")} ai/my-run--phase-01`,
+    ]);
+    // `git worktree add` alone refuses the missing but registered worktree.
+    expect(() => git(repo, argsOf(commands[1] ?? ""))).toThrow(/missing but already registered/);
+    for (const command of commands) git(repo, argsOf(command));
+    expect(existsSync(join(worktreeOf("phase-01"), "README.md"))).toBe(true);
+
     await mkdir(join(worktreeOf("phase-01"), ".phax-context"), { recursive: true });
     const decision = await decide();
     if (Either.isLeft(decision)) throw new Error(decision.left.message);
@@ -732,7 +792,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     });
     if (Either.isLeft(result)) throw result.left;
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-01"), "utf8"))).toEqual([]);
-  });
+  }
 
   async function dropSessionId(phaseId: string): Promise<void> {
     const path = join(runPath, phaseId, "status.json");
@@ -776,19 +836,51 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     );
   });
 
-  it("(f) a hand-written handoff lifts the session-gone refusal, and the resume goes on", async () => {
+  const HAND_WRITTEN = HANDOFF_CONTENT.replace("Ready to proceed.", "Written by hand.");
+
+  it("(f) a hand-written handoff lifts the session-gone refusal; the resume finishes that phase first", async () => {
     await pauseInPhase01Handoff();
     await dropSessionId("phase-01");
-    await writeFile(
-      runHandoffOf("phase-01"),
-      HANDOFF_CONTENT.replace("Ready to proceed.", "Written by hand."),
-    );
+    await writeFile(runHandoffOf("phase-01"), HAND_WRITTEN);
+    config = { ...config, records: { ...config.records, enabled: true } };
 
     const decision = await decide();
     if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-02");
+    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
 
-    const { result, fakeBackend } = await invoke({
+    const { result, fakeBackend, fakeGit } = await invoke({
+      startIndex: decision.right.nextPhaseIndex,
+      bodies: ["phase-02", "phase-03"],
+      handoffTurns: 2,
+      cleanups: ["phase-01", "phase-02"],
+      handoff: HANDOFF_CONTENT,
+    });
+    if (Either.isLeft(result)) throw result.left;
+    // phase-01 runs no agent turn: only the next phases' bodies and handoffs.
+    expect(fakeBackend.impl.runCalls.map((c) => c.options.phaseFolderPath)).toEqual([
+      join(runPath, "phase-02"),
+      join(runPath, "phase-03"),
+    ]);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
+    expect(await readFile(runHandoffOf("phase-01"), "utf8")).toBe(HAND_WRITTEN);
+    expect(fakeBackend.impl.runCalls[0]?.prompt).toContain("Written by hand.");
+    // Its record, then its cleanup, before phase-02 starts.
+    expect(recordedPhases(fakeGit)).toEqual(["phase-01", "phase-02", "phase-03"]);
+    expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
+    expect(result.right.completedPhaseCount).toBe(3);
+  });
+
+  it("(f) with its worktree gone too, the phase is cleaned up with no cleanup commands", async () => {
+    await pauseInPhase01Handoff();
+    await dropSessionId("phase-01");
+    await writeFile(runHandoffOf("phase-01"), HAND_WRITTEN);
+    await rm(worktreeOf("phase-01"), { recursive: true, force: true });
+
+    const decision = await decide();
+    if (Either.isLeft(decision)) throw new Error(decision.left.message);
+    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
+
+    const { result, fakeGit } = await invoke({
       startIndex: decision.right.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 2,
@@ -796,7 +888,14 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       handoff: HANDOFF_CONTENT,
     });
     if (Either.isLeft(result)) throw result.left;
-    expect(fakeBackend.impl.runCalls[0]?.prompt).toContain("Written by hand.");
-    expect(result.right.completedPhaseCount).toBe(3);
+    expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
+    // Nothing checked or recreated the gone worktree.
+    expect(
+      fakeGit.impl.calls.some(
+        (c) => c.method === "worktreeIsClean" && c.path === worktreeOf("phase-01"),
+      ),
+    ).toBe(false);
+    expect(existsSync(worktreeOf("phase-01"))).toBe(false);
+    expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
   });
 });
