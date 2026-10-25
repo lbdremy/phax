@@ -224,6 +224,38 @@ describe("findNextResumablePhase — the run's hold", () => {
     );
   });
 
+  // An older phax read a non-final `committed` phase as finished and resumed
+  // past it, leaving it `committed` while later phases ran: it owes nothing.
+  it.each([
+    {
+      name: "a valid handoff, the next phase rate-limited",
+      owed: [],
+      phase02: statusOf("phase-02", 1, "rate_limited"),
+      expected: "phase-02",
+    },
+    {
+      name: "a missing handoff, the next phase rate-limited",
+      owed: ["phase-01"],
+      phase02: statusOf("phase-02", 1, "rate_limited"),
+      expected: "phase-02",
+    },
+    {
+      name: "a valid handoff, the next phase cleaned up",
+      owed: [],
+      phase02: statusOf("phase-02", 1, "cleaned_up"),
+      expected: "phase-03",
+    },
+  ])(
+    "a committed phase left behind by an older phax, $name → $expected, owing nothing",
+    ({ owed, phase02, expected }) => {
+      const statuses = [statusOf("phase-01", 0, "committed"), phase02];
+      expect(findNextResumablePhase(statuses, planPhases, none, new Set(owed))).toMatchObject({
+        phaseId: expected,
+        owedStep: "none",
+      });
+    },
+  );
+
   it("a committed final phase owes nothing after its handoff: completion re-enters it", () => {
     const statuses = [
       statusOf("phase-01", 0, "cleaned_up"),

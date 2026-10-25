@@ -79,15 +79,22 @@ export interface ResumeInspection {
  * the hold whose stop is null and whose handoff is valid owes what follows
  * the handoff: every such phase moves on to its cleanup in the same
  * invocation, so a persisted one means its handoff was written by hand after
- * the turn was cut short.
+ * the turn was cut short, or an interrupt came before its cleanup.
+ *
+ * Either is owed only by the last phase of the run with a status on disk.
+ * phax before 0.27 read a non-final `committed` phase as finished, and its
+ * resume went on to the next phase, leaving that phase `committed` for good.
+ * Such a phase keeps that reading (`none`): re-entering it would rewrite a
+ * phase whose successors already ran, and run those successors again.
  */
 function owedStepOf(
   status: PhaseStatus,
   isFinal: boolean,
+  laterPhaseStarted: boolean,
   hold: RunHold,
   owedHandoffs: ReadonlySet<string>,
 ): OwedStep {
-  if (status.state !== "committed") return "none";
+  if (status.state !== "committed" || laterPhaseStarted) return "none";
   if (owedHandoffs.has(status.phaseId)) return "handoff";
   if (!isFinal && status.stop === null && !holdsPhase(hold, status.phaseId)) {
     return "post-handoff";
@@ -120,7 +127,9 @@ function owedStepOf(
  * handoff turn was cut short (a limit inside it leaves the run running), and
  * executePlan re-runs only that turn before going on. So is one outside the
  * hold whose handoff is valid but whose record and cleanup never ran (a
- * handoff written by hand): executePlan runs only those (`owedStepOf`).
+ * handoff written by hand): executePlan runs only those (`owedStepOf`). Both
+ * hold only for the last phase with a status: an earlier `committed` phase
+ * was left so by an older phax, and stays terminal.
  */
 export function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
@@ -153,7 +162,10 @@ export function findNextResumablePhase(
       // close was interrupted between its state event and its cleanup.
       const owesClosedStopCleanup =
         !isFinalPlanPhase && status.state === "committed" && status.stop?.status === "closed";
-      const owedStep = owedStepOf(status, isFinalPlanPhase, hold, owedHandoffs);
+      const laterPhaseStarted = planPhases
+        .slice(i + 1)
+        .some((later) => statusByPhaseId.has(later.id));
+      const owedStep = owedStepOf(status, isFinalPlanPhase, laterPhaseStarted, hold, owedHandoffs);
       const resumable =
         !TERMINAL_PHASE_STATES.has(status.state) ||
         (isFinalPlanPhase && status.state === "committed") ||
@@ -297,9 +309,10 @@ export function inspectResumeFromInfo(
   }
 
   // Before the generic worktree check, so the refusal names its remedy.
-  const owingStatus = owedHandoffs.has(nextPhase.phaseId)
-    ? info.phaseStatuses.find((p) => p.phaseId === nextPhase.phaseId)
-    : undefined;
+  const owingStatus =
+    nextPhase.owedStep === "handoff"
+      ? info.phaseStatuses.find((p) => p.phaseId === nextPhase.phaseId)
+      : undefined;
   if (owingStatus !== undefined) {
     // The plan's last phase; `finalPhaseId` is only the last phase on disk.
     const finalPhaseId = info.planPhases.at(-1)?.id ?? info.finalPhaseId;

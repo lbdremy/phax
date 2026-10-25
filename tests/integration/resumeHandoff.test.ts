@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
@@ -870,11 +870,19 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     expect(result.right.completedPhaseCount).toBe(3);
   });
 
-  it("(f) with its worktree gone too, the phase is cleaned up with no cleanup commands", async () => {
+  it("(f) with its worktree gone too, the phase is cleaned up, warning of the cleanup commands not run", async () => {
     await pauseInPhase01Handoff();
     await dropSessionId("phase-01");
     await writeFile(runHandoffOf("phase-01"), HAND_WRITTEN);
     await rm(worktreeOf("phase-01"), { recursive: true, force: true });
+    config = {
+      ...config,
+      raw: {
+        ...config.raw,
+        commands: { setup: ["true"], cleanup: ["true", "docker compose down"] },
+      },
+    };
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     const decision = await decide();
     if (Either.isLeft(decision)) throw new Error(decision.left.message);
@@ -897,5 +905,10 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     ).toBe(false);
     expect(existsSync(worktreeOf("phase-01"))).toBe(false);
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
+    const warnings = stderr.mock.calls.map(([chunk]) => String(chunk));
+    stderr.mockRestore();
+    expect(warnings).toContain(
+      '[phax] Warning: phase "phase-01" — its worktree is gone, so its cleanup commands did not run: true; docker compose down. Run them yourself if they free resources outside the worktree.\n',
+    );
   });
 });

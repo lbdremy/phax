@@ -1854,10 +1854,16 @@ export function executePlan(
             cleanupCommands,
           });
         } else {
-          // A gone worktree leaves nothing for the cleanup commands to clean:
-          // only the cleanup's state events run, so the phase is cleaned up
-          // and the run goes on instead of pausing in a cleanup it can never
-          // finish.
+          // The cleanup commands run in the worktree, which is gone: only the
+          // cleanup's state events run, so the phase is cleaned up and the run
+          // goes on instead of pausing in a cleanup it can never finish. The
+          // commands not run are named, since one may free resources outside
+          // the worktree.
+          if (cleanupCommands.length > 0) {
+            process.stderr.write(
+              `[phax] Warning: phase "${phase.id}" — its worktree is gone, so its cleanup commands did not run: ${cleanupCommands.join("; ")}. Run them yourself if they free resources outside the worktree.\n`,
+            );
+          }
           yield* dispatch(
             { ...eventBase(phase.id), type: "CleanupStarted" },
             dispatchCtx(folder, phase.id),
