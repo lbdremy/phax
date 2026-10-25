@@ -307,6 +307,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
       const program = withRunLock(
         `${NAMESPACE}.${SHORT}`,
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: NAMESPACE,
           plan,

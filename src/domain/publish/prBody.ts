@@ -7,6 +7,7 @@ import {
 import type { GlobalFileReconciliation } from "../reconciliation/global.js";
 import { prPhaseStopSuffix, type ReviewedPhase } from "../interactive/reviewedPhases.js";
 import { onOneLine } from "../reportText.js";
+import { renderPlanRef, renderPrFooter, type PrFooterInput } from "./prFooter.js";
 import { renderReviewNotesSection, type ReviewNoteGroup } from "../review/reviewNotes.js";
 
 // GitHub PR bodies cap at ~65536 bytes. We use a safe margin below that limit.
@@ -24,7 +25,6 @@ export interface ShortPrBodyInput {
   // The run's qualified name (`<namespace>.<name>`) and its short name.
   readonly qualifiedName: string;
   readonly shortName: string;
-  readonly plan: { readonly kind: "path"; readonly path: string } | { readonly kind: "loose" };
   // The one-line fragment of source-spec-outcome.md, when the run states one.
   readonly sourceSpecOutcome: string | undefined;
   readonly gateProfileId: string | undefined;
@@ -46,6 +46,8 @@ export interface ShortPrBodyInput {
   readonly reviewNoteGroups: ReadonlyArray<ReviewNoteGroup>;
   readonly runFolder: { readonly path: string; readonly homeDir: string };
   readonly records: "configured" | "not-configured";
+  // The footer's facts; the summary's Plan fact renders the same plan ref.
+  readonly footer: PrFooterInput;
   readonly maxBytes?: number;
 }
 
@@ -64,8 +66,9 @@ interface Keep {
 /**
  * The pull request description of a run: a run summary, one line per phase,
  * what needs a person's review, the review notes and where the full review
- * handoff lives. Over `maxBytes`, it cuts unexplained deviations first, then
- * attention points, then review notes, and says so at its end.
+ * handoff lives, then the phax footer. Over `maxBytes`, it cuts unexplained
+ * deviations first, then attention points, then review notes, and says so
+ * just before the footer, which is never cut.
  */
 export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
   const maxBytes = input.maxBytes ?? PR_BODY_MAX_BYTES;
@@ -76,6 +79,7 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
 
   const head = [renderSummary(input), renderPhases(input, unexplained)];
   const fullDetail = renderFullDetail(input);
+  const footer = renderPrFooter(input.footer);
   const render = (keep: Keep, shortened: boolean): string => {
     const sections = [
       ...head,
@@ -85,7 +89,7 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
         : []),
       fullDetail,
     ];
-    return sections.join("\n\n") + (shortened ? SHORTENED_NOTE : "");
+    return `${sections.join("\n\n")}${shortened ? SHORTENED_NOTE : ""}\n\n${footer}`;
   };
   const fits = (keep: Keep): boolean => Buffer.byteLength(render(keep, true), "utf8") <= maxBytes;
 
@@ -146,7 +150,7 @@ function largestFitting(total: number, fits: (n: number) => boolean): number {
 }
 
 function renderSummary(input: ShortPrBodyInput): string {
-  const plan = input.plan.kind === "path" ? `\`${input.plan.path}\`` : "loose plan";
+  const plan = renderPlanRef(input.footer.plan);
   const gateProfile = input.gateProfileId !== undefined ? `\`${input.gateProfileId}\`` : "(none)";
   const spec = input.sourceSpecOutcome?.trim();
   const passed = input.phases.filter((p) => p.status === "passed").length;

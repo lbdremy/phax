@@ -156,6 +156,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
         createRunFolder(shortName, planMdFor(plan), plan, config).pipe(
           Effect.flatMap(({ runPath, runId }) =>
             executePlan({
+              phaxVersion: "0.0.0-test",
               shortName,
               namespace: "test-project",
               plan,

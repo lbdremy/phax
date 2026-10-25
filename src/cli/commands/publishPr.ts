@@ -9,6 +9,7 @@ import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { readPackageVersion } from "./usage.js";
 import type { FileSystem } from "../../ports/fs.js";
 import type { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
@@ -63,6 +64,7 @@ export async function runPublishPr(
 
   const effect = publishRun(info, config.publish, {
     repoRoot: config.repoRoot,
+    phaxVersion: readPackageVersion(),
     records: config.records,
     ...(config.records.destination.kind === "repo"
       ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }

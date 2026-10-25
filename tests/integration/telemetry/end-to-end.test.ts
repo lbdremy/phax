@@ -153,6 +153,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

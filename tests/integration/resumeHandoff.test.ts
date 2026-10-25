@@ -302,6 +302,7 @@ describe("executePlan — resume from handoff_failed", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -394,6 +395,7 @@ describe("executePlan — resume from handoff_failed", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -544,6 +546,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

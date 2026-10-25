@@ -311,6 +311,9 @@ export interface ExecutePlanOptions {
   // Called once a stop's close has finished, before its cleanup and
   // the next phase, so the caller can print the close as it happens.
   readonly onStopClosed?: ((closed: ClosedStop) => void) | undefined;
+  // The phax version auto-publish names in the pull request footer; the CLI
+  // reads it from package.json, executePlan never does.
+  readonly phaxVersion: string;
 }
 
 export interface ExecutePlanResult {
@@ -2417,6 +2420,7 @@ export function executePlan(
         if (config.publish?.auto) {
           const publicationResult = yield* publishRun(infoResult.right, config.publish, {
             repoRoot: config.repoRoot,
+            phaxVersion: opts.phaxVersion,
             records: config.records,
             ...(config.records.destination.kind === "repo"
               ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }

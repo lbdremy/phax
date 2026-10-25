@@ -148,6 +148,7 @@ describe("publishRun", () => {
       publishRun(makeInfo(), defaultConfig({ auto: false }), {
         repoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
       }).pipe(Effect.provide(layers)),
     );
 
@@ -162,9 +163,11 @@ describe("publishRun", () => {
     github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("published");
@@ -198,6 +201,7 @@ describe("publishRun", () => {
       publishRun(makeInfo(), defaultConfig({ baseBranch: "develop" }), {
         repoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
       }).pipe(Effect.provide(layers)),
     );
 
@@ -217,6 +221,7 @@ describe("publishRun", () => {
       publishRun(makeInfo(), defaultConfig({ title: "Custom Title" }), {
         repoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
       }).pipe(Effect.provide(layers)),
     );
 
@@ -233,9 +238,11 @@ describe("publishRun", () => {
     github.impl.seedExistingPr(finalBranch as string, "https://github.com/owner/repo/pull/7");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("published");
@@ -258,9 +265,11 @@ describe("publishRun", () => {
     git.impl.pushedBranches.add(finalBranch);
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("published");
@@ -274,9 +283,11 @@ describe("publishRun", () => {
     github.impl.setAvailable(false);
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("failed");
@@ -301,9 +312,11 @@ describe("publishRun", () => {
     github.impl.setAuthenticated(false);
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("failed");
@@ -317,9 +330,11 @@ describe("publishRun", () => {
     git.impl.addExistingRemote("origin");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("failed");
@@ -334,9 +349,11 @@ describe("publishRun", () => {
     git.impl.failNextPushBranch("remote rejected");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("failed");
@@ -353,6 +370,7 @@ describe("publishRun", () => {
       publishRun(makeInfo(), defaultConfig({ createPullRequest: false }), {
         repoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
       }).pipe(Effect.provide(layers)),
     );
 
@@ -368,9 +386,11 @@ describe("publishRun", () => {
     fs.impl.setFile(`${runPath}/compliance-review.json`, complianceReviewJson);
 
     await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -388,9 +408,11 @@ describe("publishRun", () => {
     seedSuccessPreconditions({ fs, git });
 
     await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -407,9 +429,11 @@ describe("publishRun", () => {
     fs.impl.setFile(`${runPath}/source-spec-outcome.md`, `${outcome}\n`);
 
     await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -422,9 +446,11 @@ describe("publishRun", () => {
     seedSuccessPreconditions({ fs, git });
 
     await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -442,9 +468,11 @@ describe("publishRun", () => {
     };
 
     await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const created = github.impl.calls.find(
@@ -470,6 +498,7 @@ describe("publishRun", () => {
       publishRun(makeInfo({ runPath: homeRunPath }), defaultConfig(), {
         repoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
         homeDir,
       }).pipe(Effect.provide(layers)),
     );
@@ -497,9 +526,12 @@ describe("publishRun", () => {
       seedSuccessPreconditions({ fs, git });
 
       await Effect.runPromise(
-        publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow, ...opts }).pipe(
-          Effect.provide(layers),
-        ),
+        publishRun(makeInfo(), defaultConfig(), {
+          repoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+          ...opts,
+        }).pipe(Effect.provide(layers)),
       );
 
       const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -507,11 +539,11 @@ describe("publishRun", () => {
     }
   });
 
-  it("names the plan path from run-status.json, or a loose plan without one", async () => {
+  it("names the plan from run-status.json at its archive path, or a loose plan without one", async () => {
     for (const [planRepoRelPath, expected] of [
       [
         "docs/plans/2610101200-greet-cli-plan.md",
-        "**Plan** `docs/plans/2610101200-greet-cli-plan.md`",
+        "**Plan** `docs/plans/archive/2610101200-greet-cli-plan.md`",
       ],
       [undefined, "**Plan** loose plan"],
     ] as const) {
@@ -523,9 +555,11 @@ describe("publishRun", () => {
       });
 
       await Effect.runPromise(
-        publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-          Effect.provide(layers),
-        ),
+        publishRun(makeInfo(), defaultConfig(), {
+          repoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+        }).pipe(Effect.provide(layers)),
       );
 
       expect(fs.impl.getFile(`${runPath}/pr-body.md`)).toContain(expected);
@@ -538,9 +572,11 @@ describe("publishRun", () => {
     fs.impl.setFile(`${runPath}/run-status.json`, "{ not json");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
-        Effect.provide(layers),
-      ),
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     expect(result.kind).toBe("failed");
@@ -577,7 +613,11 @@ describe("publishRun", () => {
     );
 
     await Effect.runPromise(
-      publishRun(info, defaultConfig(), { repoRoot, now: constNow }).pipe(Effect.provide(layers)),
+      publishRun(info, defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
     );
 
     const handoff = fs.impl.getFile(`${runPath}/review-handoff.md`)!;
@@ -591,5 +631,209 @@ describe("publishRun", () => {
     expect(body).not.toContain("## Phase details");
     expect(body).not.toContain("Global File Reconciliation");
     expect(body).not.toContain("Greeting handoff.");
+  });
+});
+
+// The run folder's plan.md copy, declaring `sourceSpec` (`null` for none).
+function planCopy(sourceSpec: string): string {
+  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+  return `---\nstatus: Approved\nsource-spec: ${sourceSpec}\n${completes}---\n# Greet CLI\n`;
+}
+
+describe("publishRun — the phax footer", () => {
+  const LIVE_PLAN = "docs/plans/2610101200-greet-cli-plan.md";
+  const ARCHIVED_PLAN = "docs/plans/archive/2610101200-greet-cli-plan.md";
+  const LIVE_SPEC = "docs/specs/2610091100-greet-cli.md";
+  const ARCHIVED_SPEC = "docs/specs/archive/2610091100-greet-cli.md";
+  const WEB = "https://github.com/example/repo";
+
+  // Seeds the final phase branch's head commit holding `paths`; returns its sha.
+  function seedHead(git: ReturnType<typeof makeFakeGit>, paths: readonly string[]): string {
+    return Effect.runSync(
+      git.impl.writeTreeCommit({
+        repo: repoRoot,
+        branch: finalBranch,
+        message: "phase-01",
+        files: paths.map((path) => ({ path, content: new TextEncoder().encode(path) })),
+      }),
+    );
+  }
+
+  function binding(phaseId: string, provider: string, model: string, effort: string): string {
+    return JSON.stringify({
+      version: 1,
+      shortName,
+      runId: "test-run-999",
+      phaseId,
+      phaseIndex: Number(phaseId.slice(-2)) - 1,
+      phaseName: phaseId,
+      provider,
+      adapter: provider === "codex-cli" ? "codex" : "claude",
+      model,
+      effort,
+      sessionId: null,
+      sessionHandle: null,
+      worktreePath: `/fake/wt/${phaseId}`,
+      cwd: `/fake/wt/${phaseId}`,
+      launchedAt: now,
+      status: "completed",
+    });
+  }
+
+  async function publishBody(args: {
+    planRepoRelPath?: string;
+    planCopy?: string;
+    head?: readonly string[];
+    info?: RunReviewInfo;
+    setup?: (s: ReturnType<typeof setupLayers>) => void;
+    phaxVersion?: string;
+  }) {
+    const s = setupLayers();
+    seedSuccessPreconditions({
+      fs: s.fs,
+      git: s.git,
+      ...(args.planRepoRelPath !== undefined ? { planRepoRelPath: args.planRepoRelPath } : {}),
+    });
+    if (args.planCopy !== undefined) s.fs.impl.setFile(`${runPath}/plan.md`, args.planCopy);
+    const sha = args.head !== undefined ? seedHead(s.git, args.head) : null;
+    args.setup?.(s);
+    const result = await Effect.runPromise(
+      publishRun(args.info ?? makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: args.phaxVersion ?? "0.0.0-test",
+      }).pipe(Effect.provide(s.layers)),
+    );
+    return { ...s, result, sha, body: s.fs.impl.getFile(`${runPath}/pr-body.md`) ?? "" };
+  }
+
+  it("(a) links an archived plan and spec at the head sha and names the archived plan", async () => {
+    const { body, sha, git } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy(LIVE_SPEC),
+      head: [ARCHIVED_PLAN, ARCHIVED_SPEC, "src/greet.ts"],
+    });
+    const planLink = `[\`${ARCHIVED_PLAN}\`](${WEB}/blob/${sha}/${ARCHIVED_PLAN})`;
+    const specLink = `[\`${ARCHIVED_SPEC}\`](${WEB}/blob/${sha}/${ARCHIVED_SPEC})`;
+    expect(body).toContain(`\n**Plan** ${planLink} · **Spec** ${specLink}\\\n`);
+    expect(body.split("\n")[0]).toContain(`**Plan** ${planLink} · **Gate profile**`);
+    expect(body).not.toContain(`\`${LIVE_PLAN}\``);
+    expect(git.impl.calls).toContainEqual({
+      method: "resolveRef",
+      repo: repoRoot,
+      ref: `refs/heads/${finalBranch}`,
+    });
+  });
+
+  it("(b) links a spec kept live at its docs/specs/ path", async () => {
+    const { body, sha } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy(LIVE_SPEC),
+      head: [ARCHIVED_PLAN, LIVE_SPEC],
+    });
+    expect(body).toContain(`**Spec** [\`${LIVE_SPEC}\`](${WEB}/blob/${sha}/${LIVE_SPEC})`);
+  });
+
+  it("(c) writes code spans when the web URL lookup fails, and still publishes", async () => {
+    const { body, result } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy(LIVE_SPEC),
+      head: [ARCHIVED_PLAN, ARCHIVED_SPEC],
+      setup: ({ github }) => github.impl.failNextRepoWebUrl("no git remotes found"),
+    });
+    expect(result.kind).toBe("published");
+    expect(body).toContain(`\n**Plan** \`${ARCHIVED_PLAN}\` · **Spec** \`${ARCHIVED_SPEC}\`\\\n`);
+    expect(body).not.toContain("/blob/");
+  });
+
+  it("(d) names the plan at its archive counterpart and no spec when the head is unresolved", async () => {
+    const { body, result } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy(LIVE_SPEC),
+    });
+    expect(result.kind).toBe("published");
+    expect(body).toContain(`\n**Plan** \`${ARCHIVED_PLAN}\`\\\n`);
+    expect(body).not.toContain("**Spec**");
+    expect(body).not.toContain("/blob/");
+  });
+
+  it("(e) writes a loose plan as a code span", async () => {
+    const { body } = await publishBody({
+      planRepoRelPath: "notes/greet-plan.md",
+      head: ["notes/greet-plan.md"],
+    });
+    expect(body).toContain("\n**Plan** `notes/greet-plan.md`\\\n");
+  });
+
+  it("(f) has no Spec part for a plan declaring source-spec: null", async () => {
+    const { body } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      planCopy: planCopy("null"),
+      head: [ARCHIVED_PLAN],
+    });
+    expect(body).toContain(`\n**Plan** [\`${ARCHIVED_PLAN}\`](`);
+    expect(body).not.toContain("**Spec**");
+  });
+
+  it("(g) groups three agent bindings with two assignments on one Agents line", async () => {
+    const phaseIds = ["phase-01", "phase-02", "phase-03"];
+    const info = makeInfo({
+      phaseStatuses: phaseIds.map((id, i) => makePhaseStatus(id, i)),
+      planPhases: phaseIds.map((id) => ({ id, title: `Made-up ${id}` })),
+      finalPhaseId: "phase-03",
+    });
+    const { body } = await publishBody({
+      info,
+      setup: ({ fs }) => {
+        for (const id of phaseIds) {
+          fs.impl.setFile(
+            `${runPath}/${id}/file-reconciliation.json`,
+            JSON.stringify(
+              encodePhaseFileReconciliation({ phaseId: id, ...reconciliationResult({}) }),
+            ),
+          );
+          fs.impl.setFile(`${runPath}/${id}/file-reconciliation.md`, "Reconciliation.");
+          fs.impl.setFile(`${runPath}/${id}/phase-handoff.md`, "Handoff.");
+        }
+        fs.impl.setFile(
+          `${runPath}/phase-01/agent-binding.json`,
+          binding("phase-01", "claude-code", "claude-made-up-1", "medium"),
+        );
+        fs.impl.setFile(
+          `${runPath}/phase-02/agent-binding.json`,
+          binding("phase-02", "codex-cli", "gpt-made-up", "high"),
+        );
+        fs.impl.setFile(
+          `${runPath}/phase-03/agent-binding.json`,
+          binding("phase-03", "claude-code", "claude-made-up-1", "medium"),
+        );
+      },
+    });
+    expect(body).toContain(
+      "\n**Agents** claude-code `claude-made-up-1` at medium: 2 phases; codex-cli `gpt-made-up` at high: 1 phase\\\n",
+    );
+    expect(body.endsWith("**Run** `test-project.test-run`")).toBe(true);
+  });
+
+  it("(h) looks nothing up and writes no body for a pull request that already exists", async () => {
+    const { github, git, fs } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      head: [ARCHIVED_PLAN],
+      setup: ({ github: gh }) =>
+        gh.impl.seedExistingPr(finalBranch as string, "https://github.com/owner/repo/pull/7"),
+    });
+    expect(github.impl.calls.some((c) => c.method === "repoWebUrl")).toBe(false);
+    expect(git.impl.calls.some((c) => c.method === "readTree")).toBe(false);
+    expect(fs.impl.getFile(`${runPath}/pr-body.md`)).toBeUndefined();
+  });
+
+  it("(i) names the version from the option in the generated line", async () => {
+    const { body } = await publishBody({
+      planRepoRelPath: LIVE_PLAN,
+      phaxVersion: "9.8.7-made-up",
+    });
+    expect(body).toContain(
+      "\n🛤️ Generated with [phax](https://docs.phax.run) 9.8.7-made-up — the golden path, just facts\\\n",
+    );
   });
 });

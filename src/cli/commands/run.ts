@@ -51,6 +51,7 @@ import {
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { renderStop } from "./stopOutput.js";
+import { readPackageVersion } from "./usage.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -451,6 +452,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             runPath,
             runId,
             startIndex: 0,
+            phaxVersion: readPackageVersion(),
             routing,
             providerConfig,
             securityMode: effectiveSecurityMode,

@@ -248,6 +248,8 @@ describe("runResume --skip-oracle", () => {
     );
     expect(executePlan).toHaveBeenCalledOnce();
     expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: true, startIndex: 1 });
+    const { readPackageVersion } = await import("../../../src/cli/commands/usage.js");
+    expect(executePlan.mock.calls[0]?.[0].phaxVersion).toBe(readPackageVersion());
   });
 
   it("refuses a run awaiting review, even at an oracle phase, with exit 1 and nothing run", async () => {

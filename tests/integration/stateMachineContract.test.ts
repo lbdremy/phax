@@ -156,6 +156,7 @@ describe("State Machine Contract", () => {
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -266,6 +267,7 @@ describe("State Machine Contract", () => {
     const runResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,
@@ -396,6 +398,7 @@ describe("State Machine Contract", () => {
     const runResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

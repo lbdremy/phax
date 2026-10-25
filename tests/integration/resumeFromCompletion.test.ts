@@ -219,6 +219,7 @@ async function runResume(opts: {
   return Effect.runPromise(
     Effect.either(
       executePlan({
+        phaxVersion: "0.0.0-test",
         shortName,
         namespace: "test-project",
         plan,

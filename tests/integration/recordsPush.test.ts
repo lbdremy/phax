@@ -309,6 +309,7 @@ describe("publishRun: records push wiring", () => {
       publishRun(makeInfo(), defaultPublishConfig(), {
         repoRoot: publishRepoRoot,
         now: constNow,
+        phaxVersion: "0.0.0-test",
       }).pipe(Effect.provide(layers)),
     );
 
@@ -333,7 +334,7 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, records },
+        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
       ).pipe(Effect.provide(layers)),
     );
 
@@ -357,7 +358,7 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, records },
+        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
       ).pipe(Effect.provide(layers)),
     );
 
@@ -386,6 +387,7 @@ describe("publishRun: records push wiring", () => {
         {
           repoRoot: publishRepoRoot,
           now: constNow,
+          phaxVersion: "0.0.0-test",
           records,
           recordsClonePath: "/fake-records-clone",
         },
@@ -415,7 +417,7 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, records },
+        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
       ).pipe(Effect.provide(layers)),
     );
 

@@ -267,6 +267,8 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
 
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("acme.fixbug");
+    const { readPackageVersion } = await import("../../../src/cli/commands/usage.js");
+    expect(executePlan.mock.calls[0]?.[0].phaxVersion).toBe(readPackageVersion());
   });
 
   it("shows the bumped qualified name when the base name is already taken in the namespace", async () => {

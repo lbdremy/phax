@@ -192,7 +192,13 @@ describe("the review surfaces of a run with stops", () => {
     const body = buildShortPrBody({
       qualifiedName: "example.invoice-export",
       shortName: "invoice-export",
-      plan: { kind: "loose" },
+      footer: {
+        version: "0.0.0-test",
+        plan: { kind: "unrecorded" },
+        spec: { kind: "none" },
+        agents: [],
+        qualifiedName: "example.invoice-export",
+      },
       sourceSpecOutcome: undefined,
       gateProfileId: "standard",
       phases: PHASE_IDS.map((id) => ({

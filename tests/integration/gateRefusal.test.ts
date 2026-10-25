@@ -175,6 +175,7 @@ describe("a refused gate report", () => {
       Effect.runPromise(
         Effect.either(
           executePlan({
+            phaxVersion: "0.0.0-test",
             shortName,
             namespace: "hello-world",
             plan,

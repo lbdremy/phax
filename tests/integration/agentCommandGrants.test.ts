@@ -171,6 +171,7 @@ describe("executePlan — agent command grants in secure mode", () => {
       Effect.runPromise(
         Effect.either(
           executePlan({
+            phaxVersion: "0.0.0-test",
             shortName,
             namespace: "test-project",
             plan,
@@ -287,6 +288,7 @@ describe("executePlan — agent command grants in secure mode", () => {
     await Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

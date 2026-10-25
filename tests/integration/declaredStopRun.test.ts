@@ -409,6 +409,7 @@ async function execute(harness: Harness, startIndex: number) {
   const program = withRunLock(
     `${NAMESPACE}.${SHORT}`,
     executePlan({
+      phaxVersion: "0.0.0-test",
       shortName: harness.shortName,
       namespace: NAMESPACE,
       plan: harness.plan,

@@ -317,6 +317,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — declared interactive stop sn
       const program = withRunLock(
         `${NAMESPACE}.${SHORT}`,
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: NAMESPACE,
           plan,

@@ -23,6 +23,12 @@ export interface GitHubOps {
    */
   visibility(repo: string): Effect.Effect<RepoVisibility, GitHubError>;
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError>;
+  /**
+   * The repository's `https://` web URL, as the host reports it. Never
+   * rebuilt from a git remote: a remote URL's shape says nothing reliable
+   * about where the host serves the repository's pages.
+   */
+  repoWebUrl(repo: string): Effect.Effect<string, GitHubError>;
   findPullRequestForBranch(
     branch: BranchName,
     repo: string,

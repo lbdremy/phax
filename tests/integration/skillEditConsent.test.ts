@@ -176,6 +176,7 @@ describe("executePlan — skill edit consent preflight", () => {
     return Effect.runPromise(
       Effect.either(
         executePlan({
+          phaxVersion: "0.0.0-test",
           shortName,
           namespace: "test-project",
           plan,

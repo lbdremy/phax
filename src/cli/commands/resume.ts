@@ -44,6 +44,7 @@ import {
 } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { renderStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
+import { readPackageVersion } from "./usage.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -272,6 +273,7 @@ export async function runResume(
         runId,
         startIndex: decision.nextPhaseIndex,
         skipOracle: opts.skipOracle === true,
+        phaxVersion: readPackageVersion(),
         routing,
         providerConfig,
         // Skill edit consent is given only at `phax run`; resume inherits it.
