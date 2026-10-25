@@ -212,7 +212,7 @@ const ORACLE_FILE = "tests/unit/invoiceExport.test.ts";
 
 describe("lint's test-line rules (oracles)", () => {
   describe("the oracle loop", () => {
-    it.fails("flags an oracle-loop line on a phase that discharges an oracle", async () => {
+    it("flags an oracle-loop line on a phase that discharges an oracle", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -232,14 +232,14 @@ describe("lint's test-line rules (oracles)", () => {
       expect(hasLintErrors(report.findings)).toBe(true);
     });
 
-    it.fails("flags an oracle-loop line on an ordinary phase", async () => {
+    it("flags an oracle-loop line on an ordinary phase", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "oracle", "ac-a")] }]);
       const report = await runLint(plan, liveSpec(["ac-a"]));
 
       expect(testsRows(report)).toEqual([row("error", "phase-01", misplaced(1, "phase-01"))]);
     });
 
-    it.fails("flags an oracle phase whose lines are all in-phase", async () => {
+    it("flags an oracle phase whose lines are all in-phase", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -253,7 +253,7 @@ describe("lint's test-line rules (oracles)", () => {
       expect(testsRows(report)).toEqual([row("error", "phase-01", silent("phase-01"))]);
     });
 
-    it.fails("flags an oracle phase with no test line at all", async () => {
+    it("flags an oracle phase with no test line at all", async () => {
       const plan = planMd([
         { oracle: true, create: ORACLE_FILE, lines: ["- (none)"] },
         {
@@ -278,14 +278,14 @@ describe("lint's test-line rules (oracles)", () => {
       ],
     };
 
-    it.fails("flags a criterion id the source spec does not have", async () => {
+    it("flags a criterion id the source spec does not have", async () => {
       const report = await runLint(planMd([threeLines]), liveSpec(["ac-a", "ac-b"]));
 
       expect(testsRows(report)).toEqual([row("error", "phase-01", unknown(3, "ac-c"))]);
       expect(hasLintErrors(report.findings)).toBe(true);
     });
 
-    it.fails("warns of a criterion that no test line names", async () => {
+    it("warns of a criterion that no test line names", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "in-phase", "ac-a")] }]);
       const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
 
@@ -293,7 +293,7 @@ describe("lint's test-line rules (oracles)", () => {
       expect(hasLintErrors(report.findings)).toBe(false);
     });
 
-    it.fails("warns once of a hand-written spec with no JSON sidecar", async () => {
+    it("warns once of a hand-written spec with no JSON sidecar", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "in-phase", "ac-a")] }]);
       const report = await runLint(plan, specFiles(SPEC_REL, SPEC_JSON_REL, null));
 
@@ -306,14 +306,14 @@ describe("lint's test-line rules (oracles)", () => {
       ]);
     });
 
-    it.fails("falls back to the archived spec and its sidecar", async () => {
+    it("falls back to the archived spec and its sidecar", async () => {
       const files = specFiles(ARCHIVE_SPEC_REL, ARCHIVE_SPEC_JSON_REL, specJson(["ac-a", "ac-b"]));
       const report = await runLint(planMd([threeLines]), files);
 
       expect(testsRows(report)).toEqual([row("error", "phase-01", unknown(3, "ac-c"))]);
     });
 
-    it.fails("warns once of a spec found at neither path", async () => {
+    it("warns once of a spec found at neither path", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "in-phase", "ac-a")] }]);
       const report = await runLint(plan, {});
 
@@ -326,7 +326,7 @@ describe("lint's test-line rules (oracles)", () => {
       ]);
     });
 
-    it.fails("warns once of a sidecar that cannot be read", async () => {
+    it("warns once of a sidecar that cannot be read", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "in-phase", "ac-a")] }]);
       const report = await runLint(plan, specFiles(SPEC_REL, SPEC_JSON_REL, "this is not JSON"));
 
@@ -344,7 +344,7 @@ describe("lint's test-line rules (oracles)", () => {
   });
 
   describe("the order", () => {
-    it.fails("lists the oracle-loop error, the unknown id, then the uncovered warnings", async () => {
+    it("lists the oracle-loop error, the unknown id, then the uncovered warnings", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "oracle", "ac-z")] }]);
       const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
 

@@ -26,6 +26,8 @@ import {
 } from "../domain/plan/lint.js";
 import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
 import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { testLineFindings } from "../domain/plan/testLineCheck.js";
+import { readSourceSpecCriteria } from "./sourceSpecCriteria.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makePlanAuditRequest } from "../domain/plan/projection.js";
 import { assignmentBoundFindings } from "./assignmentBounds.js";
@@ -153,6 +155,23 @@ export function lintPlan(
       ...interactiveFindings({ headers, phases: plan.phases }),
       ...oracleFindings({ ...oracleInput, phases: plan.phases }),
       ...departures,
+    );
+    // The rules on the kept lines, numbered by their source items.
+    const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
+    const itemsOf = new Map(extracted.right.lineItems.map((l) => [l.phase, l.items]));
+    findings.push(
+      ...testLineFindings({
+        phases: plan.phases.map((phase) => ({
+          id: phase.id,
+          oracle: phase.oracle,
+          lines: phase.testLines.map((line, i) => ({
+            item: itemsOf.get(phase.id)?.[i] ?? i + 1,
+            loop: line.loop,
+            criterion: line.criterion,
+          })),
+        })),
+        criteria,
+      }),
     );
     for (const warning of warnings) {
       findings.push({ severity: "warning", check: "structure", phase: null, message: warning });
