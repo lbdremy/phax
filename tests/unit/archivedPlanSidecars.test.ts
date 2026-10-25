@@ -8,7 +8,7 @@ import { compareReleases, parseSchemaUrl } from "../../src/schemas/schemaUrl.js"
 
 // The repository's own archived plans are the corpus: every plan sidecar
 // stamped plan-document 0.20.0 or later must still read, lifted in memory and
-// never rewritten. A sidecar stamped below 0.20.0 lacks `completesSpec` and
+// never rewritten; a lift its prose test strategy refuses is still a read. A sidecar stamped below 0.20.0 lacks `completesSpec` and
 // stays refused, so it is not read here. Compared by the stamp each file names,
 // never by the running version, so the corpus does not shift at a release.
 
@@ -49,24 +49,41 @@ describe("archived plan sidecars", () => {
     expect(sidecars.some((s) => s.release === "0.25.0")).toBe(true);
   });
 
+  // A sidecar below the current shape reads whatever its test strategies hold:
+  // its lift is the document, or refused at a phase of the file and a line.
   it.each(sidecars.map((s) => [s.name, s] as const))("%s reads", (_name, archived) => {
     const read = readDocumentSidecar("plan", archived.name, archived.json);
     if (Either.isLeft(read)) throw new Error(read.left.message);
-    expect(read.right.kind).toBe("plan");
+    const sidecar = read.right;
+    expect(sidecar.kind).toBe("plan");
+    if (sidecar.shape === "current" || sidecar.lift.kind === "lifted") return;
+    const phaseIds = (archived.json["phases"] as Array<Record<string, unknown>>).map(
+      (phase) => phase["id"],
+    );
+    expect(phaseIds).toContain(sidecar.lift.phase);
+    expect(sidecar.lift.departure.line).toBeGreaterThanOrEqual(1);
   });
 
-  it("reads each 0.25.0 sidecar as shape 0.25.0, every modelReason carried over as assignmentReason", () => {
-    for (const archived of sidecars.filter((s) => s.release === "0.25.0")) {
+  it("refuses the lift of every 0.25.0 sidecar, whose test strategies are prose", () => {
+    const older = sidecars.filter((s) => s.release === "0.25.0");
+    expect(older.length).toBeGreaterThan(0);
+    for (const archived of older) {
       const read = readDocumentSidecar("plan", archived.name, archived.json);
       if (Either.isLeft(read)) throw new Error(read.left.message);
       expect(read.right.shape, archived.name).toBe("0.25.0");
-      const recorded = (archived.json["phases"] as Array<Record<string, unknown>>).map(
-        (phase) => phase["modelReason"],
-      );
-      expect(
-        read.right.document.phases.map((phase) => phase.assignmentReason),
-        archived.name,
-      ).toEqual(recorded);
+      expect(read.right.shape !== "current" && read.right.lift.kind, archived.name).toBe("refused");
     }
+  });
+
+  it("lifts the 0.26.0 surface-summary sidecar, whose test strategies follow the line format", () => {
+    const archived = sidecars.find((s) => s.name === "2610241631-surface-summary-plan.json");
+    if (archived === undefined) throw new Error("the surface-summary sidecar is archived");
+    const read = readDocumentSidecar("plan", archived.name, archived.json);
+    if (Either.isLeft(read)) throw new Error(read.left.message);
+    expect(read.right.shape).toBe("0.26.0");
+    const lift = read.right.shape === "current" ? null : read.right.lift;
+    expect(lift?.kind).toBe("lifted");
+    if (lift?.kind !== "lifted") return;
+    expect(lift.document.phases.every((phase) => phase.testStrategy.length > 0)).toBe(true);
   });
 });

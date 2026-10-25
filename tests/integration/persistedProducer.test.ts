@@ -208,7 +208,16 @@ const PLAN_DOCUMENT = {
       objective: "The example module exists.",
       detailedInstructions: ["Create src/example.ts."],
       boundaryContracts: null,
-      testStrategy: "A unit test.",
+      testStrategy: [
+        {
+          guarantee: "The example module returns its value",
+          size: "small",
+          technique: "example",
+          oracle: "the module's output",
+          loop: "in-phase",
+          criterion: null,
+        },
+      ],
       implementationOrder: ["Write the test.", "Write the module."],
       excludedScope: ["Everything else."],
       verification: "The standard gate.",

@@ -103,6 +103,8 @@ import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
+import type { TestLine } from "../../../src/schemas/testLine.js";
+import { renderTestLine } from "../../../src/domain/plan/testLineGrammar.js";
 import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
@@ -554,8 +556,25 @@ const specDocument: SpecDocumentPreSchema = {
   docsPage: { kind: "none", why: "Nothing user-facing." },
 };
 
+/** A made-up test strategy in the line format, as an older plan document's string carried it. */
+const EXAMPLE_TEST_STRATEGY =
+  "- The example module returns its value — small · example · the module's output · in-phase";
+
+/** The test lines `EXAMPLE_TEST_STRATEGY` reads as. */
+export const EXAMPLE_TEST_LINES = [
+  {
+    guarantee: "The example module returns its value",
+    size: "small",
+    technique: "example",
+    oracle: "the module's output",
+    loop: "in-phase",
+    criterion: null,
+  },
+] as const;
+
 // Spec-less, so that phax's bridge and the package step it alike: a pre-schema
-// sidecar never recorded `completesSpec`, which only null may stand for.
+// sidecar never recorded `completesSpec`, which only null may stand for. Its
+// test strategy follows the line format, so both lift it to test lines.
 const planDocument: PlanDocumentPreSchema = {
   version: 1,
   kind: "plan",
@@ -580,7 +599,7 @@ const planDocument: PlanDocumentPreSchema = {
       objective: "The example module exists.",
       detailedInstructions: ["Create src/example.ts."],
       boundaryContracts: null,
-      testStrategy: "A unit test.",
+      testStrategy: EXAMPLE_TEST_STRATEGY,
       implementationOrder: ["Write the test.", "Write the module."],
       excludedScope: ["Everything else."],
       verification: "The standard gate.",
@@ -625,8 +644,8 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 /**
  * A plan document as every shape before the preamble's question arrays and
  * each phase's reason (the frozen 0.20.0 shape): without both, and without
- * each phase's `mode` and `oracle`. The reason is `assignmentReason` in the
- * current shape.
+ * each phase's `mode` and `oracle`, its test lines as a string. The reason is
+ * `assignmentReason` in the current shape.
  */
 export function withoutPreambleQuestions(doc: Doc): Doc {
   const {
@@ -635,20 +654,37 @@ export function withoutPreambleQuestions(doc: Doc): Doc {
     ...preamble
   } = doc["preamble"] as Doc;
   const phases = (doc["phases"] as Doc[]).map(
-    ({ assignmentReason: _reason, mode: _mode, oracle: _oracle, ...phase }) => phase,
+    ({ assignmentReason: _reason, mode: _mode, oracle: _oracle, ...phase }) =>
+      withTestStrategyText(phase),
   );
   return { ...doc, preamble, phases };
+}
+
+/** A phase with its test lines as the string an older shape carried: one `- ` line each. */
+function withTestStrategyText(phase: Doc): Doc {
+  const lines = phase["testStrategy"] as TestLine[];
+  const text =
+    lines.length === 0 ? "- (none)" : lines.map((line) => `- ${renderTestLine(line)}`).join("\n");
+  return { ...phase, testStrategy: text };
+}
+
+/**
+ * A current plan document as the frozen 0.26.0 shape wrote it: each phase's
+ * test lines are the string the line format renders.
+ */
+export function withTestStrategyStrings(doc: Doc): Doc {
+  return { ...doc, phases: (doc["phases"] as Doc[]).map(withTestStrategyText) };
 }
 
 /**
  * A current plan document as the frozen 0.25.0 shape wrote it: each phase's
  * `assignmentReason` is a `modelReason`, in the same place before model and
- * effort, and no phase carries `mode` or `oracle`.
+ * effort, no phase carries `mode` or `oracle`, and its test lines are a string.
  */
 export function withModelReasons(doc: Doc): Doc {
   const phases = (doc["phases"] as Doc[]).map(
     ({ assignmentReason, model, effort, mode: _mode, oracle: _oracle, ...phase }) => ({
-      ...phase,
+      ...withTestStrategyText(phase),
       modelReason: assignmentReason,
       model,
       effort,
@@ -677,6 +713,7 @@ function withEmptyQuestions(doc: Doc): Doc {
   const preamble = doc["preamble"] as Doc;
   const phases = (doc["phases"] as Doc[]).map((phase) => ({
     ...phase,
+    testStrategy: EXAMPLE_TEST_LINES,
     mode: "headless",
     oracle: null,
     assignmentReason: null,
@@ -844,9 +881,16 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       completesSpec: null,
       preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
       phases: [
-        { ...planDocument.phases[0], mode: "headless", oracle: null, assignmentReason: null },
+        {
+          ...planDocument.phases[0],
+          testStrategy: EXAMPLE_TEST_LINES,
+          mode: "headless",
+          oracle: null,
+          assignmentReason: null,
+        },
         ...planDocument.phases.slice(1).map((phase) => ({
           ...phase,
+          testStrategy: EXAMPLE_TEST_LINES,
           mode: "headless" as const,
           oracle: null,
           assignmentReason: null,

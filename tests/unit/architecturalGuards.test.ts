@@ -535,6 +535,7 @@ const CLOSURE_ALLOWED_DIRS = ["packages/schemas/src/", "src/schemas/", "src/doma
 // import. A new src/ file in the closure is published, so it is named here.
 const CLOSURE_SRC_ALLOWLIST = [
   "src/domain/branded.ts",
+  "src/domain/plan/testLineGrammar.ts",
   "src/domain/sessionId.ts",
   "src/schemas/approvalRecord.ts",
   "src/schemas/approvedBy.ts",
@@ -573,6 +574,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/plan-document/0.17.0.ts",
   "src/schemas/history/plan-document/0.20.0.ts",
   "src/schemas/history/plan-document/0.25.0.ts",
+  "src/schemas/history/plan-document/0.26.0.ts",
   "src/schemas/history/plan-document/pre-schema.ts",
   "src/schemas/history/registry/0.17.0.ts",
   "src/schemas/history/registry/pre-schema.ts",
@@ -602,6 +604,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/specDocument.ts",
   "src/schemas/status.ts",
   "src/schemas/surface.ts",
+  "src/schemas/testLine.ts",
 ];
 const CLOSURE_FORBIDDEN_DIRS = ["src/app/", "src/ports/", "src/infra/", "src/cli/"];
 // The bridge reads phax's own files; it is phax's, never published.

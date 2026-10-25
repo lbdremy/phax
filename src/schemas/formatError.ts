@@ -133,3 +133,39 @@ export function formatFirstViolation(err: ParseResult.ParseError): string {
   const path = formatIssuePath(first.path);
   return path.length > 0 ? `${path}: ${first.message}` : first.message;
 }
+
+/**
+ * The first violation of a plan document or plan sidecar as one line. A
+ * violation at `phases[i].testStrategy[j]` or below names the phase and the
+ * line, `<phase id> test line <j + 1> <path inside the line>: <message>`
+ * (`phase-02 test line 2 loop: is missing`); the phase id is
+ * `input.phases[i].id` when that is a string, `phases[i]` otherwise, and a
+ * violation of the line itself has no inner path. Every other violation reads
+ * as `formatFirstViolation` reads it.
+ */
+export function formatPlanDocumentViolation(input: unknown, err: ParseResult.ParseError): string {
+  const [first] = ParseResult.ArrayFormatter.formatErrorSync(err);
+  const [phases, i, strategy, j, ...inner] = first?.path ?? [];
+  if (
+    first === undefined ||
+    phases !== "phases" ||
+    typeof i !== "number" ||
+    strategy !== "testStrategy" ||
+    typeof j !== "number"
+  ) {
+    return formatFirstViolation(err);
+  }
+  const phaseId = phaseIdAt(input, i) ?? `phases[${String(i)}]`;
+  const where = inner.length > 0 ? ` ${formatIssuePath(inner)}` : "";
+  return `${phaseId} test line ${String(j + 1)}${where}: ${first.message}`;
+}
+
+function phaseIdAt(input: unknown, i: number): string | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const phases = (input as Record<string, unknown>)["phases"];
+  if (!Array.isArray(phases)) return undefined;
+  const phase: unknown = phases[i];
+  if (typeof phase !== "object" || phase === null) return undefined;
+  const id = (phase as Record<string, unknown>)["id"];
+  return typeof id === "string" ? id : undefined;
+}

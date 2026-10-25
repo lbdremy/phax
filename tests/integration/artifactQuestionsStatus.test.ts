@@ -11,6 +11,7 @@ import { runArtifactStatus } from "../../src/cli/commands/artifact.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
+import { renderTestLine } from "../../src/domain/plan/testLineGrammar.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -176,7 +177,7 @@ function planBase(): PlanDocument {
       objective: "Do the step.",
       detailedInstructions: [],
       boundaryContracts: null,
-      testStrategy: "Unit.",
+      testStrategy: "- The step does its work — small · example · the step's output · in-phase",
       implementationOrder: [],
       excludedScope: [],
       verification: "standard",
@@ -437,7 +438,10 @@ describe("phax artifact status — unmigrated sidecars", () => {
     const { preamble, phases, ...rest } = base;
     const { openQuestions: _o, arbitratedQuestions: _a, ...olderPreamble } = preamble;
     const olderPhases = phases.map(
-      ({ assignmentReason: _r, mode: _m, oracle: _oracle, ...phase }) => phase,
+      ({ assignmentReason: _r, mode: _m, oracle: _oracle, testStrategy, ...phase }) => ({
+        ...phase,
+        testStrategy: testStrategy.map((line) => `- ${renderTestLine(line)}`).join("\n"),
+      }),
     );
     writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(base));
     writeRepoFile(
@@ -456,6 +460,30 @@ describe("phax artifact status — unmigrated sidecars", () => {
       `Authored:          headless — sidecar ${PLAN_SIDECAR} (plan-document 0.20.0 — migrate with \`phax artifact migrate-documents\`)`,
     );
     expect(lineOf(lines, "Questions")).toBeUndefined();
+  });
+
+  it("a Draft plan stamped 0.26.0 with a prose test strategy still summarises the questions it recorded", async () => {
+    const base = planBase();
+    const { phases, ...rest } = base;
+    writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(base));
+    writeRepoFile(
+      PLAN_SIDECAR,
+      json({
+        $schema: schemaUrl("plan-document", "0.26.0"),
+        ...rest,
+        preamble: { ...rest.preamble, openQuestions: OPEN_Q3_Q4 },
+        phases: phases.map((phase) => ({ ...phase, testStrategy: "Unit." })),
+      }),
+    );
+    commitAll();
+
+    const lines = await statusLines(PLAN);
+    expect(lineOf(lines, "Authored")).toBe(
+      `Authored:          headless — sidecar ${PLAN_SIDECAR} (plan-document 0.26.0 — migrate with \`phax artifact migrate-documents\`)`,
+    );
+    expect(lineOf(lines, "Questions")).toBe(
+      "Questions:         2 — open 2 (Q3, Q4) · arbitrated 0 (0 lifted)",
+    );
   });
 });
 

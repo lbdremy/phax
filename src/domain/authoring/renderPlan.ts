@@ -1,4 +1,6 @@
 import type { PlanDocument, PlanDocumentPhase } from "../../schemas/planDocument.js";
+import type { TestLine } from "../../schemas/testLine.js";
+import { renderTestLine } from "../plan/testLineGrammar.js";
 import { bulletList, finishDocument, headingText, inlineCode, listItem } from "./markdown.js";
 import {
   renderArbitratedQuestion,
@@ -12,8 +14,10 @@ import {
 // forms whose flattened text is exactly the value — file paths, required
 // commands and the commit subject as code spans, the run title with its inline
 // markup escaped — while informational prose (a phase's assignment reason
-// included) is emitted as given. The body only: the caller prepends the
-// frontmatter.
+// included) is emitted as given. A phase's test lines are written verbatim in
+// the line format, so `readTestStrategyText` of the rendered `### Test
+// strategy` section returns the document's lines. The body only: the caller
+// prepends the frontmatter.
 
 const NONE = "- (none)";
 
@@ -37,6 +41,12 @@ function proseList(items: readonly string[]): string {
 
 function orderedList(items: readonly string[]): string {
   return listOrNone(items, (xs) => xs.map((x, i) => listItem(`${String(i + 1)}.`, x)).join("\n"));
+}
+
+// One `- ` line per test line, verbatim: never through the inline escaping,
+// so backticks and code spans round-trip byte for byte.
+function testLines(lines: readonly TestLine[]): string {
+  return lines.length === 0 ? NONE : lines.map((line) => `- ${renderTestLine(line)}`).join("\n");
 }
 
 function anchorOf(planMarkdownAnchor: string): string {
@@ -81,7 +91,7 @@ function renderPhase(phase: PlanDocumentPhase): string {
     ...(phase.boundaryContracts === null
       ? []
       : [section("Boundary contracts", phase.boundaryContracts)]),
-    section("Test strategy", phase.testStrategy),
+    section("Test strategy", testLines(phase.testStrategy)),
     section("Implementation order", orderedList(phase.implementationOrder)),
     section("Excluded scope", proseList(phase.excludedScope)),
     section("Verification", phase.verification),

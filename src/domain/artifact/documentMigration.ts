@@ -1,9 +1,13 @@
 import { Either } from "effect";
-import type { DocumentSidecar } from "../../schemas/persisted.js";
+import {
+  type DocumentSidecar,
+  type PlanDocumentLift,
+  planDocumentV0_20_0AsV0_26_0,
+} from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
-import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
+import { renderPlanBodyV0_26_0 } from "../authoring/renderPlanV0_26_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
 import { validateArtifact } from "./document.js";
@@ -82,24 +86,52 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
 
 // The body the sidecar's own shape renders: the rendering frozen at
 // spec-document 0.25.0 (no `Summary:` lines), the one frozen at spec-document
-// 0.17.0 (positional questions), the one frozen at plan-document 0.25.0 (its
-// `**Model reason:**` lines), or the plan renderer for the older plan shapes,
-// whose lifted reason is null and whose output did not change.
+// 0.17.0 (positional questions), the one frozen at plan-document 0.26.0 (test
+// strategies as written), the one frozen at plan-document 0.25.0 (its
+// `**Model reason:**` lines), or, for the older plan shapes, the 0.26.0
+// rendering of the value stepped to 0.26.0 — headless, no oracle, no reason,
+// no questions — exactly the body phax 0.26.0 and 0.27.0 rendered for them.
 function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>): string {
   if (sidecar.kind === "spec") {
     return sidecar.shape === "0.25.0"
       ? renderSpecBodyV0_25_0(sidecar.older)
       : renderSpecBodyV0_17_0(sidecar.older);
   }
-  return sidecar.shape === "0.25.0"
-    ? renderPlanBodyV0_25_0(sidecar.older)
-    : renderPlanBody(sidecar.document);
+  switch (sidecar.shape) {
+    case "0.26.0":
+      return renderPlanBodyV0_26_0(sidecar.older);
+    case "0.25.0":
+      return renderPlanBodyV0_25_0(sidecar.older);
+    case "0.20.0":
+    case "pre-schema":
+      return renderPlanBodyV0_26_0(planDocumentV0_20_0AsV0_26_0(sidecar.older));
+  }
 }
+
+// An older sidecar's document at the current shape, or a plan's refused lift.
+function liftedDocument(
+  sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>,
+):
+  | { readonly kind: "lifted"; readonly document: SidecarDocument }
+  | Extract<PlanDocumentLift, { readonly kind: "refused" }> {
+  if (sidecar.kind === "spec") {
+    return { kind: "lifted", document: { kind: "spec", document: sidecar.document } };
+  }
+  const { lift } = sidecar;
+  return lift.kind === "refused"
+    ? lift
+    : { kind: "lifted", document: { kind: "plan", document: lift.document } };
+}
+
+const TEST_STRATEGY_REMEDY =
+  "Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.";
 
 /**
  * Whether and how one older sidecar migrates. Refused when the artifact is
  * not a valid spec or plan, when the sidecar does not decode (a refused older
- * shape included), or when the body is not the sidecar's own-shape rendering
+ * shape included), when a plan's test strategy cannot be read as test lines
+ * (its refused lift, naming the phase and the first departing line), or
+ * when the body is not the sidecar's own-shape rendering
  * (compared as agreement compares). Otherwise the sidecar is rewritten at the
  * current shape and the body re-rendered in the current layout; a body whose
  * rendering did not change keeps its md untouched.
@@ -132,6 +164,18 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
   if (sidecar.shape === "current") {
     return refuse(path, `has a sidecar already at its current shape`, "Nothing to migrate for it.");
   }
+  // A plan whose test strategy cannot be read as test lines is refused before
+  // its body is compared: no rewrite could keep what it declares.
+  const lifted = liftedDocument(sidecar);
+  if (lifted.kind === "refused") {
+    const { phase, departure } = lifted;
+    return refuse(
+      path,
+      `${phase} testStrategy line ${String(departure.line)} departs from the test line format: "${departure.text}"`,
+      TEST_STRATEGY_REMEDY,
+    );
+  }
+  const { document } = lifted;
 
   const format = formatOf(kind);
   const ownShape = renderOwnShape(sidecar);
@@ -144,10 +188,6 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
     );
   }
 
-  const document: SidecarDocument =
-    sidecar.kind === "spec"
-      ? { kind: "spec", document: sidecar.document }
-      : { kind: "plan", document: sidecar.document };
   const current = renderCurrent(document);
   // The frontmatter block as written, byte for byte: everything before the body.
   const newMd = sameRendering(current, ownShape)

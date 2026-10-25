@@ -21,7 +21,7 @@ export const CURRENT_SHAPES = {
   "gate-attribution": "0.26.0",
   "phase-file-reconciliation": "0.26.0",
   "spec-document": "0.27.0",
-  "plan-document": "0.26.0",
+  "plan-document": "next",
   "plan-approval-record": "0.25.0",
   "spec-approval-record": "0.25.0",
   "gate-request": "0.20.0",

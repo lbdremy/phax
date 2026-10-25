@@ -114,6 +114,7 @@ import type {
   PlanDocumentV0_17_0,
   PlanDocumentV0_20_0,
   PlanDocumentV0_25_0,
+  PlanDocumentV0_26_0,
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
@@ -298,6 +299,8 @@ import type {
 import type {
   PlanDocument as PhaxPlanDocument,
   PlanDocumentFile as PhaxPlanDocumentFile,
+  PlanDocumentLineage as PhaxPlanDocumentLineage,
+  PlanDocumentPhase as PhaxPlanDocumentPhase,
 } from "../../src/schemas/planDocument.js";
 import type {
   SpecApprovalRecordFile,
@@ -341,6 +344,7 @@ import type { SpecApprovalRecordV0_19_0 as FrozenSpecApprovalRecordV0_19_0 } fro
 import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src/schemas/history/plan-document/0.17.0.js";
 import type { PlanDocumentV0_20_0 as FrozenPlanDocumentV0_20_0 } from "../../src/schemas/history/plan-document/0.20.0.js";
 import type { PlanDocumentV0_25_0 as FrozenPlanDocumentV0_25_0 } from "../../src/schemas/history/plan-document/0.25.0.js";
+import type { PlanDocumentV0_26_0 as FrozenPlanDocumentV0_26_0 } from "../../src/schemas/history/plan-document/0.26.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
 import type { SpecDocumentV0_25_0 as FrozenSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
@@ -640,7 +644,7 @@ const eachShapeId: [
   Equals<SpecDocumentShape, "pre-schema" | "0.17.0" | "0.25.0" | Current<"spec-document">>,
   Equals<
     PlanDocumentShape,
-    "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | Current<"plan-document">
+    "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | "0.26.0" | Current<"plan-document">
   >,
   Equals<PhaseRecordManifestShape, "pre-schema" | "0.17.0" | Current<"phase-record-manifest">>,
   Equals<
@@ -718,6 +722,7 @@ const parseValues: [
     | FrozenPlanDocumentV0_17_0
     | FrozenPlanDocumentV0_20_0
     | FrozenPlanDocumentV0_25_0
+    | FrozenPlanDocumentV0_26_0
     | PhaxPlanDocumentFile
   >,
   Equals<
@@ -807,6 +812,20 @@ type PhaxSpecDocumentWithUnknownSummary = Omit<PhaxSpecDocument, "surface"> & {
   >;
 };
 
+// A phase older than test lines whose strategy is not in the line format holds `Unknown`.
+type PhaxPlanPhaseWithUnknownStrategy = Omit<PhaxPlanDocumentPhase, "testStrategy"> & {
+  readonly testStrategy: PhaxPlanDocumentPhase["testStrategy"] | Unknown;
+};
+type PhaxPlanBodyWithUnknownStrategy = Omit<
+  PhaxPlanDocument,
+  "sourceSpec" | "completesSpec" | "phases"
+> & {
+  readonly phases: readonly [
+    PhaxPlanPhaseWithUnknownStrategy,
+    ...PhaxPlanPhaseWithUnknownStrategy[],
+  ];
+};
+
 // Each Latest type is phax's in-memory type: no version, no $schema
 const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
@@ -822,8 +841,8 @@ const latestTypes: [
   Equals<LatestSpecDocument, PhaxSpecDocumentWithUnknownSummary>,
   Equals<
     LatestPlanDocument,
-    | PhaxPlanDocument
-    | (Omit<PhaxPlanDocument, "sourceSpec" | "completesSpec"> & {
+    | (PhaxPlanBodyWithUnknownStrategy & PhaxPlanDocumentLineage)
+    | (PhaxPlanBodyWithUnknownStrategy & {
         readonly sourceSpec: string;
         readonly completesSpec: Unknown;
       })
@@ -1292,6 +1311,7 @@ const toLatestParameters: [
         | FrozenPlanDocumentV0_17_0
         | FrozenPlanDocumentV0_20_0
         | FrozenPlanDocumentV0_25_0
+        | FrozenPlanDocumentV0_26_0
         | PhaxPlanDocumentFile,
     ]
   >,
@@ -1369,6 +1389,7 @@ const planDocumentIsPhax: Equals<PlanDocument, PhaxPlanDocumentFile> = true;
 const planDocumentV0_17_0IsFrozen: Equals<PlanDocumentV0_17_0, FrozenPlanDocumentV0_17_0> = true;
 const planDocumentV0_20_0IsFrozen: Equals<PlanDocumentV0_20_0, FrozenPlanDocumentV0_20_0> = true;
 const planDocumentV0_25_0IsFrozen: Equals<PlanDocumentV0_25_0, FrozenPlanDocumentV0_25_0> = true;
+const planDocumentV0_26_0IsFrozen: Equals<PlanDocumentV0_26_0, FrozenPlanDocumentV0_26_0> = true;
 const specDocumentV0_17_0IsFrozen: Equals<SpecDocumentV0_17_0, FrozenSpecDocumentV0_17_0> = true;
 void planApprovalsIsPhax;
 void specApprovalsIsPhax;
@@ -1377,6 +1398,7 @@ void planDocumentIsPhax;
 void planDocumentV0_17_0IsFrozen;
 void planDocumentV0_20_0IsFrozen;
 void planDocumentV0_25_0IsFrozen;
+void planDocumentV0_26_0IsFrozen;
 void specDocumentV0_17_0IsFrozen;
 // An older document always upgrades with both question arrays: a spec's
 // arbitratedQuestions, a plan's preamble openQuestions and arbitratedQuestions

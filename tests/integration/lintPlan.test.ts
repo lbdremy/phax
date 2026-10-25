@@ -326,7 +326,16 @@ function planWithQuestions(): PlanDocument {
           objective: "Do the thing.",
           detailedInstructions: [],
           boundaryContracts: null,
-          testStrategy: "Unit.",
+          testStrategy: [
+            {
+              guarantee: "The thing is done",
+              size: "small",
+              technique: "example",
+              oracle: "the thing's output",
+              loop: "in-phase",
+              criterion: null,
+            },
+          ],
           implementationOrder: [],
           excludedScope: [],
           verification: "standard",

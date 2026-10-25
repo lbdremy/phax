@@ -10,6 +10,7 @@ import {
   type PlanArbitratedQuestion,
 } from "./questions.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { TestLineSchema } from "./testLine.js";
 
 // The plan document: the JSON a headless plan authoring session returns. Its
 // projection (`projectExtractedPlan`) is exactly the extracted-plan shape, built
@@ -18,7 +19,9 @@ import { schemaUrlField } from "./schemaUrl.js";
 // `version: 1` stability promise. Every field is required. The lineage
 // (`sourceSpec`, `completesSpec`) mirrors the rendered frontmatter and stays
 // out of the projection: `phax-plan.json` carries no lineage. A phase's
-// `assignmentReason` is informational too: rendered, never extracted.
+// `assignmentReason` is informational too: rendered, never extracted. A
+// phase's `testStrategy` is a list of test lines (src/schemas/testLine.ts),
+// rendered in the line format and read back by the test line grammar.
 
 // `assignmentReason`, `model` and `effort` come last, so a headless planner writes
 // the phase before it assigns its model.
@@ -36,7 +39,10 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   // Null for a phase that crosses no boundary: the phax-planning skill omits the
   // section rather than filling it.
   boundaryContracts: Schema.NullOr(Schema.NonEmptyString),
-  testStrategy: Schema.NonEmptyString,
+  testStrategy: Schema.Array(TestLineSchema).annotations({
+    description:
+      "The phase's test lines. Each renders as one `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]` line under `### Test strategy`; `[]` is a phase that tests nothing, rendered `- (none)`.",
+  }),
   implementationOrder: Schema.Array(Schema.NonEmptyString),
   excludedScope: Schema.Array(Schema.NonEmptyString),
   verification: Schema.NonEmptyString,

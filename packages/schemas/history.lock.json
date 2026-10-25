@@ -22,6 +22,7 @@
   "src/schemas/history/plan-document/0.17.0.ts": "af24585e0e65a27fa6d872543b8e69772a4cf152e066142ce2b7730b9608a79f",
   "src/schemas/history/plan-document/0.20.0.ts": "3ec52f51b0ee479f9a875130cdee4dcd68c205a39cfa3457cb589a50d8ae5bc4",
   "src/schemas/history/plan-document/0.25.0.ts": "5d7aa8c7221330791b9124a6aa5a39c8f8c8fd92253a4a0c2d2086697ac26de9",
+  "src/schemas/history/plan-document/0.26.0.ts": "529fe4f27e9933d6f563880784e2e9cd8eebc39fb272d872203f0914fd4bb07f",
   "src/schemas/history/plan-document/pre-schema.ts": "08edbefe68581f592f1d300263b6a281ec460e4911205336133c66748611e1e4",
   "src/schemas/history/registry/0.17.0.ts": "d5d50bf3b38454198283fb8255f70b00f02546f2c8d31ec6993580c6a8c8b364",
   "src/schemas/history/registry/pre-schema.ts": "9ff9dedce6447dc3cf9af959f63d6bb9c4243c98dd2e2aa82b787cdd7bad4e3c",

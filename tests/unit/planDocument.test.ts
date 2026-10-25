@@ -7,8 +7,24 @@ import {
   projectExtractedPlan,
 } from "../../src/schemas/planDocument.js";
 import { ExtractedPhaxPlanSchema } from "../../src/schemas/phaxPlan.js";
-import { formatFirstViolation } from "../../src/schemas/formatError.js";
+import {
+  formatFirstViolation,
+  formatPlanDocumentViolation,
+} from "../../src/schemas/formatError.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+
+// A made-up test line.
+function testLine(guarantee: string, overrides: Record<string, unknown> = {}) {
+  return {
+    guarantee,
+    size: "small",
+    technique: "example",
+    oracle: "the module's output",
+    loop: "in-phase",
+    criterion: null,
+    ...overrides,
+  };
+}
 
 function validPhase(n: number) {
   const id = `phase-0${n}`;
@@ -28,7 +44,9 @@ function validPhase(n: number) {
     objective: "Deliver the phase.",
     detailedInstructions: ["Write the module."],
     boundaryContracts: null,
-    testStrategy: "Unit tests first.",
+    testStrategy: [testLine(`phase ${n} works`), testLine(`phase ${n} keeps working`)] as Array<
+      Record<string, unknown>
+    >,
     implementationOrder: ["Module", "Tests"],
     excludedScope: [],
     verification: "standard",
@@ -486,5 +504,142 @@ describe("a phase's assignmentReason", () => {
     };
     const projected = projectExtractedPlan(Either.getOrThrow(decodePlanDocument(reasoned)));
     expect(JSON.stringify(projected)).not.toContain("assignmentReason");
+  });
+});
+
+// The refusal of a plan document, as `formatPlanDocumentViolation` names it.
+function refusal(doc: unknown): string {
+  const result = decodePlanDocument(doc);
+  if (Either.isRight(result)) throw new Error("expected the document to be refused");
+  return formatPlanDocumentViolation(doc, result.left);
+}
+
+describe("a phase's test lines", () => {
+  const SIZES = ["small", "medium", "large"];
+  const TECHNIQUES = [
+    "example",
+    "table",
+    "property",
+    "metamorphic",
+    "stateful",
+    "fuzz",
+    "contract",
+    "smoke",
+  ];
+  const LOOPS = ["oracle", "in-phase"];
+
+  // A plan whose phase-02 holds `lines`.
+  function withPhase02Lines(lines: unknown[]) {
+    const doc = validPlanDocument();
+    return { ...doc, phases: [doc.phases[0], { ...doc.phases[1], testStrategy: lines }] };
+  }
+
+  it("accepts lines on every size, technique and loop value, and refuses a size outside the set", () => {
+    const lines = [
+      ...SIZES.map((size) => testLine(`sized ${size}`, { size })),
+      ...TECHNIQUES.map((technique) => testLine(`by ${technique}`, { technique })),
+      ...LOOPS.map((loop) => testLine(`looped ${loop}`, { loop, criterion: "ac-one" })),
+    ];
+    expect(Either.isRight(decodePlanDocument(withPhase02Lines(lines)))).toBe(true);
+    const unit = lines.map((line, i) => (i === 4 ? { ...line, size: "unit" } : line));
+    expect(refusal(withPhase02Lines(unit))).toMatch(/^phase-02 test line 5 size: /);
+  });
+
+  it("names phase-02, test line 2 and loop when phase-02's second line has no loop", () => {
+    const { loop: _loop, ...noLoop } = testLine("the second guarantee");
+    const doc = withPhase02Lines([testLine("the first guarantee"), noLoop]);
+    expect(refusal(doc)).toBe("phase-02 test line 2 loop: is missing");
+  });
+
+  it.each([
+    [
+      "a missing coordinate",
+      (() => {
+        const { technique: _t, ...line } = testLine("x");
+        return line;
+      })(),
+      /^phase-02 test line 1 technique: is missing$/,
+    ],
+    [
+      "a value outside its set",
+      testLine("x", { technique: "unit" }),
+      /^phase-02 test line 1 technique: /,
+    ],
+    [
+      "an unknown key",
+      { ...testLine("x"), notes: "y" },
+      /^phase-02 test line 1 notes: is unexpected/,
+    ],
+    [
+      "an oracle holding ' — '",
+      testLine("x", { oracle: "a — b" }),
+      /^phase-02 test line 1 oracle: an oracle never contains ' — '/,
+    ],
+    [
+      "a criterion holding a backtick",
+      testLine("x", { criterion: "`ac`" }),
+      /^phase-02 test line 1 criterion: /,
+    ],
+  ])("refuses %s naming the phase, the line and the coordinate", (_label, line, message) => {
+    expect(refusal(withPhase02Lines([line]))).toMatch(message);
+  });
+
+  it("names the phase by its index when the input holds no string id there", () => {
+    const result = decodePlanDocument(withPhase02Lines([testLine("x", { size: "unit" })]));
+    if (Either.isRight(result)) throw new Error("expected the document to be refused");
+    expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.left)).toMatch(
+      /^phases\[1\] test line 1 size: /,
+    );
+  });
+
+  it("keeps formatFirstViolation's text for a violation outside a test line", () => {
+    const doc = validPlanDocument();
+    expect(refusal({ ...doc, kind: "spec" })).toMatch(/^kind: /);
+  });
+
+  it("accepts [] as a phase that tests nothing", () => {
+    expect(Either.isRight(decodePlanDocument(withPhase02Lines([])))).toBe(true);
+  });
+
+  describe("in the exported JSON Schema", () => {
+    type Node = Record<string, unknown> & {
+      $ref?: string;
+      items?: Node;
+      properties?: Record<string, Node>;
+    };
+
+    function testLineNode(): Node {
+      const schema = getPlanDocumentJsonSchema() as Node & { $defs?: Record<string, Node> };
+      const follow = (node: Node | undefined): Node => {
+        if (node?.$ref === undefined) return node ?? {};
+        return schema.$defs?.[node.$ref.split("/").at(-1) ?? ""] ?? {};
+      };
+      const phase = follow(schema.properties?.["phases"]?.items);
+      return follow(phase.properties?.["testStrategy"]?.items);
+    }
+
+    it("lists size, technique and loop as enums of exactly the skill's values", () => {
+      const line = testLineNode();
+      expect(line.properties?.["size"]?.["enum"]).toEqual(SIZES);
+      expect(line.properties?.["technique"]?.["enum"]).toEqual(TECHNIQUES);
+      expect(line.properties?.["loop"]?.["enum"]).toEqual(LOOPS);
+    });
+
+    it("describes the line format and publishes additionalProperties false on a line", () => {
+      const line = testLineNode();
+      expect(line["additionalProperties"]).toBe(false);
+      expect(line["required"]).toEqual([
+        "guarantee",
+        "size",
+        "technique",
+        "oracle",
+        "loop",
+        "criterion",
+      ]);
+      expect(line["description"]).toContain(
+        "- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]",
+      );
+      expect(line["description"]).toContain("source spec's JSON sidecar");
+    });
   });
 });

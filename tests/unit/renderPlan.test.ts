@@ -6,6 +6,7 @@ import {
   extractPlanDeterministic,
 } from "../../src/domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
+import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import {
   decodePlanDocument,
   decodePlanDocumentFile,
@@ -64,7 +65,24 @@ function fixture(): PlanDocument {
           "Run `pnpm gen:usage-spec`.",
         ],
         boundaryContracts: "Consumer: phase-02's renderers. Producer: this phase.",
-        testStrategy: "Unit, written first: a full valid spec document decodes.",
+        testStrategy: [
+          {
+            guarantee: "a full valid spec document decodes",
+            size: "small",
+            technique: "example",
+            oracle: "`decodeSpecDocument`'s result",
+            loop: "in-phase",
+            criterion: null,
+          },
+          {
+            guarantee: "an unknown key is refused",
+            size: "small",
+            technique: "table",
+            oracle: "the refusal message",
+            loop: "oracle",
+            criterion: "ac-strict",
+          },
+        ],
         implementationOrder: ["Schemas", "Projection", "CLI"],
         excludedScope: ["Rendering (phase-02)."],
         verification: "The `standard` gate profile.",
@@ -86,7 +104,7 @@ function fixture(): PlanDocument {
         objective: "Render both documents.",
         detailedInstructions: [],
         boundaryContracts: null,
-        testStrategy: "Round trip.",
+        testStrategy: [],
         implementationOrder: [],
         excludedScope: [],
         verification: "standard",
@@ -273,7 +291,8 @@ Consumer: phase-02's renderers. Producer: this phase.
 
 ### Test strategy
 
-Unit, written first: a full valid spec document decodes.
+- a full valid spec document decodes — small · example · \`decodeSpecDocument\`'s result · in-phase
+- an unknown key is refused — small · table · the refusal message · oracle · ac-strict
 
 ### Implementation order
 
@@ -333,7 +352,7 @@ Render both documents.
 
 ### Test strategy
 
-Round trip.
+- (none)
 
 ### Implementation order
 
@@ -717,5 +736,48 @@ describe("renderPlanBody with interactive and oracle phases", () => {
       ["interactive", null],
       ["headless", null],
     ]);
+  });
+});
+
+// Each phase's `### Test strategy` section text, in plan order.
+function strategySections(md: string): string[] {
+  return md
+    .split("\n### Test strategy\n\n")
+    .slice(1)
+    .map((rest) => rest.slice(0, rest.indexOf("\n\n### ")));
+}
+
+describe("renderPlanBody test lines", () => {
+  it("reads each rendered section back to the phase's lines, the criterion suffix only where a line names one", () => {
+    const doc = fixture();
+    const sections = strategySections(renderPlanBody(doc));
+    expect(sections).toEqual([
+      "- a full valid spec document decodes — small · example · `decodeSpecDocument`'s result · in-phase\n" +
+        "- an unknown key is refused — small · table · the refusal message · oracle · ac-strict",
+      "- (none)",
+    ]);
+    expect(
+      sections.map((text) => readTestStrategyText(text).lines.map(({ line }) => line)),
+    ).toEqual(doc.phases.map((phase) => phase.testStrategy));
+    expect(sections.map((text) => readTestStrategyText(text).departures)).toEqual([[], []]);
+  });
+
+  it("writes backticks and markup verbatim, never escaped", () => {
+    const base = fixture();
+    const [first, ...rest] = base.phases;
+    const line = {
+      guarantee: "a *starred* `code` <tag> guarantee",
+      size: "large",
+      technique: "smoke",
+      oracle: "`a · b` # [link]",
+      loop: "in-phase",
+      criterion: null,
+    } as const;
+    const doc = { ...base, phases: [{ ...first, testStrategy: [line] }, ...rest] } as const;
+    const [strategy] = strategySections(renderPlanBody(doc));
+    expect(strategy).toBe(
+      "- a *starred* `code` <tag> guarantee — large · smoke · `a · b` # [link] · in-phase",
+    );
+    expect(readTestStrategyText(strategy ?? "").lines.map((l) => l.line)).toEqual([line]);
   });
 });

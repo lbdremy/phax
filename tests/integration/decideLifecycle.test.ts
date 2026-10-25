@@ -211,7 +211,16 @@ function planPhase(id: string): PlanDocument["phases"][number] {
     objective: "Do the step.",
     detailedInstructions: ["Do it."],
     boundaryContracts: null,
-    testStrategy: "Unit.",
+    testStrategy: [
+      {
+        guarantee: "The step does its work",
+        size: "small",
+        technique: "example",
+        oracle: "the step's output",
+        loop: "in-phase",
+        criterion: null,
+      },
+    ],
     implementationOrder: ["Do it."],
     excludedScope: [],
     verification: "The `standard` gate profile.",
