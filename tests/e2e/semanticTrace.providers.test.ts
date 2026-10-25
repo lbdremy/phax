@@ -53,7 +53,7 @@ import {
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { withTelemetryCapture } from "./helpers/telemetry.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -164,7 +164,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
   for (const testCase of CASES) {
     it(`pins the semantic trace for ${testCase.name}`, async () => {
-      const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+      const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
       const config: ResolvedConfig = {
         raw: {

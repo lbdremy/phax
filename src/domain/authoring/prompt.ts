@@ -1,4 +1,5 @@
 import type { ArtifactKind } from "../artifact/status.js";
+import type { SpecCriteria } from "../plan/criterionCoverage.js";
 
 /** The prompt's filename inside an authoring session folder. */
 export const AUTHORING_PROMPT_FILENAME = "prompt.md";
@@ -10,8 +11,16 @@ export interface AuthoringPromptInput {
   /** The kind's document JSON Schema (`getSpecDocumentJsonSchema` / `getPlanDocumentJsonSchema`). */
   readonly jsonSchema: object;
   readonly brief: string;
-  /** A plan's source spec (path and Markdown); null for a spec or a plan without one. */
-  readonly sourceSpec: { readonly path: string; readonly markdown: string } | null;
+  /**
+   * A plan's source spec: its path, its Markdown and its acceptance criteria as
+   * its JSON sidecar declares them (the rendered spec shows no id); null for a
+   * spec or a plan without one.
+   */
+  readonly sourceSpec: {
+    readonly path: string;
+    readonly markdown: string;
+    readonly criteria: SpecCriteria;
+  } | null;
   /** Whether a plan completes its source spec (`--last`/`--not-last`); null for a spec or a plan without one. */
   readonly completesSpec: boolean | null;
   readonly slug: string;
@@ -37,6 +46,18 @@ const BOUNDS_WITHOUT_PROVIDER_LINE =
 const ARCHITECTURE_ABSENT_LINE =
   "- No architecture provider is configured: do not run `phax architecture`; read the architecture from the code and its documentation (README, CLAUDE.md or equivalent).";
 
+// How a plan names the source spec's criterion ids on its test lines: each id
+// from the sidecar's list, or, without one, why every line's criterion is null.
+function criteriaLine(criteria: SpecCriteria): string {
+  if (criteria.kind === "criteria") {
+    return "- On each test line that proves one of the source spec's acceptance criteria, set `criterion` to that criterion's id, from the list under \"Source spec acceptance criteria\" below; a line that proves none has `criterion` null.";
+  }
+  if (criteria.reason === "no-sidecar") {
+    return "- The source spec has no JSON sidecar, so its acceptance criteria carry no id: set every test line's `criterion` to null.";
+  }
+  return `- The source spec's criterion ids cannot be read (${criteria.message}): set every test line's \`criterion\` to null.`;
+}
+
 function architectureLine(provider: boolean, bounds: boolean): string {
   if (provider) return ARCHITECTURE_CONFIGURED_LINE + (bounds ? ARCHITECTURE_BOUNDS_SENTENCE : "");
   return bounds ? BOUNDS_WITHOUT_PROVIDER_LINE : ARCHITECTURE_ABSENT_LINE;
@@ -44,7 +65,7 @@ function architectureLine(provider: boolean, bounds: boolean): string {
 
 // The full prompt of a headless authoring session, in a fixed order: the skill
 // text verbatim, the output contract, the document JSON Schema, the source spec
-// (plan only), then the brief. Pure: the same input yields the same prompt, so
+// and its criterion ids (plan only), then the brief. Pure: the same input yields the same prompt, so
 // the recorded prompt.md reproduces the session's input exactly.
 export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
   const documentName = `${input.kind} document`;
@@ -71,11 +92,13 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
       ? [
           `- Set \`sourceSpec\` to \`${input.sourceSpec.path}\`.`,
           `- Set \`completesSpec\` to \`${String(input.completesSpec)}\`.`,
+          criteriaLine(input.sourceSpec.criteria),
         ]
       : input.kind === "plan"
         ? [
             "- Set `sourceSpec` to null: this plan has no source spec.",
             "- Set `completesSpec` to null: this plan has no source spec.",
+            "- Set every test line's `criterion` to null: this plan has no source spec.",
           ]
         : []),
     ...(input.kind === "spec"
@@ -100,6 +123,15 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
       "",
       input.sourceSpec.markdown.trimEnd(),
     );
+    const { criteria } = input.sourceSpec;
+    if (criteria.kind === "criteria") {
+      sections.push(
+        "",
+        `## Source spec acceptance criteria (${criteria.spec}, ids from its JSON sidecar)`,
+        "",
+        ...criteria.criteria.map((c) => `- \`${c.id}\` — ${c.name}`),
+      );
+    }
   }
 
   sections.push("", "## Brief", "", input.brief.trimEnd(), "");

@@ -252,7 +252,7 @@ describe("phax plans overview", () => {
     const overview = JSON.parse(result.stdout) as {
       plan: string;
       name: string;
-      status: string;
+      frontmatter: unknown;
       architecture: unknown;
       phases: Array<{
         id: string;
@@ -265,7 +265,7 @@ describe("phax plans overview", () => {
     expect(result.stdout.trimEnd()).toBe(JSON.stringify(overview, null, 2));
     expect(overview.plan).toBe(PLAN_REL);
     expect(overview.name).toBe("widget");
-    expect(overview.status).toBe("Draft");
+    expect(overview.frontmatter).toEqual({ kind: "decoded", status: "Draft" });
     expect(overview.architecture).toEqual({ kind: "parts" });
     expect(overview.coverage).toEqual({ kind: "no-source-spec" });
     expect(overview.phases).toHaveLength(1);
@@ -323,7 +323,7 @@ describe("phax plans overview", () => {
     expect(result.stdout).toBe("");
     const stderr = result.stderr.trimEnd().split("\n");
     expect(stderr).toHaveLength(1);
-    expect(stderr[0]).toContain(rel);
+    expect(stderr[0]!.startsWith(`${rel}: `)).toBe(true);
     expect(stderr[0]).toContain("invalid frontmatter");
     expect(result.stderr).not.toContain("phax plans lint");
   });

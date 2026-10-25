@@ -36,7 +36,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -212,7 +212,7 @@ function makeFakes(opts: { readonly gateExitCode?: number } = {}) {
 type Fakes = ReturnType<typeof makeFakes>;
 
 async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
-  const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
       Effect.provide(layers),

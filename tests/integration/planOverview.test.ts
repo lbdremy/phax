@@ -292,7 +292,7 @@ describe("planOverview", () => {
     const overview = overviewOf(outcome);
 
     expect(overview.name).toBe("invoice-export");
-    expect(overview.status).toBe("Draft");
+    expect(overview.frontmatter).toEqual({ kind: "decoded", status: "Draft" });
     expect(overview.sourceSpec).toEqual({ path: SPEC_REL, slug: "invoice-export" });
     expect(overview.coverage).toMatchObject({
       kind: "criteria",
@@ -327,13 +327,63 @@ describe("planOverview", () => {
       await run({ [`${REPO_ROOT}/plan.md`]: loose }, { repoRelPath: "plan.md" }),
     );
     expect(withFrontmatter.name).toBe("invoice-export");
-    expect(withFrontmatter.status).toBe("Approved");
+    expect(withFrontmatter.frontmatter).toEqual({ kind: "decoded", status: "Approved" });
 
     const bare = overviewOf(
       await run({ [`${REPO_ROOT}/plan.md`]: planMd(TWO_PHASES, "") }, { repoRelPath: "plan.md" }),
     );
-    expect(bare.status).toBeNull();
+    expect(bare.frontmatter).toEqual({ kind: "none" });
     expect(bare.sourceSpec).toBeNull();
+  });
+
+  // Never read in part: a block that does not decode gives no status and no spec.
+  it("says a loose plan.md's frontmatter does not decode, and reads no source spec", async () => {
+    const undecodable = planMd(
+      TWO_PHASES,
+      `---\nsource-spec: ${SPEC_REL}\ncompletes-spec: true\n---\n`,
+    );
+    const overview = overviewOf(
+      await run(
+        {
+          [`${REPO_ROOT}/plan.md`]: undecodable,
+          [`${REPO_ROOT}/${SPEC_REL}`]: "# Invoice export\n",
+          [`${REPO_ROOT}/${SPEC_JSON_REL}`]: specJson(["ac-a"]),
+        },
+        { repoRelPath: "plan.md" },
+      ),
+    );
+
+    expect(overview.frontmatter).toEqual({ kind: "undecodable", problem: "status: is missing" });
+    expect(overview.sourceSpec).toBeNull();
+    expect(overview.coverage).toEqual({
+      kind: "frontmatter-undecodable",
+      message:
+        "the plan's frontmatter does not decode (status: is missing): no source spec is read, no criterion id is checked",
+    });
+  });
+
+  it("reads no source spec outside the repository", async () => {
+    const outside = "../../elsewhere/2610231100-invoice-export.md";
+    const overview = overviewOf(
+      await run(
+        {
+          [`${REPO_ROOT}/plan.md`]: planMd(
+            TWO_PHASES,
+            `---\nstatus: Draft\nsource-spec: ${outside}\ncompletes-spec: true\n---\n`,
+          ),
+          "/elsewhere/2610231100-invoice-export.md": "# Elsewhere\n",
+          "/elsewhere/2610231100-invoice-export.json": "{ not json",
+        },
+        { repoRelPath: "plan.md" },
+      ),
+    );
+
+    expect(overview.coverage).toEqual({
+      kind: "no-criterion-ids",
+      spec: outside,
+      reason: "not-a-spec-path",
+      message: `source spec ${outside} is not a spec path under docs/specs/: no criterion id is checked`,
+    });
   });
 
   describe("failures", () => {
@@ -362,6 +412,7 @@ describe("planOverview", () => {
       const failure = failureOf(outcome);
 
       expect(failure.kind).toBe("invalid-artifact");
+      expect(failure.line.startsWith(`${PLAN_REL}: `)).toBe(true);
       expect(failure.line).toContain(PLAN_REL);
       expect(failure.line).toContain("invalid frontmatter");
       expect(failure.line).not.toContain("phax plans lint");

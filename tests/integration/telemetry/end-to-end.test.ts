@@ -21,7 +21,7 @@ import {
   type ResolvedConfig,
 } from "../../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../../helpers/liftFixturePhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -69,7 +69,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
   });
 
   it("emits the expected semantic event types for a one-phase run", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

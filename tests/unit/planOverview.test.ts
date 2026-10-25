@@ -86,13 +86,13 @@ function overview(opts: {
   architecture?: ArchitectureOutcome;
   criteria?: OverviewCriteriaInput;
   sourceSpec?: PlanOverview["sourceSpec"];
-  status?: string | null;
+  frontmatter?: PlanOverview["frontmatter"];
 }): PlanOverview {
   return buildOverview({
     plan: "docs/plans/2610240900-demo-plan.md",
     name: "demo-plan",
     title: "Demo",
-    status: opts.status === undefined ? "Draft" : opts.status,
+    frontmatter: opts.frontmatter ?? { kind: "decoded", status: "Draft" },
     sourceSpec: opts.sourceSpec === undefined ? null : opts.sourceSpec,
     phases: opts.phases ?? PHASES,
     architecture: opts.architecture ?? NO_PARTS,
@@ -131,10 +131,22 @@ describe("the overview's layout", () => {
 
   it("names a loose plan.md's missing frontmatter and a source spec", () => {
     const text = renderOverview(
-      overview({ status: null, sourceSpec: { path: "docs/specs/x.md", slug: "invoice-export" } }),
+      overview({
+        frontmatter: { kind: "none" },
+        sourceSpec: { path: "docs/specs/x.md", slug: "invoice-export" },
+      }),
     );
     expect(text.split("\n")[0]).toBe(
       "demo-plan — Demo  (no frontmatter · source spec invoice-export)",
+    );
+  });
+
+  it("names a loose plan.md's frontmatter that does not decode, and a source spec it did not read", () => {
+    const text = renderOverview(
+      overview({ frontmatter: { kind: "undecodable", problem: "status: is missing" } }),
+    );
+    expect(text.split("\n")[0]).toBe(
+      "demo-plan — Demo  (frontmatter does not decode: status: is missing · source spec not read)",
     );
   });
 
@@ -241,6 +253,40 @@ describe("the coverage block", () => {
     );
   });
 
+  // The JSON keeps one entry per line; the text counts a repeated (phase, loop).
+  it("counts the lines of one phase and loop naming a criterion, keeping one JSON entry per line", () => {
+    const phases = [
+      phase("phase-01", { testLines: [line("it is read", "oracle", "ac-a")] }),
+      phase("phase-02", {
+        testLines: [
+          line("it is read", "in-phase", "ac-a"),
+          line("it is shown", "in-phase", "ac-a"),
+          line("it is kept", "oracle", "ac-a"),
+          line("it is sorted", "in-phase", "ac-a"),
+        ],
+      }),
+    ];
+    const built = overview({ phases, criteria: { ...CRITERIA, ids: ["ac-a"] } });
+
+    expect(built.coverage).toMatchObject({
+      criteria: [
+        {
+          id: "ac-a",
+          lines: [
+            { phase: "phase-01", loop: "oracle" },
+            { phase: "phase-02", loop: "in-phase" },
+            { phase: "phase-02", loop: "in-phase" },
+            { phase: "phase-02", loop: "oracle" },
+            { phase: "phase-02", loop: "in-phase" },
+          ],
+        },
+      ],
+    });
+    expect(renderOverview(built).split("\n").at(-2)).toBe(
+      "  ac-a       phase-01 oracle, phase-02 in-phase ×3, phase-02 oracle",
+    );
+  });
+
   it("reports (none) when every criterion is named", () => {
     const built = overview({ criteria: { ...CRITERIA, ids: ["ac-a", "ac-b"] } });
     expect(renderOverview(built).split("\n").at(-1)).toBe("  uncovered  (none)");
@@ -264,6 +310,17 @@ describe("the coverage block", () => {
     const built = overview({ criteria });
     expect(built.coverage).toEqual(criteria);
     expect(renderOverview(built).split("\n").at(-1)).toBe(criteria.message);
+  });
+
+  it("carries the one shared line for a frontmatter that does not decode", () => {
+    const message =
+      "the plan's frontmatter does not decode (status: is missing): no source spec is read, no criterion id is checked";
+    const built = overview({
+      frontmatter: { kind: "undecodable", problem: "status: is missing" },
+      criteria: { kind: "frontmatter-undecodable", problem: "status: is missing", message },
+    });
+    expect(built.coverage).toEqual({ kind: "frontmatter-undecodable", message });
+    expect(renderOverview(built).split("\n").at(-1)).toBe(message);
   });
 
   it("says there is no criterion coverage for a plan without a source spec", () => {

@@ -25,7 +25,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 const DIRTY_MESSAGE = "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.";
 
@@ -33,7 +33,7 @@ const shortName = Either.getOrThrow(decodeShortName("dirty-run"));
 
 function makePlan(): PhaxPlan {
   return Either.getOrThrow(
-    readCurrentPhaxPlanFile("phax-plan.json", {
+    liftFixturePhaxPlanToCurrent("phax-plan.json", {
       version: 1,
       run: {
         shortName: "dirty-run",

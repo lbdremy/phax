@@ -25,6 +25,19 @@ export function classifyArtifactPath(repoRelPath: string): ArtifactClassificatio
   return null;
 }
 
+/**
+ * Whether a declared path names a spec inside the repository: it classifies as
+ * a spec (under `docs/specs/` or `docs/specs/archive/`) and holds no `.`, `..`
+ * or empty segment, so joining it onto the repository root never leaves it.
+ * An absolute path never classifies.
+ */
+export function isRepoSpecPath(repoRelPath: string): boolean {
+  if (classifyArtifactPath(repoRelPath)?.kind !== "spec") return false;
+  return repoRelPath
+    .split("/")
+    .every((segment) => segment !== "" && segment !== "." && segment !== "..");
+}
+
 export function archivePathFor(repoRelPath: string): string {
   const classification = classifyArtifactPath(repoRelPath);
   if (classification === null) {

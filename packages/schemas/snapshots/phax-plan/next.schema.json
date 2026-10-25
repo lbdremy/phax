@@ -195,9 +195,12 @@
                 },
                 "oracle": {
                   "type": "string",
-                  "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ' and never ending with ' ·'.",
+                  "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·'.",
                   "pattern": "^(?![\\s\\S]* ·$)",
                   "allOf": [
+                    {
+                      "pattern": "^(?!— )"
+                    },
                     {
                       "pattern": "^(?![\\s\\S]* — )"
                     },

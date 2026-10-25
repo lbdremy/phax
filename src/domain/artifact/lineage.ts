@@ -1,4 +1,5 @@
 import { Either } from "effect";
+import type { PlanFrontmatter } from "../../schemas/artifactFrontmatter.js";
 import { approvalRecordPathFor } from "./approvalRecordFile.js";
 import {
   decodeArtifactFrontmatter,
@@ -24,6 +25,60 @@ export function readSourceSpec(md: string): SourceSpecDeclaration | null {
     kind: "spec",
     path: frontmatter["source-spec"],
     completesSpec: frontmatter["completes-spec"],
+  };
+}
+
+/**
+ * A plan's frontmatter as lint and the overview read it: decoded, absent, or a
+ * block that does not decode. A block that does not decode is never read in
+ * part: neither its status nor its `source-spec` is taken from it. `problem`
+ * names the decode failure briefly, on one line.
+ */
+export type PlanFrontmatterReading =
+  | {
+      readonly kind: "decoded";
+      readonly status: PlanFrontmatter["status"];
+      readonly sourceSpec: SourceSpecDeclaration;
+    }
+  | { readonly kind: "none" }
+  | { readonly kind: "undecodable"; readonly problem: string };
+
+// The first non-blank line of a decode failure, trimmed: YAML syntax errors
+// carry a code excerpt after it, schema failures one indented line per issue.
+function briefProblem(detail: string): string {
+  return (
+    detail
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? "no detail"
+  );
+}
+
+export function readPlanFrontmatter(md: string): PlanFrontmatterReading {
+  const decoded = decodeArtifactFrontmatter("plan", md);
+  if (Either.isLeft(decoded)) {
+    const problem = decoded.left;
+    switch (problem.kind) {
+      case "missing-block":
+        return { kind: "none" };
+      case "yaml-syntax":
+        return { kind: "undecodable", problem: `invalid YAML: ${briefProblem(problem.detail)}` };
+      case "schema":
+        return { kind: "undecodable", problem: briefProblem(problem.detail) };
+    }
+  }
+  const frontmatter = decoded.right;
+  return {
+    kind: "decoded",
+    status: frontmatter.status,
+    sourceSpec:
+      frontmatter["source-spec"] === null
+        ? { kind: "none" }
+        : {
+            kind: "spec",
+            path: frontmatter["source-spec"],
+            completesSpec: frontmatter["completes-spec"],
+          },
   };
 }
 

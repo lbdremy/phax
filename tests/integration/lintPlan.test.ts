@@ -690,6 +690,51 @@ describe("lintPlan", () => {
       expect(report.findings.some((f) => f.check === "structure")).toBe(true);
       expect(report.findings.filter((f) => f.check === "tests")).toHaveLength(1);
     });
+
+    // A loose plan.md is not validated as an artifact, so its frontmatter can
+    // fail to decode: that is said, never read as a plan without a source spec.
+    it("warns once of a loose plan.md whose frontmatter does not decode, and reads no spec", async () => {
+      const spec = "docs/specs/2610231100-invoice-export.md";
+      const plan = planMd({
+        frontmatter: `---\nsource-spec: ${spec}\ncompletes-spec: true\n---\n`,
+        testStrategy: `- ${LINE} · ac-a`,
+      });
+
+      const report = await runLint(plan, {}, { planRel: "plan.md" });
+
+      expect(report.findings.filter((f) => f.check === "tests")).toEqual([
+        {
+          severity: "warning",
+          check: "tests",
+          phase: null,
+          message:
+            "the plan's frontmatter does not decode (status: is missing): no source spec is read, no criterion id is checked",
+        },
+      ]);
+    });
+
+    it("warns once of a source-spec outside the repository, and reads nothing there", async () => {
+      const outside = "../../elsewhere/2610231100-invoice-export.md";
+      const plan = planMd({
+        frontmatter: frontmatterWithSpec(outside),
+        testStrategy: `- ${LINE} · ac-a`,
+      });
+
+      const report = await runLint(
+        plan,
+        { "/elsewhere/2610231100-invoice-export.json": "{ not json" },
+        { planRel: "plan.md" },
+      );
+
+      expect(report.findings.filter((f) => f.check === "tests")).toEqual([
+        {
+          severity: "warning",
+          check: "tests",
+          phase: null,
+          message: `source spec ${outside} is not a spec path under docs/specs/: no criterion id is checked`,
+        },
+      ]);
+    });
   });
 
   it("reports only structure findings for a structurally broken plan", async () => {

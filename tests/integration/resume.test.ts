@@ -31,7 +31,7 @@ import {
 } from "./helpers/preflightRepo.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
-import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
+import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
 vi.mock("node:os", async (importOriginal) =>
@@ -111,7 +111,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("continues from phase-02 and drives the run to review_open", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -314,7 +314,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("does not call prepareRunBranch when startIndex > 0", async () => {
-    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

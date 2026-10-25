@@ -55,13 +55,19 @@ const OracleSchema = oneLineText("oracle").pipe(
   Schema.pattern(/^(?![\s\S]* — )/, {
     message: () => "an oracle never contains ' — ' (a space, an em dash, a space)",
   }),
+  // After the ` · ` before it, a leading `— ` renders as ` — `, which reads
+  // back as the guarantee's end when a size and a technique follow it.
+  Schema.pattern(/^(?!— )/, {
+    message: () =>
+      "an oracle never starts with '— ' (an em dash and a space): it would read back as another line",
+  }),
   Schema.pattern(/^(?![\s\S]* ·$)/, {
     message: () =>
       "an oracle never ends with ' ·' (a space and a middle dot): it would read back as another line",
   }),
   Schema.annotations({
     description:
-      "What the test compares against: one non-empty, trimmed line, never holding ' — ' and never ending with ' ·'.",
+      "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·'.",
   }),
 );
 

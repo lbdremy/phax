@@ -396,7 +396,7 @@ const OVERVIEW: PlanOverview = {
   plan: "plan.md",
   name: "widget",
   title: "Made-up widget",
-  status: "Draft",
+  frontmatter: { kind: "decoded", status: "Draft" },
   sourceSpec: null,
   architecture: { kind: "none" },
   phases: [],

@@ -507,6 +507,41 @@ describe("authorArtifact — plan", () => {
     expect(backend.runCalls[0]?.prompt).toContain("# Plan prune");
   });
 
+  // The rendered spec shows criterion names only: the ids come from its sidecar,
+  // read under the repository root as lint reads it.
+  it("gives the session the source spec's criterion ids, read from its JSON sidecar", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+    fs.setFile(`${REPO_ROOT}/${SOURCE_SPEC}`, APPROVED_SPEC);
+    fs.setFile(
+      `${REPO_ROOT}/docs/specs/2609091412-plan-prune.json`,
+      JSON.stringify(stamped("spec-document", SPEC_DOCUMENT)),
+    );
+
+    await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
+
+    const prompt = backend.runCalls[0]?.prompt ?? "";
+    expect(prompt).toContain(
+      `## Source spec acceptance criteria (${SOURCE_SPEC}, ids from its JSON sidecar)\n\n- \`AC-1\` — Prune frees the slug\n`,
+    );
+    expect(prompt).toContain("set `criterion` to that criterion's id");
+    expect(fs.getFile(`${SESSION_FOLDER}/prompt.md`)).toBe(prompt);
+  });
+
+  it("tells the session the source spec has no sidecar, so every criterion is null", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+    fs.setFile(`${REPO_ROOT}/${SOURCE_SPEC}`, APPROVED_SPEC);
+
+    await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
+
+    const prompt = backend.runCalls[0]?.prompt ?? "";
+    expect(prompt).toContain(
+      "- The source spec has no JSON sidecar, so its acceptance criteria carry no id: set every test line's `criterion` to null.",
+    );
+    expect(prompt).not.toContain("## Source spec acceptance criteria");
+  });
+
   it("takes the lineage from --spec and --last, not from the session's document", async () => {
     const { fs, run } = setup(
       JSON.stringify({ ...PLAN_DOCUMENT, sourceSpec: null, completesSpec: null }),

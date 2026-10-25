@@ -2,8 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { Shell } from "../ports/shell.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
-import { decodeArtifactFrontmatter } from "../domain/artifact/frontmatter.js";
-import { readSourceSpec } from "../domain/artifact/lineage.js";
+import { readPlanFrontmatter } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
@@ -49,7 +48,8 @@ const fileNameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 
  *
  * The plan is read by the strict deterministic parse: a structure error or a
  * departing test line is `unparsable`. A plan under `docs/plans/` that fails
- * artifact validation is `invalid-artifact`, with the validation error's line.
+ * artifact validation is `invalid-artifact`, with the validation error's line
+ * after the reported path.
  */
 export function planOverview(
   opts: PlanOverviewOptions,
@@ -67,21 +67,18 @@ export function planOverview(
     const planMd = readPlan.right;
 
     const artifact = classifyArtifactPath(repoRelPath) !== null;
-    let status: string | null;
     if (artifact) {
       const validated = validateArtifact(repoRelPath, planMd);
       if (Either.isLeft(validated)) {
         return yield* Effect.fail({
           kind: "invalid-artifact",
-          // The message names the plan's repo-relative path itself.
-          line: onOneLine(validated.left.message),
+          line: onOneLine(`${reportPath}: ${validated.left.message}`),
         } satisfies PlanOverviewFailure);
       }
-      status = validated.right.status;
-    } else {
-      const frontmatter = decodeArtifactFrontmatter("plan", planMd);
-      status = Either.isRight(frontmatter) ? frontmatter.right.status : null;
     }
+    // A validated artifact always decodes; a loose plan.md may have no
+    // frontmatter, or a block that does not decode, and the overview says which.
+    const frontmatter = readPlanFrontmatter(planMd);
 
     const unparsable: PlanOverviewFailure = {
       kind: "unparsable",
@@ -94,7 +91,7 @@ export function planOverview(
     const { plan } = finalized.right;
 
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
-    const declaration = readSourceSpec(planMd);
+    const declaration = frontmatter.kind === "decoded" ? frontmatter.sourceSpec : null;
     const sourceSpec =
       declaration === null || declaration.kind === "none"
         ? null
@@ -111,7 +108,10 @@ export function planOverview(
         (artifact ? parseArtifactName("plan", fileNameOf(repoRelPath))?.slug : undefined) ??
         plan.run.shortName,
       title: plan.run.title,
-      status,
+      frontmatter:
+        frontmatter.kind === "decoded"
+          ? { kind: "decoded", status: frontmatter.status }
+          : frontmatter,
       sourceSpec,
       phases: plan.phases,
       architecture,
