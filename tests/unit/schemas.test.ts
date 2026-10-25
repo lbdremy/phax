@@ -168,20 +168,22 @@ const validPlan = {
       optionalFilesToEdit: [],
       mode: "headless",
       oracle: null,
+      testLines: [],
       commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
     },
   ],
 } as const;
 
-describe("decodePhaxPlanFile — mode and oracle", () => {
+describe("decodePhaxPlanFile — mode, oracle and testLines", () => {
   const withPhase = (phase: object) => ({ ...validPlan, phases: [phase] });
 
-  it("carries mode then oracle directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
+  it("carries mode, oracle then testLines directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
     const decoded = Either.getOrThrow(decodePhaxPlanFile(validPlan));
-    expect(Object.keys(decoded.phases[0]!).slice(-4)).toEqual([
+    expect(Object.keys(decoded.phases[0]!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
     const jsonSchema = JSONSchema.make(PhaxPlanFileSchema) as unknown as {
@@ -191,12 +193,35 @@ describe("decodePhaxPlanFile — mode and oracle", () => {
     const items = jsonSchema.properties.phases.items;
     const phaseProps =
       items.properties ?? jsonSchema.$defs?.[items.$ref!.split("/").pop()!]?.properties ?? {};
-    expect(Object.keys(phaseProps).slice(-4)).toEqual([
+    expect(Object.keys(phaseProps).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
+  });
+
+  it("accepts a phase with test lines, and refuses a missing testLines or a malformed line", () => {
+    const line = {
+      guarantee: "it works",
+      size: "small",
+      technique: "example",
+      oracle: "the result",
+      loop: "in-phase",
+      criterion: null,
+    };
+    expect(
+      Either.isRight(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], testLines: [line] }))),
+    ).toBe(true);
+    const { testLines: _lines, ...noLines } = validPlan.phases[0];
+    for (const phase of [
+      noLines,
+      { ...validPlan.phases[0], testLines: [{ ...line, size: "huge" }] },
+      { ...validPlan.phases[0], testLines: [{ ...line, extra: true }] },
+    ]) {
+      expect(Either.isLeft(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+    }
   });
 
   it("accepts an interactive phase and an oracle, including one with no files", () => {

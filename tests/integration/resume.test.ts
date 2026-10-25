@@ -19,7 +19,6 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import {
@@ -32,6 +31,7 @@ import {
 } from "./helpers/preflightRepo.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
 vi.mock("node:os", async (importOriginal) =>
@@ -111,7 +111,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("continues from phase-02 and drives the run to review_open", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -314,7 +314,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("does not call prepareRunBranch when startIndex > 0", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -502,141 +502,168 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 });
 
-describe("phax resume — a phax-plan.json an older phax wrote", () => {
-  let roots: PreflightRepo | undefined;
-  let origCwd: string;
+// Literal releases: the answer must not change when a release is cut.
+const OLDER_PLAN_SHAPES = [
+  {
+    shape: "0.17.0",
+    stamp: "0.25.0",
+    older: ({
+      mode: _mode,
+      oracle: _oracle,
+      testLines: _lines,
+      ...phase
+    }: Record<string, unknown>) => phase,
+  },
+  {
+    shape: "0.26.0",
+    stamp: "0.26.0",
+    older: ({ testLines: _lines, ...phase }: Record<string, unknown>) => phase,
+  },
+] as const;
 
-  beforeEach(() => {
-    origCwd = process.cwd();
-  });
+describe.each(OLDER_PLAN_SHAPES)(
+  "phax resume — a phax-plan.json an older phax wrote in the $shape shape",
+  ({ shape, stamp, older }) => {
+    let roots: PreflightRepo | undefined;
+    let origCwd: string;
 
-  afterEach(() => {
-    process.chdir(origCwd);
-    removePreflightRepo(roots);
-    roots = undefined;
-  });
+    beforeEach(() => {
+      origCwd = process.cwd();
+    });
 
-  /**
-   * A two-phase run created with the real createRunFolder, paused after a
-   * committed phase-01, whose phax-plan.json is then rewritten in the 0.17.0
-   * shape: stamped 0.25.0, no phase carrying mode or oracle.
-   */
-  async function pauseWithOlderPlan(r: PreflightRepo): Promise<string> {
-    const config = Either.getOrThrow(loadConfig(r.repo));
-    const planMdPath = join(r.repo, "plan.md");
-    const { plan } = await Effect.runPromise(
-      loadOrExtractPlan({
-        planMdPath,
-        model: config.extractPlanModel,
-        effort: config.extractPlanEffort,
-        stateRoot: config.stateRoot,
-        nowIso: new Date().toISOString(),
-      }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeBackend().layer))),
-    );
-    const runShortName = Either.getOrThrow(decodeShortName(plan.run.shortName));
-    const { runPath } = await Effect.runPromise(
-      createRunFolder(runShortName, readFileSync(planMdPath, "utf8"), plan, config, "plan.md").pipe(
-        Effect.provide(NodeFileSystemLayer),
-      ),
-    );
+    afterEach(() => {
+      process.chdir(origCwd);
+      removePreflightRepo(roots);
+      roots = undefined;
+    });
 
-    const now = new Date().toISOString();
-    const phase01 = join(runPath, "phase-01");
-    await mkdir(phase01, { recursive: true });
-    await writeFile(
-      join(phase01, "status.json"),
-      JSON.stringify(
-        phaseStatusFile({
-          phaseId: "phase-01",
-          phaseIndex: 0,
-          state: "committed",
-          model: FIXTURE_MODEL,
-          effort: FIXTURE_EFFORT,
-          branchName: `${plan.run.branch}--phase-01`,
-          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-          createdAt: now,
+    /**
+     * A two-phase run created with the real createRunFolder, paused after a
+     * committed phase-01, whose phax-plan.json is then rewritten in the older
+     * shape: stamped 0.25.0 with no phase carrying mode, oracle or testLines,
+     * or stamped 0.26.0 with no phase carrying testLines.
+     */
+    async function pauseWithOlderPlan(r: PreflightRepo): Promise<string> {
+      const config = Either.getOrThrow(loadConfig(r.repo));
+      const planMdPath = join(r.repo, "plan.md");
+      const { plan } = await Effect.runPromise(
+        loadOrExtractPlan({
+          planMdPath,
+          model: config.extractPlanModel,
+          effort: config.extractPlanEffort,
+          stateRoot: config.stateRoot,
+          nowIso: new Date().toISOString(),
+        }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeBackend().layer))),
+      );
+      const runShortName = Either.getOrThrow(decodeShortName(plan.run.shortName));
+      const { runPath } = await Effect.runPromise(
+        createRunFolder(
+          runShortName,
+          readFileSync(planMdPath, "utf8"),
+          plan,
+          config,
+          "plan.md",
+        ).pipe(Effect.provide(NodeFileSystemLayer)),
+      );
+
+      const now = new Date().toISOString();
+      const phase01 = join(runPath, "phase-01");
+      await mkdir(phase01, { recursive: true });
+      await writeFile(
+        join(phase01, "status.json"),
+        JSON.stringify(
+          phaseStatusFile({
+            phaseId: "phase-01",
+            phaseIndex: 0,
+            state: "committed",
+            model: FIXTURE_MODEL,
+            effort: FIXTURE_EFFORT,
+            branchName: `${plan.run.branch}--phase-01`,
+            base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+            createdAt: now,
+            updatedAt: now,
+            worktreePath: join(r.stateRoot, "worktrees", `${r.namespace}.foo`, "phase-01"),
+            commitHash: "aabbccdd11223344",
+          }),
+        ),
+      );
+      await writeFile(join(phase01, "phase-handoff.md"), HANDOFF_CONTENT);
+
+      const statusPath = join(runPath, "run-status.json");
+      const runStatus = JSON.parse(readFileSync(statusPath, "utf8")) as Record<string, unknown>;
+      await writeFile(
+        statusPath,
+        JSON.stringify({
+          ...runStatus,
+          state: "interrupted",
+          currentPhaseIndex: 1,
+          gateProfileId: "standard",
           updatedAt: now,
-          worktreePath: join(r.stateRoot, "worktrees", `${r.namespace}.foo`, "phase-01"),
-          commitHash: "aabbccdd11223344",
         }),
-      ),
-    );
-    await writeFile(join(phase01, "phase-handoff.md"), HANDOFF_CONTENT);
+      );
+      await Effect.runPromise(
+        setRunStatus(r.stateRoot, r.namespace, runShortName, { state: "interrupted" }).pipe(
+          Effect.provide(NodeFileSystemLayer),
+        ),
+      );
 
-    const statusPath = join(runPath, "run-status.json");
-    const runStatus = JSON.parse(readFileSync(statusPath, "utf8")) as Record<string, unknown>;
-    await writeFile(
-      statusPath,
-      JSON.stringify({
-        ...runStatus,
-        state: "interrupted",
-        currentPhaseIndex: 1,
-        gateProfileId: "standard",
-        updatedAt: now,
-      }),
-    );
-    await Effect.runPromise(
-      setRunStatus(r.stateRoot, r.namespace, runShortName, { state: "interrupted" }).pipe(
-        Effect.provide(NodeFileSystemLayer),
-      ),
-    );
+      const planPath = join(runPath, "phax-plan.json");
+      const written = JSON.parse(readFileSync(planPath, "utf8")) as {
+        phases: Array<Record<string, unknown>>;
+      };
+      await writeFile(
+        planPath,
+        JSON.stringify({
+          ...written,
+          $schema: schemaUrl("phax-plan", stamp),
+          phases: written.phases.map(older),
+        }),
+      );
+      return runShortName;
+    }
 
-    const planPath = join(runPath, "phax-plan.json");
-    const written = JSON.parse(readFileSync(planPath, "utf8")) as {
-      phases: Array<Record<string, unknown>>;
-    };
-    await writeFile(
-      planPath,
-      JSON.stringify({
-        ...written,
-        $schema: schemaUrl("phax-plan", "0.25.0"),
-        phases: written.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
-      }),
-    );
-    return runShortName;
-  }
+    it("exits 2 naming the file, its shape and the way out, with nothing written", async () => {
+      const r = createPreflightRepo({ plan: { phases: [{}, {}] } });
+      roots = r;
+      process.chdir(r.repo);
+      const runShortName = await pauseWithOlderPlan(r);
+      const runPath = join(r.stateRoot, "runs", `${r.namespace}.${runShortName}`);
+      const planPath = join(runPath, "phax-plan.json");
+      const statusPath = join(runPath, "run-status.json");
+      const planBefore = readFileSync(planPath, "utf8");
+      const statusBefore = readFileSync(statusPath, "utf8");
 
-  it("exits 2 naming the file, its shape and the way out, with nothing written", async () => {
-    const r = createPreflightRepo({ plan: { phases: [{}, {}] } });
-    roots = r;
-    process.chdir(r.repo);
-    const runShortName = await pauseWithOlderPlan(r);
-    const runPath = join(r.stateRoot, "runs", `${r.namespace}.${runShortName}`);
-    const planPath = join(runPath, "phax-plan.json");
-    const statusPath = join(runPath, "run-status.json");
-    const planBefore = readFileSync(planPath, "utf8");
-    const statusBefore = readFileSync(statusPath, "utf8");
+      const out = recordingOutput();
+      const code = await runResume(runShortName, { yes: true }, out.port);
 
-    const out = recordingOutput();
-    const code = await runResume(runShortName, { yes: true }, out.port);
+      expect(code).toBe(2);
+      expect(out.errors).toHaveLength(1);
+      const [message] = out.errors;
+      expect(message).toContain(planPath);
+      expect(message).toContain(`phax-plan in the ${shape} shape`);
+      expect(message).toContain("an older phax wrote it");
+      expect(message).toContain("Finish the run with the phax release that started it");
+      expect(message).toContain(`\`phax archive ${r.namespace}.${runShortName} --force\``);
+      expect(message).toContain("run its plan again");
+      expect(readFileSync(planPath, "utf8")).toBe(planBefore);
+      expect(readFileSync(statusPath, "utf8")).toBe(statusBefore);
+      expect(
+        existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${runShortName}`, "phase-02")),
+      ).toBe(false);
+    });
 
-    expect(code).toBe(2);
-    expect(out.errors).toHaveLength(1);
-    const [message] = out.errors;
-    expect(message).toContain(planPath);
-    expect(message).toContain("phax-plan in the 0.17.0 shape");
-    expect(message).toContain("an older phax wrote it");
-    expect(message).toContain("Finish the run with the phax release that started it");
-    expect(message).toContain(`\`phax archive ${r.namespace}.${runShortName} --force\``);
-    expect(message).toContain("run its plan again");
-    expect(readFileSync(planPath, "utf8")).toBe(planBefore);
-    expect(readFileSync(statusPath, "utf8")).toBe(statusBefore);
-    expect(
-      existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${runShortName}`, "phase-02")),
-    ).toBe(false);
-  });
+    it("refuses on the preview too, never promising a resume it would refuse", async () => {
+      const r = createPreflightRepo({ plan: { phases: [{}, {}] } });
+      roots = r;
+      process.chdir(r.repo);
+      const runShortName = await pauseWithOlderPlan(r);
 
-  it("refuses on the preview too, never promising a resume it would refuse", async () => {
-    const r = createPreflightRepo({ plan: { phases: [{}, {}] } });
-    roots = r;
-    process.chdir(r.repo);
-    const runShortName = await pauseWithOlderPlan(r);
+      const out = recordingOutput();
+      const code = await runResume(runShortName, { yes: false }, out.port);
 
-    const out = recordingOutput();
-    const code = await runResume(runShortName, { yes: false }, out.port);
-
-    expect(code).toBe(2);
-    expect(out.errors.join("\n")).toContain("an older phax wrote it");
-    expect(out.logs.join("\n")).not.toContain("would resume");
-  });
-});
+      expect(code).toBe(2);
+      expect(out.errors.join("\n")).toContain("an older phax wrote it");
+      expect(out.logs.join("\n")).not.toContain("would resume");
+    });
+  },
+);

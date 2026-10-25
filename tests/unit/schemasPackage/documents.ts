@@ -695,12 +695,18 @@ export function withModelReasons(doc: Doc): Doc {
 
 /**
  * A current phax-plan as the frozen 0.17.0 shape wrote it: no phase carries
- * `mode` or `oracle`.
+ * `mode`, `oracle` or `testLines`.
  */
 export function withoutPhaseKinds(doc: Doc): Doc {
-  const phases = (doc["phases"] as Doc[]).map(
+  const phases = (withoutTestLines(doc)["phases"] as Doc[]).map(
     ({ mode: _mode, oracle: _oracle, ...phase }) => phase,
   );
+  return { ...doc, phases };
+}
+
+/** A current phax-plan as the frozen 0.26.0 shape wrote it: no phase carries `testLines`. */
+export function withoutTestLines(doc: Doc): Doc {
+  const phases = (doc["phases"] as Doc[]).map(({ testLines: _lines, ...phase }) => phase);
   return { ...doc, phases };
 }
 
@@ -734,7 +740,11 @@ function withEmptyQuestions(doc: Doc): Doc {
  * question.
  */
 export function latestPreSchema(id: PreSchemaFormatId): Doc {
-  return liftPreSchema(id, UNKNOWN);
+  const lifted = liftPreSchema(id, UNKNOWN);
+  if (id !== "phax-plan") return lifted;
+  // The package's lift states no test line: each phase's `testLines` is `Unknown`.
+  const phases = (lifted["phases"] as Doc[]).map((phase) => ({ ...phase, testLines: UNKNOWN }));
+  return { ...lifted, phases };
 }
 
 /** The made-up summary `validDocuments["spec-document"]` gives its surface element. */
@@ -813,10 +823,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("phax-plan", {
       run: phaxPlan.run,
       phases: [
-        { ...phaxPlan.phases[0], mode: "headless" as const, oracle: null },
+        { ...phaxPlan.phases[0], mode: "headless" as const, oracle: null, testLines: [] },
         ...phaxPlan.phases
           .slice(1)
-          .map((phase) => ({ ...phase, mode: "headless" as const, oracle: null })),
+          .map((phase) => ({ ...phase, mode: "headless" as const, oracle: null, testLines: [] })),
       ],
     }),
   ),

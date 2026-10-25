@@ -27,6 +27,7 @@ function validJson(): string {
         plannedFilesToCreate: [],
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
+        testLines: [],
         commit: { subject: "feat: phase-01", body: "body" },
       },
     ],

@@ -14,8 +14,11 @@ import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git } from "../ports/git.js";
 import type { CostLedger } from "../schemas/costLedger.js";
-import { readCostLedgerFile, readPhaxPlanFile } from "../schemas/persisted.js";
-import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import {
+  readCostLedgerFile,
+  readPhaxPlanFile,
+  type AnyShapePhaxPlan,
+} from "../schemas/persisted.js";
 import type { RegistryEntry } from "../schemas/registry.js";
 import { runFolderOf } from "./costBackfill.js";
 import { COST_LEDGER_FILE } from "./costLedger.js";
@@ -123,7 +126,7 @@ function sizeRun(
       return null;
     }
     // Sizing only: an older shape is read lifted, whatever the shape.
-    const plan = yield* readJsonFile<PhaxPlan>(
+    const plan = yield* readJsonFile<AnyShapePhaxPlan>(
       planPath,
       (file, input) => Either.map(readPhaxPlanFile(file, input), (read) => read.plan),
       {

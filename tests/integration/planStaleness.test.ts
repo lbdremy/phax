@@ -674,6 +674,35 @@ describe("plansStalenessReport", () => {
     expect(bad?.result.kind).toBe("error");
   });
 
+  it("reports the departure refusal for a live Approved plan with a departing test line, never asking the model", async () => {
+    const { fsImpl, backendImpl, layer } = fullHarness();
+    const path = "docs/plans/2609101240-departing-plan.md";
+    fsImpl.setFile(
+      path,
+      deterministicPlanMd({ status: "Draft", sourceSpec: "(none)" }).replace(
+        "### Commit subject",
+        "### Test strategy\n\n- add unit tests for the exporter\n\n### Commit subject",
+      ),
+    );
+    await run(transitionArtifact(path, "Approved", APPROVE_OPTS).pipe(Effect.provide(layer)));
+
+    const { report } = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+
+    expect(report).toEqual([
+      {
+        path,
+        result: {
+          kind: "error",
+          message: `${path}: phase-01 test line 1 departs from the format: "add unit tests for the exporter" — run phax plans lint ${path}`,
+        },
+      },
+    ]);
+    expect(renderStalenessReport(report)).toContain("run phax plans lint");
+    expect(backendImpl.completeCalls).toHaveLength(0);
+  });
+
   it("a plan that fails artifact validation yields an error entry before any extraction", async () => {
     const { fsImpl, backendImpl, layer } = fullHarness();
 

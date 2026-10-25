@@ -19,10 +19,11 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { currentSchemaUrl, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -40,7 +41,7 @@ const GATE_COMMAND = "pnpm test";
 const shortName = Either.getOrThrow(decodeShortName("grants-run"));
 
 const plan: PhaxPlan = Either.getOrThrow(
-  readPhaxPlanFile("phax-plan.json", {
+  readCurrentPhaxPlanFile("phax-plan.json", {
     version: 1,
     run: {
       shortName: "grants-run",

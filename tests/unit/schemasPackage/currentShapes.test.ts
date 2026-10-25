@@ -304,17 +304,33 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);
 // phax refuses every pre-schema phase status (it never recorded `base`); the
 // package reads it with `base` Unknown. A pre-schema spec document recorded no
-// surface summary: phax lifts the placeholder, the package `Unknown`. Both are
-// covered below where they part.
+// surface summary: phax lifts the placeholder, the package `Unknown`. A
+// pre-schema phax-plan stated no test lines: phax gives its phases no
+// `testLines` key, the package `Unknown`. All three are covered below where
+// they part.
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
-  (id) => BRIDGE_READERS[id] !== undefined && id !== "phase-status" && id !== "spec-document",
+  (id) =>
+    BRIDGE_READERS[id] !== undefined &&
+    id !== "phase-status" &&
+    id !== "spec-document" &&
+    id !== "phax-plan",
 );
 // A pre-schema phase status upgrades with `base` Unknown, a phax-written one
 // keeps its base; a pre-schema spec document upgrades with each summary
-// Unknown, a phax-written one keeps its own: the two never upgrade alike.
+// Unknown, a phax-written one keeps its own; a pre-schema phax-plan upgrades
+// with `testLines` Unknown, a phax-written one keeps its lines: they never
+// upgrade alike.
 const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
-  (id) => id !== "phase-status" && id !== "spec-document",
+  (id) => id !== "phase-status" && id !== "spec-document" && id !== "phax-plan",
 );
+
+/** Each phase without its `testLines` key. */
+function phasesWithoutLines(phases: readonly object[]): object[] {
+  return phases.map((phase) => {
+    const { testLines: _lines, ...rest } = phase as Record<string, unknown>;
+    return rest;
+  });
+}
 
 describe("phax's bridge and the package agree", () => {
   it.each(PRE_SCHEMA_READ_BY_PHAX)(
@@ -384,6 +400,26 @@ describe("phax's bridge and the package agree", () => {
     expect(PACKAGE_LATEST["spec-document"](written)).toMatchObject({
       surface: [{ summary: EXAMPLE_SURFACE_SUMMARY }],
     });
+  });
+
+  // Where they part: a phax-plan an older phax wrote stated no test lines. The
+  // package keeps them as Unknown; phax's reader gives the phases no
+  // `testLines` key, and only its display and sizing readers take that plan.
+  it("phax-plan: a pre-schema plan's test lines are Unknown to the package, absent to phax", () => {
+    const document = preSchemaDocuments["phax-plan"];
+    const lifted = PACKAGE_LATEST["phax-plan"](document) as { phases: object[] };
+    expect(lifted.phases.every((p) => "testLines" in p && p.testLines === UNKNOWN)).toBe(true);
+    const read = readPhaxPlanFile("/work/example-repo/phax-plan.json", document);
+    if (Either.isLeft(read)) throw new Error(read.left.message);
+    expect(read.right.shape).toBe("pre-schema");
+    expect(read.right.plan.phases.every((p) => !("testLines" in p))).toBe(true);
+    // Every other recorded fact reads alike.
+    expect(phasesWithoutLines(read.right.plan.phases)).toEqual(phasesWithoutLines(lifted.phases));
+    // A phax-written plan keeps the lines it recorded, in either reading.
+    const written = PACKAGE_LATEST["phax-plan"](validDocuments["phax-plan"]) as {
+      phases: object[];
+    };
+    expect(written.phases.every((p) => "testLines" in p && Array.isArray(p.testLines))).toBe(true);
   });
 
   it.each(UPGRADED_ALIKE)(

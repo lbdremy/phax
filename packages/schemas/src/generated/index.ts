@@ -12,7 +12,7 @@ export const CURRENT_SHAPES = {
   registry: "0.26.0",
   "run-status": "0.26.0",
   "phase-status": "0.26.0",
-  "phax-plan": "0.26.0",
+  "phax-plan": "next",
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",
   "spec-approvals": "0.17.0",

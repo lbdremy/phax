@@ -5,7 +5,12 @@ import type { ShortName } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
-import { readPhaseStatusFile, readPhaxPlanFile, readRunStatusFile } from "../schemas/persisted.js";
+import {
+  readPhaseStatusFile,
+  readPhaxPlanFile,
+  readRunStatusFile,
+  type AnyShapePhaxPlan,
+} from "../schemas/persisted.js";
 import { runKey } from "../domain/runRef.js";
 
 export type { RunReviewInfo };
@@ -65,8 +70,10 @@ function loadRunReviewInfo(
 
   const planPath = join(runPath, "phax-plan.json");
   const planResult = readPhaxPlanFile(planPath, tryReadJson(planPath));
-  // Display only: an older shape is read lifted, whatever the shape.
-  const plan = Either.isRight(planResult) ? planResult.right.plan : undefined;
+  // Display only: an older shape is read lifted, whatever the shape, without test lines.
+  const plan: AnyShapePhaxPlan | undefined = Either.isRight(planResult)
+    ? planResult.right.plan
+    : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
   const runTitle = plan?.run.title;

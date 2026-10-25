@@ -14,6 +14,7 @@ import * as specDocumentV0_17_0 from "../../../src/schemas/history/spec-document
 import * as specDocumentV0_25_0 from "../../../src/schemas/history/spec-document/0.25.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as phaxPlanV0_17_0 from "../../../src/schemas/history/phax-plan/0.17.0.js";
+import * as phaxPlanV0_26_0 from "../../../src/schemas/history/phax-plan/0.26.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import * as specApprovalRecordV0_19_0 from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
@@ -111,6 +112,7 @@ describe("schemas package entry", () => {
       "PhaxPlanPreSchemaSchema",
       "PhaxPlanSchema",
       "PhaxPlanV0_17_0Schema",
+      "PhaxPlanV0_26_0Schema",
       "PlanApprovalRecordSchema",
       "PlanApprovalRecordV0_19_0Schema",
       "PlanApprovalsPreSchemaSchema",
@@ -330,6 +332,12 @@ describe("schemas package entry", () => {
     expect(entry.PhaxPlanV0_17_0Schema).toBe(phaxPlanV0_17_0.PhaxPlanV0_17_0Schema);
     expect(phaxPlanV0_17_0.decodePhaxPlanV0_17_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodePhaxPlanV0_17_0");
+  });
+
+  it("re-exports the phax-plan 0.26.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.PhaxPlanV0_26_0Schema).toBe(phaxPlanV0_26_0.PhaxPlanV0_26_0Schema);
+    expect(phaxPlanV0_26_0.decodePhaxPlanV0_26_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodePhaxPlanV0_26_0");
   });
 
   it("re-exports the brief-record 0.20.0 frozen module's schema, never a copy, and never its decoder", () => {

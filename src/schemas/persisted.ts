@@ -17,8 +17,10 @@
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. Six formats also read an older
 // `$schema` shape: a phax-plan stamped below its current stamp is read by the
+// frozen 0.26.0 decoder when stamped 0.26.0 or later, and below that by the
 // frozen 0.17.0 decoder and lifted with `mode: "headless"` and `oracle: null`
-// on every phase, and `readPhaxPlanFile` reports the shape it read; an
+// on every phase, never given `testLines`, and `readPhaxPlanFile` reports the
+// shape it read; an
 // authoring record manifest stamped below its current
 // stamp is read by the frozen 0.17.0 decoder, then stepped to the current
 // shape, so the records already on phax/records/v1 stay listed; a spec or plan
@@ -95,6 +97,7 @@ import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manif
 import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
+import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
@@ -135,7 +138,12 @@ import {
 import { decodeInteractiveHandoffFile, type InteractiveHandoffFile } from "./interactiveHandoff.js";
 import { decodeInteractiveSessionFile, type InteractiveSession } from "./interactiveSession.js";
 import { decodeOracleRequestFile, type OracleRequest } from "./oracleRequest.js";
-import { decodePhaxPlanFile, type PhaxPlan, type PhaxPlanFile } from "./phaxPlan.js";
+import {
+  decodePhaxPlanFile,
+  type PhaxPlan,
+  type PhaxPlanFile,
+  type PhaxPlanPhase,
+} from "./phaxPlan.js";
 import {
   decodePlanDocumentFile,
   type PlanDocument,
@@ -441,20 +449,31 @@ const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
   });
 };
 
-/** The shape a run's `phax-plan.json` was read in, beside the plan at the current shape. */
-export type PhaxPlanShape = "current" | "0.17.0" | "pre-schema";
+/** The shape a run's `phax-plan.json` was read in. */
+export type PhaxPlanShape = "current" | "0.26.0" | "0.17.0" | "pre-schema";
 
-export interface PhaxPlanRead {
-  readonly shape: PhaxPlanShape;
-  readonly plan: PhaxPlan;
+/**
+ * The plan every shape of `phax-plan.json` satisfies: its phases carry no
+ * `testLines`, because a plan an older phax extracted never stated them. The
+ * display and sizing readers take it, so none is told a past run tested nothing.
+ */
+export interface AnyShapePhaxPlan {
+  readonly run: PhaxPlan["run"];
+  readonly phases: Arr.NonEmptyReadonlyArray<Omit<PhaxPlanPhase, "testLines">>;
 }
+
+/** A run's `phax-plan.json` as read: the current plan, or an older one without `testLines`. */
+export type PhaxPlanRead =
+  | { readonly shape: "current"; readonly plan: PhaxPlan }
+  | { readonly shape: Exclude<PhaxPlanShape, "current">; readonly plan: AnyShapePhaxPlan };
 
 /**
  * Lifts the phases of a phax-plan older than `mode`: each gains
  * `mode: "headless"` and `oracle: null` after `optionalFilesToEdit`. Every
- * phase an older phax ran was headless, and no oracle phase existed.
+ * phase an older phax ran was headless, and no oracle phase existed. No phase
+ * gains `testLines`.
  */
-function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): PhaxPlan["phases"] {
+function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan["phases"] {
   return Arr.map(phases, (phase) => ({
     id: phase.id,
     title: phase.title,
@@ -472,14 +491,26 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): PhaxPlan["phases
 
 /**
  * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
- * current stamp by the current decoder (`current`), one stamped below it by
- * the frozen 0.17.0 decoder (`0.17.0`), and one without `$schema` by the
- * pre-schema decoder (`pre-schema`). An older shape is lifted with
- * `liftPhaxPlanPhases`. A caller that hands the plan to a run accepts only
- * `current`; one that only displays or sizes it takes `.plan` whatever the shape.
+ * current stamp by the current decoder (`current`); one stamped 0.26.0 or
+ * later, below the current stamp, by the frozen 0.26.0 decoder (`0.26.0`); one
+ * stamped lower by the frozen 0.17.0 decoder (`0.17.0`); and one without
+ * `$schema` by the pre-schema decoder (`pre-schema`). The two oldest are lifted
+ * with `liftPhaxPlanPhases`; no older shape is given `testLines`. A caller that
+ * hands the plan to a run accepts only `current`; one that only displays or
+ * sizes it takes `.plan`, an `AnyShapePhaxPlan`, whatever the shape.
  */
 export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.26.0") >= 0) {
+      const v0_26_0 = decodePhaxPlanV0_26_0(input);
+      if (Either.isLeft(v0_26_0)) {
+        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_26_0.left)));
+      }
+      const { $schema: _schema, ...plan } = v0_26_0.right;
+      return Either.right({ shape: "0.26.0", plan });
+    }
     const older = decodePhaxPlanV0_17_0(input);
     if (Either.isLeft(older)) {
       return Either.left(readError(file, "phax-plan", formatFirstViolation(older.left)));

@@ -74,8 +74,9 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parsePhaxPlan,
     phax: decodePhaxPlanFile,
     toLatest: toLatestPhaxPlan,
-    // Every phase an older phax ran was headless, and no oracle phase existed.
-    phaseLift: { mode: "headless", oracle: null },
+    // Every phase an older phax ran was headless, and no oracle phase existed;
+    // no older phax read test lines.
+    phaseLift: { mode: "headless", oracle: null, testLines: UNKNOWN },
   },
   {
     id: "compliance-review",
@@ -150,8 +151,16 @@ describe.each(FORMATS)("$id", (format) => {
     const old = format.parse(preSchema);
     const written = format.parse(document);
     if (!old.ok || !written.ok) throw new Error("document rejected");
-    const recorded = (latest: unknown): Doc =>
-      Object.keys(format.unrecorded ?? {}).reduce(withoutKey, latest as Doc);
+    // The facts the pre-schema shape never recorded, on the document and on each phase, are left out.
+    const recorded = (latest: unknown): Doc => {
+      const doc = Object.keys(format.unrecorded ?? {}).reduce(withoutKey, latest as Doc);
+      const phaseLift = format.phaseLift;
+      if (phaseLift === undefined) return doc;
+      const phases = (doc["phases"] as Doc[]).map((phase) =>
+        Object.keys(phaseLift).reduce(withoutKey, phase),
+      );
+      return { ...doc, phases };
+    };
     expect(recorded(format.toLatest(written.value as never))).toEqual(
       recorded(format.toLatest(old.value as never)),
     );
@@ -208,15 +217,46 @@ describe("toLatestPhaxPlan", () => {
   });
 });
 
-describe("the phax-plan's mode and oracle history", () => {
+describe("the phax-plan's mode, oracle and test lines history", () => {
   const current = validDocuments["phax-plan"];
-  /** A phax-plan as phax 0.17.0 through 0.25.x wrote it: `$schema`, phases without mode and oracle. */
+  /** A phax-plan as phax 0.26.0 and 0.27.x wrote it: `$schema`, phases without testLines. */
+  function withoutLines(release: string): Doc {
+    const phases = (current["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
+    return withKey(withKey(current, "phases", phases), "$schema", schemaUrl("phax-plan", release));
+  }
+  /** A phax-plan as phax 0.17.0 through 0.25.x wrote it: `$schema`, phases without mode, oracle and testLines. */
   function older(release: string): Doc {
-    const phases = (current["phases"] as Doc[]).map((phase) =>
+    const phases = (withoutLines(release)["phases"] as Doc[]).map((phase) =>
       withoutKey(withoutKey(phase, "mode"), "oracle"),
     );
     return withKey(withKey(current, "phases", phases), "$schema", schemaUrl("phax-plan", release));
   }
+  /** The current document's latest value with every phase's `testLines` Unknown. */
+  const liftedCurrent = (): Doc => {
+    const latest = withoutKey(current, "$schema");
+    const phases = (latest["phases"] as Doc[]).map((phase) => ({ ...phase, testLines: UNKNOWN }));
+    return { ...latest, phases };
+  };
+
+  // Literal releases, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  it.each(["0.26.0", "0.27.0"])(
+    "parses a document stamped %s as shape 0.26.0 through the frozen module",
+    (release) => {
+      const document = withoutLines(release);
+      expect(parsePhaxPlan(document)).toEqual({ ok: true, shape: "0.26.0", value: document });
+    },
+  );
+
+  it("lifts a 0.26.0 document's phases with testLines Unknown, keeping every recorded fact", () => {
+    const result = parsePhaxPlan(withoutLines("0.26.0"));
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPhaxPlan(result.value)).toEqual(liftedCurrent());
+  });
+
+  it("refuses a document at the current stamp that lacks testLines", () => {
+    const phases = (current["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
+    expect(parsePhaxPlan(withKey(current, "phases", phases))).toMatchObject({ ok: false });
+  });
 
   it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
     const document = older("0.17.0");
@@ -232,10 +272,10 @@ describe("the phax-plan's mode and oracle history", () => {
     expect(parsePhaxPlan(older("0.26.0"))).toMatchObject({ ok: false });
   });
 
-  it("lifts an older document's phases with mode headless and oracle null, keeping every recorded fact", () => {
+  it("lifts an older document's phases with mode headless, oracle null and testLines Unknown, keeping every recorded fact", () => {
     const result = parsePhaxPlan(older("0.17.0"));
     if (!result.ok) throw new Error("document rejected");
-    expect(toLatestPhaxPlan(result.value)).toEqual(withoutKey(current, "$schema"));
+    expect(toLatestPhaxPlan(result.value)).toEqual(liftedCurrent());
   });
 
   it("keeps an interactive phase and its oracle as recorded", () => {

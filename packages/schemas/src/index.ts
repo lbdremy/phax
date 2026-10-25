@@ -125,6 +125,7 @@ export {
   type LatestCostLedger,
   type LatestPhaseStatus,
   type LatestPhaxPlan,
+  type LatestPhaxPlanPhase,
   type LatestRegistry,
   type LatestRunStatus,
   type PhaseStatusShape,
@@ -478,6 +479,10 @@ export {
   PhaxPlanV0_17_0Schema,
   type PhaxPlanV0_17_0,
 } from "../../../src/schemas/history/phax-plan/0.17.0.js";
+export {
+  PhaxPlanV0_26_0Schema,
+  type PhaxPlanV0_26_0,
+} from "../../../src/schemas/history/phax-plan/0.26.0.js";
 export {
   GateAttributionV0_17_0Schema,
   type GateAttributionV0_17_0,

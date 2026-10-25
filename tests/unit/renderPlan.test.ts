@@ -130,6 +130,22 @@ function roundTrip(doc: PlanDocument, md: string) {
   };
 }
 
+/** A made-up test line: an in-phase small example unless `extra` says otherwise. */
+function madeUpLine(
+  guarantee: string,
+  extra: Partial<PlanDocument["phases"][0]["testStrategy"][0]>,
+) {
+  return {
+    guarantee,
+    size: "small" as const,
+    technique: "example" as const,
+    oracle: "the result",
+    loop: "in-phase" as const,
+    criterion: null,
+    ...extra,
+  };
+}
+
 describe("renderPlanBody round trip through the deterministic parser", () => {
   it("parses back to exactly the document's projection", () => {
     const doc = fixture();
@@ -164,6 +180,7 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
       optionalFilesToEdit: ["docs/cli/inventory.md"],
       mode: "headless",
       oracle: null,
+      testLines: doc.phases[0].testStrategy,
       commit: {
         subject: "feat(schemas): spec and plan document schemas with `phax artifact schema`",
         body: "Add the experimental spec document and plan document formats.\n\n- a strict projection\n- JSON Schema export\n\nUnit-tested; usage spec regenerated.",
@@ -181,6 +198,41 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
       branch: "phax/headless-authoring",
       requiredCommands: ["pnpm gen:usage-spec", "pnpm dev schema upgrade"],
     });
+  });
+
+  it.each([
+    { name: "no line", lines: [] },
+    { name: "one plain line", lines: [madeUpLine("it works", {})] },
+    {
+      name: "a criterion and the oracle loop",
+      lines: [madeUpLine("it is refused", { loop: "oracle", criterion: "ac-refuse" })],
+    },
+    {
+      name: "code spans, an em dash and a middle dot in the guarantee",
+      lines: [
+        madeUpLine("`a — b` · `c` reads — back", {
+          oracle: "`parse(x)` · its value",
+          technique: "table",
+        }),
+      ],
+    },
+    {
+      name: "several lines in order",
+      lines: [
+        madeUpLine("first", { size: "medium", technique: "property" }),
+        madeUpLine("second", { size: "large", technique: "smoke", criterion: "ac-2" }),
+        madeUpLine("third", { technique: "metamorphic" }),
+      ],
+    },
+  ])("reads each phase's test lines back unchanged: $name", ({ lines }) => {
+    const base = fixture();
+    const doc = decoded({
+      ...base,
+      phases: [{ ...base.phases[0], testStrategy: lines }, base.phases[1]],
+    });
+    const { parsed } = roundTrip(doc, renderPlanBody(doc));
+    expect(parsed.phases[0].testLines).toEqual(lines);
+    expect(parsed.phases[1]!.testLines).toEqual([]);
   });
 
   it("renders every empty list as `- (none)` and still parses", () => {

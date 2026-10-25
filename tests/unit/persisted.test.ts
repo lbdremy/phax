@@ -61,6 +61,7 @@ import {
   EXAMPLE_TEST_LINES,
   withoutPhaseKinds,
   withoutPreambleQuestions,
+  withoutTestLines,
   type Doc,
 } from "./schemasPackage/documents.js";
 
@@ -427,8 +428,16 @@ describe("format readers", () => {
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file) => {
     const expected = phaxLatestPreSchema(id);
     // The current document records a summary; the pre-schema one is lifted with the placeholder.
+    // The current phax-plan records its test lines; the pre-schema one is never given any.
     const expectedCurrent =
-      id === "spec-document" ? withSurfaceSummary(expected, EXAMPLE_SURFACE_SUMMARY) : expected;
+      id === "spec-document"
+        ? withSurfaceSummary(expected, EXAMPLE_SURFACE_SUMMARY)
+        : id === "phax-plan"
+          ? {
+              ...expected,
+              phases: (expected["phases"] as Doc[]).map((p) => ({ ...p, testLines: [] })),
+            }
+          : expected;
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);
@@ -1081,7 +1090,9 @@ describe("documents from another release", () => {
                     ? withModelReasons(validDocuments[id])
                     : withoutPreambleQuestions(validDocuments[id])
                 : id === "phax-plan"
-                  ? withoutPhaseKinds(validDocuments[id])
+                  ? compareReleases(release, "0.26.0") >= 0
+                    ? withoutTestLines(validDocuments[id])
+                    : withoutPhaseKinds(validDocuments[id])
                   : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
@@ -1281,13 +1292,39 @@ describe("files stamped by an earlier release in the current shape", () => {
 // run can refuse an older one while the display readers take the lift.
 describe("readPhaxPlanFile's shapes", () => {
   const file = "/home/example/.phax/runs/example.example-run/phax-plan.json";
-  const lifted = latestPreSchema("phax-plan");
+  // phax's lift: mode headless, oracle null, and never a `testLines` key.
+  const lifted = phaxLatestPreSchema("phax-plan");
 
   it("reads a file at the current stamp as shape current", () => {
     expect(right(readPhaxPlanFile(file, validDocuments["phax-plan"]))).toEqual({
       shape: "current",
       plan: withoutKey(validDocuments["phax-plan"], "$schema"),
     });
+  });
+
+  // Literal releases: the answer must not change when a release is cut.
+  it.each(["0.26.0", "0.27.0"])(
+    "reads a file stamped %s as shape 0.26.0, its phases given no testLines",
+    (release) => {
+      const older = withKey(
+        withoutTestLines(validDocuments["phax-plan"]),
+        "$schema",
+        schemaUrl("phax-plan", release),
+      );
+      const read = right(readPhaxPlanFile(file, older));
+      expect(read).toEqual({ shape: "0.26.0", plan: withoutKey(older, "$schema") });
+      expect(read.plan.phases.every((p) => !("testLines" in p))).toBe(true);
+    },
+  );
+
+  it("refuses a 0.26.0-stamped file whose phases carry testLines, naming the file", () => {
+    const older = withKey(validDocuments["phax-plan"], "$schema", schemaUrl("phax-plan", "0.26.0"));
+    expect(left(readPhaxPlanFile(file, older)).message).toMatch(new RegExp(`^${file}: `));
+  });
+
+  it("refuses a current-stamped file whose phases carry no testLines, naming the file", () => {
+    const current = withoutTestLines(validDocuments["phax-plan"]);
+    expect(left(readPhaxPlanFile(file, current)).message).toMatch(new RegExp(`^${file}: `));
   });
 
   // Literal release: the answer must not change when a release is cut.

@@ -20,8 +20,8 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const shortName = Either.getOrThrow(decodeShortName("preflight-run"));
 
@@ -116,7 +116,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -181,7 +181,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -249,7 +249,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer } = makeLayers();
 
@@ -317,7 +317,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 

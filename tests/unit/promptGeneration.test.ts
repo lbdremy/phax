@@ -17,6 +17,7 @@ function phase(n: number, title: string, files: Partial<PhaxPlanPhase> = {}): Ph
     optionalFilesToEdit: [],
     mode: "headless",
     oracle: null,
+    testLines: [],
     commit: {
       subject: `feat: ${title.toLowerCase()}`,
       body: `Commit body of ${id}.`,
@@ -34,9 +35,25 @@ const phases: PhaxPlan["phases"] = [
     plannedFilesToCreate: ["src/report.ts"],
     plannedFilesToEdit: ["src/cli.ts"],
     optionalFilesToEdit: ["src/optional.ts"],
+    testLines: [
+      {
+        guarantee: "a parse error names its line",
+        size: "small",
+        technique: "example",
+        oracle: "the expected message",
+        loop: "in-phase",
+        criterion: null,
+      },
+    ],
   }),
   phase(4, "Document it", { plannedFilesToEdit: ["README.md"] }),
 ];
+
+/** The current phase as the prompt shows it: the phase prompt does not act on test lines. */
+function shownPhase(p: PhaxPlanPhase): Omit<PhaxPlanPhase, "testLines"> {
+  const { testLines: _lines, ...shown } = p;
+  return shown;
+}
 
 const samplePlan: PhaxPlan = {
   run: {
@@ -132,12 +149,25 @@ describe("buildPhasePrompt", () => {
 
   it("carries the current phase's definition", () => {
     const prompt = buildPhasePrompt(base);
-    expect(prompt).toContain(`## Current phase\n\n${JSON.stringify(phase03, null, 2)}\n`);
+    expect(prompt).toContain(
+      `## Current phase\n\n${JSON.stringify(shownPhase(phase03), null, 2)}\n`,
+    );
     expect(prompt).toContain('"src/report.ts"');
     expect(prompt).toContain('"subject": "feat: report errors"');
     expect(prompt).toContain('"body": "Commit body of phase-03."');
     expect(prompt).toContain('"model": "claude-opus-4-6"');
     expect(prompt).toContain('"effort": "high"');
+  });
+
+  it("shows the current phase without its testLines key (test-strategy §7)", () => {
+    const prompt = buildPhasePrompt(base);
+    expect(phase03.testLines).toHaveLength(1);
+    const json = prompt.slice(
+      prompt.indexOf("## Current phase"),
+      prompt.indexOf("## Execution rules"),
+    );
+    expect(json).not.toContain("testLines");
+    expect(json).not.toContain("a parse error names its line");
   });
 
   it("outlines every phase and marks the current one", () => {
@@ -297,7 +327,7 @@ describe("buildPhasePrompt", () => {
     const briefSection = "## Brief for this phase\n\nA made-up brief.";
     const prompt = buildPhasePrompt({ ...base, briefSection });
     expect(prompt).toContain(
-      `${JSON.stringify(phase03, null, 2)}\n\n${briefSection}\n\n## Execution rules\n`,
+      `${JSON.stringify(shownPhase(phase03), null, 2)}\n\n${briefSection}\n\n## Execution rules\n`,
     );
   });
 
@@ -305,7 +335,9 @@ describe("buildPhasePrompt", () => {
     const prompt = buildPhasePrompt({ ...base, briefSection: undefined });
     expect(prompt).toBe(buildPhasePrompt(base));
     expect(prompt).not.toContain("## Brief for this phase");
-    expect(prompt).toContain(`${JSON.stringify(phase03, null, 2)}\n\n## Execution rules\n`);
+    expect(prompt).toContain(
+      `${JSON.stringify(shownPhase(phase03), null, 2)}\n\n## Execution rules\n`,
+    );
   });
 
   it("a null oracle role adds no section", () => {

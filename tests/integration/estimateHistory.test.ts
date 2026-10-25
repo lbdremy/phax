@@ -53,32 +53,44 @@ function writeRegistry(fs: ReturnType<typeof setup>["fs"], entries: readonly Reg
   fs.setFile(`${STATE}/registry.json`, registryJson(entries));
 }
 
-/** `phaxPlanJson`'s plan as an older phax wrote it: stamped 0.25.0, no mode and no oracle. */
-function olderPhaxPlanJson(phases: Parameters<typeof phaxPlanJson>[0]): string {
+/**
+ * `phaxPlanJson`'s plan as an older phax wrote it: stamped 0.25.0 with no
+ * mode, oracle or testLines, or stamped 0.26.0 with no testLines.
+ */
+function olderPhaxPlanJson(
+  stamp: "0.25.0" | "0.26.0",
+  phases: Parameters<typeof phaxPlanJson>[0],
+): string {
   const plan = JSON.parse(phaxPlanJson(phases)) as { phases: Array<Record<string, unknown>> };
   return JSON.stringify({
     ...plan,
-    $schema: schemaUrl("phax-plan", "0.25.0"),
-    phases: plan.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
+    $schema: schemaUrl("phax-plan", stamp),
+    phases: plan.phases.map(({ mode, oracle, testLines: _lines, ...phase }) =>
+      stamp === "0.26.0" ? { ...phase, mode, oracle } : phase,
+    ),
   });
 }
 
 describe("readEstimateHistory", () => {
-  it("sizes a run whose phax-plan.json an older phax wrote, read lifted", async () => {
-    const { fs, git, read } = setup();
-    writeRegistry(fs, [archived]);
-    fs.setFile(`${archivedFolder}/cost-ledger.json`, ledgerJson([ledgerEntry({ costUsd: 5 })]));
-    fs.setFile(
-      `${archivedFolder}/phax-plan.json`,
-      olderPhaxPlanJson([{ id: "phase-01", edit: ["a.ts"] }]),
-    );
-    git.addDatedCommit(BASE, daysAgo(20), { "a.ts": 1000 });
+  // Literal releases: the answer must not change when a release is cut.
+  it.each(["0.25.0", "0.26.0"] as const)(
+    "sizes a run whose phax-plan.json an older phax stamped %s, read lifted",
+    async (stamp) => {
+      const { fs, git, read } = setup();
+      writeRegistry(fs, [archived]);
+      fs.setFile(`${archivedFolder}/cost-ledger.json`, ledgerJson([ledgerEntry({ costUsd: 5 })]));
+      fs.setFile(
+        `${archivedFolder}/phax-plan.json`,
+        olderPhaxPlanJson(stamp, [{ id: "phase-01", edit: ["a.ts"] }]),
+      );
+      git.addDatedCommit(BASE, daysAgo(20), { "a.ts": 1000 });
 
-    const history = await read();
+      const history = await read();
 
-    expect(history.sizedRuns.map((run) => run.runKey)).toEqual(["demo.beta.run-b"]);
-    expect(history.sizedRuns[0]!.phases).toMatchObject([{ id: "phase-01", editBytes: 1000 }]);
-  });
+      expect(history.sizedRuns.map((run) => run.runKey)).toEqual(["demo.beta.run-b"]);
+      expect(history.sizedRuns[0]!.phases).toMatchObject([{ id: "phase-01", editBytes: 1000 }]);
+    },
+  );
 
   it("reads kept active and archived runs, sizes them, and adds a pruned copy", async () => {
     const { fs, git, read } = setup();

@@ -230,6 +230,7 @@ export function projectExtractedPlan(doc: AuthoredPlanDocument): ExtractedPhaxPl
       optionalFilesToEdit: phase.optionalFilesToEdit,
       mode: phase.mode,
       oracle: phase.oracle,
+      testLines: phase.testStrategy,
       commit: { subject: phase.commit.subject, body: phase.commit.body },
     })),
   };

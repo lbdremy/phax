@@ -271,6 +271,7 @@ function answerPhase(id: string): ExtractionAnswer["phases"][number] {
     plannedFilesToCreate: [],
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
+    testLines: [],
     commit: { subject: "feat: x", body: "Body." },
   };
 }
@@ -302,19 +303,21 @@ describe("withPhaseKinds", () => {
     "",
   ].join("\n");
 
-  it("adds each phase's mode and oracle from its header lines, after optionalFilesToEdit", () => {
+  it("adds each phase's mode and oracle from its header lines, after optionalFilesToEdit and before the answer's testLines", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-02"]), twoPhases);
     if (Either.isLeft(result)) throw new Error(result.left.message);
     const [first, second] = result.right.phases;
     expect(first).toMatchObject({
       mode: "headless",
       oracle: { dischargedBy: "phase-02", files: ["a.test.ts"] },
+      testLines: [],
     });
     expect(second).toMatchObject({ mode: "interactive", oracle: null });
-    expect(Object.keys(first!).slice(-4)).toEqual([
+    expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
   });

@@ -329,9 +329,24 @@ describe("projectExtractedPlan", () => {
         optionalFilesToEdit: [],
         mode: "headless",
         oracle: null,
+        testLines: doc.phases[n - 1]!.testStrategy,
         commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
       })),
     });
+    expect(projected.phases[0].testLines).toHaveLength(2);
+  });
+
+  it("projects the test strategy as testLines, directly after oracle, and [] for a phase with none", () => {
+    const doc = Either.getOrThrow(
+      decodePlanDocument({
+        ...validPlanDocument(),
+        phases: [validPhase(1), { ...validPhase(2), testStrategy: [] }],
+      }),
+    );
+    const [first, second] = projectExtractedPlan(doc).phases;
+    expect(first!.testLines).toEqual(doc.phases[0].testStrategy);
+    expect(second!.testLines).toEqual([]);
+    expect(Object.keys(first!).slice(-3)).toEqual(["oracle", "testLines", "commit"]);
   });
 
   it("projects mode and oracle unchanged, directly after optionalFilesToEdit", () => {
@@ -345,10 +360,11 @@ describe("projectExtractedPlan", () => {
     const [first, second] = projectExtractedPlan(doc).phases;
     expect(first).toMatchObject({ mode: "interactive", oracle });
     expect(second).toMatchObject({ mode: "headless", oracle: null });
-    expect(Object.keys(first!).slice(-4)).toEqual([
+    expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
       "oracle",
+      "testLines",
       "commit",
     ]);
   });

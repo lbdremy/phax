@@ -34,7 +34,7 @@ import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { AgentRunOptions } from "../../src/ports/backend.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { CostLedgerEntry } from "../../src/schemas/costLedger.js";
-import { readCostLedgerFile, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readCostLedgerFile } from "../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -44,6 +44,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -341,7 +342,7 @@ describe("cost ledger at run time", () => {
     readonly prepare?: (backend: ReturnType<typeof makeFakeBackend>) => void;
   }) {
     const plan = Either.getOrThrow(
-      readPhaxPlanFile("phax-plan.json", rawPlan(opts.phase02Model)),
+      readCurrentPhaxPlanFile("phax-plan.json", rawPlan(opts.phase02Model)),
     ).plan;
     const config = makeConfig(stateRoot, opts.complianceReview);
     const { backend, layers } = fakes(opts.gateFailsOnce);

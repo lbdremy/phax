@@ -132,6 +132,7 @@ const plan: PhaxPlan = {
       optionalFilesToEdit: [],
       mode: "headless",
       oracle: null,
+      testLines: [],
       commit: { subject: "feat: add the example module", body: "Adds the example module." },
     },
   ],
@@ -189,6 +190,9 @@ const SPEC_DOCUMENT = {
   docsPage: { kind: "none", why: "Nothing user-facing." },
 };
 
+// A plan document phase states its lines as `testStrategy`, never `testLines`.
+const { testLines: _planLines, ...planPhaseFields } = plan.phases[0];
+
 const PLAN_DOCUMENT = {
   version: 1,
   kind: "plan",
@@ -204,7 +208,7 @@ const PLAN_DOCUMENT = {
   },
   phases: [
     {
-      ...plan.phases[0],
+      ...planPhaseFields,
       objective: "The example module exists.",
       detailedInstructions: ["Create src/example.ts."],
       boundaryContracts: null,

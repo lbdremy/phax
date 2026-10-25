@@ -65,6 +65,8 @@ function planMd(
     readonly frontmatter?: string;
     /** Extra header lines, right after the effort line. */
     readonly header?: readonly string[];
+    /** The `### Test strategy` section's text; no section when absent. */
+    readonly testStrategy?: string;
   } = {},
 ): string {
   const {
@@ -75,7 +77,9 @@ function planMd(
     edit = "- (none)",
     frontmatter = DRAFT_FRONTMATTER,
     header = [],
+    testStrategy,
   } = overrides;
+  const testSection = testStrategy === undefined ? "" : `### Test strategy\n\n${testStrategy}\n\n`;
   return `${frontmatter}# Thing
 
 ## Required commands
@@ -99,7 +103,7 @@ ${edit}
 
 - (none)
 
-### Commit subject
+${testSection}### Commit subject
 
 feat(test): do thing
 
@@ -601,6 +605,79 @@ describe("lintPlan", () => {
     const report = await runLint(broken);
 
     expect(report.findings.filter((f) => f.check === "interactive")).toHaveLength(1);
+  });
+
+  describe("tests", () => {
+    const LINE =
+      "an invoice row renders its amount — small · example · the expected row · in-phase";
+
+    it("reports a departing line as one tests error naming phase-01 and the line, while the files and models checks still run", async () => {
+      const report = await runLint(
+        planMd({
+          model: "claude-imaginary-9",
+          edit: "- src/missing.ts",
+          testStrategy: "- add unit tests for the exporter",
+        }),
+      );
+
+      expect(hasLintErrors(report.findings)).toBe(true);
+      expect(report.findings.filter((f) => f.check === "tests")).toEqual([
+        {
+          severity: "error",
+          check: "tests",
+          phase: "phase-01",
+          message: 'test line 1 departs from the format: "add unit tests for the exporter"',
+        },
+      ]);
+      expect(report.findings.some((f) => f.check === "files")).toBe(true);
+      expect(report.findings.some((f) => f.check === "models")).toBe(true);
+      expect(report.findings.some((f) => f.check === "structure")).toBe(false);
+    });
+
+    it("reports nothing for formatted lines, `- (none)` or no section", async () => {
+      for (const overrides of [{ testStrategy: `- ${LINE}` }, { testStrategy: "- (none)" }, {}]) {
+        const report = await runLint(planMd(overrides));
+        expect(report.findings).toEqual([]);
+      }
+    });
+
+    it("names only a phase's first departure, by its source item number", async () => {
+      const report = await runLint(
+        planMd({ testStrategy: [`- ${LINE}`, "- second is prose", "- third too"].join("\n") }),
+      );
+
+      expect(report.findings).toEqual([
+        {
+          severity: "error",
+          check: "tests",
+          phase: "phase-01",
+          message: 'test line 2 departs from the format: "second is prose"',
+        },
+      ]);
+    });
+
+    it("reports the departure after the interactive and oracles rows", async () => {
+      const report = await runLint(
+        planMd({ header: ["**Mode:** sometimes"], testStrategy: "- prose" }),
+      );
+
+      const checks = report.findings.map((f) => f.check);
+      expect(checks).toContain("interactive");
+      expect(checks.indexOf("tests")).toBeGreaterThan(checks.lastIndexOf("interactive"));
+      expect(checks.filter((c) => c === "tests")).toHaveLength(1);
+    });
+
+    it("reports a departure even when the plan does not parse", async () => {
+      const broken = planMd({ testStrategy: "- prose" }).replace(
+        "## Required commands\n\n- (none)\n\n",
+        "",
+      );
+
+      const report = await runLint(broken);
+
+      expect(report.findings.some((f) => f.check === "structure")).toBe(true);
+      expect(report.findings.filter((f) => f.check === "tests")).toHaveLength(1);
+    });
   });
 
   it("reports only structure findings for a structurally broken plan", async () => {

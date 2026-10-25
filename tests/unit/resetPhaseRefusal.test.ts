@@ -41,6 +41,7 @@ function planPhase(index: number, oracle: PxOracle = null): PhaxPlanPhase {
     optionalFilesToEdit: [],
     mode: "headless",
     oracle,
+    testLines: [],
     commit: { subject: `feat: ${id}`, body: "Made up." },
   };
 }

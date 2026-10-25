@@ -35,8 +35,8 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -90,7 +90,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
   });
 
   it("resets a gates_exhausted phase, archives its folder, removes worktree and branch, then resumes fresh", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

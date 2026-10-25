@@ -110,6 +110,7 @@ function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
     optionalFilesToEdit: [],
     mode: "headless" as const,
     oracle,
+    testLines: [],
     commit: { subject: `feat: ${id}`, body: "Made up." },
   };
 }

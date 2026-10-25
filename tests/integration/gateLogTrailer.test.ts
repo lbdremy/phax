@@ -21,9 +21,9 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -227,7 +227,7 @@ describe("executePlan — the Gate-Log trailer", () => {
     backend: ReturnType<typeof makeFakeBackend>;
     seed?: (runPath: string, runId: string) => Promise<unknown>;
   }) {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);

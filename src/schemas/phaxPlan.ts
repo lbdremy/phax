@@ -1,5 +1,6 @@
 import { JSONSchema, Schema, type Types } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { TestLineSchema } from "./testLine.js";
 
 /** phax's effort vocabulary: a plan phase's `effort`, and a bound's `effort.min` and `effort.max`. */
 export const PlanEffortSchema = Schema.Literal(
@@ -38,7 +39,10 @@ export const PhaseOracleSchema = Schema.NullOr(
 // decode rejects — keeping the trip-wire but removing the failure mode.
 // `mode` and `oracle` are phax's own reading of the phase's header lines in
 // plan.md (`phaseKinds`), as the title is its reading of the heading, so the
-// model's answer (`ExtractionAnswerSchema`) leaves them out too.
+// model's answer (`ExtractionAnswerSchema`) leaves them out too. `testLines`
+// are extracted on both paths: the deterministic parser reads the phase's
+// `### Test strategy` section, and the model emits them through the same
+// `TestLineSchema`.
 // The fields are exported on their own so the plan document (planDocument.ts)
 // carries exactly these schemas rather than a copy that could drift.
 export const ExtractedPhaseFields = {
@@ -51,6 +55,7 @@ export const ExtractedPhaseFields = {
   optionalFilesToEdit: Schema.Array(Schema.String),
   mode: PhaseModeSchema,
   oracle: PhaseOracleSchema,
+  testLines: Schema.Array(TestLineSchema),
   commit: Schema.Struct({
     subject: Schema.NonEmptyString,
     body: Schema.NonEmptyString,
@@ -59,8 +64,8 @@ export const ExtractedPhaseFields = {
 
 const ExtractedPhaseSchema = Schema.Struct(ExtractedPhaseFields);
 
-// What the extraction model emits per phase: the extracted fields without the
-// two phax reads from the header lines.
+// What the extraction model emits per phase: the extracted fields, test lines
+// included, without the two phax reads from the header lines.
 const { mode: _mode, oracle: _oracle, ...answerPhaseFields } = ExtractedPhaseFields;
 
 export const ExtractedRunSchema = Schema.Struct({
@@ -84,6 +89,7 @@ const PhaseSchema = Schema.Struct({
   optionalFilesToEdit: ExtractedPhaseFields.optionalFilesToEdit,
   mode: ExtractedPhaseFields.mode,
   oracle: ExtractedPhaseFields.oracle,
+  testLines: ExtractedPhaseFields.testLines,
   commit: ExtractedPhaseFields.commit,
 });
 
@@ -98,7 +104,7 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
 
 /**
  * The extraction model's answer: the extracted plan whose phases carry no
- * `mode` and no `oracle`. phax adds both from plan.md's header lines
+ * `mode` and no `oracle`; its `testLines` are the model's. phax adds both from plan.md's header lines
  * (`withPhaseKinds`), then decodes the result as `ExtractedPhaxPlanSchema`.
  */
 export const ExtractionAnswerSchema = Schema.Struct({

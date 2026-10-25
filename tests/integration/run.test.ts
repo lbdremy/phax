@@ -38,6 +38,7 @@ const EXTRACTED: ExtractionAnswer = {
       plannedFilesToCreate: [],
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
+      testLines: [],
       commit: { subject: "feat: phase one", body: "Does phase one." },
     },
   ],

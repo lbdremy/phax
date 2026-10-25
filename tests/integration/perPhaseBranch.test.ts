@@ -41,9 +41,10 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaseStatusFile, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readPhaseStatusFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { readCurrentPhaxPlanFile } from "../helpers/currentPhaxPlan.js";
 
 // Made-up full commit shas for the fake git's branch tips.
 const RUN_TIP = "1111111111111111111111111111111111111111";
@@ -181,7 +182,7 @@ describe("preparePhaseBranch — unit", () => {
 describe("the noted base — real git", () => {
   let repoDir: string;
   let runPath: string;
-  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+  const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
   const phase01 = plan.phases[0];
   const phase02 = plan.phases[1]!;
   const runBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
@@ -332,7 +333,7 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("creates two addWorktree calls with distinct branches and correct createBranch chain", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -488,7 +489,7 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("seeds previousPhaseBranch correctly on resume: createBranch only for phase-02", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan)).plan;
+    const plan = Either.getOrThrow(readCurrentPhaxPlanFile("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {

@@ -24,6 +24,7 @@ import {
   readGateReport,
   readPhaseFileReconciliationFile,
   readPhaxPlanFile,
+  type AnyShapePhaxPlan,
 } from "../schemas/persisted.js";
 import {
   oraclePairs,
@@ -172,8 +173,10 @@ export function loadOraclePairsSection(
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readPhaxPlanFile(path, parsed);
     if (Either.isLeft(read)) return undefined;
+    // Any shape: the pairs need no test lines.
+    const plan: AnyShapePhaxPlan = read.right.plan;
     const rows: OraclePairRow[] = [];
-    for (const pair of oraclePairs(read.right.plan.phases)) {
+    for (const pair of oraclePairs(plan.phases)) {
       rows.push({
         oraclePhase: pair.oraclePhase,
         dischargingPhase: pair.dischargingPhase,

@@ -3,7 +3,8 @@ import { splitFrontmatter } from "../artifact/frontmatter.js";
 
 // 2: the key hashes the plan body without its frontmatter block (was: the whole file).
 // 3: phases carry mode and oracle, read from the header lines.
-export const EXTRACTOR_VERSION = 3;
+// 4: phases carry testLines.
+export const EXTRACTOR_VERSION = 4;
 
 /**
  * Content address over the plan.md body + model + effort + extractor version.

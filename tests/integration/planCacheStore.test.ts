@@ -32,6 +32,7 @@ const EXTRACTED: ExtractedPhaxPlan = {
       optionalFilesToEdit: [],
       mode: "headless",
       oracle: null,
+      testLines: [],
       commit: { subject: "feat: do thing", body: "Does the thing." },
     },
   ],
@@ -155,31 +156,40 @@ describe("readCacheEntry — corrupted file", () => {
   });
 });
 
-describe("readCacheEntry — an entry under extractor version 2", () => {
-  it("is never looked up: the version 3 key misses it", async () => {
-    const { impl, layer } = makeFakeFileSystem();
-    const v2Key = planCacheKey(PLAN_MD, MODEL, EFFORT, 2);
-    const { mode: _mode, oracle: _oracle, ...v2Phase } = EXTRACTED.phases[0]!;
-    impl.setFile(
-      cacheEntryPath(STATE_ROOT, v2Key),
-      JSON.stringify({
-        version: 1,
-        key: v2Key,
-        planMdSha256: planMdSha256(PLAN_MD),
-        model: MODEL,
-        effort: EFFORT,
-        extractorVersion: 2,
-        extractedAt: "2026-01-01T00:00:00.000Z",
-        extracted: { ...EXTRACTED, phases: [v2Phase] },
-      }),
-    );
+describe("readCacheEntry — an entry under an older extractor version", () => {
+  const { mode: _mode, oracle: _oracle, testLines: _lines, ...v2Phase } = EXTRACTED.phases[0]!;
+  const { testLines: _v3Lines, ...v3Phase } = EXTRACTED.phases[0]!;
 
-    const v3Key = planCacheKey(PLAN_MD, MODEL, EFFORT);
-    expect(EXTRACTOR_VERSION).toBe(3);
-    expect(v3Key).not.toBe(v2Key);
-    const result = await Effect.runPromise(
-      readCacheEntry(STATE_ROOT, v3Key).pipe(Effect.provide(layer)),
-    );
-    expect(Option.isNone(result)).toBe(true);
-  });
+  // 2: phases without mode, oracle and testLines; 3: phases without testLines.
+  it.each([
+    { version: 2, phase: v2Phase },
+    { version: 3, phase: v3Phase },
+  ])(
+    "is never looked up under version $version: the version 4 key misses it",
+    async ({ version, phase }) => {
+      const { impl, layer } = makeFakeFileSystem();
+      const olderKey = planCacheKey(PLAN_MD, MODEL, EFFORT, version);
+      impl.setFile(
+        cacheEntryPath(STATE_ROOT, olderKey),
+        JSON.stringify({
+          version: 1,
+          key: olderKey,
+          planMdSha256: planMdSha256(PLAN_MD),
+          model: MODEL,
+          effort: EFFORT,
+          extractorVersion: version,
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          extracted: { ...EXTRACTED, phases: [phase] },
+        }),
+      );
+
+      const currentKey = planCacheKey(PLAN_MD, MODEL, EFFORT);
+      expect(EXTRACTOR_VERSION).toBe(4);
+      expect(currentKey).not.toBe(olderKey);
+      const result = await Effect.runPromise(
+        readCacheEntry(STATE_ROOT, currentKey).pipe(Effect.provide(layer)),
+      );
+      expect(Option.isNone(result)).toBe(true);
+    },
+  );
 });
