@@ -641,6 +641,18 @@ describe("lintPlan", () => {
       }
     });
 
+    it("flags nothing on a last phase with an empty test strategy and no other defect", async () => {
+      const first = planMd({ testStrategy: `- ${LINE}` });
+      const second = planMd({ testStrategy: "- (none)" })
+        .slice(planMd().indexOf("## phase-01"))
+        .replaceAll("phase-01", "phase-02");
+      const plan = `${first}\n${second}`;
+
+      const report = await runLint(plan);
+
+      expect(report.findings).toEqual([]);
+    });
+
     it("names only a phase's first departure, by its source item number", async () => {
       const report = await runLint(
         planMd({ testStrategy: [`- ${LINE}`, "- second is prose", "- third too"].join("\n") }),
@@ -820,6 +832,13 @@ describe("lintPlan", () => {
           phase: null,
           message: 'slug "thing" differs from source spec slug "other-thing"',
         },
+        {
+          severity: "warning",
+          check: "tests",
+          phase: null,
+          message:
+            "source spec docs/specs/2609101200-other-thing.md is not found, here or under docs/specs/archive/: no criterion id is checked",
+        },
       ]);
     });
 
@@ -832,7 +851,7 @@ describe("lintPlan", () => {
           planMd({ frontmatter: frontmatterWithSpec(spec), edit: "- src/a.ts" }),
           { "/repo/src/a.ts": "export {}" },
         );
-        expect(report.findings).toEqual([]);
+        expect(report.findings.filter((f) => f.check !== "tests")).toEqual([]);
       }
     });
 
@@ -881,7 +900,7 @@ describe("lintPlan", () => {
           }),
           { "/repo/src/a.ts": "export {}" },
         );
-        expect(report.findings).toEqual([]);
+        expect(report.findings.filter((f) => f.check !== "tests")).toEqual([]);
       },
     );
 
@@ -892,7 +911,7 @@ describe("lintPlan", () => {
           { "/repo/src/a.ts": "export {}" },
           { planRel: "examples/hello-world/plan.md" },
         );
-        expect(report.findings).toEqual([]);
+        expect(report.findings.filter((f) => f.check !== "tests")).toEqual([]);
       }
     });
   });
