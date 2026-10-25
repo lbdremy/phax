@@ -20,6 +20,7 @@ import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
 import type { ProviderStoreRoots } from "../../ports/providerStores.js";
 import { Shell } from "../../ports/shell.js";
+import { StdinReadError } from "../../ports/terminal.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
 import {
@@ -261,6 +262,8 @@ export function exitCodeForError(err: unknown): number {
  */
 export function exitCodeForAuthoringError(err: unknown): number {
   if (err instanceof ArtifactCommitFailedError) return 12;
+  // `--verdicts -` whose stdin cannot be read: the caller's input, refused.
+  if (err instanceof StdinReadError) return 12;
   return exitCodeForError(err);
 }
 

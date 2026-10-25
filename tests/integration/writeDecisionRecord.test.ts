@@ -88,8 +88,12 @@ describe("writeDecisionRecord (real git)", () => {
     }
   }
 
-  function baseInput(overrides: Partial<WriteDecisionRecordInput> = {}): WriteDecisionRecordInput {
+  type InteractiveInput = Extract<WriteDecisionRecordInput, { mode: "interactive" }>;
+  type VerdictsInput = Extract<WriteDecisionRecordInput, { mode: "verdicts" }>;
+
+  function baseInput(overrides: Partial<InteractiveInput> = {}): InteractiveInput {
     return {
+      mode: "interactive",
       repoRoot: repoDir,
       records: inRepoConfig(true),
       folder,
@@ -227,6 +231,103 @@ describe("writeDecisionRecord (real git)", () => {
       outcome: "failed",
       commit: null,
       usage: { available: false },
+    });
+  });
+
+  describe("mode verdicts", () => {
+    function verdictsInput(overrides: Partial<VerdictsInput> = {}): VerdictsInput {
+      const { end: _end, mode: _mode, ...rest } = baseInput();
+      return {
+        ...rest,
+        mode: "verdicts",
+        model: "claude-sonnet-5-5",
+        requestedModel: "claude-sonnet-5-5",
+        effort: "medium",
+        end: { outcome: "committed", commit: "def5678" },
+        turnSessionIds: [KEPT_SESSION],
+        ...overrides,
+      };
+    }
+
+    const VERDICTS_FOLDER = {
+      "verdicts.json": '{"verdicts":[]}\n',
+      "prompt.md": "the writer prompt\n",
+      "document.json": '{"kind":"spec"}\n',
+      "before.md": "the artifact before\n",
+      "after.md": "the artifact after\n",
+      "body.diff": "-before\n+after\n",
+      "output.jsonl": claudeTranscript(KEPT_SESSION, 900, 300, 0.04),
+    };
+
+    it("records the verdicts file, the prompt, the document and the diff, with no handback prompt", async () => {
+      await seedFolder(VERDICTS_FOLDER);
+
+      const result = await run(verdictsInput());
+
+      expect(result).toMatchObject({ kind: "written", key: KEY, shape: "full" });
+      expect(lsRecords().toSorted()).toEqual(
+        [
+          "body.diff",
+          "document.json",
+          "output.jsonl",
+          "prompt.md",
+          "record.json",
+          "verdicts.json",
+        ].map((name) => `${KEY}/${name}`),
+      );
+      expect(show("verdicts.json")).toBe('{"verdicts":[]}\n');
+      const manifest = JSON.parse(show("record.json")) as Record<string, unknown>;
+      expect(Either.isRight(decodeDecisionRecordManifestFile(manifest))).toBe(true);
+      expect(manifest).toMatchObject({
+        mode: "verdicts",
+        outcome: "committed",
+        commit: "def5678",
+        model: "claude-sonnet-5-5",
+        requestedModel: "claude-sonnet-5-5",
+        effort: "medium",
+        questions: ["Q1", "Q2"],
+        usage: { available: true, usage: { inputTokens: 900, outputTokens: 300 } },
+      });
+    });
+
+    it("keeps the concrete model and the model asked for apart", async () => {
+      await seedFolder(VERDICTS_FOLDER);
+
+      await run(verdictsInput({ model: "claude-sonnet-5-5", requestedModel: "mystery-1" }));
+
+      expect(JSON.parse(show("record.json"))).toMatchObject({
+        model: "claude-sonnet-5-5",
+        requestedModel: "mystery-1",
+      });
+    });
+
+    it("a failed decide records outcome failed with commit null", async () => {
+      await seedFolder({ ...VERDICTS_FOLDER, "retry-prompt.md": "again\n" });
+
+      await run(verdictsInput({ end: { outcome: "failed", commit: null }, arbitrated: 0 }));
+
+      expect(JSON.parse(show("record.json"))).toMatchObject({
+        mode: "verdicts",
+        outcome: "failed",
+        commit: null,
+      });
+      expect(lsRecords()).toContain(`${KEY}/retry-prompt.md`);
+    });
+
+    it("withholds every session id from the verdicts file and the transcripts", async () => {
+      await seedFolder({
+        ...VERDICTS_FOLDER,
+        "verdicts.json": `{"note":"see ${KEPT_SESSION}"}\n`,
+        "retry-output.jsonl": claudeTranscript(RETRY_SESSION, 100, 50, 0.01),
+      });
+
+      await run(verdictsInput({ retried: true, sessionIds: [KEPT_SESSION, RETRY_SESSION] }));
+
+      for (const path of lsRecords()) {
+        const blob = git(["show", `${RECORDS_BRANCH_NAME}:${path}`], repoDir);
+        expect(blob).not.toContain(KEPT_SESSION);
+        expect(blob).not.toContain(RETRY_SESSION);
+      }
     });
   });
 

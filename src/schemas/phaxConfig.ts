@@ -173,6 +173,12 @@ export const DEFAULT_AUTHORING_EFFORT: Effort = "high";
 export const DEFAULT_DECIDE_MODEL = "claude-opus-5-5";
 export const DEFAULT_DECIDE_EFFORT: Effort = "high";
 
+// `phax artifact decide --verdicts` only transcribes decisions a person already
+// made: it needs less judgment than authoring, so it takes the tier compliance
+// review defaults to. `--model`/`--effort` override it; no phax.json key.
+export const DEFAULT_VERDICTS_MODEL = "claude-sonnet-5-5";
+export const DEFAULT_VERDICTS_EFFORT: Effort = "medium";
+
 export interface ResolvedAuthoringConfig {
   readonly spec: { readonly model: string; readonly effort: Effort };
   readonly plan: { readonly model: string; readonly effort: Effort };

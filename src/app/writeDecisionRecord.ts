@@ -37,6 +37,8 @@ export const DECIDE_DOCUMENT_FILENAME = "document.json";
 export const DECIDE_BEFORE_FILENAME = "before.md";
 export const DECIDE_AFTER_FILENAME = "after.md";
 export const DECIDE_DIFF_FILENAME = "body.diff";
+/** Verdicts mode's input: the verdicts file's text exactly as given. */
+export const DECIDE_VERDICTS_FILENAME = "verdicts.json";
 
 /**
  * The decision-folder files a decision record may carry; anything else there
@@ -44,6 +46,7 @@ export const DECIDE_DIFF_FILENAME = "body.diff";
  * recorded.
  */
 const DECISION_RECORD_FILES: readonly string[] = [
+  DECIDE_VERDICTS_FILENAME,
   DECIDE_PROMPT_FILENAME,
   DECIDE_HANDBACK_PROMPT_FILENAME,
   DECIDE_RETRY_PROMPT_FILENAME,
@@ -59,12 +62,20 @@ const DECISION_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([
   DECIDE_RETRY_TRANSCRIPT_FILENAME,
 ]);
 
-/** How the decide ended, and the commit when it landed. */
+/** How an interactive decide ended, and the commit when it landed. */
 export type DecisionRecordEnd =
   | { readonly outcome: "committed"; readonly commit: string }
   | { readonly outcome: "declined" | "undecided" | "failed"; readonly commit: null };
 
-export interface WriteDecisionRecordInput {
+/**
+ * How a verdicts-mode decide ended: landed, or failed. There is no operator to
+ * decline a diff and no verdict left undecided.
+ */
+export type VerdictsRecordEnd =
+  | { readonly outcome: "committed"; readonly commit: string }
+  | { readonly outcome: "failed"; readonly commit: null };
+
+interface DecisionRecordFields {
   /** The source repository; receives the commit for an `in-repo` destination. */
   readonly repoRoot: string;
   /** The local records clone, required for a dedicated `repo` destination. */
@@ -86,9 +97,9 @@ export interface WriteDecisionRecordInput {
   /** HEAD when the session started. */
   readonly sourceSha: string;
   readonly provider: ProviderId;
+  /** The concrete model the session ran. */
   readonly model: string;
   readonly effort: string;
-  readonly end: DecisionRecordEnd;
   /** Whether the handback was resumed once more for a refused document. */
   readonly retried: boolean;
   /**
@@ -97,6 +108,25 @@ export interface WriteDecisionRecordInput {
    */
   readonly sessionIds: readonly string[];
 }
+
+/**
+ * What a decide record is written from, by mode. `interactive` is an
+ * operator's session; `verdicts` a verdicts file transcribed by a headless
+ * writer, which also names the model asked for (`model` is the concrete one it
+ * ran) and the session id each of its turns reported, for a provider that
+ * keeps its usage in its own session store.
+ */
+export type WriteDecisionRecordInput = DecisionRecordFields &
+  (
+    | { readonly mode: "interactive"; readonly end: DecisionRecordEnd }
+    | {
+        readonly mode: "verdicts";
+        readonly end: VerdictsRecordEnd;
+        readonly requestedModel: string;
+        /** The session id of the first turn and, when retried, of the retry. */
+        readonly turnSessionIds: readonly string[];
+      }
+  );
 
 export type WriteDecisionRecordResult = RecordWriteResult;
 
@@ -127,23 +157,23 @@ export function writeDecisionRecord(
       input.records.transcript,
       DECISION_TRANSCRIPT_FILES,
     );
+    const turnSessionIds = input.mode === "verdicts" ? input.turnSessionIds : [];
     const usage = yield* computeSessionUsage({
       provider: input.provider,
       folder: input.folder,
       turns: [
-        { transcript: DECIDE_TRANSCRIPT_FILENAME, sessionId: undefined },
+        { transcript: DECIDE_TRANSCRIPT_FILENAME, sessionId: turnSessionIds[0] },
         ...(input.retried
-          ? [{ transcript: DECIDE_RETRY_TRANSCRIPT_FILENAME, sessionId: undefined }]
+          ? [{ transcript: DECIDE_RETRY_TRANSCRIPT_FILENAME, sessionId: turnSessionIds[1] }]
           : []),
       ],
     });
 
-    const manifest: DecisionRecordManifest = {
+    const common = {
       kind: "decision",
       decisionId: input.decisionId,
       artifact: input.artifact,
       artifactKind: input.artifactKind,
-      mode: "interactive",
       session: input.session,
       doctrine: input.doctrine,
       questions: input.questions,
@@ -154,9 +184,12 @@ export function writeDecisionRecord(
       provider: input.provider,
       model: input.model,
       effort: input.effort,
-      ...input.end,
       usage,
-    };
+    } as const;
+    const manifest: DecisionRecordManifest =
+      input.mode === "interactive"
+        ? { ...common, mode: "interactive", ...input.end }
+        : { ...common, mode: "verdicts", requestedModel: input.requestedModel, ...input.end };
 
     const key = decisionRecordKey(input.decisionId);
     const message = [
