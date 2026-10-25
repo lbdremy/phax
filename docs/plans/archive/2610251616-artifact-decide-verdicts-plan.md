@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610191226-artifact-decide-verdicts.md
 completes-spec: true
 approved:
