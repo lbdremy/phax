@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateUsageSpec } from "../../scripts/generate-usage-spec.js";
 import { cliCompleters } from "../../src/cli/cliCompleters.js";
+import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 
@@ -44,7 +45,7 @@ describe("phax ls --complete output", () => {
       ["--import", "tsx/esm", join(repoRoot, "src/cli/main.ts"), "ls", "--complete"],
       {
         encoding: "utf8",
-        env: { ...process.env },
+        env: phaxHomeEnv(),
         cwd: repoRoot,
       },
     );

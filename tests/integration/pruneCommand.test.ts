@@ -20,6 +20,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import { makeNodeLockLayer } from "../../src/infra/lock.js";
 import { Lock } from "../../src/ports/lock.js";
 import { Prompt } from "../../src/ports/prompt.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   addBranch,
@@ -45,6 +46,11 @@ import {
 
 const promptState = vi.hoisted(() => ({ layer: undefined as unknown }));
 
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
+
 vi.mock("../../src/infra/prompt.js", () => ({
   makeClackPromptLayer: () => promptState.layer,
 }));
@@ -54,6 +60,7 @@ let events: string[];
 let asks: string[];
 let originalCwd: string;
 let originalIsTTY: PropertyDescriptor | undefined;
+let home: ReturnType<typeof isolatePhaxHome>;
 const restoreModes: string[] = [];
 
 /** Script the prompt: each confirm is recorded in `events`, in order with the output. */
@@ -101,6 +108,7 @@ function expectRunGone(run: SeededRun): void {
 }
 
 beforeEach(() => {
+  home = isolatePhaxHome();
   roots = createPruneRepo();
   events = [];
   scriptPrompt([]);
@@ -121,6 +129,7 @@ afterEach(() => {
     if (existsSync(path)) chmodSync(path, 0o755);
   }
   removePruneRepo(roots);
+  home.restore();
 });
 
 describe("phax prune", { timeout: 30_000 }, () => {

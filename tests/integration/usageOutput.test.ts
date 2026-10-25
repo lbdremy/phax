@@ -3,6 +3,7 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
+import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
@@ -11,7 +12,7 @@ const specPath = join(repoRoot, "phax.usage.kdl");
 function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
-    env: { ...process.env },
+    env: phaxHomeEnv(),
   });
 }
 

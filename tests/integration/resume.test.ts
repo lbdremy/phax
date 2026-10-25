@@ -30,13 +30,26 @@ import {
   recordingOutput,
   removePreflightRepo,
 } from "./helpers/preflightRepo.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 // Telemetry off: `phax resume` would otherwise scaffold ~/.phax/telemetry.json.
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
   return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: false })) };
+});
+
+let home: ReturnType<typeof isolatePhaxHome>;
+beforeEach(() => {
+  home = isolatePhaxHome();
+});
+afterEach(() => {
+  home.restore();
 });
 
 const HANDOFF_CONTENT = [

@@ -26,7 +26,13 @@ import { listRecords } from "../../src/app/recordsList.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
 const LAYER = Layer.mergeAll(NodeGitLayer, NodeShellLayer);
@@ -171,8 +177,10 @@ function preSchemaPhaseManifest(runId: string, phaseId: string, sourceSha: strin
 
 describe("records explain and list (real git)", () => {
   let repoDir: string;
+  let home: ReturnType<typeof isolatePhaxHome>;
 
   beforeEach(() => {
+    home = isolatePhaxHome();
     repoDir = mkdtempSync(join(tmpdir(), "phax-records-explain-repo-"));
     execGit(["init"], repoDir);
     disableGitAutoMaintenance(repoDir);
@@ -183,6 +191,7 @@ describe("records explain and list (real git)", () => {
 
   afterEach(async () => {
     removeTempDir(repoDir);
+    home.restore();
   });
 
   it("resolves a record through the commit's Run-Id/Phase-Id trailers, surviving a rebase", async () => {
@@ -479,15 +488,10 @@ describe("records explain and list (real git)", () => {
   });
 
   describe("records commands on a record carrying a file this release never writes", () => {
-    let tempHome: string;
-    let originalHome: string | undefined;
     let originalCwd: string;
 
     beforeEach(() => {
       originalCwd = process.cwd();
-      originalHome = process.env["HOME"];
-      tempHome = mkdtempSync(join(tmpdir(), "phax-records-explain-home-"));
-      process.env["HOME"] = tempHome;
       writeFileSync(
         join(repoDir, "phax.json"),
         JSON.stringify({
@@ -504,9 +508,6 @@ describe("records explain and list (real git)", () => {
 
     afterEach(() => {
       process.chdir(originalCwd);
-      if (originalHome === undefined) delete process.env["HOME"];
-      else process.env["HOME"] = originalHome;
-      removeTempDir(tempHome);
       vi.restoreAllMocks();
     });
 

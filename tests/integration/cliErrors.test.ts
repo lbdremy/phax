@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
@@ -14,6 +15,7 @@ const mainTs = join(repoRoot, "src/cli/main.ts");
 function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
+    env: phaxHomeEnv(),
     ...(cwd !== undefined ? { cwd } : {}),
   });
 }
@@ -190,6 +192,7 @@ describe("CLI error messages", () => {
       const result = spawnSync("tsx", [mainTs, "run", "--plan", planPath], {
         cwd: tmpRepoRoot,
         encoding: "utf8",
+        env: phaxHomeEnv(),
       });
 
       expect(result.status).toBe(12);

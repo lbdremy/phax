@@ -25,6 +25,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import {
   createPreflightRepo,
   FIXTURE_EFFORT,
@@ -36,6 +37,10 @@ import {
 } from "./helpers/preflightRepo.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 // Telemetry off: resume's run telemetry is not under test here.
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
@@ -340,15 +345,18 @@ function runPlanMdPath(roots: PreflightRepo): string {
 describe("phax resume — re-checks the inputs that can change before any worktree", () => {
   let roots: PreflightRepo | undefined;
   let origCwd: string;
+  let home: ReturnType<typeof isolatePhaxHome>;
 
   beforeEach(() => {
     origCwd = process.cwd();
+    home = isolatePhaxHome();
   });
 
   afterEach(() => {
     process.chdir(origCwd);
     removePreflightRepo(roots);
     roots = undefined;
+    home.restore();
     vi.resetAllMocks();
   });
 

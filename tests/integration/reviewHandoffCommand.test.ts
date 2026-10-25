@@ -2,11 +2,17 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { execSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runReviewHandoff } from "../../src/cli/commands/reviewHandoff.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+
+// A temporary home for the modules that compute their ~/.phax paths at import.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
 
 interface TestOutput {
   logs: string[];
@@ -70,8 +76,10 @@ describe("runReviewHandoff command", () => {
   let stateRoot: string;
   let runPath: string;
   let origCwd: string;
+  let home: ReturnType<typeof isolatePhaxHome>;
 
   beforeEach(async () => {
+    home = isolatePhaxHome();
     repoRoot = await mkdtemp(join(tmpdir(), "phax-cmd-test-"));
     stateRoot = join(repoRoot, ".phax-state");
     runPath = join(stateRoot, "runs", `test.${SHORT_NAME}`);
@@ -99,6 +107,7 @@ describe("runReviewHandoff command", () => {
   afterEach(async () => {
     process.chdir(origCwd);
     await rm(repoRoot, { recursive: true, force: true });
+    home.restore();
   });
 
   async function seedRun(state: string, includePhaseArtifacts = true): Promise<void> {
