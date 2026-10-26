@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-26
+  baseline: 50446ba
 ---
 # Release notes from specs
 
