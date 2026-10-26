@@ -159,7 +159,7 @@ describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
     expect(text).toContain("(not in the verdicts file)");
     expect(text).toMatch(/commit {5}[0-9a-f]{7} — docs\(specs\): decide log-rotation/);
     expect(text).toContain(
-      `status     Draft — read the verdicts and the diff above, then \`phax artifact approve ${SPEC_PATH}\``,
+      `status     Draft — read the verdicts and the diff above, then \`phax artifact approve ${SPEC_PATH} --by operator\``,
     );
   });
 

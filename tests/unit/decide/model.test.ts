@@ -167,6 +167,28 @@ describe("resolveVerdictsModel", () => {
     expect(Either.isRight(resolved)).toBe(true);
   });
 
+  it("refuses a model routing sends to mistral-vibe, which ignores read-only, naming --model", () => {
+    const vibeEnabled: ProviderConfig = {
+      providers: {
+        ...DEFAULT_PROVIDER_CONFIG.providers,
+        "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
+      },
+    };
+    for (const model of ["claude-sonnet-4-6", "phax-mistral-medium-3.5-medium"]) {
+      const resolved = resolveVerdictsModel(model, "medium", ROUTING, vibeEnabled);
+      expect(Either.isLeft(resolved), model).toBe(true);
+      if (Either.isLeft(resolved)) {
+        expect(resolved.left).toContain(model);
+        expect(resolved.left).toContain("mistral-vibe");
+        expect(resolved.left).toContain("pass --model with a Claude Code or Codex model");
+      }
+    }
+    // The built-in default still routes to Claude Code with Vibe enabled.
+    expect(
+      Either.getOrThrow(resolveVerdictsModel(undefined, undefined, ROUTING, vibeEnabled)).provider,
+    ).toBe("claude-code");
+  });
+
   it("refuses an effort outside low, medium and high, naming the effort and the allowed values", () => {
     for (const effort of ["xhigh", "max", "ultra", "loud"]) {
       const resolved = resolveVerdictsModel(undefined, effort, ROUTING, DEFAULT_PROVIDER_CONFIG);

@@ -86,8 +86,9 @@ function isEffort(value: string): value is Effort {
  * the built-in defaults (claude-sonnet-5-5 at medium), routed through
  * `resolveModel` like headless authoring. Routing never fails: a model with no
  * equivalent on the selected provider falls back, and the writer runs on the
- * concrete model routing chose, `model` keeping the one asked for. The only
- * refusal is an effort outside `low | medium | high`.
+ * concrete model routing chose, `model` keeping the one asked for. It refuses
+ * an effort outside `low | medium | high`, and a model routed to Mistral
+ * Vibe, whose adapter cannot hold a session read-only.
  */
 export function resolveVerdictsModel(
   flagModel: string | undefined,
@@ -101,6 +102,11 @@ export function resolveVerdictsModel(
     return Either.left(`--effort ${effort} is not an effort — use ${EFFORTS.join(", ")}`);
   }
   const { selected, relationship } = resolveModel({ model, effort }, routing, providerConfig);
+  if (selected.provider === "mistral-vibe") {
+    return Either.left(
+      `routing sends the writer's model ${model} to mistral-vibe (${selected.concreteModel}), which ignores read-only — pass --model with a Claude Code or Codex model`,
+    );
+  }
   return Either.right({
     model,
     effort,

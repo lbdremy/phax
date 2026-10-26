@@ -47,8 +47,13 @@ import {
   ANSWER_FOLLOW_WITH_REVISED,
   ANSWER_MOVES_NAMES,
   ANSWER_OTHER,
+  ANSWER_REARBITRATE_ADDS_OPTION,
   ANSWER_REARBITRATE_KEEP_20,
   ANSWER_REARBITRATE_SAME,
+  ANSWER_RESTORE_KEEP,
+  ANSWER_RESTORE_KEEP_UNNAMED,
+  ANSWER_RESTORE_UNREVISED,
+  ANSWER_RESTORE_UNREVISED_NAMES,
   ANSWER_WRONG_OPTION,
   FILE_EMPTY_NOTE,
   FILE_EMPTY_VERDICTS,
@@ -64,7 +69,10 @@ import {
   OTHER_SPEC_PATH,
   PREVIOUS_KEEP,
   SPEC,
+  SPEC_KEEP_20_DECIDED,
+  SPEC_KEEP_20_UNREVISED,
   SPEC_KEEP_DECIDED,
+  SPEC_NAMES_DECIDED,
   SPEC_PATH,
   TRANSCRIBED_FOLLOW,
 } from "../unit/decide/verdictsFixtures.js";
@@ -271,11 +279,17 @@ describe("decide --verdicts — verdicts land headless", { timeout: 30_000 }, ()
     expect(h.lines[0]).toContain("q-keep, q-scope");
   });
 
-  it("reads the verdicts from stdin when asked", async () => {
+  it("reads the verdicts from a pipe on stdin when asked", async () => {
     seed("unused");
-    const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)], stdin: FILE_VALID });
+    const h = world.harness({
+      runAnswers: [JSON.stringify(ANSWER_FOLLOW)],
+      stdin: FILE_VALID,
+      terminal: false,
+    });
 
-    const done = Either.getOrThrow(await h.run({ verdicts: { kind: "stdin" }, label: "stdin" }));
+    const done = Either.getOrThrow(
+      await h.run({ verdicts: { kind: "stdin" }, label: "stdin", by: "operator" }),
+    );
 
     expect(done.kind).toBe("committed");
     expect(h.lines[0]).toContain("verdicts from stdin: q-keep, q-scope");
@@ -284,15 +298,32 @@ describe("decide --verdicts — verdicts land headless", { timeout: 30_000 }, ()
     );
   });
 
-  it("an unreadable stdin exits 12 before any session", async () => {
+  it("an unreadable stdin exits 12 before any session, as a refusal naming its remedy", async () => {
     seed("unused");
-    const h = world.harness();
+    const h = world.harness({ terminal: false });
 
-    const result = await h.run({ verdicts: { kind: "stdin" }, label: "stdin" });
+    const result = await h.run({ verdicts: { kind: "stdin" }, label: "stdin", by: "operator" });
 
     const { error } = expectFailure(world, result, 12, world.headSha());
-    expect(error.tag).toBe("StdinReadError");
-    expect(error.message).toContain("stdin");
+    expect(error.reason).toBe("verdicts-file");
+    expect(error.message.startsWith("Decide refused: cannot read the verdicts from stdin")).toBe(
+      true,
+    );
+    expect(error.message).toContain("pass its path");
+    expectNoWriter(world, h);
+  });
+
+  it("--verdicts - with a terminal on stdin exits 12 before reading it", async () => {
+    seed("unused");
+    const h = world.harness({ terminal: true, stdin: FILE_VALID });
+
+    const result = await h.run({ verdicts: { kind: "stdin" }, label: "stdin", by: "operator" });
+
+    const { error } = expectFailure(world, result, 12, world.headSha());
+    expect(error.reason).toBe("verdicts-file");
+    expect(error.message).toBe(
+      "Decide refused: --verdicts - reads the verdicts from a pipe; pipe a file or pass its path",
+    );
     expectNoWriter(world, h);
   });
 });
@@ -385,7 +416,94 @@ describe("decide --verdicts — a choice off the menu: other", { timeout: 30_000
     expect(h.backend.resumeCalls).toHaveLength(1);
     expect(h.backend.resumeCalls[0]?.sessionId).toBe(WRITER_SESSION);
   });
+
+  it("a writer that adds an option to a re-arbitrated question is refused naming its options, not its history", async () => {
+    seed(
+      fileOf([{ question: "q-names", chosen: "other", note: "Name each log by run and phase." }]),
+      SPEC_NAMES_DECIDED,
+    );
+    const answer = JSON.stringify(ANSWER_REARBITRATE_ADDS_OPTION);
+    const h = world.harness({ runAnswers: [answer], resumeAnswers: [answer] });
+
+    const { error } = expectFailure(world, await h.run(), 5, world.headSha());
+
+    expect(error.path).toBe("arbitratedQuestions[0].options");
+    expect(error.message).toContain('"q-names" keeps its options (by-date, by-run)');
+    expect(error.message).not.toContain("history");
+    expect(h.backend.resumeCalls).toHaveLength(1);
+  });
 });
+
+describe(
+  "decide --verdicts — a verdict that restores the recommendation",
+  { timeout: 30_000 },
+  () => {
+    it("lands after a departure that revised the body, restoring and naming 5.1; why is the rationale", async () => {
+      seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), SPEC_KEEP_20_DECIDED);
+      const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_RESTORE_KEEP)] });
+
+      const done = Either.getOrThrow(await h.run());
+
+      expect(done.verdicts).toEqual([
+        {
+          question: "q-keep",
+          chosen: "keep-10",
+          recommendation: "keep-10",
+          departs: false,
+          why: "Ten logs cover a week of runs and keep the directory small.",
+          revised: ["5.1"],
+          by: { kind: "operator", name: OPERATOR },
+        },
+      ]);
+      const sidecar = sidecarJson() as unknown as SpecDocument;
+      expect(sidecar.requirements[0]?.statement).toBe(
+        "THE system SHALL keep the ten most recent logs.",
+      );
+      expect(arbitratedOf()[0]?.history.map((v) => v.chosen)).toEqual(["keep-20"]);
+      expect(world.readRepoFile(SPEC_PATH)).toContain("ten most recent logs");
+    });
+
+    it("lands with revised [] after a departure that revised nothing", async () => {
+      seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), SPEC_KEEP_20_UNREVISED);
+      const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_RESTORE_UNREVISED)] });
+
+      const done = Either.getOrThrow(await h.run());
+
+      expect(done.verdicts).toMatchObject([{ question: "q-keep", departs: false, revised: [] }]);
+    });
+
+    it.each([
+      {
+        name: "names no section after a departure that revised the body",
+        sidecar: SPEC_KEEP_20_DECIDED,
+        answer: ANSWER_RESTORE_KEEP_UNNAMED,
+        message: "name the body sections it restores",
+      },
+      {
+        name: "names a section after a departure that revised nothing",
+        sidecar: SPEC_KEEP_20_UNREVISED,
+        answer: ANSWER_RESTORE_UNREVISED_NAMES,
+        message: "revised nothing: its revised is []",
+      },
+    ])(
+      "a writer that $name exits 5 after the corrective resume, writing nothing",
+      async ({ sidecar, answer, message }) => {
+        seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), sidecar);
+        const h = world.harness({
+          runAnswers: [JSON.stringify(answer)],
+          resumeAnswers: [JSON.stringify(answer)],
+        });
+
+        const { error } = expectFailure(world, await h.run(), 5, world.headSha());
+
+        expect(error.tag).toBe("DecideDocumentError");
+        expect(error.path).toBe("arbitratedQuestions[0].verdict.revised");
+        expect(error.message).toContain(message);
+        expect(h.backend.resumeCalls).toHaveLength(1);
+      },
+    );
+  },
+);
 
 describe("decide --verdicts — a writer's answer is checked", { timeout: 30_000 }, () => {
   const CASES: ReadonlyArray<{
@@ -528,7 +646,11 @@ describe(
         message: ["$schema", OTHER_RELEASE_URL],
       },
       { name: "an unknown key", text: FILE_EXTRA_KEY, message: ["reason"] },
-      { name: "an empty verdicts list", text: FILE_EMPTY_VERDICTS, message: ["verdicts"] },
+      {
+        name: "an empty verdicts list",
+        text: FILE_EMPTY_VERDICTS,
+        message: ["verdicts: the list is empty — give at least one verdict"],
+      },
       { name: "a missing note", text: FILE_NO_NOTE, message: ["verdicts[0].note"] },
       { name: "an empty note", text: FILE_EMPTY_NOTE, message: ["verdicts[0].note"] },
     ];
@@ -795,18 +917,25 @@ describe("decide --verdicts — who decides", { timeout: 30_000 }, () => {
     expectNoWriter(world, h);
   });
 
-  it("refuses --by bob with the arbiter parser's message", async () => {
-    seed(FILE_VALID);
-    const h = world.harness();
+  it.each([
+    { by: "bob", reason: "by" },
+    { by: "machine:Bad_Grant", reason: "by" },
+  ])(
+    "refuses --by $by with the verdicts remedy, not the approve parser's",
+    async ({ by, reason }) => {
+      seed(FILE_VALID);
+      const h = world.harness();
 
-    const { error } = expectFailure(world, await h.run({ by: "bob" }), 12, world.headSha());
+      const { error } = expectFailure(world, await h.run({ by }), 12, world.headSha());
 
-    expect(error.reason).toBe("by");
-    expect(error.message).toBe(
-      "Decide refused: --by bob is not an arbiter — pass `--by operator` or `--by machine:<grant>`",
-    );
-    expectNoWriter(world, h);
-  });
+      expect(error.reason).toBe(reason);
+      expect(error.message).toBe(
+        `Decide refused: --by ${by} — a verdict always comes from the operator; pass \`--by operator\``,
+      );
+      expect(error.message).not.toContain("machine:<grant>");
+      expectNoWriter(world, h);
+    },
+  );
 
   it("refuses no --by and no terminal", async () => {
     seed(FILE_VALID);
@@ -955,6 +1084,30 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
 
     expect(done.session).toBe("resumed-authoring");
     expect(h.backend.resumeCalls[0]?.options.provider).toBe("codex-cli");
+  });
+
+  it("refuses a model routing sends to mistral-vibe before any session, naming --model", async () => {
+    seed(FILE_VALID);
+    const vibeEnabled: ProviderConfig = {
+      providers: {
+        ...DEFAULT_PROVIDER_CONFIG.providers,
+        "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
+      },
+    };
+    const h = world.harness();
+
+    const { error } = expectFailure(
+      world,
+      await h.run({ model: "claude-sonnet-4-6", providerConfig: vibeEnabled }),
+      12,
+      world.headSha(),
+    );
+
+    expect(error.reason).toBe("model");
+    expect(error.message).toBe(
+      "Decide refused: routing sends the writer's model claude-sonnet-4-6 to mistral-vibe (phax-mistral-medium-3.5-medium), which ignores read-only — pass --model with a Claude Code or Codex model",
+    );
+    expectNoWriter(world, h);
   });
 
   it("runs --model and --effort as given, naming both as flags", async () => {

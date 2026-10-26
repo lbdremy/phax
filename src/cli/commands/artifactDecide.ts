@@ -98,7 +98,9 @@ export function renderVerdictsReport(result: DecideVerdictsResult): readonly str
   for (const v of result.verdicts) {
     const outcome = v.departs
       ? `departs from ${v.recommendation} — revised: ${v.revised.join(", ")}`
-      : "(recommended)";
+      : v.revised.length > 0
+        ? `(recommended) — revised: ${v.revised.join(", ")}`
+        : "(recommended)";
     lines.push(`${v.question.padEnd(idWidth)}${v.chosen.padEnd(chosenWidth)}${outcome}`);
     lines.push(`${" ".repeat(idWidth)}why: ${v.why}`);
   }
@@ -108,7 +110,7 @@ export function renderVerdictsReport(result: DecideVerdictsResult): readonly str
   if (result.diff.trim() !== "") lines.push(result.diff.replace(/\n+$/, ""));
   lines.push(`commit     ${result.commit.hash.slice(0, 7)} — ${result.commit.subject}`);
   lines.push(
-    `status     Draft — read the verdicts and the diff above, then \`phax artifact approve ${result.path}\``,
+    `status     Draft — read the verdicts and the diff above, then \`phax artifact approve ${result.path} --by operator\``,
   );
   return lines;
 }

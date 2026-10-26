@@ -94,8 +94,18 @@ describe("renderVerdictsReport", () => {
       "q-names    open      (not in the verdicts file)",
       "--- a/x.md\n+++ b/x.md\n@@ -1 +1 @@\n-keep 10\n+keep 20",
       "commit     c4d5e6f — docs(specs): decide log-rotation q-keep, q-scope",
-      "status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610250900-log-rotation.md`",
+      "status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610250900-log-rotation.md --by operator`",
     ]);
+  });
+
+  it("names the sections a verdict restoring the recommendation revised", () => {
+    const restored = {
+      ...RESULT.verdicts[1],
+      revised: ["§5.1"],
+    } as DecideVerdictsResult["verdicts"][number];
+    const lines = renderVerdictsReport({ ...RESULT, verdicts: [restored], open: [] });
+
+    expect(lines[0]).toBe("q-scope    per-run   (recommended) — revised: §5.1");
   });
 
   it("omits the diff block when the body did not change", () => {

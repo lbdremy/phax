@@ -47,7 +47,7 @@ import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
 import type { PromptError } from "../ports/prompt.js";
-import { type StdinReadError, Terminal } from "../ports/terminal.js";
+import { Terminal } from "../ports/terminal.js";
 import { decodeAuthoringSession } from "../schemas/authoringSession.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import { currentSchemaUrl } from "../schemas/persisted.js";
@@ -158,8 +158,8 @@ export interface DecideVerdictsResult {
   readonly recordPush: DecisionRecordPush;
 }
 
-/** Interactive decide's errors, bar its prompt's, plus an unreadable stdin. */
-export type DecideVerdictsError = Exclude<DecideArtifactError, PromptError> | StdinReadError;
+/** Interactive decide's errors, bar its prompt's; an unreadable stdin is a refusal. */
+export type DecideVerdictsError = Exclude<DecideArtifactError, PromptError>;
 
 // ── The writer session ─────────────────────────────────────────────────────
 
@@ -447,9 +447,23 @@ export function decideVerdicts(
     const { kind, slug } = snapshot;
 
     const source = input.verdicts;
+    // `--verdicts -` reads a pipe: a terminal on stdin would block on a person.
+    if (source.kind === "stdin" && (yield* terminal.stdinIsTerminal)) {
+      return yield* refused(
+        "verdicts-file",
+        "--verdicts - reads the verdicts from a pipe; pipe a file or pass its path",
+      );
+    }
     const text =
       source.kind === "stdin"
-        ? yield* terminal.readStdin
+        ? yield* terminal.readStdin.pipe(
+            Effect.mapError((e) =>
+              refused(
+                "verdicts-file",
+                `cannot read the verdicts from stdin: ${e.message} — pipe the file again or pass its path`,
+              ),
+            ),
+          )
         : yield* fs
             .readText(source.path)
             .pipe(
@@ -474,13 +488,12 @@ export function decideVerdicts(
     const bound = bindVerdicts({ file: file.right, artifactPath: path, questions: facts, label });
     if (Either.isLeft(bound)) return yield* refused("verdicts-binding", bound.left);
 
+    // Only the operator gives verdicts: a machine, or a value that does not
+    // parse, is refused with the same remedy.
     const declared = input.by === undefined ? null : parseArbiterDeclaration(input.by);
-    if (declared !== null && Either.isLeft(declared)) {
-      return yield* refused("by", declared.left);
-    }
-    if (declared !== null && Either.isRight(declared) && declared.right.kind === "machine") {
+    if (declared !== null && (Either.isLeft(declared) || declared.right.kind !== "operator")) {
       return yield* refused(
-        "by-machine",
+        Either.isLeft(declared) ? "by" : "by-machine",
         `--by ${input.by ?? ""} — a verdict always comes from the operator; pass ${BY_OPERATOR}`,
       );
     }
