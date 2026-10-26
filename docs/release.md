@@ -162,9 +162,9 @@ The release cut writes the release's notes to `docs/releases/<X.Y.Z>.md`, in the
 
 ### Where the notes come from
 
-The previous release is the ledger's greatest release below the one being cut, and the range starts at its tag `v<previous>`, so the clone needs the tags (`git fetch --tags`). The runs of the range are the distinct `Short-Name` values of the non-merge commits that carry both a `Run-Id` and a `Short-Name` trailer. Each run is matched to the plan it completed: a plan archived under `docs/plans/archive/` in the range, with status `Completed`, whose run short name equals the trailer. The plan's `source-spec` names the spec, and `completes-spec: true` announces that spec in full, from its sidecar (title, guiding rule, surfaces). A plan with `completes-spec: false` is listed as part of its spec, under Specs in progress.
+The previous release is the ledger's greatest release below the one being cut, and the range starts at its tag `v<previous>`, so the clone needs the tags (`git fetch --tags`). The runs of the range are the distinct `Short-Name` values of the non-merge commits that carry both a `Run-Id` and a `Short-Name` trailer. Each run is matched to the plan it completed: a plan archived under `docs/plans/archive/` in the range, with status `Completed`, whose run short name equals the trailer. The plan's `source-spec` names the spec, and `completes-spec: true` announces that spec in full, from its sidecar (title, guiding rule, surfaces). A plan with `completes-spec: false` is listed as part of its spec, under Specs in progress, when its spec is not announced in full in the same release; otherwise it is named in that spec's `Plans:` line.
 
-A review fix pushed onto a run's pull request branch carries `Short-Name: <run short name>` and no `Run-Id`. It joins that run and is listed nowhere. A review fix whose trailer was forgotten is listed under Fixes.
+A review fix pushed onto a run's pull request branch carries `Short-Name: <run short name>` and no `Run-Id`. It joins that run and is listed nowhere. A review fix whose trailer was forgotten is listed by its type, like any commit without a run: `fix` under Fixes, `test`, `chore`, `docs`, `refactor`, `style`, `build` and `ci` nowhere, and any other under Other.
 
 ### Refusals and warnings
 
@@ -182,7 +182,7 @@ prints the notes of the opened version, and their warnings, without writing anyt
 
 ### Where the notes are published
 
-- The GitHub Release body is the notes' short form: the file without its folded before/after blocks, with a link to the release's page on the docs site. GitHub caps a body at 125,000 characters, and the workflow fails before building anything if the short form exceeds it. `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md` prints it.
+- The GitHub Release body is the notes' short form: the file without its folded before/after blocks, with a link to the release's page on the docs site. GitHub caps a body at 125,000 characters, and the workflow fails before building anything if the short form exceeds it. `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md`, run from the repository root, prints it: the file is read relative to the current directory.
 - The docs site renders the full file as one page per release, at `/releases/<X-Y-Z>`, newest first under Releases. No release edits the page map.
 
 ## Redeploying the docs site by hand
