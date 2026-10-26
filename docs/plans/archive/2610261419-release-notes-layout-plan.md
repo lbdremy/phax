@@ -43,7 +43,7 @@ Changes since 0.27.0: [v0.27.0...v0.28.0](https://github.com/lbdremy/phax/compar
 ## Highlights
 
 - **Test strategy as data, and the plan overview** — The overview shows what the plan says, read without a model, and it never writes or starts anything.
-- **Artifact decide from verdicts** — Transcribing decisions already made.
+- **Artifact decide from verdicts** — The person decides and phax checks the transcription: what the file says is applied as given, nothing it does not name moves, and nothing is approved.
 
 ## Upgrading
 

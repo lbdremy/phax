@@ -155,7 +155,7 @@ Stage publish does not make a package installable. Approve each staged version b
 
 The release cut writes the release's notes to `docs/releases/<X.Y.Z>.md`, in the release commit. They are written from what the release's runs delivered, not from the pull requests:
 
-- `## Highlights`, one line per completed spec;
+- `## Highlights`, one line per completed spec: its name and its guiding rule folded to one line, else the lede of its title, else its name alone;
 - `## Upgrading`, the release's `### X.Y.Z` entry of `docs/upgrading.md`;
 - `## What's new`, each completed spec with its lede and guiding rule, and each `cli:`, `config:` or `file:` surface of its sidecar as a bullet: its summary, its name, the current example under `Now:`, and the earlier one folded under `Before` when there was one;
 - `## Also in this release`, each plan without a spec;

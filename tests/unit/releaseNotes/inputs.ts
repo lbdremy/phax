@@ -206,7 +206,7 @@ export const fullExpected = [
   "",
   "## Highlights",
   "",
-  "- **Ship things** — Make shipping easy — and fast.",
+  "- **Ship things** — Shipping never changes what the tool already did.",
   "- **Gamma stands alone**",
   "",
   "## Upgrading",
@@ -309,7 +309,7 @@ export const fullExpectedShort = [
   "",
   "## Highlights",
   "",
-  "- **Ship things** — Make shipping easy — and fast.",
+  "- **Ship things** — Shipping never changes what the tool already did.",
   "- **Gamma stands alone**",
   "",
   "## Upgrading",
@@ -362,8 +362,8 @@ export const fullExpectedShort = [
 
 // --- (b) Highlights ----------------------------------------------------------
 
-// Three specs in an order no sort would give: a guiding rule over two lines
-// and no lede, a lede and a rule, and neither.
+// Four specs in an order no sort would give: a guiding rule over two lines
+// and no lede, a guiding rule and a lede, a lede and no rule, and neither.
 export const highlightsInput = inputWith({
   plans: [
     {
@@ -378,22 +378,33 @@ export const highlightsInput = inputWith({
       },
     },
     {
-      path: "docs/plans/archive/2601010012-lede-plan.md",
-      title: "Lede plan",
+      path: "docs/plans/archive/2601010012-both-plan.md",
+      title: "Both plan",
       firstParagraph: "Not shown.",
       spec: {
-        path: "docs/specs/archive/2601010012-lede.md",
-        title: "Lede spec — has a lede",
-        guidingRule: "Not in Highlights.",
+        path: "docs/specs/archive/2601010012-both.md",
+        title: "Both spec — has a lede not in Highlights",
+        guidingRule: "The rule comes first.",
         surface: [],
       },
     },
     {
-      path: "docs/plans/archive/2601010013-bare-plan.md",
+      path: "docs/plans/archive/2601010013-lede-plan.md",
+      title: "Lede plan",
+      firstParagraph: "Not shown.",
+      spec: {
+        path: "docs/specs/archive/2601010013-lede.md",
+        title: "Lede spec — has a lede",
+        guidingRule: null,
+        surface: [],
+      },
+    },
+    {
+      path: "docs/plans/archive/2601010014-bare-plan.md",
       title: "Bare plan",
       firstParagraph: "Not shown.",
       spec: {
-        path: "docs/specs/archive/2601010013-bare.md",
+        path: "docs/specs/archive/2601010014-bare.md",
         title: "Bare spec",
         guidingRule: null,
         surface: [],
@@ -407,6 +418,7 @@ export const highlightsExpected = [
   "## Highlights",
   "",
   "- **Rule spec** — First line of the rule. Second line of the rule.",
+  "- **Both spec** — The rule comes first.",
   "- **Lede spec** — Has a lede.",
   "- **Bare spec**",
   "",
@@ -417,11 +429,15 @@ export const highlightsExpected = [
   "> First line of the rule.",
   "> Second line of the rule.",
   "",
+  "### Both spec",
+  "",
+  "Has a lede not in Highlights.",
+  "",
+  "> The rule comes first.",
+  "",
   "### Lede spec",
   "",
   "Has a lede.",
-  "",
-  "> Not in Highlights.",
   "",
   "### Bare spec",
   "",
@@ -588,6 +604,61 @@ export const nameRows: ReadonlyArray<NameRow> = [
     expected: nameDocument("`key x`"),
   },
 ];
+
+// --- (d) a summary that opens like a block ---------------------------------
+
+// Each summary opens with what Markdown would read as the start of a block other
+// than a paragraph; its bullet opens with the summary escaped, as one sentence.
+// The last rows open like a sentence and are kept as written.
+export interface SummaryRow {
+  readonly summary: string;
+  readonly expected: string;
+}
+
+export const summaryRows: ReadonlyArray<SummaryRow> = [
+  { summary: "1. First, you run it.", expected: "1\\. First, you run it." },
+  { summary: "2) Then you run it.", expected: "2\\) Then you run it." },
+  { summary: "- You run it.", expected: "\\- You run it." },
+  { summary: "* You run it.", expected: "\\* You run it." },
+  { summary: "+ You run it.", expected: "\\+ You run it." },
+  { summary: "> You run it.", expected: "\\> You run it." },
+  { summary: "# You run it.", expected: "\\# You run it." },
+  { summary: "```sh you run it.", expected: "\\```sh you run it." },
+  { summary: "~~~ you run it.", expected: "\\~~~ you run it." },
+  { summary: "---", expected: "\\---" },
+  { summary: "_ _ _", expected: "\\_ _ _" },
+  { summary: "<div> you run it.", expected: "\\<div> you run it." },
+  { summary: "[run]: https://example.com/run", expected: "\\[run]: https://example.com/run" },
+  { summary: "   - You run it.", expected: "\\- You run it." },
+  { summary: "*You* run it.", expected: "*You* run it." },
+  { summary: "2026 is when you run it.", expected: "2026 is when you run it." },
+  { summary: "-x runs it.", expected: "-x runs it." },
+  {
+    summary: "[You run it](https://example.com/run).",
+    expected: "[You run it](https://example.com/run).",
+  },
+];
+
+export const summaryDocument = (bullet: string): string =>
+  [
+    ...HEAD,
+    "## Highlights",
+    "",
+    "- **Surfaces**",
+    "",
+    "## What's new",
+    "",
+    "### Surfaces",
+    "",
+    `- ${bullet} \`tool run\``,
+    "",
+    "  Now:",
+    "",
+    "  ```text",
+    "  ran",
+    "  ```",
+    "",
+  ].join("\n");
 
 // --- (c) the title table -----------------------------------------------------
 
@@ -889,6 +960,21 @@ export const fencedCloserShort = [
   "- You read it. `tool.log`",
   "",
 ].join("\n");
+
+// A What's new item that opens with a heading, not with its summary.
+export const headingItemDocument = [
+  ...HEAD,
+  "## What's new",
+  "",
+  "### Spec",
+  "",
+  "- You can run it. `tool run`",
+  "- # You read it. `tool.log`",
+  "",
+].join("\n");
+
+export const headingItemMessage =
+  "line 10 of the notes: a What's new item opens with a heading node, not with its summary paragraph — the GitHub body cannot cut it to one line";
 
 // (o) An Upgrading entry whose list item holds a `Now:` paragraph and a fence,
 // and a list after What's new: both are kept as written.

@@ -60,6 +60,11 @@ export const GITHUB_BODY_LIMIT = 125000;
 
 const SITE = "https://docs.phax.run/releases";
 const KEPT_SURFACE = /^(?:cli|config|file):/;
+// The number of an ordered list item: its delimiter is the one escaped.
+const ORDERED_START = /^\d{1,9}(?=[.)](?:[ \t]|$))/;
+// Any other start of a block that is not a paragraph: its first character is escaped.
+const BLOCK_START =
+  /^(?:[#>]|[-+*](?:[ \t]|$)|([-*_])(?:[ \t]*\1){2,}[ \t]*$|`{3}|~{3}|<[A-Za-z/!?]|\[[^\]]*\]:)/;
 const SKIPPED_TYPES: ReadonlySet<string> = new Set([
   "test",
   "chore",
@@ -87,6 +92,19 @@ export function commitPlace(subject: string): "fixes" | "other" | "neither" {
 /** A backslash before each character a commit subject could turn into Markdown. */
 export function escapeSubject(subject: string): string {
   return subject.replace(/[\\`*_[\]<>&~|]/g, "\\$&");
+}
+
+/**
+ * `text` without its leading blanks, and with a backslash before a leading
+ * character that would open a block other than a paragraph — a heading, a
+ * quote, a list item, a thematic break, a code fence, an HTML block or a link
+ * reference definition — so that it reads as the start of a sentence.
+ */
+export function escapeBlockStart(text: string): string {
+  const trimmed = text.trimStart();
+  const ordered = ORDERED_START.exec(trimmed);
+  if (ordered !== null) return `${ordered[0]}\\${trimmed.slice(ordered[0].length)}`;
+  return BLOCK_START.test(trimmed) ? `\\${trimmed}` : trimmed;
 }
 
 /** A `text` code fence one backtick longer than the longest run in the content. */
@@ -262,7 +280,7 @@ interface AnnouncedSpec {
 
 function surfaceItem(surface: ReleaseSurface, links: (text: string) => string): string {
   const parts = [
-    `${links(surface.summary)} ${inlineCode(surfaceName(surface.surface))}`,
+    `${escapeBlockStart(links(surface.summary))} ${inlineCode(surfaceName(surface.surface))}`,
     "Now:",
     fenced(surface.after),
     ...(surface.before === null
@@ -293,8 +311,8 @@ function specBlocks({ spec, text, links }: AnnouncedSpec): string[] {
 
 function highlight({ spec, text }: AnnouncedSpec): string {
   const name = `**${specName(spec.title)}**`;
-  if (text.lede !== null) return `- ${name} — ${text.lede}`;
   if (text.guidingRule !== null) return `- ${name} — ${headingText(text.guidingRule)}`;
+  if (text.lede !== null) return `- ${name} — ${text.lede}`;
   return `- ${name}`;
 }
 
@@ -385,13 +403,16 @@ export function githubReleaseBody(markdown: string, version: string): string {
       inWhatsNew = node.depth === 2 && toString(node) === "What's new";
     } else if (inWhatsNew && node.type === "list") {
       // Each item is cut down to its first paragraph: the summary and the name.
-      const firsts = node.children.flatMap((item) => {
-        const paragraph = item.children[0];
-        const from = paragraph?.position?.start.offset;
-        const to = paragraph?.position?.end.offset;
-        return paragraph?.type === "paragraph" && from !== undefined && to !== undefined
-          ? [`- ${markdown.slice(from, to)}`]
-          : [];
+      const firsts = node.children.map((item) => {
+        const first = item.children[0];
+        const from = first?.position?.start.offset;
+        const to = first?.position?.end.offset;
+        if (first?.type !== "paragraph" || from === undefined || to === undefined) {
+          throw new Error(
+            `line ${item.position?.start.line ?? "?"} of the notes: a What's new item opens with ${first === undefined ? "nothing" : `a ${first.type} node`}, not with its summary paragraph — the GitHub body cannot cut it to one line`,
+          );
+        }
+        return `- ${markdown.slice(from, to)}`;
       });
       edits.push({ start, end, text: firsts.join("\n") });
     } else if (
