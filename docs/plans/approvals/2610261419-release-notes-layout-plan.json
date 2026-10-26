@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610261419-release-notes-layout-plan.md",
+  "planFingerprint": "fcb6f4612c5e63d3a067efc954c2a7deb227095786d53dbe9800af0850276c81",
+  "approvedAt": "2026-10-26T14:38:13.758Z",
+  "baseline": "ef9af42205e91888feb8c183037460a23649d902",
+  "sourceSpec": null,
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
