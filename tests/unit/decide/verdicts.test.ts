@@ -337,16 +337,16 @@ describe("bindVerdicts: what is bound", () => {
   });
 });
 
-describe("bindVerdicts: a verdict that restores the recommendation", () => {
-  function bindOn(questions: Parameters<typeof bindVerdicts>[0]["questions"], given: GivenVerdict) {
-    return bindVerdicts({
-      file: { artifact: SPEC_PATH, verdicts: [given] },
-      artifactPath: SPEC_PATH,
-      questions,
-      label: "verdicts.json",
-    });
-  }
+function bindOn(questions: Parameters<typeof bindVerdicts>[0]["questions"], given: GivenVerdict) {
+  return bindVerdicts({
+    file: { artifact: SPEC_PATH, verdicts: [given] },
+    artifactPath: SPEC_PATH,
+    questions,
+    label: "verdicts.json",
+  });
+}
 
+describe("bindVerdicts: a verdict that restores the recommendation", () => {
   it("gives each question how its current verdict departed", () => {
     expect(questionFactsOfDocument(SPEC_KEEP_20_DECIDED)).toEqual(SPEC_KEEP_20_DECIDED_FACTS);
     expect(questionFactsOfDocument(SPEC_KEEP_20_UNREVISED)).toEqual(SPEC_KEEP_20_UNREVISED_FACTS);

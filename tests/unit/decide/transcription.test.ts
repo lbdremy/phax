@@ -415,6 +415,20 @@ describe("a hand decision answer", () => {
   });
 });
 
+function checkHandOn(answer: unknown) {
+  return checkHandTranscription({
+    kind: "spec",
+    md: HAND_DEPARTED_MD,
+    parsed: HAND_DEPARTED_PARSED,
+    answer,
+    bound: BOUND_HAND_RESTORE_Q1,
+    operator: OPERATOR,
+    atIso: AT_ISO,
+    principleIds: PRINCIPLE_IDS,
+    phaseIds: [],
+  });
+}
+
 describe("a verdict that restores the recommendation", () => {
   it("lands after a departure that revised the body, naming the sections it restores", () => {
     const { document, verdicts } = landed(
@@ -460,20 +474,6 @@ describe("a verdict that restores the recommendation", () => {
     expect(refusal.path).toBe("arbitratedQuestions[0].verdict.revised");
     expect(refusal.message).toContain("revised nothing");
   });
-
-  function checkHandOn(answer: unknown) {
-    return checkHandTranscription({
-      kind: "spec",
-      md: HAND_DEPARTED_MD,
-      parsed: HAND_DEPARTED_PARSED,
-      answer,
-      bound: BOUND_HAND_RESTORE_Q1,
-      operator: OPERATOR,
-      atIso: AT_ISO,
-      principleIds: PRINCIPLE_IDS,
-      phaseIds: [],
-    });
-  }
 
   it("lands on a hand-authored departure, which records no revised sections, revising the body", () => {
     const checked = checkHandOn(HAND_ANSWER_RESTORE);
