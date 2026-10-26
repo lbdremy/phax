@@ -1,0 +1,510 @@
+---
+status: Draft
+source-spec: null
+---
+# Readable release notes
+
+The release notes read as an announcement. A Highlights section opens them, each spec's surfaces are bullets that start with their sentence, a surface's current example is labelled `Now:` with the earlier one folded under `Before`, and nothing is said about work that has not shipped. The builder in `scripts/releaseNotes.ts`, the GitHub release body and the docs site page follow the new layout.
+
+This is repository tooling only, like `release-notes` (#166). Nothing under `src/` changes, no phax command, format or schema changes, and there is no source spec. No phase edits a skill, so the run needs no `--allow-skill-edits`. The operator settled the layout on 2026-10-26. This plan applies it, and settles only the rendering details listed under Technical arbitrations.
+
+Two phases, every commit green:
+
+- phase-01: the builder (`renderReleaseNotes`, `githubReleaseBody`) writes the new layout, the reader stops handing it work in progress, and the layout tests are rewritten, one test per rule.
+- phase-02: the docs site folds the `Before` examples that now sit inside bullets, `docs/release.md` describes the layout, and the real 0.28.0 notes are checked against the expected document below.
+
+**The layout.** Blocks are joined by one blank line, and the file ends with one newline (`finishDocument`). The sections come in this order, and each appears only when it lists something:
+
+- `# phax <version>`, then the `Changes since <previous>: …` line, both unchanged.
+- `## Highlights`: one line for each plan that completes a spec, in plan order, with no blank line between them. The line is `- **<spec name>** — <lede>` when the spec title has a lede. Otherwise it is `- **<spec name>** — <guiding rule>`, with every line break of the rule folded to one space. When the spec has neither, it is `- **<spec name>**` alone. Links in the lede and in the guiding rule are made absolute as they are in What's new.
+- `## Upgrading`: unchanged.
+- `## What's new`, which replaces `## Specs`. For each plan that completes a spec, in plan order: `### <spec name>`, the lede paragraph when there is one, and the guiding rule quote when there is one. Then comes one list item per `cli:`, `config:` or `file:` surface, in sidecar order, with one blank line between items. There is never a `Plans:` line. The item's first line is `- <summary> <name>`, where the name is `inlineCode(surfaceName(surface))`. Under it, as continuation blocks indented by two spaces the way `listItem` in `src/domain/authoring/markdown.ts` indents them, come a blank line, `Now:`, a blank line and `fenced(after)`. When `before` is not null, these follow: a blank line, `<details>`, `<summary>Before</summary>`, a blank line, `fenced(before)`, a blank line and `</details>`. A surface whose `before` is null has no fold. The word `After` is never written.
+- `## Also in this release`, which replaces `## Plans`: for each plan without a source spec, `### <plan title>` and its first paragraph, with its links made absolute, as today.
+- `## Fixes`, then `## Other`: unchanged.
+
+There is no `## Specs in progress` section any more. A plan with `completes-spec: false` is not announced, whether or not its spec completes in the same release. Its run's commits still count as run commits, so they stay out of Fixes and Other.
+
+**The GitHub release body** keeps the paragraph `Read the full notes, with each surface's before and after, on [docs.phax.run/releases/<X-Y-Z>](https://docs.phax.run/releases/<X-Y-Z>).` directly after the Changes line. It keeps every section, heading, lede, quote and Highlights line. Inside `## What's new` only, each list item is cut down to its first paragraph (the summary and the name). The bullets of one list then follow each other with no blank line between them, so every `Now:` block and every `Before` fold is gone. Every other byte is kept, the body ends with one newline, and a body over 125,000 code points is refused with today's message.
+
+**Expected 0.28.0 notes.** Once this run has landed and its plan is archived, `pnpm release:notes` on main prints the document below. Each fence's content is the sidecar's `after` or `before`, verbatim, shortened here to `…`. A real fence is longer when its content holds a run of three or more backticks. Fixes lists the three review fixes made before the `Short-Name` convention. A commit that lands on main after this plan was written is listed by the unchanged Fixes and Other rules. No warning is expected. Inside this run's phase worktrees, exactly three things differ:
+
+- `### Readable release notes` is missing from Also in this release.
+- This run's own commits are listed by their type under Other, since the run's plan is not archived yet.
+- stderr carries `! run readable-release-notes names no plan completed since v0.27.0: its commits are listed as commits without a run`.
+
+````markdown
+# phax 0.28.0
+
+Changes since 0.27.0: [v0.27.0...v0.28.0](https://github.com/lbdremy/phax/compare/v0.27.0...v0.28.0).
+
+## Highlights
+
+- **Test strategy as data, and the plan overview** — The overview shows what the plan says, read without a model, and it never writes or starts anything.
+- **Artifact decide from verdicts** — Transcribing decisions already made.
+
+## Upgrading
+
+- **A spec or plan option named `other`.** `other` is now a reserved id, implicit on every question. A live spec or plan that lists an option, or a recommendation, with the id `other` is refused: an authored answer exits 5, `phax artifact approve` and `decide` on the artifact exit 12, and `phax artifact status` reports a §9 that does not parse. Rename that option (in the sidecar and in the Markdown alike) before upgrading. A `Decision: other — …` line, and a verdict that chooses `other`, are accepted.
+- **Plan sidecars: `testStrategy` becomes a list of test lines.** Run `phax artifact migrate-documents` once in each repository with plans under `docs/`. A sidecar whose every test strategy follows the line format is lifted and committed. One holding prose is refused, naming the phase and the line: rewrite it in the line format in the sidecar and in plan.md alike, or re-author the plan, then run the command again. Until then, `phax artifact approve`, `reopen` and `decide` refuse and name the command. Archived plans are not touched and still read.
+- **Hand-written plans.** Write each `### Test strategy` entry in the line format: `<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`. `phax plans lint` reports a departing line as a `tests` error. `phax run`, `phax plans overlap`, `phax adjust-plan` and `phax plans status` refuse such a plan before any model call, naming the line and `phax plans lint`, and `phax plans overview` exits 1. A phase with no section, or with `- (none)`, has no line.
+- **Runs in flight.** A `phax-plan.json` extracted by an older phax is refused by `phax resume` and `phax validate --plan`. Finish the run with the release that started it, or archive it with `phax archive <run> --force` and run its plan again. `phax ls` and `phax session-info` still show it.
+- **New `tests` warnings in `phax plans lint`.** Nothing to do. An uncovered acceptance criterion, or a source spec without a readable sidecar, is a warning that never fails lint or refuses a run.
+
+## What's new
+
+### Test strategy as data, and the plan overview
+
+> The overview shows what the plan says, read without a model, and it never writes or starts anything.
+
+- A plan's test strategy is a list of test lines a tool can read, each with its size, technique, oracle, loop and the criterion it proves. `plan sidecar docs/plans/<stamp>-<slug>-plan.json, phase testStrategy`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- The extracted plan carries each phase's test lines, so scripts and later commands can see what each phase tests. `phax-plan.json, phase test lines`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- You write each test of a phase as one line (the guarantee, then size, technique, oracle, loop and an optional criterion), and phax reads it. `plan.md ### Test strategy section`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- plans lint names the test lines that break the format, misuse the oracle loop or cite a criterion the spec lacks, and the spec criteria no test proves. `phax plans lint <plan> — new test line findings`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- You can see a whole plan at a glance before running it: each phase's model, oracle role, files and tests. `phax plans overview <plan> [--json]`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- The overview lists each phase in turn with its model, its oracle role, its files grouped by architecture part and its test lines. `phax plans overview — rendered layout`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- A script or review tool can read the plan overview as JSON. `phax plans overview --json`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- migrate-documents names each plan whose test strategy is still prose, and says how to rewrite it in the line format. `phax artifact migrate-documents — refusing a prose test strategy`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- Agents writing plans with the phax-planning skill write test strategies in the line format that lint checks and the overview shows. `.claude/skills/phax-planning/SKILL.md`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+### Artifact decide from verdicts
+
+Transcribing decisions already made.
+
+> The person decides and phax checks the transcription: what the file says is applied as given, nothing it does not name moves, and nothing is approved.
+
+- You can record decisions you have already made on a spec's or plan's questions from a file, without an interactive session. `phax artifact decide --verdicts`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- You write your decisions in one small file that names, for each question, the option you chose and an optional note. `verdicts file (given as --verdicts <file|->)`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- You can choose none of a question's options and say what you want instead, and the spec shows that choice and why. `docs/specs/<stamp>-<slug>.json a verdict choosing other, and the rendered §9`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- You can print the verdicts file's JSON Schema to check or generate a verdicts file. `phax artifact schema verdicts`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- A script can read what decide recorded: each verdict, whether it departs from the recommendation, and which sections changed. `phax artifact decide --verdicts --json`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+- The decide commit says the decisions came from a verdicts file, and who made them. `the decide commit (git log)`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+- The records say a decision was transcribed from a verdicts file, which questions it settled and how many departed from the recommendation. `decision record on phax/records/v1`
+
+  Now:
+
+  ```text
+  …
+  ```
+
+  <details>
+  <summary>Before</summary>
+
+  ```text
+  …
+  ```
+
+  </details>
+
+## Also in this release
+
+### Release notes from specs
+
+At the release cut, phax's release notes are written from what the release's runs delivered: each completed spec with its guiding rule and the surfaces it changed, each plan without a spec, the commits made outside any run, and the release's upgrade steps. The cut writes them to `docs/releases/<X.Y.Z>.md` in the release commit, the same file becomes a page of the docs site, its short form (the file without its folded before/after blocks, plus a link to that page) becomes the GitHub release body, and `pnpm release:notes` previews them at any time without writing anything.
+
+### Readable release notes
+
+The release notes read as an announcement. A Highlights section opens them, each spec's surfaces are bullets that start with their sentence, a surface's current example is labelled `Now:` with the earlier one folded under `Before`, and nothing is said about work that has not shipped. The builder in `scripts/releaseNotes.ts`, the GitHub release body and the docs site page follow the new layout.
+
+## Fixes
+
+- fix(plans): give headless planning the spec's criterion ids; guard source-spec paths; review fixes for #164 ([507fc53](https://github.com/lbdremy/phax/commit/507fc536099ae0d010104398ec67d92406efe533))
+- fix(decide): restore a recommendation after a departure in verdicts mode ([508dd1c](https://github.com/lbdremy/phax/commit/508dd1c316ab73c88a4cf1880367093eab9f26f5))
+- fix(decide): refuse a Vibe writer, any non-operator --by and a terminal stdin ([0fc83a2](https://github.com/lbdremy/phax/commit/0fc83a2666c19b0e0e39e7c22a5e17abbf14caf8))
+````
+
+The GitHub release body of 0.28.0 is the same document with three changes:
+
+- the link paragraph sits after the Changes line;
+- each What's new bullet is a single line, such as `- You can record decisions you have already made on a spec's or plan's questions from a file, without an interactive session. `phax artifact decide --verdicts``;
+- the bullets of each spec follow one another with no blank line between them.
+
+Operator notes: never run `scripts/release.sh`, and cut no release from a phase. Tests use fixtures and temporary copies only. They never read `~/.phax`, a real `~/.claude`, `~/.codex` or `~/.vibe`, or the global git config: fixture repositories go through `tests/helpers/isolateGit.ts`, as `tests/unit/releaseNotes/repo.ts` already does.
+
+## Required commands
+
+- (none)
+
+No new command is needed. The phases run the `standard` gate profile's commands, plus commands `phax.json` already allows: `pnpm exec tsx scripts/release-notes.ts` to print the notes, `pnpm exec tsx site/build/site.ts build` to build the site, and `git log` to read history. Agents are granted `pnpm exec tsx`, not the `pnpm release:notes` script, so they use the `pnpm exec tsx` form. `phax.json` needs no change. No phase edits a skill, so the run needs no `--allow-skill-edits`.
+
+## Technical arbitrations
+
+- Where a surface's name goes: at the end of its bullet's first line, after the summary and one space (`- <summary> <name as a code span>`). Putting it on the next line would need a hard line break, because a soft break renders as a space on GitHub and on the site anyway. The lines under the bullet already hold the examples. Loss: on a narrow screen the name wraps with the sentence instead of standing on its own line.
+- How a surface's name displays: a new exported `surfaceName(surface)` drops the `cli:`, `config:` or `file:` prefix and the spaces after it, removes every backtick, and trims. The builder writes the result with `inlineCode`, so it is one plain code span: `` file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy` `` shows as `plan sidecar docs/plans/<stamp>-<slug>-plan.json, phase testStrategy`. Loss: the inner code spans a spec author used to set a path or a key apart from the words around it are gone.
+- Where the examples sit: under their bullet, as its continuation blocks, indented by two spaces the way `listItem` (`src/domain/authoring/markdown.ts`) indents them. `Now:` and the fenced `after` come first, then the `Before` fold when there is one, because the current state is what a reader can use today. Bullets are separated by a blank line, so the surface list is a loose list; the Highlights list is tight. Loss: the surface list has more vertical space between bullets than a tight list.
+- What a Highlights line says: the spec's lede when its title has one. Otherwise its guiding rule with every line break folded to one space (`headingText`), and otherwise the bold name alone. Its links are rewritten the same way as in What's new. Loss: a guiding rule written over several paragraphs reads as one line in Highlights. What's new still quotes it in full.
+- Work in progress leaves the builder's input. `collectReleaseNotes` still matches every completed plan to its run, so an intermediate plan's run commits stay out of Fixes and Other. But it passes only the plans the release announces: each plan without a source spec, and each plan with `completes-spec: true`. For a `completes-spec: false` plan it never looks up or decodes the spec. That plan therefore gives no `has no sidecar` warning, no `is in neither docs/specs/ nor docs/specs/archive/` refusal and no `is not a spec path` refusal. Its frontmatter and its own sidecar are still decoded and refused as today. `ReleasePlan` loses `completesSpec`: a non-null `spec` now means the plan completes that spec, so the type no longer admits a spec-less plan that completes something. The duplicate refusal keeps its message and applies to any two plans with the same `spec.path`. Loss: a broken `source-spec` on an intermediate plan no longer stops the cut. It is caught only when the plan that completes that spec ships.
+- How the GitHub body drops the examples: it is still derived from the notes file alone (`githubReleaseBody(markdown, version)`), so `--github-body` and the release workflow do not change. Using `mdast-util-from-markdown`, it cuts each list item inside `## What's new` (up to the next heading of depth 2 or less) down to its first paragraph, and joins the items with no blank line. A `<details>` line inside a fence never counts, and the Upgrading entry and the plan paragraphs are never touched, even when they hold a `Now:` paragraph and a fence. Loss: a block in a What's new list item that is not an example would be dropped too. Only the builder writes that section.
+- The link paragraph keeps its wording, `Read the full notes, with each surface's before and after, on …`. So `.github/workflows/release.yml`, its comment and the preview test in `tests/unit/releaseNotesCollect.test.ts` that checks the paragraph do not change. Loss: the paragraph says `before and after`, while the page labels the examples `Now:` and `Before`.
+- The site exemption is narrowed to the builder's exact fold. In a `docs/releases/` source, only an HTML block whose value is exactly a `<details>` line followed by a `<summary>Before</summary>` line becomes `:::details Before`, and only a block that is exactly `</details>` becomes `:::`. This holds at any nesting depth, including inside a list item, and the container keeps the item's indentation. Every other summary text, including the retired `After` and `Before and after`, and any other raw HTML stay findings. Rspress's container plugin walks into list items (`node_modules/@rspress/core/dist/node/mdx/remarkPlugins/containerSyntax.js` recurses into every node with children), so a fold inside a bullet renders. Loss: a notes file hand-edited with another summary is refused by the site build. No such file is committed yet: `docs/releases/` is first written by the 0.28.0 cut.
+- No oracle pair: phase-01 rewrites the layout tests in the same phase as the code. This is acceptable here for three reasons. First, the layout is the operator's decision of 2026-10-26, and this preamble states it rule by rule and gives the full expected 0.28.0 notes. Phase-02 then checks the real output against that text, an oracle that neither phase wrote. Second, the frozen oracles of #166 pin a layout the operator retired. Third, an oracle pair would have to change the `ReleasePlan` type, and with it the reader and its tests, inside the oracle phase, which would cost a third phase. Each layout rule still gets its own test in phase-01. Loss: one phase writes both the tests and the code, so a misread rule can show in both. The phase-02 comparison and the final review are what catch it.
+
+---
+
+## phase-01 — The readable layout in the release notes builder {#phase-01-readable-notes-builder}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+`renderReleaseNotes` writes the new layout: Highlights, Upgrading, What's new with one bullet per surface and its `Now:` and `Before` examples, Also in this release, Fixes and Other, and nothing about work in progress. `githubReleaseBody` drops the examples and keeps the sentences, and the reader stops handing work in progress to the builder.
+
+### Detailed instructions
+
+- Before editing anything, run `pnpm exec tsx scripts/release-notes.ts` (agents are granted `pnpm exec tsx`, not `pnpm release:notes`). Copy its `## Fixes` and `## Other` sections and its stderr into the handoff verbatim: phase-02 compares the new notes against them.
+- Read the plan preamble first: the layout, the GitHub release body, the expected 0.28.0 notes and the Technical arbitrations. Every rule there is implemented in this phase and gets its own test.
+- In `scripts/releaseNotes.ts`, change the input types. `ReleasePlan` loses `completesSpec`, and the comment on its `spec` says it is the spec this plan completes, or null for a plan without a source spec. The comment on `ReleaseNotesInput.plans` says these are the plans the release announces, in run order: each plan without a source spec and each plan that completes its spec. `checkRefusals` refuses two plans with the same `spec.path` with today's exact message (`<spec path> is announced in full twice: <plan path> and <plan path> both say completes-spec: true`), then checks the placeholder summary on the kept surfaces of every plan with a spec, with today's message.
+- Export `surfaceName(surface: string): string` as the second Technical arbitration states: drop a leading `cli:`, `config:` or `file:` and the whitespace after it, remove every backtick, then trim. `KEPT_SURFACE` stays the filter for which surfaces are shown.
+- Add `## Highlights` directly after the Changes line, when at least one plan has a spec. Write one line per such plan, in plan order, joined with single newlines into one block: `- **<specName>** — <lede>`, else `- **<specName>** — <headingText(guiding rule)>`, else `- **<specName>**`. Lede and guiding rule go through the same `links` function as the spec's What's new block.
+- Rename `## Specs` to `## What's new`. A spec block is `### <specName>`, the lede paragraph, the guiding rule quote (both as today), then the surface list. Remove the `Plans:` line and the `plans` parameter that fed it. Build each kept surface's item with `listItem` from `src/domain/authoring/markdown.ts` and marker `-`, from this text: `<links(summary)> <inlineCode(surfaceName(surface))>`, a blank line, `Now:`, a blank line and `fenced(after)`. When `before` is not null, append a blank line, `<details>`, `<summary>Before</summary>`, a blank line, `fenced(before)`, a blank line and `</details>`. Join a spec's items with one blank line into one block. Remove `surfaceBlocks`' `After` and `Before and after` summaries and its `Before:` and `After:` labels.
+- Remove `## Specs in progress` and the code that builds it. Rename `## Plans` to `## Also in this release`, with the same content.
+- Rewrite `githubReleaseBody` as the GitHub-body arbitration states. Keep the link paragraph text, its place after the Changes paragraph, the trailing newline and the 125,000-code-point refusal exactly as they are. Inside `## What's new` (from that top-level heading to the next top-level heading of depth 2 or less), replace each top-level `list` node with its items' first paragraphs, each as `- <first paragraph source>`, joined by single newlines. Leave every other byte untouched. Find the nodes with `mdast-util-from-markdown` offsets, as today.
+- In `scripts/release-notes.ts`, map only the announced plans into `input.plans`: those whose frontmatter has no source spec, and those with `completes-spec: true`. Call `readSpec` only for the latter. Keep the run matching (`byShortName`, `runNames`, `matched`) over every completed plan, so an intermediate plan's run, and the review fixes that join it, still keep their commits out of `input.commits`. Drop `completesSpec` from the built `ReleasePlan`s, and update the header comment. Nothing else in the reader or in `scripts/release-cut.ts` changes.
+- Rewrite `tests/unit/releaseNotes/inputs.ts` and `tests/unit/releaseNotes.test.ts` for the new layout. Keep their discipline: every expected document is a literal array of lines written out by hand and joined with a newline, never computed by a helper. Keep the made-up versions `4.2.0` and `4.1.0` and the repository `https://github.com/acme/tool`. Remove `completesSpec` from every fixture. Drop the intermediate plans from `fullInput`, and drop the joined-plan tests, since the builder's input no longer holds work in progress. The header comments say these are the layout tests, written with the code, and no longer oracles.
+- Give each rule its own test or table row in `tests/unit/releaseNotes.test.ts`: (a) `fullInput` renders its expected document with sections in order Highlights, Upgrading, What's new, Also in this release, Fixes, Other, and no warning. (b) A Highlights table: a spec with a lede, one with only a two-line guiding rule (folded to one line), and one with neither, each listed in plan order. (c) The title table: each spec block keeps its heading, lede and quote, and no expected document holds a `Plans:` line. (d) The surface table: `cli`, `config` and `file` each give one bullet that opens with the summary and ends with the prefix-less name, while `api`, `package` and `internal` give nothing. (e) A name holding backticks, including one ending with a backtick, shows as one code span without them. (f) A surface with `before` shows `Now:` then the `Before` fold, a surface with `before: null` shows `Now:` and no fold, and `After` appears in no expected document. (g) An `after` holding a run of three backticks gets a four-backtick fence inside the item. (h) A plan without a spec is listed under `## Also in this release` with its links made absolute. (i) No document has a `## Specs`, `## Specs in progress` or `## Plans` heading. (j) The commit table, the escaping, the Upgrading entry (missing, last in file, a link leaving the repository), the spec links, the minimal documents and both refusals keep their current expectations, updated only for renamed headings.
+- GitHub body tests, also in `tests/unit/releaseNotes.test.ts`: (k) `githubReleaseBody` of `fullExpected` equals its hand-written short form. Every heading, lede, quote and Highlights line stays, each What's new bullet is its first line only, and a spec's bullets follow each other with no blank line. (l) A document with no What's new section only gains the link paragraph. (m) A `Before` fold whose fenced `before` holds a `</details>` line is dropped whole. (n) An Upgrading entry whose list item holds a `Now:` paragraph and a fenced block is kept byte for byte. (o) The two limit tests stay as they are.
+- In `tests/unit/releaseNotesBlocks.test.ts`, add a `surfaceName` table: each of the three prefixes with and without a space after the colon, a name with inner code spans, a name ending in a backtick, and a name with no prefix (only its backticks are removed).
+- In `tests/unit/releaseNotesCollect.test.ts`, update the expected inputs: no `completesSpec` key. Replace `announces an intermediate plan, which completes none of its spec` with three tests. First, an intermediate plan whose source spec exists in neither `docs/specs/` nor `docs/specs/archive/` gives no refusal, no warning and no entry in `input.plans`, and neither its run's `feat` commit nor a `Short-Name`-only `fix` that joins its run appears in `input.commits`. Second, an intermediate plan and the completing plan of the same spec give one entry, the completing plan. Third, an intermediate plan whose spec has no sidecar gives no `has no sidecar` warning. Keep `warns once for a spec without a sidecar` passing as it is. Fixture repositories go through `tests/unit/releaseNotes/repo.ts`, which isolates git from the global config.
+- Never run `scripts/release.sh` or a real cut. After the change, run `pnpm exec tsx scripts/release-notes.ts` once more and check it against the expected 0.28.0 notes in the preamble, allowing the worktree differences the preamble names. Report the result in the handoff. phase-02 makes the authoritative check.
+- Run the standard gate before committing.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `scripts/releaseNotes.ts`
+- `scripts/release-notes.ts`
+- `tests/unit/releaseNotes/inputs.ts`
+- `tests/unit/releaseNotes.test.ts`
+- `tests/unit/releaseNotesBlocks.test.ts`
+- `tests/unit/releaseNotesCollect.test.ts`
+
+### Optional files that may be edited
+
+- `tests/unit/releaseNotes/repo.ts`
+
+### Boundary contracts
+
+Consumers: `scripts/release-cut.ts` and the preview, through `releaseNotes(repoRoot, version)`; the release workflow, through `--github-body`; and the docs site build (phase-02). Producer: `renderReleaseNotes(ReleaseNotesInput)` and `githubReleaseBody(markdown, version)` in `scripts/releaseNotes.ts`, both still pure. The input shape changes: `ReleasePlan` has no `completesSpec`, and `input.plans` holds only announced plans. The output shape changes: in the notes, the only raw HTML is the `<details>` / `<summary>Before</summary>` fold, now inside a What's new list item, indented by two spaces. `releaseNotes` keeps its signature and its warnings-first order.
+
+### Test strategy
+
+- the notes of a release with two specs, a plan without a spec, an upgrading entry and loose commits equal the expected document byte for byte, with sections in the new order — small · example · expected Markdown document · in-phase
+- each spec announced in full gets one Highlights line in plan order, with its lede, else its guiding rule folded to one line, else its bold name alone — small · table · expected Highlights per spec · in-phase
+- a What's new block keeps the spec heading, lede and guiding rule quote and never holds a Plans line — small · table · expected block per title · in-phase
+- a cli, config or file surface is a bullet that opens with its summary and ends with its prefix-less name as a code span, and api, package and internal surfaces are left out — small · table · expected bullet per surface kind · in-phase
+- a surface name holding backticks displays as one code span without them — small · table · display name per surface · in-phase
+- a surface's after shows under its bullet labelled Now, its before folds under a Before details block, and a surface without a before has no fold — small · example · expected list item · in-phase
+- a fence inside a bullet is one backtick longer than its content's longest backtick run — small · example · expected list item · in-phase
+- each plan without a spec is listed under Also in this release with its first paragraph and its links made absolute — small · example · expected section · in-phase
+- commits sort into Fixes, Other or nowhere, the Upgrading entry is copied with its links made absolute, and the duplicate and placeholder refusals keep their messages — small · table · classification table and exact messages · in-phase
+- the GitHub body keeps every section, heading and bullet sentence, drops every Now block and Before fold, and adds the site link paragraph — small · example · expected short document · in-phase
+- a Before fold whose fence holds a closing details line is dropped whole, and a Now paragraph with a fence in the Upgrading entry is kept — small · example · expected short document · in-phase
+- a GitHub body over 125000 code points is refused with its exact message, and one at the limit passes — small · example · exact refusal message · in-phase
+- a plan with completes-spec false is never announced and its spec is never read, while its run's commits stay out of Fixes and Other — medium · example · fixture repository and expected input · in-phase
+
+### Implementation order
+
+1. The pre-change run of scripts/release-notes.ts, recorded for the handoff.
+2. ReleasePlan without completesSpec, checkRefusals, and the reader's announced-plans filter, with the collector tests.
+3. surfaceName and its table in releaseNotesBlocks.test.ts.
+4. Highlights, What's new with list-item surfaces, Also in this release, and the removal of Specs in progress, with inputs.ts and releaseNotes.test.ts rewritten rule by rule.
+5. githubReleaseBody and its tests.
+6. The post-change run of scripts/release-notes.ts, then the standard gate.
+
+### Excluded scope
+
+- The docs site rendering in site/build/markdown.ts and its tests (phase-02).
+- docs/release.md and tests/unit/site/releaseDocs.test.ts (phase-02).
+- Any change to the release workflow, scripts/release-cut.ts, scripts/release.sh, the link paragraph's wording, or the Fixes and Other rules.
+- Any change under src/.
+- Running scripts/release.sh, or cutting a release on the real tree.
+
+### Verification
+
+The `standard` gate profile in `phax.json`.
+
+### Expected handoff content
+
+The `## Fixes` and `## Other` sections and the stderr that `pnpm exec tsx scripts/release-notes.ts` printed before the change, verbatim. The new `ReleasePlan` type, the exported `surfaceName` signature, and any other helper `scripts/releaseNotes.ts` now exports. The rule-to-test mapping of `tests/unit/releaseNotes.test.ts`. How the reader filters announced plans. What the post-change run printed, and every difference from the preamble's expected 0.28.0 notes beyond the three worktree differences it names. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`feat(scripts): lay out the release notes for readers`
+
+### Commit body
+
+The release notes open with Highlights, one line per spec announced in full. What's new replaces Specs: each cli, config or file surface is a bullet that opens with its summary and ends with its name as a plain code span, its current example under Now: and its earlier one folded under Before. Also in this release replaces Plans. The Plans: line and Specs in progress are gone: the reader no longer hands a completes-spec: false plan to the builder or reads its spec, and its run's commits still stay out of Fixes and Other. The GitHub body keeps every section and bullet sentence and drops the examples. The layout tests are rewritten rule by rule.
+
+---
+
+## phase-02 — Before folds on the site, the layout in docs/release.md, and the 0.28.0 check {#phase-02-notes-site-and-docs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The docs site renders the `Before` folds that now sit inside bullets and refuses every other raw HTML. `docs/release.md` describes the new sections and says work in progress is not announced. The real 0.28.0 notes are checked against the plan's expected document, on the site, and in their GitHub short form.
+
+### Detailed instructions
+
+- Read the plan preamble first: the layout, the expected 0.28.0 notes, and the site and work-in-progress arbitrations. Read phase-01's handoff for the pre-change Fixes and Other sections.
+- In `site/build/markdown.ts`, narrow the release-notes exemption to the builder's exact fold. In a source under `docs/releases/`, an `html` node whose value is exactly a `<details>` line followed by a `<summary>Before</summary>` line becomes `:::details Before`. An `html` node whose value is exactly `</details>` becomes `:::`. Any other summary text is no longer exempt, so it falls through to the raw-HTML finding. Keep the edit on the node's range, so the container line keeps the list item's indentation. Match on the node's `value`, which mdast gives without the item's indentation, and normalise the value first if a test shows it does not. Update the comment above `RELEASE_NOTES_PREFIX`.
+- In `tests/unit/site/markdown.test.ts`, replace the `release notes` block with these tests. (a) The builder's exact list-item shape (`- <summary> <name>`, an indented `Now:` and fence, then an indented fold around a fence that holds a `<details>` line) becomes `  :::details Before` and `  :::` at the item's indentation, with no finding, and both fences are kept byte for byte. (b) `transformMarkdown('docs/releases/4.2.0.md', renderReleaseNotes(fullInput).markdown)` has no finding, with `renderReleaseNotes` from `scripts/releaseNotes.ts` and `fullInput` from `tests/unit/releaseNotes/inputs.ts`. (c) A fold with the summary `After`, one with `Before and after`, and one with `Before` plus extra text are each refused with the raw-HTML finding. (d) A `<div>` in a release note is still refused. (e) `<details>` in another source is still refused.
+- Keep `tests/unit/site/releaseNotesLinks.test.ts` green. Edit it only if the narrowed exemption needs it.
+- Update `docs/release.md`. In `## Release notes`, the opening list names the sections in order:
+    - `## Highlights`, one line per completed spec;
+    - `## Upgrading`;
+    - `## What's new`, each completed spec with its lede and guiding rule, and each `cli:`, `config:` or `file:` surface as a bullet: its summary, its name, the current example under `Now:`, and the earlier one folded under `Before` when there was one;
+    - `## Also in this release`, each plan without a spec;
+    - `## Fixes` and `## Other`, unchanged.
+
+    In `### Where the notes come from`, replace the Specs in progress sentence with exactly: `A plan with completes-spec: false is not announced: the notes say only what shipped. Its run's commits still belong to its run, so they are listed neither under Fixes nor under Other, and its spec is announced in full by the release that ships the plan with completes-spec: true.` Wrap `completes-spec: false` and `completes-spec: true` in code spans. In `### Refusals and warnings`, the source-spec refusal and the no-sidecar warning now concern only a spec announced in full. In `### Where the notes are published`, in step 9 of `### 3. Watch the release workflow` and in `### 5. Verify`, the short form is the notes without their examples (the `Now:` blocks and the `Before` folds), and the site page shows each surface's `Now:` example and its `Before` fold.
+- In `tests/unit/site/releaseDocs.test.ts`, replace `names a completes-spec: false plan under Specs in progress only when its spec is not announced` with two tests. One asserts the new sentence in `### Where the notes come from`, and that `Specs in progress` appears nowhere in `docs/release.md`. The other asserts that `## Release notes` names `## Highlights`, `## What's new`, `## Also in this release`, `Now:` and `Before`.
+- Check the real notes. Run `pnpm exec tsx scripts/release-notes.ts` and compare its stdout with the preamble's expected 0.28.0 notes, fence by fence: each fence's content must be the sidecar's `after` or `before`. Allow only the three worktree differences the preamble names. Fixes must equal phase-01's pre-change Fixes; Other must equal phase-01's pre-change Other plus this run's own commits. Any other difference is a defect: fix it in `scripts/releaseNotes.ts` and its tests before committing, and report it.
+- Check the site and the GitHub body on the real notes. Write them with `pnpm exec tsx scripts/release-notes.ts > docs/releases/0.28.0.md`, then run `pnpm exec tsx site/build/site.ts build`. Confirm that the page builds with no finding, and that each `Before` fold renders as a details container inside its bullet; look at the generated page source. Run `pnpm test` with the file present, so `tests/unit/site/releaseNotesLinks.test.ts` checks its links. Run `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/0.28.0.md` and check the short form against the preamble. Delete `docs/releases/0.28.0.md` (and the `docs/releases/` folder, which does not exist on main) before committing, and report all three results.
+- Never run `scripts/release.sh` or a real cut. Tests never read `~/.phax`, a real `~/.claude`, `~/.codex` or `~/.vibe`, or the global git config.
+- Run the standard gate before committing.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `site/build/markdown.ts`
+- `tests/unit/site/markdown.test.ts`
+- `tests/unit/site/releaseDocs.test.ts`
+- `docs/release.md`
+
+### Optional files that may be edited
+
+- `scripts/releaseNotes.ts`
+- `tests/unit/releaseNotes/inputs.ts`
+- `tests/unit/releaseNotes.test.ts`
+- `tests/unit/site/releaseNotesLinks.test.ts`
+
+### Boundary contracts
+
+Consumer: the docs site build (`site/build/markdown.ts`, then Rspress's container plugin). Producer: the `docs/releases/<X.Y.Z>.md` that the builder writes. Shape: GitHub-flavoured Markdown whose only raw HTML is the `<details>` line, the `<summary>Before</summary>` line and the `</details>` line of a fold inside a What's new list item, indented by two spaces. The site turns exactly that into an Rspress `:::details Before` container at the same indentation, and refuses anything else. Consumer: a reader of `docs/release.md`. Producer: this phase. The doc names the sections and the not-announced rule that the builder and the reader now implement.
+
+### Test strategy
+
+- the builder's Before fold inside a list item becomes a details container at the item's indentation, and its Now fence and Before fence are kept — small · example · expected page text · in-phase
+- the full made-up notes the builder writes transform with no site finding — small · example · empty findings · in-phase
+- a fold with any summary other than Before, any other raw HTML in a release note, and details outside docs/releases stay refused — small · table · expected findings · in-phase
+- docs/release.md names the new sections, says a completes-spec false plan is not announced, and no longer mentions Specs in progress — small · example · section text · in-phase
+
+### Implementation order
+
+1. site/build/markdown.ts and tests/unit/site/markdown.test.ts.
+2. docs/release.md and tests/unit/site/releaseDocs.test.ts.
+3. The real-notes check, the site build, the links test and the GitHub body, on a temporary docs/releases/0.28.0.md deleted before the commit.
+4. The standard gate.
+
+### Excluded scope
+
+- Any change to the release workflow, scripts/release-cut.ts, scripts/release.sh or scripts/release-notes.ts.
+- Committing any docs/releases file: the first one is written by the 0.28.0 cut.
+- Any change under src/, to the page map, or to docs-deploy.yml.
+- Running scripts/release.sh, or cutting a release on the real tree.
+
+### Verification
+
+The `standard` gate profile in `phax.json`; its terminal steps (`pnpm build`, `pnpm site:build` and the Deno smokes) run in this last phase.
+
+### Expected handoff content
+
+The narrowed exemption as written, and whether the html node's value needed normalising inside a list item. The result of comparing the real notes with the preamble's expected 0.28.0 notes: the differences found, and which were the three expected worktree differences. Any builder fix made because of the comparison. The site build result: whether each Before fold rendered inside its bullet, and any finding. The links test result with the file present. The GitHub short form that `--github-body` printed. Confirmation that `docs/releases/` was removed before the commit. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`feat(site): fold the release notes' Before examples inside bullets, and document the layout`
+
+### Commit body
+
+The site's release-notes exemption is now exactly the builder's fold: a details block whose summary is Before, at any nesting depth, becomes an Rspress details container at the bullet's indentation, and any other summary or raw HTML stays refused. docs/release.md describes Highlights, What's new with each surface's Now: example and Before fold, and Also in this release, and says a completes-spec: false plan is not announced while its run's commits stay out of Fixes and Other. The real 0.28.0 notes were checked against the plan's expected document, on the site and in their GitHub short form.
