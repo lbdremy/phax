@@ -25,6 +25,16 @@ jobs:
           # site/public's video is a Git LFS object; the deploy guard refuses its pointer.
           lfs: true
 
+      # The release commit carries its notes (scripts/release-cut.ts writes
+      # them); a tag without them fails here, before anything is built.
+      - name: Verify the release notes
+        run: |
+          NOTES="docs/releases/${RELEASE_TAG#v}.md"
+          if [ ! -s "$NOTES" ]; then
+            echo "${NOTES} is missing or empty: the release commit must carry the notes that scripts/release-cut.ts writes"
+            exit 1
+          fi
+
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -38,6 +48,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      # The GitHub Release body is the notes' short form; a body over GitHub's
+      # limit fails here, before the gate and the binary builds.
+      - name: Write the GitHub release body
+        id: notes
+        run: |
+          pnpm exec tsx scripts/release-notes.ts --github-body "docs/releases/${RELEASE_TAG#v}.md" > "$RUNNER_TEMP/release-body.md"
+          echo "path=$RUNNER_TEMP/release-body.md" >> "$GITHUB_OUTPUT"
 
       - name: Install usage CLI
         env:
@@ -157,8 +175,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          # Notes from the merged pull requests, grouped by .github/release.yml.
-          generate_release_notes: true
+          # The body is the short form of docs/releases/<X.Y.Z>.md; the docs
+          # site page has the full notes, with each surface's before and after.
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             dist/release/phax-darwin-arm64
             dist/release/phax-darwin-arm64.sha256

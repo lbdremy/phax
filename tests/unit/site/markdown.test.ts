@@ -110,3 +110,54 @@ describe("transformMarkdown", () => {
     expect(applyEdits(source, transform.edits, cut)).toBe("## B \\{#b\\}\n");
   });
 });
+
+function renderNotes(path: string, text: string) {
+  const transform = transformMarkdown(path, text);
+  return {
+    text: applyEdits(text, transform.edits),
+    findings: transform.findings.map((finding) => finding.message),
+  };
+}
+
+describe("release notes", () => {
+  const notes = [
+    "# phax 0.28.0",
+    "",
+    "<details>",
+    "<summary>Before and after</summary>",
+    "",
+    "Before:",
+    "",
+    "```text",
+    "<details>",
+    "```",
+    "",
+    "</details>",
+    "",
+  ].join("\n");
+  it("turns the builder's details blocks into details containers", () => {
+    const output = renderNotes("docs/releases/0.28.0.md", notes);
+    expect(output.findings).toEqual([]);
+    expect(output.text).toContain(":::details Before and after\n\nBefore:");
+    expect(output.text).toContain("```text\n<details>\n```\n\n:::\n");
+  });
+
+  it("escapes the summary text like other text", () => {
+    const output = renderNotes(
+      "docs/releases/0.28.0.md",
+      "<details>\n<summary>The <b> {x}</summary>\n\n</details>\n",
+    );
+    expect(output.text).toContain(":::details The \\<b\\> \\{x\\}");
+  });
+
+  it("still refuses any other raw HTML in a release note", () => {
+    const output = renderNotes("docs/releases/0.28.0.md", "# phax\n\n<div>x</div>\n");
+    expect(output.findings).toEqual([
+      "✗ docs/releases/0.28.0.md:3: raw HTML <div> is not supported; write Markdown",
+    ]);
+  });
+
+  it("still refuses <details> outside docs/releases/", () => {
+    expect(renderNotes("docs/guide.md", notes).findings).not.toEqual([]);
+  });
+});

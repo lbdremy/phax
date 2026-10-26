@@ -3,6 +3,7 @@ import {
   INTRO,
   checkPageMap,
   definePageMap,
+  releaseNotePages,
   siteNavigation,
   type PageMap,
   type SourceInventory,
@@ -247,5 +248,61 @@ describe("siteNavigation", () => {
       expect(navigation.nav.filter((item) => /^v\d/.test(item.text))).toHaveLength(1);
       expect(navigation.nav.every((item) => !("items" in item))).toBe(true);
     }
+  });
+});
+
+const described = (version: string): string =>
+  `What phax ${version} changes: the specs and plans it delivers, its fixes and its upgrade steps.`;
+
+describe("releaseNotePages", () => {
+  it("gives each notes file its route, title and description, newest first", () => {
+    const { pages, findings } = releaseNotePages([
+      "docs/releases/1.2.0.md",
+      "docs/releases/1.10.0.md",
+      "docs/security.md",
+    ]);
+    expect(findings).toEqual([]);
+    expect(pages).toEqual([
+      {
+        route: "/releases/1-10-0",
+        title: "phax 1.10.0",
+        source: "docs/releases/1.10.0.md",
+        description: described("1.10.0"),
+      },
+      {
+        route: "/releases/1-2-0",
+        title: "phax 1.2.0",
+        source: "docs/releases/1.2.0.md",
+        description: described("1.2.0"),
+      },
+    ]);
+  });
+
+  it("names a misnamed file in the directory", () => {
+    const { pages, findings } = releaseNotePages([
+      "docs/releases/next.md",
+      "docs/releases/0.28.md",
+    ]);
+    expect(pages).toEqual([]);
+    expect(findings).toEqual([
+      "✗ docs/releases/0.28.md: a release notes file is named X.Y.Z.md",
+      "✗ docs/releases/next.md: a release notes file is named X.Y.Z.md",
+    ]);
+  });
+
+  it("has a Releases sidebar group and nav entry only when there is a page", () => {
+    const without = siteNavigation(MAP, "0.28.0");
+    expect(without.nav.map((item) => item.text)).not.toContain("Releases");
+    expect(without.sidebar["/"]?.map((group) => group.text)).not.toContain("Releases");
+
+    const withPages = definePageMap({
+      ...MAP,
+      files: [...MAP.files, ...releaseNotePages(["docs/releases/0.28.0.md"]).pages],
+    });
+    const navigation = siteNavigation(withPages, "0.28.0");
+    expect(navigation.nav.map((item) => item.text)).toContain("Releases");
+    expect(navigation.sidebar["/"]?.find((group) => group.text === "Releases")?.items).toEqual([
+      { text: "phax 0.28.0", link: "/releases/0-28-0" },
+    ]);
   });
 });

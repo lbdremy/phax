@@ -14,6 +14,7 @@ import {
   isFilePage,
   isReadmePage,
   isRendered,
+  releaseNotePages,
   siteNavigation,
   type FilePage,
   type Home,
@@ -316,7 +317,14 @@ export function summaryLine(summary: SiteSummary): string {
 
 /** The site's generated files for `input`, or every finding that prevents them. */
 export function generateSite(input: GenerateInput): GeneratedSite {
-  const { files, pageMap, version } = input;
+  const { files, version } = input;
+  // Release notes are pages by their file names: the map is extended with
+  // them before it is checked, and every later use sees the extended map.
+  const releases = releaseNotePages([...files.keys()]);
+  const pageMap: PageMap = {
+    ...input.pageMap,
+    files: [...input.pageMap.files, ...releases.pages],
+  };
   const readme = files.get(README) ?? "";
   const readmeSections = splitReadme(readme);
   const sectionsByName = new Map(readmeSections.map((section) => [section.name, section]));
@@ -339,10 +347,13 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     schemas: null,
   };
 
-  const mapFindings = checkPageMap(pageMap, {
-    readmeSections: readmeSections.map((section) => section.name),
-    files: [...files.keys()].filter((path) => path !== README).toSorted(),
-  });
+  const mapFindings = [
+    ...releases.findings,
+    ...checkPageMap(pageMap, {
+      readmeSections: readmeSections.map((section) => section.name),
+      files: [...files.keys()].filter((path) => path !== README).toSorted(),
+    }),
+  ];
   if (mapFindings.length > 0) {
     return { files: new Map(), publicFiles: new Map(), findings: mapFindings, summary };
   }

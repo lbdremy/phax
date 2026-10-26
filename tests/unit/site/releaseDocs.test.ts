@@ -65,6 +65,21 @@ describe("docs/release.md documents the docs site", () => {
     expect(redeploy).toContain("pnpm site:preview");
   });
 
+  it("documents the release notes, their sources, their preview and the GitHub body", () => {
+    const notes = sectionOf("## Release notes");
+    for (const text of [
+      "pnpm release:notes",
+      "docs/releases/",
+      "docs/upgrading.md",
+      "Run-Id",
+      "Short-Name",
+      "completes-spec",
+      "--github-body",
+    ]) {
+      expect(notes).toContain(text);
+    }
+  });
+
   it("keeps the existing sections", () => {
     for (const heading of [
       "## Prerequisites",

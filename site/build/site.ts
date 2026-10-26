@@ -19,7 +19,7 @@ import {
   type SiteJson,
 } from "./generate.js";
 import type { RepositoryIndex, SiteLink } from "./links.js";
-import { isFilePage } from "./pageMap.js";
+import { isFilePage, releaseNotePages } from "./pageMap.js";
 import {
   checkBuiltSite,
   checkLinkAnchors,
@@ -28,7 +28,7 @@ import {
   readBuiltSite,
 } from "./postbuild.js";
 import { readSchemaSources } from "./schemas.js";
-import { readSources } from "./sources.js";
+import { listSources, readSources } from "./sources.js";
 
 const SITE_DIR = resolve(import.meta.dirname, "..");
 const REPO_ROOT = resolve(SITE_DIR, "..");
@@ -92,7 +92,11 @@ function diskRepository(root: string): RepositoryIndex {
  * lastmod. A source git does not know yet (uncommitted, or no git) has none.
  */
 function lastModified(): ReadonlyMap<string, string> {
-  const sources = ["README.md", ...pageMap.files.filter(isFilePage).map((page) => page.source)];
+  const sources = [
+    "README.md",
+    ...pageMap.files.filter(isFilePage).map((page) => page.source),
+    ...releaseNotePages(listSources(REPO_ROOT)).pages.map((page) => page.source),
+  ];
   const dates = new Map<string, string>();
   for (const source of sources) {
     const result = spawnSync("git", ["log", "-1", "--format=%cs", "--", source], {

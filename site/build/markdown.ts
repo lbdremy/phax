@@ -71,6 +71,10 @@ const COMMENT = /<!--[\s\S]*?-->/g;
 const TAG_NAME = /^<\/?([A-Za-z][A-Za-z0-9-]*)/;
 const ESCAPED = new Set(["<", ">", "{", "}"]);
 
+/** Release notes are the one source whose folded blocks, the builder's `<details>`, become Rspress containers. */
+const RELEASE_NOTES_PREFIX = "docs/releases/";
+const DETAILS_OPEN = /^<details>\n<summary>([^\n]*)<\/summary>$/;
+
 /** Text a heading's GitHub slug is computed from: its rendered text, without HTML or image alt. */
 function slugText(heading: Heading): string {
   return toString(heading, { includeHtml: false, includeImageAlt: false });
@@ -126,6 +130,18 @@ export function transformMarkdown(path: string, text: string): MarkdownTransform
         escapeTextRange(start, end);
         return;
       case "html": {
+        if (path.startsWith(RELEASE_NOTES_PREFIX)) {
+          const summary = DETAILS_OPEN.exec(node.value)?.[1];
+          if (summary !== undefined) {
+            const escaped = [...summary].map((char) => (ESCAPED.has(char) ? `\\${char}` : char));
+            edits.push({ start, end, text: `:::details ${escaped.join("")}` });
+            return;
+          }
+          if (node.value === "</details>") {
+            edits.push({ start, end, text: ":::" });
+            return;
+          }
+        }
         const kept = node.value.replace(COMMENT, "");
         if (kept.trim() === "") {
           edits.push({ start, end, text: "" });

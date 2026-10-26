@@ -95,6 +95,44 @@ export function definePageMap(map: PageMap): PageMap {
   return map;
 }
 
+/** Where the release cut writes each release's notes. */
+export const RELEASE_NOTES_DIRECTORY = "docs/releases";
+
+/**
+ * One page per `docs/releases/<X.Y.Z>.md` among `paths`, at `/releases/<X-Y-Z>`,
+ * newest first; any other file in that directory is a finding. The pages come
+ * from the files present, so no release edits the page map.
+ */
+export function releaseNotePages(paths: ReadonlyArray<string>): {
+  readonly pages: ReadonlyArray<FilePage>;
+  readonly findings: ReadonlyArray<string>;
+} {
+  const prefix = `${RELEASE_NOTES_DIRECTORY}/`;
+  const pages: Array<FilePage & { readonly version: string }> = [];
+  const findings: Array<string> = [];
+  for (const path of paths.toSorted()) {
+    if (!path.startsWith(prefix)) continue;
+    const name = path.slice(prefix.length);
+    const version = name.endsWith(".md") ? name.slice(0, -".md".length) : "";
+    if (!isRelease(version)) {
+      findings.push(`✗ ${path}: a release notes file is named X.Y.Z.md`);
+      continue;
+    }
+    pages.push({
+      route: `/releases/${version.replaceAll(".", "-")}`,
+      title: `phax ${version}`,
+      source: path,
+      description: `What phax ${version} changes: the specs and plans it delivers, its fixes and its upgrade steps.`,
+      version,
+    });
+  }
+  pages.sort((left, right) => compareReleases(right.version, left.version));
+  return {
+    pages: pages.map(({ version: _version, ...page }) => page),
+    findings,
+  };
+}
+
 export function isReadmePage(entry: ReadmeEntry): entry is ReadmePage {
   return "route" in entry;
 }
@@ -261,6 +299,7 @@ const GROUPS: ReadonlyArray<{
   { segment: "security", text: "Security", nav: true },
   { segment: "compare", text: "Compare", nav: true },
   { segment: "blog", text: "Blog", nav: true },
+  { segment: "releases", text: "Releases", nav: true },
   { segment: "contributing", text: "Contributing", nav: false },
 ];
 

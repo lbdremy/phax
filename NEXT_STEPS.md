@@ -14,12 +14,6 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ## The queue, as of 2026-10-25
 
-### Next, after the surface summaries (written 2026-10-25)
-
-- [ ] **The release-notes script** that reads the spec titles, guiding rules and surface
-      summaries, plus the run trailers. Repository only, run at the release cut. A separate
-      change, after the summaries exist.
-
 ### Briefs written, spec not yet authored
 
 - [ ] **`headless-review` revision** — `docs/briefs/review-escape.md` (2026-10-23). Reopen the
