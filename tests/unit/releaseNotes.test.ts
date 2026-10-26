@@ -50,23 +50,23 @@ import {
 } from "./releaseNotes/inputs.js";
 
 describe("renderReleaseNotes", () => {
-  it.fails("writes the full document from a release with every kind of content", () => {
+  it("writes the full document from a release with every kind of content", () => {
     const notes = renderReleaseNotes(fullInput);
     expect(notes.markdown).toBe(fullExpected);
     expect(notes.warnings).toEqual(fullExpectedWarnings);
   });
 
-  it.fails.each(surfaceRows)("shows only cli, config and file elements: $name", (row) => {
+  it.each(surfaceRows)("shows only cli, config and file elements: $name", (row) => {
     const plan = completingPlan("Surface plan", specNamed("Surfaces", [row.element]));
     expect(renderReleaseNotes(inputWith({ plans: [plan] })).markdown).toBe(row.expected);
   });
 
-  it.fails.each(titleRows)("splits the spec title into heading and lede: $title", (row) => {
+  it.each(titleRows)("splits the spec title into heading and lede: $title", (row) => {
     const plan = completingPlan("Titled plan", specNamed(row.title, []));
     expect(renderReleaseNotes(inputWith({ plans: [plan] })).markdown).toBe(row.expected);
   });
 
-  it.fails.each(commitPlaces.map((row, index) => ({ ...row, index })))(
+  it.each(commitPlaces.map((row, index) => ({ ...row, index })))(
     "sorts the commit subject $subject",
     ({ index, place }) => {
       const commit = COMMITS[index];
@@ -81,71 +81,71 @@ describe("renderReleaseNotes", () => {
     },
   );
 
-  it.fails("escapes every character the commit subject could turn into Markdown", () => {
+  it("escapes every character the commit subject could turn into Markdown", () => {
     expect(renderReleaseNotes(inputWith({ commits: [escapeCommit] })).markdown).toBe(
       escapeExpected,
     );
   });
 
-  it.fails("drops the Upgrading section and warns when the version has no entry", () => {
+  it("drops the Upgrading section and warns when the version has no entry", () => {
     const notes = renderReleaseNotes(inputWith({}));
     expect(notes.markdown).toBe(minimalExpected);
     expect(notes.warnings).toEqual([NO_ENTRY_WARNING]);
   });
 
-  it.fails("runs an Upgrading entry that is last in the file to the end of the file", () => {
+  it("runs an Upgrading entry that is last in the file to the end of the file", () => {
     const notes = renderReleaseNotes(inputWith({ upgrading: LAST_ENTRY_UPGRADING }));
     expect(notes.markdown).toBe(lastEntryExpected);
     expect(notes.warnings).toEqual([]);
   });
 
-  it.fails("keeps a link that leaves the repository and warns once", () => {
+  it("keeps a link that leaves the repository and warns once", () => {
     const notes = renderReleaseNotes(inputWith({ upgrading: LEAVING_UPGRADING }));
     expect(notes.markdown).toBe(leavingExpected);
     expect(notes.warnings).toEqual([LEAVING_WARNING]);
   });
 
-  it.fails("joins an intermediate plan listed before its completing plan to the Plans line", () => {
+  it("joins an intermediate plan listed before its completing plan to the Plans line", () => {
     const notes = renderReleaseNotes(inputWith({ plans: [joinedFirst, joinedFinal] }));
     expect(notes.markdown).toBe(joinedFirstBeforeExpected);
   });
 
-  it.fails("joins an intermediate plan listed after its completing plan to the Plans line", () => {
+  it("joins an intermediate plan listed after its completing plan to the Plans line", () => {
     const notes = renderReleaseNotes(inputWith({ plans: [joinedFinal, joinedFirst] }));
     expect(notes.markdown).toBe(joinedFirstAfterExpected);
   });
 
-  it.fails("makes the links of a plan without a spec absolute at the tag", () => {
+  it("makes the links of a plan without a spec absolute at the tag", () => {
     const notes = renderReleaseNotes(inputWith({ plans: [LOOSE_PLAN] }));
     expect(notes.markdown).toBe(
       [...HEAD, "## Plans", "", "### Loose plan", "", loosePlanSection, ""].join("\n"),
     );
   });
 
-  it.fails("writes only the title and the Changes line for a release with nothing to list", () => {
+  it("writes only the title and the Changes line for a release with nothing to list", () => {
     expect(renderReleaseNotes(inputWith({})).markdown).toBe(minimalExpected);
   });
 
-  it.fails("writes only Fixes after the Changes line for a single fix commit", () => {
+  it("writes only Fixes after the Changes line for a single fix commit", () => {
     const notes = renderReleaseNotes(inputWith({ commits: [onlyFixCommit] }));
     expect(notes.markdown).toBe(onlyFixExpected);
     expect(notes.warnings).toEqual([NO_ENTRY_WARNING]);
   });
 
-  it.fails("refuses a spec announced in full by two plans", () => {
+  it("refuses a spec announced in full by two plans", () => {
     expect(() =>
       renderReleaseNotes(inputWith({ plans: [joinedFinal, DUPLICATE_SECOND_PLAN] })),
     ).toThrow(new Error(duplicateMessage));
   });
 
-  it.fails("refuses a kept surface element that holds the placeholder summary", () => {
+  it("refuses a kept surface element that holds the placeholder summary", () => {
     const spec = placeholderSpec("cli: tool run", SURFACE_SUMMARY_PLACEHOLDER);
     expect(() =>
       renderReleaseNotes(inputWith({ plans: [completingPlan("Placeholder plan", spec)] })),
     ).toThrow(new Error(placeholderMessage));
   });
 
-  it.fails("accepts the placeholder summary on an element the notes leave out", () => {
+  it("accepts the placeholder summary on an element the notes leave out", () => {
     const spec = placeholderSpec("internal: src/run.ts", SURFACE_SUMMARY_PLACEHOLDER);
     expect(() =>
       renderReleaseNotes(inputWith({ plans: [completingPlan("Placeholder plan", spec)] })),
@@ -154,24 +154,24 @@ describe("renderReleaseNotes", () => {
 });
 
 describe("githubReleaseBody", () => {
-  it.fails("drops the folded blocks of the full document and links the site page", () => {
+  it("drops the folded blocks of the full document and links the site page", () => {
     expect(githubReleaseBody(fullExpected, "4.2.0")).toBe(fullExpectedShort);
   });
 
-  it.fails("only adds the link paragraph to a document without a folded block", () => {
+  it("only adds the link paragraph to a document without a folded block", () => {
     expect(githubReleaseBody(noDetailsDocument, "4.2.0")).toBe(noDetailsShort);
   });
 
-  it.fails("removes a folded block whose fenced content holds a closing details line", () => {
+  it("removes a folded block whose fenced content holds a closing details line", () => {
     expect(githubReleaseBody(fencedCloserDocument, "4.2.0")).toBe(fencedCloserShort);
   });
 
-  it.fails("returns a body of exactly the limit, counted in code points", () => {
+  it("returns a body of exactly the limit, counted in code points", () => {
     const body = githubReleaseBody(documentOfShortLength(GITHUB_BODY_LIMIT), "4.2.0");
     expect([...body].length).toBe(GITHUB_BODY_LIMIT);
   });
 
-  it.fails("refuses a body one code point over the limit with its exact message", () => {
+  it("refuses a body one code point over the limit with its exact message", () => {
     expect(() => githubReleaseBody(documentOfShortLength(GITHUB_BODY_LIMIT + 1), "4.2.0")).toThrow(
       new Error(limitMessage),
     );
