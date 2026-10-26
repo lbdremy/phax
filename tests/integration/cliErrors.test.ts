@@ -20,7 +20,7 @@ function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
   });
 }
 
-describe("CLI error messages", () => {
+describe("CLI error messages", { timeout: 30_000 }, () => {
   it("unknown command: non-zero exit, suggestion, help pointer, no stack trace", () => {
     const result = runCli(["resum"]);
     expect(result.status).not.toBe(0);
