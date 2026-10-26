@@ -765,7 +765,9 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     const message = expectRefused(await h.run(), 12, headSha());
 
-    expect(message).toBe("Decide refused: no terminal — phax artifact decide is interactive only");
+    expect(message).toBe(
+      "Decide refused: no terminal — interactive decide needs one; decide headless with `--verdicts <file> --by operator`",
+    );
     expectNoSession(h);
   });
 

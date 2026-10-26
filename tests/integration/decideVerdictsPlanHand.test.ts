@@ -423,6 +423,79 @@ describe(
       expect(world.headFiles()).toEqual([HAND]);
     });
 
+    it.each([
+      { name: "restoring the body it revised", restores: true },
+      { name: "leaving the body as it is", restores: false },
+    ])(
+      "a verdict restoring the recommendation after a departure lands, $name: a Decision block records no revised sections",
+      async ({ restores }) => {
+        const note = "Support asks for a fortnight of runs.";
+        seedHand(fileOf(HAND, [{ question: "Q1", chosen: "keep-20", note }]));
+        const departedMd = HAND_SPEC_MD.replace("ten most recent", "twenty most recent");
+        committed(
+          await world
+            .harness({
+              runAnswers: [handAnswer("keep-20", { revised: ["5.1"], markdown: departedMd })],
+            })
+            .run({ path: HAND }),
+        );
+        const decidedMd = world.readRepoFile(HAND);
+        world.writeRepoFile(VERDICTS, fileOf(HAND, [{ question: "Q1", chosen: "keep-10" }]));
+        world.commitAll("second file");
+        const h = world.harness({
+          runAnswers: [
+            restores
+              ? handAnswer("keep-10", {
+                  revised: ["5.1"],
+                  markdown: decidedMd.replace("twenty most recent", "ten most recent"),
+                })
+              : handAnswer("keep-10", { markdown: decidedMd }),
+          ],
+        });
+
+        const done = committed(await h.run({ path: HAND }));
+
+        expect(done.verdicts).toMatchObject([
+          {
+            question: "Q1",
+            chosen: "keep-10",
+            departs: false,
+            revised: restores ? ["5.1"] : [],
+            why: "ten logs cover a week of runs\n\nA longer history costs disk and nobody reads it.",
+          },
+        ]);
+        const md = world.readRepoFile(HAND);
+        expect(md).toContain("Decision: keep-10");
+        expect(md).toContain("Earlier decision: keep-20");
+        expect(md).toContain(
+          restores
+            ? "THE system SHALL keep the ten most recent logs."
+            : "THE system SHALL keep the twenty most recent logs.",
+        );
+        // The writer was told the verdict restores the recommendation.
+        expect(h.backend.runCalls[0]?.prompt).toContain("it restores the recommendation");
+      },
+    );
+
+    it("a verdict with no note on a question with an empty rationale exits 12 before any session", async () => {
+      seedHand(
+        fileOf(HAND, [{ question: "Q1", chosen: "keep-10" }]),
+        HAND_SPEC_MD.replace(
+          "Recommendation: keep-10 — ten logs cover a week of runs\n\nA longer history costs disk and nobody reads it.\n",
+          "Recommendation: keep-10 —\n",
+        ),
+      );
+      const h = world.harness();
+
+      const { error } = expectFailure(world, await h.run({ path: HAND }), 12, world.headSha());
+
+      expect(error.reason).toBe("verdicts-binding");
+      expect(error.message).toBe(
+        "Decide refused: verdicts.json gives Q1 no note, and Q1 has no rationale to stand as its why — give the verdict a note, or write the question's rationale",
+      );
+      expectNoWriter(world, h);
+    });
+
     it("a wrong option exits 5 after one resume, the file unchanged", async () => {
       const { head } = (() => {
         seedHand(fileOf(HAND, [{ question: "Q1", chosen: "keep-10" }]));

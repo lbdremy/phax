@@ -665,7 +665,7 @@ export function decideArtifact(
     if (!(yield* (yield* Terminal).stdinIsTerminal)) {
       return yield* refused(
         "no-terminal",
-        "no terminal — phax artifact decide is interactive only",
+        "no terminal — interactive decide needs one; decide headless with `--verdicts <file> --by operator`",
       );
     }
     const model = resolveDecideModel(input.model, input.effort);
