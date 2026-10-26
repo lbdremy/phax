@@ -10,6 +10,7 @@ import {
   finishDocument,
   headingText,
   inlineCode,
+  listItem,
   sentence,
 } from "../src/domain/authoring/markdown.js";
 import { sidecarPathFor } from "../src/domain/artifact/sidecar.js";
@@ -20,7 +21,7 @@ export interface ReleaseNotesInput {
   readonly previous: string; // the previous release, X.Y.Z
   readonly repository: string; // e.g. https://github.com/lbdremy/phax, no trailing slash
   readonly upgrading: string; // the whole text of docs/upgrading.md
-  readonly plans: ReadonlyArray<ReleasePlan>; // the plans the release's runs delivered, in run order
+  readonly plans: ReadonlyArray<ReleasePlan>; // the plans the release announces, in run order: each plan without a source spec and each plan that completes its spec
   readonly commits: ReadonlyArray<ReleaseCommit>; // the commits outside any announced run, oldest first
 }
 
@@ -28,8 +29,7 @@ export interface ReleasePlan {
   readonly path: string; // repo-relative plan.md path, for messages
   readonly title: string; // the plan's # heading, plain text
   readonly firstParagraph: string; // the first paragraph under the title, raw Markdown
-  readonly spec: ReleaseSpec | null; // null: the plan has no source spec
-  readonly completesSpec: boolean; // the plan's completes-spec; false when spec is null
+  readonly spec: ReleaseSpec | null; // the spec this plan completes; null: the plan has no source spec
 }
 
 export interface ReleaseSpec {
@@ -94,6 +94,14 @@ export function fenced(content: string): string {
   const longestRun = Math.max(0, ...Array.from(content.matchAll(/`+/g), (m) => m[0].length));
   const fence = "`".repeat(Math.max(3, longestRun + 1));
   return `${fence}text\n${content}\n${fence}`;
+}
+
+/** A surface as a reader sees its name: no `cli:`, `config:` or `file:` prefix, no backtick. */
+export function surfaceName(surface: string): string {
+  return surface
+    .replace(/^(?:cli|config|file):\s*/, "")
+    .replaceAll("`", "")
+    .trim();
 }
 
 /** The name of a spec: its title up to the first ` — `. */
@@ -215,22 +223,10 @@ function upgradingEntry(upgrading: string, version: string): string | null {
     .replace(/(?:\r?\n[ \t]*)+$/, "");
 }
 
-function surfaceBlocks(surface: ReleaseSurface, links: (text: string) => string): string[] {
-  const summary = surface.before === null ? "After" : "Before and after";
-  const content =
-    surface.before === null
-      ? [fenced(surface.after)]
-      : ["Before:", fenced(surface.before), "After:", fenced(surface.after)];
-  return [
-    `${inlineCode(surface.surface)} — ${links(surface.summary)}`,
-    `<details>\n<summary>${summary}</summary>\n\n${content.join("\n\n")}\n\n</details>`,
-  ];
-}
-
 function checkRefusals(plans: ReadonlyArray<ReleasePlan>): void {
   const announced = new Map<string, ReleasePlan>();
   for (const plan of plans) {
-    if (plan.spec === null || !plan.completesSpec) continue;
+    if (plan.spec === null) continue;
     const first = announced.get(plan.spec.path);
     if (first !== undefined) {
       throw new Error(
@@ -240,7 +236,7 @@ function checkRefusals(plans: ReadonlyArray<ReleasePlan>): void {
     announced.set(plan.spec.path, plan);
   }
   for (const plan of plans) {
-    if (plan.spec === null || !plan.completesSpec) continue;
+    if (plan.spec === null) continue;
     for (const element of plan.spec.surface) {
       if (KEPT_SURFACE.test(element.surface) && element.summary === SURFACE_SUMMARY_PLACEHOLDER) {
         throw new Error(
@@ -251,29 +247,55 @@ function checkRefusals(plans: ReadonlyArray<ReleasePlan>): void {
   }
 }
 
-function specBlocks(
-  spec: ReleaseSpec,
-  plans: ReadonlyArray<ReleasePlan>,
-  links: (text: string) => string,
-): string[] {
-  const lede = specLede(spec.title);
-  const titles = plans.filter((plan) => plan.spec?.path === spec.path).map((p) => p.title);
+// The lede and the guiding rule of a spec with their links made absolute, once:
+// Highlights and What's new both use this text, so a link warning is given once.
+interface SpecText {
+  readonly lede: string | null;
+  readonly guidingRule: string | null;
+}
+
+interface AnnouncedSpec {
+  readonly spec: ReleaseSpec;
+  readonly text: SpecText;
+  readonly links: (text: string) => string;
+}
+
+function surfaceItem(surface: ReleaseSurface, links: (text: string) => string): string {
+  const parts = [
+    `${links(surface.summary)} ${inlineCode(surfaceName(surface.surface))}`,
+    "Now:",
+    fenced(surface.after),
+    ...(surface.before === null
+      ? []
+      : ["<details>\n<summary>Before</summary>", fenced(surface.before), "</details>"]),
+  ];
+  return listItem("-", parts.join("\n\n"));
+}
+
+function specBlocks({ spec, text, links }: AnnouncedSpec): string[] {
+  const items = spec.surface
+    .filter((e) => KEPT_SURFACE.test(e.surface))
+    .map((e) => surfaceItem(e, links));
   return [
     `### ${specName(spec.title)}`,
-    ...(lede === null ? [] : [links(lede)]),
-    ...(spec.guidingRule === null
+    ...(text.lede === null ? [] : [text.lede]),
+    ...(text.guidingRule === null
       ? []
       : [
-          links(spec.guidingRule)
+          text.guidingRule
             .split(/\r\n?|\n/)
             .map((line) => (line === "" ? ">" : `> ${line}`))
             .join("\n"),
         ]),
-    sentence(`Plans: ${titles.map(headingText).join(", ")}`),
-    ...spec.surface
-      .filter((e) => KEPT_SURFACE.test(e.surface))
-      .flatMap((e) => surfaceBlocks(e, links)),
+    ...(items.length === 0 ? [] : [items.join("\n\n")]),
   ];
+}
+
+function highlight({ spec, text }: AnnouncedSpec): string {
+  const name = `**${specName(spec.title)}**`;
+  if (text.lede !== null) return `- ${name} — ${text.lede}`;
+  if (text.guidingRule !== null) return `- ${name} — ${headingText(text.guidingRule)}`;
+  return `- ${name}`;
 }
 
 function commitItem(commit: ReleaseCommit, repository: string): string {
@@ -294,41 +316,35 @@ export function renderReleaseNotes(input: ReleaseNotesInput): ReleaseNotes {
     warnings.push(
       `docs/upgrading.md has no "### ${version}" entry: the notes have no Upgrading section`,
     );
-  } else {
-    blocks.push(
-      "## Upgrading",
-      absolutizeLinks(entry, "docs/upgrading.md", repository, version, warnings),
-    );
   }
+  const upgradingText =
+    entry === null
+      ? null
+      : absolutizeLinks(entry, "docs/upgrading.md", repository, version, warnings);
 
-  const full = plans.filter((plan) => plan.spec !== null && plan.completesSpec);
-  if (full.length > 0) {
-    blocks.push("## Specs");
-    for (const plan of full) {
-      const { spec } = plan;
-      if (spec === null) continue;
-      const links = (text: string): string =>
-        absolutizeLinks(text, spec.path, repository, version, warnings, livePath(spec.path));
-      blocks.push(...specBlocks(spec, plans, links));
-    }
-  }
+  const announced = plans.flatMap((plan): AnnouncedSpec[] => {
+    const { spec } = plan;
+    if (spec === null) return [];
+    const links = (text: string): string =>
+      absolutizeLinks(text, spec.path, repository, version, warnings, livePath(spec.path));
+    const lede = specLede(spec.title);
+    const text: SpecText = {
+      lede: lede === null ? null : links(lede),
+      guidingRule: spec.guidingRule === null ? null : links(spec.guidingRule),
+    };
+    return [{ spec, text, links }];
+  });
 
-  const announced = new Set(full.map((plan) => plan.spec?.path));
-  const inProgress = plans.filter(
-    (plan) => plan.spec !== null && !plan.completesSpec && !announced.has(plan.spec.path),
-  );
-  if (inProgress.length > 0) {
-    blocks.push(
-      "## Specs in progress",
-      inProgress
-        .map((plan) => `- Part of ${specName(plan.spec?.title ?? "")}: ${headingText(plan.title)}`)
-        .join("\n"),
-    );
+  if (announced.length > 0) blocks.push("## Highlights", announced.map(highlight).join("\n"));
+  if (upgradingText !== null) blocks.push("## Upgrading", upgradingText);
+  if (announced.length > 0) {
+    blocks.push("## What's new");
+    for (const one of announced) blocks.push(...specBlocks(one));
   }
 
   const loose = plans.filter((plan) => plan.spec === null);
   if (loose.length > 0) {
-    blocks.push("## Plans");
+    blocks.push("## Also in this release");
     for (const plan of loose) {
       blocks.push(
         `### ${headingText(plan.title)}`,
@@ -359,25 +375,31 @@ export function renderReleaseNotes(input: ReleaseNotesInput): ReleaseNotes {
 
 export function githubReleaseBody(markdown: string, version: string): string {
   const edits: Edit[] = [];
-  let opening: number | null = null;
+  let inWhatsNew = false;
   let linkAt: number | null = null;
   for (const node of fromMarkdown(markdown).children) {
     const start = node.position?.start.offset;
     const end = node.position?.end.offset;
     if (start === undefined || end === undefined) continue;
-    if (opening === null) {
-      if (node.type === "html" && node.value.startsWith("<details>")) opening = start;
-      else if (
-        linkAt === null &&
-        node.type === "paragraph" &&
-        toString(node).startsWith("Changes since ")
-      ) {
-        linkAt = end;
-      }
-    } else if (node.type === "html" && node.value === "</details>") {
-      const blank = /\r?\n[ \t]*\r?\n$/.exec(markdown.slice(0, opening))?.[0].length ?? 0;
-      edits.push({ start: opening - blank, end, text: "" });
-      opening = null;
+    if (node.type === "heading" && node.depth <= 2) {
+      inWhatsNew = node.depth === 2 && toString(node) === "What's new";
+    } else if (inWhatsNew && node.type === "list") {
+      // Each item is cut down to its first paragraph: the summary and the name.
+      const firsts = node.children.flatMap((item) => {
+        const paragraph = item.children[0];
+        const from = paragraph?.position?.start.offset;
+        const to = paragraph?.position?.end.offset;
+        return paragraph?.type === "paragraph" && from !== undefined && to !== undefined
+          ? [`- ${markdown.slice(from, to)}`]
+          : [];
+      });
+      edits.push({ start, end, text: firsts.join("\n") });
+    } else if (
+      linkAt === null &&
+      node.type === "paragraph" &&
+      toString(node).startsWith("Changes since ")
+    ) {
+      linkAt = end;
     }
   }
   if (linkAt === null) throw new Error('the notes have no "Changes since" paragraph');
@@ -385,7 +407,7 @@ export function githubReleaseBody(markdown: string, version: string): string {
   edits.push({
     start: linkAt,
     end: linkAt,
-    text: `\n\nRead the full notes, with each surface's before and after, on [docs.phax.run/releases/${slug}](${SITE}/${slug}).`,
+    text: `\n\nRead the full notes, with each surface's examples, on [docs.phax.run/releases/${slug}](${SITE}/${slug}).`,
   });
   const body = `${applyEdits(markdown, edits).replace(/\n+$/, "")}\n`;
   const length = Array.from(body).length;

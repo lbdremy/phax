@@ -169,7 +169,6 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
               guidingRule: "Read it, never guess it.",
               surface: TABLE_SURFACE,
             },
-            completesSpec: true,
           },
         ],
         commits: [],
@@ -194,7 +193,25 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     expect(warnings).toEqual([]);
   });
 
-  it("announces an intermediate plan, which completes none of its spec", () => {
+  it("neither announces nor reads the spec of an intermediate plan, and keeps its run's commits out", () => {
+    const repo = track(releasedRepo());
+    writePlan(
+      repo,
+      planOf("table-first", "First of the table", {
+        spec: { path: "docs/specs/2610019999-gone.md", completes: false },
+      }),
+    );
+    repo.commit("feat: first", { runId: "run-1", shortName: "table-first" });
+    repo.commit("fix: review fix of the first step", { shortName: "table-first" });
+
+    const { input, warnings } = collectReleaseNotes(repo.root, OPENED);
+
+    expect(input.plans).toEqual([]);
+    expect(input.commits).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("announces only the completing plan of a spec that an intermediate plan also names", () => {
     const repo = track(releasedRepo());
     writeSpec(repo, TABLE_SPEC);
     writePlan(
@@ -203,13 +220,35 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
         spec: { path: TABLE_SPEC.path, completes: false },
       }),
     );
+    writePlan(
+      repo,
+      planOf("table-last", "Last of the table", {
+        stamp: "2610010002",
+        spec: { path: TABLE_SPEC.path, completes: true },
+      }),
+    );
     repo.commit("feat: first", { runId: "run-1", shortName: "table-first" });
+    repo.commit("feat: last", { runId: "run-2", shortName: "table-last" });
 
     const { input } = collectReleaseNotes(repo.root, OPENED);
 
-    expect(input.plans).toMatchObject([
-      { title: "First of the table", completesSpec: false, spec: { path: TABLE_SPEC.path } },
-    ]);
+    expect(input.plans.map((plan) => plan.title)).toEqual(["Last of the table"]);
+    expect(input.plans[0]?.spec?.path).toBe(TABLE_SPEC.path);
+    expect(input.commits).toEqual([]);
+  });
+
+  it("gives no sidecar warning for the spec of an intermediate plan", () => {
+    const repo = track(releasedRepo());
+    writeSpec(repo, { ...TABLE_SPEC, noSidecar: true });
+    writePlan(
+      repo,
+      planOf("table-first", "First of the table", {
+        spec: { path: TABLE_SPEC.path, completes: false },
+      }),
+    );
+    repo.commit("feat: first", { runId: "run-1", shortName: "table-first" });
+
+    expect(collectReleaseNotes(repo.root, OPENED).warnings).toEqual([]);
   });
 
   it("announces a plan without a spec by its title and first paragraph", () => {
@@ -224,7 +263,6 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
         title: "Loose plan",
         firstParagraph: "It *does* a thing.",
         spec: null,
-        completesSpec: false,
       },
     ]);
   });
@@ -336,7 +374,6 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     const { input, warnings } = collectReleaseNotes(repo.root, OPENED);
 
     expect(input.plans.map((plan) => plan.spec)).toEqual([
-      { path: spec.path, title: spec.title, guidingRule: null, surface: [] },
       { path: spec.path, title: spec.title, guidingRule: null, surface: [] },
     ]);
     expect(warnings).toEqual([`${spec.path} has no sidecar: it is announced by its title alone`]);
@@ -653,7 +690,7 @@ describe("the preview entry", { timeout: 60_000 }, () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe(githubReleaseBody(markdown, OPENED));
-    expect(result.stdout).toContain("Read the full notes, with each surface's before and after");
+    expect(result.stdout).toContain("Read the full notes, with each surface's examples, on");
   });
 
   it.each([
