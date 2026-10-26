@@ -28,6 +28,8 @@ import {
   fullExpectedShort,
   fullExpectedWarnings,
   fullInput,
+  headingItemDocument,
+  headingItemMessage,
   highlightsExpected,
   highlightsInput,
   inputWith,
@@ -46,6 +48,8 @@ import {
   placeholderSpec,
   specLinkRows,
   specNamed,
+  summaryDocument,
+  summaryRows,
   surfaceRows,
   titleRows,
   upgradingNowDocument,
@@ -59,7 +63,7 @@ describe("renderReleaseNotes", () => {
     expect(notes.warnings).toEqual(fullExpectedWarnings);
   });
 
-  it("(b) lists a Highlights line per spec in plan order: lede, else folded rule, else name", () => {
+  it("(b) lists a Highlights line per spec in plan order: folded rule, else lede, else name", () => {
     expect(renderReleaseNotes(highlightsInput).markdown).toBe(highlightsExpected);
   });
 
@@ -74,6 +78,24 @@ describe("renderReleaseNotes", () => {
     const plan = completingPlan("Surface plan", specNamed("Surfaces", [row.element]));
     expect(renderReleaseNotes(inputWith({ plans: [plan] })).markdown).toBe(row.expected);
   });
+
+  it.each(summaryRows)(
+    "(d) escapes a summary that opens like a block, so its bullet stays one: $summary",
+    (row) => {
+      const element = {
+        surface: "cli: tool run",
+        summary: row.summary,
+        before: null,
+        after: "ran",
+      };
+      const plan = completingPlan("Surface plan", specNamed("Surfaces", [element]));
+      const { markdown } = renderReleaseNotes(inputWith({ plans: [plan] }));
+      expect(markdown).toBe(summaryDocument(row.expected));
+      expect(githubReleaseBody(markdown, "4.2.0")).toContain(
+        `\n### Surfaces\n\n- ${row.expected} \`tool run\`\n`,
+      );
+    },
+  );
 
   it.each(nameRows)("(e) shows the name as one code span without backticks: $name", (row) => {
     const element = {
@@ -204,6 +226,12 @@ describe("githubReleaseBody", () => {
 
   it("(n) drops a Before fold whose fenced content holds a closing details line, whole", () => {
     expect(githubReleaseBody(fencedCloserDocument, "4.2.0")).toBe(fencedCloserShort);
+  });
+
+  it("(n) refuses a What's new item that does not open with its summary paragraph", () => {
+    expect(() => githubReleaseBody(headingItemDocument, "4.2.0")).toThrow(
+      new Error(headingItemMessage),
+    );
   });
 
   it("(o) keeps an Upgrading entry holding a Now paragraph and a fence, byte for byte", () => {
