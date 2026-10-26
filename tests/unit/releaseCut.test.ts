@@ -49,6 +49,7 @@ import {
   withKey,
   withoutKey,
 } from "./schemasPackage/documents.js";
+import { isolateGit } from "../helpers/isolateGit.js";
 
 type PackageEntry = typeof import("../../packages/schemas/src/index.js");
 type GeneratedIndex = typeof import("../../packages/schemas/src/generated/index.js");
@@ -382,25 +383,31 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
 
     // The entry loads release-notes.ts itself: a copy that is not a git
     // repository has no tag for the previous release, so the notes refuse.
+    // Its git runs away from the person's configuration.
     it("the entry's notes, built from git, on a copy with no tags", () => {
       const copy = openedCopy();
       const before = hashTree(copy, ["."]);
 
-      const result = spawnSync(
-        join(repoRoot, "node_modules/.bin/tsx"),
-        ["scripts/release-cut.ts", O, "--root", copy],
-        {
-          cwd: repoRoot,
-          encoding: "utf8",
-          timeout: 30_000,
-          env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
-        },
-      );
+      const restoreGit = isolateGit();
+      try {
+        const result = spawnSync(
+          join(repoRoot, "node_modules/.bin/tsx"),
+          ["scripts/release-cut.ts", O, "--root", copy],
+          {
+            cwd: repoRoot,
+            encoding: "utf8",
+            timeout: 30_000,
+            env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
+          },
+        );
 
-      expect(result.status).toBe(1);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain(`✗ v${lastRelease} is not a tag in ${copy}`);
-      expect(hashTree(copy, ["."])).toEqual(before);
+        expect(result.status).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain(`✗ v${lastRelease} is not a tag in ${copy}`);
+        expect(hashTree(copy, ["."])).toEqual(before);
+      } finally {
+        restoreGit();
+      }
     });
 
     it("notes that cannot be built", () => {
