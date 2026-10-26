@@ -320,7 +320,7 @@ describe("generateSite", () => {
 });
 
 const NOTES = (version: string): string =>
-  `# phax ${version}\n\n<details>\n<summary>After</summary>\n\n\`\`\`text\nx\n\`\`\`\n\n</details>\n`;
+  `# phax ${version}\n\n## What's new\n\n- A sentence. \`phax x\`\n\n  Now:\n\n  \`\`\`text\n  x\n  \`\`\`\n\n  <details>\n  <summary>Before</summary>\n\n  \`\`\`text\n  y\n  \`\`\`\n\n  </details>\n`;
 
 describe("release notes pages", () => {
   it("renders one page per notes file, newest first, and the page map still checks clean", () => {
@@ -331,7 +331,7 @@ describe("release notes pages", () => {
     expect(result.findings).toEqual([]);
     expect(result.files.has("docs/releases/0-9-0.md")).toBe(true);
     expect(result.files.has("docs/releases/0-10-0.md")).toBe(true);
-    expect(result.files.get("docs/releases/0-10-0.md")).toContain(":::details After");
+    expect(result.files.get("docs/releases/0-10-0.md")).toContain(":::details Before");
     const nav = siteJson(result.files);
     expect(nav.sidebar["/"]?.find((group) => group.text === "Releases")?.items).toEqual([
       { text: "phax 0.10.0", link: "/releases/0-10-0" },

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { renderReleaseNotes } from "../../../scripts/releaseNotes.js";
 import { applyEdits, transformMarkdown } from "../../../site/build/markdown.js";
+import { fullInput } from "../releaseNotes/inputs.js";
 
 function render(text: string): {
   text: string;
@@ -119,36 +121,54 @@ function renderNotes(path: string, text: string) {
   };
 }
 
-describe("release notes", () => {
-  const notes = [
-    "# phax 0.28.0",
+function item(summary: string): string {
+  return [
+    "- A sentence. `phax x`",
     "",
-    "<details>",
-    "<summary>Before and after</summary>",
+    "  Now:",
     "",
-    "Before:",
+    "  ```text",
+    "  now <details>",
+    "  ```",
     "",
-    "```text",
-    "<details>",
-    "```",
+    "  <details>",
+    `  <summary>${summary}</summary>`,
     "",
-    "</details>",
+    "  ```text",
+    "  <details>",
+    "  ```",
+    "",
+    "  </details>",
     "",
   ].join("\n");
-  it("turns the builder's details blocks into details containers", () => {
+}
+
+describe("release notes", () => {
+  const notes = item("Before");
+
+  it("turns the builder's fold inside a list item into a container at the item's indentation", () => {
     const output = renderNotes("docs/releases/0.28.0.md", notes);
     expect(output.findings).toEqual([]);
-    expect(output.text).toContain(":::details Before and after\n\nBefore:");
-    expect(output.text).toContain("```text\n<details>\n```\n\n:::\n");
+    expect(output.text).toContain(
+      "  :::details Before\n\n  ```text\n  <details>\n  ```\n\n  :::\n",
+    );
+    expect(output.text).toContain("  ```text\n  now <details>\n  ```\n");
   });
 
-  it("escapes the summary text like other text", () => {
-    const output = renderNotes(
-      "docs/releases/0.28.0.md",
-      "<details>\n<summary>The <b> {x}</summary>\n\n</details>\n",
-    );
-    expect(output.text).toContain(":::details The \\<b\\> \\{x\\}");
+  it("accepts the full made-up notes the builder writes", () => {
+    const written = renderReleaseNotes(fullInput).markdown;
+    expect(renderNotes("docs/releases/4.2.0.md", written).findings).toEqual([]);
   });
+
+  it.each(["After", "Before and after", "Before (old)"])(
+    "refuses a fold whose summary is %s",
+    (summary) => {
+      const output = renderNotes("docs/releases/0.28.0.md", item(summary));
+      expect(output.findings).toEqual([
+        expect.stringContaining("raw HTML <details> is not supported; write Markdown"),
+      ]);
+    },
+  );
 
   it("still refuses any other raw HTML in a release note", () => {
     const output = renderNotes("docs/releases/0.28.0.md", "# phax\n\n<div>x</div>\n");

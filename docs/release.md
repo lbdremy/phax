@@ -128,7 +128,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 
    A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
 8. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
-9. Creates the GitHub Release and uploads binaries and checksums. The release body is the short form of `docs/releases/<version>.md`: the notes without their folded before/after blocks, with a link to the release's page on the docs site. GitHub generates no notes.
+9. Creates the GitHub Release and uploads binaries and checksums. The release body is the short form of `docs/releases/<version>.md`: the notes without their examples (the `Now:` blocks and the `Before` folds), with a link to the release's page on the docs site. GitHub generates no notes.
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
@@ -142,8 +142,8 @@ Stage publish does not make a package installable. Approve each staged version b
 ### 5. Verify
 
 - GitHub shows a **Verified** badge on the tag (requires the signing key registered on GitHub)
-- The GitHub Release page lists all four binaries and their `.sha256` files, and its body is the release's notes in short form, with a working link to `https://docs.phax.run/releases/X-Y-Z`
-- `https://docs.phax.run/releases/X-Y-Z` shows the full notes, with each surface's before and after folded
+- The GitHub Release page lists all four binaries and their `.sha256` files, and its body is the release's notes in short form (without the `Now:` blocks and the `Before` folds), with a working link to `https://docs.phax.run/releases/X-Y-Z`
+- `https://docs.phax.run/releases/X-Y-Z` shows the full notes, with each surface's `Now:` example and its `Before` fold
 - Both npm packages show the tag's version once approved
 - `package.json`, `npm/package.json` and `packages/schemas/package.json` all carry the tag's version in the release commit, and the ledger's last entry is the tag's version
 - The commit after the release commit on main is the opening, `chore: open vX.(Y+1).0`, and the three manifests name that version
@@ -155,18 +155,21 @@ Stage publish does not make a package installable. Approve each staged version b
 
 The release cut writes the release's notes to `docs/releases/<X.Y.Z>.md`, in the release commit. They are written from what the release's runs delivered, not from the pull requests:
 
-- each completed spec with its guiding rule and the surfaces it changed (the `cli:`, `config:` and `file:` elements of its sidecar, each with its summary and a folded before and after);
-- each plan that has no spec;
-- the commits made outside any run: `fix` commits under Fixes, `feat`, `perf`, `revert` and unprefixed ones under Other, and nothing for `test`, `chore`, `docs`, `refactor`, `style`, `build` and `ci`;
-- the release's upgrade steps: the `### X.Y.Z` entry of `docs/upgrading.md`.
+- `## Highlights`, one line per completed spec;
+- `## Upgrading`, the release's `### X.Y.Z` entry of `docs/upgrading.md`;
+- `## What's new`, each completed spec with its lede and guiding rule, and each `cli:`, `config:` or `file:` surface of its sidecar as a bullet: its summary, its name, the current example under `Now:`, and the earlier one folded under `Before` when there was one;
+- `## Also in this release`, each plan without a spec;
+- `## Fixes` and `## Other`: the commits made outside any run, `fix` under Fixes, `test`, `chore`, `docs`, `refactor`, `style`, `build` and `ci` nowhere, and any other type, or a subject with no type, under Other.
 
 ### Where the notes come from
 
-The previous release is the ledger's greatest release below the one being cut, and the range starts at its tag `v<previous>`, so the clone needs the tags (`git fetch --tags`). The runs of the range are the distinct `Short-Name` values of the non-merge commits that carry both a `Run-Id` and a `Short-Name` trailer. Each run is matched to the plan it completed: a plan archived under `docs/plans/archive/` in the range, with status `Completed`, whose run short name equals the trailer. The plan's `source-spec` names the spec, and `completes-spec: true` announces that spec in full, from its sidecar (title, guiding rule, surfaces). A plan with `completes-spec: false` is listed as part of its spec, under Specs in progress, when its spec is not announced in full in the same release; otherwise it is named in that spec's `Plans:` line.
+The previous release is the ledger's greatest release below the one being cut, and the range starts at its tag `v<previous>`, so the clone needs the tags (`git fetch --tags`). The runs of the range are the distinct `Short-Name` values of the non-merge commits that carry both a `Run-Id` and a `Short-Name` trailer. Each run is matched to the plan it completed: a plan archived under `docs/plans/archive/` in the range, with status `Completed`, whose run short name equals the trailer. The plan's `source-spec` names the spec, and `completes-spec: true` announces that spec in full, from its sidecar (title, guiding rule, surfaces). A plan with `completes-spec: false` is not announced: the notes announce a spec only once a plan completes it. Its run's commits still belong to its run, so they are listed neither under Fixes nor under Other, and its spec is announced in full by the release that ships the plan with `completes-spec: true`.
 
 A review fix pushed onto a run's pull request branch carries `Short-Name: <run short name>` and no `Run-Id`. It joins that run and is listed nowhere. A review fix whose trailer was forgotten is listed by its type, like any commit without a run: `fix` under Fixes, `test`, `chore`, `docs`, `refactor`, `style`, `build` and `ci` nowhere, and any other under Other.
 
 ### Refusals and warnings
+
+The source-spec refusals (in neither folder, not a spec path), the spec-sidecar refusals (not JSON, does not decode), the spec's missing-title refusal and the no-sidecar warning concern only a spec announced in full.
 
 The cut refuses, and writes nothing, on a sidecar that does not decode, a plan with no frontmatter or title, a source spec found nowhere, two completed plans with the same run short name, a spec announced in full twice, a surface still holding the placeholder summary, a previous release with no tag, a missing `docs/upgrading.md`, an existing `docs/releases/<version>.md` and a GitHub body over the limit. The CI rehearsal runs the same cut on every push and pull request, so one broken document turns every pull request red until it is fixed.
 
@@ -182,7 +185,7 @@ prints the notes of the opened version, and their warnings, without writing anyt
 
 ### Where the notes are published
 
-- The GitHub Release body is the notes' short form: the file without its folded before/after blocks, with a link to the release's page on the docs site. GitHub caps a body at 125,000 characters, and the workflow fails before building anything if the short form exceeds it. `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md`, run from the repository root, prints it: the file is read relative to the current directory.
+- The GitHub Release body is the notes' short form: the file without its examples (the `Now:` blocks and the `Before` folds), with a link to the release's page on the docs site. GitHub caps a body at 125,000 characters, and the workflow fails before building anything if the short form exceeds it. `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md`, run from the repository root, prints it: the file is read relative to the current directory.
 - The docs site renders the full file as one page per release, at `/releases/<X-Y-Z>`, newest first under Releases. No release edits the page map.
 
 ## Redeploying the docs site by hand

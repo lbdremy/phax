@@ -176,7 +176,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           # The body is the short form of docs/releases/<X.Y.Z>.md; the docs
-          # site page has the full notes, with each surface's before and after.
+          # site page has the full notes, with each surface's examples.
           body_path: ${{ steps.notes.outputs.path }}
           files: |
             dist/release/phax-darwin-arm64
