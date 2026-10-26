@@ -284,7 +284,7 @@ phax artifact decide <path> --verdicts verdicts.json --by operator
 phax artifact schema verdicts                                # the file's JSON Schema
 ```
 
-A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider) records the verdicts and revises the body where a departing verdict implies it; phax checks its answer against the file, commits, and leaves the artifact Draft for you to read before approving. `other` is a reserved choice on every question. See [Deciding from a verdicts file](docs/arbitration.md#deciding-from-a-verdicts-file).
+A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider) records the verdicts and revises the body where a departing verdict implies it. A verdict that returns to the recommendation after a departure restores the body: it names the sections it restores when the departure named revised sections, and none when it named none. The writer runs read-only like every decide session; Mistral Vibe ignores read-only, so a model routed to it is refused before any session — pass `--model` with a Claude Code or Codex model. phax checks its answer against the file, commits, and leaves the artifact Draft for you to read before approving. `other` is a reserved choice on every question. See [Deciding from a verdicts file](docs/arbitration.md#deciding-from-a-verdicts-file).
 
 **The approval lock.** `phax artifact approve` refuses, with exit 12, while a spec or plan has an open question, and names `phax artifact decide`. Hand-authored artifacts are locked too, and an artifact with no question section is approved as before.
 

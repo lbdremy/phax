@@ -86,28 +86,31 @@ phax artifact decide docs/specs/2609251400-plan-prune.md --verdicts verdicts.jso
 phax artifact approve docs/specs/2609251400-plan-prune.md --by operator
 ```
 
-`--verdicts -` reads the file from stdin. `phax artifact schema verdicts` prints the file's JSON Schema.
+`--verdicts -` reads the file from a pipe on stdin; with a terminal on stdin it is refused, so pipe the file or pass its path. `phax artifact schema verdicts` prints the file's JSON Schema.
 
 **What the file holds.** `$schema` names the `decide-verdicts` format of the release you run; a file with none, or one stamped for another release, is refused, and phax names the URL it reads. `artifact` is the artifact's repo-relative path. phax compares it with the path you gave and never reads the artifact from it: an absolute path, or one that leaves the repository, names another artifact and is refused. `verdicts` is a non-empty list of `{ question, chosen, note }`, at most one per question. Every key is required and an unknown key is refused. A question the file does not name stays open. An arbitrated question it names is re-arbitrated, and its old verdict goes to its history even when the new choice is the same.
 
 **`chosen` and `other`.** `chosen` is one of the question's option ids, or the reserved id `other`, which is implicit on every question and means none of the listed options. No option carries the id `other` and no recommendation names it. A verdict that chooses `other` abandons every listed option.
 
-**The note.** `note` is your reason, a non-empty string or `null`. A verdict that departs from the question's recommendation, `other` included, must carry a note, because the writer revises the body from it; a departing verdict with `note: null` is refused. A verdict that follows the recommendation may have none. A verdict that follows cannot revise the body, so to ask for a body change, choose `other` and describe it.
+**The note.** `note` is your reason, a non-empty string or `null`. A verdict that departs from the question's recommendation, `other` included, must carry a note, because the writer revises the body from it; a departing verdict with `note: null` is refused. A verdict that follows the recommendation may have none, and `why` is then the question's rationale; a question whose rationale is empty has nothing to stand there, so a verdict on it needs a note. A verdict that follows revises nothing, so to ask for a body change, choose `other` and describe it.
 
-**Who decided.** `--by operator` names you as git commits. A machine cannot give verdicts: `--by machine:<grant>` is refused, and a value that does not parse is refused with the parser's message. Without `--by`, decide takes you from the terminal; with no terminal and no `--by`, it is refused.
+**Restoring the recommendation.** A verdict that chooses the recommendation of a question whose current verdict departed from it restores the recommendation, and the writer undoes what that departure did. If the replaced verdict named the body sections it revised, the restoring verdict names the sections it restores: its `revised` is not empty. If the replaced verdict revised nothing, the restoring verdict revises nothing: its `revised` is `[]`. A hand-authored Decision block, and a lifted verdict, record no revised sections, so a verdict restoring one may revise the body or not. A restoring verdict follows the recommendation: its note may be null.
 
-**The writer.** One headless session writes the verdicts into the revised document under the same doctrine as interactive mode: for each verdict the strongest case for an abandoned option, the principles it cites and its reversibility, and on a plan the phase. For a departing verdict it also revises the requirements, surface and acceptance criteria the choice implies, and names them in `revised`. It never adds an option. The default model is `claude-sonnet-5-5` at `medium`; `--model` and `--effort` override it. The model is routed like headless authoring's, so the session runs on the provider routing selects, not only Claude Code. A model with no equivalent on that provider runs as the concrete model routing chose, and the report names it beside the model you asked for. An effort outside `low`, `medium` and `high` is refused before any session.
+**Who decided.** `--by operator` names you as git commits. A machine cannot give verdicts: `--by machine:<grant>`, or any value other than `operator`, is refused with "a verdict always comes from the operator; pass `--by operator`". Without `--by`, decide takes you from the terminal; with no terminal and no `--by`, it is refused.
+
+**The writer.** One headless session writes the verdicts into the revised document under the same doctrine as interactive mode: for each verdict the strongest case for an abandoned option, the principles it cites and its reversibility, and on a plan the phase. For a departing verdict it also revises the requirements, surface and acceptance criteria the choice implies, and names them in `revised`. It never adds an option. The default model is `claude-sonnet-5-5` at `medium`; `--model` and `--effort` override it. The model is routed like headless authoring's, so the session runs on the provider routing selects, not only Claude Code. The session is read-only like the others; Mistral Vibe ignores read-only, so a model routed to it is refused before any session: pass `--model` with a Claude Code or Codex model. A model with no equivalent on that provider runs as the concrete model routing chose, and the report names it beside the model you asked for. An effort outside `low`, `medium` and `high` is refused before any session.
 
 **The session.** The writer resumes the artifact's kept authoring session when that session ran on the same provider as the writer, in this checkout. Otherwise it starts a new session. The report's first line says which.
 
-**What phax checks.** Before any session, phax refuses a bad file: unreadable, not JSON, a missing or wrong `$schema`, any other violation of the format (named by its path, such as `verdicts[0].note`), another artifact, an unknown question (naming the artifact's ids), a question named twice, a chosen id that is neither listed nor `other`, a departing verdict with no note. After the session it checks the writer's answer against the file, deterministically:
+**What phax checks.** Before any session, phax refuses a bad file: unreadable, not JSON, a missing or wrong `$schema`, any other violation of the format (named by its path, such as `verdicts[0].note`), another artifact, an unknown question (naming the artifact's ids), a question named twice, a chosen id that is neither listed nor `other`, a departing verdict with no note, a verdict with no note on a question whose rationale is empty. After the session it checks the writer's answer against the file, deterministically:
 
+- every question keeps its options, checked first and refused naming the question and its options;
 - the question set is unchanged, and every question the file does not name is as it was;
 - each named question is arbitrated with your `chosen`, and exactly the other listed options abandoned;
 - each question keeps its id, question, options, recommendation and rationale;
 - a re-arbitrated question keeps its earlier verdicts in its history;
 - every principle cited is one the doctrine defines;
-- a departing verdict names the body sections it revised, a following verdict names none, and when no verdict departs nothing outside the questions changed.
+- a departing verdict names the body sections it revised; a restoring verdict names the sections it restores when the verdict it replaces revised some, and none when that verdict revised none; any other following verdict names none; and when no verdict names a revised section, nothing outside the questions changed.
 
 A refused answer gets one corrective resume; a second refusal exits 5 and nothing is written.
 
@@ -125,19 +128,19 @@ Q2 store (recommended)
 Q3 other departs from by-count — revised: requirements
    why: Prune on size, not on count.
 …
-commit     3f9a1c2 — docs(specs): decide plan-prune Q1 Q2 Q3
-status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2609251400-plan-prune.md`
+commit     3f9a1c2 — docs(specs): decide plan-prune Q1, Q2, Q3
+status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2609251400-plan-prune.md --by operator`
 ```
 
 `--json` prints the same report as one JSON object on stdout: `artifact`, `status`, `session`, `provider`, `model` (the concrete model the writer ran), `requestedModel`, `effort`, `verdicts` (each with `question`, `chosen`, `recommendation`, `departs`, `why`, `revised` and `by`), `open`, `diff`, `commit` (`hash` and `subject`) and `decisionId`. Progress, warnings and record lines go to stderr.
 
 **The artifact stays Draft.** Nothing approves it. The writer revised the body, so read the verdicts and the diff before you run `phax artifact approve`.
 
-**The commit.** The subject is the interactive one, `docs(specs|plans): decide <slug> <ids>`. The body says the verdicts were transcribed in a headless session, with the model, effort and provider. The trailers are `Artifact`, `Decided-By: operator (<name>)`, `Decided-Via: verdicts` and `Decision-Id`. An interactive decide commit has no `Decided-Via`.
+**The commit.** The subject is the interactive one, `docs(specs|plans): decide <slug> <ids>`, the ids joined with `, `. The body says the verdicts were transcribed in a headless session, with the model, effort and provider. The trailers are `Artifact`, `Decided-By: operator (<name>)`, `Decided-Via: verdicts` and `Decision-Id`. An interactive decide commit has no `Decided-Via`.
 
 **Undoing a decision.** If you approved, `phax artifact reopen <path> --by operator`, then decide again, from a corrected file or interactively: a re-arbitrated question keeps the earlier verdict in its history.
 
-**Where it refuses.** Verdicts mode refuses, with nothing written and exit 12, in the same places interactive mode does, except for the terminal and the Claude Code model. Its own refusals come before any session: `--question` with `--verdicts`; `--json` or `--by` without `--verdicts`; a file that cannot be read or parsed; a file that does not bind to the artifact; `--by machine:<grant>`; no `--by` and no terminal; and an effort outside `low`, `medium` and `high`.
+**Where it refuses.** Verdicts mode refuses, with nothing written and exit 12, in the same places interactive mode does, except for the terminal and the Claude Code model. Its own refusals come before any session: `--question` with `--verdicts`; `--json` or `--by` without `--verdicts`; `--verdicts -` with a terminal on stdin; a file that cannot be read or parsed; a file that does not bind to the artifact; a `--by` other than `operator`; no `--by` and no terminal; an effort outside `low`, `medium` and `high`; and a writer model routed to Mistral Vibe.
 
 ## Re-arbitrating a question
 

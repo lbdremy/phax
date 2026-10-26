@@ -126,7 +126,11 @@ grows toward production; only the destructive is a floor). Three modes:
 - **verdicts** — `phax artifact decide --verdicts`: not the agent-decides `headless` mode
   above. A person has already chosen, and the writer transcribes their choices. For each
   verdict it writes the advocate, the principles, the reversibility, the `phase` the question
-  belongs to and, for a departure, the plan revisions the choice implies and `revised`. phax
+  belongs to and, for a departure, the plan revisions the choice implies and `revised`. A
+  verdict that chooses the recommendation after a departing verdict restores it: the writer
+  undoes that departure's plan revisions and names the sections it restores in `revised` (`[]`
+  when the departure revised nothing; either when the departure records no revised sections,
+  as a hand-authored Decision block does). Any other verdict that follows has `revised: []`. phax
   sets `why` (the person's note, or the question's rationale when there is none), `by` and
   `at`. The writer never adds an option and never changes a choice.
 - **headless total** — *later, not implemented*: no escalation; the agent decides; its
