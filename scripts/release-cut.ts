@@ -6,14 +6,16 @@
 // CURRENT_SHAPES and FIRST_SUPPORTED_RELEASE (PACKAGE_VERSION, PHAX_RELEASE
 // and CURRENT_STAMPS already name the opened version), then appends the
 // release to the release ledger packages/schemas/releases.json, from which
-// the docs site serves every release's schemas. It changes no manifest,
-// stamp or example. Prints every repo-relative path it created, modified or
-// removed, one per line on stdout, so scripts/release.sh stages exactly
-// those; progress goes to stderr.
+// the docs site serves every release's schemas, and writes the release notes
+// to docs/releases/<release>.md. It changes no manifest, stamp or example.
+// Prints every repo-relative path it created, modified or removed, one per
+// line on stdout, so scripts/release.sh stages exactly those; progress goes
+// to stderr.
 // scripts/release.sh calls it. Never run it on the real tree outside a
-// release; dry-run it on a copy:
-//   pnpm exec tsx scripts/release-cut.ts <X.Y.Z> --root <copy>
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+// release; dry-run it on a clone with the tags, since the notes read the
+// commits since the previous release's tag:
+//   pnpm exec tsx scripts/release-cut.ts <X.Y.Z> --root <clone>
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { refreshLock } from "../packages/schemas/build/generated.js";
@@ -50,6 +52,11 @@ export function bumpedManifest(path: string, content: string, version: string): 
 }
 
 export const LEDGER = "packages/schemas/releases.json";
+
+/** Where the cut writes the notes of `version`. */
+function notesPath(version: string): string {
+  return `docs/releases/${version}.md`;
+}
 
 /**
  * The release ledger's releases. Throws unless it holds a non-empty, strictly
@@ -90,10 +97,17 @@ export function readLedger(repoRoot: string, nothing: string): ReadonlyArray<str
  * path created, modified or removed, sorted. Throws before writing anything
  * when `version` is not `X.Y.Z`, is not the opened version package.json
  * names, already names a snapshot, the release ledger is missing, malformed
- * or unordered, the ledger's last entry is not below `version`, or a frozen
- * module differs from its lock entry.
+ * or unordered, the ledger's last entry is not below `version`, a frozen
+ * module differs from its lock entry, the notes file already exists, or
+ * `notes` throws. `notes` returns the Markdown of docs/releases/<version>.md:
+ * it is called after the refusals and before the first write, and its file is
+ * written after the ledger.
  */
-export function cutRelease(repoRoot: string, version: string): { changed: ReadonlyArray<string> } {
+export function cutRelease(
+  repoRoot: string,
+  version: string,
+  notes: () => string,
+): { changed: ReadonlyArray<string> } {
   if (!isRelease(version)) throw new Error(`${version} is not a release (X.Y.Z)`);
   const opened = readVersion(repoRoot);
   if (version !== opened) {
@@ -115,6 +129,11 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
   if (mismatched.length > 0) {
     throw new Error(`${mismatched.join(", ")} differ from their lock entries — nothing cut`);
   }
+  const notesFile = notesPath(version);
+  if (existsSync(join(repoRoot, notesFile))) {
+    throw new Error(`${notesFile} already exists — nothing cut`);
+  }
+  const markdown = notes();
 
   const changed = new Set<string>();
   for (const id of FORMAT_IDS) {
@@ -133,12 +152,17 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
   const releases = { releases: [...ledger, version] };
   writeFileSync(join(repoRoot, LEDGER), `${JSON.stringify(releases, null, 2)}\n`);
   changed.add(LEDGER);
+  mkdirSync(join(repoRoot, "docs/releases"), { recursive: true });
+  writeFileSync(join(repoRoot, notesFile), markdown);
+  changed.add(notesFile);
   return { changed: [...changed].toSorted() };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
-if (isMain) {
+// Not awaited at the top level: release-notes.ts imports this module, which
+// must have finished evaluating by the time main loads it.
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const rootFlag = args.indexOf("--root");
   const rootArg = rootFlag === -1 ? undefined : args[rootFlag + 1];
@@ -153,7 +177,14 @@ if (isMain) {
     const repoRoot =
       rootArg === undefined ? join(fileURLToPath(import.meta.url), "../..") : resolve(rootArg);
     console.error(`cutting ${version} in ${repoRoot} (${SNAPSHOTS_DIR})`);
-    const { changed } = cutRelease(repoRoot, version);
+    // Loaded here, not at the top, so the two scripts form no static import cycle.
+    const { releaseNotes } = await import("./release-notes.js");
+    const notes = (): string => {
+      const { markdown, warnings } = releaseNotes(repoRoot, version);
+      for (const warning of warnings) console.error(`! ${warning}`);
+      return markdown;
+    };
+    const { changed } = cutRelease(repoRoot, version, notes);
     for (const path of changed) process.stdout.write(`${path}\n`);
     console.error(`cut ${version}: ${changed.length} paths changed`);
   } catch (error) {
@@ -161,3 +192,5 @@ if (isMain) {
     process.exit(1);
   }
 }
+
+if (isMain) void main();

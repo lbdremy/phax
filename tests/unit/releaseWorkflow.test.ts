@@ -195,6 +195,29 @@ describe("release workflow: two packages in lockstep", () => {
   });
 });
 
+describe("the release notes at the cut", () => {
+  it("checks out the whole history in CI, where the release rehearsal reads v<previous>..HEAD", () => {
+    const checkout =
+      ciSteps[indexOf(ciSteps, (s) => s.uses?.startsWith("actions/checkout@") === true)]!;
+    expect(checkout.with?.["fetch-depth"]).toBe(0);
+  });
+
+  it("cleans docs/releases when the undo line takes back a failed cut", () => {
+    const script = readFileSync(join(import.meta.dirname, "../../scripts/release.sh"), "utf-8");
+    expect(script).toContain(
+      "undo the cut: git reset --hard HEAD && git clean -fd -- packages/schemas/snapshots docs/releases",
+    );
+    expect(script).toContain('echo "writing the release notes: docs/releases/${VERSION}.md"');
+  });
+
+  it("previews the notes with a package script", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(import.meta.dirname, "../../package.json"), "utf-8"),
+    ) as { readonly scripts?: Readonly<Record<string, string>> };
+    expect(manifest.scripts?.["release:notes"]).toBe("tsx scripts/release-notes.ts");
+  });
+});
+
 /** The deploy steps of `steps`, in workflow order. */
 const deploySteps = (steps: ReadonlyArray<Step>) =>
   steps.filter((step) => step.name?.startsWith("Deploy docs:") === true);

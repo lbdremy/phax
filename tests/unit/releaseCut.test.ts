@@ -5,10 +5,12 @@
 // already opened above the ledger, else the next minor of the ledger's last
 // entry, opened on the copy first. So a real release or opening never needs
 // this test edited.
+import { spawnSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -69,10 +71,15 @@ const RELEASE_MODULE = "src/schemas/release.ts";
 const LOCK = "packages/schemas/history.lock.json";
 const LEDGER = "packages/schemas/releases.json";
 const EXAMPLES = ["examples/hello-world/audit.mjs", "examples/hello-world/brief.mjs"];
+/** The notes the cut writes, made up: the cut never reads git in these tests. */
+const NOTES_TEXT = "# phax made-up\n\nNotes the cut writes as given.\n";
+const notes = (): string => NOTES_TEXT;
+const notesFile = (version: string): string => `docs/releases/${version}.md`;
 /** Every path the cut could touch, as files or directories. */
 const CUT_SCOPE = [
   ...MANIFESTS,
   "packages/schemas/snapshots",
+  "docs/releases",
   GENERATED_INDEX,
   RELEASE_MODULE,
   LOCK,
@@ -186,8 +193,10 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
       renamed.map((id) => [id, readFileSync(join(copy, snapshotPath(id, "next")))]),
     );
 
-    const { changed } = cutRelease(copy, O);
+    const { changed } = cutRelease(copy, O, notes);
 
+    expect(readFileSync(join(copy, notesFile(O)), "utf8")).toBe(NOTES_TEXT);
+    expect(changed).toContain(notesFile(O));
     for (const id of FORMAT_IDS) {
       expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(false);
     }
@@ -235,7 +244,7 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
     expect(generatedSchema.generated).toEqual({ ok: true, content: planted.toString("utf8") });
     const before = hashTree(copy, ["."]);
 
-    const { changed } = cutRelease(copy, O);
+    const { changed } = cutRelease(copy, O, notes);
 
     expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(false);
     expect(readFileSync(join(copy, snapshotPath(id, O)))).toEqual(planted);
@@ -250,7 +259,7 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
 
   it(`leaves the copy's package reading documents at ${O}`, async () => {
     const copy = openedCopy();
-    cutRelease(copy, O);
+    cutRelease(copy, O, notes);
     const pkg = await importFrom<PackageEntry>(copy, "packages/schemas/src/index.ts");
     const id = "phase-record-manifest";
     const shape = expectedShapes[id];
@@ -291,17 +300,18 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
     }
   });
 
-  it(`cuts ${nextMinor(O)}, opened after ${O}, changing only the ledger`, () => {
+  it(`cuts ${nextMinor(O)}, opened after ${O}, changing only the ledger and the notes`, () => {
     const copy = openedCopy();
-    cutRelease(copy, O);
+    cutRelease(copy, O, notes);
     openRelease(copy, nextMinor(O));
     const before = hashTree(copy, ["."]);
 
-    const { changed } = cutRelease(copy, nextMinor(O));
+    const { changed } = cutRelease(copy, nextMinor(O), notes);
 
     const after = hashTree(copy, ["."]);
-    expect(differences(before, after)).toEqual([LEDGER]);
-    expect(changed).toEqual([LEDGER]);
+    const expected = [LEDGER, notesFile(nextMinor(O))].toSorted();
+    expect(differences(before, after)).toEqual(expected);
+    expect(changed).toEqual(expected);
     expect(ledgerOf(copy).slice(-2)).toEqual([O, nextMinor(O)]);
     expect(checkSchemas(readSchemasState(copy))).toEqual([]);
   });
@@ -309,7 +319,7 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
   describe("refuses before writing anything", () => {
     function expectRefused(copy: string, version: string, message: string): void {
       const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, version)).toThrow(message);
+      expect(() => cutRelease(copy, version, notes)).toThrow(message);
       expect(hashTree(copy, ["."])).toEqual(before);
     }
 
@@ -360,6 +370,61 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
       const existing = snapshotPath("registry", O);
       writeFileSync(join(copy, existing), "{}\n");
       expectRefused(copy, O, `${existing} already exists`);
+    });
+
+    it(`an existing ${O} notes file`, () => {
+      const copy = openedCopy();
+      mkdirSync(join(copy, "docs/releases"), { recursive: true });
+      writeFileSync(join(copy, notesFile(O)), "written by hand\n");
+      expectRefused(copy, O, `${notesFile(O)} already exists — nothing cut`);
+      expect(readFileSync(join(copy, notesFile(O)), "utf8")).toBe("written by hand\n");
+    });
+
+    // The entry loads release-notes.ts itself: a copy that is not a git
+    // repository has no tag for the previous release, so the notes refuse.
+    it("the entry's notes, built from git, on a copy with no tags", () => {
+      const copy = openedCopy();
+      const before = hashTree(copy, ["."]);
+
+      const result = spawnSync(
+        join(repoRoot, "node_modules/.bin/tsx"),
+        ["scripts/release-cut.ts", O, "--root", copy],
+        {
+          cwd: repoRoot,
+          encoding: "utf8",
+          timeout: 30_000,
+          env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(`✗ v${lastRelease} is not a tag in ${copy}`);
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
+    it("notes that cannot be built", () => {
+      const copy = openedCopy();
+      const before = hashTree(copy, ["."]);
+      expect(() =>
+        cutRelease(copy, O, () => {
+          throw new Error("v0.0.0 is not a tag");
+        }),
+      ).toThrow(new Error("v0.0.0 is not a tag"));
+      expect(hashTree(copy, ["."])).toEqual(before);
+      expect(existsSync(join(copy, "docs/releases"))).toBe(false);
+    });
+
+    it("anything else, without building the notes", () => {
+      const copy = openedCopy();
+      let built = 0;
+      expect(() =>
+        cutRelease(copy, nextMinor(O), () => {
+          built += 1;
+          return NOTES_TEXT;
+        }),
+      ).toThrow("is not the opened version");
+      expect(built).toBe(0);
     });
   });
 });
