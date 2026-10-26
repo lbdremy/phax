@@ -7,6 +7,7 @@ import { transformMarkdown } from "../../../site/build/markdown.js";
 import { isFilePage, isRendered, releaseNotePages } from "../../../site/build/pageMap.js";
 import pageMap from "../../../site/pages.js";
 import { README, readSources, splitReadme } from "../../../site/build/sources.js";
+import { isolateGit } from "../../helpers/isolateGit.js";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
 const NOTES_DIRECTORY = join(ROOT, "docs/releases");
@@ -19,13 +20,20 @@ const notesFiles = existsSync(NOTES_DIRECTORY)
 
 /** Every repository file, tracked or not but never ignored: what a relative link may name. */
 function repositoryFiles(): ReadonlyArray<string> {
-  return execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  })
-    .split("\0")
-    .filter((path) => path !== "");
+  // Git away from the person's configuration: a global excludesFile would
+  // otherwise decide which untracked files a link may name.
+  const restoreGit = isolateGit();
+  try {
+    return execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .split("\0")
+      .filter((path) => path !== "");
+  } finally {
+    restoreGit();
+  }
 }
 
 /** The link targets the way site/build/generate.ts builds them for the real repository. */
@@ -61,9 +69,14 @@ function realTargets(): LinkTargets {
 }
 
 describe("the real release notes", () => {
-  it("passes when no notes file exists yet", () => {
-    // docs/releases/ appears with the first release cut with the notes script.
-    expect(Array.isArray(notesFiles)).toBe(true);
+  // Also keeps the suite non-empty until the first cut writes docs/releases/.
+  it("refuses a made-up notes file with a link to no file", () => {
+    const path = "docs/releases/0.0.0.md";
+    const text = "# phax 0.0.0\n\nSee [the guide](../no-such-guide.md).\n";
+    const rewrite = rewriteLinks(path, text, realTargets());
+    expect(rewrite.findings.map((finding) => finding.message)).toEqual([
+      expect.stringContaining(`✗ ${path}:3: ../no-such-guide.md`),
+    ]);
   });
 
   it.each(notesFiles)("docs/releases/%s has no link the site build would refuse", (name) => {
