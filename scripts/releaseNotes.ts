@@ -12,6 +12,7 @@ import {
   inlineCode,
   sentence,
 } from "../src/domain/authoring/markdown.js";
+import { sidecarPathFor } from "../src/domain/artifact/sidecar.js";
 import { SURFACE_SUMMARY_PLACEHOLDER } from "../src/schemas/specDocument.js";
 
 export interface ReleaseNotesInput {
@@ -32,7 +33,7 @@ export interface ReleasePlan {
 }
 
 export interface ReleaseSpec {
-  readonly path: string; // repo-relative spec .md path where it was found; identifies the spec
+  readonly path: string; // repo-relative spec .md path where it was found, its sidecar beside it; identifies the spec
   readonly title: string;
   readonly guidingRule: string | null; // null when the spec has no sidecar
   readonly surface: ReadonlyArray<ReleaseSurface>; // empty when the spec has no sidecar
@@ -137,10 +138,11 @@ export function absoluteDestination(
   return `${base}${normalized}${fragment}`;
 }
 
-// An archived plan's links were written at its live path: the archive move
-// keeps its text, so a relative destination resolves from docs/plans/.
+// An archived plan's or spec's links were written at its live path: the
+// archive move keeps its text, so a relative destination resolves from
+// docs/plans/ or docs/specs/.
 function livePath(path: string): string {
-  return path.replace(/^docs\/plans\/archive\//, "docs/plans/");
+  return path.replace(/^docs\/(plans|specs)\/archive\//, "docs/$1/");
 }
 
 interface Edit {
@@ -213,14 +215,14 @@ function upgradingEntry(upgrading: string, version: string): string | null {
     .replace(/(?:\r?\n[ \t]*)+$/, "");
 }
 
-function surfaceBlocks(surface: ReleaseSurface): string[] {
+function surfaceBlocks(surface: ReleaseSurface, links: (text: string) => string): string[] {
   const summary = surface.before === null ? "After" : "Before and after";
   const content =
     surface.before === null
       ? [fenced(surface.after)]
       : ["Before:", fenced(surface.before), "After:", fenced(surface.after)];
   return [
-    `${inlineCode(surface.surface)} — ${surface.summary}`,
+    `${inlineCode(surface.surface)} — ${links(surface.summary)}`,
     `<details>\n<summary>${summary}</summary>\n\n${content.join("\n\n")}\n\n</details>`,
   ];
 }
@@ -242,29 +244,35 @@ function checkRefusals(plans: ReadonlyArray<ReleasePlan>): void {
     for (const element of plan.spec.surface) {
       if (KEPT_SURFACE.test(element.surface) && element.summary === SURFACE_SUMMARY_PLACEHOLDER) {
         throw new Error(
-          `${plan.spec.path}: the surface element "${element.surface}" still has the placeholder summary — write it before the release`,
+          `${sidecarPathFor(plan.spec.path)}: the surface element "${element.surface}" still has the placeholder summary — write it before the release`,
         );
       }
     }
   }
 }
 
-function specBlocks(spec: ReleaseSpec, plans: ReadonlyArray<ReleasePlan>): string[] {
+function specBlocks(
+  spec: ReleaseSpec,
+  plans: ReadonlyArray<ReleasePlan>,
+  links: (text: string) => string,
+): string[] {
   const lede = specLede(spec.title);
   const titles = plans.filter((plan) => plan.spec?.path === spec.path).map((p) => p.title);
   return [
     `### ${specName(spec.title)}`,
-    ...(lede === null ? [] : [lede]),
+    ...(lede === null ? [] : [links(lede)]),
     ...(spec.guidingRule === null
       ? []
       : [
-          spec.guidingRule
+          links(spec.guidingRule)
             .split(/\r\n?|\n/)
             .map((line) => (line === "" ? ">" : `> ${line}`))
             .join("\n"),
         ]),
     sentence(`Plans: ${titles.map(headingText).join(", ")}`),
-    ...spec.surface.filter((e) => KEPT_SURFACE.test(e.surface)).flatMap(surfaceBlocks),
+    ...spec.surface
+      .filter((e) => KEPT_SURFACE.test(e.surface))
+      .flatMap((e) => surfaceBlocks(e, links)),
   ];
 }
 
@@ -297,7 +305,11 @@ export function renderReleaseNotes(input: ReleaseNotesInput): ReleaseNotes {
   if (full.length > 0) {
     blocks.push("## Specs");
     for (const plan of full) {
-      if (plan.spec !== null) blocks.push(...specBlocks(plan.spec, plans));
+      const { spec } = plan;
+      if (spec === null) continue;
+      const links = (text: string): string =>
+        absolutizeLinks(text, spec.path, repository, version, warnings, livePath(spec.path));
+      blocks.push(...specBlocks(spec, plans, links));
     }
   }
 

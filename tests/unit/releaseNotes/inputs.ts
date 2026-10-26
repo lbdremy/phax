@@ -746,7 +746,7 @@ export function placeholderSpec(surface: string, placeholder: string): ReleaseSp
 }
 
 export const placeholderMessage =
-  'docs/specs/archive/2601010008-placeholder.md: the surface element "cli: tool run" still has the placeholder summary — write it before the release';
+  'docs/specs/archive/2601010008-placeholder.json: the surface element "cli: tool run" still has the placeholder summary — write it before the release';
 
 // --- (j) the GitHub body -----------------------------------------------------
 
@@ -851,3 +851,106 @@ export const loosePlanSection = [
   "Adds a `thing` command. See [the spec](https://github.com/acme/tool/blob/v4.2.0/docs/specs/2601010000-made-up.md), [the context](https://github.com/acme/tool/blob/v4.2.0/docs/plans/archive/2601010005-loose-plan.md#context),",
   "[the readme](https://github.com/acme/tool/blob/v4.2.0/README.md#install) and [the docs](https://example.com/docs).",
 ].join("\n");
+
+// --- (l) spec links ------------------------------------------------------------
+
+// The spec of every row is archived at docs/specs/archive/2601010009-table.md:
+// an anchor names that file, a relative destination resolves from docs/specs/,
+// where the spec was written.
+export interface SpecLinkRow {
+  readonly name: string;
+  readonly spec: ReleaseSpec;
+  readonly expected: string;
+  readonly warnings: ReadonlyArray<string>;
+}
+
+export const specLinkRows: ReadonlyArray<SpecLinkRow> = [
+  {
+    name: "the guiding rule",
+    spec: {
+      ...specNamed("Linked", []),
+      guidingRule:
+        "Read [the bounds](bounds.md#limits) and [the goal](#goal).\nSee [the readme](/README.md).",
+    },
+    expected: [
+      ...HEAD,
+      "## Specs",
+      "",
+      "### Linked",
+      "",
+      "> Read [the bounds](https://github.com/acme/tool/blob/v4.2.0/docs/specs/bounds.md#limits) and [the goal](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#goal).",
+      "> See [the readme](https://github.com/acme/tool/blob/v4.2.0/README.md).",
+      "",
+      "Plans: Titled plan.",
+      "",
+    ].join("\n"),
+    warnings: [],
+  },
+  {
+    name: "the lede",
+    spec: specNamed("Linked — reads [the plan](../plans/2601010009-table-plan.md)", []),
+    expected: [
+      ...HEAD,
+      "## Specs",
+      "",
+      "### Linked",
+      "",
+      "Reads [the plan](https://github.com/acme/tool/blob/v4.2.0/docs/plans/2601010009-table-plan.md).",
+      "",
+      "Plans: Titled plan.",
+      "",
+    ].join("\n"),
+    warnings: [],
+  },
+  {
+    name: "a surface summary",
+    spec: specNamed("Linked", [
+      {
+        surface: "cli: tool run",
+        summary:
+          "You can run it, see [the context](#context) and [the docs](https://example.com/docs).",
+        before: null,
+        after: "ran",
+      },
+    ]),
+    expected: [
+      ...HEAD,
+      "## Specs",
+      "",
+      "### Linked",
+      "",
+      "Plans: Titled plan.",
+      "",
+      "`cli: tool run` — You can run it, see [the context](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#context) and [the docs](https://example.com/docs).",
+      "",
+      "<details>",
+      "<summary>After</summary>",
+      "",
+      "```text",
+      "ran",
+      "```",
+      "",
+      "</details>",
+      "",
+    ].join("\n"),
+    warnings: [],
+  },
+  {
+    name: "a link that leaves the repository",
+    spec: { ...specNamed("Linked", []), guidingRule: "Never [leave](../../../x.md)." },
+    expected: [
+      ...HEAD,
+      "## Specs",
+      "",
+      "### Linked",
+      "",
+      "> Never [leave](../../../x.md).",
+      "",
+      "Plans: Titled plan.",
+      "",
+    ].join("\n"),
+    warnings: [
+      "docs/specs/archive/2601010009-table.md: the link ../../../x.md leaves the repository and is kept as written",
+    ],
+  },
+];

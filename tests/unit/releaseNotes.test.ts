@@ -44,6 +44,7 @@ import {
   onlyFixExpected,
   placeholderMessage,
   placeholderSpec,
+  specLinkRows,
   specNamed,
   surfaceRows,
   titleRows,
@@ -64,6 +65,14 @@ describe("renderReleaseNotes", () => {
   it.each(titleRows)("splits the spec title into heading and lede: $title", (row) => {
     const plan = completingPlan("Titled plan", specNamed(row.title, []));
     expect(renderReleaseNotes(inputWith({ plans: [plan] })).markdown).toBe(row.expected);
+  });
+
+  it.each(specLinkRows)("makes the links of $name absolute at the tag", (row) => {
+    const notes = renderReleaseNotes(
+      inputWith({ plans: [completingPlan("Titled plan", row.spec)] }),
+    );
+    expect(notes.markdown).toBe(row.expected);
+    expect(notes.warnings).toEqual([NO_ENTRY_WARNING, ...row.warnings]);
   });
 
   it.each(commitPlaces.map((row, index) => ({ ...row, index })))(
