@@ -1,7 +1,13 @@
 // What the release notes oracles do not pin: the helpers of scripts/releaseNotes.ts.
 import { describe, expect, it } from "vitest";
 
-import { absolutizeLinks, commitType, escapeSubject, fenced } from "../../scripts/releaseNotes.js";
+import {
+  absolutizeLinks,
+  commitType,
+  escapeSubject,
+  fenced,
+  surfaceName,
+} from "../../scripts/releaseNotes.js";
 
 const REPOSITORY = "https://github.com/acme/tool";
 const BASE = `${REPOSITORY}/blob/v4.2.0`;
@@ -94,5 +100,27 @@ describe("fenced", () => {
   ])("fences content with a backtick run of %i with %j", (run, fence) => {
     const content = `a ${"`".repeat(run)} b`;
     expect(fenced(content)).toBe(`${fence}text\n${content}\n${fence}`);
+  });
+});
+
+describe("surfaceName", () => {
+  it.each([
+    ["cli: tool run <name>", "tool run <name>"],
+    ["cli:tool run", "tool run"],
+    ["config: tool.json key run", "tool.json key run"],
+    ["config:tool.json", "tool.json"],
+    ["file: tool.log", "tool.log"],
+    ["file:tool.log", "tool.log"],
+    [
+      "file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy`",
+      "plan sidecar docs/plans/<stamp>-<slug>-plan.json, phase testStrategy",
+    ],
+    ["config: tool.json key `ship`", "tool.json key ship"],
+    ["file: ends with a `tick`", "ends with a tick"],
+    ["file: the key ends with `", "the key ends with"],
+    ["api: shipThing(`name`)", "api: shipThing(name)"],
+    ["  bare `name`  ", "bare name"],
+  ])("shows %j as %j", (surface, name) => {
+    expect(surfaceName(surface)).toBe(name);
   });
 });

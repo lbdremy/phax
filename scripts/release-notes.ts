@@ -1,8 +1,11 @@
 // Reads what a release's runs delivered and writes the release notes from it.
 // The runs are the Run-Id and Short-Name trailers of the commits since the
 // previous release's tag, matched to the plans completed in the same range;
-// each plan leads to its source spec, whose sidecar holds the guiding rule and
-// the surfaces. scripts/releaseNotes.ts renders the facts gathered here.
+// each plan that completes its spec leads to that spec, whose sidecar holds the
+// guiding rule and the surfaces; a plan with completes-spec: false is work in
+// progress, announced nowhere and its spec never read, though its run's commits
+// still stay out of the commit lists. scripts/releaseNotes.ts renders the facts
+// gathered here.
 // Reads git and the files under the root and writes nothing; progress and
 // warnings go to stderr. Previews the opened version's notes:
 //   pnpm release:notes [--root <dir>]
@@ -117,7 +120,7 @@ function readSidecarJson(repoRoot: string, mdPath: string): { path: string; json
 }
 
 interface CompletedPlan {
-  readonly plan: Omit<ReleasePlan, "spec" | "completesSpec">;
+  readonly plan: Omit<ReleasePlan, "spec">;
   readonly sourceSpec: { readonly path: string; readonly completesSpec: boolean } | null;
   readonly shortName: string;
 }
@@ -297,13 +300,14 @@ export function collectReleaseNotes(
     }
   }
 
+  // Only the plans the release announces reach the builder: a plan with
+  // completes-spec: false is work in progress, and its spec is never read.
   const specs = new Map<string, ReleaseSpec>();
-  const plans: ReleasePlan[] = matched.map(({ plan, sourceSpec }) => ({
-    ...plan,
-    spec:
-      sourceSpec === null ? null : readSpec(repoRoot, plan.path, sourceSpec.path, warnings, specs),
-    completesSpec: sourceSpec?.completesSpec ?? false,
-  }));
+  const plans: ReleasePlan[] = matched.flatMap(({ plan, sourceSpec }): ReleasePlan[] => {
+    if (sourceSpec === null) return [{ ...plan, spec: null }];
+    if (!sourceSpec.completesSpec) return [];
+    return [{ ...plan, spec: readSpec(repoRoot, plan.path, sourceSpec.path, warnings, specs) }];
+  });
 
   if (!existsSync(join(repoRoot, UPGRADING))) throw new Error(`${UPGRADING} is missing`);
   const upgrading = readFileSync(join(repoRoot, UPGRADING), "utf8");

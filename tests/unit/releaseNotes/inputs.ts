@@ -1,7 +1,9 @@
 // Made-up inputs of the release notes builder and the exact documents it must
-// write from them. Every expected document is a literal list of lines, written
-// out by hand from the layout in the plan: none is computed by a helper, so an
-// oracle cannot agree with the builder by sharing its mistake.
+// write from them. These are the layout tests, written with the code: each rule
+// of the layout has its own input here. Every expected document is a literal
+// list of lines, written out by hand from the layout in the plan: none is
+// computed by a helper, so a test cannot agree with the builder by sharing its
+// mistake.
 import type {
   ReleaseCommit,
   ReleaseNotesInput,
@@ -62,11 +64,10 @@ export function completingPlan(title: string, spec: ReleaseSpec): ReleasePlan {
     title,
     firstParagraph: "Not shown for a plan that has a spec.",
     spec,
-    completesSpec: true,
   };
 }
 
-// --- fullInput ---------------------------------------------------------------
+// --- (a) fullInput -----------------------------------------------------------
 
 const FULL_UPGRADING = [
   "# Upgrading",
@@ -88,13 +89,6 @@ const FULL_UPGRADING = [
   "- Older step.",
   "",
 ].join("\n");
-
-const ALPHA_SPEC: ReleaseSpec = {
-  path: "docs/specs/archive/2601010000-alpha.md",
-  title: "Alpha spec — big idea",
-  guidingRule: "Alpha never runs twice.",
-  surface: [],
-};
 
 const BETA_SURFACES: ReadonlyArray<ReleaseSurface> = [
   {
@@ -149,28 +143,11 @@ const GAMMA_SPEC: ReleaseSpec = {
   surface: [],
 };
 
-const ALPHA_FIRST_PLAN: ReleasePlan = {
-  path: "docs/plans/archive/2601010002-alpha-first.md",
-  title: "Alpha first step",
-  firstParagraph: "The first step of the alpha spec.",
-  spec: ALPHA_SPEC,
-  completesSpec: false,
-};
-
 const BETA_FINAL_PLAN: ReleasePlan = {
   path: "docs/plans/archive/2601010003-beta-final.md",
   title: "Beta final step",
   firstParagraph: "The last step of the beta spec.",
   spec: BETA_SPEC,
-  completesSpec: true,
-};
-
-const BETA_FIRST_PLAN: ReleasePlan = {
-  path: "docs/plans/archive/2601010004-beta-first.md",
-  title: "Beta first step",
-  firstParagraph: "The first step of the beta spec.",
-  spec: BETA_SPEC,
-  completesSpec: false,
 };
 
 export const LOOSE_PLAN: ReleasePlan = {
@@ -181,7 +158,6 @@ export const LOOSE_PLAN: ReleasePlan = {
     "[the readme](/README.md#install) and [the docs](https://example.com/docs).",
   ].join("\n"),
   spec: null,
-  completesSpec: false,
 };
 
 const GAMMA_PLAN: ReleasePlan = {
@@ -189,7 +165,6 @@ const GAMMA_PLAN: ReleasePlan = {
   title: "Gamma plan",
   firstParagraph: "The only step of the gamma spec.",
   spec: GAMMA_SPEC,
-  completesSpec: true,
 };
 
 const hash = (pair: string): string => pair.repeat(20);
@@ -218,7 +193,7 @@ export const fullInput: ReleaseNotesInput = {
   previous: "4.1.0",
   repository: REPOSITORY,
   upgrading: FULL_UPGRADING,
-  plans: [ALPHA_FIRST_PLAN, BETA_FINAL_PLAN, BETA_FIRST_PLAN, LOOSE_PLAN, GAMMA_PLAN],
+  plans: [BETA_FINAL_PLAN, LOOSE_PLAN, GAMMA_PLAN],
   commits: COMMITS,
 };
 
@@ -229,6 +204,11 @@ export const fullExpected = [
   "",
   "Changes since 4.1.0: [v4.1.0...v4.2.0](https://github.com/acme/tool/compare/v4.1.0...v4.2.0).",
   "",
+  "## Highlights",
+  "",
+  "- **Ship things** — Make shipping easy — and fast.",
+  "- **Gamma stands alone**",
+  "",
   "## Upgrading",
   "",
   "- **Rename the option.** Read [the bounds](https://github.com/acme/tool/blob/v4.2.0/docs/bounds.md#limits) first, then [the readme](https://github.com/acme/tool/blob/v4.2.0/README.md#install).",
@@ -239,7 +219,7 @@ export const fullExpected = [
   "",
   "Run `tool doctor`.",
   "",
-  "## Specs",
+  "## What's new",
   "",
   "### Ship things",
   "",
@@ -247,69 +227,54 @@ export const fullExpected = [
   "",
   "> Shipping never changes what the tool already did.",
   "",
-  "Plans: Beta final step, Beta first step.",
+  "- You can ship a named thing. `tool ship <name>`",
   "",
-  "`cli: tool ship <name>` — You can ship a named thing.",
+  "  Now:",
   "",
-  "<details>",
-  "<summary>After</summary>",
+  "  ```text",
+  "  tool ship acme",
+  "  shipped acme",
+  "  ```",
   "",
-  "```text",
-  "tool ship acme",
-  "shipped acme",
-  "```",
+  "- You turn shipping on in the config. `tool.json key ship`",
   "",
-  "</details>",
+  "  Now:",
   "",
-  "`` config: `tool.json` key `ship` `` — You turn shipping on in the config.",
+  "  ```text",
+  '  { "ship": true }',
+  "  ```",
   "",
-  "<details>",
-  "<summary>Before and after</summary>",
+  "  <details>",
+  "  <summary>Before</summary>",
   "",
-  "Before:",
+  "  ```text",
+  "  {}",
+  "  ```",
   "",
-  "```text",
-  "{}",
-  "```",
+  "  </details>",
   "",
-  "After:",
+  "- The log records each shipment. `tool.log`",
   "",
-  "```text",
-  '{ "ship": true }',
-  "```",
+  "  Now:",
   "",
-  "</details>",
+  "  ````text",
+  "  ```sh",
+  "  tool ship",
+  "  ```",
+  "  ````",
   "",
-  "`file: tool.log` — The log records each shipment.",
+  "  <details>",
+  "  <summary>Before</summary>",
   "",
-  "<details>",
-  "<summary>Before and after</summary>",
+  "  ```text",
+  "  old line",
+  "  ```",
   "",
-  "Before:",
-  "",
-  "```text",
-  "old line",
-  "```",
-  "",
-  "After:",
-  "",
-  "````text",
-  "```sh",
-  "tool ship",
-  "```",
-  "````",
-  "",
-  "</details>",
+  "  </details>",
   "",
   "### Gamma stands alone",
   "",
-  "Plans: Gamma plan.",
-  "",
-  "## Specs in progress",
-  "",
-  "- Part of Alpha spec: Alpha first step",
-  "",
-  "## Plans",
+  "## Also in this release",
   "",
   "### Loose plan",
   "",
@@ -333,14 +298,19 @@ export const fullExpected = [
   "",
 ].join("\n");
 
-// `githubReleaseBody(fullExpected, "4.2.0")`: the folded blocks gone, the site
-// link after the Changes line.
+// `githubReleaseBody(fullExpected, "4.2.0")`: every What's new bullet cut to its
+// first line, the site link after the Changes line.
 export const fullExpectedShort = [
   "# phax 4.2.0",
   "",
   "Changes since 4.1.0: [v4.1.0...v4.2.0](https://github.com/acme/tool/compare/v4.1.0...v4.2.0).",
   "",
-  "Read the full notes, with each surface's before and after, on [docs.phax.run/releases/4-2-0](https://docs.phax.run/releases/4-2-0).",
+  "Read the full notes, with each surface's examples, on [docs.phax.run/releases/4-2-0](https://docs.phax.run/releases/4-2-0).",
+  "",
+  "## Highlights",
+  "",
+  "- **Ship things** — Make shipping easy — and fast.",
+  "- **Gamma stands alone**",
   "",
   "## Upgrading",
   "",
@@ -352,7 +322,7 @@ export const fullExpectedShort = [
   "",
   "Run `tool doctor`.",
   "",
-  "## Specs",
+  "## What's new",
   "",
   "### Ship things",
   "",
@@ -360,23 +330,13 @@ export const fullExpectedShort = [
   "",
   "> Shipping never changes what the tool already did.",
   "",
-  "Plans: Beta final step, Beta first step.",
-  "",
-  "`cli: tool ship <name>` — You can ship a named thing.",
-  "",
-  "`` config: `tool.json` key `ship` `` — You turn shipping on in the config.",
-  "",
-  "`file: tool.log` — The log records each shipment.",
+  "- You can ship a named thing. `tool ship <name>`",
+  "- You turn shipping on in the config. `tool.json key ship`",
+  "- The log records each shipment. `tool.log`",
   "",
   "### Gamma stands alone",
   "",
-  "Plans: Gamma plan.",
-  "",
-  "## Specs in progress",
-  "",
-  "- Part of Alpha spec: Alpha first step",
-  "",
-  "## Plans",
+  "## Also in this release",
   "",
   "### Loose plan",
   "",
@@ -400,7 +360,74 @@ export const fullExpectedShort = [
   "",
 ].join("\n");
 
-// --- (b) the surface table ---------------------------------------------------
+// --- (b) Highlights ----------------------------------------------------------
+
+// Three specs in an order no sort would give: a guiding rule over two lines
+// and no lede, a lede and a rule, and neither.
+export const highlightsInput = inputWith({
+  plans: [
+    {
+      path: "docs/plans/archive/2601010011-rule-plan.md",
+      title: "Rule plan",
+      firstParagraph: "Not shown.",
+      spec: {
+        path: "docs/specs/archive/2601010011-rule.md",
+        title: "Rule spec",
+        guidingRule: "First line of the rule.\nSecond line of the rule.",
+        surface: [],
+      },
+    },
+    {
+      path: "docs/plans/archive/2601010012-lede-plan.md",
+      title: "Lede plan",
+      firstParagraph: "Not shown.",
+      spec: {
+        path: "docs/specs/archive/2601010012-lede.md",
+        title: "Lede spec — has a lede",
+        guidingRule: "Not in Highlights.",
+        surface: [],
+      },
+    },
+    {
+      path: "docs/plans/archive/2601010013-bare-plan.md",
+      title: "Bare plan",
+      firstParagraph: "Not shown.",
+      spec: {
+        path: "docs/specs/archive/2601010013-bare.md",
+        title: "Bare spec",
+        guidingRule: null,
+        surface: [],
+      },
+    },
+  ],
+});
+
+export const highlightsExpected = [
+  ...HEAD,
+  "## Highlights",
+  "",
+  "- **Rule spec** — First line of the rule. Second line of the rule.",
+  "- **Lede spec** — Has a lede.",
+  "- **Bare spec**",
+  "",
+  "## What's new",
+  "",
+  "### Rule spec",
+  "",
+  "> First line of the rule.",
+  "> Second line of the rule.",
+  "",
+  "### Lede spec",
+  "",
+  "Has a lede.",
+  "",
+  "> Not in Highlights.",
+  "",
+  "### Bare spec",
+  "",
+].join("\n");
+
+// --- (d) the surface table ---------------------------------------------------
 
 export interface SurfaceRow {
   readonly name: string;
@@ -408,28 +435,39 @@ export interface SurfaceRow {
   readonly expected: string;
 }
 
+const NO_SURFACE_EXPECTED = [
+  ...HEAD,
+  "## Highlights",
+  "",
+  "- **Surfaces**",
+  "",
+  "## What's new",
+  "",
+  "### Surfaces",
+  "",
+].join("\n");
+
 export const surfaceRows: ReadonlyArray<SurfaceRow> = [
   {
     name: "cli",
     element: { surface: "cli: tool run", summary: "You can run it.", before: null, after: "ran" },
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Surfaces**",
+      "",
+      "## What's new",
       "",
       "### Surfaces",
       "",
-      "Plans: Surface plan.",
+      "- You can run it. `tool run`",
       "",
-      "`cli: tool run` — You can run it.",
+      "  Now:",
       "",
-      "<details>",
-      "<summary>After</summary>",
-      "",
-      "```text",
-      "ran",
-      "```",
-      "",
-      "</details>",
+      "  ```text",
+      "  ran",
+      "  ```",
       "",
     ].join("\n"),
   },
@@ -443,30 +481,30 @@ export const surfaceRows: ReadonlyArray<SurfaceRow> = [
     },
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Surfaces**",
+      "",
+      "## What's new",
       "",
       "### Surfaces",
       "",
-      "Plans: Surface plan.",
+      "- You set it. `tool.json key run`",
       "",
-      "`config: tool.json key run` — You set it.",
+      "  Now:",
       "",
-      "<details>",
-      "<summary>Before and after</summary>",
+      "  ```text",
+      '  { "run": 1 }',
+      "  ```",
       "",
-      "Before:",
+      "  <details>",
+      "  <summary>Before</summary>",
       "",
-      "```text",
-      "{}",
-      "```",
+      "  ```text",
+      "  {}",
+      "  ```",
       "",
-      "After:",
-      "",
-      "```text",
-      '{ "run": 1 }',
-      "```",
-      "",
-      "</details>",
+      "  </details>",
       "",
     ].join("\n"),
   },
@@ -475,22 +513,21 @@ export const surfaceRows: ReadonlyArray<SurfaceRow> = [
     element: { surface: "file: tool.log", summary: "You read it.", before: null, after: "line" },
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Surfaces**",
+      "",
+      "## What's new",
       "",
       "### Surfaces",
       "",
-      "Plans: Surface plan.",
+      "- You read it. `tool.log`",
       "",
-      "`file: tool.log` — You read it.",
+      "  Now:",
       "",
-      "<details>",
-      "<summary>After</summary>",
-      "",
-      "```text",
-      "line",
-      "```",
-      "",
-      "</details>",
+      "  ```text",
+      "  line",
+      "  ```",
       "",
     ].join("\n"),
   },
@@ -498,11 +535,58 @@ export const surfaceRows: ReadonlyArray<SurfaceRow> = [
     (surface): SurfaceRow => ({
       name: surface.slice(0, surface.indexOf(":")),
       element: { surface, summary: "Left out.", before: null, after: "x" },
-      expected: [...HEAD, "## Specs", "", "### Surfaces", "", "Plans: Surface plan.", ""].join(
-        "\n",
-      ),
+      expected: NO_SURFACE_EXPECTED,
     }),
   ),
+];
+
+// --- (e) a name holding backticks --------------------------------------------
+
+export interface NameRow {
+  readonly name: string;
+  readonly surface: string;
+  readonly expected: string;
+}
+
+const nameDocument = (code: string): string =>
+  [
+    ...HEAD,
+    "## Highlights",
+    "",
+    "- **Surfaces**",
+    "",
+    "## What's new",
+    "",
+    "### Surfaces",
+    "",
+    `- You can run it. ${code}`,
+    "",
+    "  Now:",
+    "",
+    "  ```text",
+    "  ran",
+    "  ```",
+    "",
+  ].join("\n");
+
+export const nameRows: ReadonlyArray<NameRow> = [
+  {
+    name: "inner code spans",
+    surface: "file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy`",
+    expected: nameDocument(
+      "`plan sidecar docs/plans/<stamp>-<slug>-plan.json, phase testStrategy`",
+    ),
+  },
+  {
+    name: "a name ending with a backtick",
+    surface: "cli: tool run `--all`",
+    expected: nameDocument("`tool run --all`"),
+  },
+  {
+    name: "a name holding a double backtick",
+    surface: "config: key ``x``",
+    expected: nameDocument("`key x`"),
+  },
 ];
 
 // --- (c) the title table -----------------------------------------------------
@@ -515,21 +599,31 @@ export interface TitleRow {
 export const titleRows: ReadonlyArray<TitleRow> = [
   {
     title: "Plain title",
-    expected: [...HEAD, "## Specs", "", "### Plain title", "", "Plans: Titled plan.", ""].join(
-      "\n",
-    ),
+    expected: [
+      ...HEAD,
+      "## Highlights",
+      "",
+      "- **Plain title**",
+      "",
+      "## What's new",
+      "",
+      "### Plain title",
+      "",
+    ].join("\n"),
   },
   {
     title: "Name — a lede",
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Name** — A lede.",
+      "",
+      "## What's new",
       "",
       "### Name",
       "",
       "A lede.",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
   },
@@ -537,13 +631,15 @@ export const titleRows: ReadonlyArray<TitleRow> = [
     title: "Name — first part — second part",
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Name** — First part — second part.",
+      "",
+      "## What's new",
       "",
       "### Name",
       "",
       "First part — second part.",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
   },
@@ -551,13 +647,15 @@ export const titleRows: ReadonlyArray<TitleRow> = [
     title: "Name — ends with a full stop.",
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Name** — Ends with a full stop.",
+      "",
+      "## What's new",
       "",
       "### Name",
       "",
       "Ends with a full stop.",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
   },
@@ -565,13 +663,15 @@ export const titleRows: ReadonlyArray<TitleRow> = [
     title: "Name — is it a question?",
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Name** — Is it a question?",
+      "",
+      "## What's new",
       "",
       "### Name",
       "",
       "Is it a question?",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
   },
@@ -579,19 +679,21 @@ export const titleRows: ReadonlyArray<TitleRow> = [
     title: "Name — shout it out!",
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Name** — Shout it out!",
+      "",
+      "## What's new",
       "",
       "### Name",
       "",
       "Shout it out!",
       "",
-      "Plans: Titled plan.",
-      "",
     ].join("\n"),
   },
 ];
 
-// --- (d) the commit table ----------------------------------------------------
+// --- (k) the commit table ----------------------------------------------------
 
 export type CommitPlace = "fixes" | "other" | "neither";
 
@@ -652,7 +754,7 @@ export const escapeExpected = [
   "",
 ].join("\n");
 
-// --- (e) upgrading -----------------------------------------------------------
+// --- (k) upgrading -----------------------------------------------------------
 
 export const LAST_ENTRY_UPGRADING = ["# Upgrading", "", "### 4.2.0", "", "- Last one.", ""].join(
   "\n",
@@ -680,52 +782,20 @@ export const leavingExpected = [
 export const LEAVING_WARNING =
   "docs/upgrading.md: the link ../../x.md leaves the repository and is kept as written";
 
-// --- (f) intermediate plans --------------------------------------------------
+// --- (k) refusals ------------------------------------------------------------
 
-const JOINED_SPEC: ReleaseSpec = {
-  path: "docs/specs/archive/2601010001-beta.md",
-  title: "Beta spec",
-  guidingRule: null,
-  surface: [],
-};
-
+// Two plans that complete the same spec.
 export const joinedFinal: ReleasePlan = {
   path: "docs/plans/archive/2601010003-beta-final.md",
   title: "Beta final step",
   firstParagraph: "The last step.",
-  spec: JOINED_SPEC,
-  completesSpec: true,
+  spec: {
+    path: "docs/specs/archive/2601010001-beta.md",
+    title: "Beta spec",
+    guidingRule: null,
+    surface: [],
+  },
 };
-
-export const joinedFirst: ReleasePlan = {
-  path: "docs/plans/archive/2601010004-beta-first.md",
-  title: "Beta first step",
-  firstParagraph: "The first step.",
-  spec: JOINED_SPEC,
-  completesSpec: false,
-};
-
-export const joinedFirstBeforeExpected = [
-  ...HEAD,
-  "## Specs",
-  "",
-  "### Beta spec",
-  "",
-  "Plans: Beta first step, Beta final step.",
-  "",
-].join("\n");
-
-export const joinedFirstAfterExpected = [
-  ...HEAD,
-  "## Specs",
-  "",
-  "### Beta spec",
-  "",
-  "Plans: Beta final step, Beta first step.",
-  "",
-].join("\n");
-
-// --- (g) refusals ------------------------------------------------------------
 
 export const DUPLICATE_SECOND_PLAN: ReleasePlan = {
   ...joinedFinal,
@@ -748,10 +818,10 @@ export function placeholderSpec(surface: string, placeholder: string): ReleaseSp
 export const placeholderMessage =
   'docs/specs/archive/2601010008-placeholder.json: the surface element "cli: tool run" still has the placeholder summary — write it before the release';
 
-// --- (j) the GitHub body -----------------------------------------------------
+// --- (l) the GitHub body -----------------------------------------------------
 
 const LINK_PARAGRAPH =
-  "Read the full notes, with each surface's before and after, on [docs.phax.run/releases/4-2-0](https://docs.phax.run/releases/4-2-0).";
+  "Read the full notes, with each surface's examples, on [docs.phax.run/releases/4-2-0](https://docs.phax.run/releases/4-2-0).";
 
 export const noDetailsDocument = [
   ...HEAD,
@@ -771,29 +841,39 @@ export const noDetailsShort = [
   "",
 ].join("\n");
 
-// A fenced `after` that holds a line `</details>`.
+// A fenced `before` that holds a line `</details>`.
 export const fencedCloserDocument = [
   ...HEAD,
-  "## Specs",
+  "## What's new",
   "",
   "### Fenced",
   "",
-  "Plans: Fenced plan.",
+  "- You can run it. `tool run`",
   "",
-  "`cli: tool run` — You can run it.",
+  "  Now:",
   "",
-  "<details>",
-  "<summary>After</summary>",
+  "  ```text",
+  "  ran",
+  "  ```",
   "",
-  "```text",
-  "first",
-  "</details>",
-  "last",
-  "```",
+  "  <details>",
+  "  <summary>Before</summary>",
   "",
-  "</details>",
+  "  ```text",
+  "  first",
+  "  </details>",
+  "  last",
+  "  ```",
   "",
-  "`file: tool.log` — You read it.",
+  "  </details>",
+  "",
+  "- You read it. `tool.log`",
+  "",
+  "  Now:",
+  "",
+  "  ```text",
+  "  line",
+  "  ```",
   "",
 ].join("\n");
 
@@ -801,19 +881,74 @@ export const fencedCloserShort = [
   ...HEAD,
   LINK_PARAGRAPH,
   "",
-  "## Specs",
+  "## What's new",
   "",
   "### Fenced",
   "",
-  "Plans: Fenced plan.",
-  "",
-  "`cli: tool run` — You can run it.",
-  "",
-  "`file: tool.log` — You read it.",
+  "- You can run it. `tool run`",
+  "- You read it. `tool.log`",
   "",
 ].join("\n");
 
-// --- (k) the GitHub body limit -----------------------------------------------
+// (o) An Upgrading entry whose list item holds a `Now:` paragraph and a fence,
+// and a list after What's new: both are kept as written.
+export const upgradingNowDocument = [
+  ...HEAD,
+  "## Upgrading",
+  "",
+  "- **Step.** Do this first:",
+  "",
+  "  Now:",
+  "",
+  "  ```text",
+  "  keep me",
+  "  ```",
+  "",
+  "## What's new",
+  "",
+  "### Spec",
+  "",
+  "- You can run it. `tool run`",
+  "",
+  "  Now:",
+  "",
+  "  ```text",
+  "  ran",
+  "  ```",
+  "",
+  "## Fixes",
+  "",
+  "- fix: one ([0101010](https://github.com/acme/tool/commit/0101010101010101010101010101010101010101))",
+  "",
+].join("\n");
+
+export const upgradingNowShort = [
+  ...HEAD,
+  LINK_PARAGRAPH,
+  "",
+  "## Upgrading",
+  "",
+  "- **Step.** Do this first:",
+  "",
+  "  Now:",
+  "",
+  "  ```text",
+  "  keep me",
+  "  ```",
+  "",
+  "## What's new",
+  "",
+  "### Spec",
+  "",
+  "- You can run it. `tool run`",
+  "",
+  "## Fixes",
+  "",
+  "- fix: one ([0101010](https://github.com/acme/tool/commit/0101010101010101010101010101010101010101))",
+  "",
+].join("\n");
+
+// --- (p) the GitHub body limit -----------------------------------------------
 
 export const GITHUB_BODY_LIMIT = 125000;
 
@@ -828,7 +963,7 @@ export function documentOfShortLength(codePoints: number): string {
 export const limitMessage =
   "the GitHub release body of 4.2.0 has 125001 characters, over GitHub's limit of 125000 — shorten the notes";
 
-// --- (h) minimal documents ---------------------------------------------------
+// --- (k) minimal documents ---------------------------------------------------
 
 export const minimalExpected = HEAD.join("\n");
 
@@ -845,14 +980,14 @@ export const onlyFixExpected = [
   "",
 ].join("\n");
 
-// --- (i) plan paragraph links ------------------------------------------------
+// --- (h) plan paragraph links ------------------------------------------------
 
 export const loosePlanSection = [
   "Adds a `thing` command. See [the spec](https://github.com/acme/tool/blob/v4.2.0/docs/specs/2601010000-made-up.md), [the context](https://github.com/acme/tool/blob/v4.2.0/docs/plans/archive/2601010005-loose-plan.md#context),",
   "[the readme](https://github.com/acme/tool/blob/v4.2.0/README.md#install) and [the docs](https://example.com/docs).",
 ].join("\n");
 
-// --- (l) spec links ------------------------------------------------------------
+// --- (j) spec links ------------------------------------------------------------
 
 // The spec of every row is archived at docs/specs/archive/2601010009-table.md:
 // an anchor names that file, a relative destination resolves from docs/specs/,
@@ -874,14 +1009,16 @@ export const specLinkRows: ReadonlyArray<SpecLinkRow> = [
     },
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Linked** — Read [the bounds](https://github.com/acme/tool/blob/v4.2.0/docs/specs/bounds.md#limits) and [the goal](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#goal). See [the readme](https://github.com/acme/tool/blob/v4.2.0/README.md).",
+      "",
+      "## What's new",
       "",
       "### Linked",
       "",
       "> Read [the bounds](https://github.com/acme/tool/blob/v4.2.0/docs/specs/bounds.md#limits) and [the goal](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#goal).",
       "> See [the readme](https://github.com/acme/tool/blob/v4.2.0/README.md).",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
     warnings: [],
@@ -891,13 +1028,15 @@ export const specLinkRows: ReadonlyArray<SpecLinkRow> = [
     spec: specNamed("Linked — reads [the plan](../plans/2601010009-table-plan.md)", []),
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Linked** — Reads [the plan](https://github.com/acme/tool/blob/v4.2.0/docs/plans/2601010009-table-plan.md).",
+      "",
+      "## What's new",
       "",
       "### Linked",
       "",
       "Reads [the plan](https://github.com/acme/tool/blob/v4.2.0/docs/plans/2601010009-table-plan.md).",
-      "",
-      "Plans: Titled plan.",
       "",
     ].join("\n"),
     warnings: [],
@@ -915,38 +1054,59 @@ export const specLinkRows: ReadonlyArray<SpecLinkRow> = [
     ]),
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Linked**",
+      "",
+      "## What's new",
       "",
       "### Linked",
       "",
-      "Plans: Titled plan.",
+      "- You can run it, see [the context](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#context) and [the docs](https://example.com/docs). `tool run`",
       "",
-      "`cli: tool run` — You can run it, see [the context](https://github.com/acme/tool/blob/v4.2.0/docs/specs/archive/2601010009-table.md#context) and [the docs](https://example.com/docs).",
+      "  Now:",
       "",
-      "<details>",
-      "<summary>After</summary>",
-      "",
-      "```text",
-      "ran",
-      "```",
-      "",
-      "</details>",
+      "  ```text",
+      "  ran",
+      "  ```",
       "",
     ].join("\n"),
     warnings: [],
   },
   {
-    name: "a link that leaves the repository",
+    name: "a guiding rule link that leaves the repository",
     spec: { ...specNamed("Linked", []), guidingRule: "Never [leave](../../../x.md)." },
     expected: [
       ...HEAD,
-      "## Specs",
+      "## Highlights",
+      "",
+      "- **Linked** — Never [leave](../../../x.md).",
+      "",
+      "## What's new",
       "",
       "### Linked",
       "",
       "> Never [leave](../../../x.md).",
       "",
-      "Plans: Titled plan.",
+    ].join("\n"),
+    warnings: [
+      "docs/specs/archive/2601010009-table.md: the link ../../../x.md leaves the repository and is kept as written",
+    ],
+  },
+  {
+    name: "a lede link that leaves the repository",
+    spec: specNamed("Linked — never [leave](../../../x.md)", []),
+    expected: [
+      ...HEAD,
+      "## Highlights",
+      "",
+      "- **Linked** — Never [leave](../../../x.md).",
+      "",
+      "## What's new",
+      "",
+      "### Linked",
+      "",
+      "Never [leave](../../../x.md).",
       "",
     ].join("\n"),
     warnings: [
