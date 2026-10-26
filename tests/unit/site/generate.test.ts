@@ -319,6 +319,35 @@ describe("generateSite", () => {
   });
 });
 
+const NOTES = (version: string): string =>
+  `# phax ${version}\n\n<details>\n<summary>After</summary>\n\n\`\`\`text\nx\n\`\`\`\n\n</details>\n`;
+
+describe("release notes pages", () => {
+  it("renders one page per notes file, newest first, and the page map still checks clean", () => {
+    const files = new Map(FILES);
+    files.set("docs/releases/0.9.0.md", NOTES("0.9.0"));
+    files.set("docs/releases/0.10.0.md", NOTES("0.10.0"));
+    const result = generateSite({ files, pageMap: MAP, version: "0.17.0" });
+    expect(result.findings).toEqual([]);
+    expect(result.files.has("docs/releases/0-9-0.md")).toBe(true);
+    expect(result.files.has("docs/releases/0-10-0.md")).toBe(true);
+    expect(result.files.get("docs/releases/0-10-0.md")).toContain(":::details After");
+    const nav = siteJson(result.files);
+    expect(nav.sidebar["/"]?.find((group) => group.text === "Releases")?.items).toEqual([
+      { text: "phax 0.10.0", link: "/releases/0-10-0" },
+      { text: "phax 0.9.0", link: "/releases/0-9-0" },
+    ]);
+  });
+
+  it("names a misnamed notes file", () => {
+    const files = new Map(FILES);
+    files.set("docs/releases/next.md", "# next\n");
+    expect(generateSite({ files, pageMap: MAP, version: "0.17.0" }).findings).toContain(
+      "✗ docs/releases/next.md: a release notes file is named X.Y.Z.md",
+    );
+  });
+});
+
 describe("the committed site", () => {
   const ROOT = resolve(import.meta.dirname, "../../..");
 

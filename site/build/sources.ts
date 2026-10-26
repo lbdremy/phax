@@ -25,7 +25,7 @@ const SOURCE_FILES = [
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */
-const SOURCE_DIRECTORIES = ["docs/blog", "docs/comparisons"] as const;
+const SOURCE_DIRECTORIES = ["docs/blog", "docs/comparisons", "docs/releases"] as const;
 
 /** Every source path present under `repoRoot`, README.md included, sorted. */
 export function listSources(repoRoot: string): ReadonlyArray<string> {

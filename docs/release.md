@@ -75,14 +75,15 @@ scripts/release.sh 1.2.0
 
 The version must be the opened version, the one `package.json` names, in `MAJOR.MINOR.PATCH` form — pre-release suffixes are not supported by the release workflow. On a clean tree, `release.sh`:
 
-1. runs `scripts/release-cut.ts`, which refuses, before writing anything, a version other than the opened one (`<v> is not the opened version <opened> — re-open first: scripts/release.sh --open <v>`), one not newer than the ledger's last entry, one whose snapshot already exists, and a missing, malformed or unordered ledger. It then:
+1. runs `scripts/release-cut.ts`, which refuses, before writing anything, a version other than the opened one (`<v> is not the opened version <opened> — re-open first: scripts/release.sh --open <v>`), one not newer than the ledger's last entry, one whose snapshot already exists, one whose notes file `docs/releases/<version>.md` already exists, any refusal of the release notes (see [Release notes](#release-notes)), and a missing, malformed or unordered ledger. It then:
    - renames every `packages/schemas/snapshots/<format id>/next.schema.json` to `<version>.schema.json`, so each format's current shape is named by the release;
    - regenerates `CURRENT_SHAPES` and `FIRST_SUPPORTED_RELEASE` (`packages/schemas/src/generated/index.ts`) and `src/schemas/release.ts`;
-   - appends the version to the release ledger `packages/schemas/releases.json`, which the docs site reads to serve every release's schemas.
+   - appends the version to the release ledger `packages/schemas/releases.json`, which the docs site reads to serve every release's schemas;
+   - writes the release's notes to `docs/releases/<version>.md`, built from git before the first write.
 
    The cut changes no manifest, no stamp and no example: the manifests already name the version, and a renamed `next` snapshot was already stamped with it;
 2. regenerates the usage spec and the CLI docs;
-3. runs `pnpm typecheck`, `pnpm test:type` and `pnpm test` on the cut. If one fails, it stops with nothing committed, tagged or pushed, and prints how to undo the cut;
+3. runs `pnpm typecheck`, `pnpm test:type` and `pnpm test` on the cut. If one fails, it stops with nothing committed, tagged or pushed, and prints how to undo the cut (resetting the tree and cleaning the new snapshots and `docs/releases`);
 4. stages exactly the paths the cut changed (renames included) and the regenerated files, and commits `chore: release v1.2.0`;
 5. creates the signed tag `v1.2.0` and pushes the commit and the tag;
 6. opens the next minor: sets `1.3.0` in the three manifests, regenerates `PACKAGE_VERSION`, `PHAX_RELEASE`, `CURRENT_STAMPS`, the usage spec and the CLI docs, commits `chore: open v1.3.0` and pushes it. No test suite runs here, to keep the window between the tag and the opening short; every pull request's CI runs on an opened tree anyway.
@@ -91,7 +92,7 @@ If the opening fails, the release is already out. `release.sh` prints `✗ v1.2.
 
 `scripts/release.sh --rehearse <opened version>` does steps 1 and 2, typechecks the cut and runs only the tests that read what a cut changes (`tests/unit/schemasPackage/` and `tests/unit/site/`), then stops, leaving the cut in the working tree. On a release commit, whose version the ledger already ends at, it cuts nothing and says there is nothing to rehearse. CI rehearses the opened version that `package.json` names this way as its last step on every push and pull request, in seconds. A test that holds only until the next cut, such as one that reads the package's own version as an older release, then fails on the pull request that adds it, not at release time.
 
-To see what a cut changes without touching the tree, dry-run it on a copy, naming the opened version:
+To see what a cut changes without touching the tree, dry-run it on a clone with the tags (`git clone . <copy>`; the notes need the previous release's tag, which a plain copy of the files lacks), naming the opened version:
 
 ```bash
 pnpm exec tsx scripts/release-cut.ts "$(node -p 'require("./package.json").version')" --root <copy of the tree>
@@ -113,20 +114,21 @@ On a clean tree, `--open` runs `scripts/release-open.ts`, which sets the version
 
 The `release.yml` workflow triggers automatically on the pushed tag. In order, it:
 
-1. Runs the full gate (typecheck, tests, lint, build, docs site build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
-2. Cross-compiles four platform binaries with SHA-256 checksums.
-3. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
-4. Prepares the npm wrapper: `npm/package.json` is set to the tag's version, and `npm/README.md` is written from `README.md` with its relative links pinned on GitHub at the tag (the file is ignored by Git and shipped in the package).
-5. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version, and that the last entry of the release ledger `packages/schemas/releases.json` equals it. Only the cut appends the ledger, so a tag on a commit that is not a release commit fails here — an opening commit included, whose manifests name the tag's version while its ledger ends earlier.
-6. Deploys docs.phax.run, after the version check and before any npm stage publish, in four steps:
+1. Checks that `docs/releases/<version>.md` exists and is not empty, naming the file and `scripts/release-cut.ts` if not. After the install, it writes the GitHub release body from that file (`scripts/release-notes.ts --github-body`), so a body over GitHub's limit fails before anything is built.
+2. Runs the full gate (typecheck, tests, lint, build, docs site build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
+3. Cross-compiles four platform binaries with SHA-256 checksums.
+4. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
+5. Prepares the npm wrapper: `npm/package.json` is set to the tag's version, and `npm/README.md` is written from `README.md` with its relative links pinned on GitHub at the tag (the file is ignored by Git and shipped in the package).
+6. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version, and that the last entry of the release ledger `packages/schemas/releases.json` equals it. Only the cut appends the ledger, so a tag on a commit that is not a release commit fails here — an opening commit included, whose manifests name the tag's version while its ledger ends earlier.
+7. Deploys docs.phax.run, after the version check and before any npm stage publish, in four steps:
    - **guard**: refuses the build if it would stop serving a schema URL listed in the live index at `https://docs.phax.run/schemas/index.json`;
    - **upload**: uploads the built site as a version with the preview alias `vX-Y-Z`, so its preview URL names the release;
    - **check**: fetches the preview URL and requires the release's schema and a page showing `vX.Y.Z`;
    - **promote**: makes that version the live site at docs.phax.run.
 
    A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
-7. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
-8. Creates the GitHub Release and uploads binaries and checksums. GitHub writes its notes from the pull requests merged since the previous tag, grouped by label as `.github/release.yml` says (breaking changes, features, fixes, documentation, other).
+8. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
+9. Creates the GitHub Release and uploads binaries and checksums. The release body is the short form of `docs/releases/<version>.md`: the notes without their folded before/after blocks, with a link to the release's page on the docs site. GitHub generates no notes.
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
@@ -140,13 +142,48 @@ Stage publish does not make a package installable. Approve each staged version b
 ### 5. Verify
 
 - GitHub shows a **Verified** badge on the tag (requires the signing key registered on GitHub)
-- The GitHub Release page lists all four binaries and their `.sha256` files
+- The GitHub Release page lists all four binaries and their `.sha256` files, and its body is the release's notes in short form, with a working link to `https://docs.phax.run/releases/X-Y-Z`
+- `https://docs.phax.run/releases/X-Y-Z` shows the full notes, with each surface's before and after folded
 - Both npm packages show the tag's version once approved
 - `package.json`, `npm/package.json` and `packages/schemas/package.json` all carry the tag's version in the release commit, and the ledger's last entry is the tag's version
 - The commit after the release commit on main is the opening, `chore: open vX.(Y+1).0`, and the three manifests name that version
 - docs.phax.run shows vX.Y.Z, and `https://docs.phax.run/schemas/registry/X.Y.Z.json` answers 200
 - The previous release's preview URL still shows its own version
 - Before approving the npm packages, open the release's preview URL (the one the upload step prints for the `vX-Y-Z` alias) and check the site as a reader would
+
+## Release notes
+
+The release cut writes the release's notes to `docs/releases/<X.Y.Z>.md`, in the release commit. They are written from what the release's runs delivered, not from the pull requests:
+
+- each completed spec with its guiding rule and the surfaces it changed (the `cli:`, `config:` and `file:` elements of its sidecar, each with its summary and a folded before and after);
+- each plan that has no spec;
+- the commits made outside any run: `fix` commits under Fixes, `feat`, `perf`, `revert` and unprefixed ones under Other, and nothing for `test`, `chore`, `docs`, `refactor`, `style`, `build` and `ci`;
+- the release's upgrade steps: the `### X.Y.Z` entry of `docs/upgrading.md`.
+
+### Where the notes come from
+
+The previous release is the ledger's greatest release below the one being cut, and the range starts at its tag `v<previous>`, so the clone needs the tags (`git fetch --tags`). The runs of the range are the distinct `Short-Name` values of the non-merge commits that carry both a `Run-Id` and a `Short-Name` trailer. Each run is matched to the plan it completed: a plan archived under `docs/plans/archive/` in the range, with status `Completed`, whose run short name equals the trailer. The plan's `source-spec` names the spec, and `completes-spec: true` announces that spec in full, from its sidecar (title, guiding rule, surfaces). A plan with `completes-spec: false` is listed as part of its spec, under Specs in progress.
+
+A review fix pushed onto a run's pull request branch carries `Short-Name: <run short name>` and no `Run-Id`. It joins that run and is listed nowhere. A review fix whose trailer was forgotten is listed under Fixes.
+
+### Refusals and warnings
+
+The cut refuses, and writes nothing, on a sidecar that does not decode, a plan with no frontmatter or title, a source spec found nowhere, two completed plans with the same run short name, a spec announced in full twice, a surface still holding the placeholder summary, a previous release with no tag, a missing `docs/upgrading.md`, an existing `docs/releases/<version>.md` and a GitHub body over the limit. The CI rehearsal runs the same cut on every push and pull request, so one broken document turns every pull request red until it is fixed.
+
+It only warns, on stderr, when `docs/upgrading.md` has no entry for the version (the notes then have no Upgrading section), when a spec has no sidecar, when a run names no completed plan or a completed plan is named by no run, when a `Short-Name`-only commit names no run of the range, and when a link leaves the repository. Write the `### X.Y.Z` entry of `docs/upgrading.md` before the cut, if the release asks anything of its users.
+
+### Preview
+
+```bash
+pnpm release:notes
+```
+
+prints the notes of the opened version, and their warnings, without writing anything. Read them before cutting.
+
+### Where the notes are published
+
+- The GitHub Release body is the notes' short form: the file without its folded before/after blocks, with a link to the release's page on the docs site. GitHub caps a body at 125,000 characters, and the workflow fails before building anything if the short form exceeds it. `pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md` prints it.
+- The docs site renders the full file as one page per release, at `/releases/<X-Y-Z>`, newest first under Releases. No release edits the page map.
 
 ## Redeploying the docs site by hand
 

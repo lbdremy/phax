@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -7,6 +8,11 @@ import { versionFromTag } from "../../scripts/releaseVersion.js";
 
 const workflowPath = join(import.meta.dirname, "../../.github/workflows/release.yml");
 const workflow = readFileSync(workflowPath, "utf-8");
+
+function writeNotes(dir: string, text: string): void {
+  mkdirSync(join(dir, "docs/releases"), { recursive: true });
+  writeFileSync(join(dir, "docs/releases/0.18.0.md"), text);
+}
 
 describe("release workflow invariants", () => {
   it("triggers on v* tags", () => {
@@ -30,15 +36,55 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain("softprops/action-gh-release");
   });
 
-  it("generates the GitHub Release's notes, categorised by .github/release.yml", () => {
+  it("gives the GitHub Release the notes' short form as its body, and generates no notes", () => {
     const release = releaseSteps.find((step) =>
       step.uses?.startsWith("softprops/action-gh-release"),
     );
-    expect(release?.with?.["generate_release_notes"]).toBe(true);
-    const config = parse(
-      readFileSync(join(import.meta.dirname, "../../.github/release.yml"), "utf-8"),
-    ) as { readonly changelog?: { readonly categories?: ReadonlyArray<unknown> } };
-    expect(config.changelog?.categories?.length).toBeGreaterThan(0);
+    expect(release?.with?.["body_path"]).toBe("${{ steps.notes.outputs.path }}");
+    expect(release?.with).not.toHaveProperty("generate_release_notes");
+    expect(existsSync(join(import.meta.dirname, "../../.github/release.yml"))).toBe(false);
+  });
+
+  it("checks the notes right after the checkout and writes the body right after the install", () => {
+    const checkout = releaseSteps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+    expect(releaseSteps[checkout + 1]?.name).toBe("Verify the release notes");
+    const install = releaseSteps.findIndex((step) => step.name === "Install dependencies");
+    const body = releaseSteps[install + 1];
+    expect(body?.name).toBe("Write the GitHub release body");
+    expect(body?.id).toBe("notes");
+    expect(body?.run).toContain("scripts/release-notes.ts --github-body");
+    expect(body?.run).toContain("$GITHUB_OUTPUT");
+  });
+
+  describe("the verify step's script", () => {
+    const verify = releaseSteps.find((step) => step.name === "Verify the release notes")!;
+    const runIn = (setup: (dir: string) => void) => {
+      const dir = mkdtempSync(join(tmpdir(), "phax-verify-notes-"));
+      try {
+        setup(dir);
+        return spawnSync("bash", ["-c", verify.run!], {
+          cwd: dir,
+          env: { ...process.env, RELEASE_TAG: "v0.18.0" },
+          encoding: "utf-8",
+        });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    it("passes when the notes file exists and is not empty", () => {
+      expect(runIn((dir) => writeNotes(dir, "# phax 0.18.0\n")).status).toBe(0);
+    });
+
+    it("fails, naming the file and the cut, when it is missing", () => {
+      const result = runIn(() => {});
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("docs/releases/0.18.0.md");
+      expect(result.stdout).toContain("scripts/release-cut.ts");
+    });
+
+    it("fails when it is empty", () => {
+      expect(runIn((dir) => writeNotes(dir, "")).status).toBe(1);
+    });
   });
 
   it("runs npm stage publish with provenance", () => {
@@ -137,6 +183,8 @@ describe("release workflow: two packages in lockstep", () => {
 
   it("runs every step that can fail before the first publish", () => {
     const beforePublish = [
+      indexOf(releaseSteps, (step) => step.name === "Verify the release notes"),
+      indexOf(releaseSteps, (step) => step.name === "Write the GitHub release body"),
       indexOf(releaseSteps, (step) => step.name === "Gate"),
       indexOf(releaseSteps, runs("pnpm deno:build-binaries")),
       indexOf(releaseSteps, runs(SMOKE)),
