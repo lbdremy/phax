@@ -105,11 +105,25 @@ describe("docs/release.md documents the docs site", () => {
     );
   });
 
-  it("names a completes-spec: false plan under Specs in progress only when its spec is not announced", () => {
+  it("says a completes-spec: false plan is not announced", () => {
     const where = sectionOf("### Where the notes come from");
     expect(where).toContain(
-      "under Specs in progress, when its spec is not announced in full in the same release; otherwise it is named in that spec's `Plans:` line.",
+      "A plan with `completes-spec: false` is not announced: the notes announce a spec only once a plan completes it. Its run's commits still belong to its run, so they are listed neither under Fixes nor under Other, and its spec is announced in full by the release that ships the plan with `completes-spec: true`.",
     );
+    expect(releaseDocs).not.toContain("Specs in progress");
+  });
+
+  it("names the layout's sections and the examples", () => {
+    const notes = sectionOf("## Release notes");
+    for (const part of [
+      "## Highlights",
+      "## What's new",
+      "## Also in this release",
+      "`Now:`",
+      "`Before`",
+    ]) {
+      expect(notes).toContain(part);
+    }
   });
 
   it("keeps the existing sections", () => {

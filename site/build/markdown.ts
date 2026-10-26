@@ -71,9 +71,13 @@ const COMMENT = /<!--[\s\S]*?-->/g;
 const TAG_NAME = /^<\/?([A-Za-z][A-Za-z0-9-]*)/;
 const ESCAPED = new Set(["<", ">", "{", "}"]);
 
-/** Release notes are the one source whose folded blocks, the builder's `<details>`, become Rspress containers. */
+/**
+ * Release notes are the one source whose fold, the builder's exact
+ * `<details>` / `<summary>Before</summary>` ... `</details>`, at any nesting
+ * depth, becomes an Rspress container. Any other summary stays raw HTML.
+ */
 const RELEASE_NOTES_PREFIX = "docs/releases/";
-const DETAILS_OPEN = /^<details>\n<summary>([^\n]*)<\/summary>$/;
+const DETAILS_OPEN = /^<details>\n<summary>Before<\/summary>$/;
 
 /** Text a heading's GitHub slug is computed from: its rendered text, without HTML or image alt. */
 function slugText(heading: Heading): string {
@@ -131,10 +135,8 @@ export function transformMarkdown(path: string, text: string): MarkdownTransform
         return;
       case "html": {
         if (path.startsWith(RELEASE_NOTES_PREFIX)) {
-          const summary = DETAILS_OPEN.exec(node.value)?.[1];
-          if (summary !== undefined) {
-            const escaped = [...summary].map((char) => (ESCAPED.has(char) ? `\\${char}` : char));
-            edits.push({ start, end, text: `:::details ${escaped.join("")}` });
+          if (DETAILS_OPEN.test(node.value)) {
+            edits.push({ start, end, text: ":::details Before" });
             return;
           }
           if (node.value === "</details>") {
