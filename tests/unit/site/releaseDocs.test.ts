@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { commitPlace } from "../../../scripts/releaseNotes.js";
 
 const releaseDocs = readFileSync(join(import.meta.dirname, "../../../docs/release.md"), "utf-8");
 
@@ -78,6 +79,37 @@ describe("docs/release.md documents the docs site", () => {
     ]) {
       expect(notes).toContain(text);
     }
+  });
+
+  it("lists a review fix with a forgotten trailer by its type, as the notes script does", () => {
+    const where = sectionOf("### Where the notes come from");
+    const sentence = /A review fix whose trailer was forgotten [^\n]*?\./.exec(where)?.[0] ?? "";
+    expect(sentence).toContain("`fix` under Fixes");
+    expect(sentence).toContain("any other under Other");
+    const dropped = /under Fixes, (.*) nowhere/.exec(sentence)?.[1] ?? "";
+    const types = [
+      "fix",
+      "feat",
+      "perf",
+      "revert",
+      "test",
+      "chore",
+      "docs",
+      "refactor",
+      "style",
+      "build",
+      "ci",
+    ];
+    expect(Array.from(dropped.matchAll(/`([a-z]+)`/g), (m) => m[1])).toEqual(
+      types.filter((type) => commitPlace(`${type}: x`) === "neither"),
+    );
+  });
+
+  it("names a completes-spec: false plan under Specs in progress only when its spec is not announced", () => {
+    const where = sectionOf("### Where the notes come from");
+    expect(where).toContain(
+      "under Specs in progress, when its spec is not announced in full in the same release; otherwise it is named in that spec's `Plans:` line.",
+    );
   });
 
   it("keeps the existing sections", () => {
