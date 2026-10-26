@@ -20,11 +20,6 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       summaries, plus the run trailers. Repository only, run at the release cut. A separate
       change, after the summaries exist.
 
-### Approved, not yet planned
-
-- `artifact-decide-verdicts` (`docs/specs/2610191226-artifact-decide-verdicts.md`) is implemented
-  by the `artifact-decide-verdicts` plan (this run).
-
 ### Briefs written, spec not yet authored
 
 - [ ] **`headless-review` revision** — `docs/briefs/review-escape.md` (2026-10-23). Reopen the
@@ -72,6 +67,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-24 | `surface-summary` (#162) | 3 × sonnet-5-5 / medium | $6.24 ($1.15 of it before a usage-limit pause) | 1 / 2 | The plan dictated a one-line pattern that refused only `\n` and `\r`, so U+0085, U+2028 and U+2029 passed and would break a release-notes bullet. Execution's README left `decide` out of the commands refused before migration, limited the lift to 0.25.0 and 0.17.0 sidecars and said nothing of run completion refusing a placeholder; two code comments went stale. All three phases passed their gate first try. |
 | 2026-10-25 | `small-fixes-0-27` (#163) | 1 × sonnet-5-5 / high, 1 × sonnet-5-5 / medium, 2 × opus-5-5 / medium (with a reason) | $14.62 | 3 / 5 | The plan dictated a worktree remedy (`git worktree add`) that fails on a deleted but still registered worktree, let a hand-written handoff leave its phase `committed` with no record and no cleanup, and owed a handoff to a phase an older phax had resumed past, which would have re-run finished phases. Execution described a skipped previous phase as committed with its handoff missing, left the test guard blind in `afterAll` and to a symlinked `~/.phax`, let the final count fail a finished run, linked permalinks for an unpushed branch, and called `existsSync` in `app/`. The plan review caught a guard that would have failed every test inside a phax worktree before approval. |
 | 2026-10-25 | `test-strategy` (#164) | 2 × opus-5-5 / medium (with a reason), 3 × sonnet-5-5 / medium, 1 × sonnet-5-5 / high, with one oracle pair | $35.30 ($29.25 of it the two Opus phases) | 3 / 5 | The plan gave headless plan authoring the spec's Markdown only, so no headless plan could name a criterion id; joined `source-spec` onto the repository with no guard, so lint and the overview could read files outside it; and claimed a lossless round trip that an oracle starting with `— ` broke. Execution read undecodable frontmatter as none, repeated a phase per line in the coverage block, left the overview's invalid-artifact line without the path, kept the bullet in a U+2028 departure message, and left four overview outputs undocumented. The plan review caught nine defects before approval, among them a missing `plans status` refusal and source item numbering. The oracle pair (phase-03 to phase-04) discharged cleanly: eleven `it.fails` markers removed, no assertion edited. |
+| 2026-10-26 | `artifact-decide-verdicts` (#165) | 4 × sonnet-5-5 / medium, 2 × sonnet-5-5 / high, with one oracle pair | $15.82 ($14.72 for the phases) | 3 / 5 | The plan bound a verdict that returns to the recommendation after a departure to `revised: []` and an unchanged body, so a correct revert was refused and a lazy one committed a verdict contradicting the body (now: the restoring verdict owes what the departure did); let routing send the writer to Mistral Vibe, whose adapter ignores `readOnly` (now refused); and copied the spec's approve hint without `--by operator`. Execution let an empty hand rationale become an empty `why` refused only after two sessions, named a side effect instead of the added option, gave a bad `--by` the approve parser's remedy, left `--verdicts -` blocking on a terminal, and drifted the documented commit subject. The oracle pair (phase-02 to phase-03) discharged cleanly with 45 oracles. CI then timed out a cold `tsx` spawn at 5s; raised to 30s. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -130,6 +126,11 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Headless authoring can run on Mistral Vibe, which ignores `readOnly`.** Found 2026-10-26
+      reviewing #165: `src/infra/providers/mistralVibe.ts` drops `options.readOnly`, so a headless
+      spec or plan session routed to Vibe runs auto-approved and can write or run anything in the
+      repository unnoticed. Verdicts mode now refuses a Vibe writer; give the Vibe adapter a
+      read-only mode, or refuse Vibe for every read-only session the same way.
 - [ ] **`phax artifact approve` approves a plan whose slug differs from its spec's.** Found
       2026-10-25 while verifying #163: `artifact new plan tally --spec …-tally-counter.md` makes a
       plan that `phax plans lint` refuses (`slug "tally" differs from source spec slug
