@@ -1,5 +1,6 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
+import { parseHandAuthoredQuestions } from "../../../src/domain/artifact/questions.js";
 import {
   bindVerdicts,
   parseVerdictsFile,
@@ -22,6 +23,12 @@ import {
   FILE_REVERSED,
   FILE_VALID,
   FILE_WRONG_FORMAT,
+  BOUND_HAND_RESTORE_Q1,
+  BOUND_RESTORE_KEEP,
+  BOUND_RESTORE_KEEP_UNREVISED,
+  HAND_DEPARTED_FACTS,
+  HAND_DEPARTED_PARSED,
+  HAND_EMPTY_RATIONALE_MD,
   HAND_FACTS,
   HAND_NO_QUESTIONS_PARSED,
   HAND_PARSED,
@@ -34,6 +41,10 @@ import {
   SPEC_DOCUMENT_URL,
   SPEC_FACTS,
   SPEC_KEEP_DECIDED,
+  SPEC_KEEP_20_DECIDED,
+  SPEC_KEEP_20_DECIDED_FACTS,
+  SPEC_KEEP_20_UNREVISED,
+  SPEC_KEEP_20_UNREVISED_FACTS,
   SPEC_KEEP_DECIDED_FACTS,
   SPEC_PATH,
 } from "./verdictsFixtures.js";
@@ -113,13 +124,19 @@ describe("parseVerdictsFile", () => {
 
   const violations: ReadonlyArray<readonly [string, string, string]> = [
     ["an extra key", FILE_EXTRA_KEY, "reason"],
-    ["an empty verdicts list", FILE_EMPTY_VERDICTS, "verdicts[0]"],
     ["a verdict without note", FILE_NO_NOTE, "verdicts[0].note"],
     ["an empty note", FILE_EMPTY_NOTE, "verdicts[0].note"],
   ];
 
   it.each(violations)("refuses %s at the path of the first violation", (_name, text, path) => {
     expect(leftOf(parseVerdictsFile(text)).path).toBe(path);
+  });
+
+  it("refuses an empty verdicts list, saying it needs at least one verdict", () => {
+    const refusal = leftOf(parseVerdictsFile(FILE_EMPTY_VERDICTS));
+    expect(refusal.path).toBe("verdicts");
+    expect(refusal.message).toContain("empty");
+    expect(refusal.message).toContain("at least one verdict");
   });
 });
 
@@ -254,6 +271,7 @@ describe("bindVerdicts: what is bound", () => {
         recommendation: "by-date",
         departs: true,
         why: "Name each log by its date and its phase.",
+        restores: null,
       },
     ]);
   });
@@ -316,5 +334,105 @@ describe("bindVerdicts: what is bound", () => {
       }),
     );
     expect(bound).toEqual(BOUND_HAND_Q1);
+  });
+});
+
+describe("bindVerdicts: a verdict that restores the recommendation", () => {
+  function bindOn(questions: Parameters<typeof bindVerdicts>[0]["questions"], given: GivenVerdict) {
+    return bindVerdicts({
+      file: { artifact: SPEC_PATH, verdicts: [given] },
+      artifactPath: SPEC_PATH,
+      questions,
+      label: "verdicts.json",
+    });
+  }
+
+  it("gives each question how its current verdict departed", () => {
+    expect(questionFactsOfDocument(SPEC_KEEP_20_DECIDED)).toEqual(SPEC_KEEP_20_DECIDED_FACTS);
+    expect(questionFactsOfDocument(SPEC_KEEP_20_UNREVISED)).toEqual(SPEC_KEEP_20_UNREVISED_FACTS);
+    expect(questionFactsOfDocument(SPEC_KEEP_DECIDED).map((q) => q.departed)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it("reads a hand-authored departure as recording no revised sections", () => {
+    expect(questionFactsOfHand(HAND_DEPARTED_PARSED)).toEqual(HAND_DEPARTED_FACTS);
+  });
+
+  it("binds the recommendation after a departure that revised the body as restoring it, revised", () => {
+    const given = { question: "q-keep", chosen: "keep-10", note: null };
+    expect(rightOf(bindOn(SPEC_KEEP_20_DECIDED_FACTS, given))).toEqual(BOUND_RESTORE_KEEP);
+  });
+
+  it("binds the recommendation after a departure that revised nothing as restoring it, unrevised", () => {
+    const given = { question: "q-keep", chosen: "keep-10", note: null };
+    expect(rightOf(bindOn(SPEC_KEEP_20_UNREVISED_FACTS, given))).toEqual(
+      BOUND_RESTORE_KEEP_UNREVISED,
+    );
+  });
+
+  it("binds the recommendation after a hand-authored departure as restoring it, unrecorded", () => {
+    const bound = bindVerdicts({
+      file: { artifact: SPEC_PATH, verdicts: [{ question: "Q1", chosen: "keep-10", note: null }] },
+      artifactPath: SPEC_PATH,
+      questions: HAND_DEPARTED_FACTS,
+      label: "verdicts.json",
+    });
+    expect(rightOf(bound)).toEqual(BOUND_HAND_RESTORE_Q1);
+  });
+
+  it("restores nothing for a departing verdict, or a following one replacing a following one", () => {
+    const departing = rightOf(
+      bindOn(SPEC_KEEP_20_DECIDED_FACTS, {
+        question: "q-keep",
+        chosen: "keep-20",
+        note: "Still a fortnight.",
+      }),
+    );
+    expect(departing.verdicts.map((v) => v.restores)).toEqual([null]);
+    const following = rightOf(
+      bindOn(SPEC_KEEP_DECIDED_FACTS, { question: "q-keep", chosen: "keep-10", note: null }),
+    );
+    expect(following.verdicts.map((v) => v.restores)).toEqual([null]);
+  });
+});
+
+describe("bindVerdicts: a null note needs a rationale to stand as its why", () => {
+  it("refuses a verdict with no note on a question whose rationale is empty, naming it and the note to give", () => {
+    const parsed = parseHandAuthoredQuestions("spec", HAND_EMPTY_RATIONALE_MD);
+    if (parsed.kind !== "parsed") throw new Error("the fixture does not parse");
+    const facts = questionFactsOfHand(parsed);
+    expect(facts.find((q) => q.id === "Q1")?.rationale).toBe("");
+
+    const message = leftOf(
+      bindVerdicts({
+        file: {
+          artifact: SPEC_PATH,
+          verdicts: [{ question: "Q1", chosen: "keep-10", note: null }],
+        },
+        artifactPath: SPEC_PATH,
+        questions: facts,
+        label: "verdicts.json",
+      }),
+    );
+    expect(message).toContain("Q1");
+    expect(message).toContain("give the verdict a note");
+  });
+
+  it("binds the same verdict once it carries a note", () => {
+    const parsed = parseHandAuthoredQuestions("spec", HAND_EMPTY_RATIONALE_MD);
+    if (parsed.kind !== "parsed") throw new Error("the fixture does not parse");
+    const bound = bindVerdicts({
+      file: {
+        artifact: SPEC_PATH,
+        verdicts: [{ question: "Q1", chosen: "keep-10", note: "A week of runs is enough." }],
+      },
+      artifactPath: SPEC_PATH,
+      questions: questionFactsOfHand(parsed),
+      label: "verdicts.json",
+    });
+    expect(rightOf(bound).verdicts.map((v) => v.why)).toEqual(["A week of runs is enough."]);
   });
 });

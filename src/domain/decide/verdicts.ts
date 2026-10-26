@@ -32,6 +32,7 @@ import {
   sameQuestionSet,
   unchanged,
   withoutQuestions,
+  type DecideQuestions,
   type RevisionRefusal,
 } from "./revision.js";
 
@@ -83,8 +84,9 @@ function verdictsStampViolation(json: Record<string, unknown>): string | undefin
  * not JSON (path `""`), a missing `$schema` (path `$schema`, saying there is
  * none and naming the URL phax reads), a `$schema` naming another format or
  * release than the current `decide-verdicts` stamp (path `$schema`, quoting
- * the URL read and the URL phax reads), or the first decoder violation with
- * its path rendered like `verdicts[0].note`.
+ * the URL read and the URL phax reads), an empty `verdicts` list (path
+ * `verdicts`), or the first decoder violation with its path rendered like
+ * `verdicts[0].note`.
  */
 export function parseVerdictsFile(text: string): Either.Either<VerdictsFile, VerdictsRefusal> {
   let json: unknown;
@@ -106,8 +108,24 @@ export function parseVerdictsFile(text: string): Either.Either<VerdictsFile, Ver
   const stampViolation = verdictsStampViolation(json);
   if (stampViolation !== undefined)
     return Either.left({ path: "$schema", message: stampViolation });
+  const given = json["verdicts"];
+  if (Array.isArray(given) && given.length === 0) {
+    return Either.left({
+      path: "verdicts",
+      message: "the list is empty — give at least one verdict",
+    });
+  }
   return Either.mapLeft(decodeCurrentDecideVerdicts(json), firstParseIssue);
 }
+
+/**
+ * How a question's current verdict departed from its recommendation, as a
+ * verdict returning to the recommendation must answer for it: `revised` when
+ * it named the body sections it revised, `unrevised` when it named none, and
+ * `unrecorded` when it records none — a lifted verdict, or a hand-authored
+ * Decision block, whose `Revised:` text phax does not read.
+ */
+type Departure = "revised" | "unrevised" | "unrecorded";
 
 /**
  * What a verdict is bound against: a question's id, its state, its option
@@ -122,6 +140,11 @@ export type QuestionFacts = {
   readonly optionIds: readonly string[];
   readonly recommendation: string;
   readonly rationale: string;
+  /**
+   * How its current verdict departed from the recommendation; `null` for an
+   * open question, and for an arbitrated one whose verdict follows it.
+   */
+  readonly departed: Departure | null;
 };
 
 type QuestionLike = {
@@ -136,6 +159,7 @@ function factsOf(
     readonly options?: ReadonlyArray<{ readonly id: string }>;
     readonly optionIds?: readonly string[];
   },
+  departed: Departure | null,
 ): QuestionFacts {
   return {
     id: question.id,
@@ -143,15 +167,27 @@ function factsOf(
     optionIds: question.optionIds ?? (question.options ?? []).map((o) => o.id),
     recommendation: question.recommendation,
     rationale: question.rationale,
+    departed,
   };
+}
+
+type ArbitratedQuestion = DecideQuestions["arbitratedQuestions"][number];
+
+// How a headless question's current verdict departed: a decided verdict
+// names what it revised; a lifted one records nothing.
+function departureOf(question: ArbitratedQuestion): Departure | null {
+  const { verdict } = question;
+  if (verdict.chosen === question.recommendation) return null;
+  if (verdict.kind !== "decided") return "unrecorded";
+  return verdict.revised.length > 0 ? "revised" : "unrevised";
 }
 
 /** The questions of a headless document: the open ones, then the arbitrated ones, each in document order. */
 export function questionFactsOfDocument(sidecar: SidecarDocument): readonly QuestionFacts[] {
   const { openQuestions, arbitratedQuestions } = questionsOf(sidecar);
   return [
-    ...openQuestions.map((q) => factsOf("open", q)),
-    ...arbitratedQuestions.map((q) => factsOf("arbitrated", q)),
+    ...openQuestions.map((q) => factsOf("open", q, null)),
+    ...arbitratedQuestions.map((q) => factsOf("arbitrated", q, departureOf(q))),
   ];
 }
 
@@ -159,12 +195,15 @@ export function questionFactsOfDocument(sidecar: SidecarDocument): readonly Ques
  * The questions of a hand-authored artifact's §9 sections: the open ones, then
  * the arbitrated ones, each in document order. `[]` for sections holding no
  * question; an artifact with no §9 section at all is not parsed and has no
- * facts to give.
+ * facts to give. A Decision block's revised sections are not read: a
+ * departing one is `unrecorded`.
  */
 export function questionFactsOfHand(parsed: ParsedHandQuestions): readonly QuestionFacts[] {
   return [
-    ...parsed.open.map((q) => factsOf("open", q)),
-    ...parsed.arbitrated.map((q) => factsOf("arbitrated", q)),
+    ...parsed.open.map((q) => factsOf("open", q, null)),
+    ...parsed.arbitrated.map((q) =>
+      factsOf("arbitrated", q, q.chosen === q.recommendation ? null : "unrecorded"),
+    ),
   ];
 }
 
@@ -179,6 +218,15 @@ export type BoundVerdict = {
   readonly departs: boolean;
   /** The note verbatim, or the question's rationale when the note is null. */
   readonly why: string;
+  /**
+   * A verdict that chooses the recommendation of a question whose current
+   * verdict departed restores it, and owes the body what that departure did:
+   * `revised` — it names the sections it restores, as the departure named
+   * those it revised; `unrevised` — the departure revised nothing, so it
+   * revises nothing; `unrecorded` — the departure records no revised
+   * sections, so it may revise or not. `null` for every other verdict.
+   */
+  readonly restores: Departure | null;
 };
 
 /** The verdicts of a file bound to an artifact, and the open questions it leaves out. */
@@ -209,7 +257,9 @@ function optionsText(optionIds: readonly string[]): string {
  * 2. an unknown question: the artifact's question ids;
  * 3. a question named twice: that id;
  * 4. a chosen id neither listed nor `other`: the question's option ids and `other`;
- * 5. a departing verdict, `other` included, with a null note: the question and its recommendation.
+ * 5. a departing verdict, `other` included, with a null note: the question and its recommendation;
+ * 6. a verdict with a null note on a question whose rationale is empty, so
+ *    nothing could stand as its `why`: the question, and the note to give.
  */
 export function bindVerdicts(input: {
   readonly file: VerdictsFile;
@@ -256,6 +306,11 @@ export function bindVerdicts(input: {
         `${label} chooses ${verdict.chosen} for ${facts.id}, which departs from its recommendation ${facts.recommendation}, with no note — a departing verdict needs a note`,
       );
     }
+    if (verdict.note === null && facts.rationale.trim().length === 0) {
+      return Either.left(
+        `${label} gives ${facts.id} no note, and ${facts.id} has no rationale to stand as its why — give the verdict a note, or write the question's rationale`,
+      );
+    }
     verdicts.push({
       question: facts.id,
       state: facts.state,
@@ -264,6 +319,7 @@ export function bindVerdicts(input: {
       recommendation: facts.recommendation,
       departs,
       why: verdict.note ?? facts.rationale,
+      restores: departs ? null : facts.departed,
     });
   }
   const open = questions.filter((q) => q.state === "open" && !given.has(q.id)).map((q) => q.id);
@@ -348,6 +404,37 @@ function operatorBy(operator: { readonly name: string }) {
 function unlistedPrinciple(id: string, principleIds: ReadonlySet<string>): string {
   const loaded = [...principleIds];
   return `"${id}" is no principle id of the loaded doctrine (${loaded.length === 0 ? "none" : loaded.join(", ")})`;
+}
+
+/**
+ * Why a landed verdict's `revised` breaks what its bound verdict owes the
+ * body, or undefined: a departing verdict names the sections it revised; a
+ * restoring one names the sections it restores after a departure that
+ * revised some, and none after a departure that revised none, and may do
+ * either after one that records none; any other following verdict names none.
+ */
+function revisedViolation(given: BoundVerdict, revised: readonly string[]): string | undefined {
+  if (given.departs) {
+    return revised.length === 0
+      ? `"${given.chosen}" departs from the recommendation "${given.recommendation}": name the body sections it revised`
+      : undefined;
+  }
+  switch (given.restores) {
+    case "revised":
+      return revised.length === 0
+        ? `"${given.chosen}" restores the recommendation after a verdict that departed and revised the body: name the body sections it restores`
+        : undefined;
+    case "unrevised":
+      return revised.length > 0
+        ? `"${given.chosen}" restores the recommendation after a verdict that departed and revised nothing: its revised is []`
+        : undefined;
+    case "unrecorded":
+      return undefined;
+    case null:
+      return revised.length > 0
+        ? `"${given.chosen}" follows the recommendation: its revised is []`
+        : undefined;
+  }
 }
 
 function firstTranscriptionViolation(input: {
@@ -502,30 +589,52 @@ function firstTranscriptionViolation(input: {
     }
   }
 
+  let revisesBody = false;
   for (const given of bound.verdicts) {
     const landed = afterArbitrated.get(given.question);
     if (landed === undefined || landed.question.verdict.kind !== "decided") continue;
     const { revised: sections } = landed.question.verdict;
-    if (given.departs && sections.length === 0) {
-      return refusal(
-        [...landed.path, "verdict", "revised"],
-        `"${given.chosen}" departs from the recommendation "${given.recommendation}": name the body sections it revised`,
-      );
+    const violation = revisedViolation(given, sections);
+    if (violation !== undefined) {
+      return refusal([...landed.path, "verdict", "revised"], violation);
     }
-    if (!given.departs && sections.length > 0) {
-      return refusal(
-        [...landed.path, "verdict", "revised"],
-        `"${given.chosen}" follows the recommendation: its revised is []`,
-      );
-    }
+    if (sections.length > 0) revisesBody = true;
   }
 
-  if (!bound.verdicts.some((v) => v.departs)) {
+  if (!revisesBody) {
     const differs = firstDifference(withoutQuestions(original), withoutQuestions(revised), []);
     if (differs !== undefined) {
       return refusal(
         differs,
-        "no verdict of the file departs from its recommendation: the body stays as it was",
+        "no verdict of the file departs from its recommendation, or restores it with revised sections: the body stays as it was",
+      );
+    }
+  }
+  return undefined;
+}
+
+// The first question whose options the answer changed, named with the
+// options it keeps. Checked on the answer as given, before the decoder: its
+// question checks would otherwise refuse an added option by a side effect,
+// such as a history verdict whose `abandoned` misses it.
+function changedOptions(original: SidecarDocument, answer: unknown): RevisionRefusal | undefined {
+  if (!isObject(answer)) return undefined;
+  const before = arraysOf(original);
+  const holder = original.kind === "spec" ? answer : answer["preamble"];
+  if (!isObject(holder)) return undefined;
+  const kept = new Map(
+    [...before.openQuestions, ...before.arbitratedQuestions].map((q) => [q.id, q.options]),
+  );
+  for (const key of ["openQuestions", "arbitratedQuestions"] as const) {
+    const entries: unknown = holder[key];
+    if (!Array.isArray(entries)) continue;
+    for (const [i, entry] of (entries as unknown[]).entries()) {
+      if (!isObject(entry) || typeof entry["id"] !== "string") continue;
+      const options = kept.get(entry["id"]);
+      if (options === undefined || sameJson(entry["options"], options)) continue;
+      return refusal(
+        [...before.basePath, key, i, "options"],
+        `"${entry["id"]}" keeps its options (${options.map((o) => o.id).join(", ")}) exactly: never add, drop or change one — a choice off the list is \`${OTHER_OPTION_ID}\``,
       );
     }
   }
@@ -538,8 +647,10 @@ function firstTranscriptionViolation(input: {
  * phax overwrites `why` (from the bound verdict), `by` and `at` on each named
  * question's verdict and restores a plan's `sourceSpec` and `completesSpec`.
  * The answer is then refused unless it is stamped with the document format's
- * current shape and passes the current-shape decoder (question checks,
- * traceability, a plan verdict's phase), and:
+ * current shape, keeps every question's options exactly (checked before the
+ * decoder, naming the question and its options), and passes the
+ * current-shape decoder (question checks, traceability, a plan verdict's
+ * phase), and:
  * - the question set is unchanged;
  * - every named question is arbitrated with a decided verdict whose `chosen`
  *   is the given one, `other` included, and whose `abandoned` is every other
@@ -550,10 +661,13 @@ function firstTranscriptionViolation(input: {
  *   new choice equals the old one;
  * - every unnamed question is unchanged and keeps its place;
  * - cited principles are loaded ids;
- * - a departing verdict names a non-empty `revised`, and a following verdict
- *   has `revised: []`, refused at that verdict's `revised` path;
- * - when no given verdict departs, every field outside the two question
- *   arrays is unchanged.
+ * - a departing verdict names a non-empty `revised`; a restoring verdict
+ *   (`BoundVerdict.restores`) names a non-empty one after a departure that
+ *   revised sections, `[]` after one that revised none, either after one that
+ *   records none; any other following verdict has `revised: []` — each
+ *   refused at that verdict's `revised` path;
+ * - when no landed verdict names a revised section, every field outside the
+ *   two question arrays is unchanged.
  */
 export function checkTranscription(input: {
   readonly original: SidecarDocument;
@@ -571,6 +685,8 @@ export function checkTranscription(input: {
   if (stampViolation !== undefined) {
     return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
   }
+  const optionsViolation = changedOptions(original, answer);
+  if (optionsViolation !== undefined) return Either.left(optionsViolation);
   const decoded = Either.mapLeft(
     decodeCurrentDocumentSidecar(
       original.kind,
@@ -614,9 +730,11 @@ function stampHandAnswer(
 
 /**
  * A writer's answer for a hand-authored artifact, checked the same way: its
- * decisions are exactly the named questions, each once; its frontmatter,
- * question sections and decision log are returned unchanged; and when no
- * verdict departs its markdown equals the artifact's. On success `md` is the
+ * decisions are exactly the named questions, each once, each `revised` as its
+ * bound verdict owes the body (a restore of a hand-authored departure, which
+ * records no revised sections, may revise or not); its frontmatter, question
+ * sections and decision log are returned unchanged; and when every decision
+ * has `revised: []` its markdown equals the artifact's. On success `md` is the
  * artifact's Markdown with the decisions written in place (each named block
  * moved to the arbitrated section with its Decision block, one decision-log
  * entry per verdict), and `answer` is the decoded answer with `why`, `by` and
@@ -668,13 +786,9 @@ export function checkHandTranscription(input: {
         ),
       );
     }
-    if (!given.departs && verdict.revised.length > 0) {
-      return Either.left(
-        refusal(
-          ["decisions", i, "verdict", "revised"],
-          `"${given.chosen}" follows the recommendation: its revised is []`,
-        ),
-      );
+    const revisedRefusal = revisedViolation(given, verdict.revised);
+    if (revisedRefusal !== undefined) {
+      return Either.left(refusal(["decisions", i, "verdict", "revised"], revisedRefusal));
     }
   }
   for (const { question } of bound.verdicts) {

@@ -57,9 +57,21 @@ function fenceFor(text: string): string {
   return "`".repeat(Math.max(3, longest + 1));
 }
 
+// How a verdict that chooses the recommendation reads: a plain follow, or a
+// restore owing the body what the departure it replaces did.
+const FOLLOWS: Readonly<Record<NonNullable<BoundVerdict["restores"]> | "follows", string>> = {
+  follows: "it follows the recommendation",
+  revised:
+    "it restores the recommendation: the current verdict departed from it and revised the body, so undo those revisions and name the sections you restore in `revised`",
+  unrevised:
+    "it restores the recommendation: the current verdict departed from it without revising the body, so the body stays and `revised` is `[]`",
+  unrecorded:
+    "it restores the recommendation: the current verdict departed from it, so undo the body revisions that departure made and name the sections you restore in `revised`, or leave the body and `revised: []` when it made none",
+};
+
 function renderChoice(verdict: BoundVerdict): string[] {
   const how = !verdict.departs
-    ? "it follows the recommendation"
+    ? FOLLOWS[verdict.restores ?? "follows"]
     : verdict.chosen === OTHER_OPTION_ID
       ? "a choice off the menu: it departs from the recommendation, and the note describes it"
       : "it departs from the recommendation";
@@ -117,7 +129,8 @@ function renderHandVerdict(verdict: BoundVerdict): string[] {
  * file, run no command that changes the repository); the given verdicts in
  * document order, each with its options, its recommendation and rationale,
  * the option chosen, whether it follows or departs, and the note; what to
- * write for each; the body revisions a departing verdict implies; the
+ * write for each; the body revisions a departing verdict implies, and those
+ * a restoring one undoes; the
  * questions left as they were; what phax sets itself; the final-message
  * contract; then the doctrine text, the artifact and the JSON Schema of the
  * answer. It has no framing questions.
@@ -157,14 +170,14 @@ export function buildVerdictsPrompt(input: VerdictsPromptInput): string {
         "",
         `- \`kind\`: \`${kind}\`.`,
         `- \`decisions\`: exactly one \`{ id, verdict }\` per verdict above (${ids.join(", ")}), each with a \`decided\` verdict${kind === "plan" ? " naming its `phase`" : ""}.`,
-        `- \`markdown\`: the artifact's whole Markdown. Leave its frontmatter and its ${HAND_SECTIONS[kind]} sections exactly as they were: phax moves each decided question, writes its Decision block and appends to the decision log itself. When no verdict departs, return the Markdown unchanged.`,
+        `- \`markdown\`: the artifact's whole Markdown. Leave its frontmatter and its ${HAND_SECTIONS[kind]} sections exactly as they were: phax moves each decided question, writes its Decision block and appends to the decision log itself. When no verdict departs and every \`revised\` is \`[]\`, return the Markdown unchanged.`,
       ]
     : [
         `Your final message is the artifact's whole ${kind} document in its sidecar form: one JSON object valid against the revised ${kind} document JSON Schema below, with \`$schema\` first, set to \`${schemaUrl}\`. No code fence, no Markdown, no commentary before or after the JSON.`,
         "",
         `- Move each question above that is open from \`${arrayPath(kind, "openQuestions")}\` to the end of \`${arrayPath(kind, "arbitratedQuestions")}\`, keeping every field it had, with a \`decided\` verdict and \`history: []\`.`,
         "- A question above that is already arbitrated keeps its place; its new verdict replaces the current one, which moves to the end of its `history`, even when the new choice equals the old one.",
-        "- When no verdict departs, every other field of the document stays exactly as it was.",
+        "- When no verdict departs and every `revised` is `[]`, every other field of the document stays exactly as it was.",
       ];
 
   const sections: string[] = [
@@ -191,11 +204,11 @@ export function buildVerdictsPrompt(input: VerdictsPromptInput): string {
     `- principles: the doctrine principle ids the verdict rests on, only ids the doctrine below defines (${principleIds.length === 0 ? "none" : principleIds.join(", ")});`,
     "- reversibility: cheap, costly or irreversible — the cost of undoing the verdict;",
     ...(kind === "plan" ? ["- phase: the id of the plan phase the verdict bears on;"] : []),
-    "- revised: the body sections the verdict changed — `[]` for a verdict that follows the recommendation.",
+    "- revised: the body sections the verdict changed — `[]` for a verdict that follows the recommendation, unless it restores it as its line above says.",
     "",
     "## 3. Departures revise the body",
     "",
-    `A verdict that departs from the recommendation implies body revisions (requirements, surface, acceptance criteria, planning note), and you make them, keeping traceability, and name each revised section in \`revised\`. For \`${OTHER_OPTION_ID}\`, apply the choice the note describes; never add an option to the question. A verdict that follows the recommendation changes no part of the body and has \`revised: []\`.`,
+    `A verdict that departs from the recommendation implies body revisions (requirements, surface, acceptance criteria, planning note), and you make them, keeping traceability, and name each revised section in \`revised\`. For \`${OTHER_OPTION_ID}\`, apply the choice the note describes; never add an option to the question. A verdict that follows the recommendation changes no part of the body and has \`revised: []\`, except one that restores the recommendation after a departing verdict: it undoes that departure's body revisions, as its line above says.`,
     "",
     "## 4. Everything else stays",
     "",

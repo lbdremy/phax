@@ -33,8 +33,21 @@ import {
   BOUND_PLAN_Q1,
   BOUND_REARBITRATE_KEEP_20,
   BOUND_REARBITRATE_SAME,
+  ANSWER_REARBITRATE_ADDS_OPTION,
+  ANSWER_RESTORE_KEEP,
+  ANSWER_RESTORE_KEEP_UNNAMED,
+  ANSWER_RESTORE_UNREVISED,
+  ANSWER_RESTORE_UNREVISED_NAMES,
+  BOUND_HAND_RESTORE_Q1,
+  BOUND_REARBITRATE_NAMES_OTHER,
+  BOUND_RESTORE_KEEP,
+  BOUND_RESTORE_KEEP_UNREVISED,
   HAND_ANSWER_Q1,
+  HAND_ANSWER_RESTORE,
+  HAND_ANSWER_RESTORE_UNREVISED,
   HAND_ANSWER_WRONG_OPTION,
+  HAND_DEPARTED_MD,
+  HAND_DEPARTED_PARSED,
   HAND_PARSED,
   HAND_SPEC_MD,
   OPERATOR,
@@ -42,7 +55,10 @@ import {
   PREVIOUS_KEEP,
   PRINCIPLE_IDS,
   SPEC,
+  SPEC_KEEP_20_DECIDED,
+  SPEC_KEEP_20_UNREVISED,
   SPEC_KEEP_DECIDED,
+  SPEC_NAMES_DECIDED,
   TRANSCRIBED_FOLLOW,
   TRANSCRIBED_HAND_Q1,
 } from "./verdictsFixtures.js";
@@ -224,6 +240,18 @@ describe("a transcription is refused (§5.15)", () => {
     expect(refusal.message).toContain("by-run");
   });
 
+  it("names an added option before any other check, even one the decoder would make on the history", () => {
+    const refusal = refusalOf(
+      SPEC_NAMES_DECIDED,
+      ANSWER_REARBITRATE_ADDS_OPTION,
+      BOUND_REARBITRATE_NAMES_OTHER,
+    );
+    expect(refusal.path).toBe("arbitratedQuestions[0].options");
+    expect(refusal.message).toContain("q-names");
+    expect(refusal.message).toContain("by-date, by-run");
+    expect(refusal.message).not.toContain("history");
+  });
+
   it("refuses an answer that is not stamped with the document's current shape", () => {
     const { $schema: _schema, ...unstamped } = ANSWER_FOLLOW as Record<string, unknown>;
     expect(refusalOf(SPEC, unstamped, BOUND_FOLLOW).path).toBe("$schema");
@@ -384,5 +412,84 @@ describe("a hand decision answer", () => {
     const checked = checkHand(HAND_ANSWER_WRONG_OPTION, BOUND_HAND_Q1);
     if (Either.isRight(checked)) throw new Error("expected a refusal");
     expect(checked.left.path).toBe("decisions[0].verdict.chosen");
+  });
+});
+
+describe("a verdict that restores the recommendation", () => {
+  it("lands after a departure that revised the body, naming the sections it restores", () => {
+    const { document, verdicts } = landed(
+      SPEC_KEEP_20_DECIDED,
+      ANSWER_RESTORE_KEEP,
+      BOUND_RESTORE_KEEP,
+    );
+    expect(specOf(document).requirements[0]?.statement).toBe(
+      "THE system SHALL keep the ten most recent logs.",
+    );
+    expect(decidedOf(document, "q-keep")).toMatchObject({ chosen: "keep-10", revised: ["5.1"] });
+    expect(verdicts).toMatchObject([
+      { question: "q-keep", chosen: "keep-10", departs: false, revised: ["5.1"] },
+    ]);
+  });
+
+  it("refuses one that names no section after a departure that revised the body", () => {
+    const refusal = refusalOf(
+      SPEC_KEEP_20_DECIDED,
+      ANSWER_RESTORE_KEEP_UNNAMED,
+      BOUND_RESTORE_KEEP,
+    );
+    expect(refusal.path).toBe("arbitratedQuestions[0].verdict.revised");
+    expect(refusal.message).toContain("restores the recommendation");
+    expect(refusal.message).toContain("name the body sections it restores");
+  });
+
+  it("lands with revised [] and the body as it was after a departure that revised nothing", () => {
+    const { document } = landed(
+      SPEC_KEEP_20_UNREVISED,
+      ANSWER_RESTORE_UNREVISED,
+      BOUND_RESTORE_KEEP_UNREVISED,
+    );
+    expect(decidedOf(document, "q-keep")).toMatchObject({ chosen: "keep-10", revised: [] });
+  });
+
+  it("refuses one that names a section after a departure that revised nothing", () => {
+    const refusal = refusalOf(
+      SPEC_KEEP_20_UNREVISED,
+      ANSWER_RESTORE_UNREVISED_NAMES,
+      BOUND_RESTORE_KEEP_UNREVISED,
+    );
+    expect(refusal.path).toBe("arbitratedQuestions[0].verdict.revised");
+    expect(refusal.message).toContain("revised nothing");
+  });
+
+  function checkHandOn(answer: unknown) {
+    return checkHandTranscription({
+      kind: "spec",
+      md: HAND_DEPARTED_MD,
+      parsed: HAND_DEPARTED_PARSED,
+      answer,
+      bound: BOUND_HAND_RESTORE_Q1,
+      operator: OPERATOR,
+      atIso: AT_ISO,
+      principleIds: PRINCIPLE_IDS,
+      phaseIds: [],
+    });
+  }
+
+  it("lands on a hand-authored departure, which records no revised sections, revising the body", () => {
+    const checked = checkHandOn(HAND_ANSWER_RESTORE);
+    if (Either.isLeft(checked)) throw new Error(JSON.stringify(checked.left));
+    expect(checked.right.md).toContain("THE system SHALL keep the ten most recent logs.");
+    expect(checked.right.md).toContain("Decision: keep-10");
+    expect(checked.right.md).toContain("Earlier decision: keep-20");
+    expect(checked.right.verdicts).toMatchObject([
+      { question: "Q1", chosen: "keep-10", departs: false, revised: ["5.1"] },
+    ]);
+  });
+
+  it("lands on a hand-authored departure without revising the body too", () => {
+    const checked = checkHandOn(HAND_ANSWER_RESTORE_UNREVISED);
+    if (Either.isLeft(checked)) throw new Error(JSON.stringify(checked.left));
+    expect(checked.right.md).toContain("THE system SHALL keep the twenty most recent logs.");
+    expect(checked.right.verdicts).toMatchObject([{ question: "Q1", revised: [] }]);
   });
 });

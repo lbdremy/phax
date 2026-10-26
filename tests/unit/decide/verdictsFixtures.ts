@@ -187,6 +187,42 @@ export const SPEC_KEEP_DECIDED: SidecarDocument = {
   },
 };
 
+/** A verdict on q-keep that departed to keep-20 and revised requirement 5.1. */
+const DEPARTED_KEEP_VERDICT: SpecVerdict = {
+  ...PREVIOUS_KEEP_VERDICT,
+  chosen: "keep-20",
+  abandoned: ["keep-10"],
+  why: "Support asks for a fortnight of runs.",
+  advocate: "Ten logs keep the directory small.",
+  revised: ["5.1"],
+};
+
+const TWENTY_LOGS = "THE system SHALL keep the twenty most recent logs.";
+
+/** The spec with q-keep arbitrated keep-20, departing, and requirement 5.1 rewritten for it. */
+export const SPEC_KEEP_20_DECIDED: SidecarDocument = {
+  kind: "spec",
+  document: {
+    ...SPEC_BASE,
+    requirements: requirementStatement("5.1", TWENTY_LOGS) as SpecDocument["requirements"],
+    openQuestions: [Q_SCOPE, Q_NAMES],
+    arbitratedQuestions: [{ ...Q_KEEP, verdict: DEPARTED_KEEP_VERDICT, history: [] }],
+  },
+};
+
+/** A verdict on q-keep that departed to keep-20 and revised nothing. */
+const DEPARTED_KEEP_UNREVISED_VERDICT: SpecVerdict = { ...DEPARTED_KEEP_VERDICT, revised: [] };
+
+/** The spec with q-keep arbitrated keep-20, departing with `revised: []`; the body as it was. */
+export const SPEC_KEEP_20_UNREVISED: SidecarDocument = {
+  kind: "spec",
+  document: {
+    ...SPEC_BASE,
+    openQuestions: [Q_SCOPE, Q_NAMES],
+    arbitratedQuestions: [{ ...Q_KEEP, verdict: DEPARTED_KEEP_UNREVISED_VERDICT, history: [] }],
+  },
+};
+
 // ── Facts, as the questions of those documents give them ───────────────────
 
 const FACTS_KEEP_OPEN: QuestionFacts = {
@@ -195,6 +231,7 @@ const FACTS_KEEP_OPEN: QuestionFacts = {
   optionIds: ["keep-10", "keep-20"],
   recommendation: "keep-10",
   rationale: Q_KEEP.rationale,
+  departed: null,
 };
 
 const FACTS_SCOPE: QuestionFacts = {
@@ -203,6 +240,7 @@ const FACTS_SCOPE: QuestionFacts = {
   optionIds: ["per-run", "per-day"],
   recommendation: "per-run",
   rationale: Q_SCOPE.rationale,
+  departed: null,
 };
 
 const FACTS_NAMES: QuestionFacts = {
@@ -211,6 +249,7 @@ const FACTS_NAMES: QuestionFacts = {
   optionIds: ["by-date", "by-run"],
   recommendation: "by-date",
   rationale: Q_NAMES.rationale,
+  departed: null,
 };
 
 const FACTS_KEEP_ARBITRATED: QuestionFacts = { ...FACTS_KEEP_OPEN, state: "arbitrated" };
@@ -223,6 +262,20 @@ export const SPEC_KEEP_DECIDED_FACTS: readonly QuestionFacts[] = [
   FACTS_SCOPE,
   FACTS_NAMES,
   FACTS_KEEP_ARBITRATED,
+];
+
+/** What `questionFactsOfDocument(SPEC_KEEP_20_DECIDED)` gives: q-keep departed, revising. */
+export const SPEC_KEEP_20_DECIDED_FACTS: readonly QuestionFacts[] = [
+  FACTS_SCOPE,
+  FACTS_NAMES,
+  { ...FACTS_KEEP_OPEN, state: "arbitrated", departed: "revised" },
+];
+
+/** What `questionFactsOfDocument(SPEC_KEEP_20_UNREVISED)` gives: q-keep departed, revising nothing. */
+export const SPEC_KEEP_20_UNREVISED_FACTS: readonly QuestionFacts[] = [
+  FACTS_SCOPE,
+  FACTS_NAMES,
+  { ...FACTS_KEEP_OPEN, state: "arbitrated", departed: "unrevised" },
 ];
 
 // ── Bound verdicts, written out by hand ────────────────────────────────────
@@ -242,6 +295,7 @@ export const BOUND_FOLLOW: BoundVerdicts = {
       recommendation: "keep-10",
       departs: false,
       why: KEEP_NOTE,
+      restores: null,
     },
     {
       question: "q-scope",
@@ -251,6 +305,7 @@ export const BOUND_FOLLOW: BoundVerdicts = {
       recommendation: "per-run",
       departs: false,
       why: Q_SCOPE.rationale,
+      restores: null,
     },
   ],
   open: ["q-names"],
@@ -273,6 +328,7 @@ export const BOUND_KEEP_20: BoundVerdicts = {
       recommendation: "keep-10",
       departs: true,
       why: KEEP_20_NOTE,
+      restores: null,
     },
   ],
   open: ["q-scope", "q-names"],
@@ -289,6 +345,7 @@ export const BOUND_NAMES_OTHER: BoundVerdicts = {
       recommendation: "by-date",
       departs: true,
       why: NAMES_OTHER_NOTE,
+      restores: null,
     },
   ],
   open: ["q-keep", "q-scope"],
@@ -305,6 +362,7 @@ export const BOUND_REARBITRATE_KEEP_20: BoundVerdicts = {
       recommendation: "keep-10",
       departs: true,
       why: KEEP_20_NOTE,
+      restores: null,
     },
   ],
   open: ["q-scope", "q-names"],
@@ -321,8 +379,32 @@ export const BOUND_REARBITRATE_SAME: BoundVerdicts = {
       recommendation: "keep-10",
       departs: false,
       why: Q_KEEP.rationale,
+      restores: null,
     },
   ],
+  open: ["q-scope", "q-names"],
+};
+
+/** q-keep, which departed to keep-20 revising 5.1, restored to keep-10 without a note. */
+export const BOUND_RESTORE_KEEP: BoundVerdicts = {
+  verdicts: [
+    {
+      question: "q-keep",
+      state: "arbitrated",
+      chosen: "keep-10",
+      note: null,
+      recommendation: "keep-10",
+      departs: false,
+      why: Q_KEEP.rationale,
+      restores: "revised",
+    },
+  ],
+  open: ["q-scope", "q-names"],
+};
+
+/** q-keep, which departed to keep-20 revising nothing, restored to keep-10 without a note. */
+export const BOUND_RESTORE_KEEP_UNREVISED: BoundVerdicts = {
+  verdicts: [{ ...(BOUND_RESTORE_KEEP.verdicts[0] as BoundVerdict), restores: "unrevised" }],
   open: ["q-scope", "q-names"],
 };
 
@@ -525,6 +607,98 @@ export const ANSWER_REARBITRATE_SAME: Json = keptDecidedAnswer({
   ],
 });
 
+function departedAnswer(original: SidecarDocument, change: Json): Json {
+  return { ...answerOf(original), ...change };
+}
+
+/** bound: BOUND_RESTORE_KEEP, on SPEC_KEEP_20_DECIDED. keep-10 again, 5.1 restored to ten and named. */
+export const ANSWER_RESTORE_KEEP: Json = departedAnswer(SPEC_KEEP_20_DECIDED, {
+  requirements: SPEC_BASE.requirements,
+  arbitratedQuestions: [
+    arbitratedWith(Q_KEEP, writerVerdict(Q_KEEP, "keep-10", ["5.1"]), [DEPARTED_KEEP_VERDICT]),
+  ],
+});
+
+/** bound: BOUND_RESTORE_KEEP, on SPEC_KEEP_20_DECIDED. 5.1 restored, but `revised` names nothing. */
+export const ANSWER_RESTORE_KEEP_UNNAMED: Json = departedAnswer(SPEC_KEEP_20_DECIDED, {
+  requirements: SPEC_BASE.requirements,
+  arbitratedQuestions: [
+    arbitratedWith(Q_KEEP, writerVerdict(Q_KEEP, "keep-10"), [DEPARTED_KEEP_VERDICT]),
+  ],
+});
+
+/** bound: BOUND_RESTORE_KEEP_UNREVISED, on SPEC_KEEP_20_UNREVISED. keep-10 again, the body as it was. */
+export const ANSWER_RESTORE_UNREVISED: Json = departedAnswer(SPEC_KEEP_20_UNREVISED, {
+  arbitratedQuestions: [
+    arbitratedWith(Q_KEEP, writerVerdict(Q_KEEP, "keep-10"), [DEPARTED_KEEP_UNREVISED_VERDICT]),
+  ],
+});
+
+/** bound: BOUND_RESTORE_KEEP_UNREVISED, on SPEC_KEEP_20_UNREVISED. It names 5.1 although the departure revised nothing. */
+export const ANSWER_RESTORE_UNREVISED_NAMES: Json = departedAnswer(SPEC_KEEP_20_UNREVISED, {
+  arbitratedQuestions: [
+    arbitratedWith(Q_KEEP, writerVerdict(Q_KEEP, "keep-10", ["5.1"]), [
+      DEPARTED_KEEP_UNREVISED_VERDICT,
+    ]),
+  ],
+});
+
+const EARLIER_NAMES_VERDICT: SpecVerdict = {
+  ...PREVIOUS_KEEP_VERDICT,
+  chosen: "by-run",
+  abandoned: ["by-date"],
+  why: "A run id tells runs apart.",
+  advocate: "A date sorts in a listing.",
+  revised: ["5.3"],
+};
+
+const CURRENT_NAMES_VERDICT: SpecVerdict = {
+  ...EARLIER_NAMES_VERDICT,
+  chosen: "by-date",
+  abandoned: ["by-run"],
+  why: Q_NAMES.rationale,
+  revised: ["5.3"],
+};
+
+/** The spec with q-names arbitrated by-date, an earlier by-run verdict in its history. */
+export const SPEC_NAMES_DECIDED: SidecarDocument = {
+  kind: "spec",
+  document: {
+    ...SPEC_BASE,
+    openQuestions: [Q_KEEP, Q_SCOPE],
+    arbitratedQuestions: [
+      { ...Q_NAMES, verdict: CURRENT_NAMES_VERDICT, history: [EARLIER_NAMES_VERDICT] },
+    ],
+  },
+};
+
+/**
+ * bound: BOUND_REARBITRATE_NAMES_OTHER, on SPEC_NAMES_DECIDED. The writer added
+ * run-phase to q-names and chose it; the history verdicts no longer abandon
+ * every option, which the decoder would name first.
+ */
+export const ANSWER_REARBITRATE_ADDS_OPTION: Json = departedAnswer(SPEC_NAMES_DECIDED, {
+  requirements: requirementStatement("5.3", "THE system SHALL name each rotated log by its run."),
+  arbitratedQuestions: [
+    arbitratedWith(
+      { ...Q_NAMES, options: [...Q_NAMES.options, RUN_PHASE_OPTION] },
+      { ...writerVerdict(Q_NAMES, "run-phase", ["5.3"]), abandoned: ["by-date", "by-run"] },
+      [EARLIER_NAMES_VERDICT, CURRENT_NAMES_VERDICT],
+    ),
+  ],
+});
+
+/** The arbitrated q-names, re-arbitrated to `other` with a note. */
+export const BOUND_REARBITRATE_NAMES_OTHER: BoundVerdicts = {
+  verdicts: [
+    {
+      ...(BOUND_NAMES_OTHER.verdicts[0] as BoundVerdict),
+      state: "arbitrated",
+    },
+  ],
+  open: ["q-keep", "q-scope"],
+};
+
 // ── What phax lands ────────────────────────────────────────────────────────
 
 const OPERATOR_BY = { kind: "operator", name: OPERATOR.name } as const;
@@ -628,6 +802,7 @@ export const PLAN_FACTS: readonly QuestionFacts[] = [
     optionIds: ["one-pass", "two-pass"],
     recommendation: "one-pass",
     rationale: Q1.rationale,
+    departed: null,
   },
   {
     id: "Q2",
@@ -635,6 +810,7 @@ export const PLAN_FACTS: readonly QuestionFacts[] = [
     optionIds: ["beside", "apart"],
     recommendation: "apart",
     rationale: Q2.rationale,
+    departed: null,
   },
 ];
 
@@ -649,6 +825,7 @@ export const BOUND_PLAN_Q1: BoundVerdicts = {
       recommendation: "one-pass",
       departs: false,
       why: Q1.rationale,
+      restores: null,
     },
   ],
   open: ["Q2"],
@@ -739,6 +916,7 @@ export const HAND_FACTS: readonly QuestionFacts[] = [
     optionIds: ["keep-10", "keep-20"],
     recommendation: "keep-10",
     rationale: HAND_Q1_RATIONALE,
+    departed: null,
   },
   {
     id: "Q2",
@@ -746,8 +924,101 @@ export const HAND_FACTS: readonly QuestionFacts[] = [
     optionIds: ["by-date", "by-run"],
     recommendation: "by-date",
     rationale: "dates sort in a listing",
+    departed: null,
   },
 ];
+
+/**
+ * The hand-authored spec with Q1 decided keep-20, departing from keep-10, and
+ * requirement 5.1 rewritten for it. Its Decision block names `Revised: 5.1.`,
+ * which phax does not read.
+ */
+export const HAND_DEPARTED_MD = [
+  "---",
+  "status: Draft",
+  "date: 2026-10-25",
+  "---",
+  "# Log retention",
+  "",
+  "## 1. Context",
+  "",
+  "Every run writes one log.",
+  "",
+  "## 5. Requirements",
+  "",
+  "- 5.1 THE system SHALL keep the twenty most recent logs.",
+  "",
+  "## 9. Open questions",
+  "",
+  "### Q2 — Names: by date or by run?",
+  "",
+  "- by-date — By date — abandons: a name that tells the run apart",
+  "- by-run — By run — abandons: a name that sorts by date",
+  "",
+  "Recommendation: by-date — dates sort in a listing",
+  "",
+  "## 9b. Arbitrated questions",
+  "",
+  "### Q1 — Retention: ten logs or twenty?",
+  "",
+  "- keep-10 — Ten logs — abandons: a longer history",
+  "- keep-20 — Twenty logs — abandons: disk space",
+  "",
+  "Recommendation: keep-10 — ten logs cover a week of runs",
+  "",
+  "Decision: keep-20 — by operator (Grace Hopper), 2026-10-20",
+  "Why: Support asks for a fortnight of runs. Advocate: Ten logs keep the directory small. Principles: S1. Reversibility: cheap. Revised: 5.1.",
+  "",
+  "## 10. Implementation-planning note",
+  "",
+  "Settled: none.",
+  "",
+].join("\n");
+
+export const HAND_DEPARTED_PARSED: ParsedHandQuestions = parsedHand(HAND_DEPARTED_MD);
+
+/** What `questionFactsOfHand(HAND_DEPARTED_PARSED)` gives: Q1's departure records no revised sections. */
+export const HAND_DEPARTED_FACTS: readonly QuestionFacts[] = [
+  {
+    id: "Q2",
+    state: "open",
+    optionIds: ["by-date", "by-run"],
+    recommendation: "by-date",
+    rationale: "dates sort in a listing",
+    departed: null,
+  },
+  {
+    id: "Q1",
+    state: "arbitrated",
+    optionIds: ["keep-10", "keep-20"],
+    recommendation: "keep-10",
+    rationale: "ten logs cover a week of runs",
+    departed: "unrecorded",
+  },
+];
+
+/** Q1, which departed to keep-20, restored to keep-10 without a note; Q2 stays open. */
+export const BOUND_HAND_RESTORE_Q1: BoundVerdicts = {
+  verdicts: [
+    {
+      question: "Q1",
+      state: "arbitrated",
+      chosen: "keep-10",
+      note: null,
+      recommendation: "keep-10",
+      departs: false,
+      why: "ten logs cover a week of runs",
+      restores: "unrecorded",
+    },
+  ],
+  open: ["Q2"],
+};
+
+/** The hand-authored spec with Q1's Recommendation line giving no rationale. */
+export const HAND_EMPTY_RATIONALE_MD = HAND_SPEC_MD.replace(
+  "Recommendation: keep-10 — ten logs cover a week of runs\n\nA longer history costs disk and nobody reads it.\n",
+  "Recommendation: keep-10 —\n",
+);
 
 /** A §9 section holding `None.` alone: parsed, with no question. */
 const HAND_NO_QUESTIONS_MD = [
@@ -775,6 +1046,7 @@ export const BOUND_HAND_Q1: BoundVerdicts = {
       recommendation: "keep-10",
       departs: false,
       why: HAND_Q1_RATIONALE,
+      restores: null,
     },
   ],
   open: ["Q2"],
@@ -784,6 +1056,7 @@ function handAnswer(
   chosen: string,
   abandoned: readonly string[],
   revised: readonly string[] = [],
+  markdown: string = HAND_SPEC_MD,
 ): HandDecisionAnswer {
   return {
     kind: "spec",
@@ -804,7 +1077,7 @@ function handAnswer(
         },
       },
     ],
-    markdown: HAND_SPEC_MD,
+    markdown,
   };
 }
 
@@ -819,6 +1092,21 @@ export const HAND_ANSWER_Q1: Json = handAnswerJson(handAnswer("keep-10", ["keep-
 /** bound: BOUND_HAND_Q1. The writer chose keep-20 although keep-10 was given, and names a revised section. */
 export const HAND_ANSWER_WRONG_OPTION: Json = handAnswerJson(
   handAnswer("keep-20", ["keep-10"], ["5.1"]),
+);
+
+/** bound: BOUND_HAND_RESTORE_Q1. keep-10 again, requirement 5.1 restored to ten and named. */
+export const HAND_ANSWER_RESTORE: Json = handAnswerJson(
+  handAnswer(
+    "keep-10",
+    ["keep-20"],
+    ["5.1"],
+    HAND_DEPARTED_MD.replace("twenty most recent", "ten most recent"),
+  ),
+);
+
+/** bound: BOUND_HAND_RESTORE_Q1. keep-10 again, the Markdown as it was and `revised: []`. */
+export const HAND_ANSWER_RESTORE_UNREVISED: Json = handAnswerJson(
+  handAnswer("keep-10", ["keep-20"], [], HAND_DEPARTED_MD),
 );
 
 export const TRANSCRIBED_HAND_Q1: readonly TranscribedVerdict[] = [

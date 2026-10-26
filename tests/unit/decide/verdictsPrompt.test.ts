@@ -10,9 +10,13 @@ import {
   BOUND_NAMES_OTHER,
   BOUND_PLAN_Q1,
   BOUND_REARBITRATE_KEEP_20,
+  BOUND_RESTORE_KEEP,
+  BOUND_RESTORE_KEEP_UNREVISED,
   HAND_SPEC_MD,
   PLAN,
   SPEC,
+  SPEC_KEEP_20_DECIDED,
+  SPEC_KEEP_20_UNREVISED,
   SPEC_KEEP_DECIDED,
   SPEC_PATH,
 } from "./verdictsFixtures.js";
@@ -131,6 +135,19 @@ describe("buildVerdictsPrompt — departures", () => {
   });
 });
 
+describe("buildVerdictsPrompt — a verdict that restores the recommendation", () => {
+  it("asks the writer to undo the departure's revisions and name the sections it restores", () => {
+    const prompt = specPrompt(BOUND_RESTORE_KEEP, SPEC_KEEP_20_DECIDED);
+    expect(prompt).toContain("Chosen: keep-10 — it restores the recommendation");
+    expect(prompt).toContain("undo those revisions and name the sections you restore in `revised`");
+  });
+
+  it("keeps the body and revised [] after a departure that revised nothing", () => {
+    const prompt = specPrompt(BOUND_RESTORE_KEEP_UNREVISED, SPEC_KEEP_20_UNREVISED);
+    expect(prompt).toContain("without revising the body, so the body stays and `revised` is `[]`");
+  });
+});
+
 describe("buildVerdictsPrompt — a headless plan", () => {
   const prompt = buildVerdictsPrompt({
     kind: "plan",
@@ -163,7 +180,9 @@ describe("buildVerdictsPrompt — a hand-authored spec", () => {
     expect(prompt).toContain("hand decision answer JSON Schema");
     expect(prompt).toContain(`set to \`${currentSchemaUrl("hand-decision-answer")}\``);
     expect(prompt).toContain("exactly one `{ id, verdict }` per verdict above (Q1)");
-    expect(prompt).toContain("When no verdict departs, return the Markdown unchanged.");
+    expect(prompt).toContain(
+      "When no verdict departs and every `revised` is `[]`, return the Markdown unchanged.",
+    );
     expect(prompt).not.toContain("## Revised spec document JSON Schema");
   });
 
