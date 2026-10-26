@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   LOG_FORMAT,
   REPOSITORY,
+  USAGE,
   collectReleaseNotes,
+  parseArguments,
   parseLog,
   releaseNotes,
 } from "../../scripts/release-notes.js";
@@ -539,7 +541,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
       });
       expect(() => releaseNotes(repo.root, OPENED)).toThrow(
         new Error(
-          `${TABLE_SPEC.path}: the surface element "cli: tool table" still has the placeholder summary — write it before the release`,
+          `docs/specs/archive/2610010000-table.json: the surface element "cli: tool table" still has the placeholder summary — write it before the release`,
         ),
       );
     });
@@ -562,10 +564,35 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
   });
 });
 
+describe("parseArguments", () => {
+  it.each([
+    [[], { kind: "notes", root: null }],
+    [["--root", "copy"], { kind: "notes", root: "copy" }],
+    [
+      ["--github-body", "docs/releases/4.2.0.md"],
+      { kind: "github-body", file: "docs/releases/4.2.0.md" },
+    ],
+  ])("reads %j", (args, command) => {
+    expect(parseArguments(args)).toEqual(command);
+  });
+
+  it.each([
+    [["--help"], `unexpected argument --help — ${USAGE}`],
+    [["--bogus", "x"], `unexpected argument --bogus — ${USAGE}`],
+    [["--root", "a", "b"], `unexpected argument b — ${USAGE}`],
+    [["--root", "a", "--root", "b"], `unexpected argument --root — ${USAGE}`],
+    [["--root"], `--root needs a value — ${USAGE}`],
+    [["--github-body"], `--github-body needs a value — ${USAGE}`],
+    [["--root", "a", "--github-body", "b.md"], `--github-body takes no --root — ${USAGE}`],
+  ])("refuses %j", (args, message) => {
+    expect(() => parseArguments(args)).toThrow(new Error(message));
+  });
+});
+
 describe("the preview entry", { timeout: 60_000 }, () => {
-  function run(args: ReadonlyArray<string>) {
-    return spawnSync(TSX, ["scripts/release-notes.ts", ...args], {
-      cwd: phaxRoot,
+  function run(args: ReadonlyArray<string>, cwd: string = phaxRoot) {
+    return spawnSync(TSX, [join(phaxRoot, "scripts/release-notes.ts"), ...args], {
+      cwd,
       encoding: "utf8",
       timeout: 30_000,
     });
@@ -607,12 +634,22 @@ describe("the preview entry", { timeout: 60_000 }, () => {
     expect(result.stderr).toContain(`✗ v${PREVIOUS} is not a tag in ${repo.root}`);
   });
 
-  it("prints the GitHub release body of a notes file", () => {
+  it.each([["--help"], ["--bogus", "x"]])("refuses the unknown argument %s", (...args) => {
+    const repo = previewRepo();
+
+    const result = run(["--root", repo.root, ...args]);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(`✗ unexpected argument ${args[0]} — ${USAGE}`);
+  });
+
+  it("prints the GitHub release body of a notes file named from the current directory", () => {
     const repo = previewRepo();
     const { markdown } = releaseNotes(repo.root, OPENED);
     repo.write(`docs/releases/${OPENED}.md`, markdown);
 
-    const result = run(["--root", repo.root, "--github-body", `docs/releases/${OPENED}.md`]);
+    const result = run(["--github-body", `docs/releases/${OPENED}.md`], repo.root);
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe(githubReleaseBody(markdown, OPENED));
@@ -629,7 +666,7 @@ describe("the preview entry", { timeout: 60_000 }, () => {
   ])("refuses --github-body of %s", (_label, file, message) => {
     const repo = previewRepo();
 
-    const result = run(["--root", repo.root, "--github-body", file]);
+    const result = run(["--github-body", file], repo.root);
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe("");

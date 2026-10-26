@@ -6,7 +6,8 @@
 // Reads git and the files under the root and writes nothing; progress and
 // warnings go to stderr. Previews the opened version's notes:
 //   pnpm release:notes [--root <dir>]
-// and prints the GitHub release body of a notes file:
+// and prints the GitHub release body of a notes file, its path relative to
+// the current directory:
 //   pnpm exec tsx scripts/release-notes.ts --github-body docs/releases/<X.Y.Z>.md
 // scripts/release-cut.ts calls releaseNotes at the cut and writes the result.
 import { spawnSync } from "node:child_process";
@@ -319,34 +320,53 @@ export function releaseNotes(repoRoot: string, version: string): ReleaseNotes {
   return { markdown: rendered.markdown, warnings: [...warnings, ...rendered.warnings] };
 }
 
-/** The GitHub release body of the notes file at `file` (relative to the root, named X.Y.Z.md). */
-export function githubBodyOf(repoRoot: string, file: string): string {
+/** The GitHub release body of the notes file at `file` (relative to `cwd`, named X.Y.Z.md). */
+export function githubBodyOf(cwd: string, file: string): string {
   const version = /^(\d+\.\d+\.\d+)\.md$/.exec(basename(file))?.[1];
   if (version === undefined) throw new Error(`${file}: a release notes file is named X.Y.Z.md`);
-  const absolute = resolve(repoRoot, file);
+  const absolute = resolve(cwd, file);
   if (!existsSync(absolute)) throw new Error(`${file} is missing`);
   return githubReleaseBody(readFileSync(absolute, "utf8"), version);
+}
+
+export const USAGE =
+  "usage: pnpm release:notes [--root <dir>], or pnpm exec tsx scripts/release-notes.ts --github-body <file>";
+
+/** What the command line asks for; refuses anything but the two forms of `USAGE`. */
+export type Command =
+  | { readonly kind: "notes"; readonly root: string | null }
+  | { readonly kind: "github-body"; readonly file: string };
+
+export function parseArguments(args: ReadonlyArray<string>): Command {
+  const values = new Map<string, string>();
+  for (let at = 0; at < args.length; at += 2) {
+    const flag = args[at] ?? "";
+    const value = args[at + 1];
+    if ((flag !== "--root" && flag !== "--github-body") || values.has(flag)) {
+      throw new Error(`unexpected argument ${flag} — ${USAGE}`);
+    }
+    if (value === undefined) throw new Error(`${flag} needs a value — ${USAGE}`);
+    values.set(flag, value);
+  }
+  const file = values.get("--github-body");
+  const root = values.get("--root") ?? null;
+  if (file === undefined) return { kind: "notes", root };
+  if (root !== null) throw new Error(`--github-body takes no --root — ${USAGE}`);
+  return { kind: "github-body", file };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
 if (isMain) {
-  const args = process.argv.slice(2);
-  const valueOf = (flag: string): string | undefined => {
-    const at = args.indexOf(flag);
-    if (at === -1) return undefined;
-    const value = args[at + 1];
-    if (value === undefined) throw new Error(`${flag} needs a value`);
-    return value;
-  };
   try {
-    const rootArg = valueOf("--root");
-    const bodyFile = valueOf("--github-body");
-    const repoRoot =
-      rootArg === undefined ? join(fileURLToPath(import.meta.url), "../..") : resolve(rootArg);
-    if (bodyFile !== undefined) {
-      process.stdout.write(githubBodyOf(repoRoot, bodyFile));
+    const command = parseArguments(process.argv.slice(2));
+    if (command.kind === "github-body") {
+      process.stdout.write(githubBodyOf(process.cwd(), command.file));
     } else {
+      const repoRoot =
+        command.root === null
+          ? join(fileURLToPath(import.meta.url), "../..")
+          : resolve(command.root);
       const version = readVersion(repoRoot);
       console.error(`release notes of ${version} in ${repoRoot}`);
       const { markdown, warnings } = releaseNotes(repoRoot, version);
