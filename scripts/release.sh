@@ -106,6 +106,7 @@ fi
 
 echo "cutting ${VERSION}: renaming snapshots/*/next.schema.json → ${VERSION}.schema.json"
 echo "appending ${VERSION} to the release ledger"
+echo "writing the release notes: docs/releases/${VERSION}.md"
 # Refuses anything but the opened version package.json names. Runs before
 # gen:usage-spec, which reads the release from the generated
 # src/schemas/release.ts. Prints every path it changed, one per line.
@@ -137,7 +138,7 @@ echo "testing the cut"
 if ! { pnpm typecheck && pnpm test:type && "${CUT_TESTS[@]}"; }; then
   echo "error: the tests fail on the cut; nothing is committed or tagged"
   if [[ "$REHEARSE" == false ]]; then
-    echo "undo the cut: git reset --hard HEAD && git clean -fd -- packages/schemas/snapshots"
+    echo "undo the cut: git reset --hard HEAD && git clean -fd -- packages/schemas/snapshots docs/releases"
   fi
   exit 1
 fi
