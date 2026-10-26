@@ -301,8 +301,15 @@ how it is built. It is one line. The consumer depends on the kind: for `cli:` an
 it is the operator, for `file:` and `api:` a reading tool or person, for `package:` a
 dependent package, for `internal:` the phax code or agent that relies on it.
 
-Good: `phax validate` checks each assignment bound against the routing catalog.
+Good: Running `phax validate` checks each assignment bound against the routing catalog.
 Bad: Adds a bounds check to the validate command's config loader.
+
+**Users read `summary`, `before` and `after` in the release notes**, which print the summary,
+then `after` and `before` as examples. So `summary` is one user-facing sentence starting with
+a capital letter, and `before` / `after` are short real examples (about 20 lines at most): the
+command and its output, or a file excerpt. Keep implementer notes out of them: no
+indicative/normative remarks (that is `binding`'s job), no § references, no criterion or
+question ids. A `$schema` URL names the release that ships the change.
 
 An element lifted by `phax artifact migrate-documents` carries the placeholder
 `(summary to write — lifted by phax artifact migrate-documents)`. The author replaces it with
