@@ -216,79 +216,47 @@ Summary: You can record decisions you have already made on a spec's or plan's qu
 
 before:
 
-    phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]
+    phax artifact decide <path> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]
 
-    ✗ decide refused: no terminal — phax artifact decide is interactive only
-    $? = 12
+    $ phax artifact decide docs/specs/2610201015-log-rotation.md < /dev/null
+    ✗ Decide refused: no terminal — phax artifact decide is interactive only
 
 after:
 
-    phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]          # interactive, unchanged
-    phax artifact decide <artifact> --verdicts <file|-> [--by operator]
-                         [--doctrine <file>] [--model <model>] [--effort <effort>] [--json]
+    phax artifact decide <path> --verdicts <file|-> --by operator [--doctrine <file>] [--model <model>] [--effort <effort>] [--json]
 
     $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts verdicts.json --by operator
-    decide spec log-rotation — verdicts from verdicts.json: q-keep, q-scope — headless, resumed authoring session
+    decide spec log-rotation — verdicts from verdicts.json: q-keep, q-scope — headless, new session
     model      claude-sonnet-5-5 / medium (built-in default) on claude-code
-    q-keep     keep-20   departs from keep-10 — revised: §5.2, §6 rotate output, AC keep bound
-               why: Twenty runs cover one release cycle; ten dropped the previous release's runs.
+    q-keep     keep-20   departs from keep-10 — revised: 5.1, AC-1
+               why: Support asks for a fortnight of runs.
     q-scope    per-run   (recommended)
-               why: One log per run is what a bug report attaches.
+               why: A report names its run, so a log is kept with its run.
     q-names    open      (not in the verdicts file)
-    --- a/docs/specs/2610201015-log-rotation.md
-    +++ b/docs/specs/2610201015-log-rotation.md
-    @@ -41,7 +41,7 @@
-    -WHEN a rotation runs THE system SHALL keep the 10 most recent run logs.
-    +WHEN a rotation runs THE system SHALL keep the 20 most recent run logs.
+    diff --git a/docs/specs/2610201015-log-rotation.md b/docs/specs/2610201015-log-rotation.md
     …
-    commit     c4d5e6f — docs(specs): decide log-rotation q-keep, q-scope
-    status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610201015-log-rotation.md`
-    $? = 0
+    -THE system SHALL keep the ten most recent logs.
+    +THE system SHALL keep the twenty most recent logs.
+    …
+    commit     e8331a3 — docs(specs): decide log-rotation q-keep, q-scope
+    status     Draft — read the verdicts and the diff above, then `phax artifact approve docs/specs/2610201015-log-rotation.md --by operator`
+    record     decision/2610201015-log-rotation/01
 
-    ✗ decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20, or other
-    $? = 12
-    ✗ decide refused: verdicts.json departs from q-keep's recommendation (keep-10) with a null note — write the reason in "note"
-    $? = 12
-    ✗ decide refused: verdicts.json chooses other for q-names with a null note — describe the choice in "note"
-    $? = 12
-    ✗ decide refused: verdicts.json is for docs/specs/2610190900-cache-keys.md, not docs/specs/2610201015-log-rotation.md
-    $? = 12
-    ✗ decide refused: no terminal and no --by — pass `--by operator`: a verdict always comes from the operator
-    $? = 12
-    ✗ decide refused: --by machine:roadmap-loop — a verdict always comes from the operator; pass `--by operator`
-    $? = 12
-    ✗ decide refused: --question and --verdicts are exclusive — the verdicts file names the questions
-    $? = 12
-
-    Exit: 0  decided and committed (the artifact stays Draft)
-          1  inside a phase worktree (the phase guard)
-          5  writer answer refused after one corrective resume
-          8  provider rate or usage limit
-          12 refusal before the session (verdicts file, artifact, flags, --by, doctrine, model), artifact changed during the session, commit failed
-
-    # normative: `--verdicts <file|->` (- reads stdin), `--by operator` as the only `--by` value, the refusal of `--by machine:<grant>`, the
-    # no-terminal refusal, `--json`, no prompt in this mode, the exit families, the artifact left Draft, and a report that lists each verdict
-    # (chosen, follows/departs, why, revised), the questions left open and the body diff. Layout, wording and the commit subject are indicative.
+    ✗ Decide refused: verdicts.json chooses keep-30 for q-keep — its options: keep-10, keep-20, or other
 
 ### file: verdicts file (given as --verdicts <file|->) — normative
 
 Summary: You write your decisions in one small file that names, for each question, the option you chose and an optional note.
 
     {
-      "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.26.0.json",
+      "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
       "artifact": "docs/specs/2610201015-log-rotation.md",
       "verdicts": [
-        { "question": "q-keep",  "chosen": "keep-20", "note": "Twenty runs cover one release cycle; ten dropped the previous release's runs." },
+        { "question": "q-keep",  "chosen": "keep-20", "note": "Support asks for a fortnight of runs." },
         { "question": "q-scope", "chosen": "per-run", "note": null },
-        { "question": "q-names", "chosen": "other",   "note": "Name each log by run id and phase, never by date." }
+        { "question": "q-names", "chosen": "other",   "note": "Name each log by its date and its phase." }
       ]
     }
-
-    # normative: the keys artifact, verdicts, question, chosen, note; every key required; chosen is one of the question's option ids, or the
-    # reserved `other`; note a non-empty string or null (null refused on a departing verdict, and so always on `other`, §9 q-note);
-    # verdicts non-empty, one entry per question; unknown keys rejected at any level; born with $schema.
-    # The same file decides a plan's questions; the writer names a plan verdict's phase and phax checks it.
-    # indicative: the format id `decide-verdicts`; 0.26.0 stands for the release that ships this spec.
 
 ### file: docs/specs/<stamp>-<slug>.json a verdict choosing `other`, and the rendered §9 — normative
 
@@ -296,35 +264,27 @@ Summary: You can choose none of a question's options and say what you want inste
 
 before:
 
-    { "id": "q-names", "question": "How are run logs named?",
-      "options": [ { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
-                   { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
-      "recommendation": "by-date", "rationale": "…",
-      "verdict": { "kind": "decided", "chosen": "by-run", "abandoned": ["by-date"], … }, "history": [] }
+    A verdict could only choose one of the question's listed options.
 
 after:
 
-    { "id": "q-names", "question": "How are run logs named?",
-      "options": [ { "id": "by-date", "label": "Name each log by its date", "abandons": "…" },
-                   { "id": "by-run",  "label": "Name each log by its run id", "abandons": "…" } ],
-      "recommendation": "by-date", "rationale": "…",
-      "verdict": { "kind": "decided", "chosen": "other", "abandoned": ["by-date", "by-run"],
-                   "why": "Name each log by run id and phase, never by date.", …, "revised": ["§5.3"] }, "history": [] }
+    "verdict": {
+      "kind": "decided",
+      "chosen": "other",
+      "abandoned": ["by-date", "by-run"],
+      "why": "Name each log by its date and its phase.",
+      …
+    }
 
-    ### q-names — How are run logs named?
+    ### q-names — How are rotated logs named?
 
-    - by-date — Name each log by its date — abandons: …
-    - by-run — Name each log by its run id — abandons: …
+    - by-date — By date — abandons: a name that tells the run apart
+    - by-run — By run — abandons: a name that sorts by date
 
-    Recommendation: by-date — …
+    Recommendation: by-date — Dates sort in a listing and need no lookup.
 
-    Decision: other — by operator (Ada Lovelace), 2026-10-20
-    Why: Name each log by run id and phase, never by date. …
-
-    # normative: `other` is reserved and implicit on every question of a spec or plan (sidecar or hand-authored §9, plans in their
-    # preamble): it is never listed among the options and never recommended, and an option with the id `other` is refused; a verdict
-    # choosing it abandons every listed option, and its why is the note; a hand-authored §9 Decision line may name `other`. The document
-    # formats keep their shape and nothing is migrated. Rendered wording indicative.
+    Decision: other — by operator (Ada Lovelace), 2026-10-26
+    Why: Name each log by its date and its phase. …
 
 ### cli: phax artifact schema verdicts — indicative
 
@@ -332,37 +292,44 @@ Summary: You can print the verdicts file's JSON Schema to check or generate a ve
 
 before:
 
-    phax artifact schema spec|plan
+    $ phax artifact schema verdicts
+    error: command-argument value 'verdicts' is invalid for argument 'kind'. Allowed choices are spec, plan.
 
 after:
 
-    phax artifact schema spec|plan|verdicts
-
     $ phax artifact schema verdicts
-    { "$schema": "http://json-schema.org/draft-07/schema#", "title": "phax decide verdicts", "type": "object",
-      "required": ["$schema", "artifact", "verdicts"], … }
-
-    # the verdicts format's JSON Schema, also published under https://docs.phax.run/schemas/ like every phax format
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      …
+      "type": "object",
+      "required": [
+        "$schema",
+        "artifact",
+        "verdicts"
+      ],
+      …
+      "title": "phax decide verdicts"
+    }
 
 ### cli: phax artifact decide --verdicts --json — indicative
 
 Summary: A script can read what decide recorded: each verdict, whether it departs from the recommendation, and which sections changed.
 
     $ phax artifact decide docs/specs/2610201015-log-rotation.md --verdicts - --by operator --json < verdicts.json
-    { "artifact": "docs/specs/2610201015-log-rotation.md", "status": "Draft",
-      "session": "resumed-authoring", "provider": "claude-code", "model": "claude-sonnet-5-5", "effort": "medium",
+    {
+      "artifact": "docs/specs/2610201015-log-rotation.md",
+      "status": "Draft",
       "verdicts": [
         { "question": "q-keep", "chosen": "keep-20", "recommendation": "keep-10", "departs": true,
-          "why": "Twenty runs cover one release cycle; ten dropped the previous release's runs.",
-          "revised": ["§5.2", "§6 rotate output", "AC keep bound"], "by": { "kind": "operator", "name": "Ada Lovelace" } },
-        { "question": "q-scope", "chosen": "per-run", "recommendation": "per-run", "departs": false,
-          "why": "One log per run is what a bug report attaches.", "revised": [], "by": { "kind": "operator", "name": "Ada Lovelace" } } ],
+          "why": "Support asks for a fortnight of runs.", "revised": ["5.1", "AC-1"], … },
+        { "question": "q-scope", "chosen": "per-run", "recommendation": "per-run", "departs": false, … }
+      ],
       "open": ["q-names"],
-      "diff": "--- a/docs/specs/2610201015-log-rotation.md\n+++ …",
-      "commit": { "hash": "c4d5e6f…", "subject": "docs(specs): decide log-rotation q-keep, q-scope" },
-      "decisionId": "2610201015-log-rotation/03" }
-
-    # one object on stdout, nothing else there; key spelling indicative; its content is the human report's (normative per r-report)
+      "diff": "diff --git a/docs/specs/2610201015-log-rotation.md …",
+      "commit": { "hash": "e8331a3d…", "subject": "docs(specs): decide log-rotation q-keep, q-scope" },
+      "decisionId": "2610201015-log-rotation/01",
+      …
+    }
 
 ### cli: the decide commit (git log) — indicative
 
@@ -376,7 +343,7 @@ before:
 
     Artifact: docs/specs/2610201015-log-rotation.md
     Decided-By: operator (Ada Lovelace)
-    Decision-Id: 2610201015-log-rotation/02
+    Decision-Id: 2610201015-log-rotation/01
 
 after:
 
@@ -387,9 +354,7 @@ after:
     Artifact: docs/specs/2610201015-log-rotation.md
     Decided-By: operator (Ada Lovelace)
     Decided-Via: verdicts
-    Decision-Id: 2610201015-log-rotation/03
-
-    # normative per r-commit-trailer: trailers naming the operator, the verdicts channel and the decision id; spelling indicative
+    Decision-Id: 2610201015-log-rotation/01
 
 ### file: decision record on phax/records/v1 — indicative
 
@@ -397,20 +362,33 @@ Summary: The records say a decision was transcribed from a verdicts file, which 
 
 before:
 
-    decision/<stamp>-<slug>/<NN>/record.json   { "$schema": "…/decision-record-manifest/0.25.0.json", kind: "decision", mode: "interactive",
-                                                 outcome: "committed" | "declined" | "undecided" | "failed", … }
+    decision/2610201015-log-rotation/01/record.json
+    {
+      "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+      "kind": "decision",
+      "decisionId": "2610201015-log-rotation/01",
+      "mode": "interactive",
+      "questions": ["q-keep"],
+      "arbitrated": 1,
+      "departed": 0,
+      "outcome": "committed",
+      …
+    }
 
 after:
 
-    decision/2610201015-log-rotation/03/
-      record.json   { "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.26.0.json", kind: "decision",
-                      mode: "verdicts", session: "new" | "resumed-authoring", questions: ["q-keep", "q-scope"],
-                      arbitrated: 2, departed: 1, provider: "claude-code", model, effort, usage,
-                      outcome: "committed" | "failed", commit: "…" | null, … }
-      verdicts.json  prompt.md  document.json  body.diff  output.jsonl
-
-    # per-variant: mode interactive keeps committed | declined | undecided | failed; mode verdicts admits committed | failed only.
-    # Resolved by `phax records explain <sha>`. That the record exists with these facts is normative (r-record); the layout is indicative.
+    decision/2610201015-log-rotation/01/record.json   (beside verdicts.json, prompt.md, document.json, body.diff)
+    {
+      "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+      "kind": "decision",
+      "decisionId": "2610201015-log-rotation/01",
+      "mode": "verdicts",
+      "questions": ["q-keep", "q-scope"],
+      "arbitrated": 2,
+      "departed": 1,
+      "outcome": "committed",
+      …
+    }
 
 ## 7. Non-goals
 

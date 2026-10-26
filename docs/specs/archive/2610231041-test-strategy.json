@@ -249,64 +249,64 @@
       "surface": "file: plan sidecar `docs/plans/<stamp>-<slug>-plan.json`, phase `testStrategy`",
       "summary": "A plan's test strategy is a list of test lines a tool can read, each with its size, technique, oracle, loop and the criterion it proves.",
       "binding": "indicative",
-      "before": "\"testStrategy\": \"- a run folder is created with its layout, and a second create of the same name is refused — medium · example · expected tree and typed error · in-phase\\n- an interrupted write leaves the previous file whole — medium · example · file content before and after · in-phase\"",
-      "after": "\"testStrategy\": [\n  {\n    \"guarantee\": \"every (state, transition) pair is accepted or refused as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"transition table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-transitions\"\n  },\n  {\n    \"guarantee\": \"a gate-report decodes or is refused with a typed error, never a crash\",\n    \"size\": \"small\",\n    \"technique\": \"fuzz\",\n    \"oracle\": \"the decoder's refusal\",\n    \"loop\": \"in-phase\",\n    \"criterion\": null\n  }\n]\n\nKey spellings are indicative. The values of size, technique and loop are normative: exactly the skill's sets. Every key is required, `criterion` is a string or null, and an empty array is a phase with no line."
+      "before": "\"testStrategy\": \"- every month boundary rounds as the table says — small · table · boundary table · oracle · ac-month-boundary\"",
+      "after": "\"testStrategy\": [\n  {\n    \"guarantee\": \"every month boundary rounds as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"boundary table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-month-boundary\"\n  }\n]"
     },
     {
       "surface": "file: `phax-plan.json`, phase test lines",
       "summary": "The extracted plan carries each phase's test lines, so scripts and later commands can see what each phase tests.",
       "binding": "indicative",
-      "before": "A phase of `phax-plan.json` carries no test strategy: the `### Test strategy` section is never extracted.",
-      "after": "\"testLines\": [\n  {\n    \"guarantee\": \"every (state, transition) pair is accepted or refused as the table says\",\n    \"size\": \"small\",\n    \"technique\": \"table\",\n    \"oracle\": \"transition table\",\n    \"loop\": \"oracle\",\n    \"criterion\": \"ac-transitions\"\n  }\n]\n\nThe same line shape as the plan document's. The key spelling is indicative; the key is required on every phase."
+      "before": "A phase in phax-plan.json had no test lines: the plan's Test strategy section was never extracted.",
+      "after": "{\n  \"id\": \"phase-01\",\n  \"title\": \"Export decision rules\",\n  …\n  \"testLines\": [\n    {\n      \"guarantee\": \"every month boundary rounds as the table says\",\n      \"size\": \"small\",\n      \"technique\": \"table\",\n      \"oracle\": \"boundary table\",\n      \"loop\": \"oracle\",\n      \"criterion\": \"ac-month-boundary\"\n    }\n  ]\n}"
     },
     {
       "surface": "file: plan.md `### Test strategy` section",
       "summary": "You write each test of a phase as one line (the guarantee, then size, technique, oracle, loop and an optional criterion), and phax reads it.",
       "binding": "normative",
-      "before": "### Test strategy\n\n<any text; not parsed>",
-      "after": "### Test strategy\n\n- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · oracle · ac-transitions\n- a gate-report decodes or is refused with a typed error, never a crash — small · fuzz · the decoder's refusal · in-phase\n\nOne `- ` entry per line, separated by ` — ` then ` · `. A section with no entry is a phase with no line."
+      "before": "### Test strategy\n\nWrite the exporter first, then test that a failed write leaves no partial export.",
+      "after": "### Test strategy\n\n- a failed write leaves no partial export — small · example · fake fs state · in-phase · ac-atomic\n- the fake disk and the real one agree on a rename — medium · contract · shared suite · in-phase"
     },
     {
       "surface": "cli: phax plans lint <plan> — new test line findings",
-      "summary": "plans lint names the test lines that break the format, misuse the oracle loop or cite a criterion the spec lacks, and the spec criteria no test proves.",
+      "summary": "Linting a plan now flags test lines that break the format, misuse the oracle loop or cite a criterion the spec lacks, and warns about spec criteria no test proves.",
       "binding": "indicative",
-      "before": "docs/plans/2610240900-invoice-export-plan.md: no findings",
-      "after": "docs/plans/2610240900-invoice-export-plan.md: 3 errors, 1 warning\nerror    tests      phase-01  test line 2 departs from the format: \"add unit tests for the exporter\"\nerror    tests      phase-03  test line 1 is in the oracle loop, but phase-03 is not an oracle phase\nerror    tests      phase-02  test line 3 names criterion \"ac-retry\", which invoice-export does not have\nwarning  tests      -         criterion \"ac-empty-month\" of invoice-export is named by no test line\n\nThe check name `tests` and the wording are indicative; severities follow §5."
+      "before": "$ phax plans lint docs/plans/2610240900-invoice-export-plan.md\ndocs/plans/2610240900-invoice-export-plan.md: no findings",
+      "after": "$ phax plans lint docs/plans/2610240900-invoice-export-plan.md\ndocs/plans/2610240900-invoice-export-plan.md: 3 errors, 1 warning\nerror    tests      phase-01  test line 2 departs from the format: \"add unit tests for the exporter\"\nerror    tests      phase-02  test line 2 names criterion \"ac-retry\", which invoice-export does not have\nerror    tests      phase-02  test line 3 is in the oracle loop, but phase-02 is not an oracle phase\nwarning  tests      -         criterion \"ac-empty-month\" of invoice-export is named by no test line"
     },
     {
       "surface": "cli: phax plans overview <plan> [--json]",
       "summary": "You can see a whole plan at a glance before running it: each phase's model, oracle role, files and tests.",
       "binding": "normative",
       "before": null,
-      "after": "phax plans overview docs/plans/2610240900-invoice-export-plan.md\nphax plans overview docs/plans/2610240900-invoice-export-plan.md --json\n\n$? = 0   overview shown (architecture provider failure included)\n$? = 1   the plan does not parse: \"run phax plans lint docs/plans/…-plan.md\"\n$? = 2   invalid config"
+      "after": "phax plans overview <plan> [--json]\n\n$ phax plans overview docs/plans/2610240900-invoice-export-plan.md\ninvoice-export — Monthly invoice export  (Draft · source spec invoice-export)\narchitecture: parts from the configured provider\n…\n\n$ phax plans overview plan.md\nplan.md: the plan does not parse — run phax plans lint plan.md"
     },
     {
       "surface": "cli: phax plans overview — rendered layout",
       "summary": "The overview lists each phase in turn with its model, its oracle role, its files grouped by architecture part and its test lines.",
       "binding": "indicative",
       "before": null,
-      "after": "invoice-export — Monthly invoice export  (Draft · source spec invoice-export)\narchitecture: parts from the configured provider\n\nphase-01 — Export decision rules     claude-sonnet-5-5 · medium · headless\n  oracle role  oracle phase, discharged by phase-02\n  domain       src/domain/invoice/export.ts\n  tests        tests/unit/invoiceExport.test.ts\n  - every month boundary rounds as the table says — small · table · boundary table · oracle · ac-month-boundary\n\nphase-02 — Export use case           claude-sonnet-5-5 · high · headless\n  oracle role  discharges phase-01\n  app          src/app/exportInvoices.ts\n  (no part)    scripts/export-fixture.sh\n  - a failed write leaves no partial export — small · example · fake fs state · in-phase · ac-atomic\n\nphase-03 — Docs                      claude-haiku-5-5 · low · headless\n  oracle role  none\n  docs         docs/invoice-export.md\n  (no test lines)\n\nacceptance criteria of invoice-export\n  ac-month-boundary   phase-01 oracle\n  ac-atomic           phase-02 in-phase\n  uncovered           ac-empty-month\n\nWithout a provider, the architecture line reads `architecture: no provider configured — planned files shown`, and each phase lists `files` in place of parts."
+      "after": "$ phax plans overview docs/plans/2610240900-invoice-export-plan.md\ninvoice-export — Monthly invoice export  (Draft · source spec invoice-export)\narchitecture: parts from the configured provider\n\nphase-01 — Export decision rules  claude-sonnet-5-5 · medium · headless\n  oracle role  oracle phase, discharged by phase-02\n  domain       src/domain/invoice/export.ts\n  tests        tests/unit/invoiceExport.test.ts\n  - every month boundary rounds as the table says — small · table · boundary table · oracle · ac-month-boundary\n\nphase-02 — Export use case  claude-sonnet-5-5 · high · headless\n  oracle role  discharges phase-01\n  app          src/app/exportInvoices.ts\n  (no part)    scripts/export-fixture.sh\n  - a failed write leaves no partial export — small · example · fake fs state · in-phase · ac-atomic\n\nacceptance criteria of invoice-export\n  ac-month-boundary  phase-01 oracle\n  ac-atomic          phase-02 in-phase\n  ac-empty-month     (no test line)\n  uncovered          ac-empty-month"
     },
     {
       "surface": "cli: phax plans overview --json",
       "summary": "A script or review tool can read the plan overview as JSON.",
       "binding": "indicative",
       "before": null,
-      "after": "{\n  \"plan\": \"docs/plans/2610240900-invoice-export-plan.md\",\n  \"sourceSpec\": \"docs/specs/2610231100-invoice-export.md\",\n  \"architecture\": { \"kind\": \"parts\" },\n  \"phases\": [\n    {\n      \"id\": \"phase-01\",\n      \"title\": \"Export decision rules\",\n      \"model\": \"claude-sonnet-5-5\",\n      \"effort\": \"medium\",\n      \"mode\": \"headless\",\n      \"oracleRole\": { \"kind\": \"oracle\", \"dischargedBy\": \"phase-02\" },\n      \"placement\": [\n        { \"part\": \"domain\", \"files\": [\"src/domain/invoice/export.ts\"] },\n        { \"part\": null, \"files\": [] }\n      ],\n      \"testLines\": [\n        { \"guarantee\": \"every month boundary rounds as the table says\", \"size\": \"small\", \"technique\": \"table\", \"oracle\": \"boundary table\", \"loop\": \"oracle\", \"criterion\": \"ac-month-boundary\" }\n      ]\n    }\n  ],\n  \"coverage\": {\n    \"kind\": \"criteria\",\n    \"criteria\": [ { \"id\": \"ac-month-boundary\", \"lines\": [ { \"phase\": \"phase-01\", \"loop\": \"oracle\" } ] } ],\n    \"uncovered\": [\"ac-empty-month\"]\n  }\n}\n\n`architecture.kind` is one of `parts` | `none` | `failed` (with `message`). `oracleRole.kind` is one of `oracle` | `discharging` | `none`. `coverage.kind` is one of `criteria` | `no-source-spec` | `no-criterion-ids`."
+      "after": "$ phax plans overview docs/plans/2610240900-invoice-export-plan.md --json\n{\n  \"plan\": \"docs/plans/2610240900-invoice-export-plan.md\",\n  \"name\": \"invoice-export\",\n  \"sourceSpec\": { \"path\": \"docs/specs/2610231100-invoice-export.md\", \"slug\": \"invoice-export\" },\n  \"architecture\": { \"kind\": \"parts\" },\n  \"phases\": [\n    {\n      \"id\": \"phase-01\",\n      \"oracleRole\": { \"kind\": \"oracle\", \"dischargedBy\": \"phase-02\" },\n      \"placement\": [{ \"part\": \"domain\", \"files\": [\"src/domain/invoice/export.ts\"] }, …],\n      \"testLines\": [{ \"guarantee\": \"every month boundary rounds as the table says\", \"criterion\": \"ac-month-boundary\", … }],\n      …\n    },\n    …\n  ],\n  \"coverage\": { \"kind\": \"criteria\", \"uncovered\": [\"ac-empty-month\"], … },\n  …\n}"
     },
     {
       "surface": "cli: phax artifact migrate-documents — refusing a prose test strategy",
-      "summary": "migrate-documents names each plan whose test strategy is still prose, and says how to rewrite it in the line format.",
+      "summary": "Migrating documents refuses a plan whose test strategy is still prose, naming the line and how to rewrite it in the line format.",
       "binding": "indicative",
       "before": null,
-      "after": "✗ docs/plans/2610230951-interactive-phases-plan.md phase-01 testStrategy line 1 departs from the test line format: \"Write `tests/unit/hold.test.ts` first.\"\n  Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun."
+      "after": "$ phax artifact migrate-documents\nmigrate refused: docs/plans/2610200900-invoice-export-plan.md phase-01 testStrategy line 1 departs from the test line format: \"Write the exporter tests first, then cover the month boundaries.\"\n  Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun."
     },
     {
       "surface": "file: .claude/skills/phax-planning/SKILL.md",
       "summary": "Agents writing plans with the phax-planning skill write test strategies in the line format that lint checks and the overview shows.",
       "binding": "indicative",
-      "before": "- `testStrategy`, `verification`, `expectedHandoff`: strings. `testStrategy` holds the guarantee lines of [Test strategy](#test-strategy-informational), one `- ` line each, separated by newlines.",
-      "after": "- `testStrategy`: an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }` (see [Test strategy](#test-strategy)); `[]` for a phase that tests nothing.\n- `verification`, `expectedHandoff`: strings.\n\nThe `## Test strategy (informational)` heading loses \"(informational)\" and says that lint checks the lines and that `phax plans overview` shows them."
+      "before": "## Test strategy (informational)\n\nA phase's `### Test strategy` is not extracted, but it is held to a strict shape: one line\nper guarantee the phase adds or changes, each placed on four coordinates.\n…\n- `testStrategy`, `verification`, `expectedHandoff`: strings. `testStrategy` holds the\n  guarantee lines of [Test strategy](#test-strategy-informational), one `- ` line each,\n  separated by newlines.",
+      "after": "## Test strategy\n\nA phase's `### Test strategy` is data. phax reads each line into a test line (`testLines` in\n`phax-plan.json`), `phax plans lint` checks the lines, and `phax plans overview <plan>` shows them\nphase by phase with the coverage of the source spec's criteria. One line per guarantee the phase\nadds or changes, each placed on four coordinates.\n…\n- `testStrategy`: an array of test lines `{ guarantee, size, technique, oracle, loop, criterion }`,\n  every key required and `criterion` null when the line names none; `[]` for a phase that tests\n  nothing. See [Test strategy](#test-strategy)."
     }
   ],
   "nonGoals": [
