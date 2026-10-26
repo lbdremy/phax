@@ -155,6 +155,41 @@ describe("release notes", () => {
     expect(output.text).toContain("  ```text\n  now <details>\n  ```\n");
   });
 
+  it("turns the fold at top level into a container at the margin", () => {
+    const fold = [
+      "<details>",
+      "<summary>Before</summary>",
+      "",
+      "```text",
+      "<details>",
+      "```",
+      "",
+      "</details>",
+      "",
+    ].join("\n");
+    const output = renderNotes("docs/releases/0.28.0.md", fold);
+    expect(output.findings).toEqual([]);
+    expect(output.text).toBe(":::details Before\n\n```text\n<details>\n```\n\n:::\n");
+  });
+
+  it("turns the fold inside a nested list into a container at the nested item's indentation", () => {
+    const nested = [
+      "- An outer bullet.",
+      "",
+      ...notes
+        .trimEnd()
+        .split("\n")
+        .map((line) => (line === "" ? "" : `  ${line}`)),
+      "",
+    ].join("\n");
+    const output = renderNotes("docs/releases/0.28.0.md", nested);
+    expect(output.findings).toEqual([]);
+    expect(output.text).toContain(
+      "    :::details Before\n\n    ```text\n    <details>\n    ```\n\n    :::\n",
+    );
+    expect(output.text).not.toContain("<summary>");
+  });
+
   it("accepts the full made-up notes the builder writes", () => {
     const written = renderReleaseNotes(fullInput).markdown;
     expect(renderNotes("docs/releases/4.2.0.md", written).findings).toEqual([]);
