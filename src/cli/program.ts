@@ -289,7 +289,9 @@ export function buildProgram(): Command {
 
   program
     .command("review-code")
-    .description("Open an interactive, pre-prompted code-review session for a review_open run")
+    .description(
+      "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless",
+    )
     .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("--new-session", "Start a fresh review session instead of resuming the existing one")
     .option(

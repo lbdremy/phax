@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem } from "../../ports/fs.js";
+import type { OutputPort } from "../../ports/output.js";
 import { PHAX_REVIEW_SKILL } from "../../domain/skills/catalog.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { defaultBundleRoot } from "./skills.js";
@@ -12,14 +13,15 @@ import { defaultBundleRoot } from "./skills.js";
  */
 export function readBundledReviewSkillForRun(
   config: ResolvedConfig,
+  out: OutputPort,
 ): Effect.Effect<string | undefined, never, FileSystem> {
   if (!config.codeReview.enabled) return Effect.succeed(undefined);
   const path = join(defaultBundleRoot(), PHAX_REVIEW_SKILL, "SKILL.md");
   return Effect.flatMap(FileSystem, (fs) => fs.readText(path)).pipe(
     Effect.catchAll((error) =>
       Effect.sync(() => {
-        process.stderr.write(
-          `[phax] Warning: code review not run: could not read the bundled phax-review skill at ${path} (${error.message})\n`,
+        out.warn(
+          `[phax] Warning: code review not run: could not read the bundled phax-review skill at ${path} (${error.message})`,
         );
         return undefined;
       }),

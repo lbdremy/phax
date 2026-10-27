@@ -442,7 +442,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         hold,
       ).pipe(
         Effect.flatMap(({ runPath, runId }) =>
-          Effect.flatMap(readBundledReviewSkillForRun(config), (bundledReviewSkill) =>
+          Effect.flatMap(readBundledReviewSkillForRun(config, out), (bundledReviewSkill) =>
             executePlan({
               bundledReviewSkill,
               shortName,
