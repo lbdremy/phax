@@ -1,6 +1,6 @@
 // The `code-review` document: `<run folder>/code-review.json`, the findings of
 // the headless code review of spec headless-code-review. The session answers
-// `{ version: 1, findings }` in `.phax-context/code-review.json`; phax checks
+// `{ version: 1, findings }` as its final message; phax checks
 // the answer here and persists the findings with `$schema` first, no `version`.
 // Born with `$schema`. The closed severity, lens and escape ids are the ones
 // the bundled `phax-review` skill lists; a test keeps the two equal.
@@ -9,9 +9,17 @@ import { formatFirstViolation } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
 import { schemaUrl, schemaUrlField } from "./schemaUrl.js";
 
-export const CodeReviewSeveritySchema = Schema.Literal("bug", "deviation", "concern", "info");
+// A value outside a closed set names itself and the set: `"security" is not a
+// lens (expected one of surface, acceptance, …)`.
+// The literal union reports its first member otherwise, hence the override.
+const notOneOf =
+  (noun: string, ids: readonly string[]) => (issue: { readonly actual: unknown }) => ({
+    message: `${JSON.stringify(issue.actual)} is not ${noun} (expected one of ${ids.join(", ")})`,
+    override: true,
+  });
 
-export const CodeReviewLensSchema = Schema.Literal(
+const SEVERITY_IDS = ["bug", "deviation", "concern", "info"] as const;
+const LENS_IDS = [
   "surface",
   "acceptance",
   "boundary",
@@ -20,9 +28,8 @@ export const CodeReviewLensSchema = Schema.Literal(
   "tests",
   "architecture",
   "docs",
-);
-
-export const CodeReviewEscapeSchema = Schema.Literal(
+] as const;
+const ESCAPE_IDS = [
   "wrong-oracle",
   "same-author",
   "weakened",
@@ -30,7 +37,19 @@ export const CodeReviewEscapeSchema = Schema.Literal(
   "unexplored-input",
   "omission",
   "untestable",
-);
+] as const;
+
+export const CodeReviewSeveritySchema = Schema.Literal(...SEVERITY_IDS).annotations({
+  message: notOneOf("a severity", SEVERITY_IDS),
+});
+
+export const CodeReviewLensSchema = Schema.Literal(...LENS_IDS).annotations({
+  message: notOneOf("a lens", LENS_IDS),
+});
+
+export const CodeReviewEscapeSchema = Schema.Literal(...ESCAPE_IDS).annotations({
+  message: notOneOf("an escape", ESCAPE_IDS),
+});
 
 export type CodeReviewSeverity = Schema.Schema.Type<typeof CodeReviewSeveritySchema>;
 export type CodeReviewLens = Schema.Schema.Type<typeof CodeReviewLensSchema>;
@@ -49,7 +68,13 @@ const CodeReviewFindingSchema = Schema.Struct({
   }),
   line: Schema.Int.pipe(
     Schema.positive(),
-    Schema.annotations({ description: "The 1-based line the finding is about." }),
+    Schema.annotations({
+      description: "The 1-based line the finding is about.",
+      message: (issue) => ({
+        message: `must be a positive integer, actual ${JSON.stringify(issue.actual)}`,
+        override: true,
+      }),
+    }),
   ),
   message: Schema.NonEmptyString,
   lens: CodeReviewLensSchema,

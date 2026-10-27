@@ -317,6 +317,19 @@ describe("buildShortPrBody — shape", () => {
     );
   });
 
+  it("renders an @-token in an attention point as code", () => {
+    const needs = section(
+      build({
+        compliance: {
+          kind: "reviewed",
+          review: { ...review, attentionPoints: ["Phase 02 bumps @effect/platform."] },
+        },
+      }),
+      "## Needs your review",
+    );
+    expect(needs).toContain("- Phase 02 bumps `@effect/platform`.");
+  });
+
   it("writes None. when the review has no attention point", () => {
     const needs = section(
       build({ compliance: { kind: "reviewed", review: { ...review, attentionPoints: [] } } }),
@@ -583,6 +596,19 @@ describe("buildShortPrBody — code review findings", () => {
     });
     expect(body).toContain("- **concern** `` src/we`ird.ts:12 `` — One ## fake heading");
     expect(body).toContain("- **concern** `a b.ts:2` —");
+  });
+
+  it("renders an @-token as code so it mentions nobody, outside code spans and emails", () => {
+    const body = build({
+      codeReview: reviewed(
+        finding({
+          message: "Pin @effect/platform; ask @alice, not `@bob`; mail ops@example.com.",
+        }),
+      ),
+    });
+    expect(body).toContain(
+      "— Pin `@effect/platform`; ask `@alice`, not `@bob`; mail ops@example.com.",
+    );
   });
 
   it("cuts findings after the attention points and before the review notes", () => {
