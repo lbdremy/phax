@@ -1,8 +1,13 @@
-import type { AuthoringKindConfig, PhaxConfig, PhaxUserOverlay } from "../../schemas/phaxConfig.js";
+import type {
+  AuthoringKindConfig,
+  CodeReviewConfig,
+  PhaxConfig,
+  PhaxUserOverlay,
+} from "../../schemas/phaxConfig.js";
 
 type GateProfiles = PhaxConfig["gateProfiles"];
 
-// A `{ model?, effort? }` block (`review.code`, `authoring.spec|plan`), each field
+// A `{ model?, effort? }` block (`authoring.spec|plan`), each field
 // overridden independently; undefined when no layer sets either.
 function mergeModelEffort(
   project: AuthoringKindConfig | undefined,
@@ -16,6 +21,19 @@ function mergeModelEffort(
     ...(model !== undefined ? { model } : {}),
     ...(effort !== undefined ? { effort } : {}),
   };
+}
+
+// `review.code`: model, effort and the optional `enabled`, each field
+// overridden independently; undefined when no layer sets any.
+function mergeCodeReview(
+  project: CodeReviewConfig | undefined,
+  globalUser: CodeReviewConfig | undefined,
+  localUser: CodeReviewConfig | undefined,
+): CodeReviewConfig | undefined {
+  const modelEffort = mergeModelEffort(project, globalUser, localUser);
+  const enabled = localUser?.enabled ?? globalUser?.enabled ?? project?.enabled;
+  if (modelEffort === undefined && enabled === undefined) return undefined;
+  return { ...(enabled !== undefined ? { enabled } : {}), ...modelEffort };
 }
 
 function unionStrings(...arrays: (readonly string[] | undefined)[]): readonly string[] | undefined {
@@ -192,8 +210,8 @@ export function mergeConfigLayers(input: {
         }
       : undefined;
 
-  // review.code: per-field scalar override
-  const codeReview = mergeModelEffort(
+  // review.code: per-field scalar override, enabled included
+  const codeReview = mergeCodeReview(
     project.review?.code,
     globalUser?.review?.code,
     localUser?.review?.code,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { mergeConfigLayers } from "../../src/domain/config/mergeLayers.js";
-import type { GateStep, PhaxConfig, PhaxUserOverlay } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveCodeReviewConfig,
+  type GateStep,
+  type PhaxConfig,
+  type PhaxUserOverlay,
+} from "../../src/schemas/phaxConfig.js";
 
 function step(command: string): GateStep {
   return { command, surface: "local", firing: "every-phase", output: "log" };
@@ -422,6 +427,36 @@ describe("mergeConfigLayers", () => {
       const result = mergeConfigLayers({ project, globalUser, localUser });
       expect(result.review?.code).toEqual({ model: "base-model", effort: "high" });
       expect(result.review?.compliance).toBeUndefined();
+    });
+
+    it("keeps the project's enabled when an overlay exists", () => {
+      const project = makeProject({
+        review: { code: { enabled: true, model: "claude-opus-5-5" } },
+      });
+      const result = mergeConfigLayers({ project, globalUser: makeOverlay() });
+      expect(result.review?.code).toEqual({ enabled: true, model: "claude-opus-5-5" });
+      expect(resolveCodeReviewConfig(result.review?.code).enabled).toBe(true);
+    });
+
+    it("takes enabled from an overlay alone, local beating global beating project", () => {
+      const localOnly = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ review: { code: { enabled: true } } }),
+      });
+      expect(resolveCodeReviewConfig(localOnly.review?.code).enabled).toBe(true);
+
+      const layered = mergeConfigLayers({
+        project: makeProject({ review: { code: { enabled: true } } }),
+        globalUser: makeOverlay({ review: { code: { enabled: false } } }),
+        localUser: makeOverlay({ review: { code: { enabled: true } } }),
+      });
+      expect(layered.review?.code?.enabled).toBe(true);
+
+      const globalOff = mergeConfigLayers({
+        project: makeProject({ review: { code: { enabled: true } } }),
+        globalUser: makeOverlay({ review: { code: { enabled: false } } }),
+      });
+      expect(globalOff.review?.code?.enabled).toBe(false);
     });
   });
 

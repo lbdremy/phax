@@ -497,6 +497,23 @@ describe("loadConfig codeReview defaults", () => {
       expect(result.right.codeReview.effort).toBe("medium");
     }
   });
+
+  it("keeps review.code.enabled from phax.json when phax.local.json exists", () => {
+    writePhaxJson({ ...baseConfig, review: { code: { enabled: true } } });
+    writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify({ publish: { auto: false } }));
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.codeReview.enabled).toBe(true);
+  });
+
+  it("takes review.code.enabled from phax.local.json alone", () => {
+    writePhaxJson(baseConfig);
+    writeFileSync(
+      join(repoDir, "phax.local.json"),
+      JSON.stringify({ review: { code: { enabled: true } } }),
+    );
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.codeReview.enabled).toBe(true);
+  });
 });
 
 describe("loadConfig authoring defaults", () => {
