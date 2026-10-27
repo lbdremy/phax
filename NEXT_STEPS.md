@@ -12,16 +12,21 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
 `oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-10-25
+## The queue, as of 2026-10-27
+
+### Approved, not yet planned
+
+- [ ] **`headless-code-review`** — `docs/specs/2610271007-headless-code-review.md`, approved
+      2026-10-27 (brief `docs/briefs/headless-code-review.md`). The compliance review's twin for
+      code: opt-in `review.code.enabled` (optional, false when absent) runs a headless review at
+      run end following `phax-review`; a versioned `code-review.json` (findings with `lens`,
+      `escape`, `criterion`) in the run folder and the records; findings in the PR body; the
+      person fixes by resuming the session with `phax review-code <run>`; `--headless` by hand.
+      Both reviews reach `phax/records/v1` through one review-entry shape. Three plans: the entry
+      shape, the headless code review, the compliance review's entry.
 
 ### Briefs written, spec not yet authored
 
-- [ ] **`headless-review` revision** — `docs/briefs/review-escape.md` (2026-10-23). Reopen the
-      approved `headless-review` spec before it is planned: a review finding gains `lens`, `escape`
-      (why the tests missed it) and `criterion`, the vocabulary of the `phax-review` skill; the
-      headless session follows that skill. Open: whether `criterion` is checked, what the review
-      plan does with a `wrong-oracle` or `omission` finding, where the escape shows. Do it before
-      `headless-review` gets a plan.
 - [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23). phax computes, without a model,
       where review attention belongs (criteria no test proves, skipped oracles, phases that needed
       fixes, the run's review notes) and gives it to the review session. Its dependency is met:
@@ -29,12 +34,14 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ### Drafts
 
-- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Re-approved 2026-10-19,
-      reopened to Draft 2026-10-23 so that it is not planned before the `review-escape` revision
-      above. Its body is unchanged: the review passes go under `## Needs your review` in the short
-      PR body, the PR opens as a draft while a review plan or a finding is pending, run completion
-      happens when the PR becomes ready, and `--run` lets approve, status, lint and `run --append`
-      reach the run's branch from the checkout.
+- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Set aside 2026-10-27:
+      review plans, `phax run --append`, a review loop, finding outcomes and history, passes in the
+      PR body. The operator split the headless review off as `headless-code-review` and wants more
+      use of it before deciding the rest. The 2026-10-27 revision (lens/escape/criterion, Q14–Q17)
+      and an unresolved review (an appended oracle pair breaks on the run footprint, a missing test
+      whose code is right cannot be an oracle pair, stale project skill copies) are in its history
+      (f2854cbd and this session's review). Revisit, or abandon, once `headless-code-review` has
+      been used.
 
 ## Model policy tracking
 
