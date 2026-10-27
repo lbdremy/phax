@@ -1439,105 +1439,7 @@
       ]
     }
   ],
-  "openQuestions": [
-    {
-      "id": "Q14",
-      "question": "Does phax check a review finding's `criterion` against the run's source spec?",
-      "options": [
-        {
-          "id": "check-sidecar",
-          "label": "Reject an id the source spec's sidecar lacks (exit 5, no pass opened); with no source spec only null passes; with a spec that has no sidecar the id is recorded as given",
-          "abandons": "one rule for every run: a hand-authored spec's ids go unchecked, so a typo there is kept"
-        },
-        {
-          "id": "always-reject",
-          "label": "Reject any id phax cannot find in a source spec sidecar, so a run with a hand-authored spec or no spec takes null only",
-          "abandons": "the criteria of every hand-authored spec: its reviewer cannot name one at all"
-        },
-        {
-          "id": "record",
-          "label": "Record the id as given, never checked",
-          "abandons": "the guarantee that a named criterion exists: a typo silently breaks every join on it, coverage and the review map alike"
-        }
-      ],
-      "recommendation": "check-sidecar",
-      "rationale": "It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records."
-    },
-    {
-      "id": "Q15",
-      "question": "What does a review plan do with a finding whose escape says a test was wrong or missing (`wrong-oracle`, `omission`, `unexplored-input`), and does `phax-decide-review` gain a principle keyed on the escape?",
-      "options": [
-        {
-          "id": "oracle-pair",
-          "label": "A `wrong-oracle` finding waits for the operator (`R4`); an `omission` or `unexplored-input` finding is fixed by an oracle pair, one phase writing the missing test, failing, and a later phase making it pass without editing it; `phax-decide-review` gains `R8` saying so",
-          "abandons": "a person's reading of the new test before it judges the fix: a machine-written oracle is appended, and only the PR review sees it"
-        },
-        {
-          "id": "escalate",
-          "label": "All three wait for the operator in a headless plan, as `R4` already has wrong oracles wait; `phax-decide-review` gains `R8` saying so",
-          "abandons": "the loop's reach: the findings most worth a test never get one without a person, and each keeps the PR a draft"
-        },
-        {
-          "id": "test-in-fix",
-          "label": "The fix phase writes the missing test together with the code it fixes; `R4` still keeps `wrong-oracle` findings away from fixes",
-          "abandons": "oracle separation: the agent that writes the fix writes the test that judges it, the `same-author` escape again"
-        },
-        {
-          "id": "no-rule",
-          "label": "The escape changes nothing in the plan, and the doctrine is unchanged",
-          "abandons": "the point of the escape: a review that finds a missing test fixes the code and leaves the test missing"
-        }
-      ],
-      "recommendation": "oracle-pair",
-      "rationale": "Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run."
-    },
-    {
-      "id": "Q16",
-      "question": "Where does a review finding's escape show?",
-      "options": [
-        {
-          "id": "finding-lines",
-          "label": "On the PR body's existing finding lines (the awaiting and dismissed findings), and in `code-review.json` and the records",
-          "abandons": "the escapes of the fixed findings where a person reads: they show only in the files"
-        },
-        {
-          "id": "pr-row",
-          "label": "A count per escape in each `### Review passes` row, plus the files",
-          "abandons": "the short PR body: seven more columns on every reviewed run, read by the person who needs them least (`C5`)"
-        },
-        {
-          "id": "ls",
-          "label": "A count per escape in `phax ls` and `phax ls --json`, plus the files",
-          "abandons": "the reader of the PR: the escape stays in the terminal of whoever ran the loop"
-        },
-        {
-          "id": "files-only",
-          "label": "Only in `code-review.json` and the records, for a later report across runs",
-          "abandons": "any visible feedback until that report exists: nobody sees why the tests missed a finding"
-        }
-      ],
-      "recommendation": "finding-lines",
-      "rationale": "Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it."
-    },
-    {
-      "id": "Q17",
-      "question": "Does an interactive `phax review-code` session write a code-review document?",
-      "options": [
-        {
-          "id": "conversation",
-          "label": "No: the interactive session stays a conversation, and `phax review-code <run> --headless` afterwards resumes that same session and writes its findings as a pass",
-          "abandons": "a single step: the person runs a second command to keep what the conversation found"
-        },
-        {
-          "id": "document",
-          "label": "Yes, when the person asks: on exit phax resumes the session headless for the document, as `phax artifact decide` does, and opens a pass",
-          "abandons": "the interactive command left as it is: it gains a pass, an exit code and a refusal path, against this spec's non-goal"
-        }
-      ],
-      "recommendation": "conversation",
-      "rationale": "The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged."
-    }
-  ],
+  "openQuestions": [],
   "arbitratedQuestions": [
     {
       "id": "Q1",
@@ -2051,6 +1953,192 @@
           "§10",
           "§11"
         ]
+      },
+      "history": []
+    },
+    {
+      "id": "Q14",
+      "question": "Does phax check a review finding's `criterion` against the run's source spec?",
+      "options": [
+        {
+          "id": "check-sidecar",
+          "label": "Reject an id the source spec's sidecar lacks (exit 5, no pass opened); with no source spec only null passes; with a spec that has no sidecar the id is recorded as given",
+          "abandons": "one rule for every run: a hand-authored spec's ids go unchecked, so a typo there is kept"
+        },
+        {
+          "id": "always-reject",
+          "label": "Reject any id phax cannot find in a source spec sidecar, so a run with a hand-authored spec or no spec takes null only",
+          "abandons": "the criteria of every hand-authored spec: its reviewer cannot name one at all"
+        },
+        {
+          "id": "record",
+          "label": "Record the id as given, never checked",
+          "abandons": "the guarantee that a named criterion exists: a typo silently breaks every join on it, coverage and the review map alike"
+        }
+      ],
+      "recommendation": "check-sidecar",
+      "rationale": "It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "check-sidecar",
+        "abandoned": [
+          "always-reject",
+          "record"
+        ],
+        "why": "It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records.",
+        "advocate": "The strongest case for always-reject: a criterion id that phax cannot verify is as good as a guess, so refusing it keeps every recorded id trustworthy and leaves no class of runs where a typo survives.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T09:27:01.621Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "Q15",
+      "question": "What does a review plan do with a finding whose escape says a test was wrong or missing (`wrong-oracle`, `omission`, `unexplored-input`), and does `phax-decide-review` gain a principle keyed on the escape?",
+      "options": [
+        {
+          "id": "oracle-pair",
+          "label": "A `wrong-oracle` finding waits for the operator (`R4`); an `omission` or `unexplored-input` finding is fixed by an oracle pair, one phase writing the missing test, failing, and a later phase making it pass without editing it; `phax-decide-review` gains `R8` saying so",
+          "abandons": "a person's reading of the new test before it judges the fix: a machine-written oracle is appended, and only the PR review sees it"
+        },
+        {
+          "id": "escalate",
+          "label": "All three wait for the operator in a headless plan, as `R4` already has wrong oracles wait; `phax-decide-review` gains `R8` saying so",
+          "abandons": "the loop's reach: the findings most worth a test never get one without a person, and each keeps the PR a draft"
+        },
+        {
+          "id": "test-in-fix",
+          "label": "The fix phase writes the missing test together with the code it fixes; `R4` still keeps `wrong-oracle` findings away from fixes",
+          "abandons": "oracle separation: the agent that writes the fix writes the test that judges it, the `same-author` escape again"
+        },
+        {
+          "id": "no-rule",
+          "label": "The escape changes nothing in the plan, and the doctrine is unchanged",
+          "abandons": "the point of the escape: a review that finds a missing test fixes the code and leaves the test missing"
+        }
+      ],
+      "recommendation": "oracle-pair",
+      "rationale": "Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "oracle-pair",
+        "abandoned": [
+          "escalate",
+          "test-in-fix",
+          "no-rule"
+        ],
+        "why": "Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run.",
+        "advocate": "The strongest case for escalate: a new test defines what the code must do, so a person should read it before it judges any fix, and a loop that writes its own oracle unseen removes the one check that catches a wrong test.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T09:27:01.621Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "Q16",
+      "question": "Where does a review finding's escape show?",
+      "options": [
+        {
+          "id": "finding-lines",
+          "label": "On the PR body's existing finding lines (the awaiting and dismissed findings), and in `code-review.json` and the records",
+          "abandons": "the escapes of the fixed findings where a person reads: they show only in the files"
+        },
+        {
+          "id": "pr-row",
+          "label": "A count per escape in each `### Review passes` row, plus the files",
+          "abandons": "the short PR body: seven more columns on every reviewed run, read by the person who needs them least (`C5`)"
+        },
+        {
+          "id": "ls",
+          "label": "A count per escape in `phax ls` and `phax ls --json`, plus the files",
+          "abandons": "the reader of the PR: the escape stays in the terminal of whoever ran the loop"
+        },
+        {
+          "id": "files-only",
+          "label": "Only in `code-review.json` and the records, for a later report across runs",
+          "abandons": "any visible feedback until that report exists: nobody sees why the tests missed a finding"
+        }
+      ],
+      "recommendation": "finding-lines",
+      "rationale": "Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "finding-lines",
+        "abandoned": [
+          "pr-row",
+          "ls",
+          "files-only"
+        ],
+        "why": "Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it.",
+        "advocate": "The strongest case for pr-row: a count per escape in every pass row shows a reviewer at a glance how the tests failed the run, for fixed findings as well as the ones that wait.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T09:27:01.621Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "Q17",
+      "question": "Does an interactive `phax review-code` session write a code-review document?",
+      "options": [
+        {
+          "id": "conversation",
+          "label": "No: the interactive session stays a conversation, and `phax review-code <run> --headless` afterwards resumes that same session and writes its findings as a pass",
+          "abandons": "a single step: the person runs a second command to keep what the conversation found"
+        },
+        {
+          "id": "document",
+          "label": "Yes, when the person asks: on exit phax resumes the session headless for the document, as `phax artifact decide` does, and opens a pass",
+          "abandons": "the interactive command left as it is: it gains a pass, an exit code and a refusal path, against this spec's non-goal"
+        }
+      ],
+      "recommendation": "conversation",
+      "rationale": "The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "conversation",
+        "abandoned": [
+          "document"
+        ],
+        "why": "The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged.",
+        "advocate": "The strongest case for document: one command keeps what the conversation found, so the person cannot forget the second step and lose the findings.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T09:27:01.621Z",
+        "revised": []
       },
       "history": []
     }

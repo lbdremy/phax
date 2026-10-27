@@ -1281,38 +1281,7 @@ Given A shell inside a phase worktree., when `phax review-plan <run>` runs., the
 
 ## 9. Open questions
 
-### Q14 — Does phax check a review finding's `criterion` against the run's source spec?
-
-- check-sidecar — Reject an id the source spec's sidecar lacks (exit 5, no pass opened); with no source spec only null passes; with a spec that has no sidecar the id is recorded as given — abandons: one rule for every run: a hand-authored spec's ids go unchecked, so a typo there is kept
-- always-reject — Reject any id phax cannot find in a source spec sidecar, so a run with a hand-authored spec or no spec takes null only — abandons: the criteria of every hand-authored spec: its reviewer cannot name one at all
-- record — Record the id as given, never checked — abandons: the guarantee that a named criterion exists: a typo silently breaks every join on it, coverage and the review map alike
-
-Recommendation: check-sidecar — It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records.
-
-### Q15 — What does a review plan do with a finding whose escape says a test was wrong or missing (`wrong-oracle`, `omission`, `unexplored-input`), and does `phax-decide-review` gain a principle keyed on the escape?
-
-- oracle-pair — A `wrong-oracle` finding waits for the operator (`R4`); an `omission` or `unexplored-input` finding is fixed by an oracle pair, one phase writing the missing test, failing, and a later phase making it pass without editing it; `phax-decide-review` gains `R8` saying so — abandons: a person's reading of the new test before it judges the fix: a machine-written oracle is appended, and only the PR review sees it
-- escalate — All three wait for the operator in a headless plan, as `R4` already has wrong oracles wait; `phax-decide-review` gains `R8` saying so — abandons: the loop's reach: the findings most worth a test never get one without a person, and each keeps the PR a draft
-- test-in-fix — The fix phase writes the missing test together with the code it fixes; `R4` still keeps `wrong-oracle` findings away from fixes — abandons: oracle separation: the agent that writes the fix writes the test that judges it, the `same-author` escape again
-- no-rule — The escape changes nothing in the plan, and the doctrine is unchanged — abandons: the point of the escape: a review that finds a missing test fixes the code and leaves the test missing
-
-Recommendation: oracle-pair — Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run.
-
-### Q16 — Where does a review finding's escape show?
-
-- finding-lines — On the PR body's existing finding lines (the awaiting and dismissed findings), and in `code-review.json` and the records — abandons: the escapes of the fixed findings where a person reads: they show only in the files
-- pr-row — A count per escape in each `### Review passes` row, plus the files — abandons: the short PR body: seven more columns on every reviewed run, read by the person who needs them least (`C5`)
-- ls — A count per escape in `phax ls` and `phax ls --json`, plus the files — abandons: the reader of the PR: the escape stays in the terminal of whoever ran the loop
-- files-only — Only in `code-review.json` and the records, for a later report across runs — abandons: any visible feedback until that report exists: nobody sees why the tests missed a finding
-
-Recommendation: finding-lines — Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it.
-
-### Q17 — Does an interactive `phax review-code` session write a code-review document?
-
-- conversation — No: the interactive session stays a conversation, and `phax review-code <run> --headless` afterwards resumes that same session and writes its findings as a pass — abandons: a single step: the person runs a second command to keep what the conversation found
-- document — Yes, when the person asks: on exit phax resumes the session headless for the document, as `phax artifact decide` does, and opens a pass — abandons: the interactive command left as it is: it gains a pass, an exit code and a refusal path, against this spec's non-goal
-
-Recommendation: conversation — The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged.
+None.
 
 ## 9b. Arbitrated questions
 
@@ -1438,6 +1407,51 @@ Recommendation: hold — A reviewer should never read a PR that may still change
 Decision: draft — by operator (Rémy Loubradou), 2026-10-19
 Why: Decided by the operator on 2026-10-19, against the recommendation (hold). An auto-published run always ends with a PR, which shows where the run stands, and GitHub's draft state says it is not final. A draft accepts appends, and phax pushes after each so the PR follows. `phax publish-pr` refuses (exit 12) while an item is pending on a draft, and otherwise completes, pushes, rewrites the body and marks it ready. On a run with no PR, `phax publish-pr` also opens a draft under the same pending conditions rather than refusing, for symmetry with `publish.auto`: the same state yields the same PR whichever path publishes it. Advocate: Holding keeps a run's PR either absent or final, so no reviewer spends attention on a PR whose content can still change, and phax needs no draft, mark-ready or body-edit operation. Principles: none. Reversibility: cheap. Revised: §1, §3, §4, §5.47, §5.48, §5.64, §5.65, §5.69, §5.70, §5.71, §5.72, §5.73, §5.75, §5.76, §5.77, §5.78, §5.80, §6, §7, §8, §10, §11.
 
+### Q14 — Does phax check a review finding's `criterion` against the run's source spec?
+
+- check-sidecar — Reject an id the source spec's sidecar lacks (exit 5, no pass opened); with no source spec only null passes; with a spec that has no sidecar the id is recorded as given — abandons: one rule for every run: a hand-authored spec's ids go unchecked, so a typo there is kept
+- always-reject — Reject any id phax cannot find in a source spec sidecar, so a run with a hand-authored spec or no spec takes null only — abandons: the criteria of every hand-authored spec: its reviewer cannot name one at all
+- record — Record the id as given, never checked — abandons: the guarantee that a named criterion exists: a typo silently breaks every join on it, coverage and the review map alike
+
+Recommendation: check-sidecar — It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records.
+
+Decision: check-sidecar — by operator (Rémy Loubradou), 2026-10-27
+Why: It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records. Advocate: The strongest case for always-reject: a criterion id that phax cannot verify is as good as a guess, so refusing it keeps every recorded id trustworthy and leaves no class of runs where a typo survives. Principles: S1, S3. Reversibility: cheap. Revised: none.
+
+### Q15 — What does a review plan do with a finding whose escape says a test was wrong or missing (`wrong-oracle`, `omission`, `unexplored-input`), and does `phax-decide-review` gain a principle keyed on the escape?
+
+- oracle-pair — A `wrong-oracle` finding waits for the operator (`R4`); an `omission` or `unexplored-input` finding is fixed by an oracle pair, one phase writing the missing test, failing, and a later phase making it pass without editing it; `phax-decide-review` gains `R8` saying so — abandons: a person's reading of the new test before it judges the fix: a machine-written oracle is appended, and only the PR review sees it
+- escalate — All three wait for the operator in a headless plan, as `R4` already has wrong oracles wait; `phax-decide-review` gains `R8` saying so — abandons: the loop's reach: the findings most worth a test never get one without a person, and each keeps the PR a draft
+- test-in-fix — The fix phase writes the missing test together with the code it fixes; `R4` still keeps `wrong-oracle` findings away from fixes — abandons: oracle separation: the agent that writes the fix writes the test that judges it, the `same-author` escape again
+- no-rule — The escape changes nothing in the plan, and the doctrine is unchanged — abandons: the point of the escape: a review that finds a missing test fixes the code and leaves the test missing
+
+Recommendation: oracle-pair — Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run.
+
+Decision: oracle-pair — by operator (Rémy Loubradou), 2026-10-27
+Why: Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run. Advocate: The strongest case for escalate: a new test defines what the code must do, so a person should read it before it judges any fix, and a loop that writes its own oracle unseen removes the one check that catches a wrong test. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
+### Q16 — Where does a review finding's escape show?
+
+- finding-lines — On the PR body's existing finding lines (the awaiting and dismissed findings), and in `code-review.json` and the records — abandons: the escapes of the fixed findings where a person reads: they show only in the files
+- pr-row — A count per escape in each `### Review passes` row, plus the files — abandons: the short PR body: seven more columns on every reviewed run, read by the person who needs them least (`C5`)
+- ls — A count per escape in `phax ls` and `phax ls --json`, plus the files — abandons: the reader of the PR: the escape stays in the terminal of whoever ran the loop
+- files-only — Only in `code-review.json` and the records, for a later report across runs — abandons: any visible feedback until that report exists: nobody sees why the tests missed a finding
+
+Recommendation: finding-lines — Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it.
+
+Decision: finding-lines — by operator (Rémy Loubradou), 2026-10-27
+Why: Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it. Advocate: The strongest case for pr-row: a count per escape in every pass row shows a reviewer at a glance how the tests failed the run, for fixed findings as well as the ones that wait. Principles: S1, S10. Reversibility: cheap. Revised: none.
+
+### Q17 — Does an interactive `phax review-code` session write a code-review document?
+
+- conversation — No: the interactive session stays a conversation, and `phax review-code <run> --headless` afterwards resumes that same session and writes its findings as a pass — abandons: a single step: the person runs a second command to keep what the conversation found
+- document — Yes, when the person asks: on exit phax resumes the session headless for the document, as `phax artifact decide` does, and opens a pass — abandons: the interactive command left as it is: it gains a pass, an exit code and a refusal path, against this spec's non-goal
+
+Recommendation: conversation — The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged.
+
+Decision: conversation — by operator (Rémy Loubradou), 2026-10-27
+Why: The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged. Advocate: The strongest case for document: one command keeps what the conversation found, so the person cannot forget the second step and lose the findings. Principles: S1, S4. Reversibility: cheap. Revised: none.
+
 ## 10. Implementation-planning note
 
 Settled:
@@ -1523,3 +1537,7 @@ By hand, with "code": { "enabled": true }, pass 1 runs and its plan is left Draf
 - 2026-10-19 Q11 decided defer-completion — operator (Rémy Loubradou) — revised 14 sections
 - 2026-10-19 Q12 decided run-target — operator (Rémy Loubradou) — revised 10 sections
 - 2026-10-19 Q13 decided draft — operator (Rémy Loubradou) — revised 22 sections
+- 2026-10-27 Q14 decided check-sidecar — operator (Rémy Loubradou)
+- 2026-10-27 Q15 decided oracle-pair — operator (Rémy Loubradou)
+- 2026-10-27 Q16 decided finding-lines — operator (Rémy Loubradou)
+- 2026-10-27 Q17 decided conversation — operator (Rémy Loubradou)
