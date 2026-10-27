@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { type FileSystem } from "../ports/fs.js";
+import { FileSystem } from "../ports/fs.js";
 import { type Git } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
@@ -73,6 +73,14 @@ export function writeReviewRecord(
   return Effect.gen(function* () {
     const destination = yield* resolveRecordDestination(input);
     if (destination.kind !== "write") return destination;
+    // A dedicated clone that does not exist yet is deferred, not failed: no
+    // run preflight guards a by-hand review, and `phax records sync` makes it.
+    if (input.records.destination.kind === "repo") {
+      const fs = yield* FileSystem;
+      if (!(yield* fs.exists(destination.repo))) {
+        return { kind: "deferred-destination", destination: "repo" } as const;
+      }
+    }
 
     const key = reviewRecordKey(input.runId, input.review);
     const message = [
@@ -100,31 +108,51 @@ export function writeReviewRecord(
     return { kind: "written", commitSha, branch, key, fileCount } as const;
   }).pipe(
     Effect.catchAll((error) =>
-      Effect.succeed({ kind: "write-failed", message: error.message } as const),
+      Effect.succeed({
+        kind: "write-failed",
+        message: gitFailureLine(
+          "stderr" in error ? (error.stderr ?? error.message) : error.message,
+        ),
+      } as const),
     ),
   );
+}
+
+/**
+ * The one line of a git failure worth showing: the first non-empty line,
+ * skipping git's `To <remote>` push preamble. git's stderr can run to several
+ * localized lines; a warning carries one.
+ */
+export function gitFailureLine(text: string): string {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return lines.find((line) => !line.startsWith("To ")) ?? lines[0] ?? text.trim();
 }
 
 /**
  * The warning a review entry's outcome deserves, or undefined when there is
  * nothing to say (written, or records off). A failed commit leaves the
  * review's file in the run folder; `phax records status` reads git alone, so it
- * cannot list an entry that was never committed — the remedy is a rerun.
+ * cannot list an entry that was never committed — the remedy is a rerun, the
+ * caller's `retryCommand` (the review's own command with the run's name).
  */
 export function reviewRecordWarning(
   status: ReviewRecordStatus,
   review: ReviewRecordKind,
+  retryCommand: string,
 ): string | undefined {
   switch (status.kind) {
     case "written":
     case "records-off":
       return undefined;
     case "deferred-destination":
-      return `${review} entry not written — the dedicated records clone is not configured (run \`phax records sync\`)`;
+      return `${review} entry not written — the dedicated records clone is missing: run \`phax records sync\`, then \`${retryCommand}\` to record a new review`;
     case "refused":
       return `${review} entry refused: ${status.message} (remedy: ${status.remedy})`;
     case "write-failed":
-      return `the ${review} entry was not committed to ${RECORDS_BRANCH_NAME} (${status.message}) — it is pending: ${REVIEW_RECORD_FILES[review]} stays in the run folder; rerun \`phax review-compliance <run>\` to record a new review`;
+      return `the ${review} entry was not committed to ${RECORDS_BRANCH_NAME} (${status.message}) — it is pending: ${REVIEW_RECORD_FILES[review]} stays in the run folder; rerun \`${retryCommand}\` to record a new review`;
   }
 }
 
@@ -135,5 +163,5 @@ export function reviewRecordWarning(
  */
 export function reviewRecordPushWarning(push: ReviewRecordPush): string | undefined {
   if (push.kind !== "failed") return undefined;
-  return `review entry not pushed to ${push.remote} (${push.message}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
+  return `review entry not pushed to ${push.remote} (${gitFailureLine(push.message)}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
 }

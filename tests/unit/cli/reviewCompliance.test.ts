@@ -12,7 +12,8 @@ import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 const FAKE_SHORT_NAME = "my-run";
 const QUALIFIED_NAME = "louloupapers.article-series-taxonomy";
 
-vi.mock("../../../src/app/loadConfig.js", () => ({
+vi.mock("../../../src/app/loadConfig.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../src/app/loadConfig.js")>()),
   loadConfig: vi.fn(),
 }));
 
@@ -271,5 +272,53 @@ describe("runReviewCompliance", () => {
     expect(code).toBe(0);
     expect(errors).toEqual([]);
     expect(lines.some((l) => l.startsWith("WARN:") && l.includes("disk full"))).toBe(true);
+    expect(
+      lines.some((l) => l.includes(`rerun \`phax review-compliance ${FAKE_SHORT_NAME}\``)),
+    ).toBe(true);
+  });
+
+  it("prints one line naming the entry when it was committed and pushed", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "louloupapers",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject: false,
+      }),
+    );
+
+    const { reviewComplianceAndRecord } = vi.mocked(
+      await import("../../../src/app/reviewCompliance.js"),
+    );
+    reviewComplianceAndRecord.mockReturnValue(
+      Effect.succeed({
+        review: { kind: "generated", verdict: "conformant", mdArtifactPath: "/run/x.md" },
+        record: {
+          kind: "written",
+          commitSha: "0123456789abcdef",
+          branch: "phax/records/v1",
+          key: "2610270900-my-run/compliance-review",
+          fileCount: 2,
+        },
+        push: { kind: "pushed", remote: "origin", path: "/repo" },
+      } as never),
+    );
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+    const { out, lines } = makeOutput();
+    expect(await runReviewCompliance(FAKE_SHORT_NAME, {}, out)).toBe(0);
+    expect(lines).toContain(
+      "Recorded: 2610270900-my-run/compliance-review (01234567), pushed to origin",
+    );
+    expect(lines.some((l) => l.startsWith("WARN:"))).toBe(false);
   });
 });

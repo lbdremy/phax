@@ -665,8 +665,11 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   const phaxContext = `${WORKTREE}/.phax-context`;
   seed(`${RUN_PATH}/global-file-reconciliation.md`, "# Global File Reconciliation\n");
   seed(`${PHASE_FOLDER}/phase-handoff.md`, "## What was delivered\nThe example module.\n");
-  seed(`${phaxContext}/compliance-review.md`, "# Compliance Review\n\nConformant.\n");
-  seed(`${phaxContext}/compliance-review.json`, COMPLIANCE_VERDICT);
+  // The agent writes its files during its session: phax clears any earlier ones first.
+  backend.impl.setOnRunAgent(() => {
+    seed(`${phaxContext}/compliance-review.md`, "# Compliance Review\n\nConformant.\n");
+    seed(`${phaxContext}/compliance-review.json`, COMPLIANCE_VERDICT);
+  });
   backend.impl.addRunResponse({
     sessionId: "session-review" as ClaudeSessionId,
     outputPath: `${RUN_PATH}/compliance-review.session.jsonl`,
