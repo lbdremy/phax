@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readBundledReviewSkillForRun } from "./bundledReviewSkill.js";
 import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
@@ -262,36 +263,39 @@ export async function runResume(
   try {
     const program = withRunLock(
       runKey(namespace, shortName),
-      executePlan({
-        shortName,
-        namespace,
-        plan,
-        planMd,
-        config,
-        gateProfileId,
-        workspaceId: undefined,
-        allowDirty: true,
-        runPath,
-        runId,
-        startIndex: decision.nextPhaseIndex,
-        skipOracle: opts.skipOracle === true,
-        phaxVersion: readPackageVersion(),
-        routing,
-        providerConfig,
-        // Skill edit consent is given only at `phax run`; resume inherits it.
-        allowSkillEdits: runStatus.allowSkillEdits === true,
-        verbose: opts.verbose,
-        // Re-supply the plan's repo-relative path recorded at run creation so the
-        // final phase carries artifact completion on resume too (spec 27). Runs
-        // created before this field, and loose plans, resume with completion
-        // skipped (the field is absent).
-        ...(runStatus.planRepoRelPath !== undefined
-          ? { planRepoRelPath: runStatus.planRepoRelPath }
-          : {}),
-        onStopClosed: (closed) => {
-          for (const line of renderStopClosed(closed)) out.log(line);
-        },
-      }),
+      Effect.flatMap(readBundledReviewSkillForRun(config), (bundledReviewSkill) =>
+        executePlan({
+          bundledReviewSkill,
+          shortName,
+          namespace,
+          plan,
+          planMd,
+          config,
+          gateProfileId,
+          workspaceId: undefined,
+          allowDirty: true,
+          runPath,
+          runId,
+          startIndex: decision.nextPhaseIndex,
+          skipOracle: opts.skipOracle === true,
+          phaxVersion: readPackageVersion(),
+          routing,
+          providerConfig,
+          // Skill edit consent is given only at `phax run`; resume inherits it.
+          allowSkillEdits: runStatus.allowSkillEdits === true,
+          verbose: opts.verbose,
+          // Re-supply the plan's repo-relative path recorded at run creation so the
+          // final phase carries artifact completion on resume too (spec 27). Runs
+          // created before this field, and loose plans, resume with completion
+          // skipped (the field is absent).
+          ...(runStatus.planRepoRelPath !== undefined
+            ? { planRepoRelPath: runStatus.planRepoRelPath }
+            : {}),
+          onStopClosed: (closed) => {
+            for (const line of renderStopClosed(closed)) out.log(line);
+          },
+        }),
+      ),
     );
 
     const result = await Effect.runPromise(

@@ -46,6 +46,7 @@ function makeBaseConfig(stateRootOverride: string) {
       effort: "medium" as const,
     },
     codeReview: {
+      enabled: false,
       model: "claude-opus-4-8",
       effort: "high" as const,
     },

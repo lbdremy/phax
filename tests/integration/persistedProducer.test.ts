@@ -770,7 +770,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   const codeReviewed = await run(
     reviewCodeHeadless(
       info,
-      { model: "example-model", effort: "medium" },
+      { enabled: false, model: "example-model", effort: "medium" },
       resolution,
       { mode: "secure", config: security },
       { bundledReviewSkill: "# phax review\n", nowIso: "2026-01-01T11:00:00.000Z" },

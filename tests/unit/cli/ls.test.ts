@@ -71,7 +71,7 @@ function makeConfig(namespace = "myproject"): ResolvedConfig {
       model: "claude-sonnet-4-6",
       effort: "medium",
     },
-    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    codeReview: { enabled: false, model: "claude-opus-5-5", effort: "high" },
     authoring: {
       spec: { model: "claude-opus-5-5", effort: "high" },
       plan: { model: "claude-opus-5-5", effort: "high" },

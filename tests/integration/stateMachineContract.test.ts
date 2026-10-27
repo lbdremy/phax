@@ -90,7 +90,7 @@ describe("State Machine Contract", () => {
         createPullRequest: true,
       },
       complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
-      codeReview: { model: "claude-opus-5-5", effort: "high" },
+      codeReview: { enabled: false, model: "claude-opus-5-5", effort: "high" },
       authoring: {
         spec: { model: "claude-opus-5-5", effort: "high" },
         plan: { model: "claude-opus-5-5", effort: "high" },
@@ -206,7 +206,7 @@ describe("State Machine Contract", () => {
         createPullRequest: true,
       },
       complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
-      codeReview: { model: "claude-opus-5-5", effort: "high" },
+      codeReview: { enabled: false, model: "claude-opus-5-5", effort: "high" },
       authoring: {
         spec: { model: "claude-opus-5-5", effort: "high" },
         plan: { model: "claude-opus-5-5", effort: "high" },
@@ -324,7 +324,7 @@ describe("State Machine Contract", () => {
         createPullRequest: true,
       },
       complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
-      codeReview: { model: "claude-opus-5-5", effort: "high" },
+      codeReview: { enabled: false, model: "claude-opus-5-5", effort: "high" },
       authoring: {
         spec: { model: "claude-opus-5-5", effort: "high" },
         plan: { model: "claude-opus-5-5", effort: "high" },

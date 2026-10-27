@@ -51,7 +51,7 @@ const info: RunReviewInfo = {
   lastError: undefined,
 };
 
-const config = { model: "claude-opus-5-5", effort: "high" } as const;
+const config = { enabled: false, model: "claude-opus-5-5", effort: "high" } as const;
 
 function resolutionOn(provider: "claude-code" | "codex-cli"): RoutingResolution {
   return {

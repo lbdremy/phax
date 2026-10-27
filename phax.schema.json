@@ -274,6 +274,10 @@
           "type": "object",
           "required": [],
           "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent."
+            },
             "model": {
               "$ref": "#/$defs/NonEmptyString"
             },
