@@ -12,7 +12,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
-import { reviewComplianceAndRecord } from "../../src/app/reviewCompliance.js";
+import { loadConfig } from "../../src/app/loadConfig.js";
+import {
+  complianceRecordTargetFor,
+  complianceRecordWarnings,
+  reviewComplianceAndRecord,
+  type ComplianceRecordTarget,
+  type ComplianceRecordUnresolved,
+} from "../../src/app/reviewCompliance.js";
 import { RECORDS_BRANCH_NAME } from "../../src/app/recordPlumbing.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import {
@@ -289,6 +296,16 @@ describe("compliance review entry at run end", () => {
   });
 });
 
+/** A project's phax.json with in-repo records that push. */
+function phaxJson(name: string): string {
+  return JSON.stringify({
+    version: 1,
+    name,
+    gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+    records: { transcript: false, destination: { kind: "in-repo" }, autoPush: true },
+  });
+}
+
 function runGit(args: readonly string[], cwd: string): string {
   return execFileSync("git", [...args], { cwd, encoding: "utf8" });
 }
@@ -373,12 +390,21 @@ describe("compliance review entry by hand (real git)", () => {
     };
   }
 
-  function review(summary: string) {
+  function review(
+    summary: string,
+    opts: {
+      readonly writesJson?: boolean;
+      readonly runInfo?: RunReviewInfo;
+      readonly target?: ComplianceRecordTarget | ComplianceRecordUnresolved;
+    } = {},
+  ) {
+    const runInfo = opts.runInfo ?? info();
     const backend = makeFakeBackend();
     backend.impl.setOnRunAgent(() => {
-      const context = join(worktreePath, ".phax-context");
+      const context = join(runInfo.worktreePath, ".phax-context");
       mkdirSync(context, { recursive: true });
       writeFileSync(join(context, "compliance-review.md"), COMPLIANCE_MD);
+      if (opts.writesJson === false) return;
       writeFileSync(
         join(context, "compliance-review.json"),
         JSON.stringify({ ...JSON.parse(COMPLIANCE_AGENT_JSON), summary }),
@@ -398,11 +424,12 @@ describe("compliance review entry by hand (real git)", () => {
     );
     return Effect.runPromise(
       reviewComplianceAndRecord(
-        info(),
+        runInfo,
         { enabled: true, model: "claude-sonnet-4-6", effort: "medium" },
         resolution,
         security,
-        {
+        opts.target ?? {
+          kind: "project",
           records: { ...RECORDS, autoPush: true },
           repoRoot: repoDir,
           push: { publishRemote: "origin" },
@@ -442,5 +469,111 @@ describe("compliance review entry by hand (real git)", () => {
       .split("\n");
     expect(remoteCommits).toEqual(commits);
     expect(summaryAt(remoteDir, remoteCommits[1] ?? "")).toBe("second review");
+  });
+
+  it("reads only this review's files: a rerun whose session writes no json records nothing", async () => {
+    const first = await review("first review");
+    expect(first.record.kind).toBe("written");
+
+    const second = await review("second review", { writesJson: false });
+    expect(second.review.kind).toBe("generated");
+    expect(second.review.verdict).toBe("unknown");
+    expect(second.review.structuredVerdictMissing).toBe(true);
+    expect(second.record.kind).toBe("no-entry");
+    expect(second.push.kind).toBe("no-record");
+
+    const commits = runGit(["rev-list", RECORDS_BRANCH_NAME], repoDir).trim().split("\n");
+    expect(commits).toHaveLength(1);
+  });
+
+  describe("a run of another project", () => {
+    let restoreHome: () => void;
+    let projectA: string;
+
+    beforeEach(() => {
+      const home = mkdtempSync(join(tmpdir(), "phax-compliance-hand-home-"));
+      const originalHome = process.env["HOME"];
+      process.env["HOME"] = home;
+      restoreHome = () => {
+        if (originalHome === undefined) delete process.env["HOME"];
+        else process.env["HOME"] = originalHome;
+        removeTempDir(home);
+      };
+      projectA = mkdtempSync(join(tmpdir(), "phax-compliance-hand-a-"));
+      runGit(["init"], projectA);
+      disableGitAutoMaintenance(projectA);
+      runGit(["config", "--local", "user.email", "test@phax.test"], projectA);
+      runGit(["config", "--local", "user.name", "phax test"], projectA);
+      writeFileSync(join(projectA, "phax.json"), phaxJson("project-a"));
+      runGit(["add", "."], projectA);
+      runGit(["commit", "-m", "chore: initial commit"], projectA);
+    });
+
+    afterEach(() => {
+      removeTempDir(projectA);
+      restoreHome();
+    });
+
+    function configOfA(): ResolvedConfig {
+      const loaded = loadConfig(projectA);
+      if (Either.isLeft(loaded)) throw new Error(loaded.left.message);
+      return loaded.right;
+    }
+
+    it("records the review in the run's own project, never the one the command runs from", async () => {
+      // The run belongs to the project in repoDir (namespace test-project); its
+      // final worktree is a linked worktree of that repository.
+      writeFileSync(join(repoDir, "phax.json"), phaxJson(NAMESPACE));
+      runGit(["add", "phax.json"], repoDir);
+      runGit(["commit", "-m", "chore: phax.json"], repoDir);
+      const linked = join(worktreePath, "final");
+      runGit(["worktree", "add", "-b", "feature/by-hand--phase-01", linked], repoDir);
+      const runInfo = { ...info(), worktreePath: linked };
+
+      const target = complianceRecordTargetFor({
+        config: configOfA(),
+        namespace: NAMESPACE,
+        info: runInfo,
+        crossProject: true,
+      });
+      expect(target.kind).toBe("project");
+
+      const outcome = await review("cross-project review", { runInfo, target });
+      expect(outcome.record.kind).toBe("written");
+      expect(outcome.push.kind).toBe("pushed");
+
+      const key = "2610270900-by-hand/compliance-review";
+      const entry = JSON.parse(
+        runGit(["show", `${RECORDS_BRANCH_NAME}:${key}/compliance-review.json`], repoDir),
+      ) as { summary: string };
+      expect(entry.summary).toBe("cross-project review");
+      expect(runGit(["rev-list", RECORDS_BRANCH_NAME], remoteDir).trim()).not.toBe("");
+      expect(runGit(["branch", "--list", RECORDS_BRANCH_NAME], projectA).trim()).toBe("");
+    });
+
+    it("writes no entry anywhere when the run's project cannot be read, and says so", async () => {
+      // worktreePath is a plain directory: no git working tree to find the
+      // run's project from.
+      const target = complianceRecordTargetFor({
+        config: configOfA(),
+        namespace: NAMESPACE,
+        info: info(),
+        crossProject: true,
+      });
+      expect(target.kind).toBe("unresolved");
+
+      const outcome = await review("lost review", { target });
+      expect(outcome.review.kind).toBe("generated");
+      expect(outcome.record.kind).toBe("unresolved");
+      expect(outcome.push.kind).toBe("no-record");
+      const [warning] = complianceRecordWarnings(outcome, "phax review-compliance test-project.x");
+      expect(warning).toContain(`its worktree ${worktreePath} is not a git working tree`);
+      expect(warning).toContain("compliance-review.json stays in the run folder");
+      expect(warning).toContain("`phax review-compliance test-project.x`");
+
+      for (const repo of [repoDir, projectA]) {
+        expect(runGit(["branch", "--list", RECORDS_BRANCH_NAME], repo).trim()).toBe("");
+      }
+    });
   });
 });

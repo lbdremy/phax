@@ -276,7 +276,9 @@ describe("writeReviewRecord (real git)", () => {
     });
 
     expect(status).toEqual({ kind: "records-off" });
-    expect(reviewRecordWarning(status, "compliance-review")).toBeUndefined();
+    expect(
+      reviewRecordWarning(status, "compliance-review", "phax review-compliance example-run"),
+    ).toBeUndefined();
     expect(git(["branch", "--list", RECORDS_BRANCH_NAME], repoDir).trim()).toBe("");
   });
 
@@ -287,9 +289,9 @@ describe("writeReviewRecord (real git)", () => {
     const status = await write("compliance-review", { records: inRepoConfig(true) });
 
     expect(status.kind).toBe("refused");
-    expect(reviewRecordWarning(status, "compliance-review")).toMatch(
-      /^compliance-review entry refused: .+ \(remedy: .+\)$/,
-    );
+    expect(
+      reviewRecordWarning(status, "compliance-review", "phax review-compliance example-run"),
+    ).toMatch(/^compliance-review entry refused: .+ \(remedy: .+\)$/);
     expect(git(["branch", "--list", RECORDS_BRANCH_NAME], repoDir).trim()).toBe("");
   });
 
@@ -306,9 +308,32 @@ describe("writeReviewRecord (real git)", () => {
     });
 
     expect(status).toEqual({ kind: "deferred-destination", destination: "repo" });
-    expect(reviewRecordWarning(status, "compliance-review")).toBe(
-      "compliance-review entry not written — the dedicated records clone is not configured (run `phax records sync`)",
+    expect(
+      reviewRecordWarning(status, "compliance-review", "phax review-compliance example-run"),
+    ).toBe(
+      "compliance-review entry not written — the dedicated records clone is missing: run `phax records sync`, then `phax review-compliance example-run` to record a new review",
     );
+    expect(git(["branch", "--list", RECORDS_BRANCH_NAME], repoDir).trim()).toBe("");
+  });
+
+  it("returns a deferred destination, not a failure, when the dedicated records clone does not exist yet", async () => {
+    await seed("compliance-review", COMPLIANCE_FILE);
+    const missingClone = join(repoDir, "no-records-clone-here");
+
+    const status = await write("compliance-review", {
+      recordsClonePath: missingClone,
+      records: {
+        enabled: true,
+        transcript: false,
+        destination: { kind: "repo", remote: "https://example.com/records.git" },
+        autoPush: false,
+      },
+    });
+
+    expect(status).toEqual({ kind: "deferred-destination", destination: "repo" });
+    expect(
+      reviewRecordWarning(status, "compliance-review", "phax review-compliance example-run"),
+    ).toContain("run `phax records sync`, then `phax review-compliance example-run`");
     expect(git(["branch", "--list", RECORDS_BRANCH_NAME], repoDir).trim()).toBe("");
   });
 });
@@ -319,7 +344,9 @@ describe("writeReviewRecord when the records commit fails", () => {
     const fakeGit = makeFakeGit();
     const github = makeFakeGitHub();
     fs.impl.setFile("/runs/example/compliance-review.json", COMPLIANCE_FILE);
-    fakeGit.impl.failNextWriteTreeCommit("fatal: unable to write the object");
+    fakeGit.impl.failNextWriteTreeCommit(
+      "fatal: unable to write the object\nhint: a second line git adds\n",
+    );
 
     const status = await Effect.runPromise(
       Effect.provide(
@@ -339,12 +366,17 @@ describe("writeReviewRecord when the records commit fails", () => {
     expect(fakeGit.impl.fakeCommits.size).toBe(0);
     expect(fs.impl.files.get("/runs/example/compliance-review.json")).toBe(COMPLIANCE_FILE);
 
-    const warning = reviewRecordWarning(status, "compliance-review");
+    const warning = reviewRecordWarning(
+      status,
+      "compliance-review",
+      "phax review-compliance example-run",
+    );
     expect(warning).toContain("the compliance-review entry was not committed to phax/records/v1");
-    expect(warning).toContain("fatal: unable to write the object");
+    expect(warning).toContain("(fatal: unable to write the object)");
+    expect(warning).not.toContain("hint:");
     expect(warning).toContain("pending");
     expect(warning).toContain("compliance-review.json stays in the run folder");
-    expect(warning).toContain("phax review-compliance <run>");
+    expect(warning).toContain("rerun `phax review-compliance example-run`");
     expect(warning).not.toContain("phax records status");
   });
 });
@@ -363,5 +395,20 @@ describe("reviewRecordPushWarning", () => {
     expect(warning).toBe(
       `review entry not pushed to origin (rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C /repo push origin ${RECORDS_BRANCH_NAME}\``,
     );
+  });
+
+  it("keeps one line of git's push output, skipping its `To <remote>` preamble", () => {
+    const warning = reviewRecordPushWarning({
+      kind: "failed",
+      remote: "origin",
+      path: "/repo",
+      message:
+        "To ../remote.git\n ! [remote rejected] phax/records/v1 -> phax/records/v1 (pre-receive hook declined)\nerror: failed to push some refs to '../remote.git'\n",
+    });
+    expect(warning).toContain(
+      "(! [remote rejected] phax/records/v1 -> phax/records/v1 (pre-receive hook declined))",
+    );
+    expect(warning).not.toContain("To ../remote.git");
+    expect(warning).not.toContain("error: failed to push");
   });
 });

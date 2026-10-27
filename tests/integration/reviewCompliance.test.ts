@@ -114,6 +114,30 @@ function setupLayers(
   return Layer.mergeAll(backend.layer, fs.layer, NoopSystemTelemetryLayer);
 }
 
+/**
+ * Files the fake agent writes during its session, as a real agent does: phax
+ * clears any earlier review files before the session, so a test cannot seed
+ * them up front.
+ */
+const agentFiles = new WeakMap<object, Array<readonly [string, string]>>();
+function agentWrites(
+  backend: ReturnType<typeof makeFakeBackend>,
+  fs: ReturnType<typeof makeFakeFileSystem>,
+  path: string,
+  content: string,
+): void {
+  let files = agentFiles.get(backend);
+  if (files === undefined) {
+    const list: Array<readonly [string, string]> = [];
+    files = list;
+    agentFiles.set(backend, list);
+    backend.impl.setOnRunAgent(() => {
+      for (const [file, text] of list) fs.impl.setFile(file, text);
+    });
+  }
+  files.push([path, content]);
+}
+
 describe("reviewCompliance", () => {
   it("returns disabled and invokes no agent when config.enabled is false", async () => {
     const fs = makeFakeFileSystem();
@@ -147,11 +171,13 @@ describe("reviewCompliance", () => {
     backend.impl.addRunResponse(fakeSessionResult);
 
     // Pre-seed the agent's output files (simulating what the agent would write into .phax-context/)
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validComplianceJson);
 
     const layers = setupLayers(backend, fs);
 
@@ -264,7 +290,9 @@ describe("reviewCompliance", () => {
     fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
@@ -292,12 +320,16 @@ describe("reviewCompliance", () => {
     fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
     // JSON with invalid verdict
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.json`,
       JSON.stringify({ ...JSON.parse(validComplianceJson), verdict: "invalid-verdict" }),
     );
@@ -322,13 +354,20 @@ describe("reviewCompliance", () => {
     fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
     // JSON with excess key
     const withExcess = { ...JSON.parse(validComplianceJson), bogusKey: "not allowed" };
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, JSON.stringify(withExcess));
+    agentWrites(
+      backend,
+      fs,
+      `${phaxContextPath}/compliance-review.json`,
+      JSON.stringify(withExcess),
+    );
 
     const layers = setupLayers(backend, fs);
 
@@ -370,11 +409,13 @@ describe("reviewCompliance", () => {
     fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validComplianceJson);
 
     const layers = setupLayers(backend, fs);
 
@@ -403,11 +444,13 @@ describe("reviewCompliance", () => {
       "## What was delivered\nPhase 02 artifact.\n",
     );
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validComplianceJson);
 
     const layers = setupLayers(backend, fs);
 
@@ -436,11 +479,13 @@ describe("reviewCompliance", () => {
       "## What was delivered\nPhase 01 done.\n",
     );
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(
+    agentWrites(
+      backend,
+      fs,
       `${phaxContextPath}/compliance-review.md`,
       "# Compliance Review\n\nConformant.\n",
     );
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validComplianceJson);
 
     const layers = setupLayers(backend, fs);
 

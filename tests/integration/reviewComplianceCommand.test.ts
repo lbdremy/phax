@@ -102,6 +102,30 @@ function setupLayers(
   return Layer.mergeAll(backend.layer, fs.layer, NoopSystemTelemetryLayer);
 }
 
+/**
+ * Files the fake agent writes during its session, as a real agent does: phax
+ * clears any earlier review files before the session, so a test cannot seed
+ * them up front.
+ */
+const agentFiles = new WeakMap<object, Array<readonly [string, string]>>();
+function agentWrites(
+  backend: ReturnType<typeof makeFakeBackend>,
+  fs: ReturnType<typeof makeFakeFileSystem>,
+  path: string,
+  content: string,
+): void {
+  let files = agentFiles.get(backend);
+  if (files === undefined) {
+    const list: Array<readonly [string, string]> = [];
+    files = list;
+    agentFiles.set(backend, list);
+    backend.impl.setOnRunAgent(() => {
+      for (const [file, text] of list) fs.impl.setFile(file, text);
+    });
+  }
+  files.push([path, content]);
+}
+
 describe("review-compliance command (use-case layer)", () => {
   it("returns disabled when config is not enabled", async () => {
     const fs = makeFakeFileSystem();
@@ -124,8 +148,8 @@ describe("review-compliance command (use-case layer)", () => {
     fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.md`, "# Review\n\nAll good.\n");
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validJson);
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.md`, "# Review\n\nAll good.\n");
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validJson);
 
     const result = await Effect.runPromise(
       reviewCompliance(makeInfo(), enabledConfig, fakeResolution, fakeSecurity, {}).pipe(
@@ -166,7 +190,12 @@ describe("review-compliance command (use-case layer)", () => {
     fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
     backend.impl.addRunResponse(fakeSessionResult);
-    fs.impl.setFile(`${phaxContextPath}/compliance-review.md`, "# Review\n\nSome prose.\n");
+    agentWrites(
+      backend,
+      fs,
+      `${phaxContextPath}/compliance-review.md`,
+      "# Review\n\nSome prose.\n",
+    );
     // No json artifact
 
     const result = await Effect.runPromise(

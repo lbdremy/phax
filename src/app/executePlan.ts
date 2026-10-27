@@ -2601,6 +2601,7 @@ export function executePlan(
             reviewResolution,
             { mode: securityMode, config: config.security },
             {
+              kind: "project",
               records: config.records,
               repoRoot: config.repoRoot,
               ...(config.records.destination.kind === "repo"
@@ -2612,7 +2613,10 @@ export function executePlan(
           ).pipe(
             Effect.tap((outcome) =>
               Effect.sync(() => {
-                for (const warning of complianceRecordWarnings(outcome)) {
+                for (const warning of complianceRecordWarnings(
+                  outcome,
+                  `phax review-compliance ${shortName}`,
+                )) {
                   process.stderr.write(`[phax] Warning: ${warning}\n`);
                 }
               }),
