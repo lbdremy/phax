@@ -138,7 +138,7 @@ describe("headless code review at run end", () => {
 
   /**
    * One run with the compliance review, the code review and publish.auto on.
-   * `answer` is what the code review session writes (nothing when undefined);
+   * `answer` is the code review session's final message (none when undefined);
    * `codeSession` false queues no response for it, so that session fails.
    */
   async function runOnce(
@@ -214,18 +214,19 @@ describe("headless code review at run end", () => {
           pullRequests: github.impl.calls.filter((c) => c.method === "createPullRequest").length,
         });
         opts.onCodeReview?.(git);
-        if (opts.answer !== undefined) {
-          writeFileSync(join(context, "code-review.json"), opts.answer);
-        }
       }
     });
-    const responses = ["session-phase-01", "session-compliance"];
-    if (opts.codeSession !== false) responses.push("session-code-review");
-    for (const sessionId of responses) {
+    const responses: [string, string][] = [
+      ["session-phase-01", ""],
+      ["session-compliance", ""],
+    ];
+    // The code review answers with its final message.
+    if (opts.codeSession !== false) responses.push(["session-code-review", opts.answer ?? ""]);
+    for (const [sessionId, finalText] of responses) {
       backend.impl.addRunResponse({
         sessionId: sessionId as ClaudeSessionId,
         outputPath: "",
-        finalText: "",
+        finalText,
       });
     }
     backend.impl.addResumeResponse({

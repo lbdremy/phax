@@ -24,6 +24,20 @@ function canEnforcePrefix(enforcement: CommandEnforcement): boolean {
   return enforcement === "exact" || enforcement === "prefix";
 }
 
+/**
+ * The git a headless code review may run: history, diffs and the index, read
+ * only. Granted as prefixes, so a writing git command (`git commit`,
+ * `git checkout`) stays denied.
+ */
+export const CODE_REVIEW_AGENT_COMMANDS: readonly string[] = [
+  "git log",
+  "git diff",
+  "git show",
+  "git status",
+  "git ls-files",
+  "git blame",
+];
+
 /** The one command a headless plan authoring session is granted when a provider or assignment bounds are configured. */
 export const ARCHITECTURE_AGENT_COMMAND = "phax architecture";
 

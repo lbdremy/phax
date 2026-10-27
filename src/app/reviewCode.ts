@@ -7,11 +7,12 @@ import type { RoutingResolution } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../domain/security/agentCommands.js";
+import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
 import {
   buildCodeReviewPrompt,
   buildCodeReviewPositionalPrompt,
   buildHeadlessCodeReviewPrompt,
-  CODE_REVIEW_ANSWER_FILENAME,
   CODE_REVIEW_PROMPT_FILENAME,
   type BuildCodeReviewPromptInput,
   type CodeReviewDoctrine,
@@ -23,7 +24,7 @@ import {
   type CodeReview,
 } from "../schemas/codeReview.js";
 import { Backend } from "../ports/backend.js";
-import type { Git } from "../ports/git.js";
+import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
 import { withInvocationCost } from "./costLedger.js";
 import {
@@ -414,11 +415,12 @@ export type HeadlessCodeReviewResult =
   | { readonly kind: "failed"; readonly reason: string };
 
 /**
- * Review a run's change in one headless session under the compliance review's
- * posture, and keep its answer. An accepted answer becomes `code-review.json`
- * and the run's review session (`code-review-session.json`), written together;
- * a refused answer, a session that wrote none and a failed session write
- * neither, and say why.
+ * Review a run's change in one headless, read-only session, and keep its
+ * answer (the session's final message). An accepted answer becomes
+ * `code-review.json` and the run's review session (`code-review-session.json`),
+ * replaced together or left as they were; a refused answer, an empty one, a
+ * failed session and a session that changed the worktree write neither, and
+ * say why. A session that changed the worktree has those paths put back.
  */
 export function reviewCodeHeadless(
   info: RunReviewInfo,
@@ -426,9 +428,14 @@ export function reviewCodeHeadless(
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
   opts: { readonly bundledReviewSkill: string; readonly nowIso: string },
-): Effect.Effect<HeadlessCodeReviewResult, FsError, Backend | FileSystem | SystemTelemetry> {
+): Effect.Effect<
+  HeadlessCodeReviewResult,
+  FsError | GitError,
+  Backend | FileSystem | Git | SystemTelemetry
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const git = yield* Git;
     const backend = yield* Backend;
     const telemetry = yield* SystemTelemetry;
     const runId = info.runId as RunId;
@@ -442,18 +449,14 @@ export function reviewCodeHeadless(
     );
 
     const worklist = yield* loadCodeReviewWorklist(info, opts.bundledReviewSkill);
-
-    const phaxContextPath = join(info.worktreePath, PHAX_CONTEXT_DIR);
-    yield* fs.mkdirp(phaxContextPath);
-    // A previous invocation's answer would be read back as this one's when
-    // the session writes none: only what this session writes counts.
-    const answerPath = join(phaxContextPath, CODE_REVIEW_ANSWER_FILENAME);
-    if (yield* fs.exists(answerPath)) yield* fs.remove(answerPath);
+    const firstPhase = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex)[0];
 
     const prompt = buildHeadlessCodeReviewPrompt({
       worktreePath: info.worktreePath,
       ...worklist,
-      answerPath,
+      baseRef: firstPhase?.base ?? null,
+      runBranch: info.branch,
+      gitCommands: CODE_REVIEW_AGENT_COMMANDS,
     });
 
     const policy = resolveReviewSecurityPolicy({
@@ -465,6 +468,7 @@ export function reviewCodeHeadless(
     const provider = resolution.selected.provider;
     const outputJsonlPath = join(info.runPath, CODE_REVIEW_STREAM_FILENAME);
 
+    const before = yield* git.snapshotWorktree(info.worktreePath);
     const agentResult = yield* Effect.either(
       withInvocationCost(
         backend.runAgent(prompt, {
@@ -472,7 +476,11 @@ export function reviewCodeHeadless(
           model: resolution.selected.concreteModel,
           effort: resolution.selected.thinking ?? config.effort,
           cwd: info.worktreePath,
-          security: policy,
+          security: { ...policy, agentCommands: [...CODE_REVIEW_AGENT_COMMANDS] },
+          agentCommands: CODE_REVIEW_AGENT_COMMANDS,
+          // The review answers and never writes: its reading tools and the
+          // read-only git above, whatever the policy allows.
+          readOnly: true,
           outputJsonlPath,
         }),
         {
@@ -489,24 +497,31 @@ export function reviewCodeHeadless(
     const fail = (reason: string) =>
       ({ kind: "failed", reason }) satisfies HeadlessCodeReviewResult;
 
+    // A provider that ignores read-only could still have written: whatever the
+    // session changed is put back, and the review is refused.
+    const after = yield* git.snapshotWorktree(info.worktreePath);
+    if (after !== before) {
+      const changed = yield* git.changedPathsBetween(info.worktreePath, before, after);
+      const paths = changed.map((c) => c.path).toSorted();
+      if (paths.length > 0) {
+        yield* git.restorePaths(info.worktreePath, before, paths);
+        return fail(`the session changed the worktree (put back): ${paths.join(", ")}`);
+      }
+    }
+
     if (Either.isLeft(agentResult)) {
       return fail(`the session failed: ${agentResult.left.message}`);
     }
 
-    const answerRead = (yield* fs.exists(answerPath))
-      ? yield* Effect.either(fs.readText(answerPath))
-      : undefined;
-    if (answerRead === undefined || Either.isLeft(answerRead)) {
-      return fail(`the session wrote no answer at ${answerPath}`);
-    }
+    const finalText = agentResult.right.finalText.trim();
+    if (finalText === "") return fail("the session gave no answer");
 
-    const answer = readCodeReviewAnswer(answerRead.right);
+    const answer = readCodeReviewAnswer(extractJsonDocumentText(finalText));
     if (Either.isLeft(answer)) return fail(`answer refused: ${answer.left}`);
 
     const review = answer.right;
     const reviewPath = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
-    yield* fs.writeAtomic(reviewPath, codeReviewFileText(review));
-
+    const sessionPath = join(info.runPath, CODE_REVIEW_SESSION_FILENAME);
     const session: CodeReviewSession = {
       version: 1,
       shortName: info.shortName,
@@ -517,10 +532,22 @@ export function reviewCodeHeadless(
       createdAt: opts.nowIso,
       updatedAt: opts.nowIso,
     };
-    yield* fs.writeAtomic(
-      join(info.runPath, CODE_REVIEW_SESSION_FILENAME),
-      JSON.stringify(encodeCodeReviewSession(session), null, 2),
+
+    // The pair is replaced together or left as it was: a failed second write
+    // puts the first file back.
+    const previousReview = (yield* fs.exists(reviewPath))
+      ? yield* fs.readText(reviewPath)
+      : undefined;
+    yield* fs.writeAtomic(reviewPath, codeReviewFileText(review));
+    const sessionWrite = yield* Effect.either(
+      fs.writeAtomic(sessionPath, JSON.stringify(encodeCodeReviewSession(session), null, 2)),
     );
+    if (Either.isLeft(sessionWrite)) {
+      yield* previousReview === undefined
+        ? fs.remove(reviewPath)
+        : fs.writeAtomic(reviewPath, previousReview);
+      return fail(`the review could not be kept: ${sessionWrite.left.message}`);
+    }
 
     yield* telemetry.recordEvent(
       makeArtifactGeneratedTelemetryEvent({
