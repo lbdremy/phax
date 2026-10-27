@@ -382,12 +382,19 @@ Given an accepted compliance answer, when phax writes compliance-review.json, th
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-unsupported-combination — If the smoke test shows that Claude Code's `--json-schema` does not work with `--resume`, `--tools` or stream-json for a given call, what does that call do on Claude Code?
 
 - prompt-fallback — That call, on Claude Code only, stays on the schema in the prompt plus phax's decoder and the corrective resume, like Vibe, and the per-provider table names it — abandons: One path for every structured call on Claude Code: the affected calls (likely decide's handback and every corrective resume) keep paying a corrective turn for shape mistakes.
 - hold-the-call — The spec does not ship native structured output for that call on either provider until Claude Code supports the combination — abandons: Codex's native structured output for that call, which works today, held back for a Claude Code gap.
 
 Recommendation: prompt-fallback — phax's decoder and the corrective resume already judge every answer, so a call left on the prompt schema loses only the saving, not correctness; holding Codex back for a Claude Code gap gives up a gain that is already there. The fallback is per call and per provider, named and tested, never silent.
+
+Decision: prompt-fallback — by operator (Rémy Loubradou), 2026-10-27
+Why: phax's decoder and the corrective resume already judge every answer, so a call left on the prompt schema loses only the saving, not correctness; holding Codex back for a Claude Code gap gives up a gain that is already there. The fallback is per call and per provider, named and tested, never silent. Advocate: The strongest case for hold-the-call: one behavior per call across providers is easier to reason about, and a call that silently differs on Claude Code splits the test matrix and hides a gap that should be fixed upstream. Principles: S1. Reversibility: cheap. Revised: none.
 
 ### q-compliance-prose — The compliance Markdown is now rendered by phax from the answer. What happens to the reviewer's free prose?
 
@@ -396,9 +403,8 @@ Recommendation: prompt-fallback — phax's decoder and the corrective resume alr
 
 Recommendation: fields-only — The compliance review is advisory and read beside the verdict; what made it unreliable is prose that could disagree with the JSON. The ledgers were the structured part of that prose and become fields; the summary and per-finding messages keep room for the reviewer's words.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: fields-only — by operator (Rémy Loubradou), 2026-10-27
+Why: The compliance review is advisory and read beside the verdict; what made it unreliable is prose that could disagree with the JSON. The ledgers were the structured part of that prose and become fields; the summary and per-finding messages keep room for the reviewer's words. Advocate: The strongest case for narrative-field: a reviewer's reasoning often fits no field, and a required narrative keeps that judgment for the human reader instead of discarding it. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -440,3 +446,8 @@ Page: Structured answers and providers
 Reader: An operator choosing which provider runs authoring, decide and review roles, who wants to know what each provider checks and what phax checks after it.
 
 Example: A per-provider table for the eight structured calls (Claude Code `--json-schema`, Codex `--output-schema`, Vibe schema in the prompt), then one refused code-review answer: the provider schema let it through, phax's coherence check refused it, and the corrective resume fixed it.
+
+## 12. Decision log
+
+- 2026-10-27 q-unsupported-combination decided prompt-fallback — operator (Rémy Loubradou)
+- 2026-10-27 q-compliance-prose decided fields-only — operator (Rémy Loubradou)

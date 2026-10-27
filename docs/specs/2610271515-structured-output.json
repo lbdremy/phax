@@ -503,7 +503,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-unsupported-combination",
       "question": "If the smoke test shows that Claude Code's `--json-schema` does not work with `--resume`, `--tools` or stream-json for a given call, what does that call do on Claude Code?",
@@ -520,7 +521,27 @@
         }
       ],
       "recommendation": "prompt-fallback",
-      "rationale": "phax's decoder and the corrective resume already judge every answer, so a call left on the prompt schema loses only the saving, not correctness; holding Codex back for a Claude Code gap gives up a gain that is already there. The fallback is per call and per provider, named and tested, never silent."
+      "rationale": "phax's decoder and the corrective resume already judge every answer, so a call left on the prompt schema loses only the saving, not correctness; holding Codex back for a Claude Code gap gives up a gain that is already there. The fallback is per call and per provider, named and tested, never silent.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "prompt-fallback",
+        "abandoned": [
+          "hold-the-call"
+        ],
+        "why": "phax's decoder and the corrective resume already judge every answer, so a call left on the prompt schema loses only the saving, not correctness; holding Codex back for a Claude Code gap gives up a gain that is already there. The fallback is per call and per provider, named and tested, never silent.",
+        "advocate": "The strongest case for hold-the-call: one behavior per call across providers is easier to reason about, and a call that silently differs on Claude Code splits the test matrix and hides a gap that should be fixed upstream.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T15:28:28.978Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-compliance-prose",
@@ -538,10 +559,30 @@
         }
       ],
       "recommendation": "fields-only",
-      "rationale": "The compliance review is advisory and read beside the verdict; what made it unreliable is prose that could disagree with the JSON. The ledgers were the structured part of that prose and become fields; the summary and per-finding messages keep room for the reviewer's words."
+      "rationale": "The compliance review is advisory and read beside the verdict; what made it unreliable is prose that could disagree with the JSON. The ledgers were the structured part of that prose and become fields; the summary and per-finding messages keep room for the reviewer's words.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "fields-only",
+        "abandoned": [
+          "narrative-field"
+        ],
+        "why": "The compliance review is advisory and read beside the verdict; what made it unreliable is prose that could disagree with the JSON. The ledgers were the structured part of that prose and become fields; the summary and per-finding messages keep room for the reviewer's words.",
+        "advocate": "The strongest case for narrative-field: a reviewer's reasoning often fits no field, and a required narrative keeps that judgment for the human reader instead of discarding it.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T15:28:28.978Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Prerequisite: the spec \"Provider failures\" ships first; the structured answer is the answer side of its session outcome, and `error_max_structured_output_retries` stays its `provider-error`.",
