@@ -10,7 +10,7 @@ scope: functional behavior and consumption surface
 
 phax lets a plan freeze tests before the code exists. One phase writes failing tests from the source spec's acceptance criteria, each behind the test framework's expected-failure marker so the gate stays green. A later phase removes the markers and writes the code, and may not otherwise touch those files. A configured provider judges both gates. phax calls the first phase an oracle phase, its tests oracles, its files oracle files, and says the later phase discharges them.
 
-The name runs through every layer. In plan.md it is the header lines `**Oracle phase:** yes | discharged by phase-NN` and `**Oracle files:** …`, checked by lint's `oracles` check. In phax-plan.json and the plan sidecar it is the phase key `oracle: { dischargedBy, files } | null`. In config it is the `oracles` provider block beside `brief` and `architecture`. Then come the `oracle-request` document on that provider's stdin (verdicts `authored` / `discharged`, keys `oraclePhase`, `oracleCommit`), saved as `checks-attempt-NN.oracle-request.json`, and the gate attribution's appended step with `surface: "oracle"`. Run status has the hold selection `oracle`, and phase status has `oracleStep` on a closed stop. The phase record manifest has the role `oracle` (with `dischargedBy`) or `discharging` (with `oraclePhase`). On the CLI it is `phax run --hold oracle`, `phax resume --skip-oracle` and "Oracle preflight failed", with exit 11. It is also the `## Oracle role` prompt section, the fix-prompt tail, the `oracle.edits.unjudged` telemetry event, the `oracle role` row of `phax plans overview`, the `oracle` row of `phax records explain`, the schemas package's `parseOracleRequest`, the docs page `/guide/oracle-phases`, the `examples/vitest-oracles` example, and four skills.
+The name runs through every layer. In plan.md it is the header lines `**Oracle phase:** yes | discharged by phase-NN` and `**Oracle files:** …`, checked by lint's `oracles` check. In phax-plan.json and the plan sidecar it is the phase key `oracle: { dischargedBy, files } | null`. In config it is the `oracles` provider block beside `brief` and `architecture`. Then come the `oracle-request` document on that provider's stdin (verdicts `authored` / `discharged`, keys `oraclePhase`, `oracleCommit`), saved as `checks-attempt-NN.oracle-request.json`, and the gate attribution's appended step with `surface: "oracle"`. Run status has the hold selection `oracle`, and phase status has `oracleStep` on a closed stop. The phase record manifest has the role `oracle` (with `dischargedBy`) or `discharging` (with `oraclePhase`). On the CLI it is `phax run --hold oracle`, `phax resume --skip-oracle` and "Oracle preflight failed", with exit 11. It is also the `## Oracle role` prompt section, the fix-prompt tail, the `oracle.edits.unjudged` telemetry event, the `oracle role` row and the `oracleRole` JSON key of `phax plans overview`, the `oracle` row of `phax records explain`, the `## Oracle pairs` section of the review handoff, `oracle` among a phase record's and a run's verified surfaces, the schemas package's `parseOracleRequest`, the docs page `/guide/oracle-phases`, the `examples/vitest-oracles` example, and four skills.
 
 The test line is `<guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <criterion>]`. Its fourth field is what judges the result. Its fifth is the loop that owns the test. The closed technique list is `example, table, property, metamorphic, stateful, fuzz, contract, smoke`. The `phax-review` skill's `wrong-oracle` escape already uses the word in its literature sense.
 
@@ -38,6 +38,9 @@ Ground read:
 - `phax.usage.kdl` — `--skip-oracle`, the `--hold` help, and the usage contract texts.
 - `src/domain/plan/overviewRender.ts` — The `oracle role` row of `phax plans overview`.
 - `src/cli/commands/records.ts` — The `oracle` row of `phax records explain`.
+- `src/domain/plan/overview.ts` — The `oracleRole` of `phax plans overview --json`: `oracle` with `dischargedBy`, `discharging` with `oraclePhase`, or `none`.
+- `src/domain/plan/oraclePairs.ts` — The review handoff's `## Oracle pairs` table (`Oracle phase | Discharged by | Authored | Discharged`) and the `--skip-oracle` refusals.
+- `src/schemas/surface.ts` — The recorded surface `oracle`, also listed in a phase record's `verifiedSurfaces`, the run's verified surfaces and the PR body.
 - `packages/schemas/src/formats/oracleRequest.ts` — The schemas package's `oracleRequestFormat`, `parseOracleRequest`, `toLatestOracleRequest`.
 - `.claude/skills/phax-planning/SKILL.md` — The "Oracle phases" section, "What makes a good oracle", the loop coordinate, and the "Oracle candidate" column.
 - `.claude/skills/phax-review/SKILL.md` — The `wrong-oracle` escape (the literature meaning, kept) beside "oracle pairs" and "discharged" (renamed).
@@ -121,7 +124,7 @@ The system shall write on the acceptance provider's stdin, and save as `checks-a
 
 ### 5.13 New names in written documents
 
-The system shall write phax-plan, plan-document, run-status, phase-status, gate-attribution and phase-record-manifest documents stamped at 0.29.0, carrying only the new names of the rename table: phase key `acceptance: { passedBy, files } | null`, hold selection `acceptance`, stop key `acceptanceStep`, step surface `acceptance`, record role `acceptance` with `passedBy` or `passing` with `acceptancePhase`.
+The system shall write phax-plan, plan-document, run-status, phase-status, gate-attribution and phase-record-manifest documents stamped at 0.29.0, carrying only the new names of the rename table: phase key `acceptance: { passedBy, files } | null`, hold selection `acceptance`, stop key `acceptanceStep`, step surface and verified surface `acceptance`, record role `acceptance` with `passedBy` or `passing` with `acceptancePhase`.
 
 ### 5.14 Records already written stay readable
 
@@ -149,7 +152,7 @@ The system shall name acceptance phases, acceptance tests, acceptance test files
 
 ### 5.20 Oracle in its literature sense only
 
-The system shall use the word oracle only for the test line's fourth field, the `phax-review` skill's `wrong-oracle` escape, and prose about what judges a test, and shall use the word discharge nowhere.
+The system shall use the word oracle only for the test line's fourth field, the `phax-review` skill's `wrong-oracle` escape, and prose about what judges a test, and shall use the word discharge nowhere, except in the refusals of old names and where it reads or lifts a document written by an earlier release.
 
 ### 5.21 The planning skill rewritten
 
@@ -157,7 +160,7 @@ The bundled phax-planning skill shall teach acceptance phases under an "Acceptan
 
 ### 5.22 Upgrade entry
 
-The upgrading guide shall carry a 0.29.0 entry naming every step an operator takes: the migration, hand-written plans, the phax.json key, the `--hold` and `--skip-acceptance` spellings, and runs in flight.
+The upgrading guide shall carry a 0.29.0 entry naming every step an operator takes: the migration, hand-written plans, the phax.json key and its overlays, the `--hold` and `--skip-acceptance` spellings, the acceptance provider's command reading an `acceptance-request`, scripts reading the renamed status, record and overview names or the schemas package's renamed exports, and runs in flight.
 
 ## 6. Surface
 
@@ -200,16 +203,22 @@ after:
 
 Summary: Running a plan that still uses the oracle names is refused before anything runs, and each refusal names what to write instead.
 
+    $ phax plans lint docs/plans/2610271100-publish-plan.md
+    docs/plans/2610271100-publish-plan.md: 3 errors, 0 warnings
+    error    acceptance  phase-03  **Oracle phase:** is no longer read: write **Acceptance phase:**
+    error    acceptance  phase-03  **Oracle files:** is no longer read: write **Acceptance test files:**
+    error    tests       phase-03  test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'
+    $? = 1
+
     $ phax run docs/plans/2610271100-publish-plan.md
+    docs/plans/2610271100-publish-plan.md: phase-03 test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance' — run phax plans lint docs/plans/2610271100-publish-plan.md
+
+    $ phax run docs/plans/2610271100-publish-plan.md        # test line rewritten, header lines not yet
     Acceptance preflight failed: 2 error(s).
       phase-03  **Oracle phase:** is no longer read: write **Acceptance phase:**
       phase-03  **Oracle files:** is no longer read: write **Acceptance test files:**
     Fix the plan, then check it with `phax plans lint docs/plans/2610271100-publish-plan.md`.
     $? = 11
-
-    $ phax plans lint docs/plans/2610271100-publish-plan.md
-      phase-03  test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'
-    $? = 1
 
 ### config: phax.json acceptance provider — normative
 
@@ -318,29 +327,34 @@ after:
 
 ### file: gate attribution and phase record — normative
 
-Summary: A gate attribution's appended step carries the surface `acceptance`, and a phase record names its role as `acceptance` or `passing`.
+Summary: A gate attribution's appended step carries the surface `acceptance`, and a phase record names its role as `acceptance` or `passing` and lists `acceptance` among its verified surfaces.
 
 before:
 
     gate attribution:  { "command": "node scripts/acceptance-verdicts.mjs", "surface": "oracle", "result": "pass" }
     record manifest:   "oracle": { "role": "oracle", "dischargedBy": "phase-04" }
                        "oracle": { "role": "discharging", "oraclePhase": "phase-03" }
+                       "verifiedSurfaces": ["local", "oracle"]
 
 after:
 
     gate attribution:  { "command": "node scripts/acceptance-verdicts.mjs", "surface": "acceptance", "result": "pass" }
     record manifest:   "acceptance": { "role": "acceptance", "passedBy": "phase-04" }
                        "acceptance": { "role": "passing", "acceptancePhase": "phase-03" }
+                       "verifiedSurfaces": ["acceptance", "local"]
 
 ### cli: phax plans overview and phax records explain — indicative
 
-Summary: The plan overview and the records explanation show each phase's acceptance role, and records written before the rename read the same way.
+Summary: The plan overview, as text and as JSON, and the records explanation show each phase's acceptance role, and records written before the rename read the same way.
 
 before:
 
     $ phax plans overview docs/plans/2610271100-publish-plan.md
     phase-03 — Acceptance tests for publish  claude-sonnet-5-5 · medium · headless
       oracle role  oracle phase, discharged by phase-04
+
+    $ phax plans overview docs/plans/2610271100-publish-plan.md --json
+          "oracleRole": { "kind": "oracle", "dischargedBy": "phase-04" },
 
     $ phax records explain <commit>
     oracle   discharges phase-03 — node scripts/acceptance-verdicts.mjs: pass
@@ -350,6 +364,9 @@ after:
     $ phax plans overview docs/plans/2610271100-publish-plan.md
     phase-03 — Acceptance tests for publish  claude-sonnet-5-5 · medium · headless
       acceptance role  acceptance phase, passed by phase-04
+
+    $ phax plans overview docs/plans/2610271100-publish-plan.md --json
+          "acceptanceRole": { "kind": "acceptance", "passedBy": "phase-04" },
 
     $ phax records explain <commit>
     acceptance   passes phase-03 — node scripts/acceptance-verdicts.mjs: pass
@@ -426,6 +443,7 @@ after:
 - Any technique beyond `boundary`. Golden or snapshot tests are an oracle (`example · the golden file`), and pairwise and mutation are not wanted now.
 - Any change to how acceptance phases behave: the pairing rules, markers, gate judgments, holds, stops, resets and refusals stay as they are, under new names.
 - Rewriting archived plans and specs, briefs under `docs/briefs/`, past release notes under `docs/releases/`, or the upgrading entries of releases before 0.29.0: they record what those releases shipped.
+- Rewriting the prose of specs and plans under `docs/specs/` and `docs/plans/`: they record decisions in the words of their day. `phax artifact migrate-documents` lifts a live plan sidecar's fields and re-renders what they render; nothing else in an artifact changes.
 - Rewriting records, gate attributions, oracle requests or status files already written: they are read as they are.
 - Resuming a run started by an earlier release: it is refused, as in 0.28.0.
 - Recognizing an old name anywhere beyond the refusals this spec lists. An old name is refused with the new name, never accepted as an alias.
@@ -494,11 +512,11 @@ Given the same stopped run, when `phax resume <run> --yes --skip-oracle` runs, t
 
 ### Status and records carry the new names
 
-Given a held stop on acceptance phase phase-03 closed with a correction whose gate passed the acceptance step, and the pair's records written, when status.json and the two record manifests are read, then the stop carries `"acceptanceStep": "authored"`, phase-03's manifest carries `"acceptance": { "role": "acceptance", "passedBy": "phase-04" }`, phase-04's carries `"acceptance": { "role": "passing", "acceptancePhase": "phase-03" }`, and each is stamped 0.29.0. (refs §5.13)
+Given a held stop on acceptance phase phase-03 closed with a correction whose gate passed the acceptance step, and the pair's records written, when status.json and the two record manifests are read, then the stop carries `"acceptanceStep": "authored"`, phase-03's manifest carries `"acceptance": { "role": "acceptance", "passedBy": "phase-04" }` and lists `acceptance` in its `verifiedSurfaces`, phase-04's carries `"acceptance": { "role": "passing", "acceptancePhase": "phase-03" }`, and each is stamped 0.29.0. (refs §5.13)
 
 ### Records from 0.28.0 still read
 
-Given a repository holding records, gate attributions and `checks-attempt-01.oracle-request.json` files written by phax 0.28.0 for an oracle pair, when `phax records explain <commit>` runs on the discharging phase's commit, and `parseAcceptanceRequest` from @lbdremy/phax-schemas parses the saved oracle request, then the explanation shows `acceptance   passes phase-03 — <command>: pass`, and the parse succeeds with `verdict` `passed`, `acceptancePhase` and `acceptanceCommit`. (refs §5.14, §5.19)
+Given a repository holding records, gate attributions and `checks-attempt-01.oracle-request.json` files written by phax 0.28.0 for an oracle pair, when `phax records explain <commit>` runs on the discharging phase's commit, and `parseAcceptanceRequest` from @lbdremy/phax-schemas parses the saved oracle request and `toLatestAcceptanceRequest` lifts it, then the explanation shows `acceptance   passes phase-03 — <command>: pass`, and the parse succeeds, the lifted request carrying `verdict` `passed`, `acceptancePhase` and `acceptanceCommit`. (refs §5.14, §5.19)
 
 ### A live plan is lifted
 
@@ -522,7 +540,7 @@ Given an acceptance pair whose passing phase runs, fails its acceptance step, an
 
 ### Oracle survives only in its literature sense
 
-Given the repository after the change, when a check scans the sources, help texts, usage contract, JSON Schemas, README, live docs (outside `archive/`, `docs/briefs/`, `docs/releases/` and the upgrading entries before 0.29.0), the site, the examples and the skills for `oracle` and `discharg`, then `discharg` appears nowhere, and every `oracle` is the test line's fourth field, the `wrong-oracle` escape, prose about what judges a test, or a refusal naming an old name. (refs §5.20, §5.19)
+Given the repository after the change, when a check scans the sources, help texts, usage contract, JSON Schemas, README, live docs (outside `docs/specs/`, `docs/plans/`, `docs/briefs/`, `docs/releases/` and the upgrading entries before 0.29.0), the site, the examples and the skills for `oracle` and `discharg`, then `discharg` and every other `oracle` appear only in a refusal naming an old name, the 0.29.0 upgrading entry, a reader, lift or frozen schema of a shape an earlier release wrote, or the slug of the archived spec `oracle-phases`; every remaining `oracle` is the test line's fourth field, the `wrong-oracle` escape or prose about what judges a test. (refs §5.20, §5.19)
 
 ### The planning skill teaches acceptance phases
 
@@ -530,7 +548,7 @@ Given the phax-planning skill as `phax skills install` writes it, and the copy u
 
 ### The upgrade entry
 
-Given docs/upgrading.md, when it is read, then it holds a `### 0.29.0` entry naming `phax artifact migrate-documents`, the hand-written plan lines and test-line loop, the `acceptance` key of phax.json, `--hold acceptance`, `--skip-acceptance`, and runs in flight. (refs §5.22)
+Given docs/upgrading.md, when it is read, then it holds a `### 0.29.0` entry naming `phax artifact migrate-documents`, the hand-written plan lines and test-line loop, the `acceptance` key of phax.json and its overlays, `--hold acceptance`, `--skip-acceptance`, the `acceptance-request` an acceptance provider now reads (verdict `passed`, `acceptancePhase`, `acceptanceCommit`), the renamed status, record and schemas-package names, and runs in flight. (refs §5.22)
 
 ## 9. Open questions
 
@@ -547,19 +565,21 @@ Settled:
 - Rename table, plan Markdown: `**Oracle phase:** yes` → `**Acceptance phase:** yes`; `**Oracle phase:** discharged by phase-NN` → `**Acceptance phase:** passed by phase-NN`; `**Oracle files:**` → `**Acceptance test files:**`.
 - Rename table, lint: check `oracles` → `acceptance`; check `tests` keeps its name. Every message of the old `oracles` check is reworded with the new terms, rules unchanged.
 - Rename table, plan document and phax-plan.json: phase key `oracle` → `acceptance`; `dischargedBy` → `passedBy`; `files` unchanged. Both formats move to 0.29.0.
-- Rename table, test line: loop `oracle` → `acceptance`; `in-phase` unchanged; the fourth field `oracle` keeps its name; a criterion id may not be `acceptance` or `in-phase`; technique `boundary` added after `example`.
+- Rename table, test line: loop `oracle` → `acceptance`; `in-phase` unchanged; the fourth field `oracle` keeps its name; a criterion id may be neither `acceptance`, `in-phase` nor `oracle` (`oracle` stays refused so the old loop is recognized and refused by name); technique `boundary` added after `example`.
 - Rename table, configuration: key `oracles` → `acceptance` in phax.json, phax.local.json, ~/.phax/config.json and the editor schemas phax.schema.json and phax.user.schema.json.
 - Rename table, published format: `oracle-request` → `acceptance-request` at `https://docs.phax.run/schemas/acceptance-request/0.29.0.json`, born with `$schema`; verdict `authored` unchanged, `discharged` → `passed`; `oraclePhase` → `acceptancePhase`; `oracleCommit` → `acceptanceCommit`; saved file `checks-attempt-NN.oracle-request.json` → `checks-attempt-NN.acceptance-request.json`.
-- Rename table, gate attribution: appended step `surface: "oracle"` → `surface: "acceptance"` (0.29.0). A configured gate step still may not declare it.
+- Rename table, gate attribution: appended step `surface: "oracle"` → `surface: "acceptance"` (0.29.0). A configured gate step still may not declare it. The recorded surface `oracle` → `acceptance` wherever a surface is recorded or reported: a phase record manifest's `verifiedSurfaces` (0.29.0), the run's verified surfaces in the final report and the PR body, and `phax records list`.
 - Rename table, run status: hold selection `oracle` → `acceptance` (0.29.0). Phase status: stop key `oracleStep` → `acceptanceStep` (0.29.0), values `authored | none` unchanged.
 - Rename table, phase record manifest: key `oracle` → `acceptance`; role `oracle` with `dischargedBy` → role `acceptance` with `passedBy`; role `discharging` with `oraclePhase` → role `passing` with `acceptancePhase` (0.29.0).
-- Rename table, CLI: `--hold oracle` → `--hold acceptance`; `--skip-oracle` → `--skip-acceptance`; "Oracle preflight failed" → "Acceptance preflight failed" (exit 11 unchanged); "The oracle step failed after all fix attempts." → "The acceptance step failed after all fix attempts."; overview row `oracle role` → `acceptance role` with `acceptance phase, passed by phase-NN` / `passes phase-NN`; records explain row `oracle` → `acceptance` with the same values.
+- Rename table, CLI: `--hold oracle` → `--hold acceptance`; `--skip-oracle` → `--skip-acceptance`; "Oracle preflight failed" → "Acceptance preflight failed" (exit 11 unchanged); "The oracle step failed after all fix attempts." → "The acceptance step failed after all fix attempts."; overview row `oracle role` → `acceptance role` with `acceptance phase, passed by phase-NN` / `passes phase-NN`; records explain row `oracle` → `acceptance` with the same values; `phax plans overview --json` key `oracleRole` → `acceptanceRole`, kind `oracle` with `dischargedBy` → kind `acceptance` with `passedBy`, kind `discharging` with `oraclePhase` → kind `passing` with `acceptancePhase`, kind `none` unchanged.
+- Rename table, review handoff: section `## Oracle pairs` → `## Acceptance pairs`; its columns `Oracle phase | Discharged by | Authored | Discharged` → `Acceptance phase | Passed by | Authored | Passed`.
 - Rename table, prompt: `## Oracle role` → `## Acceptance role`. Its paragraphs say "acceptance tests", "acceptance test files", "pass" and "the acceptance provider". The fix-prompt tail says "The acceptance provider runs only at the gate". The authoring prompt names the `acceptance` provider and the skill's acceptance-phase section.
 - Rename table, telemetry: event `oracle.edits.unjudged` → `acceptance.edits.unjudged`, and its console line `phax·acceptance.edits.unjudged`. Every span, attribute or event value naming an oracle step (such as a failed step `oracle`) becomes `acceptance`.
 - Rename table, schemas package: `oracleRequestFormat` → `acceptanceRequestFormat`, `parseOracleRequest` → `parseAcceptanceRequest`, `toLatestOracleRequest` → `toLatestAcceptanceRequest`, and the types to match. The parser still reads 0.26.0 `oracle-request` documents, lifted to the latest acceptance request.
-- Rename table, docs and skills: `docs/oracle-phases.md` → `docs/acceptance-phases.md`; site route `/guide/oracle-phases` → `/guide/acceptance-phases`, titled "Acceptance phases"; `examples/vitest-oracles` → `examples/vitest-acceptance`. In phax-decide-plan, `P3` becomes "Acceptance first" and `oracle-authoring` becomes an acceptance phase. In phax-decide-review, `R4` becomes "Acceptance tests are not fix targets". phax-review says "acceptance pairs" and "passed", and keeps `wrong-oracle`.
+- Rename table, docs and skills: `docs/oracle-phases.md` → `docs/acceptance-phases.md`; site route `/guide/oracle-phases` → `/guide/acceptance-phases`, titled "Acceptance phases"; `examples/vitest-oracles` → `examples/vitest-acceptance`, and this repository's phax.json (`"acceptance": { "command": "node examples/vitest-acceptance/main.mjs" }`) and knip.json follow it. In phax-planning, "What makes a good oracle" becomes "What makes a good acceptance test" and the `#oracle-phases` anchor `#acceptance-phases`. In phax-decide-plan, `P3` and the skill's description say "Acceptance first" and `oracle-authoring` becomes an acceptance phase. In phax-decide-review, `R4` becomes "Acceptance tests are not fix targets". phax-review says "acceptance pairs" and "passed", and keeps `wrong-oracle`.
 - Refusal wording, each normative: `**Oracle phase:** is no longer read: write **Acceptance phase:**`; `**Oracle files:** is no longer read: write **Acceptance test files:**`; `test line <n> uses the loop 'oracle', which is no longer read: write 'acceptance'`; `<file>: "oracles" is no longer read: write "acceptance"`; `--hold 'oracle' is no longer read: write --hold acceptance`; `--skip-oracle is no longer read: write --skip-acceptance`. They follow the existing `**Model reason:** is no longer read: write **Assignment reason:**`.
 - Every published format whose shape changes is stamped 0.29.0. Earlier shapes stay readable through the frozen history readers, as earlier lifts did, and none is accepted as a current input where a person writes it.
+- Internal names follow the same table: types, functions, modules, test names and the run preflight check `oracle-phases` (→ `acceptance-phases`) need no row of their own. Only the readers and lifts of earlier shapes, and the frozen schemas of earlier releases, keep the old names.
 
 Left open:
 
@@ -572,6 +592,7 @@ Constraints:
 - The runs of this plan edit the phax-planning skill and its bundled copy, so they need `phax run --allow-skill-edits`.
 - Behaviour of acceptance pairs does not change: every existing oracle-phase test keeps its scenario and asserts the new names.
 - The decoder and the published JSON Schemas must agree: the technique enum, the loop enum and the criterion refusal all change in both.
+- An extraction cached by an earlier release is never reused: the extractor version moves, as it did when phases gained test lines.
 
 ## 11. Docs page
 
