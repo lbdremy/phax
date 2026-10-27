@@ -77,35 +77,49 @@ export function buildCodeReviewPrompt(input: BuildCodeReviewPromptInput): string
     .join("\n");
 }
 
-/** The headless review's answer under `.phax-context`, in the final worktree. */
-export const CODE_REVIEW_ANSWER_FILENAME = "code-review.json";
+/** What the headless prompt adds to the interactive worklist and doctrine. */
+export interface HeadlessCodeReviewPromptInput extends BuildCodeReviewPromptInput {
+  /** The commit the run started from, or null when no phase noted one. */
+  readonly baseRef: string | null;
+  /** The run's branch, holding every phase's commits. */
+  readonly runBranch: string;
+  /** The git commands the session may run, read only. */
+  readonly gitCommands: readonly string[];
+}
 
 /**
  * The prompt of the headless review: the interactive prompt's worklist,
- * compliance findings and doctrine, with no developer, no fix and an answer
- * file in place of the conversation.
+ * compliance findings and doctrine, read only, with the answer as the
+ * session's final message. The restrictions are this pass's: a person may
+ * resume the session afterwards and ask it for fixes.
  */
-export function buildHeadlessCodeReviewPrompt(
-  input: BuildCodeReviewPromptInput & { readonly answerPath: string },
-): string {
-  const { worktreePath, attentionPoints, compliance, complianceMissing, doctrine, answerPath } =
-    input;
+export function buildHeadlessCodeReviewPrompt(input: HeadlessCodeReviewPromptInput): string {
+  const { worktreePath, attentionPoints, compliance, complianceMissing, doctrine } = input;
 
-  const complianceSection = compliance
-    ? buildComplianceSection(compliance)
-    : complianceMissing
-      ? "_No compliance findings are available for this run._\n"
-      : "";
+  const complianceSection =
+    compliance && hasComplianceFindings(compliance)
+      ? buildComplianceSection(compliance)
+      : complianceMissing
+        ? "_No compliance findings are available for this run._\n"
+        : "";
 
   return [
     "# Headless code review",
     "",
-    "You review a phax run's change alone: no developer is present, you apply no fix, you edit no file,",
-    "`git` is your only command, and you write only the answer file named below.",
+    "In this pass you review a phax run's change alone: nobody answers you, you apply no fix and you",
+    `edit no file. You can read files, and run only these read-only git commands: ${idList(input.gitCommands)}.`,
+    "A developer may later resume this session to ask you for fixes; from then on, follow their",
+    "instructions.",
     "",
     "## Worktree path (for code inspection)",
     "",
     worktreePath,
+    "",
+    "## The change",
+    "",
+    input.baseRef === null
+      ? `The run's branch is \`${input.runBranch}\`; no base commit was noted.`
+      : `The run's branch is \`${input.runBranch}\`, started from \`${input.baseRef}\`: \`git diff ${input.baseRef}..HEAD\` is the whole change.`,
     "",
     "## Primary worklist — attention points from reconciliation",
     "",
@@ -117,14 +131,15 @@ export function buildHeadlessCodeReviewPrompt(
     "## How to proceed",
     "",
     "1. Follow the review doctrine below outside-in, but read its \"use it before you read it\" step as a read of the surface: the commands' help text, the README and docs, the spec's before and after examples, and the tests. You cannot run the change.",
-    '2. Ignore the doctrine\'s "In the session" section: nobody answers you.',
-    "3. Write one finding per cause, most severe first.",
+    "2. The doctrine's steps that need `phax records explain --gates` or the run folder's fix-attempt transcripts are not available in this pass: judge a `weakened` escape from the tests' history in git alone, and say so in the finding.",
+    '3. Ignore the doctrine\'s "In the session" section in this pass: nobody answers you.',
+    "4. Write one finding per cause, most severe first.",
     "",
     ...doctrineLines(doctrine),
     "",
     "## Answer",
     "",
-    `Write your answer to \`${answerPath}\` as JSON, in this exact shape, with every key required and no other key:`,
+    "Your final message is your answer: JSON alone, in this exact shape, with every key required and no other key:",
     "",
     "```json",
     '{ "version": 1, "findings": [ { "severity", "file", "line", "message", "lens", "escape", "criterion", "suggestion" } ] }',
@@ -138,8 +153,16 @@ export function buildHeadlessCodeReviewPrompt(
     "- `criterion`: an acceptance-criterion id of the source spec, or null.",
     "- `message` and `suggestion`: non-empty.",
     "",
-    'When there is nothing to report, write `{"version":1,"findings":[]}`.',
+    'When there is nothing to report, answer `{"version":1,"findings":[]}`.',
   ].join("\n");
+}
+
+function hasComplianceFindings(compliance: BuildCodeReviewPromptInput["compliance"] & {}): boolean {
+  return (
+    compliance.attentionPoints.length > 0 ||
+    compliance.pointers.length > 0 ||
+    compliance.deviationFindings.length > 0
+  );
 }
 
 function idList(ids: readonly string[]): string {

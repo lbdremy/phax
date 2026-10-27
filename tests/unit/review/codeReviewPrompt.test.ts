@@ -197,7 +197,11 @@ describe("CODE_REVIEW_PROMPT_FILENAME", () => {
 });
 
 describe("buildHeadlessCodeReviewPrompt", () => {
-  const answerPath = "/wt/.phax-context/code-review.json";
+  const headless = {
+    baseRef: "0123456789abcdef0123456789abcdef01234567",
+    runBranch: "phax/my-run",
+    gitCommands: ["git log", "git diff"],
+  };
   const compliance = {
     attentionPoints: ["watch the retry"],
     pointers: ["check the docs"],
@@ -206,10 +210,10 @@ describe("buildHeadlessCodeReviewPrompt", () => {
     ],
   };
 
-  it("names the answer file and the shape with every key", () => {
-    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
+  it("asks for the answer as the final message, with the shape and every key", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
     expect(prompt).toContain("# Headless code review");
-    expect(prompt).toContain(answerPath);
+    expect(prompt).toContain("Your final message is your answer");
     for (const key of [
       "severity",
       "file",
@@ -226,14 +230,14 @@ describe("buildHeadlessCodeReviewPrompt", () => {
   });
 
   it("lists the closed ids of the contract", () => {
-    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
     for (const id of [...CODE_REVIEW_SEVERITIES, ...CODE_REVIEW_LENSES, ...CODE_REVIEW_ESCAPES]) {
       expect(prompt).toContain(`\`${id}\``);
     }
   });
 
   it("carries the flagged files, the compliance findings and the doctrine", () => {
-    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, compliance, answerPath });
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, compliance, ...headless });
     expect(prompt).toContain("src/foo.ts");
     expect(prompt).toContain("watch the retry");
     expect(prompt).toContain("extra file");
@@ -242,18 +246,42 @@ describe("buildHeadlessCodeReviewPrompt", () => {
     expect(prompt).not.toContain("name: phax-review");
   });
 
-  it("tells the session that no developer, fix or run exists", () => {
-    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
-    expect(prompt).toContain("no developer is present");
+  it("scopes no-fix and nobody-answers to this pass, and lets a resumed session fix", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
+    expect(prompt).toContain(
+      "In this pass you review a phax run's change alone: nobody answers you",
+    );
+    expect(prompt).toContain("A developer may later resume this session to ask you for fixes");
     expect(prompt).toContain("In the session");
     expect(prompt).toContain("help text");
+  });
+
+  it("names the read-only git, the base ref and what the pass cannot reach", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
+    expect(prompt).toContain("`git log`, `git diff`");
+    expect(prompt).toContain(`git diff ${headless.baseRef}..HEAD`);
+    expect(prompt).toContain("`phax records explain --gates`");
+  });
+
+  it("says so when no base commit was noted", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless, baseRef: null });
+    expect(prompt).toContain("no base commit was noted");
+  });
+
+  it("leaves out the compliance heading when the compliance review found nothing", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({
+      ...baseInput,
+      ...headless,
+      compliance: { attentionPoints: [], pointers: [], deviationFindings: [] },
+    });
+    expect(prompt).not.toContain("## Compliance findings");
   });
 
   it("says plainly that compliance findings are missing, without the interactive tip", () => {
     const prompt = buildHeadlessCodeReviewPrompt({
       ...baseInput,
       complianceMissing: true,
-      answerPath,
+      ...headless,
     });
     expect(prompt).toContain("No compliance findings are available");
     expect(prompt).not.toContain("review-compliance");
@@ -263,7 +291,7 @@ describe("buildHeadlessCodeReviewPrompt", () => {
     const prompt = buildHeadlessCodeReviewPrompt({
       ...baseInput,
       doctrine: { source: "project", text: "# Our own review rules\n" },
-      answerPath,
+      ...headless,
     });
     expect(prompt).toContain("(project)");
     expect(prompt).toContain("Our own review rules");

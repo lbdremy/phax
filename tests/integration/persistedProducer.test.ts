@@ -756,16 +756,13 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     throw new Error("writeReviewRecord wrote no entry");
   }
 
-  // A headless code review with a fake agent, whose answer file phax decodes.
-  // The answer under `.phax-context` carries `version`: only the run folder's
+  // A headless code review with a fake agent, whose final message phax
+  // decodes. The answer carries `version`: only the run folder's
   // code-review.json is a persisted file.
-  backend.impl.setOnRunAgent(() => {
-    seed(`${phaxContext}/code-review.json`, CODE_REVIEW_ANSWER);
-  });
   backend.impl.addRunResponse({
     sessionId: "session-code-review" as ClaudeSessionId,
     outputPath: `${RUN_PATH}/code-review.session.jsonl`,
-    finalText: "Review complete.",
+    finalText: CODE_REVIEW_ANSWER,
   });
   const codeReviewed = await run(
     reviewCodeHeadless(

@@ -80,7 +80,19 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.void;
   }
 
+  private readonly writeFailures = new Map<string, string>();
+
+  /** Makes the next `writeAtomic` of exactly `path` fail with an FsError carrying `message`. */
+  failWriteAtomic(path: string, message: string): void {
+    this.writeFailures.set(path, message);
+  }
+
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError> {
+    const failure = this.writeFailures.get(path);
+    if (failure !== undefined) {
+      this.writeFailures.delete(path);
+      return Effect.fail(new FsError({ message: failure }));
+    }
     this.files.set(path, content);
     this.bytes.delete(path);
     this.touch(path);

@@ -5,7 +5,7 @@
 // Real git in a temporary repository; nothing reaches GitHub or a provider.
 import { Effect, Layer } from "effect";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -101,7 +101,9 @@ describe("code review entry (real git)", () => {
     runGit(["commit", "-m", "chore: initial commit"], repoDir);
 
     runPath = mkdtempSync(join(tmpdir(), "phax-code-review-run-"));
+    // The review snapshots its worktree before and after the session.
     worktreePath = mkdtempSync(join(tmpdir(), "phax-code-review-wt-"));
+    runGit(["worktree", "add", "-b", "phax/by-hand", worktreePath], repoDir);
   });
 
   afterEach(() => {
@@ -135,15 +137,10 @@ describe("code review entry (real git)", () => {
 
   function review(message: string, records: ResolvedRecordsConfig = RECORDS) {
     const backend = makeFakeBackend();
-    backend.impl.setOnRunAgent(() => {
-      const context = join(worktreePath, ".phax-context");
-      mkdirSync(context, { recursive: true });
-      writeFileSync(join(context, "code-review.json"), answerWith(message));
-    });
     backend.impl.addRunResponse({
       sessionId: `session-${message}` as ClaudeSessionId,
       outputPath: "",
-      finalText: "",
+      finalText: answerWith(message),
     });
     const layers = Layer.mergeAll(
       backend.layer,
@@ -213,15 +210,10 @@ describe("code review entry (real git)", () => {
 
   it("records no entry for a refused answer", async () => {
     const backend = makeFakeBackend();
-    backend.impl.setOnRunAgent(() => {
-      const context = join(worktreePath, ".phax-context");
-      mkdirSync(context, { recursive: true });
-      writeFileSync(join(context, "code-review.json"), '{"version":1}');
-    });
     backend.impl.addRunResponse({
       sessionId: "session-bad" as ClaudeSessionId,
       outputPath: "",
-      finalText: "",
+      finalText: '{"version":1}',
     });
     const outcome = await Effect.runPromise(
       reviewCodeAndRecord(

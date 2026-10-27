@@ -1,7 +1,7 @@
-// The headless code review (spec headless-code-review §5.20–§5.22): one session
-// under the compliance review's posture answers in .phax-context/code-review.json;
-// an accepted answer becomes code-review.json and the run's review session, any
-// other outcome writes neither. Driven through the use case with the fake file
+// The headless code review (spec headless-code-review §5.20–§5.22): one read-only
+// session answers with its final message; an accepted answer becomes
+// code-review.json and the run's review session, any other outcome writes
+// neither, and a session that changed the worktree has it put back. Driven through the use case with the fake file
 // system, backend, git and GitHub.
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import { reviewCodeAndRecord, reviewCodeHeadless } from "../../src/app/reviewCod
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../../src/domain/security/agentCommands.js";
 import { resolveReviewSecurityPolicy } from "../../src/domain/security/resolveReviewPolicy.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -22,7 +23,6 @@ import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js
 const stateRoot = "/fake-state";
 const runPath = `${stateRoot}/runs/my-run`;
 const worktreePath = "/fake/worktrees/my-run--phase-01";
-const answerPath = `${worktreePath}/.phax-context/code-review.json`;
 const reviewPath = `${runPath}/code-review.json`;
 const sessionPath = `${runPath}/code-review-session.json`;
 const streamPath = `${runPath}/code-review.session.jsonl`;
@@ -114,16 +114,15 @@ function setup() {
     github.layer,
     NoopSystemTelemetryLayer,
   );
-  /** The next session: writes `answer` (when given) and returns `sessionId`. */
+  /** The next session: answers `answer` as its final message (none when undefined). */
   const session = (sessionId: string, answer: string | undefined, stream?: string) => {
     backend.impl.setOnRunAgent((_prompt, options) => {
-      if (answer !== undefined) fs.impl.setFile(answerPath, answer);
       if (stream !== undefined) fs.impl.setFile(options.outputJsonlPath ?? streamPath, stream);
     });
     backend.impl.addRunResponse({
       sessionId: sessionId as ClaudeSessionId,
       outputPath: streamPath,
-      finalText: "",
+      finalText: answer ?? "",
     });
   };
   const review = (provider: "claude-code" | "codex-cli" = "claude-code") =>
@@ -176,11 +175,7 @@ describe("reviewCodeHeadless", () => {
   it.each([
     ["a refused answer", answerOf(finding({ lens: "everything" })), /^answer refused: .*lens/],
     ["text that is not JSON", "not json at all", /^answer refused: not JSON/],
-    [
-      "a session that wrote no answer",
-      undefined,
-      new RegExp(`^the session wrote no answer at ${answerPath}`),
-    ],
+    ["a session that gave no answer", undefined, /^the session gave no answer$/],
   ])(
     "%s fails with its reason and leaves both files as they were",
     async (_name, answer, reason) => {
@@ -225,18 +220,71 @@ describe("reviewCodeHeadless", () => {
     expect(JSON.parse(t.fs.impl.getFile(sessionPath) ?? "").sessionId).toBe("session-2");
   });
 
-  it("removes an answer left by an earlier invocation before the session starts", async () => {
+  it("reads an answer wrapped in a json fence", async () => {
     const t = setup();
-    t.fs.impl.setFile(answerPath, answerOf(finding({ message: "stale" })));
-    t.session("session-c", undefined);
+    t.session("session-c", "```json\n" + answerOf(finding()) + "\n```");
+
+    const result = await t.review();
+
+    expect(result.kind).toBe("accepted");
+  });
+
+  it("puts back what a session changed in the worktree and refuses its answer", async () => {
+    const t = setup();
+    t.fs.impl.setFile(reviewPath, "previous review");
+    t.git.impl.enqueueSnapshots(worktreePath, "a".repeat(40), "b".repeat(40));
+    t.git.impl.setTreeChanges("a".repeat(40), "b".repeat(40), [
+      { status: "M", path: "src/b.ts" },
+      { status: "A", path: "src/a.ts" },
+    ]);
+    t.session("session-w", answerOf(finding()));
+
+    const result = await t.review();
+
+    expect(result).toEqual({
+      kind: "failed",
+      reason: "the session changed the worktree (put back): src/a.ts, src/b.ts",
+    });
+    expect(t.git.impl.calls).toContainEqual({
+      method: "restorePaths",
+      path: worktreePath,
+      tree: "a".repeat(40),
+      paths: ["src/a.ts", "src/b.ts"],
+    });
+    expect(t.fs.impl.getFile(reviewPath)).toBe("previous review");
+    expect(t.fs.impl.getFile(sessionPath)).toBeUndefined();
+  });
+
+  it("leaves both files as they were when the session record cannot be written", async () => {
+    const t = setup();
+    t.fs.impl.setFile(reviewPath, "previous review");
+    t.fs.impl.setFile(sessionPath, "previous session");
+    t.fs.impl.failWriteAtomic(sessionPath, "EACCES: permission denied");
+    t.session("session-k", answerOf(finding()));
+
+    const result = await t.review();
+
+    expect(result).toEqual({
+      kind: "failed",
+      reason: "the review could not be kept: EACCES: permission denied",
+    });
+    expect(t.fs.impl.getFile(reviewPath)).toBe("previous review");
+    expect(t.fs.impl.getFile(sessionPath)).toBe("previous session");
+  });
+
+  it("removes a first review file when its session record cannot be written", async () => {
+    const t = setup();
+    t.fs.impl.failWriteAtomic(sessionPath, "ENOSPC: no space left on device");
+    t.session("session-l", answerOf(finding()));
 
     const result = await t.review();
 
     expect(result.kind).toBe("failed");
     expect(t.fs.impl.getFile(reviewPath)).toBeUndefined();
+    expect(t.fs.impl.getFile(sessionPath)).toBeUndefined();
   });
 
-  it("carries the bundled doctrine, the closed ids and the answer path", async () => {
+  it("carries the bundled doctrine, the closed ids and the final-message answer", async () => {
     const t = setup();
     t.session("session-d", answerOf());
 
@@ -245,7 +293,8 @@ describe("reviewCodeHeadless", () => {
     const prompt = t.backend.impl.runCalls[0]?.prompt ?? "";
     expect(prompt).toContain("Bundled doctrine");
     expect(prompt).toContain("(bundled)");
-    expect(prompt).toContain(answerPath);
+    expect(prompt).toContain("Your final message is your answer");
+    expect(prompt).toContain("`git log`");
     expect(prompt).toContain("`wrong-oracle`");
     expect(prompt).toContain("`architecture`");
   });
@@ -301,19 +350,20 @@ describe("reviewCodeHeadless", () => {
     expect(prompt).toContain("No compliance findings are available");
   });
 
-  it("runs under the compliance review's policy for the same worktree", async () => {
+  it("runs read-only, with read-only git, under the review policy for the same worktree", async () => {
     const t = setup();
     t.session("session-g", answerOf());
 
     await t.review();
 
     const options = t.backend.impl.runCalls[0]?.options;
-    expect(options?.security).toEqual(
-      resolveReviewSecurityPolicy({ mode: "secure", worktreePath, config: security.config }),
-    );
-    expect(options?.security?.filesystem.allowWrite).toEqual([`${worktreePath}/.phax-context`]);
-    expect(options?.security?.agentCommands).toEqual(["git"]);
-    expect(options?.readOnly).toBeUndefined();
+    expect(options?.security).toEqual({
+      ...resolveReviewSecurityPolicy({ mode: "secure", worktreePath, config: security.config }),
+      agentCommands: [...CODE_REVIEW_AGENT_COMMANDS],
+    });
+    expect(options?.readOnly).toBe(true);
+    expect(options?.agentCommands).toEqual(CODE_REVIEW_AGENT_COMMANDS);
+    expect(options?.agentCommands).not.toContain("git");
     expect(options?.cwd).toBe(worktreePath);
     expect(options?.outputJsonlPath).toBe(streamPath);
   });
