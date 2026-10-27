@@ -102,6 +102,10 @@
     {
       "term": "accepted / refused",
       "definition": "An answer is accepted when it parses and matches the code-review answer contract exactly. Otherwise it is refused, and phax keeps nothing from it."
+    },
+    {
+      "term": "review entry",
+      "definition": "A run-level entry on `phax/records/v1`, beside the run's phase records, that carries one review's file: `code-review.json` for the code review, `compliance-review.json` for the compliance review. Both reviews use the same entry shape."
     }
   ],
   "requirements": [
@@ -236,6 +240,30 @@
       "title": "Its cost is in the ledger",
       "pattern": "event",
       "statement": "WHEN a headless code review's session ends THE system SHALL enter its cost in the run's cost ledger as a `code-review` entry, as it enters the compliance review's cost."
+    },
+    {
+      "id": "records-code",
+      "title": "The code review reaches the records",
+      "pattern": "optional",
+      "statement": "WHERE records are enabled THE system SHALL commit each accepted `code-review.json` to the run's records as a review entry, beside the run's phase records, so that a later accepted review replaces the entry's file and the earlier one stays in the records branch's history."
+    },
+    {
+      "id": "records-compliance",
+      "title": "The compliance review reaches the records",
+      "pattern": "optional",
+      "statement": "WHERE records are enabled THE system SHALL commit each generated `compliance-review.json` to the run's records as a review entry, beside the run's phase records."
+    },
+    {
+      "id": "records-shape",
+      "title": "One entry shape for both reviews",
+      "pattern": "ubiquitous",
+      "statement": "The code review's entry and the compliance review's entry shall have the same shape, differing only in the review they carry."
+    },
+    {
+      "id": "records-failure",
+      "title": "A records failure never fails a review",
+      "pattern": "unwanted",
+      "statement": "IF committing a review entry to the records fails THEN the system SHALL keep the review's file in the run folder, leave the run in `review_open`, and report the failure as `phax records status` reports a pending push."
     }
   ],
   "surface": [
@@ -287,18 +315,26 @@
       "binding": "indicative",
       "before": "{ \"role\": \"compliance\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 0.41, … }",
       "after": "{ \"role\": \"compliance\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 0.41, … }\n{ \"role\": \"code-review\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 1.87, … }"
+    },
+    {
+      "surface": "file: the run's records on phax/records/v1",
+      "summary": "With records on, each run's code review and compliance review are kept in its records beside its phases, so they outlive the run folder.",
+      "binding": "indicative",
+      "before": "phax/records/v1\n  acme.greet-cli-3f2a/01-parser/\n  acme.greet-cli-3f2a/02-cli/\n  acme.greet-cli-3f2a/03-docs/",
+      "after": "phax/records/v1\n  acme.greet-cli-3f2a/01-parser/\n  acme.greet-cli-3f2a/02-cli/\n  acme.greet-cli-3f2a/03-docs/\n  acme.greet-cli-3f2a/compliance-review/compliance-review.json\n  acme.greet-cli-3f2a/code-review/code-review.json"
     }
   ],
   "nonGoals": [
     "Review plans, `phax review-plan`, `phax run --append`, or any review loop.",
-    "Finding outcomes, finding history, or numbered reviews: `code-review.json` holds the latest accepted review and nothing else.",
+    "Finding outcomes, finding history, or numbered reviews: `code-review.json` holds the latest accepted review and nothing else; earlier ones live only in the records branch's history.",
     "Merging the compliance findings into `code-review.json`: each review keeps its own file.",
     "Updating an open pull request's description after a by-hand review.",
     "A code review fact in the PR summary line, or a code review section in `review-handoff.md`.",
     "Running the change during the headless review: under the compliance posture, its only command is `git`.",
     "`phax ls` columns, changes to `phax-decide-review`, and the review map.",
     "A cost estimate for the code review in `phax plans estimate`.",
-    "Migration: the setting and the file are new."
+    "Migration: the setting and the file are new, and no review entry is written for runs that finished before this change.",
+    "Session transcripts of the reviews in the records: a review entry carries the review's file only."
   ],
   "acceptanceCriteria": [
     {
@@ -499,6 +535,46 @@
       "refs": [
         "cost"
       ]
+    },
+    {
+      "id": "ac-records-code",
+      "name": "The code review is kept in the records",
+      "given": "records enabled and a run whose headless code review was accepted",
+      "when": "the review is accepted",
+      "then": "the run's records hold a review entry carrying that `code-review.json`, beside the run's phase records; after a by-hand review is accepted, the entry carries the new file and the earlier file is still in the records branch's history; with records disabled, only the run folder holds the file",
+      "refs": [
+        "records-code"
+      ]
+    },
+    {
+      "id": "ac-records-compliance",
+      "name": "The compliance review is kept in the records",
+      "given": "records enabled and a run whose compliance review generated `compliance-review.json`",
+      "when": "the review is generated",
+      "then": "the run's records hold a review entry carrying that `compliance-review.json`, beside the run's phase records",
+      "refs": [
+        "records-compliance"
+      ]
+    },
+    {
+      "id": "ac-records-shape",
+      "name": "Both entries read alike",
+      "given": "a run whose records hold a code review entry and a compliance review entry",
+      "when": "the two entries are compared",
+      "then": "they have the same shape and differ only in the review they name and carry",
+      "refs": [
+        "records-shape"
+      ]
+    },
+    {
+      "id": "ac-records-fails",
+      "name": "A records failure keeps the review",
+      "given": "records enabled, a review that was accepted, and a records commit that fails",
+      "when": "the review ends",
+      "then": "the review's file is in the run folder, the run is `review_open`, and the failure is reported as a pending records write",
+      "refs": [
+        "records-failure"
+      ]
     }
   ],
   "openQuestions": [],
@@ -522,24 +598,52 @@
       "rationale": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.",
       "verdict": {
         "kind": "decided",
-        "chosen": "run-folder",
+        "chosen": "records-entry",
         "abandoned": [
-          "records-entry"
+          "run-folder"
         ],
-        "why": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.",
-        "advocate": "The strongest case for records-entry: `phax prune` deletes the run folder, so findings that never reach `phax/records/v1` vanish with it, and a reviewer later has no durable copy of what the machine found.",
+        "why": "The operator wants both reviews in the records: compliance-review.json is missing from them only because records did not exist when the compliance review was built. code-review.json is committed to phax/records/v1 as a run-level entry, and compliance-review.json joins it through the same entry shape, designed once for both reviews. The compliance review's entry ships in its own plan of this spec, separate from the headless code review's plan.",
+        "advocate": "The strongest case for run-folder: it keeps this spec small and mirrors the compliance review exactly, and the records entry needs a key and a manifest nothing has yet, which is where the abandoned headless-review spec began to grow.",
         "principles": [
-          "S1"
+          "S2",
+          "S4"
         ],
-        "reversibility": "cheap",
+        "reversibility": "costly",
         "by": {
           "kind": "operator",
           "name": "Rémy Loubradou"
         },
-        "at": "2026-10-27T10:15:19.628Z",
-        "revised": []
+        "at": "2026-10-27T10:21:05.546Z",
+        "revised": [
+          "requirements",
+          "surface",
+          "acceptanceCriteria",
+          "nonGoals",
+          "terminology",
+          "planningNote"
+        ]
       },
-      "history": []
+      "history": [
+        {
+          "kind": "decided",
+          "chosen": "run-folder",
+          "abandoned": [
+            "records-entry"
+          ],
+          "why": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.",
+          "advocate": "The strongest case for records-entry: `phax prune` deletes the run folder, so findings that never reach `phax/records/v1` vanish with it, and a reviewer later has no durable copy of what the machine found.",
+          "principles": [
+            "S1"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-10-27T10:15:19.628Z",
+          "revised": []
+        }
+      ]
     }
   ],
   "planningNote": {
@@ -555,16 +659,19 @@
       "The closed sets come from the bundled skill. A project's own skill copy cannot widen them, and the prompt lists the allowed ids, as the compliance prompt lists its enums.",
       "Findings appear in the PR in the answer's order (the skill asks for most severe first). With zero findings, the heading shows `None.`, as other empty lists do.",
       "The cost ledger gains a `code-review` role with `phase: null`, which is a new cost-ledger shape at 0.29.0. Ledgers written earlier still read.",
-      "`code-review.json` stays in the run folder only, as `compliance-review.json` does: neither review reaches the records (q-records)."
+      "Both reviews reach the records (q-records, operator verdict of 2026-10-27): `code-review.json` and `compliance-review.json` are each committed as a run-level review entry on `phax/records/v1`, through one entry shape designed once for both. The compliance review lacked an entry only because records did not exist when it was built."
     ],
     "open": [
-      "The exact wording of the by-hand output lines and of the PR finding line, beyond the normative heading and the severity, `file:line` and message it carries."
+      "The exact wording of the by-hand output lines and of the PR finding line, beyond the normative heading and the severity, `file:line` and message it carries.",
+      "The review entry's key under the run, its manifest format and its `$schema` (indicative in the surface: `<run-id>/code-review` and `<run-id>/compliance-review`), to be fixed once for both reviews."
     ],
     "constraints": [
       "Resume must use the provider recorded for the review session. Today's resume path takes the provider from the final phase's binding, which can differ from the provider `review.code.model` resolves to.",
       "The headless prompt must replace the skill's in-session steps (wait for the developer, apply a fix once confirmed): the headless session applies no fix and writes only its answer.",
       "Reuse the compliance review's security policy unchanged. The skill's \"use it before you read it\" step becomes a read of the surface (help text, docs, examples, tests), because the session cannot run the change.",
-      "A test reads the bundled `phax-review` SKILL.md and asserts that its severity, lens and escape ids equal the answer contract's literals."
+      "A test reads the bundled `phax-review` SKILL.md and asserts that its severity, lens and escape ids equal the answer contract's literals.",
+      "The review entry shape is designed once, for both reviews. Its plan is the first of this spec's plans; the compliance review's entry ships in its own plan of this spec, separate from the headless code review's plan, so the code review's plan builds on the entry shape and does not carry the compliance entry.",
+      "A review entry commits like a phase record: on `phax/records/v1`, without touching the working tree or index, and best-effort, so a failed commit never fails a review."
     ]
   },
   "docsPage": {

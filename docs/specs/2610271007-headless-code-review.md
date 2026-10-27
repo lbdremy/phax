@@ -52,6 +52,7 @@ Give the code review the same opt-in, run-end, headless form the compliance revi
 - **code-review.json** — The run folder file phax writes from an accepted answer: `$schema` first, then the findings. It is written only when an answer is accepted.
 - **run's review session** — The session `code-review-session.json` names, which `phax review-code <run>` resumes unless `--new-session` is given.
 - **accepted / refused** — An answer is accepted when it parses and matches the code-review answer contract exactly. Otherwise it is refused, and phax keeps nothing from it.
+- **review entry** — A run-level entry on `phax/records/v1`, beside the run's phase records, that carries one review's file: `code-review.json` for the code review, `compliance-review.json` for the compliance review. Both reviews use the same entry shape.
 
 ## 5. Functional requirements
 
@@ -142,6 +143,22 @@ IF a by-hand review's session fails or its answer is refused THEN the system SHA
 ### 5.22 Its cost is in the ledger
 
 WHEN a headless code review's session ends THE system SHALL enter its cost in the run's cost ledger as a `code-review` entry, as it enters the compliance review's cost.
+
+### 5.23 The code review reaches the records
+
+WHERE records are enabled THE system SHALL commit each accepted `code-review.json` to the run's records as a review entry, beside the run's phase records, so that a later accepted review replaces the entry's file and the earlier one stays in the records branch's history.
+
+### 5.24 The compliance review reaches the records
+
+WHERE records are enabled THE system SHALL commit each generated `compliance-review.json` to the run's records as a review entry, beside the run's phase records.
+
+### 5.25 One entry shape for both reviews
+
+The code review's entry and the compliance review's entry shall have the same shape, differing only in the review they carry.
+
+### 5.26 A records failure never fails a review
+
+IF committing a review entry to the records fails THEN the system SHALL keep the review's file in the run folder, leave the run in `review_open`, and report the failure as `phax records status` reports a pending push.
 
 ## 6. Surface
 
@@ -283,17 +300,38 @@ after:
     { "role": "compliance", "phase": null, "completeness": "complete", "provider": "claude-code", "costUsd": 0.41, … }
     { "role": "code-review", "phase": null, "completeness": "complete", "provider": "claude-code", "costUsd": 1.87, … }
 
+### file: the run's records on phax/records/v1 — indicative
+
+Summary: With records on, each run's code review and compliance review are kept in its records beside its phases, so they outlive the run folder.
+
+before:
+
+    phax/records/v1
+      acme.greet-cli-3f2a/01-parser/
+      acme.greet-cli-3f2a/02-cli/
+      acme.greet-cli-3f2a/03-docs/
+
+after:
+
+    phax/records/v1
+      acme.greet-cli-3f2a/01-parser/
+      acme.greet-cli-3f2a/02-cli/
+      acme.greet-cli-3f2a/03-docs/
+      acme.greet-cli-3f2a/compliance-review/compliance-review.json
+      acme.greet-cli-3f2a/code-review/code-review.json
+
 ## 7. Non-goals
 
 - Review plans, `phax review-plan`, `phax run --append`, or any review loop.
-- Finding outcomes, finding history, or numbered reviews: `code-review.json` holds the latest accepted review and nothing else.
+- Finding outcomes, finding history, or numbered reviews: `code-review.json` holds the latest accepted review and nothing else; earlier ones live only in the records branch's history.
 - Merging the compliance findings into `code-review.json`: each review keeps its own file.
 - Updating an open pull request's description after a by-hand review.
 - A code review fact in the PR summary line, or a code review section in `review-handoff.md`.
 - Running the change during the headless review: under the compliance posture, its only command is `git`.
 - `phax ls` columns, changes to `phax-decide-review`, and the review map.
 - A cost estimate for the code review in `phax plans estimate`.
-- Migration: the setting and the file are new.
+- Migration: the setting and the file are new, and no review entry is written for runs that finished before this change.
+- Session transcripts of the reviews in the records: a review entry carries the review's file only.
 
 ## 8. Acceptance criteria
 
@@ -373,6 +411,22 @@ Given a run with an open pull request, when `phax review-code <run> --headless` 
 
 Given a headless code review run on claude-code, when its session ends, then the run's `cost-ledger.json` gains one entry with `"role": "code-review"` and `"phase": null`. (refs §5.22)
 
+### The code review is kept in the records
+
+Given records enabled and a run whose headless code review was accepted, when the review is accepted, then the run's records hold a review entry carrying that `code-review.json`, beside the run's phase records; after a by-hand review is accepted, the entry carries the new file and the earlier file is still in the records branch's history; with records disabled, only the run folder holds the file. (refs §5.23)
+
+### The compliance review is kept in the records
+
+Given records enabled and a run whose compliance review generated `compliance-review.json`, when the review is generated, then the run's records hold a review entry carrying that `compliance-review.json`, beside the run's phase records. (refs §5.24)
+
+### Both entries read alike
+
+Given a run whose records hold a code review entry and a compliance review entry, when the two entries are compared, then they have the same shape and differ only in the review they name and carry. (refs §5.25)
+
+### A records failure keeps the review
+
+Given records enabled, a review that was accepted, and a records commit that fails, when the review ends, then the review's file is in the run folder, the run is `review_open`, and the failure is reported as a pending records write. (refs §5.26)
+
 ## 9. Open questions
 
 None.
@@ -386,8 +440,9 @@ None.
 
 Recommendation: run-folder — The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.
 
-Decision: run-folder — by operator (Rémy Loubradou), 2026-10-27
-Why: The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here. Advocate: The strongest case for records-entry: `phax prune` deletes the run folder, so findings that never reach `phax/records/v1` vanish with it, and a reviewer later has no durable copy of what the machine found. Principles: S1. Reversibility: cheap. Revised: none.
+Decision: records-entry — by operator (Rémy Loubradou), 2026-10-27
+Why: The operator wants both reviews in the records: compliance-review.json is missing from them only because records did not exist when the compliance review was built. code-review.json is committed to phax/records/v1 as a run-level entry, and compliance-review.json joins it through the same entry shape, designed once for both reviews. The compliance review's entry ships in its own plan of this spec, separate from the headless code review's plan. Advocate: The strongest case for run-folder: it keeps this spec small and mirrors the compliance review exactly, and the records entry needs a key and a manifest nothing has yet, which is where the abandoned headless-review spec began to grow. Principles: S2, S4. Reversibility: costly. Revised: requirements, surface, acceptanceCriteria, nonGoals, terminology, planningNote.
+Earlier decision: run-folder — by operator (Rémy Loubradou), 2026-10-27
 
 ## 10. Implementation-planning note
 
@@ -404,11 +459,12 @@ Settled:
 - The closed sets come from the bundled skill. A project's own skill copy cannot widen them, and the prompt lists the allowed ids, as the compliance prompt lists its enums.
 - Findings appear in the PR in the answer's order (the skill asks for most severe first). With zero findings, the heading shows `None.`, as other empty lists do.
 - The cost ledger gains a `code-review` role with `phase: null`, which is a new cost-ledger shape at 0.29.0. Ledgers written earlier still read.
-- `code-review.json` stays in the run folder only, as `compliance-review.json` does: neither review reaches the records (q-records).
+- Both reviews reach the records (q-records, operator verdict of 2026-10-27): `code-review.json` and `compliance-review.json` are each committed as a run-level review entry on `phax/records/v1`, through one entry shape designed once for both. The compliance review lacked an entry only because records did not exist when it was built.
 
 Left open:
 
 - The exact wording of the by-hand output lines and of the PR finding line, beyond the normative heading and the severity, `file:line` and message it carries.
+- The review entry's key under the run, its manifest format and its `$schema` (indicative in the surface: `<run-id>/code-review` and `<run-id>/compliance-review`), to be fixed once for both reviews.
 
 Constraints:
 
@@ -416,6 +472,8 @@ Constraints:
 - The headless prompt must replace the skill's in-session steps (wait for the developer, apply a fix once confirmed): the headless session applies no fix and writes only its answer.
 - Reuse the compliance review's security policy unchanged. The skill's "use it before you read it" step becomes a read of the surface (help text, docs, examples, tests), because the session cannot run the change.
 - A test reads the bundled `phax-review` SKILL.md and asserts that its severity, lens and escape ids equal the answer contract's literals.
+- The review entry shape is designed once, for both reviews. Its plan is the first of this spec's plans; the compliance review's entry ships in its own plan of this spec, separate from the headless code review's plan, so the code review's plan builds on the entry shape and does not carry the compliance entry.
+- A review entry commits like a phase record: on `phax/records/v1`, without touching the working tree or index, and best-effort, so a failed commit never fails a review.
 
 ## 11. Docs page
 
@@ -428,3 +486,4 @@ Example: Set `"review": { "code": { "enabled": true } }`. When the run's pull re
 ## 12. Decision log
 
 - 2026-10-27 q-records decided run-folder — operator (Rémy Loubradou)
+- 2026-10-27 q-records decided records-entry — operator (Rémy Loubradou) — revised 6 sections
