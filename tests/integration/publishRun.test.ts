@@ -13,6 +13,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
+import { CODE_REVIEW_ESCAPES, CODE_REVIEW_LENSES } from "../../src/schemas/codeReview.js";
 import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -401,6 +402,50 @@ describe("publishRun", () => {
     expect(body).not.toContain("Mostly as planned.");
     expect(body).not.toContain("## Plan compliance review");
     expect(body).not.toContain("## Phase details");
+  });
+
+  const codeReviewFinding = {
+    severity: "bug",
+    file: "src/greet.ts",
+    line: 7,
+    message: "The greeting drops the name.",
+    lens: CODE_REVIEW_LENSES[0],
+    escape: CODE_REVIEW_ESCAPES[0],
+    criterion: null,
+    suggestion: "Keep the name.",
+  };
+
+  async function publishBody(codeReviewFile: unknown | undefined): Promise<string> {
+    const { fs, git, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    if (codeReviewFile !== undefined) {
+      fs.impl.setFile(`${runPath}/code-review.json`, JSON.stringify(codeReviewFile));
+    }
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), {
+        repoRoot,
+        now: constNow,
+        phaxVersion: "0.0.0-test",
+      }).pipe(Effect.provide(layers)),
+    );
+    return fs.impl.getFile(`${runPath}/pr-body.md`)!;
+  }
+
+  it("lists the findings of code-review.json under Code review findings", async () => {
+    const body = await publishBody({
+      $schema: currentSchemaUrl("code-review"),
+      findings: [codeReviewFinding],
+    });
+    expect(body).toContain(
+      "### Code review findings\n\n- **bug** `src/greet.ts:7` — The greeting drops the name.",
+    );
+  });
+
+  it("leaves the heading out when code-review.json is absent or refused", async () => {
+    expect(await publishBody(undefined)).not.toContain("### Code review findings");
+    // The answer's own `version` key is not a persisted file's key.
+    const refused = await publishBody({ version: 1, findings: [codeReviewFinding] });
+    expect(refused).not.toContain("### Code review findings");
   });
 
   it("says not reviewed when compliance-review.json is absent", async () => {

@@ -1,3 +1,4 @@
+import type { CodeReview, CodeReviewFinding } from "../../schemas/codeReview.js";
 import type { ComplianceReview } from "../../schemas/complianceReview.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
 import {
@@ -40,6 +41,9 @@ export interface ShortPrBodyInput {
   readonly compliance:
     | { readonly kind: "reviewed"; readonly review: ComplianceReview }
     | { readonly kind: "not-reviewed" };
+  readonly codeReview:
+    | { readonly kind: "reviewed"; readonly review: CodeReview }
+    | { readonly kind: "not-reviewed" };
   readonly global: GlobalFileReconciliation;
   // Used only to decide whether a deviation is explained.
   readonly phaseHandoffs: ReadonlyArray<{ readonly phaseId: string; readonly handoffMd: string }>;
@@ -60,6 +64,7 @@ export interface ShortPrBody {
 interface Keep {
   readonly deviations: number;
   readonly attentionPoints: number;
+  readonly findings: number;
   readonly notes: number;
 }
 
@@ -67,7 +72,8 @@ interface Keep {
  * The pull request description of a run: a run summary, one line per phase,
  * what needs a person's review, the review notes and where the full review
  * handoff lives, then the phax footer. Over `maxBytes`, it cuts unexplained
- * deviations first, then attention points, then review notes, and says so
+ * deviations first, then attention points, then code review findings, then
+ * review notes, and says so
  * just before the footer, which is never cut.
  */
 export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
@@ -75,6 +81,8 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
   const unexplained = findUnexplainedGlobalDeviations(input.global, input.phaseHandoffs);
   const attentionPoints =
     input.compliance.kind === "reviewed" ? input.compliance.review.attentionPoints : [];
+  const findingCount =
+    input.codeReview.kind === "reviewed" ? input.codeReview.review.findings.length : 0;
   const noteCount = input.reviewNoteGroups.reduce((n, g) => n + g.notes.length, 0);
 
   const head = [renderSummary(input), renderPhases(input, unexplained)];
@@ -97,6 +105,7 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
     {
       deviations: unexplained.length,
       attentionPoints: attentionPoints.length,
+      findings: findingCount,
       notes: noteCount,
     },
     false,
@@ -105,11 +114,13 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
     return { body: full, shortened: false };
   }
 
-  // Cut order: deviations, then attention points, then notes. Each stage
-  // runs only when emptying the lists before it was not enough.
+  // Cut order: deviations, then attention points, then code review findings,
+  // then notes. Each stage runs only when emptying the lists before it was
+  // not enough.
   let keep: Keep = {
     deviations: 0,
     attentionPoints: attentionPoints.length,
+    findings: findingCount,
     notes: noteCount,
   };
   if (fits(keep)) {
@@ -127,10 +138,18 @@ export function buildShortPrBody(input: ShortPrBodyInput): ShortPrBody {
         ),
       };
     } else {
-      // When even no note fits, the never-cut sections alone exceed the cap
-      // and the fully cut body is returned as it is.
-      const notes = largestFitting(noteCount, (n) => fits({ ...keep, notes: n }));
-      keep = { ...keep, notes: Math.max(0, notes) };
+      keep = { ...keep, findings: 0 };
+      if (fits(keep)) {
+        keep = {
+          ...keep,
+          findings: largestFitting(findingCount, (n) => fits({ ...keep, findings: n })),
+        };
+      } else {
+        // When even no note fits, the never-cut sections alone exceed the cap
+        // and the fully cut body is returned as it is.
+        const notes = largestFitting(noteCount, (n) => fits({ ...keep, notes: n }));
+        keep = { ...keep, notes: Math.max(0, notes) };
+      }
     }
   }
   return { body: render(keep, true), shortened: true };
@@ -209,6 +228,15 @@ function renderNeedsYourReview(
       ),
     );
   }
+  if (input.codeReview.kind === "reviewed") {
+    parts.push(
+      "### Code review findings",
+      renderCutList(input.codeReview.review.findings.map(findingLine), keep.findings, [
+        "code review finding",
+        "code review findings",
+      ]),
+    );
+  }
   parts.push(
     "### Unexplained deviations",
     renderCutList(
@@ -221,6 +249,17 @@ function renderNeedsYourReview(
     ),
   );
   return parts.join("\n\n");
+}
+
+// One list item per finding. `file` is kept as given, so the code span's
+// fence is one backtick longer than the longest run inside it (CommonMark),
+// padded with a space on each side when the place holds a backtick.
+function findingLine(finding: CodeReviewFinding): string {
+  const place = onOneLine(`${finding.file}:${finding.line}`);
+  const longestRun = Math.max(0, ...(place.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = "`".repeat(longestRun + 1);
+  const span = longestRun === 0 ? `${fence}${place}${fence}` : `${fence} ${place} ${fence}`;
+  return `- **${finding.severity}** ${span} — ${onOneLine(finding.message)}`;
 }
 
 // The first `kept` items, then one line counting the cut ones; `None.` when

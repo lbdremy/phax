@@ -15,6 +15,11 @@ import {
   type ReviewNoteGroup,
 } from "../../../src/domain/review/reviewNotes.js";
 import type { ComplianceReview } from "../../../src/schemas/complianceReview.js";
+import {
+  CODE_REVIEW_ESCAPES,
+  CODE_REVIEW_LENSES,
+  type CodeReviewFinding,
+} from "../../../src/schemas/codeReview.js";
 
 function entry(
   path: string,
@@ -98,6 +103,7 @@ const base: ShortPrBodyInput = {
   ],
   verifiedSurfaces: ["local", "structural"],
   compliance: { kind: "reviewed", review },
+  codeReview: { kind: "not-reviewed" },
   global: makeGlobal(
     [
       unplanned("src/render/colors.ts", ["phase-02"]),
@@ -522,6 +528,112 @@ describe("buildShortPrBody — size cap", () => {
       maxBytes: Buffer.byteLength(full, "utf8") - 1,
     });
     expect(body).toContain("### Unexplained deviations\n\n- …and 1 more unexplained deviation\n");
+  });
+});
+
+function finding(overrides: Partial<CodeReviewFinding> = {}): CodeReviewFinding {
+  return {
+    severity: "concern",
+    file: "src/greet.ts",
+    line: 12,
+    message: "The greeting ignores NO_COLOR.",
+    lens: CODE_REVIEW_LENSES[0],
+    escape: CODE_REVIEW_ESCAPES[0],
+    criterion: null,
+    suggestion: "Honour NO_COLOR.",
+    ...overrides,
+  };
+}
+
+function reviewed(...findings: CodeReviewFinding[]): ShortPrBodyInput["codeReview"] {
+  return { kind: "reviewed", review: { findings } };
+}
+
+describe("buildShortPrBody — code review findings", () => {
+  it("lists one line per finding, between the attention points and the deviations", () => {
+    const body = build({
+      codeReview: reviewed(
+        finding({ severity: "bug", file: "src/a.ts", line: 3, message: "First." }),
+        finding({ severity: "info", file: "docs/b.md", line: 40, message: "Second." }),
+      ),
+    });
+    const needs = section(body, "## Needs your review");
+    expect(needs).toContain(
+      "### Code review findings\n\n- **bug** `src/a.ts:3` — First.\n- **info** `docs/b.md:40` — Second.",
+    );
+    expect(needs.indexOf("### Compliance attention points")).toBeLessThan(
+      needs.indexOf("### Code review findings"),
+    );
+    expect(needs.indexOf("### Code review findings")).toBeLessThan(
+      needs.indexOf("### Unexplained deviations"),
+    );
+  });
+
+  it("leaves the heading out without a code review and writes None. for no finding", () => {
+    expect(build()).not.toContain("### Code review findings");
+    expect(build({ codeReview: reviewed() })).toContain("### Code review findings\n\nNone.");
+  });
+
+  it("keeps a finding on one line with an intact code span", () => {
+    const body = build({
+      codeReview: reviewed(
+        finding({ file: "src/we`ird.ts", message: "One\n\n## fake heading" }),
+        finding({ file: "a\nb.ts", line: 2 }),
+      ),
+    });
+    expect(body).toContain("- **concern** `` src/we`ird.ts:12 `` — One ## fake heading");
+    expect(body).toContain("- **concern** `a b.ts:2` —");
+  });
+
+  it("cuts findings after the attention points and before the review notes", () => {
+    const findings = Array.from({ length: 300 }, (_, i) =>
+      finding({ line: i + 1, message: `Finding number ${i}: ${"x".repeat(60)}` }),
+    );
+    const input: ShortPrBodyInput = {
+      ...base,
+      codeReview: reviewed(...findings),
+      global: makeGlobal(manyDeviations(10), []),
+      maxBytes: 8000,
+    };
+    const { body, shortened } = buildShortPrBody(input);
+    expect(shortened).toBe(true);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(8000);
+    const needs = section(body, "## Needs your review");
+    expect(needs).toContain("### Unexplained deviations\n\n- …and 10 more unexplained deviations");
+    expect(needs).toContain("### Compliance attention points\n\n- …and 2 more attention points");
+    expect(needs).toContain("Finding number 0:");
+    const cut = needs.match(/- …and (\d+) more code review findings/);
+    expect(cut).not.toBeNull();
+    const kept = needs.match(/- \*\*concern\*\* /g) ?? [];
+    expect(kept.length + Number(cut![1])).toBe(300);
+    expect(section(body, "## Review notes").trimEnd()).toBe(renderReviewNotes(noteGroups));
+  });
+
+  it("cuts review notes only when no finding fits", () => {
+    const { body } = buildShortPrBody({
+      ...base,
+      codeReview: reviewed(finding(), finding({ line: 2 })),
+      global: makeGlobal(manyDeviations(10), []),
+      reviewNoteGroups: manyNotes(2000),
+    });
+    expect(body).toContain("### Code review findings\n\n- …and 2 more code review findings");
+    expect(body).toContain("- …and 2 more attention points");
+    expect(body).toMatch(/- …and \d+ more review notes/);
+  });
+
+  it("writes the singular noun for one cut finding", () => {
+    const input: ShortPrBodyInput = {
+      ...base,
+      compliance: { kind: "reviewed", review: { ...review, attentionPoints: [] } },
+      global: makeGlobal([], []),
+      codeReview: reviewed(finding({ message: "y".repeat(3000) })),
+    };
+    const full = buildShortPrBody(input).body;
+    const { body } = buildShortPrBody({
+      ...input,
+      maxBytes: Buffer.byteLength(full, "utf8") - 1,
+    });
+    expect(body).toContain("- …and 1 more code review finding\n");
   });
 });
 
