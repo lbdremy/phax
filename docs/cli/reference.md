@@ -511,9 +511,9 @@ phax publish-pr usage-cli
 
 - **Usage**: `phax review-compliance <short-name>`
 
-Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
+Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree or registry.
 
-Side effects: spawns a short-lived AI agent session (network I/O); no filesystem mutations.
+Side effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on.
 
 ### Arguments
 

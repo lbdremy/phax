@@ -20,6 +20,17 @@ import {
 import { withSchemaUrl } from "../schemas/persisted.js";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import type { Git } from "../ports/git.js";
+import type { GitHub } from "../ports/github.js";
+import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import { pushRecordsBranch } from "./recordsSync.js";
+import {
+  reviewRecordPushWarning,
+  reviewRecordWarning,
+  writeReviewRecord,
+  type ReviewRecordPush,
+  type ReviewRecordStatus,
+} from "./writeReviewRecord.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
 import { withInvocationCost } from "./costLedger.js";
@@ -373,4 +384,85 @@ export function reviewCompliance(
       mdArtifactPath: durableMdPath,
     } satisfies ComplianceReviewResult;
   });
+}
+
+export interface ComplianceRecordTarget {
+  readonly records: ResolvedRecordsConfig;
+  readonly repoRoot: string;
+  /** The local records clone, required for a dedicated `repo` destination. */
+  readonly recordsClonePath?: string | undefined;
+  /** Push the entry now (by hand), or `null` to leave it to publish's records push. */
+  readonly push: { readonly publishRemote: string } | null;
+}
+
+export interface ComplianceReviewRecordOutcome {
+  readonly review: ComplianceReviewResult;
+  readonly record: ReviewRecordStatus | { readonly kind: "no-entry" };
+  readonly push: ReviewRecordPush;
+}
+
+/**
+ * Run the compliance review, then keep the compliance-review.json it wrote
+ * as a `compliance-review` entry on the records branch. A records concern
+ * never fails the review: the outcome reports it for the caller to warn about.
+ */
+export function reviewComplianceAndRecord(
+  info: RunReviewInfo,
+  config: ResolvedComplianceReviewConfig,
+  resolution: RoutingResolution,
+  security: { mode: SecurityMode; config: ResolvedSecurityConfig },
+  target: ComplianceRecordTarget,
+  opts: ReviewComplianceOpts,
+): Effect.Effect<
+  ComplianceReviewRecordOutcome,
+  FsError,
+  Backend | FileSystem | SystemTelemetry | Git | GitHub
+> {
+  return Effect.gen(function* () {
+    const review = yield* reviewCompliance(info, config, resolution, security, opts);
+    // Only a compliance-review.json written by this invocation is an entry.
+    if (review.kind !== "generated" || review.review === undefined) {
+      const none: ComplianceReviewRecordOutcome = {
+        review,
+        record: { kind: "no-entry" },
+        push: { kind: "no-record" },
+      };
+      return none;
+    }
+    const record = yield* writeReviewRecord({
+      repoRoot: target.repoRoot,
+      recordsClonePath: target.recordsClonePath,
+      records: target.records,
+      runId: info.runId,
+      runPath: info.runPath,
+      review: "compliance-review",
+    });
+    let push: ReviewRecordPush = { kind: "no-record" };
+    if (record.kind === "written") {
+      push =
+        target.push === null
+          ? { kind: "left-to-publish" }
+          : yield* pushRecordsBranch({
+              records: target.records,
+              repoRoot: target.repoRoot,
+              publishRemote: target.push.publishRemote,
+              recordsClonePath: target.recordsClonePath,
+            });
+    }
+    return { review, record, push };
+  });
+}
+
+/** The warnings an entry's outcome deserves, in the order an operator reads them. */
+export function complianceRecordWarnings(
+  outcome: ComplianceReviewRecordOutcome,
+): readonly string[] {
+  const warnings: string[] = [];
+  if (outcome.record.kind !== "no-entry") {
+    const warning = reviewRecordWarning(outcome.record, "compliance-review");
+    if (warning !== undefined) warnings.push(warning);
+  }
+  const pushWarning = reviewRecordPushWarning(outcome.push);
+  if (pushWarning !== undefined) warnings.push(pushWarning);
+  return warnings;
 }
