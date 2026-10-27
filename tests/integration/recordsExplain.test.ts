@@ -1519,6 +1519,34 @@ describe("records explain and list (real git)", () => {
       expect(outcome.record.manifest.shape).toBe("skeleton");
     });
 
+    it("records explain points at a review entry's own commit instead of refusing it", async () => {
+      const reviewSha = await recordReview(RUN_ID);
+
+      const outcome = await run(
+        explainRecord({
+          sha: reviewSha.slice(0, 8),
+          repoRoot: repoDir,
+          records: IN_REPO_CONFIG,
+          publishRemote: "origin",
+        }),
+      );
+      expect(outcome).toEqual({
+        kind: "review-entry",
+        resolvedSha: reviewSha,
+        runId: RUN_ID,
+        review: "compliance-review",
+        path: `${RUN_ID}/compliance-review/compliance-review.json`,
+      });
+
+      const cli = await records(["explain", reviewSha.slice(0, 8)]);
+      expect(cli.code).toBe(0);
+      expect(cli.errors).toEqual([]);
+      expect(cli.text).toContain(`the compliance-review entry of run ${RUN_ID}`);
+      expect(cli.text).toContain(
+        `git show ${reviewSha.slice(0, 8)}:${RUN_ID}/compliance-review/compliance-review.json`,
+      );
+    });
+
     it("records explain refuses a review manifest found under a phase key", async () => {
       const sourceSha = commitWithTrailers(repoDir, RUN_ID, "phase-01");
       await writeRecordDocumentCommit(

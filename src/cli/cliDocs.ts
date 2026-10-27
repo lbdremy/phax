@@ -113,7 +113,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "records explain": {
     longHelp:
-      "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.",
+      "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
     examples: ["phax records explain 3f9c2a1", "phax records explain 3f9c2a1 --gates"],
   },
 
@@ -159,7 +159,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "review-compliance": {
     longHelp:
-      "Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree or registry.\n\nSide effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on.",
+      "Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The review is read-only on the worktree and the registry; it records its result in the run folder and, when records are enabled, in the records of the run's own project, even when the run belongs to another project.\n\nSide effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on.",
     examples: ["phax review-compliance usage-cli"],
   },
 

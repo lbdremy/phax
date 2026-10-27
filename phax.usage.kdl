@@ -262,8 +262,8 @@ cmd "publish-pr" {
 }
 
 cmd "review-compliance" {
-    help "Run a non-mutating plan-compliance review for a review_open run"
-    long_help "Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree or registry.\n\nSide effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on."
+    help "Run a plan-compliance review for a review_open run and record its result"
+    long_help "Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The review is read-only on the worktree and the registry; it records its result in the run folder and, when records are enabled, in the records of the run's own project, even when the run belongs to another project.\n\nSide effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on."
     example "phax review-compliance usage-cli"
     arg "<short-name>" {
         help "Run short name, e.g. usage-cli"
@@ -830,7 +830,7 @@ cmd "records" {
     }
 
     cmd "list" {
-        help "List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact"
+        help "List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact"
         flag "--run" {
             arg "<id>"
             help "Only show records for this run id"
@@ -839,7 +839,7 @@ cmd "records" {
 
     cmd "explain" {
         help "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record"
-        long_help "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says."
+        long_help "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0."
         example "phax records explain 3f9c2a1"
         example "phax records explain 3f9c2a1 --gates"
         arg "<sha>" {
