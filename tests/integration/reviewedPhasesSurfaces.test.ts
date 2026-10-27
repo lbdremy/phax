@@ -209,6 +209,7 @@ describe("the review surfaces of a run with stops", () => {
       })),
       verifiedSurfaces: [],
       compliance: { kind: "not-reviewed" },
+      codeReview: { kind: "not-reviewed" },
       global: { files: [], unplanned: [], missing: [], attentionPoints: [] } as never,
       phaseHandoffs: [],
       reviewNoteGroups: [],

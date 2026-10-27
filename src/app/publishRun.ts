@@ -7,7 +7,12 @@ import { isPhaseTerminal } from "../domain/state.js";
 import { COMPLIANCE_REVIEW_JSON_FILENAME } from "../domain/review/compliancePrompt.js";
 import type { ResolvedPublishConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { readComplianceReviewFile, readRunStatusFile } from "../schemas/persisted.js";
+import { CODE_REVIEW_JSON_FILENAME } from "../schemas/codeReview.js";
+import {
+  readCodeReviewFile,
+  readComplianceReviewFile,
+  readRunStatusFile,
+} from "../schemas/persisted.js";
 import { selectPrTitle } from "../domain/publish/title.js";
 import { buildShortPrBody, type ShortPrBodyInput } from "../domain/publish/prBody.js";
 import {
@@ -201,6 +206,23 @@ function loadCompliance(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const review = yield* readComplianceReviewFile(path, parsed);
+    return { kind: "reviewed", review } as const;
+  }).pipe(Effect.orElseSucceed(() => notReviewed));
+}
+
+// The run's code review; an absent or undecodable file reads as not
+// reviewed, so a review artifact never fails a publish.
+function loadCodeReview(
+  runPath: string,
+): Effect.Effect<ShortPrBodyInput["codeReview"], never, FileSystem> {
+  const notReviewed: ShortPrBodyInput["codeReview"] = { kind: "not-reviewed" };
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runPath, CODE_REVIEW_JSON_FILENAME);
+    if (!(yield* fs.exists(path))) return notReviewed;
+    const raw = yield* fs.readText(path);
+    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
+    const review = yield* readCodeReviewFile(path, parsed);
     return { kind: "reviewed", review } as const;
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }
@@ -584,6 +606,7 @@ export function publishRun(
       orderedPhases.map((p) => p.phaseId),
     );
     const compliance = yield* loadCompliance(info.runPath);
+    const codeReview = yield* loadCodeReview(info.runPath);
 
     // The footer's facts, gathered only for a new pull request: a reused one
     // keeps its body, so it needs no lookup.
@@ -609,6 +632,7 @@ export function publishRun(
       phases,
       verifiedSurfaces,
       compliance,
+      codeReview,
       global,
       phaseHandoffs: phaseContents.map((p) => ({
         phaseId: p.phaseId,
