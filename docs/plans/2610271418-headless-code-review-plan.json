@@ -1,0 +1,678 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.28.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610271007-headless-code-review.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "headless-code-review",
+    "title": "Headless code review",
+    "requiredCommands": []
+  },
+  "preamble": {
+    "summary": "The second and last plan of the spec headless-code-review. Plan 1 (review records, #168) delivered the review entry on phax/records/v1 (`writeReviewRecord`, the `review-record-manifest` format that already admits `code-review`) and the compliance review's entry. This plan delivers everything else the spec asks: the opt-in `review.code.enabled`; the headless code review at run end, after the compliance review and before the pull request; its versioned answer, checked against the closed ids of the `phax-review` skill; `code-review.json` and the run's review session, which `phax review-code <run>` resumes on the provider that ran it; `phax review-code <run> --headless` by hand; `### Code review findings` in the pull request; the `code-review` cost entry; and the code review's entry in the records (§5.23).\n\nphase-01 freezes the answer contract as oracles, against a stub. phase-02 discharges them: it registers the new `code-review` format and gives the cost ledger its `code-review` role. phase-03 builds the headless review use case and its records entry, moves the review-entry helpers the two reviews share into one module, and makes `review-code` resume a recorded session on its own provider. phase-04 lists the findings in the PR body. phase-05 adds the setting, the run end, the `--headless` flag and the docs. Every commit is green under the `standard` gate profile.",
+    "requiredCommandsNote": "No new command. Besides the `standard` gate profile's pnpm scripts, the phases run `pnpm exec tsx scripts/schemas-check.ts --write`, `pnpm dev schema upgrade`, `pnpm gen:usage-spec` and `pnpm docs:cli`, which `security.agentCommands` in phax.json already allows.",
+    "technicalArbitrations": [
+      "The answer contract. The code-review answer is `{ version: 1, findings }`. Each finding holds, in this order: `severity` (bug | deviation | concern | info); `file` (a non-empty path, kept as given); `line` (a positive integer); `message` (non-empty); `lens` (the eight lens ids); `escape` (the seven escape ids); `criterion` (a non-empty id, or null); and `suggestion` (non-empty). Every key is required, and an unknown key is refused at every level. The persisted `code-review.json` holds `$schema` first, then `findings` in the answer's order. It uses the new `code-review` format, born with $schema at 0.29.0. The closed sets are `Schema.Literal`s in `src/schemas/codeReview.ts`. The headless prompt lists their `.literals`, so a project's own copy of the skill cannot widen them, and a test keeps them equal to the bundled skill's ids. Loss accepted: the whole answer is refused when one finding has an empty message or suggestion, or one unknown id. A looser contract would let into the pull request a finding that says nothing, or that nobody can act on.",
+      "Answer channel and retry. The session writes its answer to `.phax-context/code-review.json` in the final worktree, as the compliance review writes its verdict there. It runs under the compliance review's policy unchanged: `resolveReviewSecurityPolicy`, with no `readOnly` flag and no `agentCommands`. A file left there by an earlier invocation is removed before the session starts. phax reads the file, parses it and decodes it. A missing file, text that is not JSON, or a decode failure is a failed review, and its reason is the first violation (`answer refused: findings[0].lens: …`). There is no corrective turn: the retry is `phax review-code <run> --headless`, which starts a new session. Loss accepted: one bad id costs the whole review (claude-opus-5-5 at high by default), and the run end does not retry. A corrective resume turn would give up the compliance mirror that the spec's guiding rule asks for, and would add a second turn, stream and cost entry. Answering in the final message with `readOnly`, as headless authoring does, would give up the spec's constraint to reuse the compliance review's policy unchanged.",
+      "The run's review session. An accepted headless review writes `code-review-session.json` in its existing version-1 shape. `provider` is the provider the routing resolution of `review.code.model` selected, and `sessionId` is the one the backend returned. The review file and the session record are written together, and only on acceptance. `prepareCodeReviewSession` now resumes any recorded session on the record's own provider, not the final phase's binding. It reads the binding only to start a new session. A record the interactive command wrote already names the binding's provider, so resuming it is unchanged. A provider with no interactive resume (codex-cli, mistral-vibe) prints its unsupported message and exits 1, as today. `--new-session` keeps today's meaning: it starts a new interactive session, records it as the run's review session, and leaves `code-review.json` as it is. The record gains no `origin` key. A new required key would refuse every record written before it, and nothing reads the difference. Loss accepted: after `--new-session`, the record no longer names the session whose findings `code-review.json` holds, and a plain `phax review-code` then resumes the new session. Not recording the new session would give up resuming it, which `phax review-code` has always offered.",
+      "Posture of the resumed session. The interactive resume of a headless session runs as `phax review-code` always has: the provider's own interactive session in the final worktree, with no phax posture flags, and the person approving each change. This gives the person's session nothing that `phax review-code` does not give it today, and the headless session itself runs only under the compliance review's posture. No security boundary moves, so no question is raised.",
+      "Where the headless prompt differs. `buildHeadlessCodeReviewPrompt` in `src/domain/review/codeReviewPrompt.ts` shares two parts with the interactive prompt. The first is the worklist: the files the reconciliation flagged and the compliance findings, or a plain note that there are none. The second is the doctrine section: the project's copy of `phax-review` on the run's branch, else the bundled copy. One app function loads both parts for both paths. The headless prompt replaces the rest:\n- No developer is present, no fix is applied, and no file is edited.\n- The doctrine's \"use it before you read it\" step becomes a read of the surface: help text, README and docs, the spec's before and after examples, and the tests. The session can only run `git`.\n- The doctrine's \"In the session\" steps do not apply.\n- An answer section gives the file path, the exact shape, the closed ids and the empty answer.\n\nLoss accepted: the headless review judges the surface from its text and never runs it. A finding that only a real run would show is out of its reach.",
+      "The PR body. Under `## Needs your review`, `### Code review findings` comes after `### Compliance attention points` (when that heading is shown) and before `### Unexplained deviations`. It lists one line per finding, in the file's order: `- **<severity>**`, then the place as a code span `<file>:<line>`, then ` — <message>`, with the message on one line. A review with no findings shows `None.`. When no readable `code-review.json` exists, the heading is left out. The cut order becomes: unexplained deviations, compliance attention points, code review findings, then review notes. Each stage runs only when emptying the lists before it was not enough. A cut list ends with `- …and N more code review findings`. Loss accepted: a cut keeps the first findings in the answer's order. The skill asks for that order to be most severe first, but phax does not check it, so a bug listed last can be cut before an info. The full list stays in `code-review.json`.",
+      "What moves, and where. The review-entry code that both reviews share moves out of `src/app/reviewCompliance.ts` into a new module, `src/app/reviewEntry.ts`:\n- `ComplianceRecordTarget` becomes `ReviewRecordTarget`, and `ComplianceRecordUnresolved` becomes `ReviewRecordUnresolved`.\n- `complianceRecordTargetFor` becomes `reviewRecordTargetFor`.\n- The write-then-push half of `reviewComplianceAndRecord` becomes `recordReviewEntry`.\n- `complianceRecordWarnings(outcome, retry)` becomes `reviewEntryWarnings(outcome, review, retry)`, and `complianceRecordNotice` becomes `reviewEntryNotice`.\n- The run-end target that executePlan builds inline becomes `runEndReviewRecordTarget(config, namespace)`.\n\n`reviewComplianceAndRecord` and the new `reviewCodeAndRecord` both call these. The compliance warnings keep their exact wording, and `src/app/writeReviewRecord.ts` stays the writer alone. Loss accepted: one more module, and the compliance callers and their tests change their imports. Leaving the helpers in reviewCompliance.ts would make the code review import from the compliance review, and the brief forbids copying them.",
+      "The cost ledger's role. `code-review` joins `compliance` as a run-level role with `phase: null`, in `src/schemas/costLedger.ts` and in `InvocationRole`. Its stream is kept as `<run folder>/code-review.session.jsonl`, and backfill reads it after the compliance stream. This changes the cost-ledger shape at 0.29.0. Today's shape is frozen as `src/schemas/history/cost-ledger/0.26.0.ts`. A ledger stamped below the current stamp is read by that frozen decoder and lifted unchanged, since 0.25.0's roles are a subset of 0.26.0's. Without this, the frozen 0.25.0 decoder that reads older ledgers today would refuse a 0.26.0 ledger's first-turn and closing-turn entries. `phax plans estimate` keeps counting only compliance entries (a non-goal). Loss accepted: an older @lbdremy/phax-schemas cannot read a 0.29.0 ledger, as with every shape change.",
+      "Scope of the oracle pair. phase-01 and phase-02 form an oracle pair over the answer contract only:\n- which answers are accepted, which are refused and why;\n- references kept as given;\n- the persisted file's $schema and key order;\n- the skill and contract ids staying equal.\n\nThe spec fixes this contract before any code exists. The oracles reach it through entries that phase-01's stub declares in `src/schemas/codeReview.ts`: `readCodeReviewAnswer`, `codeReviewFileText` and the three id lists. The oracles never write `withSchemaUrl(\"code-review\", …)`, which would not typecheck before the format id exists. The use case, the run end, the PR body and the CLI are tested in-phase, because the phases that write them also design their entry points. Loss accepted: one more phase, and the same-author risk on everything past the contract, which the review covers.",
+      "How the run end gets the skill text. executePlan takes the bundled `phax-review` SKILL.md as an option, `bundledReviewSkill`. `phax run` and `phax resume` read it from the skills bundle, as `phax review-code` does, because app code cannot reach the bundle's path. The option is optional, so the 46 test files that call executePlan with `review.code.enabled` off pass nothing. When it is absent and the setting is on, the run-end review is skipped with a warning, and the run goes on. Loss accepted: a caller that forgets the option gets a skipped review at run end, not a type error.",
+      "`review.code.enabled` is an optional boolean, false when absent, as the spec decided, and it is resolved into `ResolvedCodeReviewConfig.enabled`. It governs the run end only. `phax review-code <run> --headless` runs whether the setting is on or not. It always starts a new session, so `--new-session` adds nothing. It honours `--model` and `--effort`, and it never touches a pull request. No docs/upgrading.md entry: the setting is opt-in and new, and a run that ended before this change gets no code review and no entry."
+    ],
+    "openQuestions": [],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "The code-review answer contract, as oracles",
+      "objective": "The headless code review's answer contract is frozen as oracle tests before any of it is written: which answers are accepted, which are refused and why, what `code-review.json` holds, and that the contract's closed ids equal those of the bundled `phax-review` skill. A stub module declares the entries the tests reach and fails as not implemented. No production code uses it yet.",
+      "detailedInstructions": [
+        "Create the stub `src/schemas/codeReview.ts`, with exactly these names and types, which phase-02 implements without renaming:\n- `export type CodeReviewSeverity = \"bug\" | \"deviation\" | \"concern\" | \"info\"`;\n- `export type CodeReviewLens = \"surface\" | \"acceptance\" | \"boundary\" | \"core\" | \"edge\" | \"tests\" | \"architecture\" | \"docs\"`;\n- `export type CodeReviewEscape = \"wrong-oracle\" | \"same-author\" | \"weakened\" | \"fake-drift\" | \"unexplored-input\" | \"omission\" | \"untestable\"`;\n- `export interface CodeReviewFinding { readonly severity: CodeReviewSeverity; readonly file: string; readonly line: number; readonly message: string; readonly lens: CodeReviewLens; readonly escape: CodeReviewEscape; readonly criterion: string | null; readonly suggestion: string }`;\n- `export interface CodeReview { readonly findings: readonly CodeReviewFinding[] }`, the in-memory review, with no `version` and no `$schema`;\n- `export const CODE_REVIEW_SEVERITIES: readonly string[] = []`, and `CODE_REVIEW_LENSES` and `CODE_REVIEW_ESCAPES` declared the same way.",
+        "In the same stub, declare `export function readCodeReviewAnswer(text: string): Either.Either<CodeReview, string>`: the session's answer text, parsed and decoded, where a Left is the one-line refusal reason. Also declare `export function codeReviewFileText(review: CodeReview): string`: the full text of `code-review.json`. Both stubs throw `new Error(\"not implemented: <name>\")`. Add a module comment saying that phase-02 implements the module and derives the types from its schemas. Nothing outside the two oracle files imports it.",
+        "Create the oracle `tests/unit/schemas/codeReview.test.ts`:\n- Every test carries Vitest's expected-failure marker (`it.fails`, or `it.fails.each` for a table).\n- Build each answer as JSON text with `JSON.stringify` of an object literal. Use one valid finding constant, spread with overrides: `{ severity: \"bug\", file: \"src/cli/greet.ts\", line: 42, message: \"An empty --name prints Hello, ! instead of being refused.\", lens: \"surface\", escape: \"unexplored-input\", criterion: null, suggestion: \"Refuse an empty --name with exit 2.\" }`.\n- Pass `codeReviewFileText` the Right value of `readCodeReviewAnswer`, never a hand-typed literal, so its types never widen once phase-02 derives them from the schemas.",
+        "Accepted cases in the same oracle:\n- `{ version: 1, findings: [finding] }` is Right. `JSON.parse(codeReviewFileText(review))` has `Object.keys` exactly `[\"$schema\", \"findings\"]`, `$schema` exactly `https://docs.phax.run/schemas/code-review/0.29.0.json`, `findings` deep-equal to `[finding]`, and no `version` key.\n- A finding with `criterion: \"ac-nope\"` and `file: \"src/not/in/any/worktree.ts\"` is Right, and the file text keeps both values as given.\n- Two findings keep their order in the file text.\n- `findings: []` is accepted, and the file text holds an empty `findings` list.",
+        "Refused cases in the same oracle, one table where every row is a Left:\n- `lens: \"security\"`: the reason contains `lens` and `security`.\n- A finding without `suggestion`: the reason contains `suggestion`.\n- A finding with the extra key `confidence: 0.9`: the reason contains `confidence`.\n- The text `not json {`: Left only.\n- `severity: \"critical\"`, `escape: \"flaky\"` and `version: 2`.\n- No `findings` key, an extra top-level `summary` key, and `findings` that is not an array.\n- `line` set to 0, 4.5 or `\"42\"`.\n- `file`, `message`, `suggestion` or `criterion` set to the empty string, and a finding without `criterion`.\n- The texts `null` and `[]`.\n\nAssert only what is listed about the reason, never its full wording: the wording is phase-02's.",
+        "Create the oracle `tests/unit/review/codeReviewSkillIds.test.ts`:\n- Read the bundled skill from the repository, `new URL(\"../../../.claude/skills/phax-review/SKILL.md\", import.meta.url)`, never from `~/.claude`.\n- Parse it in the test file itself. Severities are the backticked ids followed by ` (` in the `- **severity**:` bullet and its wrapped continuation lines (up to the next line starting with `- **`). This keeps bug, deviation, concern and info, and drops `phax-decide-review`.\n- Lenses are every backticked id in the `- **lens**:` bullet and its continuation lines.\n- Escapes are the backticked id in the first cell of each row of the table whose header starts with `| Escape |`.\n- Write one marked test per set. Each asserts that the parsed set is not empty, then compares the sorted skill ids with the sorted contract ids using `toEqual`, so a failure's diff names the missing or extra id.",
+        "Before committing, check the parser once against the real skill, for example with a scratch test that you delete before the commit. It must give exactly these ids:\n- bug, deviation, concern, info;\n- surface, acceptance, boundary, core, edge, tests, architecture, docs;\n- wrong-oracle, same-author, weakened, fake-drift, unexplored-input, omission, untestable.\n\nphase-02 cannot repair a wrong parser in a frozen oracle. Leave no scratch file behind.",
+        "Each oracle must fail only through the stub: by throwing its not-implemented error (codeReview.test.ts), or because a list is empty (skill ids). It must never fail because a module, export or type is missing. `pnpm typecheck` and `pnpm test:type` pass, and `pnpm test` stays green because every oracle carries its marker. Add no other test to these two files: the oracles provider requires the marker on every new test in an oracle file."
+      ],
+      "planMarkdownAnchor": "#phase-01-answer-oracles",
+      "plannedFilesToCreate": [
+        "src/schemas/codeReview.ts",
+        "tests/unit/schemas/codeReview.test.ts",
+        "tests/unit/review/codeReviewSkillIds.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "oracle": {
+        "dischargedBy": "phase-02",
+        "files": [
+          "tests/unit/schemas/codeReview.test.ts",
+          "tests/unit/review/codeReviewSkillIds.test.ts"
+        ]
+      },
+      "boundaryContracts": "The oracles consume `src/schemas/codeReview.ts`, which phase-02 implements: `readCodeReviewAnswer(text)` returns the review or a one-line refusal reason, `codeReviewFileText(review)` returns the persisted file's text, and the three closed id lists. phase-03's use case consumes the same entries, and phase-04's PR body consumes the `CodeReview` type.",
+      "testStrategy": [
+        {
+          "guarantee": "an answer with version 1 and one finding carrying all eight keys, criterion null, is accepted, and the code-review.json text it becomes holds the code-review 0.29.0 $schema first, then that finding, and no version key",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected file object and its key order",
+          "loop": "oracle",
+          "criterion": "ac-accepted"
+        },
+        {
+          "guarantee": "an answer with the lens security, one missing suggestion, one carrying the unknown key confidence, and text that is not JSON are each refused, the reason naming the offending key",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the refusal and the key its reason names",
+          "loop": "oracle",
+          "criterion": "ac-refused"
+        },
+        {
+          "guarantee": "a severity, escape or version outside the contract, a missing or extra key at either level, a line that is not a positive integer, and an empty file, message, suggestion or criterion are each refused",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the refusal for every row",
+          "loop": "oracle",
+          "criterion": null
+        },
+        {
+          "guarantee": "a finding naming the criterion ac-nope and a file in no worktree is accepted, and the file text holds both values as given",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the answer's own values",
+          "loop": "oracle",
+          "criterion": "ac-as-given"
+        },
+        {
+          "guarantee": "findings keep the answer's order in the file text, and an empty findings list is accepted and written empty",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the answer's own list",
+          "loop": "oracle",
+          "criterion": null
+        },
+        {
+          "guarantee": "the severity, lens and escape ids the bundled phax-review skill lists equal the contract's closed sets, a difference naming the id",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the ids parsed from the bundled SKILL.md",
+          "loop": "oracle",
+          "criterion": "ac-skill-ids"
+        }
+      ],
+      "implementationOrder": [
+        "The stub module, with its final names and types.",
+        "The skill-ids oracle, with its parser checked once against the real skill.",
+        "The answer oracle: the accepted cases, then the refusal table."
+      ],
+      "excludedScope": [
+        "Any implementation of the contract, the format id, or the schemas package (phase-02).",
+        "The use case, the prompt, the run end, the PR body and the CLI (phases 03 to 05).",
+        "Any change to the phax-review skill."
+      ],
+      "verification": "The `standard` gate profile in phax.json; the configured `oracles` provider judges the authored oracles.",
+      "expectedHandoff": "List the exact names, signatures and types the stub declares, which phase-02 must implement unchanged. List the refusal rows, and which of them assert on the reason's content. Say how the skill parser extracts each set, and give the ids it produced from the bundled skill. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "test(review): freeze the code-review answer contract as oracles",
+        "body": "Freeze the headless code review's answer contract before its code exists. The tests cover which answers are accepted and which are refused, references kept as given, the code-review.json text ($schema first, then the findings, no version), and the equality between the contract's severity, lens and escape ids and those of the bundled phax-review skill. A stub in src/schemas/codeReview.ts declares the entries and throws as not implemented. Every oracle is marked as an expected failure until phase-02 discharges it."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "The code-review format and the code-review cost role",
+      "objective": "phax can check a code-review answer and write `code-review.json`. phase-01's oracles pass. The new `code-review` format is registered and published like every persisted format, and the cost ledger accepts a `code-review` entry with `phase: null` while still reading every older ledger. Nothing runs a code review yet.",
+      "detailedInstructions": [
+        "Discharge the oracles. Remove the expected-failure markers from `tests/unit/schemas/codeReview.test.ts` and `tests/unit/review/codeReviewSkillIds.test.ts`, and change nothing else in either file.",
+        "Implement `src/schemas/codeReview.ts` and keep every name the stub exports:\n- `CodeReviewSeveritySchema = Schema.Literal(\"bug\", \"deviation\", \"concern\", \"info\")`, plus `CodeReviewLensSchema` and `CodeReviewEscapeSchema`, each in the skill's order. `CODE_REVIEW_SEVERITIES = CodeReviewSeveritySchema.literals`, and likewise for the other two lists. The types now come from the schemas.\n- The finding fields, in order: `severity`; `file: Schema.NonEmptyString`; `line`, a positive integer (`Schema.Int` with a positivity filter); `message: Schema.NonEmptyString`; `lens`; `escape`; `criterion: Schema.NullOr(Schema.NonEmptyString)`; `suggestion: Schema.NonEmptyString`.\n- `CodeReviewAnswerSchema = Schema.Struct({ version: Schema.Literal(1), findings: Schema.Array(Finding) })`, decoded by `decodeCodeReviewAnswer` with `onExcessProperty: \"error\"`. Like `decodeComplianceReview`, it decodes the answer directly, never through the bridge.\n- `CodeReviewFileSchema = Schema.Struct({ $schema: schemaUrlField(\"code-review\"), findings })`, with `decodeCodeReviewFile` (`onExcessProperty: \"error\"`), `encodeCodeReviewFile` and the type `CodeReviewFile`.\n- `CODE_REVIEW_JSON_FILENAME = \"code-review.json\"`.",
+        "Write the two entries of `src/schemas/codeReview.ts`:\n- `readCodeReviewAnswer(text)`: `JSON.parse` inside a try (Left `not JSON: <message>`), then `decodeCodeReviewAnswer` (Left `formatFirstViolation` from `src/schemas/formatError.ts`), then Right `{ findings }` without `version`.\n- `codeReviewFileText(review)`: `JSON.stringify` of the encoded file with `$schema` first, indented by 2.\n\nDo not import `src/schemas/persisted.ts` here, because persisted.ts imports this module for its reader. Build the URL the way `currentSchemaUrl` in persisted.ts does: from `schemaUrl` in `src/schemas/schemaUrl.ts` and `CURRENT_STAMPS` in `src/schemas/release.ts`.",
+        "Register the format:\n- In `src/schemas/schemaUrl.ts`, append `code-review` after `review-record-manifest` in `FORMAT_IDS`, and add it to `SCHEMA_BORN_FORMAT_IDS`. Rewrite both doc comments: drop the sentence saying code-review joins later, and name the code review of spec headless-code-review.\n- In `src/schemas/persisted.ts`, add `readCodeReviewFile` with `readSchemaBornPersisted` (format `code-review`, label `code review`, `fromCurrent` dropping `$schema`), returning `CodeReview`.",
+        "Give the cost ledger its role:\n- In `src/schemas/costLedger.ts`, the run-level entry (rename `ComplianceEntrySchema` to `RunEntrySchema`) takes `role: Schema.Literal(\"compliance\", \"code-review\")` with `phase: Schema.Null`. Update the module and type comments.\n- Freeze today's shape as `src/schemas/history/cost-ledger/0.26.0.ts`. Copy the current schema faithfully, with a header like 0.25.0.ts's: it is the cost-ledger.json that phax 0.26.0 through 0.28.x wrote, with the phase roles phase, fix, handoff, first-turn and closing-turn and the compliance role, and it must never be edited. It exports `CostLedgerV0_26_0Schema`, `CostLedgerV0_26_0` and `decodeCostLedgerV0_26_0`.\n- In `readCostLedgerFile` (persisted.ts), a ledger stamped below the current stamp is decoded by the frozen 0.26.0 decoder and lifted unchanged, because 0.25.0's roles are a subset. Update its comment.",
+        "Update the ledger code:\n- In `src/domain/cost/ledger.ts`, the run-level member of `InvocationRole` becomes `{ readonly role: \"compliance\" | \"code-review\"; readonly phase: null }`. Every place that rebuilds a role (`ledgerEntryFor`, `ledgerFromStreams`) branches on `phase === null`, not on the role.\n- `runStreamsInOrder` picks up `code-review.session.jsonl` with role `code-review`, after `compliance-review.session.jsonl`. Update the comments.\n- Make the same `phase === null` change in `nextLedger` in `src/app/costLedger.ts` and in the stream reading of `src/app/costBackfill.ts`.\n- Leave `runLevelMedian` in `src/domain/cost/history.ts` counting compliance entries only: estimating the code review is a non-goal.",
+        "Update the schemas package:\n- In `packages/schemas/src/formats/runDirectory.ts`, declare `codeReviewFormat` (`preSchema: null`, `releases: []`, current shape `CodeReviewFileSchema` / `decodeCodeReviewFile` under `CURRENT_SHAPES[\"code-review\"]`), with `parseCodeReview`, `LatestCodeReview` (= `CodeReview`) and `toLatestCodeReview`, which drops `$schema`.\n- `costLedgerFormat` gets a second release, `[\"0.26.0\", { schema: CostLedgerV0_26_0Schema, decode: decodeCostLedgerV0_26_0 }]`. `CostLedgerShapes` gains `\"0.26.0\"`, and `toLatestCostLedger` accepts it.\n- Export everything new from `packages/schemas/src/index.ts`, beside the 0.25.0 cost-ledger exports and the review-record-manifest exports, and add both formats to the index's format maps.\n- Add `code-review` to both maps in `packages/schemas/build/jsonSchemas.ts`, with `\"error\"` in the excess-property map.",
+        "Run `pnpm exec tsx scripts/schemas-check.ts --write`. It creates `packages/schemas/snapshots/code-review/next.schema.json` and `packages/schemas/snapshots/cost-ledger/next.schema.json`. It regenerates `packages/schemas/src/generated/index.ts` and `src/schemas/release.ts`, where code-review and cost-ledger stamp 0.29.0, and it adds the frozen module to `packages/schemas/history.lock.json`. Never hand-edit those files.",
+        "Fill every exhaustive registry, following `review-record-manifest` and, for the frozen release, cost-ledger 0.25.0:\n- `tests/type/schemasPackage.ts`;\n- `tests/unit/architecturalGuards.test.ts`: `BRIDGE_ONLY_DECODERS` gains `decodeCodeReviewFile`, and `CLOSURE_SRC_ALLOWLIST` gains `src/schemas/codeReview.ts` and `src/schemas/history/cost-ledger/0.26.0.ts`, in sorted order;\n- `tests/unit/schemaUrl.test.ts`;\n- `tests/unit/schemasPackage/jsonSchemas.test.ts`;\n- `tests/unit/schemasPackage/currentShapes.test.ts`;\n- `tests/unit/schemasPackage/parity.test.ts`;\n- `tests/unit/schemasPackage/documents.test.ts`;\n- the fixtures in `tests/unit/schemasPackage/documents.ts`: a code-review document, a current cost ledger holding a code-review entry, and a 0.26.0 ledger.",
+        "In `tests/integration/persistedProducer.test.ts`, add `code-review` to `NEVER_WRITTEN`, with a comment saying that phase-03 of plan headless-code-review writes it and removes this entry.",
+        "In README.md's Persisted formats table, add a row after Compliance review: `Code review` | `code-review` | `<run folder>/code-review.json`, `<runId>/code-review/code-review.json` on `phax/records/v1` | `parseCodeReview` | `json/code-review.schema.json`. Run `pnpm format` to align the table.",
+        "Tests:\n- In `tests/unit/schemas/costLedger.test.ts`: a code-review entry decodes with `phase: null` and is refused with a phase id.\n- Create `tests/unit/costLedgerCodeReviewRole.test.ts`. `nextLedger` for role code-review appends an entry with phase null. `runStreamsInOrder` order and backfill include the code-review stream. A ledger stamped 0.26.0 that holds first-turn and closing-turn entries, and one stamped 0.25.0, read through `readCostLedgerFile`. Appending to either rewrites it at the current stamp."
+      ],
+      "planMarkdownAnchor": "#phase-02-code-review-format",
+      "plannedFilesToCreate": [
+        "src/schemas/history/cost-ledger/0.26.0.ts",
+        "packages/schemas/snapshots/code-review/next.schema.json",
+        "packages/schemas/snapshots/cost-ledger/next.schema.json",
+        "tests/unit/costLedgerCodeReviewRole.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/codeReview.ts",
+        "tests/unit/schemas/codeReview.test.ts",
+        "tests/unit/review/codeReviewSkillIds.test.ts",
+        "src/schemas/schemaUrl.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/release.ts",
+        "src/schemas/costLedger.ts",
+        "src/domain/cost/ledger.ts",
+        "src/app/costLedger.ts",
+        "src/app/costBackfill.ts",
+        "packages/schemas/src/formats/runDirectory.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/build/jsonSchemas.ts",
+        "packages/schemas/history.lock.json",
+        "README.md",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/schemas/costLedger.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/cost/history.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/unit/readmePersistedFormats.test.ts",
+        "tests/unit/releaseCut.test.ts",
+        "tests/unit/costLedgerTurnRoles.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/site/schemas.test.ts",
+        "tests/integration/costLedger.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "`src/schemas/codeReview.ts` produces the answer contract (`readCodeReviewAnswer`) and the persisted file (`codeReviewFileText`). The headless review in phase-03 consumes both. phax's `readCodeReviewFile` (bridge) and the schemas package's `parseCodeReview` read `code-review.json`, and the PR body in phase-04 consumes the phax reader. The cost ledger's `InvocationRole` (domain) and `RunEntrySchema` (schema) admit `code-review`, which phase-03's `withInvocationCost` call produces.",
+      "testStrategy": [
+        {
+          "guarantee": "phax's reader and the schemas package read a written code-review.json as code-review at the 0.29.0 stamp, and refuse one without $schema, with a version key or with an unknown key",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the parsed format id, the $schema URL and the typed failure",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a code-review cost entry decodes only with phase null, and a ledger holding compliance and code-review entries decodes whole",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the decoder's typed refusal and the decoded ledger",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a ledger stamped 0.26.0 holding first-turn and closing-turn entries, and one stamped 0.25.0, still read, and appending an entry rewrites the ledger at the current stamp",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the read entries and the rewritten $schema",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the kept streams list code-review.session.jsonl after compliance-review.session.jsonl, and a backfilled ledger carries its code-review entry with phase null",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected stream order and ledger entries",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Remove the markers, then implement src/schemas/codeReview.ts until the oracles pass.",
+        "Register the format id, add the phax reader, and add the schemas package format.",
+        "Change the cost-ledger role, freeze 0.26.0, update the reader routing and the domain role.",
+        "Run schemas-check --write, fill the registries and fixtures, add the README row, and write the cost-ledger tests."
+      ],
+      "excludedScope": [
+        "Running a code review, its prompt, the session record and the records entry (phase-03).",
+        "The PR body (phase-04), the config setting, the run end and the CLI (phase-05).",
+        "Any cost estimate for the code review.",
+        "A docs/upgrading.md entry."
+      ],
+      "verification": "The `standard` gate profile in phax.json; the configured `oracles` provider judges the discharge.",
+      "expectedHandoff": "Record the exact exports of `src/schemas/codeReview.ts` (names, types, the refusal reason formats), the `readCodeReviewFile` signature in persisted.ts, and `CODE_REVIEW_JSON_FILENAME`. Give the stamps code-review and cost-ledger received, the new `InvocationRole` member, and the stream name `code-review.session.jsonl`. Note that `code-review` sits in `NEVER_WRITTEN` until phase-03. Explain any deviation from the planned file lists, in particular any schemas-package test that had to change.",
+      "commit": {
+        "subject": "feat(review): add the code-review format and the code-review cost role",
+        "body": "phax can now check a headless code review's answer and write code-review.json. The answer is version 1 with findings, each with eight required keys, and the closed severity, lens and escape ids of the phax-review skill. Unknown keys are refused. The file holds $schema first, then the findings in order, in the new code-review format, born with $schema at 0.29.0 and readable through parseCodeReview. The cost ledger accepts a code-review entry with phase null. Its 0.26.0 shape is frozen, so every older ledger still reads. This discharges phase-01's oracles."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-03",
+      "title": "The headless code review and its records entry",
+      "objective": "phax can run the headless code review of a review_open run. A session under the compliance review's posture follows the `phax-review` skill and answers. An accepted answer becomes `code-review.json` and the run's review session, and, with records on, a `code-review` entry beside the run's phase records. Its cost lands in the ledger. `phax review-code <run>` resumes a recorded session on the provider that ran it. The review-entry helpers the two reviews share live in one module. Neither the run end nor the CLI calls the review yet.",
+      "detailedInstructions": [
+        "Add the headless prompt to `src/domain/review/codeReviewPrompt.ts`:\n- Export `CODE_REVIEW_ANSWER_FILENAME = \"code-review.json\"`, the answer under `.phax-context`.\n- Add `buildHeadlessCodeReviewPrompt(input: BuildCodeReviewPromptInput & { readonly answerPath: string })`. It shares the worklist, compliance and doctrine rendering with `buildCodeReviewPrompt` through private helpers. The interactive prompt's output stays byte-identical, and its existing tests pass unchanged.",
+        "Write the headless prompt's content. Title it `# Headless code review`. Say:\n- You review a phax run's change alone: no developer is present, you apply no fix, you edit no file, `git` is your only command, and you write only the answer file.\n- Follow the doctrine outside-in, but read its \"use it before you read it\" step as a read of the surface: the commands' help text, the README and docs, the spec's before and after examples, and the tests. You cannot run the change.\n- Ignore the doctrine's \"In the session\" section. Write one finding per cause, most severe first.\n- When compliance findings are missing, say so plainly, without the interactive prompt's tip to run review-compliance.",
+        "Write the headless prompt's answer section:\n- The answer path, and the exact JSON shape `{ \"version\": 1, \"findings\": [ { \"severity\", \"file\", \"line\", \"message\", \"lens\", \"escape\", \"criterion\", \"suggestion\" } ] }`, with every key required and no other key.\n- The allowed ids, taken from `CODE_REVIEW_SEVERITIES`, `CODE_REVIEW_LENSES` and `CODE_REVIEW_ESCAPES` in `src/schemas/codeReview.ts`, so the prompt cannot drift from the contract.\n- `file` is a path relative to the worktree. `line` is a positive integer, 1 for a whole-file finding. `criterion` is an acceptance-criterion id of the source spec, or null. `message` and `suggestion` are non-empty.\n- `{\"version\":1,\"findings\":[]}` when there is nothing to report.",
+        "Create `src/app/reviewEntry.ts` and move into it the review-entry code from `src/app/reviewCompliance.ts`, keeping the wording:\n- `ReviewRecordTarget` (was `ComplianceRecordTarget`), `ReviewRecordUnresolved`, and `reviewRecordTargetFor(input)` (was `complianceRecordTargetFor`).\n- `runEndReviewRecordTarget(config, namespace)`: kind project, `config.records`, `config.repoRoot`, `recordsClonePath(config.stateRoot, namespace)` for a repo destination, and `push: null`.\n- `ReviewEntryOutcome = { record: ReviewRecordStatus | { kind: \"no-entry\" } | { kind: \"unresolved\"; reason }; push: ReviewRecordPush }`.\n- `recordReviewEntry({ target, runId, runPath, review })`. It writes through `writeReviewRecord`, then pushes with `pushRecordsBranch` when `target.push` is set and the entry was written; otherwise the push is `left-to-publish`, or `no-record` when nothing was written.\n- `reviewEntryWarnings(outcome, review, retryCommand)`: the unresolved line uses the review kind and `REVIEW_RECORD_FILES[review]`, and reads exactly as today for compliance-review.\n- `reviewEntryNotice(outcome)`.",
+        "In `src/app/reviewCompliance.ts`, `reviewComplianceAndRecord` keeps its parameters (with the target type renamed) and its `{ review, record, push }` result, now built on `recordReviewEntry`. Remove the moved exports. Update the callers without changing behaviour: in `src/app/executePlan.ts`, the compliance block uses `runEndReviewRecordTarget` and `reviewEntryWarnings(outcome, \"compliance-review\", …)`. `src/cli/commands/reviewCompliance.ts` uses `reviewRecordTargetFor`, `reviewEntryNotice` and `reviewEntryWarnings`. Fix the imports in `tests/integration/complianceReviewRecord.test.ts`.",
+        "In `src/app/reviewCode.ts`, make two changes:\n- Extract the worklist loading of `prepareCodeReviewSession`'s new-session branch into an exported `loadCodeReviewWorklist(info, bundledReviewSkill)` that returns `{ attentionPoints, compliance?, complianceMissing, doctrine }`, with the same degradations. `prepareCodeReviewSession` calls it.\n- Change resume. Without `newSession`, read and decode `code-review-session.json` first. When it decodes, resume on `existingSession.provider` without reading the agent binding. Read the binding only to start a new session. Update the comment.",
+        "Add `reviewCodeHeadless(info, config: ResolvedCodeReviewConfig, resolution: RoutingResolution, security: { mode; config }, opts: { bundledReviewSkill: string; nowIso: string })` to `src/app/reviewCode.ts`. It returns `Effect<HeadlessCodeReviewResult, FsError, Backend | FileSystem | SystemTelemetry>`, where `HeadlessCodeReviewResult = { kind: \"accepted\"; review: CodeReview; reviewPath: string; session: CodeReviewSession } | { kind: \"failed\"; reason: string }`. Mirror `reviewCompliance`:\n1. Record telemetry step `code.review.headless`, started and completed at every exit.\n2. Load the worklist.\n3. Run `mkdirp` on `.phax-context`, and remove any leftover `.phax-context/code-review.json`.\n4. Build the headless prompt.\n5. Resolve the policy with `resolveReviewSecurityPolicy({ mode, worktreePath, config })` unchanged: no `readOnly`, no `agentCommands`.",
+        "Continue `reviewCodeHeadless`:\n6. Call `backend.runAgent` with `{ provider: resolution.selected.provider, model: resolution.selected.concreteModel, effort: resolution.selected.thinking ?? config.effort, cwd: worktreePath, security: policy, outputJsonlPath: <runPath>/code-review.session.jsonl }`, wrapped in `withInvocationCost({ role: \"code-review\", phase: null, runId, runPath, provider, streamPath })`.\n7. An agent error gives failed `the session failed: <message>`.\n8. A missing answer gives failed `the session wrote no answer at <path>`. An unreadable answer fails the same way. A Left from `readCodeReviewAnswer` gives failed `answer refused: <reason>`.\n9. When the answer is accepted, `writeAtomic` `<runPath>/code-review.json` with `codeReviewFileText(review)`. Then `writeAtomic` `<runPath>/code-review-session.json` with the version-1 record `{ shortName, runId, provider: resolution.selected.provider, sessionId: <the backend's sessionId>, worktreePath, createdAt: nowIso, updatedAt: nowIso }`. Emit artifact-generated telemetry for code-review.json.\n\nNo failure writes anything in the run folder.",
+        "Add `reviewCodeAndRecord(info, config, resolution, security, target: ReviewRecordTarget | ReviewRecordUnresolved, opts)` to `src/app/reviewCode.ts`. It returns `{ review: HeadlessCodeReviewResult } & ReviewEntryOutcome`. It runs `reviewCodeHeadless`, and only an accepted review calls `recordReviewEntry` with `review: \"code-review\"`. A failed review returns `no-entry` / `no-record`. Its requirements gain Git and GitHub. It never calls a pull-request operation.",
+        "Tests, part one:\n- `tests/unit/review/codeReviewPrompt.test.ts`: the headless prompt cases from the test strategy.\n- Create `tests/integration/reviewCodeHeadless.test.ts`. Use the fake file system and fake backend, as `tests/integration/reviewComplianceCommand.test.ts` drives `reviewCompliance`. Use `setOnRunAgent` to write the answer into `.phax-context/code-review.json` and, for the cost case, a Claude stream into `outputJsonlPath`. Give the bundled skill as a literal string. Put the project's copy in the fake file system at `<worktree>/.claude/skills/phax-review/SKILL.md`. Drive `reviewCodeAndRecord` with the fake git and `makeFakeGitHub()` holding an open pull request, to show that no pull-request call is made.",
+        "Tests, part two:\n- Create `tests/integration/codeReviewRecord.test.ts`, with real git through `tests/helpers/isolateGit.ts`, a temporary repository with in-repo records, and `makeFakeGitHub()` (or transcripts off). Cover: the entry commit and its byte-identical file; a second accepted review that replaces it while the first stays in history (`git show`); and records off.\n- `tests/integration/reviewCode.test.ts`: resume on the recorded provider (a claude-code record with a codex-cli binding resumes with `claude --resume <id>`), and `--new-session` after a headless review.\n- In `tests/integration/persistedProducer.test.ts`, drive `reviewCodeHeadless` with a valid answer. Map only a run folder's `code-review.json` to `code-review` in `formatAt`, never the answer under `.phax-context`, which carries `version`. Remove `code-review` from `NEVER_WRITTEN`.\n\nNo test reads `~/.phax`, a real `~/.claude`, `~/.codex` or `~/.vibe`, the global git config, or the real `gh`."
+      ],
+      "planMarkdownAnchor": "#phase-03-headless-review",
+      "plannedFilesToCreate": [
+        "src/app/reviewEntry.ts",
+        "tests/integration/reviewCodeHeadless.test.ts",
+        "tests/integration/codeReviewRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/review/codeReviewPrompt.ts",
+        "src/app/reviewCode.ts",
+        "src/app/reviewCompliance.ts",
+        "src/app/executePlan.ts",
+        "src/cli/commands/reviewCompliance.ts",
+        "tests/unit/review/codeReviewPrompt.test.ts",
+        "tests/integration/reviewCode.test.ts",
+        "tests/integration/complianceReviewRecord.test.ts",
+        "tests/integration/persistedProducer.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/writeReviewRecord.ts",
+        "src/cli/commands/reviewCode.ts",
+        "src/infra/fakes/backend.ts",
+        "src/infra/fakes/github.ts",
+        "tests/unit/cli/reviewCompliance.test.ts",
+        "tests/integration/reviewCodeCommand.test.ts",
+        "tests/integration/reviewComplianceCommand.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/integration/costLedger.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "`reviewCodeAndRecord` (app) is the one use case that phase-05's run end and `review-code --headless` consume. It produces the headless result and the entry's status and push, and never lets the session, the answer or the records fail its caller. It consumes:\n- the Backend port (one session under the review policy);\n- the FileSystem port (the worklist, the answer, the two run-folder files);\n- `withInvocationCost` (the ledger);\n- `src/schemas/codeReview.ts` (phase-02);\n- `recordReviewEntry` in `src/app/reviewEntry.ts`, which wraps plan 1's `writeReviewRecord`.\n\n`prepareCodeReviewSession` consumes `code-review-session.json`, whoever wrote it, and resumes on its provider through the session adapter.",
+      "testStrategy": [
+        {
+          "guarantee": "an accepted answer writes code-review.json with the findings in the answer's order and code-review-session.json naming the provider and the session id that ran the review",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the two files' content against the answer and the backend's session id",
+          "loop": "in-phase",
+          "criterion": "ac-accepted"
+        },
+        {
+          "guarantee": "a refused answer, a session that writes no answer and a failed session each return the reason and leave code-review.json and code-review-session.json byte-identical to before",
+          "size": "small",
+          "technique": "table",
+          "oracle": "both files before and after, and the reason",
+          "loop": "in-phase",
+          "criterion": "ac-hand-failed"
+        },
+        {
+          "guarantee": "a session that fails on a run with no review files leaves neither code-review.json nor code-review-session.json",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the run folder's listing",
+          "loop": "in-phase",
+          "criterion": "ac-session-fails"
+        },
+        {
+          "guarantee": "a second accepted review replaces code-review.json with only its findings and code-review-session.json with its session",
+          "size": "small",
+          "technique": "example",
+          "oracle": "both files after each review",
+          "loop": "in-phase",
+          "criterion": "ac-hand-again"
+        },
+        {
+          "guarantee": "an answer file left by an earlier invocation is removed before the session and never read back as this one's",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the failed result when the session writes nothing",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the prompt carries the project's phax-review copy when the run's branch has one and the bundled skill otherwise, and both carry the flagged files, the compliance findings, the closed ids and the answer path",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the prompt the backend received",
+          "loop": "in-phase",
+          "criterion": "ac-doctrine"
+        },
+        {
+          "guarantee": "the session runs under the compliance review's policy for the same worktree: writes only to .phax-context, git as its only command, provider-only network and no MCP server",
+          "size": "small",
+          "technique": "example",
+          "oracle": "resolveReviewSecurityPolicy for the same worktree",
+          "loop": "in-phase",
+          "criterion": "ac-posture"
+        },
+        {
+          "guarantee": "a code review session on claude-code adds one cost-ledger entry with role code-review and phase null",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the ledger's last entry",
+          "loop": "in-phase",
+          "criterion": "ac-cost"
+        },
+        {
+          "guarantee": "after an accepted review, review-code without --new-session resumes the recorded session on the recorded provider even when the final phase ran on another, and --new-session starts and records a new one",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the invocation's executable and arguments and the session record",
+          "loop": "in-phase",
+          "criterion": "ac-resume"
+        },
+        {
+          "guarantee": "with records on, an accepted review commits its code-review.json byte for byte under the run's code-review key beside its phase records, a second one replaces it with the first still in the branch's history, and with records off only the run folder holds it",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the records branch's commits, git show of both and the run folder",
+          "loop": "in-phase",
+          "criterion": "ac-records-code"
+        },
+        {
+          "guarantee": "a review of a run with an open pull request makes no pull request call",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the fake GitHub's call log",
+          "loop": "in-phase",
+          "criterion": "ac-hand-pr"
+        },
+        {
+          "guarantee": "the compliance review's entry, warnings and notice read as before the move to reviewEntry.ts",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing compliance entry tests",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Move the shared entry helpers into src/app/reviewEntry.ts and update the compliance callers, with their tests still green.",
+        "Add the headless prompt and its tests.",
+        "Add loadCodeReviewWorklist, the resume change and its test.",
+        "Add reviewCodeHeadless and reviewCodeAndRecord, then their fake-port and real-git tests, then the persisted producer."
+      ],
+      "excludedScope": [
+        "review.code.enabled, the run-end call and the --headless flag (phase-05).",
+        "The PR body (phase-04).",
+        "A corrective retry turn, an origin key in code-review-session.json, and code review findings in a new interactive session's prompt.",
+        "Any change to the review security policy or to the phax-review skill."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Record the exact signatures of `reviewCodeHeadless`, `reviewCodeAndRecord`, `HeadlessCodeReviewResult`, `loadCodeReviewWorklist` and every export of `src/app/reviewEntry.ts`, which phase-05 consumes. Give the failure reason formats, the stream name, the answer path, and the telemetry step name. Describe the resume change and its effect on interactive records. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(review): run the code review headless and keep it in the records",
+        "body": "Add the headless code review use case. A session under the compliance review's posture follows the phax-review skill (the project copy first) with the reconciliation worklist and the compliance findings, and answers in .phax-context/code-review.json. An accepted answer becomes code-review.json and the run's review session in code-review-session.json, with the provider that ran it. With records on, it also becomes a code-review entry beside the run's phase records. A refused answer or a failed session writes nothing. Its cost lands in the ledger as a code-review entry. phax review-code now resumes a recorded session on its own provider. The review-entry target, warnings and notice that both reviews use move to src/app/reviewEntry.ts."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "Code review findings in the pull request",
+      "objective": "A run's pull request description lists its code review findings under `### Code review findings`, between the compliance attention points and the unexplained deviations, whenever the run folder holds a readable `code-review.json`. Over the size cap, the findings are cut after the attention points and before the review notes, and a line counts the cut ones.",
+      "detailedInstructions": [
+        "In `src/domain/publish/prBody.ts`:\n- `ShortPrBodyInput` gains a required `codeReview: { readonly kind: \"reviewed\"; readonly review: CodeReview } | { readonly kind: \"not-reviewed\" }`, with `CodeReview` from `src/schemas/codeReview.ts`. `Keep` gains `findings`.\n- `renderNeedsYourReview`: after the compliance block (when reviewed) and before `### Unexplained deviations`, when the code review is reviewed, add `### Code review findings` followed by `renderCutList(lines, keep.findings, [\"code review finding\", \"code review findings\"])`.\n- Each line is `- **<severity>** \\`<file>:<line>\\` — <message>`, with the message passed through `onOneLine`. A review with no findings shows `None.`, and a not-reviewed review renders no heading.",
+        "Change the cut order in `src/domain/publish/prBody.ts` to unexplained deviations, compliance attention points, code review findings, then review notes:\n- Insert a findings stage between the attention-point stage and the notes stage.\n- With deviations and attention points emptied, if the body fits, keep the largest number of findings that fits (`largestFitting`).\n- Otherwise, empty the findings and search the notes as today.\n- Update the builder's and the stage's comments to name the new order.",
+        "In `src/app/publishRun.ts`, add `loadCodeReview(runPath)`, mirroring `loadCompliance`: `readCodeReviewFile` from persisted.ts on `<runPath>/code-review.json`. An absent, unparsable or undecodable file reads as not reviewed and never fails a publish. Pass the result to `buildShortPrBody`. A reused pull request keeps its body, as today.",
+        "Tests:\n- `tests/unit/publish/prBody.test.ts`: the base input gains `codeReview: { kind: \"not-reviewed\" }`, plus the new cases.\n- `tests/integration/reviewedPhasesSurfaces.test.ts`: its input literal gains the key.\n- `tests/integration/publishRun.test.ts`: a run folder with a `code-review.json` produces a `pr-body.md` holding the heading and the lines; one whose file carries a `version` key produces no heading."
+      ],
+      "planMarkdownAnchor": "#phase-04-pr-findings",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/publish/prBody.ts",
+        "src/app/publishRun.ts",
+        "tests/unit/publish/prBody.test.ts",
+        "tests/integration/reviewedPhasesSurfaces.test.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/reportText.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "`buildShortPrBody` (domain) consumes a decoded code review or `not-reviewed`. `publishRun` (app) produces it from the run folder through `readCodeReviewFile` (phase-02), whose failures degrade to `not-reviewed`. The run end in phase-05 relies on publish reading the `code-review.json` that phase-03's use case wrote before it.",
+      "testStrategy": [
+        {
+          "guarantee": "findings are listed under ### Code review findings after the compliance attention points and before the unexplained deviations, one line per finding with its severity, file:line and message, in the file's order",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected Markdown",
+          "loop": "in-phase",
+          "criterion": "ac-pr-lines"
+        },
+        {
+          "guarantee": "a run with no readable code review gets no ### Code review findings heading, and a review with no finding shows None.",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected Markdown",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a description still over its cap after cutting every deviation and attention point cuts findings, closing their list with the count of cut findings, and cuts review notes only when no finding fits",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the body, its byte size and the count line",
+          "loop": "in-phase",
+          "criterion": "ac-pr-cut"
+        },
+        {
+          "guarantee": "publish reads code-review.json from the run folder, and an absent or undecodable file publishes without the heading",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the written pr-body.md",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The input key, the section and its line in prBody.ts.",
+        "The findings stage in the cut order.",
+        "loadCodeReview in publishRun.ts.",
+        "The unit, then the integration tests."
+      ],
+      "excludedScope": [
+        "A code review fact in the summary line, or a section in review-handoff.md (non-goals).",
+        "Updating an open pull request's description.",
+        "The run end and the CLI (phase-05)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact finding line, the count-line nouns, the new cut order as implemented, and the `ShortPrBodyInput.codeReview` shape. Say how publish degrades an unreadable file. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(publish): list code review findings in the pull request",
+        "body": "A run's pull request description now lists the findings of its code-review.json under ### Code review findings, between the compliance attention points and the unexplained deviations: one line each with its severity, file:line and message, in the file's order. With no readable code review, the heading is left out. Over the size cap, the findings are cut after the compliance attention points and before the review notes, with a line counting the cut ones."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "review.code.enabled, the run end and review-code --headless",
+      "objective": "With `review.code.enabled` true, every run that reaches review_open runs the headless code review after the compliance review and before the pull request, and never fails because of it. `phax review-code <run> --headless` runs the same review by hand on a review_open run. It prints the finding count and the command that resumes the session, and exits 1 naming the reason when the review fails. The README, which the site renders as its Reviewing and landing guide, documents both.",
+      "detailedInstructions": [
+        "Config, in `src/schemas/phaxConfig.ts`:\n- `CodeReviewConfigSchema` gains `enabled: Schema.optional(Schema.Boolean)`, with a description annotation: it runs the headless code review when a run reaches review, after the compliance review and before the pull request, and is false when absent. The project schema and the user overlay share this schema.\n- `ResolvedCodeReviewConfig` gains `readonly enabled: boolean`, and `resolveCodeReviewConfig` sets it to `raw?.enabled ?? false`.\n- Run `pnpm dev schema upgrade` and commit the regenerated `phax.schema.json` and `phax.user.schema.json`.\n- `pnpm test:type` names every test literal `codeReview: { model, effort }` that now lacks `enabled`: add `enabled: false` to each (the optional files list those expected).",
+        "Run end, in `src/app/executePlan.ts`:\n- `ExecutePlanOptions` gains `readonly bundledReviewSkill?: string | undefined`, documented: the bundled phax-review SKILL.md, read by `phax run` and `phax resume`, and needed only when `review.code.enabled` is on.\n- After the compliance block and before auto-publish, when `config.codeReview.enabled`: build the review policy and the resolution as the compliance block does, with `resolveModel({ model: config.codeReview.model, effort: config.codeReview.effort }, routing, providerConfig, securityFilterFor(reviewPolicy))`.\n- When `opts.bundledReviewSkill` is undefined, write `[phax] Warning: code review not run: the bundled phax-review skill was not given` to stderr and skip the review.\n- Otherwise call `reviewCodeAndRecord(info, config.codeReview, resolution, { mode: securityMode, config: config.security }, runEndReviewRecordTarget(config, namespace), { bundledReviewSkill, nowIso })`.",
+        "Handle the run-end outcome. Write each of these to stderr as `[phax] Warning: …`:\n- for a failed review, `code review failed: <reason> — rerun it with \\`phax review-code <shortName> --headless\\``;\n- each line of `reviewEntryWarnings(outcome, \"code-review\", \\`phax review-code ${shortName} --headless\\`)`.\n\nAdd `Effect.catchAll(() => Effect.void)` as the compliance block does: the run stays review_open and publish runs after it.",
+        "In `src/cli/commands/run.ts` and `src/cli/commands/resume.ts`, when `config.codeReview.enabled`, read `join(defaultBundleRoot(), PHAX_REVIEW_SKILL, \"SKILL.md\")` through the FileSystem port, as `runReviewCode` does, and pass it as `bundledReviewSkill`. When the read fails, pass nothing, so the run-end warning names the cause.",
+        "CLI, the flag. In `src/cli/program.ts`, add `--headless` to `review-code` with the description: \"Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set\". Pass the flag through `ReviewCodeCommandOptions.headless`.",
+        "CLI, `runReviewCode` in `src/cli/commands/reviewCode.ts`. Keep the config load, the effort validation, the run resolution and the review_open check, whose message already names the state. When `headless` is set:\n- Load the routing and the provider config, and call `resolveModel({ model: effectiveModel, effort: effectiveEffort }, routing, providerConfig, () => ({ allowed: true }))`, as `runReviewCompliance` does.\n- Read the bundled skill.\n- Call `reviewCodeAndRecord` with `reviewRecordTargetFor({ config, namespace, info, crossProject })` and `{ bundledReviewSkill, nowIso }`, providing `makeProviderBackendLayer(providerConfig)`, `makeRepoRootedFileSystemLayer(config)`, `NoopSystemTelemetryLayer`, `NodeGitLayer` and `NodeGitHubLayer`.\n\n`--new-session` changes nothing with `--headless`.",
+        "CLI, what `runReviewCode` prints after a headless review. Let ref be `runKey(namespace, shortName)` for a cross-project run, else the short name.\n- When the answer is accepted, print in order: `Code review: <describeFindingCounts(findings)>`, `Findings: <reviewPath>`, `Fix them in the session: phax review-code <ref>`, then `reviewEntryNotice`, then each `reviewEntryWarnings` line through `out.warn`, with the retry `phax review-code <ref> --headless`. Exit 0.\n- When it fails, call `out.error` with `Code review failed: <reason>. To retry, run: phax review-code <ref> --headless`, and exit 1.",
+        "Create `src/domain/review/codeReviewFindings.ts` with `describeFindingCounts(findings)`. It returns `2 findings (1 bug, 1 concern)`, `1 finding (1 info)` or `0 findings`: severities in the contract's order (bug, deviation, concern, info), with zero counts left out.",
+        "Help and generated docs. In `src/cli/cliDocs.ts`, extend `review-code`'s long help:\n- `--headless` runs the review without a person under the compliance review's read-only posture, whether or not `review.code.enabled` is set.\n- An accepted answer writes `code-review.json` and `code-review-session.json` in the run folder. When records are on, it commits the code-review entry, and pushes it when records.autoPush is on. It never touches a pull request.\n- A later `phax review-code <run>` resumes that session on the provider that ran it.\n- Add the example `phax review-code usage-cli --headless`.\n\nRun `pnpm gen:usage-spec` and `pnpm docs:cli`, and commit `phax.usage.kdl`, `docs/cli/reference.md`, and the README CLI summary that `docs:cli` refreshes.",
+        "README.md, part one:\n- In the Set up a project bullet on `review.code`, say that `review.code.enabled` turns the headless code review on.\n- In Review and land, add `phax review-code <run> --headless` to the command block, with a short comment.\n- After the review-code paragraph, add a paragraph on the headless review. It follows the same skill under the compliance review's read-only posture, and writes its findings to `code-review.json` (severity, file and line, lens, escape, criterion, suggestion). It records its session, so that `phax review-code <run>` resumes it on the provider that ran it, to ask for the fixes; `--new-session` starts over. A refused answer or a failed session changes nothing and exits 1 with the retry command. Use the spec's example: set `\"review\": { \"code\": { \"enabled\": true } }`, read `### Code review findings` in the pull request, then run `phax review-code <run>`.",
+        "README.md, part two:\n- The steps that run on their own become three, in order: the compliance review, the code review (`review.code.enabled`), and the pull request. None can fail the run.\n- The PR description paragraph names the code review findings under Needs your review, says they are cut after the compliance attention points and before the review notes, and says a by-hand review never updates an open pull request.\n- In Records, add one sentence: an accepted `code-review.json` is kept as a `<runId>/code-review/` entry, as the compliance review's file is.\n- In the cost-ledger sentence, say that the ledger also counts the compliance and code review sessions.\n- Add no docs/upgrading.md entry.",
+        "Tests, part one:\n- Create `tests/unit/schemas/codeReviewConfig.test.ts`: `enabled` is an optional boolean, false when absent; a string is refused; and the same holds in the user overlay.\n- Create `tests/unit/review/codeReviewFindings.test.ts`.\n- Create `tests/unit/cli/reviewCode.test.ts`, mocking `loadConfig`, `resolveRunRef`, `loadRouting`, `resolveModel` and `reviewCodeAndRecord` as `tests/unit/cli/reviewCompliance.test.ts` does. Cover: accepted with one bug and one concern; a run in state running (exit 1 naming `running`, use case not called); a refused review; and the cross-project retry ref.",
+        "Tests, part two: create `tests/integration/headlessCodeReviewRunEnd.test.ts`, driving `executePlan` with fake ports as `tests/integration/complianceReviewRecord.test.ts` does.\n- Turn on the compliance review, `review.code.enabled` and `publish.auto`, with `makeFakeGitHub()` and a literal `bundledReviewSkill`.\n- In `setOnRunAgent`, tell the compliance session from the code review session by `outputJsonlPath` (`compliance-review.session.jsonl` or `code-review.session.jsonl`), write each one's answer, and record what exists when the code review session starts: `compliance-review.json`, and no `createPullRequest` call yet.\n- Cover the cases in the test strategy.\n\nEvery test that creates a repository uses `tests/helpers/isolateGit.ts`. None reads `~/.phax`, a real `~/.claude`, `~/.codex` or `~/.vibe`, the global git config, or the real `gh`."
+      ],
+      "planMarkdownAnchor": "#phase-05-run-end-and-cli",
+      "plannedFilesToCreate": [
+        "src/domain/review/codeReviewFindings.ts",
+        "tests/unit/review/codeReviewFindings.test.ts",
+        "tests/unit/schemas/codeReviewConfig.test.ts",
+        "tests/unit/cli/reviewCode.test.ts",
+        "tests/integration/headlessCodeReviewRunEnd.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "src/app/executePlan.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/reviewCode.ts",
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/helpers/stoppedRunFixture.ts",
+        "tests/e2e/gateExhaustionResume.test.ts",
+        "tests/integration/plansOverlapLanded.test.ts",
+        "tests/integration/stateMachineContract.test.ts",
+        "tests/unit/cli/validate.test.ts",
+        "tests/unit/cli/enterPhase.test.ts",
+        "tests/unit/cli/ls.test.ts",
+        "tests/unit/cli/run.test.ts",
+        "tests/unit/cli/reviewCompliance.test.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "tests/unit/cli/resume.test.ts",
+        "tests/integration/reviewCodeCommand.test.ts",
+        "tests/integration/routing.test.ts",
+        "tests/integration/enterPhase.test.ts",
+        "tests/integration/resume.test.ts",
+        "tests/integration/sessionInfo.test.ts",
+        "tests/integration/adjustPlanCommand.test.ts",
+        "tests/integration/plansOverlapCommand.test.ts",
+        "tests/integration/reviewCode.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "src/cli/commands/runLayers.ts",
+        "site/pages.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "The config schema produces `ResolvedCodeReviewConfig.enabled`, and executePlan's run end consumes it. executePlan (app) consumes `reviewCodeAndRecord` and `runEndReviewRecordTarget` from phase-03 between the compliance review and `publishRun`, which phase-04 taught to read `code-review.json`. The `run` and `resume` commands produce `bundledReviewSkill`. `review-code --headless` (CLI) parses arguments, calls the one use case, and renders its result through the OutputPort, with the count line from `src/domain/review/codeReviewFindings.ts`.",
+      "testStrategy": [
+        {
+          "guarantee": "with the compliance review, the code review and publish.auto on, the code review session starts after compliance-review.json is written and before the pull request is created, code-review.json exists, and the description holds ### Code review findings",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the session order, the fake GitHub's calls and pr-body.md",
+          "loop": "in-phase",
+          "criterion": "ac-run-end"
+        },
+        {
+          "guarantee": "a review.code holding only model and effort runs no code review session, writes no code-review.json and leaves the heading out of the description",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the backend's sessions, the run folder and pr-body.md",
+          "loop": "in-phase",
+          "criterion": "ac-off"
+        },
+        {
+          "guarantee": "answers with the lens security, a missing suggestion, the unknown key confidence or text that is not JSON leave no code-review.json, the run review_open and the description without the heading",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "the run's state, the run folder and pr-body.md",
+          "loop": "in-phase",
+          "criterion": "ac-refused"
+        },
+        {
+          "guarantee": "a code review session that fails at run end leaves the run review_open, the pull request written and neither review file",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the run's state, the fake GitHub's calls and the run folder",
+          "loop": "in-phase",
+          "criterion": "ac-session-fails"
+        },
+        {
+          "guarantee": "review.code with enabled true, claude-sonnet-5-5 and medium runs the session on claude-sonnet-5-5 at medium effort",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the backend call's model and effort",
+          "loop": "in-phase",
+          "criterion": "ac-model"
+        },
+        {
+          "guarantee": "review.code.enabled is an optional boolean, false when absent, and a non-boolean value is refused in phax.json and in the user overlay",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the decoded config and the typed refusal",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "review-code --headless on a review_open run, with review.code.enabled absent, prints the count line and the resume command and exits 0 when the answer is accepted",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the printed lines and the exit code",
+          "loop": "in-phase",
+          "criterion": "ac-hand"
+        },
+        {
+          "guarantee": "review-code --headless on a running run exits 1 naming the state running and starts no session",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the error line, the exit code and the use case's calls",
+          "loop": "in-phase",
+          "criterion": "ac-hand-state"
+        },
+        {
+          "guarantee": "review-code --headless exits 1 naming the refusal and the retry command when the review fails",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the error line and the exit code",
+          "loop": "in-phase",
+          "criterion": "ac-hand-failed"
+        },
+        {
+          "guarantee": "the count line reads 2 findings (1 bug, 1 concern), 1 finding (1 info) and 0 findings",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the expected lines",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The config key, its resolution, the regenerated JSON schemas and the fixture literals.",
+        "The run-end call in executePlan, the bundled skill from run and resume, and the run-end integration test.",
+        "The count line, the --headless flag and its rendering, and the CLI unit test.",
+        "The help text, the regenerated usage spec and CLI docs, then the README."
+      ],
+      "excludedScope": [
+        "Updating an open pull request after a by-hand review, a code review fact in the PR summary, and a review-handoff.md section (non-goals).",
+        "A cost estimate for the code review in phax plans estimate.",
+        "phax ls columns, phax-decide-review, and the review map.",
+        "A docs/upgrading.md entry, and any migration of earlier runs."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Say where the run-end call sits relative to the compliance review and publish, and give the warnings it prints. Give the exact by-hand output lines and exit codes, the `--headless` help text, and the new `ResolvedCodeReviewConfig` and `ExecutePlanOptions` keys. List the README sections changed and the fixture files that needed `enabled: false`. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(review): run the headless code review at run end and with review-code --headless",
+        "body": "With review.code.enabled set to true, a run that reaches review_open runs the headless code review after the compliance review and before the pull request. Its findings land in code-review.json and under ### Code review findings in the pull request, and a failed review never fails the run. phax review-code <run> --headless runs the same review by hand on a review_open run, whether or not the setting is on. It prints the finding count and the command that resumes the session, exits 1 naming the reason and the retry command when it fails, and leaves an open pull request as it is. The README and the review-code help document both."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
