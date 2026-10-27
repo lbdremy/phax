@@ -26,6 +26,7 @@ import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeDecideVerdictsFile } from "../../../src/schemas/decideVerdicts.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
+import { decodeReviewRecordManifestFile } from "../../../src/schemas/reviewRecord.js";
 import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
@@ -96,6 +97,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "brief-report": decodeBriefReportFile,
   "hand-decision-answer": decodeHandDecisionAnswerFile,
   "decision-record-manifest": decodeDecisionRecordManifestFile,
+  "review-record-manifest": decodeReviewRecordManifestFile,
   "cost-ledger": decodeCostLedgerFile,
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,

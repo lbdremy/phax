@@ -33,6 +33,7 @@ import {
   parseComplianceReview,
   parseCostLedger,
   parseDecisionRecordManifest,
+  parseReviewRecordManifest,
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
@@ -65,6 +66,7 @@ import {
   toLatestComplianceReview,
   toLatestCostLedger,
   toLatestDecisionRecordManifest,
+  toLatestReviewRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
@@ -242,6 +244,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "brief-report": latest(parseBriefReport, toLatestBriefReport),
   "hand-decision-answer": latest(parseHandDecisionAnswer, toLatestHandDecisionAnswer),
   "decision-record-manifest": latest(parseDecisionRecordManifest, toLatestDecisionRecordManifest),
+  "review-record-manifest": latest(parseReviewRecordManifest, toLatestReviewRecordManifest),
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
@@ -284,6 +287,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "brief-report": undefined,
   "hand-decision-answer": undefined,
   "decision-record-manifest": readRecordManifestFile,
+  "review-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,
   // phax writes the architecture request and never reads it back; it reads the
   // architecture report only as a provider's answer, through

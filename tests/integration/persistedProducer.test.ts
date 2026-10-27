@@ -30,6 +30,7 @@ import { reconcilePhaseFiles } from "../../src/app/reconcilePhaseFiles.js";
 import { reviewCompliance } from "../../src/app/reviewCompliance.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { writeDecisionRecord } from "../../src/app/writeDecisionRecord.js";
+import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import { writeRecord } from "../../src/app/writeRecord.js";
 import {
   decodeShortName,
@@ -316,6 +317,10 @@ function formatAt(
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     if (location.startsWith("records:decision/")) return "decision-record-manifest";
+    // A review entry's key is `<runId>/<review>`, beside the run's phase records.
+    if (/^records:[^/]+\/(compliance-review|code-review)\/record\.json$/.test(location)) {
+      return "review-record-manifest";
+    }
     return location.includes("authoring/") ? "authoring-record-manifest" : "phase-record-manifest";
   }
   if (name === "document.json") {
@@ -712,6 +717,20 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   );
   if (Either.isLeft(reviewed) || reviewed.right.kind !== "generated") {
     throw new Error("reviewCompliance generated no review");
+  }
+
+  // The review's file, committed as a review entry beside the phase record.
+  const reviewEntry = await run(
+    writeReviewRecord({
+      repoRoot: REPO_ROOT,
+      records: RECORDS_IN_REPO,
+      runId: created.right.runId,
+      runPath: RUN_PATH,
+      review: "compliance-review",
+    }),
+  );
+  if (Either.isLeft(reviewEntry) || reviewEntry.right.kind !== "written") {
+    throw new Error("writeReviewRecord wrote no entry");
   }
 
   // Every file phax wrote: on the file system, and in every records commit.

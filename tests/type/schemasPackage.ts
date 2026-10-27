@@ -60,6 +60,8 @@ import type {
   DecideVerdictsShape,
   DecisionRecordManifest,
   DecisionRecordManifestShape,
+  ReviewRecordManifest,
+  ReviewRecordManifestShape,
   DecisionRecordManifestV0_25_0,
   DocumentFormatId,
   GateAttribution,
@@ -78,6 +80,7 @@ import type {
   LatestCostLedger,
   LatestDecideVerdicts,
   LatestDecisionRecordManifest,
+  LatestReviewRecordManifest,
   LatestGateAttribution,
   LatestGateReport,
   LatestGateRequest,
@@ -167,6 +170,7 @@ import {
   parseCostLedger,
   parseDecideVerdicts,
   parseDecisionRecordManifest,
+  parseReviewRecordManifest,
   parseDocument,
   parseGateAttribution,
   parseGateReport,
@@ -193,6 +197,7 @@ import {
   toLatestCostLedger,
   toLatestDecideVerdicts,
   toLatestDecisionRecordManifest,
+  toLatestReviewRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
@@ -282,6 +287,10 @@ import type {
   DecideVerdictsFile as PhaxDecideVerdictsFile,
 } from "../../src/schemas/decideVerdicts.js";
 import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
+import type {
+  ReviewRecordManifest as PhaxReviewRecordManifest,
+  ReviewRecordManifestFile as PhaxReviewRecordManifestFile,
+} from "../../src/schemas/reviewRecord.js";
 import type {
   DecisionRecordManifest as PhaxDecisionRecordManifest,
   DecisionRecordManifestFile as PhaxDecisionRecordManifestFile,
@@ -542,6 +551,7 @@ const formats: Equals<
   | "brief-report"
   | "hand-decision-answer"
   | "decision-record-manifest"
+  | "review-record-manifest"
   | "cost-ledger"
   | "architecture-request"
   | "architecture-report"
@@ -635,6 +645,7 @@ const shapeIds: Equals<
   | BriefReportShape
   | HandDecisionAnswerShape
   | DecisionRecordManifestShape
+  | ReviewRecordManifestShape
   | CostLedgerShape
   | ArchitectureRequestShape
   | ArchitectureReportShape
@@ -1075,6 +1086,23 @@ if (document.ok && document.format === "decision-record-manifest") {
   > = true;
   void exact;
 }
+// The review record manifest is born with $schema too: phax's own types, one
+// current shape, and an in-memory value without $schema
+const reviewManifestTypes: [
+  Equals<ReviewRecordManifest, PhaxReviewRecordManifestFile>,
+  Equals<ReviewRecordManifestShape, Current<"review-record-manifest">>,
+  Equals<Value<typeof parseReviewRecordManifest>, PhaxReviewRecordManifestFile>,
+  Equals<LatestReviewRecordManifest, PhaxReviewRecordManifest>,
+  Equals<Parameters<typeof toLatestReviewRecordManifest>, [value: PhaxReviewRecordManifestFile]>,
+] = [true, true, true, true, true];
+void reviewManifestTypes;
+declare const latestReviewManifest: LatestReviewRecordManifest;
+// @ts-expect-error: the in-memory review record manifest carries no $schema
+void latestReviewManifest.$schema;
+if (document.ok && document.format === "review-record-manifest") {
+  const exact: Equals<typeof document.value, PhaxReviewRecordManifestFile> = true;
+  void exact;
+}
 // The decide verdicts file is born with $schema: phax's own types, both ways,
 // one current shape, and an in-memory value without $schema
 const decideVerdictsTypes: [
@@ -1512,7 +1540,10 @@ void authoringV0_17_0IsFrozen;
 // parseRecordManifest names the format and the shape, and narrows to the exact type
 const recordManifestFormats: Equals<
   RecordManifestFormat,
-  "phase-record-manifest" | "authoring-record-manifest" | "decision-record-manifest"
+  | "phase-record-manifest"
+  | "authoring-record-manifest"
+  | "decision-record-manifest"
+  | "review-record-manifest"
 > = true;
 void recordManifestFormats;
 const anyManifest = parseRecordManifest({});
@@ -1525,6 +1556,7 @@ const anyManifestAsParsed: Parsed<
   | AuthoringRecordManifest
   | DecisionRecordManifest
   | FrozenDecisionRecordManifestV0_25_0
+  | ReviewRecordManifest
 > = anyManifest;
 void anyManifestAsParsed;
 if (anyManifest.ok) {
@@ -1537,10 +1569,14 @@ if (anyManifest.ok) {
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
     | Current<"decision-record-manifest">
+    | Current<"review-record-manifest">
   > = true;
   void format;
   void shape;
-  if (anyManifest.format === "decision-record-manifest") {
+  if (anyManifest.format === "review-record-manifest") {
+    const exact: Equals<typeof anyManifest.value, PhaxReviewRecordManifestFile> = true;
+    void exact;
+  } else if (anyManifest.format === "decision-record-manifest") {
     const exact: Equals<
       typeof anyManifest.value,
       FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile

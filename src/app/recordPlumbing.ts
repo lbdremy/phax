@@ -56,7 +56,7 @@ export type RecordWriteResult =
     }
   | RecordSkipped;
 
-type RecordSkipped =
+export type RecordSkipped =
   | { readonly kind: "records-off" }
   | { readonly kind: "deferred-destination"; readonly destination: "repo" }
   | {

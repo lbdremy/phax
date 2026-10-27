@@ -397,6 +397,13 @@ export class FakeGitImpl implements GitOps {
   readonly fakeRefs = new Map<string, string>();
   private fakeWriteCounter = 0;
 
+  private nextWriteTreeCommitError: string | undefined;
+
+  /** The next `writeTreeCommit` fails and creates no commit; the attempt is still logged. */
+  failNextWriteTreeCommit(stderr: string): void {
+    this.nextWriteTreeCommitError = stderr;
+  }
+
   writeTreeCommit(input: WriteTreeCommitInput): Effect.Effect<string, GitError> {
     this.calls.push({
       method: "writeTreeCommit",
@@ -405,6 +412,19 @@ export class FakeGitImpl implements GitOps {
       message: input.message,
       paths: input.files.map((f) => f.path),
     });
+    if (this.nextWriteTreeCommitError !== undefined) {
+      const stderr = this.nextWriteTreeCommitError;
+      this.nextWriteTreeCommitError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git commit-tree failed: ${stderr}`,
+          command: `git commit-tree ${input.branch}`,
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 1,
+        }),
+      );
+    }
     const ref = `refs/heads/${input.branch}`;
     const entries: GitTreeEntry[] = input.files
       .map((file) => {

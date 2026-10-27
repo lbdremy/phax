@@ -129,6 +129,7 @@ describe("schemas package entry", () => {
       "RegistryPreSchemaSchema",
       "RegistrySchema",
       "RegistryV0_17_0Schema",
+      "ReviewRecordManifestSchema",
       "ReviewStopSchema",
       "RunListSchema",
       "RunStatusPreSchemaSchema",
@@ -172,6 +173,7 @@ describe("schemas package entry", () => {
       "parsePlanDocument",
       "parseRecordManifest",
       "parseRegistry",
+      "parseReviewRecordManifest",
       "parseReviewStop",
       "parseRunList",
       "parseRunStatus",
@@ -204,6 +206,7 @@ describe("schemas package entry", () => {
       "toLatestPlanApprovals",
       "toLatestPlanDocument",
       "toLatestRegistry",
+      "toLatestReviewRecordManifest",
       "toLatestReviewStop",
       "toLatestRunList",
       "toLatestRunStatus",
@@ -272,8 +275,10 @@ describe("schemas package entry", () => {
     const { RunRecordManifestFileSchema } = await import("../../../src/schemas/runRecord.js");
     const { DecisionRecordManifestFileSchema } =
       await import("../../../src/schemas/decisionRecord.js");
+    const { ReviewRecordManifestFileSchema } = await import("../../../src/schemas/reviewRecord.js");
     expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestFileSchema);
     expect(entry.DecisionRecordManifestSchema).toBe(DecisionRecordManifestFileSchema);
+    expect(entry.ReviewRecordManifestSchema).toBe(ReviewRecordManifestFileSchema);
     expect(entry.RecordManifestSchema).toBe(RecordManifestFileSchema);
     expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestFileSchema);
   });

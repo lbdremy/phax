@@ -10,6 +10,7 @@ import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
   phaseRecordManifestFormat,
+  reviewRecordManifestFormat,
 } from "../src/formats/recordManifests.js";
 import {
   gateAttributionFormat,
@@ -108,6 +109,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "brief-report": briefReportFormat,
   "hand-decision-answer": handDecisionAnswerFormat,
   "decision-record-manifest": decisionRecordManifestFormat,
+  "review-record-manifest": reviewRecordManifestFormat,
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
@@ -146,6 +148,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "brief-report": "error",
   "hand-decision-answer": "error",
   "decision-record-manifest": "error",
+  "review-record-manifest": "error",
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",
