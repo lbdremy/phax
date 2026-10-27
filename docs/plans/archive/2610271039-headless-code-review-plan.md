@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610271007-headless-code-review.md
 completes-spec: false
 approved:
