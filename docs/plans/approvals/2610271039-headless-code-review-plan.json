@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610271039-headless-code-review-plan.md",
+  "planFingerprint": "759bd4c575b9655b44986f13a73b15a166da56008eb726463ecd065556e2090e",
+  "approvedAt": "2026-10-27T11:02:23.332Z",
+  "baseline": "183d9cfd35a5a64a65e461d822817775448b14a4",
+  "sourceSpec": {
+    "path": "docs/specs/2610271007-headless-code-review.md",
+    "fingerprint": "f4d655347ef929819beaebf4055b6514e4b6e11da3519d36891e5b4d2dbd5ae9"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

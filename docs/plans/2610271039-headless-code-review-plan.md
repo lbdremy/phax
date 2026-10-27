@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271007-headless-code-review.md
 completes-spec: false
+approved:
+  date: 2026-10-27
+  baseline: 183d9cf
 ---
 # Review records
 
