@@ -10,6 +10,11 @@ import {
   type AuthoringRecordOutcome,
 } from "../schemas/authoringRecord.js";
 import { isDecisionRecordManifest, type DecisionRecordOutcome } from "../schemas/decisionRecord.js";
+import {
+  isReviewRecordManifest,
+  REVIEW_RECORD_FILES,
+  type ReviewRecordKind,
+} from "../schemas/reviewRecord.js";
 import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
@@ -44,6 +49,14 @@ export type RecordListEntry =
       /** The artifact the session decided. */
       readonly artifact: string;
       readonly artifactKind: ArtifactKind;
+    }
+  | {
+      readonly kind: "review";
+      readonly runId: string;
+      readonly review: ReviewRecordKind;
+      readonly recordCommitSha: string;
+      /** The review's own file the entry carries. */
+      readonly file: string;
     };
 
 export type ListRecordsResult =
@@ -66,7 +79,8 @@ export interface ListRecordsInput {
  * checked-out local branch). Records are not cumulative (see
  * `recordsExplain.ts`), so this walks the whole history rather than reading
  * one tree: every commit on `phax/records/v1` is itself exactly one record —
- * a phase's, a headless authoring session's or a decide session's.
+ * a phase's, a headless authoring session's, a decide session's or a run-level
+ * review's.
  */
 export function listRecords(
   input: ListRecordsInput,
@@ -137,6 +151,16 @@ export function listRecords(
           recordCommitSha: sha,
           artifact: manifest.artifact,
           artifactKind: manifest.artifactKind,
+        });
+        continue;
+      }
+      if (isReviewRecordManifest(manifest)) {
+        records.push({
+          kind: "review",
+          runId: manifest.runId,
+          review: manifest.review,
+          recordCommitSha: sha,
+          file: REVIEW_RECORD_FILES[manifest.review],
         });
         continue;
       }

@@ -18,6 +18,7 @@ import {
   parseCostLedger,
   parseDecideVerdicts,
   parseDecisionRecordManifest,
+  parseReviewRecordManifest,
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
@@ -63,6 +64,10 @@ import {
   decodeDecisionRecordManifestFile,
   isDecisionRecordManifest,
 } from "../../../src/schemas/decisionRecord.js";
+import {
+  decodeReviewRecordManifestFile,
+  isReviewRecordManifest,
+} from "../../../src/schemas/reviewRecord.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
@@ -295,6 +300,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     // variant the union tries last.
     wrongType: ["mode", 2],
     required: "commit",
+    excess: "error",
+  },
+  "review-record-manifest": {
+    id: "review-record-manifest",
+    parse: parseReviewRecordManifest,
+    phax: decodeReviewRecordManifestFile,
+    wrongType: ["review", 2],
+    required: "runId",
     excess: "error",
   },
   "cost-ledger": {
@@ -719,9 +732,17 @@ describe("parity: nested rejects", () => {
 
 const authoring = validDocuments["authoring-record-manifest"];
 const decision = validDocuments["decision-record-manifest"];
+const review = validDocuments["review-record-manifest"];
 
-// Every current-shape manifest, phase, authoring or decision, and the rejects of each.
+// Every current-shape manifest, phase, authoring, decision or review, and the rejects of each.
 const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
+  ["a review manifest", review],
+  ["a code-review manifest", withKey(review, "review", "code-review")],
+  ["a review manifest of an unknown review", withKey(review, "review", "style-review")],
+  ["a review manifest with one unknown key", withKey(review, "shape", "full")],
+  ["a review manifest without runId", withoutKey(review, "runId")],
+  ["a review manifest without $schema", withoutKey(review, "$schema")],
+  ["a review manifest without kind", withoutKey(review, "kind")],
   ["a decision manifest", decision],
   ["a failed decision without a commit", { ...decision, outcome: "failed", commit: null }],
   ["a declined decision that names a commit", withKey(decision, "outcome", "declined")],
@@ -746,11 +767,13 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     if (result.ok && Either.isRight(decoded)) {
       expect(result.value).toEqual(decoded.right);
       expect(result.format).toBe(
-        isDecisionRecordManifest(decoded.right)
-          ? "decision-record-manifest"
-          : isAuthoringRecordManifest(decoded.right)
-            ? "authoring-record-manifest"
-            : "phase-record-manifest",
+        isReviewRecordManifest(decoded.right)
+          ? "review-record-manifest"
+          : isDecisionRecordManifest(decoded.right)
+            ? "decision-record-manifest"
+            : isAuthoringRecordManifest(decoded.right)
+              ? "authoring-record-manifest"
+              : "phase-record-manifest",
       );
     }
   });
@@ -761,6 +784,7 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     expect(formats).toContain("phase-record-manifest");
     expect(formats).toContain("authoring-record-manifest");
     expect(formats).toContain("decision-record-manifest");
+    expect(formats).toContain("review-record-manifest");
     expect(results.some((result) => !result.ok)).toBe(true);
   });
 });

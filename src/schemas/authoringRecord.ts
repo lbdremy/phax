@@ -1,5 +1,6 @@
 import { Schema, type Types } from "effect";
 import { DecisionRecordManifestFileSchema, type DecisionRecordManifest } from "./decisionRecord.js";
+import { ReviewRecordManifestFileSchema, type ReviewRecordManifest } from "./reviewRecord.js";
 import { ProviderIdSchema } from "./providerId.js";
 import {
   RecordShapeSchema,
@@ -79,15 +80,20 @@ export const encodeAuthoringRecordManifest = Schema.encodeSync(AuthoringRecordMa
 
 /**
  * Any `record.json` on the records branch, in memory: a phase record, an
- * authoring record or a decision record.
+ * authoring record, a decision record or a review record.
  */
-export type RecordManifest = RunRecordManifest | AuthoringRecordManifest | DecisionRecordManifest;
+export type RecordManifest =
+  | RunRecordManifest
+  | AuthoringRecordManifest
+  | DecisionRecordManifest
+  | ReviewRecordManifest;
 
-/** Any `record.json` as phax writes it: the union of the three file schemas. */
+/** Any `record.json` as phax writes it: the union of the four file schemas. */
 export const RecordManifestFileSchema = Schema.Union(
   RunRecordManifestFileSchema,
   AuthoringRecordManifestFileSchema,
   DecisionRecordManifestFileSchema,
+  ReviewRecordManifestFileSchema,
 );
 
 export type RecordManifestFile = Schema.Schema.Type<typeof RecordManifestFileSchema>;

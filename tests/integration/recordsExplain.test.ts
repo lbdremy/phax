@@ -23,6 +23,8 @@ import { Shell, type ShellError } from "../../src/ports/shell.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { explainRecord, gateArtifactsInOrder } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
+import { computeRecordsPending } from "../../src/app/recordsStatus.js";
+import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
@@ -1366,6 +1368,190 @@ describe("records explain and list (real git)", () => {
           shape: "full",
         }),
       ]);
+    });
+  });
+
+  describe("review records", () => {
+    const RUN_ID = "run-review-1786800000020";
+    const OTHER_RUN_ID = "run-other-1786800000021";
+    let runFolder: string;
+    let originalCwd: string;
+
+    beforeEach(() => {
+      originalCwd = process.cwd();
+      runFolder = mkdtempSync(join(tmpdir(), "phax-records-explain-review-"));
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          records: { transcript: false, destination: { kind: "in-repo" }, autoPush: false },
+        }),
+      );
+      process.chdir(repoDir);
+    });
+
+    afterEach(() => {
+      process.chdir(originalCwd);
+      removeTempDir(runFolder);
+      vi.restoreAllMocks();
+    });
+
+    async function recordReview(runId: string): Promise<string> {
+      writeFileSync(join(runFolder, "compliance-review.json"), `{"run":"${runId}"}\n`);
+      const status = await Effect.runPromise(
+        Effect.provide(
+          writeReviewRecord({
+            repoRoot: repoDir,
+            records: { ...IN_REPO_CONFIG, transcript: false },
+            runId,
+            runPath: runFolder,
+            review: "compliance-review",
+          }),
+          Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, makeFakeGitHub().layer),
+        ),
+      );
+      if (status.kind !== "written") throw new Error(`expected written, got ${status.kind}`);
+      return status.commitSha;
+    }
+
+    async function recordPhase(runId: string): Promise<string> {
+      const sourceSha = commitWithTrailers(repoDir, runId, "phase-01");
+      await writeFullRecordCommit(
+        repoDir,
+        {
+          runId,
+          phaseId: "phase-01",
+          shape: "skeleton",
+          sourceSha,
+          model: "claude-sonnet-5",
+          effort: "high",
+          provider: "claude-code",
+          outcome: "committed",
+          usage: { available: false },
+          verifiedSurfaces: ["local"],
+          oracle: null,
+          mode: "headless",
+          stop: null,
+        },
+        { "prompt.md": "# prompt" },
+      );
+      return sourceSha;
+    }
+
+    it("records list shows the entry under its run, with and without --run", async () => {
+      await recordPhase(RUN_ID);
+      const reviewSha = await recordReview(RUN_ID);
+      await recordReview(OTHER_RUN_ID);
+
+      const all = await run(
+        listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      );
+      if (all.kind !== "listed") throw new Error("expected listed");
+      expect(all.records).toContainEqual({
+        kind: "review",
+        runId: RUN_ID,
+        review: "compliance-review",
+        recordCommitSha: reviewSha,
+        file: "compliance-review.json",
+      });
+      expect(all.records.filter((entry) => entry.kind === "review")).toHaveLength(2);
+
+      const scoped = await run(
+        listRecords({
+          records: IN_REPO_CONFIG,
+          repoRoot: repoDir,
+          publishRemote: "origin",
+          runId: RUN_ID,
+        }),
+      );
+      if (scoped.kind !== "listed") throw new Error("expected listed");
+      expect(scoped.records.map((entry) => entry.kind).toSorted()).toEqual(["phase", "review"]);
+      expect(
+        scoped.records.every((entry) => entry.kind !== "review" || entry.runId === RUN_ID),
+      ).toBe(true);
+
+      const cli = await records(["list", "--run", RUN_ID]);
+      expect(cli.code).toBe(0);
+      expect(cli.errors).toEqual([]);
+      expect(cli.logs).toContain(
+        `${RUN_ID}  compliance-review  -  -  ${reviewSha.slice(0, 8)}  compliance-review.json`,
+      );
+      expect(cli.text).toContain(`${RUN_ID}  phase-01  skeleton  committed`);
+      expect(cli.text).not.toContain(OTHER_RUN_ID);
+    });
+
+    it("records status lists the entry as pending under its run", async () => {
+      await recordPhase(RUN_ID);
+      await recordReview(RUN_ID);
+
+      const status = await run(
+        computeRecordsPending({
+          records: IN_REPO_CONFIG,
+          repoRoot: repoDir,
+          publishRemote: "origin",
+        }),
+      );
+
+      expect(status.pending).toContainEqual({ runId: RUN_ID, phaseId: "compliance-review" });
+      expect(status.pending).toContainEqual({ runId: RUN_ID, phaseId: "phase-01" });
+    });
+
+    it("records explain of a phase commit still finds the phase record beside a review entry", async () => {
+      const sourceSha = await recordPhase(RUN_ID);
+      await recordReview(RUN_ID);
+
+      const outcome = await run(
+        explainRecord({
+          sha: sourceSha,
+          repoRoot: repoDir,
+          records: IN_REPO_CONFIG,
+          publishRemote: "origin",
+        }),
+      );
+
+      expect(outcome.kind).toBe("found");
+      if (outcome.kind !== "found") throw new Error("expected found");
+      expect(outcome.record.phaseId).toBe("phase-01");
+      expect(outcome.record.manifest.shape).toBe("skeleton");
+    });
+
+    it("records explain refuses a review manifest found under a phase key", async () => {
+      const sourceSha = commitWithTrailers(repoDir, RUN_ID, "phase-01");
+      await writeRecordDocumentCommit(
+        repoDir,
+        `${RUN_ID}/phase-01`,
+        {
+          $schema: currentSchemaUrl("review-record-manifest"),
+          kind: "review",
+          runId: RUN_ID,
+          review: "compliance-review",
+        },
+        phaseRecordMessage(RUN_ID, "phase-01", "committed", "skeleton"),
+        {},
+      );
+
+      const outcome = await Effect.runPromise(
+        Effect.either(
+          Effect.provide(
+            explainRecord({
+              sha: sourceSha,
+              repoRoot: repoDir,
+              records: IN_REPO_CONFIG,
+              publishRemote: "origin",
+            }),
+            LAYER,
+          ),
+        ),
+      );
+
+      expect(Either.isLeft(outcome)).toBe(true);
+      if (Either.isLeft(outcome)) {
+        expect(outcome.left.message).toContain("a review manifest under a phase key");
+      }
     });
   });
 });

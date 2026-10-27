@@ -53,9 +53,11 @@ import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
   phaseRecordManifestFormat,
+  reviewRecordManifestFormat,
   type AuthoringRecordManifestShapes,
   type DecisionRecordManifestShapes,
   type PhaseRecordManifestShapes,
+  type ReviewRecordManifestShapes,
 } from "./formats/recordManifests.js";
 import {
   gateAttributionFormat,
@@ -204,22 +206,30 @@ export {
   type DecisionRecordManifestFile as DecisionRecordManifest,
 } from "../../../src/schemas/decisionRecord.js";
 export {
+  ReviewRecordManifestFileSchema as ReviewRecordManifestSchema,
+  type ReviewRecordManifestFile as ReviewRecordManifest,
+} from "../../../src/schemas/reviewRecord.js";
+export {
   PhaseRecordManifestSchema,
   parseAuthoringRecordManifest,
   parseDecisionRecordManifest,
   parsePhaseRecordManifest,
   parseRecordManifest,
+  parseReviewRecordManifest,
   toLatestAuthoringRecordManifest,
   toLatestDecisionRecordManifest,
   toLatestPhaseRecordManifest,
+  toLatestReviewRecordManifest,
   type AuthoringRecordManifestShape,
   type DecisionRecordManifestShape,
   type LatestAuthoringRecordManifest,
   type LatestDecisionRecordManifest,
   type LatestPhaseRecordManifest,
+  type LatestReviewRecordManifest,
   type PhaseRecordManifest,
   type PhaseRecordManifestShape,
   type RecordManifestFormat,
+  type ReviewRecordManifestShape,
 } from "./formats/recordManifests.js";
 
 // A phase record's timeline files. Each schema and type is phax's own file
@@ -561,6 +571,7 @@ type DocumentShapes = EveryFormat<{
   "phase-record-manifest": PhaseRecordManifestShapes;
   "authoring-record-manifest": AuthoringRecordManifestShapes;
   "decision-record-manifest": DecisionRecordManifestShapes;
+  "review-record-manifest": ReviewRecordManifestShapes;
   registry: RegistryShapes;
   "run-status": RunStatusShapes;
   "phase-status": PhaseStatusShapes;
@@ -608,6 +619,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "phase-record-manifest": phaseRecordManifestFormat,
     "authoring-record-manifest": authoringRecordManifestFormat,
     "decision-record-manifest": decisionRecordManifestFormat,
+    "review-record-manifest": reviewRecordManifestFormat,
     registry: registryFormat,
     "run-status": runStatusFormat,
     "phase-status": phaseStatusFormat,

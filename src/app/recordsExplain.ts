@@ -17,6 +17,7 @@ import {
 } from "../schemas/decisionRecord.js";
 import type { OracleStepResult } from "../schemas/gateAttribution.js";
 import { readGateAttributionFile, readRecordManifestFile } from "../schemas/persisted.js";
+import { isReviewRecordManifest } from "../schemas/reviewRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
 
@@ -290,6 +291,7 @@ function trailerOf(
 
 /** What a manifest under the wrong key is called in the malformed message. */
 function manifestKindLabel(manifest: RecordManifest): string {
+  if (isReviewRecordManifest(manifest)) return "a review manifest";
   if (isDecisionRecordManifest(manifest)) return "a decision manifest";
   return isAuthoringRecordManifest(manifest) ? "an authoring manifest" : "a phase manifest";
 }
@@ -458,7 +460,7 @@ function loadRecord(
     }
 
     const sourceCommitReachable =
-      manifest.sourceSha !== undefined
+      "sourceSha" in manifest && manifest.sourceSha !== undefined
         ? (yield* git.resolveRef(repoRoot, manifest.sourceSha)) !== null
         : undefined;
 
@@ -482,7 +484,11 @@ function explainPhaseRecord(
   prefix: string,
 ): Either.Either<ExplainedRecord, GitError> {
   const { manifest, artifacts } = loaded;
-  if (isAuthoringRecordManifest(manifest) || isDecisionRecordManifest(manifest)) {
+  if (
+    isAuthoringRecordManifest(manifest) ||
+    isDecisionRecordManifest(manifest) ||
+    isReviewRecordManifest(manifest)
+  ) {
     return Either.left(
       malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a phase key`),
     );

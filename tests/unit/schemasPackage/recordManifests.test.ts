@@ -6,8 +6,10 @@ import {
   parseDecisionRecordManifest,
   parseDocument,
   parseRecordManifest,
+  parseReviewRecordManifest,
   toLatestAuthoringRecordManifest,
   toLatestDecisionRecordManifest,
+  toLatestReviewRecordManifest,
 } from "../../../packages/schemas/src/index.js";
 import {
   malformedSchemaUrlMessage,
@@ -17,6 +19,7 @@ import {
 } from "../../../packages/schemas/src/shapes.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
+import { decodeReviewRecordManifestFile } from "../../../src/schemas/reviewRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
   belowOwnReleaseMessage,
@@ -39,6 +42,8 @@ const writtenAuthoring = validDocuments["authoring-record-manifest"];
 const writtenPhase = validDocuments["phase-record-manifest"];
 const writtenDecision = validDocuments["decision-record-manifest"];
 const DECISION_CURRENT = CURRENT_SHAPES["decision-record-manifest"];
+const writtenReview = validDocuments["review-record-manifest"];
+const REVIEW_CURRENT = CURRENT_SHAPES["review-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -144,7 +149,56 @@ describe("the decision record manifest", () => {
   });
 });
 
+describe("the review record manifest", () => {
+  it("parses a manifest phax writes as its current shape, at the 0.29.0 stamp", () => {
+    expect(Object.keys(writtenReview)[0]).toBe("$schema");
+    expect(writtenReview["$schema"]).toBe(schemaUrl("review-record-manifest", "0.29.0"));
+    const phax = decodeReviewRecordManifestFile(writtenReview);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(parseReviewRecordManifest(writtenReview)).toEqual({
+      ok: true,
+      shape: REVIEW_CURRENT,
+      value: phax.right,
+    });
+  });
+
+  it("upgrades by dropping $schema alone, keeping kind review and every fact", () => {
+    const result = parseReviewRecordManifest(writtenReview);
+    if (!result.ok) throw new Error("document rejected");
+    const latest = toLatestReviewRecordManifest(result.value);
+    expect(latest).toEqual(withoutKey(writtenReview, "$schema"));
+    expect(latest.kind).toBe("review");
+  });
+
+  it("is born with $schema: a manifest without one is unreadable", () => {
+    const unstamped = withoutKey(writtenReview, "$schema");
+    expect(parseReviewRecordManifest(unstamped).ok).toBe(false);
+    expect(parseRecordManifest(unstamped).ok).toBe(false);
+  });
+
+  it("refuses an unknown key and a review outside the two kinds", () => {
+    expect(parseReviewRecordManifest(withKey(writtenReview, "shape", "full")).ok).toBe(false);
+    expect(parseReviewRecordManifest(withKey(writtenReview, "review", "style-review")).ok).toBe(
+      false,
+    );
+  });
+});
+
 describe("parseRecordManifest", () => {
+  it("reads a review manifest phax writes as a review record manifest", () => {
+    expect(parseRecordManifest(writtenReview)).toEqual({
+      ok: true,
+      format: "review-record-manifest",
+      shape: REVIEW_CURRENT,
+      value: writtenReview,
+    });
+    expect(parseDocument(writtenReview)).toMatchObject({
+      ok: true,
+      format: "review-record-manifest",
+      shape: REVIEW_CURRENT,
+    });
+  });
+
   it("reads a decision manifest phax writes as a decision record manifest", () => {
     expect(parseRecordManifest(writtenDecision)).toEqual({
       ok: true,

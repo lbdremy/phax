@@ -18,6 +18,7 @@ import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
   phaseRecordManifestFormat,
+  reviewRecordManifestFormat,
 } from "../../../packages/schemas/src/formats/recordManifests.js";
 import {
   gateAttributionFormat,
@@ -79,6 +80,7 @@ type JsonSchemaFormatId = FormatId | "record-manifest";
 const phaseManifest = validDocuments["phase-record-manifest"];
 const authoringManifest = validDocuments["authoring-record-manifest"];
 const decisionManifest = validDocuments["decision-record-manifest"];
+const reviewManifest = validDocuments["review-record-manifest"];
 
 /** The test documents of each file, before phax's verdict. */
 function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
@@ -89,8 +91,10 @@ function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
       return [authoringManifest, withoutKey(authoringManifest, "sourceSha")];
     case "decision-record-manifest":
       return [decisionManifest, { ...decisionManifest, outcome: "failed", commit: null }];
+    case "review-record-manifest":
+      return [reviewManifest, { ...reviewManifest, review: "code-review" }];
     case "record-manifest":
-      return [phaseManifest, authoringManifest, decisionManifest];
+      return [phaseManifest, authoringManifest, decisionManifest, reviewManifest];
     default:
       return [validDocuments[format]];
   }
@@ -120,6 +124,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "brief-report": briefReportFormat.current.shape.decode,
   "hand-decision-answer": handDecisionAnswerFormat.current.shape.decode,
   "decision-record-manifest": decisionRecordManifestFormat.current.shape.decode,
+  "review-record-manifest": reviewRecordManifestFormat.current.shape.decode,
   "cost-ledger": costLedgerFormat.current.shape.decode,
   "architecture-request": architectureRequestFormat.current.shape.decode,
   "architecture-report": architectureReportFormat.current.shape.decode,
@@ -191,6 +196,7 @@ describe("the JSON Schema table", () => {
       briefReportFormat,
       handDecisionAnswerFormat,
       decisionRecordManifestFormat,
+      reviewRecordManifestFormat,
       costLedgerFormat,
       architectureRequestFormat,
       architectureReportFormat,
@@ -223,10 +229,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 33 files and no failure", () => {
+  it("renders 34 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(33);
+    expect(rendered.files.size).toBe(34);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

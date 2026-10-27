@@ -1,6 +1,6 @@
 // The manifests (`record.json`) on phax/records/v1: a phase record's, an
-// authoring session's and a decide session's, and the reader that tells them
-// apart. Each pre-schema
+// authoring session's, a decide session's and a review entry's, and the reader
+// that tells them apart. Each pre-schema
 // and released shape that is no longer current is phax's frozen module under
 // src/schemas/history/; each current shape, named by `CURRENT_SHAPES` (`next`
 // until a release renames it), is phax's own file schema and decoder. The
@@ -17,6 +17,12 @@ import {
   type DecisionRecordManifest,
   type DecisionRecordManifestFile,
 } from "../../../../src/schemas/decisionRecord.js";
+import {
+  ReviewRecordManifestFileSchema,
+  decodeReviewRecordManifestFile,
+  type ReviewRecordManifest,
+  type ReviewRecordManifestFile,
+} from "../../../../src/schemas/reviewRecord.js";
 import {
   DecisionRecordManifestV0_25_0Schema,
   decodeDecisionRecordManifestV0_25_0,
@@ -256,15 +262,61 @@ export function toLatestDecisionRecordManifest(
   return recorded;
 }
 
+// ── review record manifest
+
+// Born with `$schema` and with no older shape: a manifest without `$schema` is
+// unreadable.
+
+export type ReviewRecordManifestShapes = {
+  [K in CurrentShapeName<"review-record-manifest">]: ReviewRecordManifestFile;
+};
+
+/** The id of every review record manifest shape the package reads. */
+export type ReviewRecordManifestShape = keyof ReviewRecordManifestShapes;
+
+export const reviewRecordManifestFormat = defineFormat<ReviewRecordManifestShapes>({
+  id: "review-record-manifest",
+  label: "review record manifest",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["review-record-manifest"],
+    shape: {
+      schema: ReviewRecordManifestFileSchema,
+      decode: decodeReviewRecordManifestFile,
+    },
+  },
+});
+
+/** Reads a review entry's `record.json`. Never throws. */
+export const parseReviewRecordManifest: (
+  input: unknown,
+) => ParsedShape<ReviewRecordManifestShapes> = reviewRecordManifestFormat.parse;
+
+/** The latest review record manifest: phax's in-memory value, with no `$schema`. */
+export type LatestReviewRecordManifest = ReviewRecordManifest;
+
+/** Upgrades a parsed review manifest in memory: drops `$schema`, keeps every other fact. */
+export function toLatestReviewRecordManifest(
+  value: ReviewRecordManifestFile,
+): LatestReviewRecordManifest {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
 // ── any record manifest
 
 export type RecordManifestShapes = {
   "phase-record-manifest": PhaseRecordManifestShapes;
   "authoring-record-manifest": AuthoringRecordManifestShapes;
   "decision-record-manifest": DecisionRecordManifestShapes;
+  "review-record-manifest": ReviewRecordManifestShapes;
 };
 
-/** The format of a `record.json`: a phase record, an authoring record or a decision record. */
+/**
+ * The format of a `record.json`: a phase record, an authoring record, a
+ * decision record or a review record.
+ */
 export type RecordManifestFormat = keyof RecordManifestShapes;
 
 const recordManifestFormats: {
@@ -273,6 +325,7 @@ const recordManifestFormats: {
   "phase-record-manifest": phaseRecordManifestFormat,
   "authoring-record-manifest": authoringRecordManifestFormat,
   "decision-record-manifest": decisionRecordManifestFormat,
+  "review-record-manifest": reviewRecordManifestFormat,
 };
 
 function isRecordManifestFormat(id: string): id is RecordManifestFormat {
@@ -297,12 +350,13 @@ function readAs(
  * Reads any `record.json` on phax/records/v1 and names the format it read.
  * Never throws. In order:
  * 1. a non-object fails at `""`;
- * 2. a `$schema` naming one of the three manifest formats is read by that
+ * 2. a `$schema` naming one of the four manifest formats is read by that
  *    format; another known format fails at `$schema` (`<url> is a <format>
  *    document, not a record manifest`); a malformed URL or an unknown format
  *    fails with the shared messages;
- * 3. `kind: "decision"` is read as a decision record manifest, which is born
- *    with `$schema` and so fails without one; `kind: "authoring"` is read as
+ * 3. `kind: "review"` is read as a review record manifest and `kind:
+ *    "decision"` as a decision record manifest, both born with `$schema` and
+ *    so failing without one; `kind: "authoring"` is read as
  *    an authoring record manifest, the rule of phax's
  *    `isAuthoringRecordManifest`;
  * 4. anything else is read as a phase record manifest.
@@ -325,6 +379,7 @@ export function parseRecordManifest(input: unknown): ParsedDocument<RecordManife
     }
     return readAs(parsed.formatId, input);
   }
+  if (input["kind"] === "review") return readAs("review-record-manifest", input);
   if (input["kind"] === "decision") return readAs("decision-record-manifest", input);
   return readAs(
     input["kind"] === "authoring" ? "authoring-record-manifest" : "phase-record-manifest",

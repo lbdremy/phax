@@ -41,4 +41,5 @@ export const CURRENT_SHAPES = {
   "review-stop": "0.26.0",
   "run-list": "0.26.0",
   "decide-verdicts": "0.28.0",
+  "review-record-manifest": "next",
 } as const;

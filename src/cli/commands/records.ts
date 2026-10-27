@@ -513,19 +513,24 @@ async function runRecordsList(opts: RecordsListOptions, out: OutputPort): Promis
   for (const entry of outcome.records) {
     // An authoring or decision record lists under its key (`authoring <id>`,
     // `decision <id>`), with the artifact path where a phase record shows its
-    // verified surfaces.
-    const [first, second, detail] =
+    // verified surfaces. A review entry has no shape or outcome: `-` holds
+    // those two columns, and its file sits where the detail goes.
+    const [first, second, shape, entryOutcome, detail] =
       entry.kind === "phase"
         ? [
             entry.runId,
             entry.phaseId,
+            entry.shape,
+            entry.outcome,
             entry.verifiedSurfaces.length > 0 ? entry.verifiedSurfaces.join(",") : "-",
           ]
         : entry.kind === "authoring"
-          ? ["authoring", entry.authoringId, entry.artifact]
-          : ["decision", entry.decisionId, entry.artifact];
+          ? ["authoring", entry.authoringId, entry.shape, entry.outcome, entry.artifact]
+          : entry.kind === "decision"
+            ? ["decision", entry.decisionId, entry.shape, entry.outcome, entry.artifact]
+            : [entry.runId, entry.review, "-", "-", entry.file];
     out.log(
-      `${first}  ${second}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${detail}`,
+      `${first}  ${second}  ${shape}  ${entryOutcome}  ${entry.recordCommitSha.slice(0, 8)}  ${detail}`,
     );
   }
   return 0;

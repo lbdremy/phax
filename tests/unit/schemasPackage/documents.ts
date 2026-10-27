@@ -37,6 +37,10 @@ import {
   type DecisionRecordManifest,
 } from "../../../src/schemas/decisionRecord.js";
 import {
+  ReviewRecordManifestFileSchema,
+  type ReviewRecordManifest,
+} from "../../../src/schemas/reviewRecord.js";
+import {
   DecideVerdictsFileSchema,
   type DecideVerdicts,
 } from "../../../src/schemas/decideVerdicts.js";
@@ -448,6 +452,12 @@ const decideVerdicts: DecideVerdicts = {
     { question: "q-retention", chosen: "keep-30", note: null },
     { question: "q-format", chosen: "other", note: "Newline-delimited JSON, one record a line." },
   ],
+};
+
+const reviewRecordManifest: ReviewRecordManifest = {
+  kind: "review",
+  runId: "2610270900-example",
+  review: "compliance-review",
 };
 
 const decisionRecordManifest: DecisionRecordManifest = {
@@ -944,6 +954,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "decision-record-manifest": encoded(
     DecisionRecordManifestFileSchema,
     withSchemaUrl("decision-record-manifest", decisionRecordManifest),
+  ),
+  "review-record-manifest": encoded(
+    ReviewRecordManifestFileSchema,
+    withSchemaUrl("review-record-manifest", reviewRecordManifest),
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
   "architecture-request": encoded(
