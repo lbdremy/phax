@@ -283,7 +283,7 @@
       "id": "rc-unchanged",
       "title": "Interactive review-code unchanged",
       "pattern": "ubiquitous",
-      "statement": "The system SHALL leave `phax review-code <run>` without `--headless` unchanged."
+      "statement": "The system SHALL leave `phax review-code <run>` without `--headless` unchanged: it stays a conversation and writes no code-review document. A later `phax review-code <run> --headless` resumes the session it recorded, unless `--new-session` is given, and writes what it finds as a pass."
     },
     {
       "id": "rc-completed",
@@ -716,6 +716,54 @@
       "title": "No pass, no change",
       "pattern": "state",
       "statement": "WHILE a run has no review pass THE system SHALL build the PR body exactly as it does today."
+    },
+    {
+      "id": "rc-criterion",
+      "title": "A criterion the source spec lacks is refused",
+      "pattern": "unwanted",
+      "statement": "IF a review finding of a code-review document that validates against its schema names a `criterion` that the run's source spec's JSON sidecar does not list among its acceptance criteria THEN the system SHALL reject the document in the agent-error exit family, naming `findings[<n>].criterion` and the unknown id, writing nothing and opening no pass. The check SHALL run after the schema validation and before the pass opens, against the acceptance criterion ids that `phax plans lint` reads for test lines."
+    },
+    {
+      "id": "rc-criterion-scope",
+      "title": "What a criterion is checked against",
+      "pattern": "optional",
+      "statement": "WHERE the run has no source spec THE system SHALL accept only a null `criterion`, and reject any other value in the same way. WHERE the run's source spec has no readable JSON sidecar THE system SHALL record each `criterion` as the session gave it, unchecked."
+    },
+    {
+      "id": "rp-escape-oracle",
+      "title": "A missing test is fixed by an oracle pair",
+      "pattern": "event",
+      "statement": "WHEN a headless review-plan document fixes a review finding whose `escape` is `omission` or `unexplored-input` THE system SHALL accept the fix only as an oracle pair, under the plan's oracle-phase rules: an oracle phase writes the missing test, failing, and the phase that discharges it makes the test pass with the fix, without editing it. The discharging phase SHALL name the finding, and the oracle phase SHALL name no finding."
+    },
+    {
+      "id": "rp-escape-pair",
+      "title": "A missing test outside an oracle pair is refused",
+      "pattern": "unwanted",
+      "statement": "IF a headless review-plan document names a review finding whose `escape` is `omission` or `unexplored-input` in a phase that discharges no oracle phase THEN the system SHALL reject the document, naming the finding."
+    },
+    {
+      "id": "rp-escape-no-oracles",
+      "title": "Without an oracles provider, a missing test waits",
+      "pattern": "optional",
+      "statement": "WHERE the project configures no `oracles` provider THE system SHALL accept an `omission` or `unexplored-input` finding in a headless review-plan document only unnamed, so that it waits for the operator as `awaiting`."
+    },
+    {
+      "id": "rp-escape-wrong-oracle",
+      "title": "A wrong oracle waits for the operator",
+      "pattern": "unwanted",
+      "statement": "IF a headless review-plan document names a review finding whose `escape` is `wrong-oracle` in a phase THEN the system SHALL reject the document, naming the finding: a wrong oracle is an oracle question, and it waits for the operator (`R4`)."
+    },
+    {
+      "id": "rp-skill-escape",
+      "title": "The review doctrine plans by escape",
+      "pattern": "ubiquitous",
+      "statement": "The bundled `phax-decide-review` skill SHALL carry a principle `R8`, keyed on a review finding's `escape`:\n- a `wrong-oracle` finding is never fixed by a headless plan and waits for the operator (`R4`);\n- an `omission` or `unexplored-input` finding is fixed by an oracle pair: its oracle phase writes the missing test from the finding's suggestion and criterion, and its discharging phase fixes the code;\n- without an `oracles` provider, such a finding is left unnamed;\n- every other escape is planned as before."
+    },
+    {
+      "id": "pr-escape",
+      "title": "Finding lines name the escape",
+      "pattern": "ubiquitous",
+      "statement": "A finding line of the `### Review passes` subsection SHALL give a review finding's `escape`, one word after its severity. The table's rows SHALL gain no escape column, and `phax ls` SHALL show no escape. `code-review.json` and the run's records keep every finding's escape."
     }
   ],
   "surface": [
@@ -723,57 +771,57 @@
       "surface": "cli: phax review-code <run> --headless",
       "summary": "You can review a finished run's code without driving a session: phax prints the findings and keeps them with the run.",
       "binding": "normative",
-      "before": "phax review-code usage-cli [--new-session] [--model <model>] [--effort <effort>]\n  (opens an interactive, pre-prompted session; the developer takes over)",
-      "after": "phax review-code usage-cli --headless [--new-session] [--model <model>] [--effort <effort>]\n\n# normative: the flag name and the exit families. Indicative: output layout and wording.\nreview-code usage-cli — pass 1 — claude-opus-5-5 / high (headless, new session)\nbrief     compliance conformant-with-deviations (1 deviation)\nfindings  bug 1 · deviation 1 · concern 1 · info 1 + compliance deviation 1   (F1–F4, C1)\nwritten   <run-dir>/review/pass-01/code-review.json   (records: committed)\nsession   resumable (code-review-session.json)\n$? = 0\n\n✗ review-code failed: code-review document rejected — findings[2].severity: \"style\" is not bug | deviation | concern | info\n  nothing written; no pass opened\n$? = 5\n\nExit: 0 written · 1 run not review_open, or its run completion applied · 5 result not JSON or rejected · 8 rate/usage limit"
+      "before": "$ phax review-code usage-cli\n(opens an interactive session prompted to review the run; you take over)",
+      "after": "$ phax review-code usage-cli --headless\nreview-code usage-cli — pass 1 — claude-opus-5-5 / high (headless, new session)\nbrief     compliance conformant-with-deviations (1 deviation)\nfindings  bug 1 · deviation 1 · concern 1 · info 1 + compliance deviation 1   (F1–F4, C1)\nwritten   <run-dir>/review/pass-01/code-review.json   (records: committed)\nsession   resumable (code-review-session.json)\n\n$ phax review-code usage-cli --headless\n✗ review-code failed: code-review document rejected — findings[0].criterion: \"ac-prune-typo\" is not an\n  acceptance criterion of docs/specs/2609240900-usage-cli.md\n  nothing written; no pass opened\n$ echo $?\n5\n\nExit codes: 0 written · 1 the run is not review_open, or has completed · 5 the answer is not JSON or is\nrejected · 8 a rate or usage limit"
     },
     {
       "surface": "file: code-review document (the headless review session's final message)",
       "summary": "A headless review session answers with one versioned list of findings, each saying where it is, how severe it is, which review step found it, why the tests missed it and which acceptance criterion it touches, and phax refuses any other answer.",
       "binding": "normative",
       "before": null,
-      "after": "{\n  \"version\": 1,\n  \"findings\": [\n    { \"severity\": \"bug\", \"file\": \"src/app/prune.ts\", \"line\": 42,\n      \"message\": \"prune deletes a run whose worktree is still registered\",\n      \"lens\": \"edge\", \"escape\": \"omission\", \"criterion\": \"ac-prune-live-worktree\",\n      \"suggestion\": \"refuse when the registry lists a live worktree; missing line: refuses a run with a live worktree — small · example · the registry fixture · oracle\" },\n    { \"severity\": \"info\", \"file\": \"src/cli/commands/prune.ts\", \"line\": null,\n      \"message\": \"help text says 'remove', output says 'prune'\",\n      \"lens\": \"surface\", \"escape\": \"untestable\", \"criterion\": null,\n      \"suggestion\": \"use 'prune' in both\" }\n  ]\n}\n# every key is required, and an unknown key is refused\n# severity:  bug | deviation | concern | info\n# lens:      surface | acceptance | boundary | core | edge | tests | architecture | docs\n# escape:    wrong-oracle | same-author | weakened | fake-drift | unexplored-input | omission | untestable\n# criterion: an acceptance criterion id of the run's spec, or null\n# phax gives each finding its id and outcome"
+      "after": "{\n  \"version\": 1,\n  \"findings\": [\n    { \"severity\": \"bug\", \"file\": \"src/app/prune.ts\", \"line\": 42,\n      \"message\": \"prune deletes a run whose worktree is still registered\",\n      \"lens\": \"edge\", \"escape\": \"omission\", \"criterion\": \"ac-prune-live-worktree\",\n      \"suggestion\": \"refuse when the registry lists a live worktree; missing line: refuses a run with a live worktree — small · example · the registry fixture · oracle\" },\n    { \"severity\": \"info\", \"file\": \"src/cli/commands/prune.ts\", \"line\": null,\n      \"message\": \"help text says 'remove', output says 'prune'\",\n      \"lens\": \"surface\", \"escape\": \"untestable\", \"criterion\": null,\n      \"suggestion\": \"use 'prune' in both\" }\n  ]\n}\n# every key is required, and an unknown key is refused\n# severity:  bug | deviation | concern | info\n# lens:      surface | acceptance | boundary | core | edge | tests | architecture | docs\n# escape:    wrong-oracle | same-author | weakened | fake-drift | unexplored-input | omission | untestable\n# criterion: an acceptance criterion id of the run's spec, or null; an id the spec's sidecar does not\n#            list is refused, and a run with no spec takes null only\n# phax gives each finding its id and outcome"
     },
     {
       "surface": "file: code-review.json",
       "summary": "Each review pass leaves a findings file you can read or script against, giving each finding's id, severity, the step that found it, why the tests missed it, and what became of it.",
       "binding": "normative",
       "before": null,
-      "after": "# <run-dir>/review/pass-01/code-review.json, also in the run's records\n{\n  \"$schema\": \"https://docs.phax.run/schemas/code-review/<X.Y.Z>.json\",\n  \"pass\": 1,\n  \"findings\": [\n    { \"id\": \"F1\", \"source\": \"review\", \"severity\": \"bug\", \"file\": \"src/app/prune.ts\", \"line\": 42,\n      \"message\": \"prune deletes a run whose worktree is still registered\",\n      \"lens\": \"edge\", \"escape\": \"omission\", \"criterion\": \"ac-prune-live-worktree\",\n      \"suggestion\": \"…\", \"outcome\": \"fixed\", \"history\": [] },\n    { \"id\": \"F2\", \"source\": \"review\", \"severity\": \"deviation\", \"file\": \"src/app/prune.ts\", \"line\": 88,\n      \"message\": \"a registry entry without a worktree is kept\",\n      \"lens\": \"acceptance\", \"escape\": \"wrong-oracle\", \"criterion\": \"ac-prune-orphans\",\n      \"suggestion\": \"…\", \"outcome\": \"awaiting\", \"history\": [] },\n    { \"id\": \"C1\", \"source\": \"compliance\", \"severity\": \"deviation\", \"phase\": \"phase-02\", \"dimension\": \"tests\",\n      \"message\": \"phase-02 planned a registry test it did not write\", \"outcome\": \"fixed\", \"history\": [] }\n  ]\n}\n# a compliance finding has phase and dimension, and no file, line, lens, escape, criterion or suggestion\n# outcome: fixed | open | dismissed | awaiting, kept up to date by phax\n# history: the operator's decisions on the finding, oldest first"
+      "after": "# <run-dir>/review/pass-01/code-review.json, also in the run's records\n{\n  \"$schema\": \"https://docs.phax.run/schemas/code-review/0.29.0.json\",\n  \"pass\": 1,\n  \"findings\": [\n    { \"id\": \"F1\", \"source\": \"review\", \"severity\": \"bug\", \"file\": \"src/app/prune.ts\", \"line\": 42,\n      \"message\": \"prune deletes a run whose worktree is still registered\",\n      \"lens\": \"edge\", \"escape\": \"omission\", \"criterion\": \"ac-prune-live-worktree\",\n      \"suggestion\": \"…\", \"outcome\": \"fixed\", \"history\": [] },\n    { \"id\": \"F2\", \"source\": \"review\", \"severity\": \"deviation\", \"file\": \"src/app/prune.ts\", \"line\": 88,\n      \"message\": \"a registry entry without a worktree is kept\",\n      \"lens\": \"acceptance\", \"escape\": \"wrong-oracle\", \"criterion\": \"ac-prune-orphans\",\n      \"suggestion\": \"…\", \"outcome\": \"awaiting\", \"history\": [] },\n    { \"id\": \"C1\", \"source\": \"compliance\", \"severity\": \"deviation\", \"phase\": \"phase-02\", \"dimension\": \"tests\",\n      \"message\": \"phase-02 planned a registry test it did not write\", \"outcome\": \"fixed\", \"history\": [] }\n  ]\n}\n# a compliance finding has phase and dimension, and no file, line, lens, escape, criterion or suggestion\n# outcome: fixed | open | dismissed | awaiting, kept up to date by phax\n# history: the operator's decisions on the finding, oldest first"
     },
     {
       "surface": "cli: phax review-plan <run>",
       "summary": "You can turn a review's findings into a plan of fix phases, either headless or deciding each finding yourself with the agent.",
       "binding": "normative",
       "before": null,
-      "after": "phax review-plan usage-cli --headless [--doctrine <file>] [--min-severity bug|deviation|concern] [--model <model>] [--effort <effort>]\nphax review-plan usage-cli [--doctrine <file>] [--min-severity …] [--model …] [--effort …]\n  # interactive, Claude Code only: the operator decides, the agent facilitates; phax then resumes the\n  # session headless for the document and lands it only when the operator accepts the rendered plan\n\n# normative: the command, the flags, the --min-severity values and the exit families. Indicative: output layout and wording.\nreview-plan usage-cli — pass 1 — headless, resumed review session — claude-opus-5-5 / high\ndoctrine   phax-decide-review (bundled) + docs/review-doctrine.md · threshold concern\nplanned    F1, C1 → phase-04 (cheap) · F3 → phase-05 (cheap)\nawaiting   F2 — not fixed by this plan; decide it with `phax review-plan usage-cli`\nhandoff    F4 (info)\nawaiting   1 of 4 under consideration — approval waits for it\nplan       docs/plans/2609251010-usage-cli-review-01-plan.md (Draft, on phax/usage-cli--phase-03)\n$? = 0\n\nreview-plan usage-cli — pass 2 — clean: no open finding at or above concern\n$? = 0\n\nreview-plan usage-cli — pass 1 — no-fix: nothing planned (awaiting 2)\n$? = 0\n\n✗ review-plan refused: latest compliance verdict is divergent — no plan emitted (R1)\n$? = 1\n\n✗ review-plan refused: run usage-cli has completed its plan and spec — set review.code.enabled to review before completion\n$? = 1\n\n✗ review-plan failed: review-plan document rejected — decisions[0]: a headless review plan decides nothing (F2)\n  nothing written; outcomes unchanged\n$? = 5\n\nExit: 0 planned, no-fix or clean · 1 refused (run not review_open, no pass, latest plan already appended, run completion applied, divergent verdict, a doctrine file unreadable or defining no principle id or redefining a skill id, interactive without a terminal or on a provider other than Claude Code) · 5 result not JSON or rejected · 8 rate/usage limit"
+      "after": "$ phax review-plan usage-cli --headless --min-severity concern\nreview-plan usage-cli — pass 1 — headless, resumed review session — claude-opus-5-5 / high\ndoctrine   phax-decide-review (bundled) + docs/review-doctrine.md · threshold concern\nplanned    F1 → phase-04 (oracle) + phase-05 (cheap) · F3, C1 → phase-06 (cheap)\nawaiting   F2 (wrong-oracle) — decide it with `phax review-plan usage-cli`\nhandoff    F4 (info)\nplan       docs/plans/2609251010-usage-cli-review-01-plan.md (Draft, on phax/usage-cli--phase-03)\n\n$ phax review-plan usage-cli\n(an interactive Claude Code session: you decide each awaiting finding, then accept the rendered plan)\n\n$ phax review-plan usage-cli --headless\n✗ review-plan refused: latest compliance verdict is divergent — no plan emitted (R1)\n$ echo $?\n1\n\nExit codes: 0 planned, nothing to fix, or clean · 1 refused before any session · 5 the answer is not\nJSON or is rejected · 8 a rate or usage limit"
     },
     {
       "surface": "file: review-plan document and the review plan's sidecar",
       "summary": "A review plan says which findings each fix phase addresses, which ones await your decision, and how cheap each fix is to undo.",
       "binding": "normative",
       "before": null,
-      "after": "# the session's answer: `version: 1`, then the plan document's `review-plan` variant\n# phax writes it as the sidecar docs/plans/2609251010-usage-cli-review-01-plan.json on the run branch:\n#   `$schema` (the `plan-document` format) first, `version` dropped, `awaiting` added\n# normative: the variant's own keys (kind, review.*, phases[].findings, phases[].reversibility, decisions[], awaiting, handoffNote)\n#   and that every other key is the plan document's; the phase projection IS the extracted-plan schema\n# awaiting is a rendering of the outcomes when the plan landed; approval judges the findings' current outcomes\n# indicative: the prose fields' spelling\n{\n  \"version\": 1,\n  \"kind\": \"review-plan\",\n  \"sourceSpec\": \"docs/specs/2609240900-usage-cli.md\",\n  \"completesSpec\": false,\n  \"review\": { \"run\": \"usage-cli\", \"pass\": 1, \"minSeverity\": \"concern\", \"mode\": \"headless\",\n              \"doctrine\": [\"phax-decide-review\", \"docs/review-doctrine.md\"] },\n  \"run\": { \"shortName\": \"usage-cli\", \"title\": \"usage-cli — review pass 1\", \"requiredCommands\": [] },\n  \"preamble\": { \"summary\": \"…\", \"requiredCommandsNote\": \"…\", \"technicalArbitrations\": [],\n                \"openQuestions\": [], \"arbitratedQuestions\": [] },\n  \"phases\": [\n    { \"id\": \"phase-04\", \"title\": \"Guard prune against live worktrees\", \"findings\": [\"F1\", \"C1\"],\n      \"reversibility\": \"cheap\",\n      \"model\": \"claude-opus-5-5\", \"effort\": \"high\", \"planMarkdownAnchor\": \"#phase-04-guard-prune\",\n      \"plannedFilesToCreate\": [], \"plannedFilesToEdit\": [\"src/app/prune.ts\"], \"optionalFilesToEdit\": [],\n      \"commit\": { \"subject\": \"fix(prune): refuse a run with a live worktree\", \"body\": \"Addresses F1, C1.\" },\n      \"objective\": \"…\", \"detailedInstructions\": [\"…\"], \"boundaryContracts\": null, \"testStrategy\": \"…\",\n      \"implementationOrder\": [\"…\"], \"excludedScope\": [\"…\"], \"verification\": \"…\", \"expectedHandoff\": \"…\" }\n  ],\n  \"decisions\": [],\n  \"handoffNote\": [ { \"finding\": \"F4\", \"file\": \"src/cli/commands/prune.ts\",\n                     \"message\": \"help text says 'remove', output says 'prune'\" } ]\n}\n# kind: plan | review-plan — the plan document's two variants, decoded by the one plan-document decoder, so\n#   approve, status, the sync check and migrate-documents read a review plan's sidecar as any plan's\n# completesSpec: false beside a sourceSpec; sourceSpec null and completesSpec null for a run with no source spec,\n#   whose frontmatter then carries no completes-spec key\n# decisions: interactive only, exactly one per finding under consideration that no phase names; empty in a headless document\n#   each in the decided-verdict shape plus { finding }; chosen: dismiss | leave-open; abandoned: the other two of fix | dismiss | leave-open\n#   phax stamps by and at; the session emits neither\n# review: no run-directory path: the sidecar is committed to the repository, and the run and pass name the pass's documents\n# awaiting: absent from the answer; in the sidecar, [{ finding, severity, location, message }] for each finding a headless document leaves unnamed\n# phases[].reversibility: cheap | costly (irreversible is rejected: destructive work stops)\n# handoffNote: one entry per info or below-threshold finding of the run, deduplicated by file and message, no pass tag (Q1)\n# phases may be empty: pass outcome no-fix, and no plan is written"
+      "after": "# the session's answer; phax writes it on the run branch as docs/plans/2609251010-usage-cli-review-01-plan.json\n{\n  \"version\": 1,\n  \"kind\": \"review-plan\",\n  \"sourceSpec\": \"docs/specs/2609240900-usage-cli.md\",\n  \"completesSpec\": false,\n  \"review\": { \"run\": \"usage-cli\", \"pass\": 1, \"minSeverity\": \"concern\", \"mode\": \"headless\",\n              \"doctrine\": [\"phax-decide-review\", \"docs/review-doctrine.md\"] },\n  \"phases\": [\n    { \"id\": \"phase-04\", … }, { \"id\": \"phase-05\", \"findings\": [\"F1\"], … },\n    { \"id\": \"phase-06\", \"title\": \"Guard prune against live worktrees\", \"findings\": [\"F3\", \"C1\"],\n      \"reversibility\": \"cheap\", \"model\": \"claude-opus-5-5\", \"effort\": \"high\",\n      \"plannedFilesToEdit\": [\"src/app/prune.ts\"], … }\n  ],\n  \"decisions\": [],\n  \"handoffNote\": [ { \"finding\": \"F4\", \"file\": \"src/cli/commands/prune.ts\",\n                     \"message\": \"help text says 'remove', output says 'prune'\" } ]\n}\n# every other key is a plan document's; in the sidecar `$schema` comes first, `version` is dropped,\n#   and `awaiting` lists each finding left to you as { finding, severity, location, message }\n# decisions: in an interactive plan, one per finding no phase fixes (dismiss or leave-open); empty when headless\n# reversibility: cheap | costly; destructive work is refused"
     },
     {
       "surface": "file: the review plan's Markdown",
       "summary": "You read a review plan like any other plan, with the findings it addresses and the ones awaiting you listed at the top.",
       "binding": "indicative",
       "before": null,
-      "after": "# docs/plans/2609251010-usage-cli-review-01-plan.md on the run branch, rendered from the sidecar and never written by the agent\n---\nstatus: Draft\nsource-spec: docs/specs/2609240900-usage-cli.md\ncompletes-spec: false\nreview-run: usage-cli\nreview-pass: 1\n---\n# usage-cli — review pass 1\n\n…the phax-planning preamble…\n\n## Review pass\n\n### Findings addressed\n- phase-04: F1 (bug) src/app/prune.ts:42, C1 (deviation) phase-02 tests · reversibility cheap\n\n### Findings awaiting the operator\n- F2 (deviation) — src/app/prune.ts:88 — not fixed by this plan; decide it with `phax review-plan usage-cli`\n\n### Handoff note\n- F4 (info) src/cli/commands/prune.ts — help text says 'remove', output says 'prune'\n\n## phase-04 — Guard prune against live worktrees {#phase-04-guard-prune}\n…the phax-planning phase fields…\n\n# normative: the frontmatter variant; the review sections sit in the preamble, before the first phase, so the\n# deterministic parser reads the phases unchanged; the file passes `phax plans lint --run usage-cli` with no\n# structure error and `phax artifact status --run usage-cli` reports its sidecar in sync. Indicative: section names and wording."
+      "after": "---\nstatus: Draft\nsource-spec: docs/specs/2609240900-usage-cli.md\ncompletes-spec: false\nreview-run: usage-cli\nreview-pass: 1\n---\n# usage-cli — review pass 1\n\n## Review pass\n\n### Findings addressed\n- phase-06: F3 (concern) src/app/prune.ts:61, C1 (deviation) phase-02 tests · reversibility cheap\n\n### Findings awaiting the operator\n- F2 (deviation) — src/app/prune.ts:88 — not fixed by this plan; decide it with `phax review-plan usage-cli`\n\n### Handoff note\n- F4 (info) src/cli/commands/prune.ts — help text says 'remove', output says 'prune'\n\n## phase-04 — Test prune against a live worktree {#phase-04-test-live-worktree}\n…"
     },
     {
       "surface": "file: pass.json",
       "summary": "Each review pass records how it ended (clean, planned, nothing to fix, blocked or failed) and which phases it appended.",
       "binding": "normative",
       "before": null,
-      "after": "# <run-dir>/review/pass-01/pass.json, also committed to the run's records\n# normative: the keys, the outcome and mode kinds, and who writes what. Indicative: the layout.\n{\n  \"$schema\": \"https://docs.phax.run/schemas/review-pass/<X.Y.Z>.json\",\n  \"pass\": 1,\n  \"mode\": \"headless\",\n  \"threshold\": \"concern\",\n  \"complianceVerdict\": \"conformant-with-deviations\",\n  \"outcome\": \"planned\",\n  \"plan\": \"docs/plans/2609251010-usage-cli-review-01-plan.md\",\n  \"appendedPhases\": [\"phase-04\", \"phase-05\"],\n  \"failure\": null\n}\n# outcome: reviewed | planned | no-fix | clean | blocked-divergent | superseded | failed\n# mode: headless | interactive (the review-plan session that landed the current plan) | none (no review-plan session yet, or none was spawned)\n# threshold: bug | deviation | concern, resolved by review-plan, also for clean and blocked-divergent; null while reviewed or failed before review-plan\n# complianceVerdict: a compliance verdict, or null when compliance is disabled or failed\n# plan: the review plan's path on the run branch (under docs/plans/archive/ once abandoned), or null when the pass planned no phase;\n#   its approval lives in docs/plans/approvals/<plan file stem>.json on the run branch\n# appendedPhases: [] until appended\n# failure: { step: compliance | review | review-plan | approval | push, exit } beside outcome failed; null otherwise\n#\n# lifecycle:\n#   review-code --headless   writes it: outcome reviewed, mode none, threshold null, plan null\n#   review-plan              outcome planned | no-fix | clean | blocked-divergent, mode, threshold, plan\n#   run --append             adds each committed appended phase to appendedPhases\n#   the next pass opening    outcome superseded, when this pass's plan was still pending\n#   a failed loop step       outcome failed with failure; replaced when that step succeeds by hand\n# $schema: the `review-pass` format, registered and snapshotted like every persisted format"
+      "after": "# <run-dir>/review/pass-01/pass.json, also in the run's records\n{\n  \"$schema\": \"https://docs.phax.run/schemas/review-pass/0.29.0.json\",\n  \"pass\": 1,\n  \"mode\": \"headless\",\n  \"threshold\": \"concern\",\n  \"complianceVerdict\": \"conformant-with-deviations\",\n  \"outcome\": \"planned\",\n  \"plan\": \"docs/plans/2609251010-usage-cli-review-01-plan.md\",\n  \"appendedPhases\": [\"phase-04\", \"phase-05\", \"phase-06\"],\n  \"failure\": null\n}\n# outcome: reviewed | planned | no-fix | clean | blocked-divergent | superseded | failed\n# mode: headless | interactive, the review-plan session that landed the plan; none before one ran\n# threshold: bug | deviation | concern, or null before review-plan ran\n# plan: null when the pass planned no phase · appendedPhases: the phases `phax run --append` committed\n# failure: { step: compliance | review | review-plan | approval | push, exit } when outcome is failed"
     },
     {
       "surface": "cli: phax run <run> --append --plan <review plan>",
       "summary": "You can add a review plan's fix phases to the end of a finished run, which then runs again from its last phase.",
       "binding": "normative",
-      "before": "phax run [short-name] --plan <path> [--allow-dirty] [--security <mode>] [--refresh] …\n  (always creates a new run; a run ends review_open and no command returns it to running)",
-      "after": "phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md\n\n# run from the checkout; the plan path is read in the run's final-phase worktree, and nothing is committed on the checkout\n# normative: the flag, the argument form (the existing run grammar), the state transition and the exit families.\n# indicative: output layout and wording.\nappend usage-cli — review pass 1 — phase-04..phase-05 after phase-03\nphase-04  from review pass 1 (F1, C1)  phax/usage-cli--phase-04 ← phax/usage-cli--phase-03\nphase-05  from review pass 1 (F3)      phax/usage-cli--phase-05 ← phax/usage-cli--phase-04\nfixed     F1, C1, F3\nusage-cli review_open — handoff and reconciliation regenerated over phase-01..phase-05\n$? = 0\n\nState: review_open → running → review_open (failed / rate_limited / interrupted exactly as for any phase)\n\nA draft PR accepts the append; at its end phax pushes phax/usage-cli--phase-05 and rewrites the draft's body:\npushed    phax/usage-cli--phase-05 → draft PR https://github.com/o/r/pull/12 (body rewritten)\nAn append starts no review pass and no publish.auto.\n\nRefusals happen before any phase starts. Nothing is created and the run state is unchanged. (wording indicative)\n✗ append refused: review plan is Draft, not Approved                                     $? = 12\n✗ append refused: run usage-cli is failed, not review_open                                $? = 1\n✗ append refused: pull request https://github.com/o/r/pull/12 of run usage-cli is ready for review (only a draft accepts an append)    $? = 1\n✗ append refused: the plan is pass 1's, but the run's latest pass is 2                    $? = 2\n✗ append refused: plan starts at phase-04 but the run's last phase is phase-05             $? = 2\n✗ append refused: phase-04 plans src/app/other.ts, outside the run footprint (R2)          $? = 2\nOther exits are as for `phax run`: 3 unsafe git state · 4 gate failure · 5 agent error · 7 lock conflict · 8 rate/usage limit"
+      "before": "$ phax run usage-cli --plan docs/plans/2609240900-usage-cli-plan.md\n(always starts a new run; a run that reached review_open never runs again)",
+      "after": "$ phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md\nappend usage-cli — review pass 1 — phase-04..phase-06 after phase-03\nphase-04  from review pass 1 (oracle for F1)  phax/usage-cli--phase-04 ← phax/usage-cli--phase-03\nphase-05  from review pass 1 (F1)             phax/usage-cli--phase-05 ← phax/usage-cli--phase-04\nphase-06  from review pass 1 (F3, C1)         phax/usage-cli--phase-06 ← phax/usage-cli--phase-05\nfixed     F1, F3, C1\nusage-cli review_open — handoff and reconciliation regenerated over phase-01..phase-06\npushed    phax/usage-cli--phase-06 → draft PR https://github.com/o/r/pull/12 (body rewritten)\n\n$ phax run usage-cli --append --plan docs/plans/2609251010-usage-cli-review-01-plan.md\n✗ append refused: review plan is Draft, not Approved\n$ echo $?\n12\n\nOther refusals, before any phase starts: the run is not review_open or its PR is ready (1), the plan is\nnot the latest pass's or does not follow the last phase, or plans a file outside the run (2)."
     },
     {
       "surface": "config: phax.json review.code.{enabled,append,maxPasses}",
@@ -793,29 +841,29 @@
       "surface": "cli: phax artifact approve|status on a review plan",
       "summary": "You approve and inspect a review plan from your checkout although it lives on the run's branch, and status names the run and pass it belongs to.",
       "binding": "indicative",
-      "before": "phax artifact status docs/plans/2609240900-usage-cli-plan.md\nPath:              docs/plans/2609240900-usage-cli-plan.md\nKind:              plan\nStatus:            Approved",
-      "after": "phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator | --by machine:<grant>\nStatus:   Approved\nApprover: operator (Ada Lovelace)\nRecord:   docs/plans/approvals/2609251010-usage-cli-review-01-plan.json (run branch phax/usage-cli--phase-03)\n\nphax artifact status docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli\nPath:     docs/plans/2609251010-usage-cli-review-01-plan.md (run usage-cli, phax/usage-cli--phase-03)\nKind:     review-plan (run usage-cli, pass 1)\nAuthored: headless — sidecar …-review-01-plan.json (in sync)\nStatus:   Approved\nApproved: 2026-09-25 by machine (review-code-append)      # or: by operator (Ada Lovelace)\nAppended: phase-04..phase-05                               # or: not appended\nFindings: 4 considered — fixed 3 · awaiting 1 (F2) · dismissed 0 · open 0\nPR:       draft https://github.com/o/r/pull/12 — pending: F2 awaiting   # or: ready for review, or: none\n\nphax plans lint docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli   # lints in the run's final worktree\n\n✗ approve refused: docs/plans/2609251010-usage-cli-review-01-plan.md is a review plan — name its run with --run usage-cli   $? = 12\n\n# normative: --run, that approve accepts a review plan, the `--by` values (per artifact-decide), and the approver kind and identity in status\n# indicative: layout and wording"
+      "before": "$ phax artifact status docs/plans/2609240900-usage-cli-plan.md\nPath:              docs/plans/2609240900-usage-cli-plan.md\nKind:              plan\nStatus:            Approved",
+      "after": "$ phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli --by operator\nStatus:   Approved\nApprover: operator (Ada Lovelace)\nRecord:   docs/plans/approvals/2609251010-usage-cli-review-01-plan.json (run branch phax/usage-cli--phase-03)\n\n$ phax artifact status docs/plans/2609251010-usage-cli-review-01-plan.md --run usage-cli\nPath:     docs/plans/2609251010-usage-cli-review-01-plan.md (run usage-cli, phax/usage-cli--phase-03)\nKind:     review-plan (run usage-cli, pass 1)\nAuthored: headless — sidecar …-review-01-plan.json (in sync)\nStatus:   Approved\nApproved: 2026-09-25 by machine (review-code-append)\nAppended: phase-04..phase-06\nFindings: 5 considered — fixed 4 · awaiting 1 (F2) · dismissed 0 · open 0\nPR:       draft https://github.com/o/r/pull/12 — pending: F2 awaiting\n\n$ phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md --by operator\n✗ approve refused: docs/plans/2609251010-usage-cli-review-01-plan.md is a review plan — name its run with --run usage-cli"
     },
     {
       "surface": "cli: phax ls review-pass report",
-      "summary": "phax ls shows each run's review passes, and how many findings were fixed, await you, were dismissed or are still open.",
+      "summary": "The run list shows each run's review passes, and how many findings were fixed, await you, were dismissed or are still open.",
       "binding": "indicative",
-      "before": "phax ls --review-open\nusage-cli   review_open   …today's columns…",
-      "after": "phax ls --review-open\nusage-cli   review_open   5 phases   passes 2 (last: clean, conformant) · fixed 3 · awaiting 0 · dismissed 1 · open 0\nlint-fix    review_open   4 phases   passes 1 (last: planned, conformant) · fixed 0 · awaiting 1 · dismissed 0 · open 0 · PR draft: F7 awaiting\n\nphax ls --json   # each run gains:\n\"reviewPasses\": [\n  { \"pass\": 1, \"outcome\": \"planned\", \"complianceVerdict\": \"conformant-with-deviations\",\n    \"findings\": { \"bug\": 1, \"deviation\": 2, \"concern\": 1, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 3, \"awaiting\": 0, \"dismissed\": 1, \"open\": 0 } },\n  { \"pass\": 2, \"outcome\": \"clean\", \"complianceVerdict\": \"conformant\",\n    \"findings\": { \"bug\": 0, \"deviation\": 0, \"concern\": 0, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 0, \"awaiting\": 0, \"dismissed\": 0, \"open\": 0 } }\n]\n#   and, for a run whose PR is a draft: \"pullRequest\": { \"url\": \"…\", \"draft\": true, \"pending\": [\"F7\"] }\n# the PR state is read through gh at call time; no PR state is stored\n# open counts only non-info findings"
+      "before": "$ phax ls --review-open\nusage-cli   review_open   3 phases",
+      "after": "$ phax ls --review-open\nusage-cli   review_open   6 phases   passes 2 (last: clean, conformant) · fixed 4 · awaiting 0 · dismissed 1 · open 0\nlint-fix    review_open   4 phases   passes 1 (last: planned, conformant) · fixed 0 · awaiting 1 · dismissed 0 · open 0 · PR draft: F7 awaiting\n\n$ phax ls --json   # each run gains:\n\"reviewPasses\": [\n  { \"pass\": 1, \"outcome\": \"planned\", \"complianceVerdict\": \"conformant-with-deviations\",\n    \"findings\": { \"bug\": 1, \"deviation\": 2, \"concern\": 1, \"info\": 1 },\n    \"outcomes\": { \"fixed\": 4, \"awaiting\": 0, \"dismissed\": 1, \"open\": 0 } }\n],\n\"pullRequest\": { \"url\": \"https://github.com/o/r/pull/12\", \"draft\": true, \"pending\": [\"F7\"] }\n# open counts only findings above info; pullRequest appears while the PR is a draft"
     },
     {
       "surface": "file: pr-body.md (the pull request description)",
       "summary": "The pull request shows each review pass's findings and their outcomes, and while it is a draft it says what it is waiting for.",
       "binding": "normative",
-      "before": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Phases** 3/3 passed · **Verified surfaces** local, structural\n**Compliance** conformant-with-deviations\n\n## Phases\n…\n\n## Needs your review\n\n### Compliance attention points\n…\n\n### Unexplained deviations\n…\n\n## Full detail\n…",
-      "after": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Spec** `docs/specs/2609240900-usage-cli.md` completed\n**Phases** 5/5 passed · **Verified surfaces** local, structural\n**Compliance** conformant\n\n## Phases\n…\n\n## Needs your review\n\n### Review passes\n\n(while the PR is a draft:)\n**Draft** — waiting for the operator: review plan `docs/plans/2609251010-usage-cli-review-03-plan.md` (Draft) · F9 awaiting\n\n| Pass | bug | deviation | concern | info | Fixed | Awaiting | Dismissed | Open | Compliance |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | 1 | 2 | 1 | 1 | 3 | 0 | 1 | 0 | conformant-with-deviations |\n| 2 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | conformant |\n\n- F2 (deviation) src/app/prune.ts:88 — a registry entry without a worktree is kept — dismissed by operator (Ada Lovelace): spec §5.3 allows it\n\n### Compliance attention points\n…\n\n### Unexplained deviations\n…\n\n## Full detail\n…\n\n# normative: `### Review passes` heads `## Needs your review` for a run with a pass; the column set and order;\n# one line per awaiting or dismissed finding; open counts only non-info findings; the subsection is never cut\n# and the cut order of the other lists is today's; no decisions table\n# indicative: cell and line wording\n# the draft line, while the PR is a draft; `phax publish-pr` rewrites the body when it marks the PR ready\n# a run with no pass gets a body identical to today's"
+      "before": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Phases** 3/3 passed · **Verified surfaces** local, structural\n**Compliance** conformant-with-deviations\n\n## Needs your review\n\n### Compliance attention points\n…",
+      "after": "**Run** `acme.usage-cli` · **Plan** `docs/plans/2609240900-usage-cli-plan.md` · **Gate profile** `standard`\n**Spec** `docs/specs/2609240900-usage-cli.md` completed\n**Phases** 6/6 passed · **Verified surfaces** local, structural\n**Compliance** conformant\n\n## Needs your review\n\n### Review passes\n\n| Pass | bug | deviation | concern | info | Fixed | Awaiting | Dismissed | Open | Compliance |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | 1 | 2 | 1 | 1 | 3 | 0 | 1 | 0 | conformant-with-deviations |\n| 2 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | conformant |\n\n- F2 (deviation · wrong-oracle) src/app/prune.ts:88 — a registry entry without a worktree is kept — dismissed by operator (Ada Lovelace): the spec allows it\n\n### Compliance attention points\n…\n\nWhile the PR is a draft, the section opens with what it waits for:\n**Draft** — waiting for the operator: review plan `docs/plans/2609251010-usage-cli-review-03-plan.md` (Draft) · F9 awaiting"
     },
     {
       "surface": "cli: phax publish-pr <run> with review passes",
       "summary": "While a review item awaits you, the pull request opens as a draft; phax completes the run and marks it ready only once nothing is pending.",
       "binding": "normative",
-      "before": "phax publish-pr usage-cli\n  (pushes the final branch and creates a PR ready for review, or reuses an existing PR without touching it)",
-      "after": "phax publish-pr usage-cli\n\n# a run with no PR and a pending review item: a draft PR, no completion\ndraft     https://github.com/o/r/pull/12 — pending: review plan …-review-02-plan.md (Draft) · F7 awaiting\n$? = 0\n\n# a run whose PR is a draft, with an item still pending: refused, nothing changed\n✗ publish-pr refused: pull request https://github.com/o/r/pull/12 stays a draft — pending: F7 awaiting; decide it with `phax review-plan usage-cli`\n$? = 12\n\n# a run whose PR is a draft, nothing pending: completion, push, body rewritten, marked ready\ncompleted docs/plans/2609240900-usage-cli-plan.md · docs/specs/2609240900-usage-cli.md (run branch)\npushed    phax/usage-cli--phase-05\nready     https://github.com/o/r/pull/12 (body rewritten)\n$? = 0\n\n# a run whose PR an operator marked ready by hand, completion still deferred: completion, push, body rewritten\ncompleted docs/plans/2609240900-usage-cli-plan.md · docs/specs/2609240900-usage-cli.md (run branch)\nready     https://github.com/o/r/pull/12 (already ready; body rewritten)\n$? = 0\n\n# a closed or merged PR: refused\n✗ publish-pr refused: pull request https://github.com/o/r/pull/12 is merged — complete the artifacts with `phax artifact complete`, or reopen the PR\n$? = 12\n\n# a failed step exits in its family; a rerun skips the steps done and resumes\ncompleted (already) · pushed (already) · ready https://github.com/o/r/pull/12\n$? = 0\n\n# normative: the draft/refuse/ready behavior, exit 12, the step order and their idempotence. Indicative: layout and wording.\n# the PR's state is read live through gh; completion moves each appended review plan, then the plan, then the spec\n# GitHub operations this adds, through `gh`: create a draft PR, mark a PR ready for review, edit a PR's body"
+      "before": "$ phax publish-pr usage-cli\n(pushes the final branch and opens a PR ready for review, or reuses an existing PR without touching it)",
+      "after": "$ phax publish-pr usage-cli          # no PR yet, F7 awaiting\ndraft     https://github.com/o/r/pull/12 — pending: F7 awaiting\n\n$ phax publish-pr usage-cli          # the PR is a draft, F7 still awaiting\n✗ publish-pr refused: pull request https://github.com/o/r/pull/12 stays a draft — pending: F7 awaiting;\n  decide it with `phax review-plan usage-cli`\n$ echo $?\n12\n\n$ phax publish-pr usage-cli          # nothing pending any more\ncompleted docs/plans/2609240900-usage-cli-plan.md · docs/specs/2609240900-usage-cli.md (run branch)\npushed    phax/usage-cli--phase-06\nready     https://github.com/o/r/pull/12 (body rewritten)\n\n$ phax publish-pr usage-cli          # the PR was merged\n✗ publish-pr refused: pull request https://github.com/o/r/pull/12 is merged — complete the artifacts with\n  `phax artifact complete`, or reopen the PR\n$ echo $?\n12"
     }
   ],
   "nonGoals": [
@@ -839,7 +887,8 @@
     "Approving or appending from inside a run's worktree. The phase guard is unchanged, and the commands reach the run from the checkout. The new `review-plan` command joins the refused class: it is refused inside a phase worktree, as `review-code` is.",
     "Storing a PR's state. phax reads it live through `gh`, and run-status gains no field.",
     "The review map that phax computes for the reviewer (`review-map`), changes to how oracles are written (failing for the right reason, frozen generators, fixed seeds), and statistics on escapes across runs.",
-    "A migration of `code-review.json`. No such file exists yet: the format is born with `lens`, `escape` and `criterion`."
+    "A migration of `code-review.json`. No such file exists yet: the format is born with `lens`, `escape` and `criterion`.",
+    "A count of escapes in the review-passes rows or in `phax ls`. The escape shows on the finding lines and in the files; counts across runs belong to a later report."
   ],
   "acceptanceCriteria": [
     {
@@ -1436,6 +1485,93 @@
       "then": "The phase guard refuses it, and no session is spawned.",
       "refs": [
         "rp-guard"
+      ]
+    },
+    {
+      "id": "ac-review-criterion-unknown",
+      "name": "A criterion the spec lacks opens no pass",
+      "given": "A `review_open` run `usage-cli` whose source spec `docs/specs/2609240900-usage-cli.md` has a JSON sidecar listing the acceptance criteria `ac-prune-live-worktree` and `ac-prune-orphans`.",
+      "when": "`phax review-code usage-cli --headless` runs, and the session returns a document valid against the schema whose first finding names the criterion `ac-prune-typo`.",
+      "then": "The command exits 5, naming `findings[0].criterion` and `ac-prune-typo`. No `code-review.json` exists for a new pass, and the run's pass count is unchanged.",
+      "refs": [
+        "rc-criterion",
+        "rc-invalid"
+      ]
+    },
+    {
+      "id": "ac-review-criterion-unchecked",
+      "name": "No spec takes null, a spec without a sidecar is not checked",
+      "given": "Two `review_open` runs: `notes-fix`, with no source spec, and `legacy-cli`, whose source spec is hand-authored and has no JSON sidecar.",
+      "when": "`phax review-code <run> --headless` runs on each, and each session returns one finding naming the criterion `ac-1`.",
+      "then": "`notes-fix` exits 5, naming `findings[0].criterion`, and opens no pass. `legacy-cli` exits 0, and its pass-1 `code-review.json` records `ac-1` as given.",
+      "refs": [
+        "rc-criterion-scope"
+      ]
+    },
+    {
+      "id": "ac-review-plan-escape",
+      "name": "A missing test becomes an oracle pair, a wrong oracle waits",
+      "given": "A pass whose `code-review.json` holds `F1` (bug, escape `omission`), `F2` (deviation, escape `wrong-oracle`) and `F3` (concern, escape `same-author`). The project configures an `oracles` provider.",
+      "when": "`phax review-plan <run> --headless` runs, and the session returns a document whose `phase-04` is an oracle phase that names no finding, `phase-05` discharges `phase-04` and names `F1`, `phase-06` names `F3`, and no phase names `F2`.",
+      "then": "A Draft review plan is committed on the run branch, with `phase-04` carrying its oracle-phase lines. `F2`'s outcome is `awaiting`. `F1` and `F3` stay `open`. The exit code is 0.",
+      "refs": [
+        "rp-escape-oracle",
+        "rp-headless-no-decision"
+      ]
+    },
+    {
+      "id": "ac-review-plan-escape-refused",
+      "name": "A headless plan that fixes a test question the wrong way lands nothing",
+      "given": "The pass of the previous criterion.",
+      "when": "Three headless review-plan sessions return, in turn: a document whose `phase-04` names `F2`; one whose ordinary `phase-04`, discharging no oracle phase, names `F1`; and, in a project with no `oracles` provider, one whose `phase-04` is an oracle phase discharged by a `phase-05` naming `F1`.",
+      "then": "Each command exits 5. The first names `F2`, the second `F1`, and the third the missing `oracles` provider. No review plan is written, and every finding's outcome is unchanged.",
+      "refs": [
+        "rp-escape-wrong-oracle",
+        "rp-escape-pair",
+        "rp-escape-no-oracles",
+        "rp-invalid"
+      ]
+    },
+    {
+      "id": "ac-review-plan-escape-no-oracles",
+      "name": "Without an oracles provider, a missing test waits",
+      "given": "A pass whose `code-review.json` holds `F1` (bug, escape `omission`). The project configures no `oracles` provider.",
+      "when": "`phax review-plan <run> --headless` runs, and the session returns a document in which no phase names `F1`.",
+      "then": "The command exits 0, and `F1`'s outcome is `awaiting`.",
+      "refs": [
+        "rp-escape-no-oracles"
+      ]
+    },
+    {
+      "id": "ac-skill-escape",
+      "name": "The review doctrine plans by escape",
+      "given": "The bundled `phax-decide-review` skill.",
+      "when": "Its text is read.",
+      "then": "It defines `R8`. `R8` keeps a `wrong-oracle` finding out of a headless plan, fixes an `omission` or `unexplored-input` finding with an oracle pair, leaves such a finding unnamed without an `oracles` provider, and plans every other escape as before.",
+      "refs": [
+        "rp-skill-escape"
+      ]
+    },
+    {
+      "id": "ac-pr-escape",
+      "name": "The PR's finding lines name the escape",
+      "given": "A `review_open` run with one pass: `F1` fixed (escape `omission`), `F2` awaiting (escape `wrong-oracle`) and `F5` dismissed (escape `untestable`).",
+      "when": "`phax publish-pr <run>` creates the pull request, and `phax ls` lists the run.",
+      "then": "In `### Review passes`, the line for `F2` gives `wrong-oracle` after its severity, and the line for `F5` gives `untestable`. No line names `F1`. The table has no escape column, and the `phax ls` output names no escape.",
+      "refs": [
+        "pr-escape",
+        "pr-passes"
+      ]
+    },
+    {
+      "id": "ac-review-conversation-kept",
+      "name": "A headless review keeps what the conversation found",
+      "given": "A `review_open` run whose interactive `phax review-code <run>` recorded session `S` in `code-review-session.json`, and no pass.",
+      "when": "`phax review-code <run> --headless` runs, and the session returns a valid code-review document.",
+      "then": "The provider resumed `S`. The pass-1 `code-review.json` holds the document's findings, and the exit code is 0.",
+      "refs": [
+        "rc-headless",
+        "rc-unchanged"
       ]
     }
   ],
@@ -2165,11 +2301,13 @@
       "Revised on 2026-10-19 to match main. Approvals are one record file per plan under `docs/plans/approvals/`. The loop's grant is `review-code-append` (kebab-case). Persisted documents carry `$schema` (`code-review`, `review-pass`), and session answers carry `version: 1`. Finding decisions use decide's verdict shape. Interactive review-plan is Claude Code only and hands its document back as decide does. The headless sections of `phax-decide-review` are rewritten. Q2 is dropped, and Q6 is reworded without escalation.",
       "The review plan's sidecar is a variant of the plan document (`kind: review-plan`), not a format of its own. It sits in the sidecar slot, beside a Markdown under `docs/plans/`. approve, status, the sync check and `migrate-documents` already decode that slot through the one plan-document decoder, so a union on `kind` keeps them working. A separate format there would be refused as an invalid sidecar.",
       "Settled in review on 2026-10-19, following Q4, Q11 and Q13:\n- Completion moves the run's appended review plans, then its plan, then its spec, past the chain gate.\n- Only the step that makes the PR ready applies the completion.\n- A new pass supersedes the previous pass's pending plan.\n- A failed loop step, including a failed compliance review, is pending and leaves a draft PR; `phax run` exits in that step's family (0 for compliance).\n- Only the original run, or a resume of its original phases, triggers the loop.\n- The PR's state is read live through `gh`, and a closed or merged PR is refused.\n- `pass.json` has a defined lifecycle.\n- The publish-pr steps are idempotent.",
-      "Revised on 2026-10-27 from the brief `review-escape` (the operator's direction of 2026-10-23): a review finding carries required `lens`, `escape` and `criterion`, the first two closed literals of the review skill's ids, the third an acceptance criterion id or null; a compliance finding keeps `phase` and `dimension` and carries none of the three; the headless review session follows `phax-review` with the project-copy rule of `review-code`; there is no migration, since no `code-review.json` exists."
+      "Revised on 2026-10-27 from the brief `review-escape` (the operator's direction of 2026-10-23): a review finding carries required `lens`, `escape` and `criterion`, the first two closed literals of the review skill's ids, the third an acceptance criterion id or null; a compliance finding keeps `phase` and `dimension` and carries none of the three; the headless review session follows `phax-review` with the project-copy rule of `review-code`; there is no migration, since no `code-review.json` exists.",
+      "Decided by the operator on 2026-10-27, as recommended:\n- Q14: a review finding's `criterion` is checked against the source spec's sidecar when it has one; with no source spec only null passes; beside a spec with no sidecar the id is kept unchecked.\n- Q15: a `wrong-oracle` finding waits for the operator; an `omission` or `unexplored-input` finding is fixed by an oracle pair, and waits without an `oracles` provider; `phax-decide-review` gains `R8`.\n- Q16: the escape shows on the PR body's awaiting and dismissed finding lines and in the files, with no count in the review-passes rows or in `phax ls`.\n- Q17: the interactive `review-code` stays a conversation; a later `--headless` run resumes its session and writes a pass."
     ],
     "open": [
       "Cell and line wording of the review-passes subsection, output layouts, the run-directory layout (`review/pass-NN/`), and the spelling of the indicative `doctrine` / `minSeverity` keys.",
-      "The steme protocol (§3.2, §5.6, §5.7, §6, §12.3) and steme-lab's `phax.schema.json` could not be read in the authoring session (permission denied). The review config shape was taken from `src/schemas/phaxConfig.ts`. A reviewer should check the pass order, the bound semantics (appends ≤ `maxPasses`, then one final review) and the exit families against protocol §5.6/§5.7."
+      "The steme protocol (§3.2, §5.6, §5.7, §6, §12.3) and steme-lab's `phax.schema.json` could not be read in the authoring session (permission denied). The review config shape was taken from `src/schemas/phaxConfig.ts`. A reviewer should check the pass order, the bound semantics (appends ≤ `maxPasses`, then one final review) and the exit families against protocol §5.6/§5.7.",
+      "An oracle pair's test file counts toward the run footprint like any planned file (`R2`), so a missing test written to a new test file the run never planned is refused by `phax run --append`. The plan should check how often that happens on a real run before deciding whether test files beside the footprint's sources count; until then such a finding waits for the operator."
     ],
     "constraints": [
       "Compose the headless-authoring machinery of `phax artifact new plan --headless`: the JSON-only session, boundary decoding, the deterministic renderer, the sidecar, the cache seed, the commit trailer, the session record and the records writer. Do not fork it. Its target is the run's final-phase worktree instead of the checkout, its skill the review doctrine instead of `phax-planning`, and its document the plan document's `review-plan` variant. The variant's phase projection must be the extracted-plan schema itself.",
@@ -2185,7 +2323,11 @@
       "The GitHub edge gains four operations, driven through `gh`: create a draft PR, mark a PR ready for review, edit a PR's body, and read a PR's state (draft, ready, closed, merged). The plan designs how they reach the GitHub port, and where a run records that its PR is a draft.",
       "The phase guard's table gains `review-plan` as refused, and `plans lint` gains `--run`.",
       "The `lens` and `escape` literals of the code-review document schema and the ids the bundled `phax-review` skill lists are one vocabulary: a test reads the skill's lens list and escape table and compares them with the schema, so changing one without the other fails.",
-      "The review skill's `In the session` steps address a person in the session. The headless review brief replaces them: report the findings as the code-review document, propose and apply nothing."
+      "The review skill's `In the session` steps address a person in the session. The headless review brief replaces them: report the findings as the code-review document, propose and apply nothing.",
+      "`R8` is a skill edit: the phase that adds it to `.claude/skills/phax-decide-review/SKILL.md`, the bundled copy, edits a skill, so the run needs `--allow-skill-edits`. Write it in the phase that adds the review-plan checks on escapes, so the checks accept exactly what the skill instructs.",
+      "The criterion check reuses the reader of acceptance criterion ids that `phax plans lint` uses for test lines; do not add a second one.",
+      "A review plan's oracle pair follows the plan's oracle-phase rules unchanged: the oracle lines, the expected-failure markers, one discharging phase, and the `oracles` provider judging both gates.",
+      "The review sections of a review plan's Markdown sit in the preamble, before the first phase, so the deterministic parser reads the phases unchanged."
     ]
   },
   "docsPage": {
