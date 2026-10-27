@@ -222,7 +222,7 @@ function renderNeedsYourReview(
       "### Compliance attention points",
       renderCutList(
         // One bullet each: a line break inside a point would end the list.
-        onOneLine(input.compliance.review.attentionPoints).map((p) => `- ${p}`),
+        onOneLine(input.compliance.review.attentionPoints).map((p) => `- ${withoutMentions(p)}`),
         keep.attentionPoints,
         ["attention point", "attention points"],
       ),
@@ -259,7 +259,25 @@ function findingLine(finding: CodeReviewFinding): string {
   const longestRun = Math.max(0, ...(place.match(/`+/g) ?? []).map((run) => run.length));
   const fence = "`".repeat(longestRun + 1);
   const span = longestRun === 0 ? `${fence}${place}${fence}` : `${fence} ${place} ${fence}`;
-  return `- **${finding.severity}** ${span} — ${onOneLine(finding.message)}`;
+  return `- **${finding.severity}** ${span} — ${withoutMentions(onOneLine(finding.message))}`;
+}
+
+// Model text in the body: `@scope/pkg` or `@name` outside a code span would
+// mention a GitHub user or team and notify them, so each such token is
+// rendered as code. Code spans and an `@` inside a word (an email) are left
+// as they are.
+function withoutMentions(text: string): string {
+  return text
+    .split(/(`+[^`]*?`+)/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part.replace(
+            /(^|[^\w`])(@[\w-]+(?:\/[\w.-]*[\w-])?)/g,
+            (_m, before: string, token: string) => `${before}\`${token}\``,
+          ),
+    )
+    .join("");
 }
 
 // The first `kept` items, then one line counting the cut ones; `None.` when
