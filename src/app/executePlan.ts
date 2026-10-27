@@ -63,6 +63,7 @@ import {
 } from "./completeRunArtifacts.js";
 import { withInvocationCost } from "./costLedger.js";
 import { publishRun } from "./publishRun.js";
+import { codeReviewFixHint, describeFindingCounts } from "../domain/review/codeReviewFindings.js";
 import { reviewCodeAndRecord } from "./reviewCode.js";
 import { reviewComplianceAndRecord } from "./reviewCompliance.js";
 import { reviewEntryWarnings, runEndReviewRecordTarget } from "./reviewEntry.js";
@@ -2661,6 +2662,16 @@ export function executePlan(
                   if (outcome.review.kind === "failed") {
                     process.stderr.write(
                       `[phax] Warning: code review failed: ${outcome.review.reason} — rerun it with \`${retryCommand}\`\n`,
+                    );
+                  } else {
+                    const findings = outcome.review.review.findings;
+                    const fixHint = codeReviewFixHint(
+                      findings.length,
+                      outcome.review.session,
+                      shortName,
+                    );
+                    process.stderr.write(
+                      `[phax] Code review: ${describeFindingCounts(findings)}${fixHint !== undefined ? ` — ${fixHint}` : ""}\n`,
                     );
                   }
                   for (const warning of reviewEntryWarnings(outcome, "code-review", retryCommand)) {

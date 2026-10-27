@@ -47,11 +47,11 @@ export const mistralSessionAdapter: SessionAdapter = {
     };
   },
 
-  buildResumeInvocation(_binding: PhaseAgentBinding): ResumeInvocation {
+  buildResumeInvocation(binding: PhaseAgentBinding): ResumeInvocation {
     return {
       unsupported:
         "mistral-vibe does not support interactive resume via phax. " +
-        "To resume manually, run: vibe --resume <session-id> from the bound worktree.",
+        `To resume manually, run: vibe --resume ${binding.sessionId ?? "<session-id>"} from ${binding.worktreePath}.`,
     };
   },
 
@@ -65,7 +65,7 @@ export const mistralSessionAdapter: SessionAdapter = {
     return {
       unsupported:
         "mistral-vibe does not support interactive resume via phax. " +
-        "To resume manually, run: vibe --resume <session-id> from the bound worktree.",
+        `To resume manually, run: vibe --resume ${opts.sessionId} from ${opts.cwd}.`,
     };
   },
 

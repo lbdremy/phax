@@ -14,7 +14,10 @@ import {
 } from "../../app/reviewEntry.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
-import { describeFindingCounts } from "../../domain/review/codeReviewFindings.js";
+import {
+  codeReviewFixHint,
+  describeFindingCounts,
+} from "../../domain/review/codeReviewFindings.js";
 import type { RunReviewInfo } from "../../domain/runReviewInfo.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
@@ -114,7 +117,8 @@ async function runHeadless(
 
   out.log(`Code review: ${describeFindingCounts(review.review.findings)}`);
   out.log(`Findings: ${review.reviewPath}`);
-  out.log(`Fix them in the session: phax review-code ${retryRef}`);
+  const fixHint = codeReviewFixHint(review.review.findings.length, review.session, retryRef);
+  if (fixHint !== undefined) out.log(fixHint);
   const notice = reviewEntryNotice(outcome);
   if (notice !== undefined) out.log(notice);
   for (const warning of reviewEntryWarnings(outcome, "code-review", retryCommand)) {
