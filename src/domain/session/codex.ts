@@ -61,11 +61,11 @@ export const codexSessionAdapter: SessionAdapter = {
     };
   },
 
-  buildResumeInvocation(_binding: PhaseAgentBinding): ResumeInvocation {
+  buildResumeInvocation(binding: PhaseAgentBinding): ResumeInvocation {
     return {
       unsupported:
         "codex-cli does not support interactive resume via phax. " +
-        "To resume manually, run: codex exec resume <session-id> from the bound worktree.",
+        `To resume manually, run: codex exec resume ${binding.sessionId ?? "<session-id>"} from ${binding.worktreePath}.`,
     };
   },
 
@@ -79,7 +79,7 @@ export const codexSessionAdapter: SessionAdapter = {
     return {
       unsupported:
         "codex-cli does not support interactive resume via phax. " +
-        "To resume manually, run: codex exec resume <session-id> from the bound worktree.",
+        `To resume manually, run: codex exec resume ${opts.sessionId} from ${opts.cwd}.`,
     };
   },
 

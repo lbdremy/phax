@@ -126,13 +126,17 @@ const finding = (severity: "bug" | "concern") => ({
   suggestion: "s",
 });
 
-const accepted = (findings: readonly unknown[], extra: Record<string, unknown> = {}) =>
+const accepted = (
+  findings: readonly unknown[],
+  extra: Record<string, unknown> = {},
+  provider = "claude-code",
+) =>
   Effect.succeed({
     review: {
       kind: "accepted",
       review: { $schema: "x", findings },
       reviewPath: "/run/code-review.json",
-      session: {},
+      session: { provider, sessionId: "session-cr", worktreePath: "/wt/phase-02" },
     },
     record: { kind: "no-entry" },
     push: { kind: "no-record" },
@@ -173,6 +177,28 @@ describe("runReviewCode --headless", () => {
       "Findings: /run/code-review.json",
       `Fix them in the session: phax review-code ${SHORT_NAME}`,
     ]);
+  });
+
+  it("names the provider's own resume, with the session, when phax cannot resume it", async () => {
+    const mocks = await setup(makeInfo());
+    mocks.reviewCodeAndRecord.mockReturnValue(accepted([finding("bug")], {}, "codex-cli"));
+
+    const { out, lines } = makeOutput();
+    await runReviewCode(SHORT_NAME, { headless: true }, out);
+
+    expect(lines.at(-1)).toBe(
+      "Fix them in the session — codex-cli does not support interactive resume via phax. To resume manually, run: codex exec resume session-cr from /wt/phase-02.",
+    );
+  });
+
+  it("prints no fix line when the review found nothing", async () => {
+    const mocks = await setup(makeInfo());
+    mocks.reviewCodeAndRecord.mockReturnValue(accepted([]));
+
+    const { out, lines } = makeOutput();
+    await runReviewCode(SHORT_NAME, { headless: true }, out);
+
+    expect(lines).toEqual(["Code review: 0 findings", "Findings: /run/code-review.json"]);
   });
 
   it("exits 1 naming the state and starts no session when the run is not review_open", async () => {
