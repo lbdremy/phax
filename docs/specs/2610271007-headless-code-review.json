@@ -187,7 +187,7 @@
       "id": "pr",
       "title": "Findings in the pull request",
       "pattern": "optional",
-      "statement": "WHERE the run folder holds a readable `code-review.json` when the pull request description is written THE system SHALL list its findings under `### Code review findings`, right after `### Compliance attention points`, one line per finding with its severity, `file:line` and message."
+      "statement": "WHERE the run folder holds a readable `code-review.json` when the pull request description is written THE system SHALL list its findings under `### Code review findings`, right before `### Unexplained deviations` (after `### Compliance attention points` when it is shown), one line per finding with its severity, `file:line` and message."
     },
     {
       "id": "pr-absent",
@@ -264,15 +264,15 @@
       "surface": "cli: phax review-code --headless",
       "summary": "Running `phax review-code <run> --headless` runs the code review without a person on a run in review, writes its findings to the run folder, and leaves the session ready to resume.",
       "binding": "normative",
-      "before": "$ phax review-code greet-cli\nStarting code review session in ~/.phax/worktrees/acme.greet-cli/03-docs",
+      "before": "$ phax review-code greet-cli\nStarting code review session in ~/.phax/worktrees/acme.greet-cli/phase-03",
       "after": "$ phax review-code greet-cli --headless\nCode review: 2 findings (1 bug, 1 concern)\nFindings: ~/.phax/runs/acme.greet-cli/code-review.json\nFix them in the session: phax review-code greet-cli\n\n$ phax review-code greet-cli --headless\nCode review failed: answer refused: findings[0].lens: \"security\" is not a lens. To retry, run: phax review-code greet-cli --headless\n$? = 1"
     },
     {
       "surface": "cli: phax review-code",
       "summary": "After a run's headless code review, `phax review-code <run>` reopens that review's session, so you can ask it to fix what it found.",
       "binding": "indicative",
-      "before": "$ phax review-code greet-cli\nStarting code review session in ~/.phax/worktrees/acme.greet-cli/03-docs",
-      "after": "$ phax review-code greet-cli\nResuming code review session in ~/.phax/worktrees/acme.greet-cli/03-docs"
+      "before": "$ phax review-code greet-cli\nStarting code review session in ~/.phax/worktrees/acme.greet-cli/phase-03",
+      "after": "$ phax review-code greet-cli\nResuming code review session in ~/.phax/worktrees/acme.greet-cli/phase-03"
     },
     {
       "surface": "file: the pull request description",
@@ -283,7 +283,7 @@
     },
     {
       "surface": "file: <run folder>/cost-ledger.json",
-      "summary": "`phax cost` counts a run's headless code review, as it counts its compliance review.",
+      "summary": "A run's cost ledger counts its headless code review, as it counts its compliance review.",
       "binding": "indicative",
       "before": "{ \"role\": \"compliance\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 0.41, … }",
       "after": "{ \"role\": \"compliance\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 0.41, … }\n{ \"role\": \"code-review\", \"phase\": null, \"completeness\": \"complete\", \"provider\": \"claude-code\", \"costUsd\": 1.87, … }"
@@ -316,7 +316,7 @@
     {
       "id": "ac-off",
       "name": "Off by default",
-      "given": "phax.json whose `review.code` holds only `model` and `effort`",
+      "given": "phax.json whose `review.code` holds only `model` and `effort`, and `publish.auto` true",
       "when": "a run reaches `review_open`",
       "then": "no code review session runs, the run folder holds no `code-review.json`, and the pull request description has no `### Code review findings` heading",
       "refs": [
@@ -423,7 +423,7 @@
       "name": "One line per finding",
       "given": "`code-review.json` with a `bug` at `src/cli/greet.ts` line 42 and a `concern` at `tests/greet.test.ts` line 18",
       "when": "the pull request description is written",
-      "then": "`### Code review findings` follows `### Compliance attention points` and lists `- **bug** \\`src/cli/greet.ts:42\\` — <message>` then the concern's line, in the file's order",
+      "then": "`### Code review findings` follows `### Compliance attention points` and precedes `### Unexplained deviations` and lists `- **bug** \\`src/cli/greet.ts:42\\` — <message>` then the concern's line, in the file's order",
       "refs": [
         "pr"
       ]
@@ -442,7 +442,7 @@
       "id": "ac-hand",
       "name": "By hand, without the setting",
       "given": "a `review_open` run, with `review.code.enabled` absent, whose run end ran no code review",
-      "when": "`phax review-code <run> --headless` runs and its answer is accepted",
+      "when": "`phax review-code <run> --headless` runs and its answer, holding one `bug` and one `concern`, is accepted",
       "then": "it writes `code-review.json` and `code-review-session.json`, prints `Code review: 2 findings (1 bug, 1 concern)` and `Fix them in the session: phax review-code <run>`, and exits 0",
       "refs": [
         "hand",
@@ -554,10 +554,10 @@
       "`file` is a non-empty path and `line` a positive integer, neither nullable. A finding about a surface (output, docs, wording) names the file that produces it. `criterion` is an id string or null. None of the three is checked.",
       "The closed sets come from the bundled skill. A project's own skill copy cannot widen them, and the prompt lists the allowed ids, as the compliance prompt lists its enums.",
       "Findings appear in the PR in the answer's order (the skill asks for most severe first). With zero findings, the heading shows `None.`, as other empty lists do.",
-      "The cost ledger gains a `code-review` role with `phase: null`, which is a new cost-ledger shape at 0.29.0. Ledgers written earlier still read."
+      "The cost ledger gains a `code-review` role with `phase: null`, which is a new cost-ledger shape at 0.29.0. Ledgers written earlier still read.",
+      "`code-review.json` stays in the run folder only, as `compliance-review.json` does: neither review reaches the records (q-records)."
     ],
     "open": [
-      "q-records: whether `code-review.json` also goes to the records (recommended: run folder only).",
       "The exact wording of the by-hand output lines and of the PR finding line, beyond the normative heading and the severity, `file:line` and message it carries."
     ],
     "constraints": [

@@ -109,7 +109,7 @@ IF the headless code review's session fails or its answer is refused at run end 
 
 ### 5.14 Findings in the pull request
 
-WHERE the run folder holds a readable `code-review.json` when the pull request description is written THE system SHALL list its findings under `### Code review findings`, right after `### Compliance attention points`, one line per finding with its severity, `file:line` and message.
+WHERE the run folder holds a readable `code-review.json` when the pull request description is written THE system SHALL list its findings under `### Code review findings`, right before `### Unexplained deviations` (after `### Compliance attention points` when it is shown), one line per finding with its severity, `file:line` and message.
 
 ### 5.15 No review, no heading
 
@@ -210,7 +210,7 @@ Summary: Running `phax review-code <run> --headless` runs the code review withou
 before:
 
     $ phax review-code greet-cli
-    Starting code review session in ~/.phax/worktrees/acme.greet-cli/03-docs
+    Starting code review session in ~/.phax/worktrees/acme.greet-cli/phase-03
 
 after:
 
@@ -230,12 +230,12 @@ Summary: After a run's headless code review, `phax review-code <run>` reopens th
 before:
 
     $ phax review-code greet-cli
-    Starting code review session in ~/.phax/worktrees/acme.greet-cli/03-docs
+    Starting code review session in ~/.phax/worktrees/acme.greet-cli/phase-03
 
 after:
 
     $ phax review-code greet-cli
-    Resuming code review session in ~/.phax/worktrees/acme.greet-cli/03-docs
+    Resuming code review session in ~/.phax/worktrees/acme.greet-cli/phase-03
 
 ### file: the pull request description — normative
 
@@ -272,7 +272,7 @@ after:
 
 ### file: <run folder>/cost-ledger.json — indicative
 
-Summary: `phax cost` counts a run's headless code review, as it counts its compliance review.
+Summary: A run's cost ledger counts its headless code review, as it counts its compliance review.
 
 before:
 
@@ -303,7 +303,7 @@ Given phax.json with `review.compliance.enabled`, `review.code.enabled` and `pub
 
 ### Off by default
 
-Given phax.json whose `review.code` holds only `model` and `effort`, when a run reaches `review_open`, then no code review session runs, the run folder holds no `code-review.json`, and the pull request description has no `### Code review findings` heading. (refs §5.2, §5.15)
+Given phax.json whose `review.code` holds only `model` and `effort`, and `publish.auto` true, when a run reaches `review_open`, then no code review session runs, the run folder holds no `code-review.json`, and the pull request description has no `### Code review findings` heading. (refs §5.2, §5.15)
 
 ### review.code picks the model
 
@@ -343,7 +343,7 @@ Given a run with no `code-review-session.json` whose run-end code review session
 
 ### One line per finding
 
-Given `code-review.json` with a `bug` at `src/cli/greet.ts` line 42 and a `concern` at `tests/greet.test.ts` line 18, when the pull request description is written, then `### Code review findings` follows `### Compliance attention points` and lists `- **bug** \`src/cli/greet.ts:42\` — <message>` then the concern's line, in the file's order. (refs §5.14)
+Given `code-review.json` with a `bug` at `src/cli/greet.ts` line 42 and a `concern` at `tests/greet.test.ts` line 18, when the pull request description is written, then `### Code review findings` follows `### Compliance attention points` and precedes `### Unexplained deviations` and lists `- **bug** \`src/cli/greet.ts:42\` — <message>` then the concern's line, in the file's order. (refs §5.14)
 
 ### Findings are cut before the notes
 
@@ -351,7 +351,7 @@ Given a description that is still over its cap after cutting every unexplained d
 
 ### By hand, without the setting
 
-Given a `review_open` run, with `review.code.enabled` absent, whose run end ran no code review, when `phax review-code <run> --headless` runs and its answer is accepted, then it writes `code-review.json` and `code-review-session.json`, prints `Code review: 2 findings (1 bug, 1 concern)` and `Fix them in the session: phax review-code <run>`, and exits 0. (refs §5.17, §5.19)
+Given a `review_open` run, with `review.code.enabled` absent, whose run end ran no code review, when `phax review-code <run> --headless` runs and its answer, holding one `bug` and one `concern`, is accepted, then it writes `code-review.json` and `code-review-session.json`, prints `Code review: 2 findings (1 bug, 1 concern)` and `Fix them in the session: phax review-code <run>`, and exits 0. (refs §5.17, §5.19)
 
 ### By hand, again
 
@@ -404,10 +404,10 @@ Settled:
 - The closed sets come from the bundled skill. A project's own skill copy cannot widen them, and the prompt lists the allowed ids, as the compliance prompt lists its enums.
 - Findings appear in the PR in the answer's order (the skill asks for most severe first). With zero findings, the heading shows `None.`, as other empty lists do.
 - The cost ledger gains a `code-review` role with `phase: null`, which is a new cost-ledger shape at 0.29.0. Ledgers written earlier still read.
+- `code-review.json` stays in the run folder only, as `compliance-review.json` does: neither review reaches the records (q-records).
 
 Left open:
 
-- q-records: whether `code-review.json` also goes to the records (recommended: run folder only).
 - The exact wording of the by-hand output lines and of the PR finding line, beyond the normative heading and the severity, `file:line` and message it carries.
 
 Constraints:
