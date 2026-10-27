@@ -451,6 +451,7 @@ Constraints:
 - Smoke-test Claude Code's `--json-schema` once per schema with `--resume`, with tools and with stream-json, in the real e2e tier; a failed combination falls back as r-claude-fallback states.
 - Every structured call goes through the Provider failures session-outcome reader; no call reads `finalText` once a structured answer is present.
 - The compliance-review format bump goes through packages/schemas snapshots and CURRENT_STAMPS like every persisted format; older compliance reviews are read only through the versioned history.
+- A `compliance-review.json` stamped before 0.29.0 is read through the versioned history into its own shape, never lifted with empty ledgers; a reader that needs the ledgers treats such a file as having none and says so, and today's readers (the pull request body, the code-review prompt, the records entry) keep reading only the fields both shapes carry.
 - The full schemas `phax artifact schema` prints and packages/schemas publishes stay the contract; provider schemas are not published.
 - Keep the change to the Mistral Vibe adapter to what r-vibe needs: the operator reviews Vibe V3 separately.
 
