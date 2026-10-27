@@ -280,7 +280,7 @@ export function buildProgram(): Command {
 
   program
     .command("review-compliance")
-    .description("Run a non-mutating plan-compliance review for a review_open run")
+    .description("Run a plan-compliance review for a review_open run and record its result")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runReviewCompliance(shortName, globalTraceOpts(), consoleOutput);

@@ -17,7 +17,13 @@ import {
 } from "../schemas/decisionRecord.js";
 import type { OracleStepResult } from "../schemas/gateAttribution.js";
 import { readGateAttributionFile, readRecordManifestFile } from "../schemas/persisted.js";
-import { isReviewRecordManifest } from "../schemas/reviewRecord.js";
+import {
+  isReviewRecordKind,
+  isReviewRecordManifest,
+  REVIEW_RECORD_FILES,
+  type ReviewRecordKind,
+} from "../schemas/reviewRecord.js";
+import { reviewRecordKey } from "./writeReviewRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
 
@@ -87,6 +93,15 @@ export type ExplainOutcome =
   | { readonly kind: "records-disabled" }
   | { readonly kind: "commit-not-found"; readonly sha: string }
   | { readonly kind: "not-phax-commit"; readonly sha: string; readonly resolvedSha: string }
+  | {
+      /** The commit is itself a run-level review entry on the records branch. */
+      readonly kind: "review-entry";
+      readonly resolvedSha: string;
+      readonly runId: string;
+      readonly review: ReviewRecordKind;
+      /** Where the review's file sits in that commit's tree. */
+      readonly path: string;
+    }
   | {
       readonly kind: "not-found";
       /**
@@ -267,6 +282,23 @@ function addressFromTrailers(trailers: ReadonlyMap<string, string>): RecordAddre
   const decisionId = trailers.get("Decision-Id");
   if (decisionId !== undefined) return { kind: "decision", decisionId };
   return null;
+}
+
+/**
+ * A review entry's own commit (`Run-Id` + `Review`, and no phase trailer): it
+ * is a record, not a source commit, so it is pointed at rather than explained.
+ */
+function reviewEntryFromTrailers(
+  trailers: ReadonlyMap<string, string>,
+): { readonly runId: string; readonly review: ReviewRecordKind; readonly path: string } | null {
+  const runId = trailers.get("Run-Id");
+  const review = trailers.get("Review");
+  if (runId === undefined || review === undefined || !isReviewRecordKind(review)) return null;
+  return {
+    runId,
+    review,
+    path: `${reviewRecordKey(runId, review)}/${REVIEW_RECORD_FILES[review]}`,
+  };
 }
 
 function keyOf(address: RecordAddress): string {
@@ -594,8 +626,11 @@ export function explainRecord(
     if (resolvedSha === null) return { kind: "commit-not-found", sha: input.sha } as const;
 
     const message = yield* readCommitMessage(input.repoRoot, resolvedSha);
-    const address = addressFromTrailers(parseTrailers(message));
+    const trailers = parseTrailers(message);
+    const address = addressFromTrailers(trailers);
     if (address === null) {
+      const entry = reviewEntryFromTrailers(trailers);
+      if (entry !== null) return { kind: "review-entry", resolvedSha, ...entry } as const;
       return { kind: "not-phax-commit", sha: input.sha, resolvedSha } as const;
     }
     const key = keyOf(address);

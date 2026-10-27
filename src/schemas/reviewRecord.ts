@@ -9,6 +9,8 @@ export const ReviewRecordKindSchema = Schema.Literal("compliance-review", "code-
 
 export type ReviewRecordKind = Schema.Schema.Type<typeof ReviewRecordKindSchema>;
 
+export const isReviewRecordKind = Schema.is(ReviewRecordKindSchema);
+
 /** The review's own file, named by its kind: the one artifact a review entry carries. */
 export const REVIEW_RECORD_FILES: { readonly [K in ReviewRecordKind]: string } = {
   "compliance-review": "compliance-review.json",

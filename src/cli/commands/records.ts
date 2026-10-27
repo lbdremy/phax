@@ -230,6 +230,11 @@ function renderExplainOutcome(
     case "commit-not-found":
       out.error(`Commit "${outcome.sha}" was not found in this repository.`);
       return 1;
+    case "review-entry":
+      out.log(
+        `Commit "${outcome.resolvedSha.slice(0, 8)}" is the ${outcome.review} entry of run ${outcome.runId} on phax/records/v1, not a source commit. Read it with: git show ${outcome.resolvedSha.slice(0, 8)}:${outcome.path}`,
+      );
+      return 0;
     case "not-phax-commit":
       out.error(
         `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session or a decide session (no Run-Id with Phase-Id or Held-Phase, Authoring-Id or Decision-Id trailers).`,
@@ -585,7 +590,7 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
   records
     .command("list")
     .description(
-      "List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact",
+      "List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact",
     )
     .option("--run <id>", "Only show records for this run id")
     .action(async (opts: RecordsListOptions) => {
