@@ -310,7 +310,7 @@ describe("parseRecordManifest", () => {
       ok: false,
       error: { path: "$schema", message: malformedSchemaUrlMessage("record.json") },
     });
-    const unknown = "https://docs.phax.run/schemas/code-review/0.16.0.json";
+    const unknown = "https://docs.phax.run/schemas/not-a-format/0.16.0.json";
     expect(parseRecordManifest({ $schema: unknown })).toEqual({
       ok: false,
       error: { path: "$schema", message: unknownFormatMessage(unknown, PACKAGE_VERSION) },

@@ -68,12 +68,14 @@ import {
   type PhaseFileReconciliationShapes,
 } from "./formats/recordTimeline.js";
 import {
+  codeReviewFormat,
   complianceReviewFormat,
   costLedgerFormat,
   phaseStatusFormat,
   phaxPlanFormat,
   registryFormat,
   runStatusFormat,
+  type CodeReviewShapes,
   type ComplianceReviewShapes,
   type CostLedgerShapes,
   type PhaseStatusShapes,
@@ -91,6 +93,10 @@ export { UNKNOWN, isUnknown };
 
 // The files of a run directory. Each schema and type is phax's own; a format
 // that writes $schema exports its file schema and type.
+export {
+  CodeReviewFileSchema as CodeReviewSchema,
+  type CodeReviewFile as CodeReview,
+} from "../../../src/schemas/codeReview.js";
 export {
   ComplianceReviewFileSchema as ComplianceReviewSchema,
   type ComplianceReviewFile as ComplianceReview,
@@ -114,20 +120,24 @@ export {
   type RunStatusFile as RunStatus,
 } from "../../../src/schemas/status.js";
 export {
+  parseCodeReview,
   parseComplianceReview,
   parseCostLedger,
   parsePhaseStatus,
   parsePhaxPlan,
   parseRegistry,
   parseRunStatus,
+  toLatestCodeReview,
   toLatestComplianceReview,
   toLatestCostLedger,
   toLatestPhaseStatus,
   toLatestPhaxPlan,
   toLatestRegistry,
   toLatestRunStatus,
+  type CodeReviewShape,
   type ComplianceReviewShape,
   type CostLedgerShape,
+  type LatestCodeReview,
   type LatestComplianceReview,
   type LatestCostLedger,
   type LatestPhaseStatus,
@@ -488,6 +498,10 @@ export {
   type CostLedgerV0_25_0,
 } from "../../../src/schemas/history/cost-ledger/0.25.0.js";
 export {
+  CostLedgerV0_26_0Schema,
+  type CostLedgerV0_26_0,
+} from "../../../src/schemas/history/cost-ledger/0.26.0.js";
+export {
   DecisionRecordManifestV0_25_0Schema,
   type DecisionRecordManifestV0_25_0,
 } from "../../../src/schemas/history/decision-record-manifest/0.25.0.js";
@@ -601,6 +615,7 @@ type DocumentShapes = EveryFormat<{
   "hand-decision-answer": HandDecisionAnswerShapes;
   "decide-verdicts": DecideVerdictsShapes;
   "cost-ledger": CostLedgerShapes;
+  "code-review": CodeReviewShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -649,4 +664,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "hand-decision-answer": handDecisionAnswerFormat,
     "decide-verdicts": decideVerdictsFormat,
     "cost-ledger": costLedgerFormat,
+    "code-review": codeReviewFormat,
   });

@@ -31,6 +31,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseCodeReview,
   parseCostLedger,
   parseDecisionRecordManifest,
   parseReviewRecordManifest,
@@ -64,6 +65,7 @@ import {
   toLatestBriefReport,
   toLatestBriefRequest,
   toLatestComplianceReview,
+  toLatestCodeReview,
   toLatestCostLedger,
   toLatestDecisionRecordManifest,
   toLatestReviewRecordManifest,
@@ -89,6 +91,7 @@ import {
   readBriefRecordFile,
   readBriefRequestFile,
   readComplianceReviewFile,
+  readCodeReviewFile,
   readCostLedgerFile,
   readGateAttributionFile,
   readInteractiveSessionFile,
@@ -246,6 +249,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "decision-record-manifest": latest(parseDecisionRecordManifest, toLatestDecisionRecordManifest),
   "review-record-manifest": latest(parseReviewRecordManifest, toLatestReviewRecordManifest),
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
+  "code-review": latest(parseCodeReview, toLatestCodeReview),
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
   "oracle-request": latest(parseOracleRequest, toLatestOracleRequest),
@@ -289,6 +293,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "decision-record-manifest": readRecordManifestFile,
   "review-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,
+  "code-review": readCodeReviewFile,
   // phax writes the architecture request and never reads it back; it reads the
   // architecture report only as a provider's answer, through
   // readArchitectureReport, which names no file.

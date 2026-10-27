@@ -15,6 +15,7 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseComplianceReview,
+  parseCodeReview,
   parseCostLedger,
   parseDecideVerdicts,
   parseDecisionRecordManifest,
@@ -59,6 +60,7 @@ import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
+import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import {
   decodeDecisionRecordManifestFile,
@@ -316,6 +318,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeCostLedgerFile,
     wrongType: ["entries", {}],
     required: "entries",
+    excess: "error",
+  },
+  "code-review": {
+    id: "code-review",
+    parse: parseCodeReview,
+    phax: decodeCodeReviewFile,
+    wrongType: ["findings", {}],
+    required: "findings",
     excess: "error",
   },
   "architecture-request": {

@@ -14,6 +14,7 @@ import * as specDocumentV0_17_0 from "../../../src/schemas/history/spec-document
 import * as specDocumentV0_25_0 from "../../../src/schemas/history/spec-document/0.25.0.js";
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as phaxPlanV0_17_0 from "../../../src/schemas/history/phax-plan/0.17.0.js";
+import * as costLedgerV0_26_0 from "../../../src/schemas/history/cost-ledger/0.26.0.js";
 import * as phaxPlanV0_26_0 from "../../../src/schemas/history/phax-plan/0.26.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import * as specApprovalRecordV0_19_0 from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
@@ -82,10 +83,12 @@ describe("schemas package entry", () => {
       "BriefRecordV0_20_0Schema",
       "BriefReportSchema",
       "BriefRequestSchema",
+      "CodeReviewSchema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
       "CostLedgerSchema",
       "CostLedgerV0_25_0Schema",
+      "CostLedgerV0_26_0Schema",
       "DecideVerdictsSchema",
       "DecisionRecordManifestSchema",
       "DecisionRecordManifestV0_25_0Schema",
@@ -151,6 +154,7 @@ describe("schemas package entry", () => {
       "parseBriefRecord",
       "parseBriefReport",
       "parseBriefRequest",
+      "parseCodeReview",
       "parseComplianceReview",
       "parseCostLedger",
       "parseDecideVerdicts",
@@ -186,6 +190,7 @@ describe("schemas package entry", () => {
       "toLatestBriefRecord",
       "toLatestBriefReport",
       "toLatestBriefRequest",
+      "toLatestCodeReview",
       "toLatestComplianceReview",
       "toLatestCostLedger",
       "toLatestDecideVerdicts",
@@ -241,12 +246,14 @@ describe("schemas package entry", () => {
 
   it("re-exports phax's own schemas, never a copy", async () => {
     const { ComplianceReviewFileSchema } = await import("../../../src/schemas/complianceReview.js");
+    const { CodeReviewFileSchema } = await import("../../../src/schemas/codeReview.js");
     const { CostLedgerFileSchema } = await import("../../../src/schemas/costLedger.js");
     const { PhaxPlanFileSchema } = await import("../../../src/schemas/phaxPlan.js");
     const { RegistryFileSchema } = await import("../../../src/schemas/registry.js");
     const { PhaseStatusFileSchema, RunStatusFileSchema } =
       await import("../../../src/schemas/status.js");
     expect(entry.ComplianceReviewSchema).toBe(ComplianceReviewFileSchema);
+    expect(entry.CodeReviewSchema).toBe(CodeReviewFileSchema);
     expect(entry.CostLedgerSchema).toBe(CostLedgerFileSchema);
     expect(entry.PhaxPlanSchema).toBe(PhaxPlanFileSchema);
     expect(entry.RegistrySchema).toBe(RegistryFileSchema);
@@ -347,6 +354,12 @@ describe("schemas package entry", () => {
     expect(entry.PhaxPlanV0_26_0Schema).toBe(phaxPlanV0_26_0.PhaxPlanV0_26_0Schema);
     expect(phaxPlanV0_26_0.decodePhaxPlanV0_26_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodePhaxPlanV0_26_0");
+  });
+
+  it("re-exports the cost-ledger 0.26.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.CostLedgerV0_26_0Schema).toBe(costLedgerV0_26_0.CostLedgerV0_26_0Schema);
+    expect(costLedgerV0_26_0.decodeCostLedgerV0_26_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeCostLedgerV0_26_0");
   });
 
   it("re-exports the brief-record 0.20.0 frozen module's schema, never a copy, and never its decoder", () => {

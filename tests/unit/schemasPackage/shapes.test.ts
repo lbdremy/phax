@@ -291,7 +291,7 @@ describe("defineFormat, pre-schema slot filled: $schema documents", () => {
   });
 
   it("fails an unknown format id with the upgrade message", () => {
-    const unknown = "https://docs.phax.run/schemas/code-review/0.12.0.json";
+    const unknown = "https://docs.phax.run/schemas/not-a-format/0.12.0.json";
     expectFailure(
       filled.parse({ ...at0_12("0.12.0"), $schema: unknown }),
       "$schema",

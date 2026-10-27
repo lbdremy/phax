@@ -77,6 +77,7 @@ import {
 } from "./brief.js";
 import { decodeArchitectureReportFile, type ArchitectureReportFile } from "./architecture.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
+import { decodeCodeReviewFile, type CodeReview } from "./codeReview.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
@@ -91,6 +92,7 @@ import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
+import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
@@ -1333,13 +1335,19 @@ export const readReviewStopFile: Reader<ReviewStop> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...stop }) => stop,
   });
 
-// A cost ledger stamped below the format's current stamp is read by the
-// frozen 0.25.0 decoder and lifted unchanged: the roles it names are a subset
-// of the current ones.
+// A cost ledger stamped 0.26.0 or later, below the format's current stamp, is
+// read by the frozen 0.26.0 decoder; one stamped lower by the frozen 0.25.0
+// decoder (which refuses first-turn and closing-turn entries). Both are lifted
+// unchanged: the roles they name are a subset of the current ones.
 /** Reads a run's `cost-ledger.json`. Born with `$schema`. */
 export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("cost-ledger", input)) {
-    const older = decodeCostLedgerV0_25_0(input);
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    const older =
+      compareReleases(release, "0.26.0") >= 0
+        ? decodeCostLedgerV0_26_0(input)
+        : decodeCostLedgerV0_25_0(input);
     if (Either.isLeft(older)) {
       return Either.left(readError(file, "cost-ledger", formatFirstViolation(older.left)));
     }
@@ -1354,6 +1362,16 @@ export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
     fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
   });
 };
+
+/** Reads a run's `code-review.json`. Born with `$schema`. */
+export const readCodeReviewFile: Reader<CodeReview> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "code-review",
+    label: "code review",
+    file,
+    decodeCurrent: decodeCodeReviewFile,
+    fromCurrent: ({ $schema: _schema, ...review }) => review,
+  });
 
 /**
  * Reads a phase's `file-reconciliation.json`. It never carried a `version`:

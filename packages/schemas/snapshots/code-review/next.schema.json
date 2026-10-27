@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax code review",
+  "$defs": {
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    },
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "findings"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The code-review format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/code-review/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/code-review\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "file",
+          "line",
+          "message",
+          "lens",
+          "escape",
+          "criterion",
+          "suggestion"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "deviation",
+              "concern",
+              "info"
+            ]
+          },
+          "file": {
+            "type": "string",
+            "description": "The path the finding is about, as the reviewer gave it.",
+            "title": "nonEmptyString",
+            "minLength": 1
+          },
+          "line": {
+            "$ref": "#/$defs/Int",
+            "description": "The 1-based line the finding is about.",
+            "title": "positive",
+            "exclusiveMinimum": 0
+          },
+          "message": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "lens": {
+            "type": "string",
+            "enum": [
+              "surface",
+              "acceptance",
+              "boundary",
+              "core",
+              "edge",
+              "tests",
+              "architecture",
+              "docs"
+            ]
+          },
+          "escape": {
+            "type": "string",
+            "enum": [
+              "wrong-oracle",
+              "same-author",
+              "weakened",
+              "fake-drift",
+              "unexplored-input",
+              "omission",
+              "untestable"
+            ]
+          },
+          "criterion": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The acceptance criterion id the finding is about, or null."
+          },
+          "suggestion": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

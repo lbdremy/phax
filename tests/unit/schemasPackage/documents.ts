@@ -30,6 +30,7 @@ import {
   type PhaseBriefRequest,
 } from "../../../src/schemas/brief.js";
 import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
+import { CodeReviewFileSchema, type CodeReview } from "../../../src/schemas/codeReview.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { CostLedgerFileSchema, type CostLedger } from "../../../src/schemas/costLedger.js";
 import {
@@ -525,6 +526,33 @@ const costLedger: CostLedger = {
       endedAt: "2026-10-16T09:45:00Z",
       rateLimitSamples: [],
     },
+    {
+      role: "code-review",
+      phase: null,
+      completeness: "partial",
+      provider: "claude-code",
+      sessionId: "00000000-0000-4000-8000-000000000003",
+      models: {},
+      costUsd: 0,
+      agentMs: 0,
+      endedAt: "2026-10-16T09:50:00Z",
+      rateLimitSamples: [],
+    },
+  ],
+};
+
+const codeReview: CodeReview = {
+  findings: [
+    {
+      severity: "bug",
+      file: "src/example.ts",
+      line: 12,
+      message: "An empty name is accepted.",
+      lens: "edge",
+      escape: "unexplored-input",
+      criterion: null,
+      suggestion: "Refuse an empty name.",
+    },
   ],
 };
 
@@ -724,6 +752,22 @@ export function withoutPhaseKinds(doc: Doc): Doc {
     ({ mode: _mode, oracle: _oracle, ...phase }) => phase,
   );
   return { ...doc, phases };
+}
+
+/**
+ * A cost ledger as the frozen 0.26.0 shape wrote it: stamped 0.26.0, holding
+ * a first-turn and a closing-turn entry and no code-review entry.
+ */
+export function costLedgerV0_26_0Document(): Doc {
+  const [phaseEntry, complianceEntry] = validDocuments["cost-ledger"]["entries"] as [Doc, Doc];
+  return {
+    $schema: "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+    entries: [
+      { ...phaseEntry, role: "first-turn" },
+      { ...phaseEntry, role: "closing-turn" },
+      complianceEntry,
+    ],
+  };
 }
 
 /** A current phax-plan as the frozen 0.26.0 shape wrote it: no phase carries `testLines`. */
@@ -960,6 +1004,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("review-record-manifest", reviewRecordManifest),
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
+  "code-review": encoded(CodeReviewFileSchema, withSchemaUrl("code-review", codeReview)),
   "architecture-request": encoded(
     ArchitectureRequestFileSchema,
     withSchemaUrl("architecture-request", { files: ["src/example.ts", "src/missing.ts"] }),

@@ -21,6 +21,7 @@ import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authorin
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
+import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
@@ -35,6 +36,7 @@ import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gat
 import { decodePhaseFileReconciliationPreSchema } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestPreSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "../../../src/schemas/history/phase-status/pre-schema.js";
+import { decodeCostLedgerV0_26_0 } from "../../../src/schemas/history/cost-ledger/0.26.0.js";
 import { decodePhaxPlanPreSchema } from "../../../src/schemas/history/phax-plan/pre-schema.js";
 import { decodePlanApprovalsPreSchema } from "../../../src/schemas/history/plan-approvals/pre-schema.js";
 import { decodePlanDocumentPreSchema } from "../../../src/schemas/history/plan-document/pre-schema.js";
@@ -62,6 +64,7 @@ import {
 import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
+  costLedgerV0_26_0Document,
   homePaths,
   preSchemaDocuments,
   strings,
@@ -99,6 +102,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "decision-record-manifest": decodeDecisionRecordManifestFile,
   "review-record-manifest": decodeReviewRecordManifestFile,
   "cost-ledger": decodeCostLedgerFile,
+  "code-review": decodeCodeReviewFile,
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,
   "oracle-request": decodeOracleRequestFile,
@@ -183,6 +187,18 @@ describe("the test documents", () => {
     expect(versionOnePhaseRecordManifest["version"]).toBe(1);
     expect(Object.hasOwn(versionOnePhaseRecordManifest, "verifiedSurfaces")).toBe(false);
     expect(Either.isLeft(decodeRunRecordManifestFile(versionOnePhaseRecordManifest))).toBe(true);
+  });
+
+  it("include a cost ledger stamped 0.26.0 that the frozen decoder accepts", () => {
+    const older = costLedgerV0_26_0Document();
+    expect(Either.isRight(decodeCostLedgerV0_26_0(older))).toBe(true);
+    expect(older["$schema"]).toBe(schemaUrl("cost-ledger", "0.26.0"));
+    const entries = older["entries"] as Array<{ role: string }>;
+    expect(entries.map((entry) => entry.role)).toEqual([
+      "first-turn",
+      "closing-turn",
+      "compliance",
+    ]);
   });
 
   it("are edited by helpers that return new objects", () => {

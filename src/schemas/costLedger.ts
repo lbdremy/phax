@@ -1,6 +1,6 @@
 // The `cost-ledger` document: `<run folder>/cost-ledger.json`, one entry per
 // Claude invocation of a run (a phase turn, a fix attempt, a handoff
-// generation or the compliance review), appended when the invocation ends.
+// generation, the compliance review or the code review), appended when the invocation ends.
 // Each entry holds that invocation's own API-list cost and tokens per model,
 // its agent duration, its end time and the subscription-window samples its
 // stream reported. Born with `$schema`; phax reads it through the bridge
@@ -70,13 +70,13 @@ const PhaseEntrySchema = Schema.Struct({
   ...entryFields,
 });
 
-const ComplianceEntrySchema = Schema.Struct({
-  role: Schema.Literal("compliance"),
+const RunEntrySchema = Schema.Struct({
+  role: Schema.Literal("compliance", "code-review"),
   phase: Schema.Null,
   ...entryFields,
 });
 
-const CostLedgerEntrySchema = Schema.Union(PhaseEntrySchema, ComplianceEntrySchema);
+const CostLedgerEntrySchema = Schema.Union(PhaseEntrySchema, RunEntrySchema);
 
 /**
  * A `cost-ledger` document: `$schema`, then the run's entries in the order
@@ -98,7 +98,7 @@ export type CostLedgerEntry = Schema.Schema.Type<typeof CostLedgerEntrySchema>;
 
 /**
  * What the invocation was: a phase turn, a fix attempt, a handoff, an
- * interactive phase's first or closing turn, or the compliance review.
+ * interactive phase's first or closing turn, or the compliance or code review.
  */
 export type CostLedgerRole = CostLedgerEntry["role"];
 

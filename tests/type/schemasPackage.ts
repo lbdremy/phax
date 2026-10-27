@@ -41,6 +41,12 @@ import type {
   toLatestReviewStop,
   toLatestRunList,
   CostLedgerV0_25_0,
+  CostLedgerV0_26_0,
+  CodeReview,
+  CodeReviewShape,
+  LatestCodeReview,
+  parseCodeReview,
+  toLatestCodeReview,
   PhaseFileReconciliationV0_17_0,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
@@ -261,6 +267,10 @@ import type {
   RunListFile as PhaxRunListFile,
 } from "../../src/schemas/runList.js";
 import type {
+  CodeReview as PhaxCodeReview,
+  CodeReviewFile as PhaxCodeReviewFile,
+} from "../../src/schemas/codeReview.js";
+import type {
   CostLedger as PhaxCostLedger,
   CostLedgerFile as PhaxCostLedgerFile,
 } from "../../src/schemas/costLedger.js";
@@ -351,6 +361,7 @@ import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../sr
 import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import type { PhaseFileReconciliationV0_17_0 as FrozenPhaseFileReconciliationV0_17_0 } from "../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
 import type { CostLedgerV0_25_0 as FrozenCostLedgerV0_25_0 } from "../../src/schemas/history/cost-ledger/0.25.0.js";
+import type { CostLedgerV0_26_0 as FrozenCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0.26.0.js";
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
@@ -553,6 +564,7 @@ const formats: Equals<
   | "decision-record-manifest"
   | "review-record-manifest"
   | "cost-ledger"
+  | "code-review"
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
@@ -647,6 +659,7 @@ const shapeIds: Equals<
   | DecisionRecordManifestShape
   | ReviewRecordManifestShape
   | CostLedgerShape
+  | CodeReviewShape
   | ArchitectureRequestShape
   | ArchitectureReportShape
   | OracleRequestShape
@@ -1124,24 +1137,49 @@ if (document.ok && document.format === "decide-verdicts") {
 // shape, and an in-memory value without $schema
 const costLedgerTypes: [
   Equals<CostLedger, PhaxCostLedgerFile>,
-  Equals<CostLedgerShape, "0.25.0" | Current<"cost-ledger">>,
-  Equals<Value<typeof parseCostLedger>, FrozenCostLedgerV0_25_0 | PhaxCostLedgerFile>,
+  Equals<CostLedgerShape, "0.25.0" | "0.26.0" | Current<"cost-ledger">>,
+  Equals<
+    Value<typeof parseCostLedger>,
+    FrozenCostLedgerV0_25_0 | FrozenCostLedgerV0_26_0 | PhaxCostLedgerFile
+  >,
   Equals<LatestCostLedger, PhaxCostLedger>,
   Equals<
     Parameters<typeof toLatestCostLedger>,
-    [value: PhaxCostLedgerFile | FrozenCostLedgerV0_25_0]
+    [value: PhaxCostLedgerFile | FrozenCostLedgerV0_25_0 | FrozenCostLedgerV0_26_0]
   >,
   Equals<CostLedgerV0_25_0, FrozenCostLedgerV0_25_0>,
-] = [true, true, true, true, true, true];
+  Equals<CostLedgerV0_26_0, FrozenCostLedgerV0_26_0>,
+] = [true, true, true, true, true, true, true];
 void costLedgerTypes;
 declare const latestCostLedger: LatestCostLedger;
 // @ts-expect-error: the in-memory cost ledger carries no $schema
 void latestCostLedger.$schema;
 if (document.ok && document.format === "cost-ledger") {
-  const exact: Equals<typeof document.value, FrozenCostLedgerV0_25_0 | PhaxCostLedgerFile> = true;
-  const ledgerShape: Equals<typeof document.shape, "0.25.0" | Current<"cost-ledger">> = true;
+  const exact: Equals<
+    typeof document.value,
+    FrozenCostLedgerV0_25_0 | FrozenCostLedgerV0_26_0 | PhaxCostLedgerFile
+  > = true;
+  const ledgerShape: Equals<typeof document.shape, "0.25.0" | "0.26.0" | Current<"cost-ledger">> =
+    true;
   void exact;
   void ledgerShape;
+}
+// The code review is born with $schema too: phax's own types, one current
+// shape, and an in-memory value without $schema
+const codeReviewTypes: [
+  Equals<CodeReview, PhaxCodeReviewFile>,
+  Equals<CodeReviewShape, Current<"code-review">>,
+  Equals<Value<typeof parseCodeReview>, PhaxCodeReviewFile>,
+  Equals<LatestCodeReview, PhaxCodeReview>,
+  Equals<Parameters<typeof toLatestCodeReview>, [value: PhaxCodeReviewFile]>,
+] = [true, true, true, true, true];
+void codeReviewTypes;
+declare const latestCodeReview: LatestCodeReview;
+// @ts-expect-error: the in-memory code review carries no $schema
+void latestCodeReview.$schema;
+if (document.ok && document.format === "code-review") {
+  const exact: Equals<typeof document.value, PhaxCodeReviewFile> = true;
+  void exact;
 }
 // The architecture request and report are born with $schema: phax's own file
 // types, one current shape each, and in-memory values without $schema

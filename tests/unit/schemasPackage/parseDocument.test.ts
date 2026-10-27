@@ -88,8 +88,7 @@ describe("parseDocument", () => {
   });
 
   it("fails a format the package does not read yet with the upgrade message", () => {
-    // code-review joins FORMAT_IDS with the headless-review plan.
-    const url = "https://docs.phax.run/schemas/code-review/0.16.0.json";
+    const url = "https://docs.phax.run/schemas/not-a-format/0.16.0.json";
     expectFailure(
       parseDocument({ $schema: url }),
       "$schema",
