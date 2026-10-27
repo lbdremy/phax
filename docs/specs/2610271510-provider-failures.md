@@ -54,7 +54,7 @@ When an agent session fails, phax says why — the provider, the kind of failure
 - **provider message** — The provider's own words for the failure: the error text of its final result event, else of its transcript's last error event, else the first non-empty stderr lines. Never text produced by a tool or by the model.
 - **transient failure** — A failure that a retry of the same command may clear without any change by the operator: `network`, `rate-limit`, `usage-limit`.
 - **secondary refusal** — A refusal raised after a session failed, by a step that ran because of it or alongside it — typically the records destination refusing the failed session's record.
-- **network failure exit code** — The exit code of a command whose session failed with kind `network`; its value is the subject of q-network-exit.
+- **network failure exit code** — Exit 14, "Provider unreachable: network failure (resumable)" (q-network-exit): the exit code of a command whose session failed with kind `network`.
 
 ## 5. Functional requirements
 
@@ -80,7 +80,7 @@ WHEN the provider reports that it could not reach its API THE system SHALL class
 
 ### 5.6 Network failures exit as transient
 
-WHEN a command's session fails with kind `network` THE system SHALL exit with the network failure exit code and print a retry hint naming the command to run again.
+WHEN a command's session fails with kind `network` THE system SHALL exit 14 and print a retry hint naming the command to run again.
 
 ### 5.7 A run survives a network failure
 
@@ -92,7 +92,7 @@ The system shall report a failed session in the terminal as the provider, the fa
 
 ### 5.9 The report names the files
 
-The system shall name the failed session's agent-error.log and its transcript whenever it reports a session failure, whether or not a session id was found.
+WHERE a failed session keeps an agent-error.log THE system SHALL name that log and the session's transcript whenever it reports the failure, whether or not a session id was found.
 
 ### 5.10 A failed handoff turn is a session failure
 
@@ -124,11 +124,11 @@ The system shall write in a failed session's agent-error.log the failure kind, t
 
 ### 5.17 A failed decision record carries the failure kind
 
-The system shall write in every decision record whose outcome is `failed` a required `failure` naming a failure kind, or `answer-refused` when the session answered and phax refused the answer, at `$schema` 0.29.0.
+The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.29.0.
 
 ### 5.18 Fix-loop telemetry names its provider
 
-The system shall name, in the fix turn's telemetry operation and adapter, the provider that ran the fix turn.
+The system shall name, in the fix turn's telemetry operation and adapter, the provider that ran the fix turn, by the same provider id the phase turn's telemetry uses.
 
 ## 6. Surface
 
@@ -237,7 +237,7 @@ after:
 
 ### file: decision record record.json — normative
 
-Summary: A failed decision record says how the session failed.
+Summary: A failed decision record says why the decide failed.
 
 before:
 
@@ -293,7 +293,7 @@ after:
 
     operation: phax.codex-cli.agent.resume   adapter: codex-cli   (a Codex fix turn)
     operation: phax.mistral-vibe.agent.resume   adapter: mistral-vibe   (a Vibe fix turn)
-    operation: phax.claude-code-cli.agent.resume   adapter: claude-code-cli   (a Claude Code fix turn)
+    operation: phax.claude-code.agent.resume   adapter: claude-code   (a Claude Code fix turn)
 
 ## 7. Non-goals
 
@@ -322,17 +322,21 @@ Given a Codex session and a Mistral Vibe session that each end with a provider e
 
 Given a session whose final result event reports a usage limit and whose stderr reports a different error, when phax reads its outcome, then the failure kind is `usage-limit` and the provider message is the result event's text. (refs §5.2)
 
+### A killed session and a silent one
+
+Given a session whose process is ended by SIGTERM, and another that exits 1 with no result event, no error event and empty stderr, when phax reads each outcome, then the first is a failure of kind `killed` and the second a failure of kind `unknown`, neither reported as a limit. (refs §5.1, §5.2)
+
 ### A 429 in tool output is not a rate limit
 
 Given a phase session whose tool output contains "HTTP 429 Too Many Requests" and which then ends with an error result `error_during_execution`, when `phax run` reports the phase failure, then it prints `claude-code session failed (provider-error)`, exits 5, and does not leave the run rate-limited. (refs §5.4, §5.2)
 
 ### The DNS outage case
 
-Given a `phax artifact decide --verdicts` writer session whose transcript holds ten `api_retry` events then `API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)`, when the session exits 1, then phax prints `claude-code session failed (network)` with that message, the agent-error.log and output.jsonl paths, and a retry hint naming the same `phax artifact decide` command, and exits with the network failure exit code. (refs §5.5, §5.6, §5.8, §5.9)
+Given a `phax artifact decide --verdicts` writer session whose transcript holds ten `api_retry` events then `API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)`, when the session exits 1, then phax prints `claude-code session failed (network)` with that message, the agent-error.log and output.jsonl paths, and a retry hint naming the same `phax artifact decide` command, and exits 14. (refs §5.5, §5.6, §5.8, §5.9)
 
 ### A run pauses on a network failure
 
-Given a run whose phase session fails with kind `network`, when `phax run` ends, then the run is resumable, the terminal names `phax resume <run>`, the command exits with the network failure exit code, and a later `phax resume <run>` continues the phase. (refs §5.7, §5.6)
+Given a run whose phase session fails with kind `network`, when `phax run` ends, then the run is resumable, the terminal names `phax resume <run>`, the command exits 14, and a later `phax resume <run>` continues the phase. (refs §5.7, §5.6)
 
 ### The log hint survives a missing session id
 
@@ -364,11 +368,11 @@ Given `gh repo view` failing because no remote points to a GitHub host, when a r
 
 ### agent-error.log opens with the cause
 
-Given any failed session, when phax writes its agent-error.log, then the file starts with the lines `failure:`, `provider:`, `message:`, `session:`, `transcript:`, followed by the argv, `exit code:` and stderr. (refs §5.16)
+Given any failed session that keeps an agent-error.log, when phax writes its agent-error.log, then the file starts with the lines `failure:`, `provider:`, `message:`, `session:`, `transcript:`, followed by the argv, `exit code:` and stderr. (refs §5.16)
 
 ### A failed decision record names its failure
 
-Given a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice, when their decision records are written, then both record.json files are stamped `decision-record-manifest/0.29.0.json`, carry `failure: "network"` and `failure: "answer-refused"` respectively, and a failed record without `failure` is refused when read. (refs §5.17)
+Given a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice, when their decision records are written, then both record.json files are stamped `decision-record-manifest/0.29.0.json`, carry `failure: "network"` and `failure: "answer-refused"` respectively, and a failed record stamped 0.29.0 without `failure` is refused when read. (refs §5.17)
 
 ### Fix-loop telemetry names Codex
 
@@ -406,8 +410,8 @@ Settled:
 
 - One session-outcome reader per provider (Claude Code, Codex, Mistral Vibe), returning an answer or a failure with kind, provider message and session id when there is one; every caller and both `runAgent`/`resumeAgentSession` and `complete` go through it.
 - Reading order: the provider's final result event, then the transcript's last error event, then stderr; tool output and model text are never scanned. The limit classification moves onto this reader.
-- The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the decision record adds `answer-refused`.
-- A network failure is transient like a usage limit: own exit code (q-network-exit), provider message, retry hint, and a run left resumable.
+- The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.29.0 stay readable through the versioned reader.
+- A network failure is transient like a usage limit: exit 14 (q-network-exit), provider message, retry hint, and a run left resumable.
 - The cause prints before any secondary refusal; a record refusal after a failed session says it follows it.
 - An `unknown` visibility quotes gh's first stderr line; network and auth failures suggest a retry, never `acknowledgedUnknownVisibility`.
 - agent-error.log records kind, provider, message, session id or `none`, transcript path, then argv, exit code and stderr.
@@ -423,7 +427,7 @@ Constraints:
 
 - Change nothing else in the Mistral Vibe adapter: the operator is reviewing Vibe V3 separately.
 - Vibe 3.0.3 is the target version.
-- The new exit code joins EXIT_CODE_MEANINGS and the README § Exit codes table, which a unit test keeps in step.
+- Exit 14, "Provider unreachable: network failure (resumable)", joins EXIT_CODE_MEANINGS and the README § Exit codes table, which a unit test keeps in step.
 - Callers to cover: handoff generation, fix loop, authoring, decide (interactive and verdicts), interactive stop, close stop, compliance review, and plan extraction.
 - The reader is the base the next spec, "Structured output", builds on: keep the answer side of the outcome open to a structured answer without implementing one.
 
