@@ -52,6 +52,7 @@ import {
 import { reportConfigError } from "./reportConfigError.js";
 import { renderStop } from "./stopOutput.js";
 import { readPackageVersion } from "./usage.js";
+import { readBundledReviewSkillForRun } from "./bundledReviewSkill.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -441,25 +442,28 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         hold,
       ).pipe(
         Effect.flatMap(({ runPath, runId }) =>
-          executePlan({
-            shortName,
-            namespace,
-            plan: runPlan,
-            planMd,
-            config,
-            gateProfileId,
-            allowDirty: opts.allowDirty ?? false,
-            runPath,
-            runId,
-            startIndex: 0,
-            phaxVersion: readPackageVersion(),
-            routing,
-            providerConfig,
-            securityMode: effectiveSecurityMode,
-            allowSkillEdits: opts.allowSkillEdits ?? false,
-            verbose: opts.verbose,
-            planRepoRelPath: planRepoRel,
-          }),
+          Effect.flatMap(readBundledReviewSkillForRun(config), (bundledReviewSkill) =>
+            executePlan({
+              bundledReviewSkill,
+              shortName,
+              namespace,
+              plan: runPlan,
+              planMd,
+              config,
+              gateProfileId,
+              allowDirty: opts.allowDirty ?? false,
+              runPath,
+              runId,
+              startIndex: 0,
+              phaxVersion: readPackageVersion(),
+              routing,
+              providerConfig,
+              securityMode: effectiveSecurityMode,
+              allowSkillEdits: opts.allowSkillEdits ?? false,
+              verbose: opts.verbose,
+              planRepoRelPath: planRepoRel,
+            }),
+          ),
         ),
       ),
     );

@@ -50,6 +50,7 @@ function makeBaseConfig(stateRoot: string) {
       effort: "medium" as const,
     },
     codeReview: {
+      enabled: false,
       model: "claude-opus-5",
       effort: "high" as const,
     },

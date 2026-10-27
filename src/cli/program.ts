@@ -300,10 +300,14 @@ export function buildProgram(): Command {
       "--effort <effort>",
       "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)",
     )
+    .option(
+      "--headless",
+      "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set",
+    )
     .action(
       async (
         shortName: string,
-        opts: { newSession?: boolean; model?: string; effort?: string },
+        opts: { newSession?: boolean; model?: string; effort?: string; headless?: boolean },
       ) => {
         const exitCode = await runReviewCode(
           shortName,

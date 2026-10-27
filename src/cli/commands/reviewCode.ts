@@ -6,8 +6,20 @@ import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { prepareCodeReviewSession } from "../../app/reviewCode.js";
-import type { ResolvedCodeReviewConfig } from "../../schemas/phaxConfig.js";
-import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { reviewCodeAndRecord } from "../../app/reviewCode.js";
+import {
+  reviewEntryNotice,
+  reviewEntryWarnings,
+  reviewRecordTargetFor,
+} from "../../app/reviewEntry.js";
+import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
+import { resolveModel } from "../../domain/routing/resolve.js";
+import { describeFindingCounts } from "../../domain/review/codeReviewFindings.js";
+import type { RunReviewInfo } from "../../domain/runReviewInfo.js";
+import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
+import type { ResolvedCodeReviewConfig, ResolvedConfig } from "../../schemas/phaxConfig.js";
+import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { Session } from "../../ports/session.js";
@@ -27,6 +39,88 @@ export interface ReviewCodeCommandOptions {
   model?: string;
   effort?: string;
   verbose?: boolean;
+  headless?: boolean;
+}
+
+async function runHeadless(
+  input: {
+    config: ResolvedConfig;
+    effectiveConfig: ResolvedCodeReviewConfig;
+    namespace: string;
+    shortName: string;
+    info: RunReviewInfo;
+    crossProject: boolean;
+  },
+  out: OutputPort,
+): Promise<number> {
+  const { config, effectiveConfig, namespace, shortName, info, crossProject } = input;
+  const retryRef = crossProject ? runKey(namespace, shortName) : shortName;
+  const retryCommand = `phax review-code ${retryRef} --headless`;
+
+  const routingResult = await Effect.runPromise(
+    Effect.either(
+      Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
+    ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
+  );
+  if (Either.isLeft(routingResult)) {
+    out.error(`Failed to load routing config: ${routingResult.left.message}`);
+    return 1;
+  }
+  const { routing, providerConfig } = routingResult.right;
+
+  const resolution = resolveModel(
+    { model: effectiveConfig.model, effort: effectiveConfig.effort },
+    routing,
+    providerConfig,
+    () => ({ allowed: true }),
+  );
+
+  const effect = Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const bundledReviewSkill = yield* fs.readText(
+      join(defaultBundleRoot(), PHAX_REVIEW_SKILL, "SKILL.md"),
+    );
+    return yield* reviewCodeAndRecord(
+      info,
+      effectiveConfig,
+      resolution,
+      { mode: config.security.profile, config: config.security },
+      reviewRecordTargetFor({ config, namespace, info, crossProject }),
+      { bundledReviewSkill, nowIso: new Date().toISOString() },
+    );
+  }).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        makeProviderBackendLayer(providerConfig),
+        makeRepoRootedFileSystemLayer(config),
+        NoopSystemTelemetryLayer,
+        NodeGitLayer,
+        NodeGitHubLayer,
+      ),
+    ),
+  );
+
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(`Unexpected error during code review: ${result.left.message}`);
+    return 1;
+  }
+  const outcome = result.right;
+  const review = outcome.review;
+  if (review.kind === "failed") {
+    out.error(`Code review failed: ${review.reason}. To retry, run: ${retryCommand}`);
+    return 1;
+  }
+
+  out.log(`Code review: ${describeFindingCounts(review.review.findings)}`);
+  out.log(`Findings: ${review.reviewPath}`);
+  out.log(`Fix them in the session: phax review-code ${retryRef}`);
+  const notice = reviewEntryNotice(outcome);
+  if (notice !== undefined) out.log(notice);
+  for (const warning of reviewEntryWarnings(outcome, "code-review", retryCommand)) {
+    out.warn(warning);
+  }
+  return 0;
 }
 
 export async function runReviewCode(
@@ -53,6 +147,7 @@ export async function runReviewCode(
     opts.effort !== undefined ? opts.effort : config.codeReview.effort;
 
   const effectiveConfig: ResolvedCodeReviewConfig = {
+    enabled: config.codeReview.enabled,
     model: effectiveModel,
     effort: effectiveEffort,
   };
@@ -75,6 +170,10 @@ export async function runReviewCode(
         `The review-code command only operates on runs in review_open state.`,
     );
     return 1;
+  }
+
+  if (opts.headless === true) {
+    return runHeadless({ config, effectiveConfig, namespace, shortName, info, crossProject }, out);
   }
 
   const prepareEffect = Effect.gen(function* () {

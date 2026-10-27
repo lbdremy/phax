@@ -155,7 +155,7 @@ describe("code review entry (real git)", () => {
     return Effect.runPromise(
       reviewCodeAndRecord(
         info(),
-        { model: "claude-opus-5-5", effort: "high" },
+        { enabled: false, model: "claude-opus-5-5", effort: "high" },
         resolution,
         security,
         { kind: "project", records, repoRoot: repoDir, push: null },
@@ -226,7 +226,7 @@ describe("code review entry (real git)", () => {
     const outcome = await Effect.runPromise(
       reviewCodeAndRecord(
         info(),
-        { model: "claude-opus-5-5", effort: "high" },
+        { enabled: false, model: "claude-opus-5-5", effort: "high" },
         resolution,
         security,
         { kind: "project", records: RECORDS, repoRoot: repoDir, push: null },

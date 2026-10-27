@@ -142,6 +142,10 @@ export const ComplianceReviewConfigSchema = Schema.Struct({
 });
 
 export const CodeReviewConfigSchema = Schema.Struct({
+  enabled: Schema.optional(Schema.Boolean).annotations({
+    description:
+      "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent.",
+  }),
   model: Schema.optional(Schema.NonEmptyString),
   effort: Schema.optional(EffortLiteral),
 });
@@ -291,6 +295,7 @@ export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>;
 export const DEFAULT_EXTRACT_MODEL = "claude-haiku-5-5";
 
 export interface ResolvedCodeReviewConfig {
+  readonly enabled: boolean;
   readonly model: string;
   readonly effort: Effort;
 }
@@ -302,6 +307,7 @@ export function resolveCodeReviewConfig(
   raw: CodeReviewConfig | undefined,
 ): ResolvedCodeReviewConfig {
   return {
+    enabled: raw?.enabled ?? false,
     model: raw?.model ?? DEFAULT_CODE_REVIEW_MODEL,
     effort: raw?.effort ?? "high",
   };

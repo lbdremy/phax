@@ -63,6 +63,7 @@ import {
 } from "./completeRunArtifacts.js";
 import { withInvocationCost } from "./costLedger.js";
 import { publishRun } from "./publishRun.js";
+import { reviewCodeAndRecord } from "./reviewCode.js";
 import { reviewComplianceAndRecord } from "./reviewCompliance.js";
 import { reviewEntryWarnings, runEndReviewRecordTarget } from "./reviewEntry.js";
 import {
@@ -332,6 +333,11 @@ export interface ExecutePlanOptions {
   // The phax version auto-publish names in the pull request footer; the CLI
   // reads it from package.json, executePlan never does.
   readonly phaxVersion: string;
+  // The bundled phax-review SKILL.md, read by `phax run` and `phax resume`.
+  // Needed only when `review.code.enabled` is on; without it the run-end code
+  // review is skipped. A caller that tried to read it and warned passes the key
+  // as an explicit `undefined`; a caller that omits the key gets the warning here.
+  readonly bundledReviewSkill?: string | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -2617,6 +2623,54 @@ export function executePlan(
             ),
             Effect.catchAll(() => Effect.void),
           );
+        }
+
+        // Headless code review: after the compliance review, before publish, so
+        // the findings can land in the PR body. Non-fatal like the compliance
+        // review: the run stays in review_open.
+        if (config.codeReview.enabled) {
+          if (opts.bundledReviewSkill === undefined) {
+            if (!("bundledReviewSkill" in opts)) {
+              process.stderr.write(
+                "[phax] Warning: code review not run: the bundled phax-review skill was not given\n",
+              );
+            }
+          } else {
+            const codeReviewPolicy = resolveSecurityPolicy({
+              mode: securityMode,
+              worktreePath: infoResult.right.worktreePath,
+              config: config.security,
+            });
+            const codeReviewResolution = resolveModel(
+              { model: config.codeReview.model, effort: config.codeReview.effort },
+              routing,
+              providerConfig,
+              securityFilterFor(codeReviewPolicy),
+            );
+            const retryCommand = `phax review-code ${shortName} --headless`;
+            yield* reviewCodeAndRecord(
+              infoResult.right,
+              config.codeReview,
+              codeReviewResolution,
+              { mode: securityMode, config: config.security },
+              runEndReviewRecordTarget(config, namespace),
+              { bundledReviewSkill: opts.bundledReviewSkill, nowIso: new Date().toISOString() },
+            ).pipe(
+              Effect.tap((outcome) =>
+                Effect.sync(() => {
+                  if (outcome.review.kind === "failed") {
+                    process.stderr.write(
+                      `[phax] Warning: code review failed: ${outcome.review.reason} — rerun it with \`${retryCommand}\`\n`,
+                    );
+                  }
+                  for (const warning of reviewEntryWarnings(outcome, "code-review", retryCommand)) {
+                    process.stderr.write(`[phax] Warning: ${warning}\n`);
+                  }
+                }),
+              ),
+              Effect.catchAll(() => Effect.void),
+            );
+          }
         }
 
         // Auto-publish: push the final branch and create a PR when configured.

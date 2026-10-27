@@ -59,6 +59,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
 }
 
 const defaultConfig: ResolvedCodeReviewConfig = {
+  enabled: false,
   model: "claude-opus-4-8",
   effort: "high",
 };

@@ -43,6 +43,7 @@ function makeBaseConfig(stateRoot: string): ResolvedConfig {
       effort: "medium",
     },
     codeReview: {
+      enabled: false,
       model: "claude-opus-4-8",
       effort: "high",
     },
