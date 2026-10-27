@@ -20,9 +20,19 @@ vi.mock("../../../src/app/resolveRunRef.js", () => ({
   resolveRunRef: vi.fn(),
 }));
 
-vi.mock("../../../src/app/reviewCompliance.js", () => ({
+vi.mock("../../../src/app/reviewCompliance.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../src/app/reviewCompliance.js")>()),
   reviewCompliance: vi.fn(),
+  reviewComplianceAndRecord: vi.fn(),
 }));
+
+function noEntry(review: Record<string, unknown>) {
+  return Effect.succeed({
+    review,
+    record: { kind: "no-entry" },
+    push: { kind: "no-record" },
+  } as never);
+}
 
 vi.mock("../../../src/app/loadRouting.js", () => ({
   loadModelRouting: vi.fn(),
@@ -153,9 +163,11 @@ describe("runReviewCompliance", () => {
       }),
     );
 
-    const { reviewCompliance } = vi.mocked(await import("../../../src/app/reviewCompliance.js"));
-    reviewCompliance.mockReturnValue(
-      Effect.succeed({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
+    const { reviewComplianceAndRecord } = vi.mocked(
+      await import("../../../src/app/reviewCompliance.js"),
+    );
+    reviewComplianceAndRecord.mockReturnValue(
+      noEntry({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
@@ -205,9 +217,11 @@ describe("runReviewCompliance", () => {
       }),
     );
 
-    const { reviewCompliance } = vi.mocked(await import("../../../src/app/reviewCompliance.js"));
-    reviewCompliance.mockReturnValue(
-      Effect.succeed({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
+    const { reviewComplianceAndRecord } = vi.mocked(
+      await import("../../../src/app/reviewCompliance.js"),
+    );
+    reviewComplianceAndRecord.mockReturnValue(
+      noEntry({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
@@ -219,5 +233,43 @@ describe("runReviewCompliance", () => {
     const { out, lines } = makeOutput();
     await runReviewCompliance(FAKE_SHORT_NAME, {}, out);
     expect(lines.join("")).toContain(`Target: other-ns.${FAKE_SHORT_NAME}`);
+  });
+
+  it("exits 0 and prints the warning when the review was generated but its entry was not committed", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "louloupapers",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject: false,
+      }),
+    );
+
+    const { reviewComplianceAndRecord } = vi.mocked(
+      await import("../../../src/app/reviewCompliance.js"),
+    );
+    reviewComplianceAndRecord.mockReturnValue(
+      Effect.succeed({
+        review: { kind: "generated", verdict: "conformant", mdArtifactPath: "/run/x.md" },
+        record: { kind: "write-failed", message: "disk full" },
+        push: { kind: "no-record" },
+      } as never),
+    );
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+    const { out, lines, errors } = makeOutput();
+    const code = await runReviewCompliance(FAKE_SHORT_NAME, {}, out);
+    expect(code).toBe(0);
+    expect(errors).toEqual([]);
+    expect(lines.some((l) => l.startsWith("WARN:") && l.includes("disk full"))).toBe(true);
   });
 });

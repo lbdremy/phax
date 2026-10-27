@@ -63,7 +63,7 @@ import {
 } from "./completeRunArtifacts.js";
 import { withInvocationCost } from "./costLedger.js";
 import { publishRun } from "./publishRun.js";
-import { reviewCompliance } from "./reviewCompliance.js";
+import { complianceRecordWarnings, reviewComplianceAndRecord } from "./reviewCompliance.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -2593,13 +2593,32 @@ export function executePlan(
             providerConfig,
             securityFilterFor(reviewPolicy),
           );
-          yield* reviewCompliance(
+          // The entry is committed here, before publish: publish's own records
+          // push carries it, so no push is made now.
+          yield* reviewComplianceAndRecord(
             infoResult.right,
             config.complianceReview,
             reviewResolution,
             { mode: securityMode, config: config.security },
+            {
+              records: config.records,
+              repoRoot: config.repoRoot,
+              ...(config.records.destination.kind === "repo"
+                ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
+                : {}),
+              push: null,
+            },
             opts.verbose !== undefined ? { verbose: opts.verbose } : {},
-          ).pipe(Effect.catchAll(() => Effect.void));
+          ).pipe(
+            Effect.tap((outcome) =>
+              Effect.sync(() => {
+                for (const warning of complianceRecordWarnings(outcome)) {
+                  process.stderr.write(`[phax] Warning: ${warning}\n`);
+                }
+              }),
+            ),
+            Effect.catchAll(() => Effect.void),
+          );
         }
 
         // Auto-publish: push the final branch and create a PR when configured.

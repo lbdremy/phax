@@ -4,7 +4,12 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
-import { reviewCompliance } from "../../app/reviewCompliance.js";
+import { complianceRecordWarnings, reviewComplianceAndRecord } from "../../app/reviewCompliance.js";
+import { recordsClonePath } from "../../app/recordsSync.js";
+import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
+import type { Git } from "../../ports/git.js";
+import type { GitHub } from "../../ports/github.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
@@ -74,19 +79,29 @@ export async function runReviewCompliance(
     () => ({ allowed: true }),
   );
 
-  function buildLayer(): Layer.Layer<Backend | FileSystem | SystemTelemetry> {
+  function buildLayer(): Layer.Layer<Backend | FileSystem | SystemTelemetry | Git | GitHub> {
     return Layer.mergeAll(
       makeProviderBackendLayer(providerConfig),
       makeRepoRootedFileSystemLayer(config),
       NoopSystemTelemetryLayer,
+      NodeGitLayer,
+      NodeGitHubLayer,
     );
   }
 
-  const effect = reviewCompliance(
+  const effect = reviewComplianceAndRecord(
     info,
     config.complianceReview,
     resolution,
     { mode: config.security.profile, config: config.security },
+    {
+      records: config.records,
+      repoRoot: config.repoRoot,
+      ...(config.records.destination.kind === "repo"
+        ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
+        : {}),
+      push: { publishRemote: config.publish.remote },
+    },
     opts.verbose !== undefined ? { verbose: opts.verbose } : {},
   ).pipe(Effect.provide(buildLayer()));
 
@@ -96,7 +111,8 @@ export async function runReviewCompliance(
     return 1;
   }
 
-  const review = result.right;
+  const outcome = result.right;
+  const review = outcome.review;
 
   if (review.kind === "disabled") {
     out.error(
@@ -120,6 +136,9 @@ export async function runReviewCompliance(
   out.log(`Verdict: ${verdict}`);
   if (review.mdArtifactPath !== undefined) {
     out.log(`Compliance review: ${review.mdArtifactPath}`);
+  }
+  for (const warning of complianceRecordWarnings(outcome)) {
+    out.warn(warning);
   }
   return 0;
 }
