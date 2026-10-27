@@ -27,6 +27,7 @@ import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { createPhaseFolder } from "../../src/app/phaseFolder.js";
 import { reconcilePhaseFiles } from "../../src/app/reconcilePhaseFiles.js";
+import { reviewCodeHeadless } from "../../src/app/reviewCode.js";
 import { reviewCompliance } from "../../src/app/reviewCompliance.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { writeDecisionRecord } from "../../src/app/writeDecisionRecord.js";
@@ -283,6 +284,22 @@ const COMPLIANCE_VERDICT = JSON.stringify({
   pointers: [],
 });
 
+const CODE_REVIEW_ANSWER = JSON.stringify({
+  version: 1,
+  findings: [
+    {
+      severity: "concern",
+      file: "src/example.ts",
+      line: 3,
+      message: "The example module has no caller yet.",
+      lens: "core",
+      escape: "omission",
+      criterion: null,
+      suggestion: "Call it from the example command.",
+    },
+  ],
+});
+
 /** One file phax wrote: where, and its parsed content. */
 interface Written {
   readonly location: string;
@@ -305,6 +322,9 @@ function formatAt(
   if (name === "status.json") return "phase-status";
   if (name === "phax-plan.json") return "phax-plan";
   if (name === "compliance-review.json") return "compliance-review";
+  // The session's answer under `.phax-context` holds the contract's `version`,
+  // not a persisted file.
+  if (name === "code-review.json" && !location.includes("/.phax-context/")) return "code-review";
   if (name === "cost-ledger.json") return "cost-ledger";
   if (name === "gate-attribution.json") return "gate-attribution";
   // A gate attempt's step record holds the gate-attribution format.
@@ -736,6 +756,42 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     throw new Error("writeReviewRecord wrote no entry");
   }
 
+  // A headless code review with a fake agent, whose answer file phax decodes.
+  // The answer under `.phax-context` carries `version`: only the run folder's
+  // code-review.json is a persisted file.
+  backend.impl.setOnRunAgent(() => {
+    seed(`${phaxContext}/code-review.json`, CODE_REVIEW_ANSWER);
+  });
+  backend.impl.addRunResponse({
+    sessionId: "session-code-review" as ClaudeSessionId,
+    outputPath: `${RUN_PATH}/code-review.session.jsonl`,
+    finalText: "Review complete.",
+  });
+  const codeReviewed = await run(
+    reviewCodeHeadless(
+      info,
+      { model: "example-model", effort: "medium" },
+      resolution,
+      { mode: "secure", config: security },
+      { bundledReviewSkill: "# phax review\n", nowIso: "2026-01-01T11:00:00.000Z" },
+    ),
+  );
+  if (Either.isLeft(codeReviewed) || codeReviewed.right.kind !== "accepted") {
+    throw new Error("reviewCodeHeadless accepted no review");
+  }
+  const codeReviewEntry = await run(
+    writeReviewRecord({
+      repoRoot: REPO_ROOT,
+      records: RECORDS_IN_REPO,
+      runId: created.right.runId,
+      runPath: RUN_PATH,
+      review: "code-review",
+    }),
+  );
+  if (Either.isLeft(codeReviewEntry) || codeReviewEntry.right.kind !== "written") {
+    throw new Error("writeReviewRecord wrote no code-review entry");
+  }
+
   // Every file phax wrote: on the file system, and in every records commit.
   const locations = new Map<string, string>();
   for (const [path, content] of fs.impl.files) {
@@ -797,9 +853,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",
-  // Nothing writes code-review.json yet: phase-03 of plan headless-code-review
-  // adds the writer and removes this entry.
-  "code-review",
 ];
 
 describe("every persisted file phax writes", () => {

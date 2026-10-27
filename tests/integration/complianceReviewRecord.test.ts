@@ -13,13 +13,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
+import { reviewComplianceAndRecord } from "../../src/app/reviewCompliance.js";
 import {
-  complianceRecordTargetFor,
-  complianceRecordWarnings,
-  reviewComplianceAndRecord,
-  type ComplianceRecordTarget,
-  type ComplianceRecordUnresolved,
-} from "../../src/app/reviewCompliance.js";
+  reviewEntryWarnings,
+  reviewRecordTargetFor,
+  type ReviewRecordTarget,
+  type ReviewRecordUnresolved,
+} from "../../src/app/reviewEntry.js";
 import { RECORDS_BRANCH_NAME } from "../../src/app/recordPlumbing.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import {
@@ -395,7 +395,7 @@ describe("compliance review entry by hand (real git)", () => {
     opts: {
       readonly writesJson?: boolean;
       readonly runInfo?: RunReviewInfo;
-      readonly target?: ComplianceRecordTarget | ComplianceRecordUnresolved;
+      readonly target?: ReviewRecordTarget | ReviewRecordUnresolved;
     } = {},
   ) {
     const runInfo = opts.runInfo ?? info();
@@ -530,7 +530,7 @@ describe("compliance review entry by hand (real git)", () => {
       runGit(["worktree", "add", "-b", "feature/by-hand--phase-01", linked], repoDir);
       const runInfo = { ...info(), worktreePath: linked };
 
-      const target = complianceRecordTargetFor({
+      const target = reviewRecordTargetFor({
         config: configOfA(),
         namespace: NAMESPACE,
         info: runInfo,
@@ -554,7 +554,7 @@ describe("compliance review entry by hand (real git)", () => {
     it("writes no entry anywhere when the run's project cannot be read, and says so", async () => {
       // worktreePath is a plain directory: no git working tree to find the
       // run's project from.
-      const target = complianceRecordTargetFor({
+      const target = reviewRecordTargetFor({
         config: configOfA(),
         namespace: NAMESPACE,
         info: info(),
@@ -566,7 +566,11 @@ describe("compliance review entry by hand (real git)", () => {
       expect(outcome.review.kind).toBe("generated");
       expect(outcome.record.kind).toBe("unresolved");
       expect(outcome.push.kind).toBe("no-record");
-      const [warning] = complianceRecordWarnings(outcome, "phax review-compliance test-project.x");
+      const [warning] = reviewEntryWarnings(
+        outcome,
+        "compliance-review",
+        "phax review-compliance test-project.x",
+      );
       expect(warning).toContain(`its worktree ${worktreePath} is not a git working tree`);
       expect(warning).toContain("compliance-review.json stays in the run folder");
       expect(warning).toContain("`phax review-compliance test-project.x`");

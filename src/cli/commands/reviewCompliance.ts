@@ -4,12 +4,12 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
+import { reviewComplianceAndRecord } from "../../app/reviewCompliance.js";
 import {
-  complianceRecordNotice,
-  complianceRecordTargetFor,
-  complianceRecordWarnings,
-  reviewComplianceAndRecord,
-} from "../../app/reviewCompliance.js";
+  reviewEntryNotice,
+  reviewEntryWarnings,
+  reviewRecordTargetFor,
+} from "../../app/reviewEntry.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import type { Git } from "../../ports/git.js";
@@ -98,7 +98,7 @@ export async function runReviewCompliance(
     config.complianceReview,
     resolution,
     { mode: config.security.profile, config: config.security },
-    complianceRecordTargetFor({ config, namespace, info, crossProject }),
+    reviewRecordTargetFor({ config, namespace, info, crossProject }),
     opts.verbose !== undefined ? { verbose: opts.verbose } : {},
   ).pipe(Effect.provide(buildLayer()));
 
@@ -134,10 +134,14 @@ export async function runReviewCompliance(
   if (review.mdArtifactPath !== undefined) {
     out.log(`Compliance review: ${review.mdArtifactPath}`);
   }
-  const notice = complianceRecordNotice(outcome);
+  const notice = reviewEntryNotice(outcome);
   if (notice !== undefined) out.log(notice);
   const retryRef = crossProject ? runKey(namespace, shortName) : shortName;
-  for (const warning of complianceRecordWarnings(outcome, `phax review-compliance ${retryRef}`)) {
+  for (const warning of reviewEntryWarnings(
+    outcome,
+    "compliance-review",
+    `phax review-compliance ${retryRef}`,
+  )) {
     out.warn(warning);
   }
   return 0;
