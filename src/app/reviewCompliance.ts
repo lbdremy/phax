@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
-import type { ResolvedComplianceReviewConfig, ResolvedConfig } from "../schemas/phaxConfig.js";
+import type { ResolvedComplianceReviewConfig } from "../schemas/phaxConfig.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
@@ -22,16 +22,13 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
-import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { pushRecordsBranch, recordsClonePath } from "./recordsSync.js";
-import { loadConfig, locateWorkingTree } from "./loadConfig.js";
 import {
-  reviewRecordPushWarning,
-  reviewRecordWarning,
-  writeReviewRecord,
-  type ReviewRecordPush,
-  type ReviewRecordStatus,
-} from "./writeReviewRecord.js";
+  NO_REVIEW_ENTRY,
+  recordReviewEntry,
+  type ReviewEntryOutcome,
+  type ReviewRecordTarget,
+  type ReviewRecordUnresolved,
+} from "./reviewEntry.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
 import { withInvocationCost } from "./costLedger.js";
@@ -393,29 +390,8 @@ export function reviewCompliance(
   });
 }
 
-export interface ComplianceRecordTarget {
-  readonly kind: "project";
-  readonly records: ResolvedRecordsConfig;
-  readonly repoRoot: string;
-  /** The local records clone, required for a dedicated `repo` destination. */
-  readonly recordsClonePath?: string | undefined;
-  /** Push the entry now (by hand), or `null` to leave it to publish's records push. */
-  readonly push: { readonly publishRemote: string } | null;
-}
-
-/** The run's own project could not be read: no entry is written anywhere. */
-export interface ComplianceRecordUnresolved {
-  readonly kind: "unresolved";
-  readonly reason: string;
-}
-
-export interface ComplianceReviewRecordOutcome {
+export interface ComplianceReviewRecordOutcome extends ReviewEntryOutcome {
   readonly review: ComplianceReviewResult;
-  readonly record:
-    | ReviewRecordStatus
-    | { readonly kind: "no-entry" }
-    | { readonly kind: "unresolved"; readonly reason: string };
-  readonly push: ReviewRecordPush;
 }
 
 /**
@@ -429,7 +405,7 @@ export function reviewComplianceAndRecord(
   config: ResolvedComplianceReviewConfig,
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
-  target: ComplianceRecordTarget | ComplianceRecordUnresolved,
+  target: ReviewRecordTarget | ReviewRecordUnresolved,
   opts: ReviewComplianceOpts,
 ): Effect.Effect<
   ComplianceReviewRecordOutcome,
@@ -440,118 +416,14 @@ export function reviewComplianceAndRecord(
     const review = yield* reviewCompliance(info, config, resolution, security, opts);
     // Only a compliance-review.json written by this invocation is an entry.
     if (review.kind !== "generated" || review.review === undefined) {
-      const none: ComplianceReviewRecordOutcome = {
-        review,
-        record: { kind: "no-entry" },
-        push: { kind: "no-record" },
-      };
-      return none;
+      return { review, ...NO_REVIEW_ENTRY };
     }
-    if (target.kind === "unresolved") {
-      const unresolved: ComplianceReviewRecordOutcome = {
-        review,
-        record: { kind: "unresolved", reason: target.reason },
-        push: { kind: "no-record" },
-      };
-      return unresolved;
-    }
-    const record = yield* writeReviewRecord({
-      repoRoot: target.repoRoot,
-      recordsClonePath: target.recordsClonePath,
-      records: target.records,
+    const entry = yield* recordReviewEntry({
+      target,
       runId: info.runId,
       runPath: info.runPath,
       review: "compliance-review",
     });
-    let push: ReviewRecordPush = { kind: "no-record" };
-    if (record.kind === "written") {
-      push =
-        target.push === null
-          ? { kind: "left-to-publish" }
-          : yield* pushRecordsBranch({
-              records: target.records,
-              repoRoot: target.repoRoot,
-              publishRemote: target.push.publishRemote,
-              recordsClonePath: target.recordsClonePath,
-            });
-    }
-    return { review, record, push };
+    return { review, ...entry };
   });
-}
-
-/**
- * The warnings an entry's outcome deserves, in the order an operator reads
- * them. `retryCommand` is the command that records a new review of this run.
- */
-export function complianceRecordWarnings(
-  outcome: ComplianceReviewRecordOutcome,
-  retryCommand: string,
-): readonly string[] {
-  const warnings: string[] = [];
-  if (outcome.record.kind === "unresolved") {
-    warnings.push(
-      `compliance-review entry not written: ${outcome.record.reason} — compliance-review.json stays in the run folder; fix that, then rerun \`${retryCommand}\` to record a new review`,
-    );
-  } else if (outcome.record.kind !== "no-entry") {
-    const warning = reviewRecordWarning(outcome.record, "compliance-review", retryCommand);
-    if (warning !== undefined) warnings.push(warning);
-  }
-  const pushWarning = reviewRecordPushWarning(outcome.push);
-  if (pushWarning !== undefined) warnings.push(pushWarning);
-  return warnings;
-}
-
-/** The line a written entry deserves (`Recorded: <key> (<sha8>)[, pushed to <remote>]`), or undefined. */
-export function complianceRecordNotice(outcome: ComplianceReviewRecordOutcome): string | undefined {
-  if (outcome.record.kind !== "written") return undefined;
-  const pushed = outcome.push.kind === "pushed" ? `, pushed to ${outcome.push.remote}` : "";
-  return `Recorded: ${outcome.record.key} (${outcome.record.commitSha.slice(0, 8)})${pushed}`;
-}
-
-/**
- * Where a by-hand review of a run is recorded: the records of the run's own
- * project, never the project the command runs from. A run of the current
- * project uses the current config; a run of another project (`crossProject`)
- * reads that project's config from the main checkout of the run's final
- * worktree. When that project cannot be read, no entry is written anywhere.
- */
-export function complianceRecordTargetFor(input: {
-  readonly config: ResolvedConfig;
-  readonly namespace: string;
-  readonly info: RunReviewInfo;
-  readonly crossProject: boolean;
-}): ComplianceRecordTarget | ComplianceRecordUnresolved {
-  let project = input.config;
-  if (input.crossProject) {
-    const tree = locateWorkingTree(input.info.worktreePath);
-    if (tree === undefined) {
-      return {
-        kind: "unresolved",
-        reason: `the run's project could not be found: its worktree ${input.info.worktreePath} is not a git working tree`,
-      };
-    }
-    const loaded = loadConfig(tree.mainRoot);
-    if (Either.isLeft(loaded)) {
-      return {
-        kind: "unresolved",
-        reason: `the run's project config at ${tree.mainRoot} could not be loaded (${loaded.left.message})`,
-      };
-    }
-    if (loaded.right.namespace !== input.namespace) {
-      return {
-        kind: "unresolved",
-        reason: `the project at ${tree.mainRoot} is "${loaded.right.namespace}", not the run's "${input.namespace}"`,
-      };
-    }
-    project = loaded.right;
-  }
-  return {
-    kind: "project",
-    records: project.records,
-    repoRoot: project.repoRoot,
-    ...(project.records.destination.kind === "repo"
-      ? { recordsClonePath: recordsClonePath(project.stateRoot, input.namespace) }
-      : {}),
-    push: { publishRemote: project.publish.remote },
-  };
 }

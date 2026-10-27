@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  CODE_REVIEW_ESCAPES,
+  CODE_REVIEW_LENSES,
+  CODE_REVIEW_SEVERITIES,
+} from "../../../src/schemas/codeReview.js";
+import {
+  buildHeadlessCodeReviewPrompt,
   buildCodeReviewPrompt,
   buildCodeReviewPositionalPrompt,
   CODE_REVIEW_PROMPT_FILENAME,
@@ -187,5 +193,79 @@ describe("buildCodeReviewPositionalPrompt", () => {
 describe("CODE_REVIEW_PROMPT_FILENAME", () => {
   it("is code-review-prompt.md", () => {
     expect(CODE_REVIEW_PROMPT_FILENAME).toBe("code-review-prompt.md");
+  });
+});
+
+describe("buildHeadlessCodeReviewPrompt", () => {
+  const answerPath = "/wt/.phax-context/code-review.json";
+  const compliance = {
+    attentionPoints: ["watch the retry"],
+    pointers: ["check the docs"],
+    deviationFindings: [
+      { phaseId: "phase-01", dimension: "scope", severity: "minor", message: "extra file" },
+    ],
+  };
+
+  it("names the answer file and the shape with every key", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
+    expect(prompt).toContain("# Headless code review");
+    expect(prompt).toContain(answerPath);
+    for (const key of [
+      "severity",
+      "file",
+      "line",
+      "message",
+      "lens",
+      "escape",
+      "criterion",
+      "suggestion",
+    ]) {
+      expect(prompt).toContain(`"${key}"`);
+    }
+    expect(prompt).toContain('{"version":1,"findings":[]}');
+  });
+
+  it("lists the closed ids of the contract", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
+    for (const id of [...CODE_REVIEW_SEVERITIES, ...CODE_REVIEW_LENSES, ...CODE_REVIEW_ESCAPES]) {
+      expect(prompt).toContain(`\`${id}\``);
+    }
+  });
+
+  it("carries the flagged files, the compliance findings and the doctrine", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, compliance, answerPath });
+    expect(prompt).toContain("src/foo.ts");
+    expect(prompt).toContain("watch the retry");
+    expect(prompt).toContain("extra file");
+    expect(prompt).toContain("Review doctrine — `phax-review` (bundled)");
+    expect(prompt).toContain("Use it before you read it.");
+    expect(prompt).not.toContain("name: phax-review");
+  });
+
+  it("tells the session that no developer, fix or run exists", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, answerPath });
+    expect(prompt).toContain("no developer is present");
+    expect(prompt).toContain("In the session");
+    expect(prompt).toContain("help text");
+  });
+
+  it("says plainly that compliance findings are missing, without the interactive tip", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({
+      ...baseInput,
+      complianceMissing: true,
+      answerPath,
+    });
+    expect(prompt).toContain("No compliance findings are available");
+    expect(prompt).not.toContain("review-compliance");
+  });
+
+  it("marks a project copy of the doctrine as such", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({
+      ...baseInput,
+      doctrine: { source: "project", text: "# Our own review rules\n" },
+      answerPath,
+    });
+    expect(prompt).toContain("(project)");
+    expect(prompt).toContain("Our own review rules");
   });
 });

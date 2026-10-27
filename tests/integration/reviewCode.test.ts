@@ -491,6 +491,80 @@ describe("prepareCodeReviewSession", () => {
     expect(updated.createdAt).toBe(nowIso);
   });
 
+  describe("after a headless review", () => {
+    const reviewJsonPath = `${runPath}/code-review.json`;
+    const headlessRecord = JSON.stringify(
+      encodeCodeReviewSession({
+        version: 1,
+        shortName,
+        runId: "test-run-999",
+        provider: "claude-code",
+        sessionId: "headless-session-1",
+        worktreePath,
+        createdAt: "2026-06-25T10:00:00.000Z",
+        updatedAt: "2026-06-25T10:00:00.000Z",
+      }),
+    );
+
+    it("resumes the recorded session on the recorded provider, not the final phase's", async () => {
+      const fs = makeFakeFileSystem();
+      fs.impl.setFile(bindingPath, JSON.stringify(codexBinding));
+      fs.impl.setFile(sessionRecordPath, headlessRecord);
+
+      const result = await Effect.runPromise(
+        prepareCodeReviewSession(makeInfo(), defaultConfig, {
+          newSession: false,
+          nowIso,
+          bundledReviewSkill,
+        }).pipe(Effect.provide(makeLayer(fs))),
+      );
+
+      expect(result.kind).toBe("ready");
+      if (result.kind !== "ready") return;
+      expect(result.mode).toBe("resume");
+      expect(result.invocation.executable).toBe("claude");
+      expect(result.invocation.args).toEqual(["--resume", "headless-session-1"]);
+    });
+
+    it("resumes without reading the final phase's binding", async () => {
+      const fs = makeFakeFileSystem();
+      fs.impl.setFile(sessionRecordPath, headlessRecord);
+
+      const result = await Effect.runPromise(
+        prepareCodeReviewSession(makeInfo(), defaultConfig, {
+          newSession: false,
+          nowIso,
+          bundledReviewSkill,
+        }).pipe(Effect.provide(makeLayer(fs))),
+      );
+
+      expect(result.kind).toBe("ready");
+    });
+
+    it("--new-session records a new session and leaves code-review.json as it was", async () => {
+      const fs = makeFakeFileSystem();
+      fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+      fs.impl.setFile(sessionRecordPath, headlessRecord);
+      fs.impl.setFile(reviewJsonPath, '{"findings":[]}');
+
+      const result = await Effect.runPromise(
+        prepareCodeReviewSession(makeInfo(), defaultConfig, {
+          newSession: true,
+          nowIso,
+          bundledReviewSkill,
+        }).pipe(Effect.provide(makeLayer(fs))),
+      );
+
+      expect(result.kind).toBe("ready");
+      if (result.kind !== "ready") return;
+      expect(result.mode).toBe("new");
+      const recorded = JSON.parse(fs.impl.getFile(sessionRecordPath)!);
+      expect(recorded.sessionId).toBe(result.invocation.args[1]);
+      expect(recorded.sessionId).not.toBe("headless-session-1");
+      expect(fs.impl.getFile(reviewJsonPath)).toBe('{"findings":[]}');
+    });
+  });
+
   it("unsupported provider for new session: returns kind 'unsupported', no session record", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(codexBinding));

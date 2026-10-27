@@ -63,7 +63,8 @@ import {
 } from "./completeRunArtifacts.js";
 import { withInvocationCost } from "./costLedger.js";
 import { publishRun } from "./publishRun.js";
-import { complianceRecordWarnings, reviewComplianceAndRecord } from "./reviewCompliance.js";
+import { reviewComplianceAndRecord } from "./reviewCompliance.js";
+import { reviewEntryWarnings, runEndReviewRecordTarget } from "./reviewEntry.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -2600,21 +2601,14 @@ export function executePlan(
             config.complianceReview,
             reviewResolution,
             { mode: securityMode, config: config.security },
-            {
-              kind: "project",
-              records: config.records,
-              repoRoot: config.repoRoot,
-              ...(config.records.destination.kind === "repo"
-                ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
-                : {}),
-              push: null,
-            },
+            runEndReviewRecordTarget(config, namespace),
             opts.verbose !== undefined ? { verbose: opts.verbose } : {},
           ).pipe(
             Effect.tap((outcome) =>
               Effect.sync(() => {
-                for (const warning of complianceRecordWarnings(
+                for (const warning of reviewEntryWarnings(
                   outcome,
+                  "compliance-review",
                   `phax review-compliance ${shortName}`,
                 )) {
                   process.stderr.write(`[phax] Warning: ${warning}\n`);
