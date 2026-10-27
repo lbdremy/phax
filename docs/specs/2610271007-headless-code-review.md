@@ -375,6 +375,10 @@ Given a headless code review run on claude-code, when its session ends, then the
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-records — The brief settles that phax writes `code-review.json` "into the records, as it does `compliance-review.json`". But `compliance-review.json` reaches no record: a record is one phase folder, and the file sits at the run folder's root. Which half of that decision holds?
 
 - run-folder — Write `code-review.json` to the run folder only, where `compliance-review.json` lives today — abandons: keeping the findings past the run folder: `phax prune` deletes them, and `phax/records/v1` holds no copy
@@ -382,9 +386,8 @@ Given a headless code review run on claude-code, when its session ends, then the
 
 Recommendation: run-folder — The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: run-folder — by operator (Rémy Loubradou), 2026-10-27
+Why: The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here. Advocate: The strongest case for records-entry: `phax prune` deletes the run folder, so findings that never reach `phax/records/v1` vanish with it, and a reviewer later has no durable copy of what the machine found. Principles: S1. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -421,3 +424,7 @@ Page: README.md — Review and land
 Reader: An operator who wants a machine to do a code review pass each time a run reaches review, then fix the findings with it
 
 Example: Set `"review": { "code": { "enabled": true } }`. When the run's pull request opens, read `### Code review findings` and run `phax review-code <run>` to resume the session that found them and ask for the fixes. To review a run that ended without the setting, use `phax review-code <run> --headless`.
+
+## 12. Decision log
+
+- 2026-10-27 q-records decided run-folder — operator (Rémy Loubradou)

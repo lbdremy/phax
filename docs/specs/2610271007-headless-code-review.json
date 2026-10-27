@@ -501,7 +501,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-records",
       "question": "The brief settles that phax writes `code-review.json` \"into the records, as it does `compliance-review.json`\". But `compliance-review.json` reaches no record: a record is one phase folder, and the file sits at the run folder's root. Which half of that decision holds?",
@@ -518,10 +519,29 @@
         }
       ],
       "recommendation": "run-folder",
-      "rationale": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here."
+      "rationale": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "run-folder",
+        "abandoned": [
+          "records-entry"
+        ],
+        "why": "The guiding rule is to do what the compliance review does, and the compliance review keeps its file in the run folder only. Both reviews should reach the records together, in one later spec, not one of them by itself here.",
+        "advocate": "The strongest case for records-entry: `phax prune` deletes the run folder, so findings that never reach `phax/records/v1` vanish with it, and a reviewer later has no durable copy of what the machine found.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T10:15:19.628Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Placement and failure behaviour follow the compliance review: the step runs after it and before publish, and any failure is caught, so the run stays review_open and publish still runs.",
