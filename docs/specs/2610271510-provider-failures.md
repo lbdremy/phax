@@ -126,7 +126,11 @@ The system shall write in a failed session's agent-error.log the failure kind, t
 
 The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.29.0.
 
-### 5.18 Fix-loop telemetry names its provider
+### 5.18 A stop's closing turn records a network failure
+
+WHEN a stop's closing turn fails with kind `network` THE system SHALL record the refused close in review-stop.json with result `network` and exit code 14, at `$schema` 0.29.0.
+
+### 5.19 Fix-loop telemetry names its provider
 
 The system shall name, in the fix turn's telemetry operation and adapter, the provider that ran the fix turn, by the same provider id the phase turn's telemetry uses.
 
@@ -264,6 +268,45 @@ after:
       …
     }
 
+### file: review-stop.json — normative
+
+Summary: When a stop's closing turn loses the network, the stop's last close says so, and the run still waits for your review.
+
+before:
+
+    {
+      "$schema": "https://docs.phax.run/schemas/review-stop/0.26.0.json",
+      "run": "notebook.audio-export",
+      "cause": "declared",
+      "state": "awaiting_review",
+      …
+      "lastClose": {
+        "result": "close-error",
+        "at": "2026-10-27T14:02:11.408Z",
+        "exitCode": 5,
+        "step": "closing-turn",
+        "detail": "claude exited with code 1"
+      },
+      …
+    }
+
+after:
+
+    {
+      "$schema": "https://docs.phax.run/schemas/review-stop/0.29.0.json",
+      "run": "notebook.audio-export",
+      "cause": "declared",
+      "state": "awaiting_review",
+      …
+      "lastClose": {
+        "result": "network",
+        "at": "2026-10-27T14:02:11.408Z",
+        "exitCode": 14,
+        "detail": "API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)"
+      },
+      …
+    }
+
 ### cli: exit codes — normative
 
 Summary: A command whose agent could not reach its provider exits with its own code, so a script can retry it.
@@ -300,7 +343,7 @@ after:
 - Provider-native structured output, and making the compliance review or the handoff a structured answer: they belong to the next spec, "Structured output", which builds on this spec's session reader.
 - Retrying a failed session automatically: phax reports a transient failure and names the retry; it never re-runs the session on its own.
 - Changing the Mistral Vibe adapter beyond reading its session outcome: the rest of the Vibe V3 review is separate.
-- Adding a failure kind to run-status.json or to any record other than the decision record; run status keeps its `lastError` text.
+- Adding a failure kind to run-status.json or to any persisted shape other than the decision record and review-stop.json's refused close (`network`); run status keeps its `lastError` text.
 - Changing what the records destination accepts: an unknown visibility is still refused; only its message and remedy change.
 - Classifying failures of `gh` itself beyond the visibility check, or of git.
 
@@ -374,9 +417,13 @@ Given any failed session that keeps an agent-error.log, when phax writes its age
 
 Given a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice, when their decision records are written, then both record.json files are stamped `decision-record-manifest/0.29.0.json`, carry `failure: "network"` and `failure: "answer-refused"` respectively, and a failed record stamped 0.29.0 without `failure` is refused when read. (refs §5.17)
 
+### A closing turn's network failure
+
+Given a run awaiting review at a stop whose closing turn fails with kind `network`, when `phax resume <run>` closes the stop, then it exits 14, the run stays `awaiting_review`, and review-stop.json, stamped `review-stop/0.29.0.json`, records `lastClose` with result `network` and `exitCode` 14. (refs §5.18, §5.6)
+
 ### Fix-loop telemetry names Codex
 
-Given a run whose fix turn runs on Codex with tracing on, when the fix turn runs, then the trace's operation is `phax.codex-cli.agent.resume` with adapter `codex-cli`. (refs §5.18)
+Given a run whose fix turn runs on Codex with tracing on, when the fix turn runs, then the trace's operation is `phax.codex-cli.agent.resume` with adapter `codex-cli`. (refs §5.19)
 
 ## 9. Open questions
 
@@ -412,6 +459,7 @@ Settled:
 - Reading order: the provider's final result event, then the transcript's last error event, then stderr; tool output and model text are never scanned. The limit classification moves onto this reader.
 - The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.29.0 stay readable through the versioned reader.
 - A network failure is transient like a usage limit: exit 14 (q-network-exit), provider message, retry hint, and a run left resumable.
+- review-stop.json's refused close gains a `network` result with exit 14, at review-stop 0.29.0; older stamps are read as today.
 - The cause prints before any secondary refusal; a record refusal after a failed session says it follows it.
 - An `unknown` visibility quotes gh's first stderr line; network and auth failures suggest a retry, never `acknowledgedUnknownVisibility`.
 - agent-error.log records kind, provider, message, session id or `none`, transcript path, then argv, exit code and stderr.
