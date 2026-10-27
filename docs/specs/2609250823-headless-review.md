@@ -70,6 +70,10 @@ The `artifact-decide` spec (Completed, `docs/specs/archive/2610140742-artifact-d
 
 The first consumer is the steme roadmap-1.0 conductor. It is a loop with no developer at the terminal, and it allows at most two review passes.
 
+The review itself has a doctrine since 2026-10-23, the skill `phax-review`, distinct from `phax-decide-review`, which governs what a review plan does with findings. `phax review-code` embeds it in its prompt: the project's copy in the run's final-phase worktree, else the bundled skill. It has the reviewer give every finding a `lens`, the step it was found in, an `escape`, why the run's tests did not catch it, and the acceptance criterion it touches. That vocabulary is prose only today.
+
+Since 0.28.0 a plan's test strategy is data: test lines that may name an acceptance criterion of the source spec by its id, read from the spec's JSON sidecar, and a coverage of criteria by lines.
+
 Ground read:
 
 - `docs/specs/archive/2609241219-headless-review.md` — The first draft, Abandoned 2026-09-25. I reused its structure. I replaced what the 2026-09-25 decisions change: findings can be dismissed and carry an outcome and a decision history across passes, there are two modes only, the doctrine skill has landed, and reversibility is a cost. I also corrected the `phax run` argument grammar.
@@ -96,6 +100,10 @@ Ground read:
 - `src/schemas/planDocument.ts` — The plan document (`kind: plan`, `$schema` `plan-document`). Its fields: lineage (`sourceSpec`, `completesSpec`), `run`, a preamble with open and arbitrated questions, and phases with boundary contracts, implementation order, verification and expected handoff. Its projection is the extracted-plan schema.
 - `src/schemas/approvedBy.ts` — The approver union: operator, machine (grant `^[a-z0-9]+(-[a-z0-9]+)*$`) and unattributed (records written before approvers were named).
 - `src/schemas/schemaUrl.ts` — Every persisted format carries a `$schema` URL `<base>/<format-id>/<X.Y.Z>.json`. `code-review` is expected to join with this spec's plan.
+- `docs/briefs/review-escape.md` — The brief of this revision, 2026-10-23. A review finding says from which angle it was found and why the run's tests did not catch it, so the review feeds the test strategy back. It settles the three keys, the shared vocabulary, the headless session following `phax-review`, and no migration, and leaves four questions to §9.
+- `.claude/skills/phax-review/SKILL.md` — The review skill (commit 1259ec48). The reviewer uses the change before reading its code and works outside-in. Every finding gives where, what is wrong for whom, a severity, a `lens` (the step it was found in: surface, acceptance, boundary, core, edge, tests, architecture, docs), an `escape` (why the tests missed it: wrong-oracle, same-author, weakened, fake-drift, unexplored-input, omission, untestable), the criterion it touches and a suggestion. A `wrong-oracle`, `omission` or `unexplored-input` finding names the test line the plan should have carried.
+- `src/app/reviewCode.ts` — `phax review-code` embeds `phax-review` in its prompt: the copy at `.claude/skills/phax-review/SKILL.md` in the run's final-phase worktree when it exists, else the bundled skill. `src/domain/review/codeReviewPrompt.ts` renders it under `## Review doctrine` with its source, `project` or `bundled`.
+- `docs/specs/archive/2610231041-test-strategy.md` — Completed, shipped in 0.28.0. A phase's test strategy is a list of test lines (guarantee, size, technique, oracle, loop, and a criterion id or none). A criterion id is the `id` of one of the source spec's acceptance criteria, read from the spec's JSON sidecar. `phax plans lint` reports an unknown id as an error and, when the spec has no sidecar, says so in one line and checks no criterion.
 
 ## 2. Problem
 
@@ -111,11 +119,13 @@ Nothing bounds or reports the review–fix loop. The PR body says what needs a p
 
 The run also completes its plan and its spec at its final phase, before any review. A plan of fixes written after that has no Approved spec to belong to.
 
+A finding has no angle and no cause either. The review skill asks for a `lens` and an `escape`, but a document of `{ severity, file, line, message, suggestion }` drops both. Nothing after the review can tell a finding that a missing test let through from one that no test could catch, so the review ends at a fix and never reaches the test strategy.
+
 ## 3. Product goal
 
 Make the code review a phax artifact, and make its consequence a phax plan.
 
-A headless review writes structured findings and stops. `phax review-plan` turns them into a review plan in the phax-plan shape, following a doctrine and a threshold that the caller owns. Each finding under consideration is either fixed by a phase or decided by the operator: dismissed or left open; one a headless plan does not fix waits, `awaiting`, for that decision. `phax run --append` then executes the plan as more phases of the same run, with the same records and the same PR.
+A headless review writes structured findings and stops. Each review finding says from which step it was found, why the run's tests missed it, and which acceptance criterion it touches. `phax review-plan` turns them into a review plan in the phax-plan shape, following a doctrine and a threshold that the caller owns. Each finding under consideration is either fixed by a phase or decided by the operator: dismissed or left open; one a headless plan does not fix waits, `awaiting`, for that decision. `phax run --append` then executes the plan as more phases of the same run, with the same records and the same PR.
 
 A config setting runs this as a bounded loop at the end of a run, before the run completes its plan and spec and before its PR is ready for review. While a review plan or a finding waits for the operator, the run's PR is a GitHub draft. The PR's `## Needs your review` then opens on the trajectory: the review passes, and the findings that wait for the operator or that the operator dismissed. Every change is additive to the CLI and to `phax.json`, and the interactive review is unchanged.
 
@@ -124,7 +134,11 @@ A config setting runs this as a bounded loop at the end of a run, before the run
 ## 4. Terminology
 
 - **Pass** — One review round over a run, numbered from 1. A pass opens when a headless code review writes its `code-review.json`. It holds at most one current review plan. Its `code-review.json` and `pass.json` live under the run directory and in the run's records; its review plan lives under `docs/plans/` on the run branch (§9 Q4).
-- **Finding** — One entry of a pass's `code-review.json`. It has one of two variants, by `source`. A review finding (`review`) has `severity`, `file`, `line` and `suggestion`. A compliance finding (`compliance`) is a `deviation` finding of the latest compliance review, with `phase` and `dimension`. Both carry `id`, `message`, `outcome` and `history`.
+- **Finding** — One entry of a pass's `code-review.json`. It has one of two variants, by `source`. A review finding (`review`) has `severity`, `file`, `line`, `lens`, `escape`, `criterion` and `suggestion`. A compliance finding (`compliance`) is a `deviation` finding of the latest compliance review, with `phase` and `dimension`, and has no `lens`, `escape` or `criterion`. Both carry `id`, `message`, `outcome` and `history`.
+- **Review skill** — The skill a code-review session follows, `phax-review`: the copy at `.claude/skills/phax-review/SKILL.md` in the run's final-phase worktree, else the bundled skill. Distinct from the review doctrine, which a review-plan session follows.
+- **Lens** — The step of the review skill a review finding was found in: `surface`, `acceptance`, `boundary`, `core`, `edge`, `tests`, `architecture` or `docs`. Closed set, the skill's ids.
+- **Escape** — Why the run's tests did not catch a review finding: `wrong-oracle`, `same-author`, `weakened`, `fake-drift`, `unexplored-input`, `omission` or `untestable`. Closed set, the skill's ids.
+- **Criterion** — The acceptance criterion a review finding touches: the `id` of one of the run's source spec's acceptance criteria, as a test line names it, or null when it touches none.
 - **Finding id** — A run-unique id that phax assigns: `F<n>` for review findings and `C<n>` for compliance findings. Numbering continues from pass to pass.
 - **Severity order** — `bug` > `deviation` > `concern` > `info`.
 - **Threshold** — The lowest severity a pass considers for a fix: `bug`, `deviation` or `concern`. `info` is never considered.
@@ -167,13 +181,13 @@ A config setting runs this as a bounded loop at the end of a run, before the run
 
 WHERE `--headless` is given to `phax review-code <run>` THE system SHALL run the code review in the run's review session, in the run's final-phase worktree, without attaching a terminal. It SHALL resume the recorded session unless `--new-session` is given.
 
-### 5.2 The review brief carries compliance and earlier outcomes
+### 5.2 The review brief carries the review skill, compliance and earlier outcomes
 
-WHEN a headless review session starts THE system SHALL give it the run's latest compliance verdict and findings, and every earlier finding of the run with its outcome.
+WHEN a headless review session starts THE system SHALL give it the review skill, the project's copy in the run's final-phase worktree when it exists and else the bundled `phax-review`, as `phax review-code` does. It SHALL also give the session the run's latest compliance verdict and findings, every earlier finding of the run with its outcome, and the source spec's acceptance criteria, id and name, when the spec has a JSON sidecar.
 
 ### 5.3 JSON-only code-review result
 
-WHEN a headless review session ends THE system SHALL accept as its result only a JSON code-review document valid against the code-review document schema.
+WHEN a headless review session ends THE system SHALL accept as its result only a JSON code-review document valid against the code-review document schema. Every finding of the document SHALL carry `severity`, `file`, `line`, `message`, `lens`, `escape`, `criterion` and `suggestion`, all required: `lens` one of `surface`, `acceptance`, `boundary`, `core`, `edge`, `tests`, `architecture` or `docs`, `escape` one of `wrong-oracle`, `same-author`, `weakened`, `fake-drift`, `unexplored-input`, `omission` or `untestable`, and `criterion` an acceptance criterion id or null. The `lens` and `escape` values SHALL be exactly the ids that the bundled `phax-review` skill lists.
 
 ### 5.4 An invalid review opens no pass
 
@@ -185,11 +199,11 @@ The system SHALL give every finding a run-unique id, `F<n>` for a review finding
 
 ### 5.6 Compliance deviations join the findings
 
-WHEN the system writes a pass's `code-review.json` THE system SHALL include each `deviation` finding of the run's latest compliance review as a compliance finding.
+WHEN the system writes a pass's `code-review.json` THE system SHALL include each `deviation` finding of the run's latest compliance review as a compliance finding, with its `phase` and `dimension` and no `lens`, `escape` or `criterion`.
 
 ### 5.7 Write, record, stop
 
-WHEN the code-review document validates THE system SHALL open the next pass. It SHALL write the pass's `code-review.json`, with every finding at outcome `open`, and its `pass.json`, with outcome `reviewed`, mode `none` and threshold null, under the run directory and into the run's records. It SHALL then stop, leaving the review session resumable and the run `review_open`.
+WHEN the code-review document validates THE system SHALL open the next pass. It SHALL write the pass's `code-review.json`, with every finding at outcome `open` and each review finding's `lens`, `escape` and `criterion` as the session gave them, and its `pass.json`, with outcome `reviewed`, mode `none` and threshold null, under the run directory and into the run's records. It SHALL then stop, leaving the review session resumable and the run `review_open`.
 
 ### 5.8 A new pass supersedes a pending plan
 
@@ -571,50 +585,52 @@ after:
 
 ### file: code-review document (the headless review session's final message) — normative
 
-Summary: A headless review session answers with one versioned list of findings, each with a severity, a place and a suggestion, and phax refuses any other answer.
+Summary: A headless review session answers with one versioned list of findings, each saying where it is, how severe it is, which review step found it, why the tests missed it and which acceptance criterion it touches, and phax refuses any other answer.
 
     {
       "version": 1,
       "findings": [
         { "severity": "bug", "file": "src/app/prune.ts", "line": 42,
           "message": "prune deletes a run whose worktree is still registered",
-          "suggestion": "refuse when the registry lists a live worktree" },
+          "lens": "edge", "escape": "omission", "criterion": "ac-prune-live-worktree",
+          "suggestion": "refuse when the registry lists a live worktree; missing line: refuses a run with a live worktree — small · example · the registry fixture · oracle" },
         { "severity": "info", "file": "src/cli/commands/prune.ts", "line": null,
           "message": "help text says 'remove', output says 'prune'",
+          "lens": "surface", "escape": "untestable", "criterion": null,
           "suggestion": "use 'prune' in both" }
       ]
     }
-    # the session's answer carries `version: 1`, as every session answer does; the persisted code-review.json carries `$schema` instead
-    # every key required; unknown keys rejected
-    # severity: bug | deviation | concern | info; line: an integer >= 1, or null
-    # the agent emits no ids and no outcome: phax assigns both
+    # every key is required, and an unknown key is refused
+    # severity:  bug | deviation | concern | info
+    # lens:      surface | acceptance | boundary | core | edge | tests | architecture | docs
+    # escape:    wrong-oracle | same-author | weakened | fake-drift | unexplored-input | omission | untestable
+    # criterion: an acceptance criterion id of the run's spec, or null
+    # phax gives each finding its id and outcome
 
 ### file: code-review.json — normative
 
-Summary: Each review pass leaves a findings file you can read or script against, giving each finding's id, severity and what became of it.
+Summary: Each review pass leaves a findings file you can read or script against, giving each finding's id, severity, the step that found it, why the tests missed it, and what became of it.
 
-    # at <run-dir>/review/pass-01/code-review.json, also committed to the run's records
-    # normative: file name, keys and enums. Indicative: directory layout.
+    # <run-dir>/review/pass-01/code-review.json, also in the run's records
     {
       "$schema": "https://docs.phax.run/schemas/code-review/<X.Y.Z>.json",
       "pass": 1,
       "findings": [
         { "id": "F1", "source": "review", "severity": "bug", "file": "src/app/prune.ts", "line": 42,
-          "message": "…", "suggestion": "…", "outcome": "fixed", "history": [] },
+          "message": "prune deletes a run whose worktree is still registered",
+          "lens": "edge", "escape": "omission", "criterion": "ac-prune-live-worktree",
+          "suggestion": "…", "outcome": "fixed", "history": [] },
         { "id": "F2", "source": "review", "severity": "deviation", "file": "src/app/prune.ts", "line": 88,
-          "message": "a registry entry without a worktree is kept", "suggestion": "…", "outcome": "awaiting", "history": [] },
-        { "id": "F4", "source": "review", "severity": "info", "file": "src/cli/commands/prune.ts", "line": null,
-          "message": "…", "suggestion": "…", "outcome": "open", "history": [] },
+          "message": "a registry entry without a worktree is kept",
+          "lens": "acceptance", "escape": "wrong-oracle", "criterion": "ac-prune-orphans",
+          "suggestion": "…", "outcome": "awaiting", "history": [] },
         { "id": "C1", "source": "compliance", "severity": "deviation", "phase": "phase-02", "dimension": "tests",
           "message": "phase-02 planned a registry test it did not write", "outcome": "fixed", "history": [] }
       ]
     }
-    # source: review | compliance, with per-variant keys: a compliance finding has phase and dimension, and no file, line or suggestion
-    # outcome: fixed | open | dismissed | awaiting. It is written as open and updated only by phax (review-plan, append).
-    # history: append-only operator decisions in the decided-verdict shape of `phax artifact decide`
-    #   ({ kind: decided, chosen, abandoned, why, advocate, principles, reversibility, by: { kind: operator, name }, at, revised: [] })
-    # $schema: the `code-review` format, registered and snapshotted like every persisted format
-    # ids: run-unique F<n> and C<n>, with numbering continuing across passes
+    # a compliance finding has phase and dimension, and no file, line, lens, escape, criterion or suggestion
+    # outcome: fixed | open | dismissed | awaiting, kept up to date by phax
+    # history: the operator's decisions on the finding, oldest first
 
 ### cli: phax review-plan <run> — normative
 
@@ -1041,20 +1057,30 @@ after:
 - Phase decision requests. Runs stay autonomous: nothing in an appended phase stops to wait for a person.
 - Approving or appending from inside a run's worktree. The phase guard is unchanged, and the commands reach the run from the checkout. The new `review-plan` command joins the refused class: it is refused inside a phase worktree, as `review-code` is.
 - Storing a PR's state. phax reads it live through `gh`, and run-status gains no field.
+- The review map that phax computes for the reviewer (`review-map`), changes to how oracles are written (failing for the right reason, frozen generators, fixed seeds), and statistics on escapes across runs.
+- A migration of `code-review.json`. No such file exists yet: the format is born with `lens`, `escape` and `criterion`.
 
 ## 8. Acceptance criteria
 
 ### Headless review writes findings and stops
 
-Given A `review_open` run `usage-cli` with no pass. Its compliance review has verdict `conformant-with-deviations` and one `deviation` finding on `phase-02`., when `phax review-code usage-cli --headless` runs, and the session returns a valid code-review document with two findings., then The provider was invoked without a terminal. The pass-1 `code-review.json` holds `F1` and `F2` (source `review`) and `C1` (source `compliance`, phase `phase-02`), all at outcome `open` with empty history. Its `pass.json` has outcome `reviewed`, mode `none` and threshold null. The run's records carry both files. No worktree file outside `.phax-context/` changed, and the run is still `review_open`. `code-review-session.json` names the session, and a later `phax review-code usage-cli` resumes it. The exit code is 0. (refs §5.1, §5.7, §5.5, §5.6, §5.9)
+Given A `review_open` run `usage-cli` with no pass. Its compliance review has verdict `conformant-with-deviations` and one `deviation` finding on `phase-02`., when `phax review-code usage-cli --headless` runs, and the session returns a valid code-review document with two findings., then The provider was invoked without a terminal. The pass-1 `code-review.json` holds `F1` and `F2` (source `review`) and `C1` (source `compliance`, phase `phase-02`), all at outcome `open` with empty history. `F1` and `F2` carry the `lens`, `escape` and `criterion` the session gave; `C1` carries none of the three. Its `pass.json` has outcome `reviewed`, mode `none` and threshold null. The run's records carry both files. No worktree file outside `.phax-context/` changed, and the run is still `review_open`. `code-review-session.json` names the session, and a later `phax review-code usage-cli` resumes it. The exit code is 0. (refs §5.1, §5.7, §5.5, §5.6, §5.9)
 
 ### The review brief carries compliance and earlier outcomes
 
-Given A run whose pass 1 ended with `F1` fixed, `F2` awaiting and `F3` open, and whose latest compliance verdict is `conformant`., when `phax review-code <run> --headless` runs, and the session returns one finding., then The recorded session prompt contains the verdict `conformant` and lists `F1` fixed, `F2` awaiting and `F3` open. The new finding is numbered `F4`, and it sits in the pass-2 `code-review.json`. (refs §5.2, §5.5)
+Given A run whose pass 1 ended with `F1` fixed, `F2` awaiting and `F3` open, and whose latest compliance verdict is `conformant`. Its source spec's sidecar has the acceptance criterion `ac-prune-live-worktree`., when `phax review-code <run> --headless` runs, and the session returns one finding., then The recorded session prompt contains the verdict `conformant` and lists `F1` fixed, `F2` awaiting and `F3` open, and names `ac-prune-live-worktree`. The new finding is numbered `F4`, and it sits in the pass-2 `code-review.json`. (refs §5.2, §5.5)
 
 ### Invalid review opens no pass
 
-Given A headless review session that returns prose, and another that returns a finding with severity `style`., when Each session ends., then Each command exits 5. The second names `findings[0].severity`. No `code-review.json` exists for a new pass, and the run's pass count is unchanged. (refs §5.3, §5.4)
+Given A headless review session that returns prose, one that returns a finding with severity `style`, one that returns a finding with escape `flaky`, and one that returns a finding without a `criterion` key., when Each session ends., then Each command exits 5. The second names `findings[0].severity`, the third `findings[0].escape` and the fourth `findings[0].criterion`. No `code-review.json` exists for a new pass, and the run's pass count is unchanged. (refs §5.3, §5.4)
+
+### The headless review follows the review skill
+
+Given A `review_open` run, first with no `.claude/skills/phax-review/SKILL.md` in its final-phase worktree, then with a project copy committed on the run branch., when `phax review-code <run> --headless` runs each time., then The first recorded session prompt carries the bundled `phax-review` skill, the second the project copy, each named with its source, as the interactive `phax review-code` prompt names it. (refs §5.2)
+
+### The skill and the schema share the lens and escape ids
+
+Given The bundled `phax-review` skill and the code-review document schema., when The repository's tests run, and then an escape id is added to the skill's table alone., then The skill's lens ids equal the schema's `lens` literals and its escape ids the schema's `escape` literals. With the escape id added to the skill alone, a test fails naming it. (refs §5.3)
 
 ### Interactive review unchanged
 
@@ -1255,7 +1281,38 @@ Given A shell inside a phase worktree., when `phax review-plan <run>` runs., the
 
 ## 9. Open questions
 
-None.
+### Q14 — Does phax check a review finding's `criterion` against the run's source spec?
+
+- check-sidecar — Reject an id the source spec's sidecar lacks (exit 5, no pass opened); with no source spec only null passes; with a spec that has no sidecar the id is recorded as given — abandons: one rule for every run: a hand-authored spec's ids go unchecked, so a typo there is kept
+- always-reject — Reject any id phax cannot find in a source spec sidecar, so a run with a hand-authored spec or no spec takes null only — abandons: the criteria of every hand-authored spec: its reviewer cannot name one at all
+- record — Record the id as given, never checked — abandons: the guarantee that a named criterion exists: a typo silently breaks every join on it, coverage and the review map alike
+
+Recommendation: check-sidecar — It is the rule test lines already follow: `phax plans lint` reports an unknown criterion id as an error and checks none when the spec has no sidecar. A rejected document costs one more session, while a wrong id outlives the run in its records.
+
+### Q15 — What does a review plan do with a finding whose escape says a test was wrong or missing (`wrong-oracle`, `omission`, `unexplored-input`), and does `phax-decide-review` gain a principle keyed on the escape?
+
+- oracle-pair — A `wrong-oracle` finding waits for the operator (`R4`); an `omission` or `unexplored-input` finding is fixed by an oracle pair, one phase writing the missing test, failing, and a later phase making it pass without editing it; `phax-decide-review` gains `R8` saying so — abandons: a person's reading of the new test before it judges the fix: a machine-written oracle is appended, and only the PR review sees it
+- escalate — All three wait for the operator in a headless plan, as `R4` already has wrong oracles wait; `phax-decide-review` gains `R8` saying so — abandons: the loop's reach: the findings most worth a test never get one without a person, and each keeps the PR a draft
+- test-in-fix — The fix phase writes the missing test together with the code it fixes; `R4` still keeps `wrong-oracle` findings away from fixes — abandons: oracle separation: the agent that writes the fix writes the test that judges it, the `same-author` escape again
+- no-rule — The escape changes nothing in the plan, and the doctrine is unchanged — abandons: the point of the escape: a review that finds a missing test fixes the code and leaves the test missing
+
+Recommendation: oracle-pair — Runs already discharge oracle pairs, and an oracle phase writes the test before the code it judges changes, which keeps `R4`'s separation. A wrong oracle stays a person's call, because changing what judges the code is never a fix. The machine-written oracle is the accepted loss: it is reviewed in the PR with the rest of the run.
+
+### Q16 — Where does a review finding's escape show?
+
+- finding-lines — On the PR body's existing finding lines (the awaiting and dismissed findings), and in `code-review.json` and the records — abandons: the escapes of the fixed findings where a person reads: they show only in the files
+- pr-row — A count per escape in each `### Review passes` row, plus the files — abandons: the short PR body: seven more columns on every reviewed run, read by the person who needs them least (`C5`)
+- ls — A count per escape in `phax ls` and `phax ls --json`, plus the files — abandons: the reader of the PR: the escape stays in the terminal of whoever ran the loop
+- files-only — Only in `code-review.json` and the records, for a later report across runs — abandons: any visible feedback until that report exists: nobody sees why the tests missed a finding
+
+Recommendation: finding-lines — Those lines already exist and already ask for a person; one word on each says whether the fix wants a test. Counts by escape answer a question about the test strategy across runs, which belongs to the later report, and the files keep every escape for it.
+
+### Q17 — Does an interactive `phax review-code` session write a code-review document?
+
+- conversation — No: the interactive session stays a conversation, and `phax review-code <run> --headless` afterwards resumes that same session and writes its findings as a pass — abandons: a single step: the person runs a second command to keep what the conversation found
+- document — Yes, when the person asks: on exit phax resumes the session headless for the document, as `phax artifact decide` does, and opens a pass — abandons: the interactive command left as it is: it gains a pass, an exit code and a refusal path, against this spec's non-goal
+
+Recommendation: conversation — The headless command already resumes the recorded session unless `--new-session` is given, so the conversation's findings reach a pass with no change to the interactive command, which this spec keeps unchanged.
 
 ## 9b. Arbitrated questions
 
@@ -1413,6 +1470,7 @@ Settled:
   - The PR's state is read live through `gh`, and a closed or merged PR is refused.
   - `pass.json` has a defined lifecycle.
   - The publish-pr steps are idempotent.
+- Revised on 2026-10-27 from the brief `review-escape` (the operator's direction of 2026-10-23): a review finding carries required `lens`, `escape` and `criterion`, the first two closed literals of the review skill's ids, the third an acceptance criterion id or null; a compliance finding keeps `phase` and `dimension` and carries none of the three; the headless review session follows `phax-review` with the project-copy rule of `review-code`; there is no migration, since no `code-review.json` exists.
 
 Left open:
 
@@ -1433,6 +1491,8 @@ Constraints:
 - The docs page `docs/review-as-plan.md` gets its entry in `site/pages.ts`.
 - The GitHub edge gains four operations, driven through `gh`: create a draft PR, mark a PR ready for review, edit a PR's body, and read a PR's state (draft, ready, closed, merged). The plan designs how they reach the GitHub port, and where a run records that its PR is a draft.
 - The phase guard's table gains `review-plan` as refused, and `plans lint` gains `--run`.
+- The `lens` and `escape` literals of the code-review document schema and the ids the bundled `phax-review` skill lists are one vocabulary: a test reads the skill's lens list and escape table and compares them with the schema, so changing one without the other fails.
+- The review skill's `In the session` steps address a person in the session. The headless review brief replaces them: report the findings as the code-review document, propose and apply nothing.
 
 ## 11. Docs page
 
