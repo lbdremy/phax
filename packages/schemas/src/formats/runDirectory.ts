@@ -1,5 +1,5 @@
 // The files of a phax run directory: the run registry, run status, phase
-// status, phax-plan, compliance review and cost ledger. Each pre-schema shape
+// status, phax-plan, compliance review, cost ledger and code review. Each pre-schema shape
 // is phax's frozen module under src/schemas/history/; each current shape,
 // named by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own
 // schema and decoder. The package declares none of its own. phax-plan also
@@ -17,6 +17,12 @@ import {
   type ComplianceReviewFile,
 } from "../../../../src/schemas/complianceReview.js";
 import {
+  CodeReviewFileSchema,
+  decodeCodeReviewFile,
+  type CodeReview,
+  type CodeReviewFile,
+} from "../../../../src/schemas/codeReview.js";
+import {
   CostLedgerFileSchema,
   decodeCostLedgerFile,
   type CostLedger,
@@ -27,6 +33,11 @@ import {
   decodeCostLedgerV0_25_0,
   type CostLedgerV0_25_0,
 } from "../../../../src/schemas/history/cost-ledger/0.25.0.js";
+import {
+  CostLedgerV0_26_0Schema,
+  decodeCostLedgerV0_26_0,
+  type CostLedgerV0_26_0,
+} from "../../../../src/schemas/history/cost-ledger/0.26.0.js";
 import {
   ComplianceReviewPreSchemaSchema,
   decodeComplianceReviewPreSchema,
@@ -397,7 +408,7 @@ export function toLatestComplianceReview(
 // Born with `$schema`: no pre-schema shape, and a document without `$schema`
 // is unreadable. It refuses a key it does not name, at any level.
 
-export type CostLedgerShapes = { "0.25.0": CostLedgerV0_25_0 } & {
+export type CostLedgerShapes = { "0.25.0": CostLedgerV0_25_0; "0.26.0": CostLedgerV0_26_0 } & {
   [K in CurrentShapeName<"cost-ledger">]: CostLedgerFile;
 };
 
@@ -408,7 +419,10 @@ export const costLedgerFormat = defineFormat<CostLedgerShapes>({
   id: "cost-ledger",
   label: "cost ledger",
   preSchema: null,
-  releases: [["0.25.0", { schema: CostLedgerV0_25_0Schema, decode: decodeCostLedgerV0_25_0 }]],
+  releases: [
+    ["0.25.0", { schema: CostLedgerV0_25_0Schema, decode: decodeCostLedgerV0_25_0 }],
+    ["0.26.0", { schema: CostLedgerV0_26_0Schema, decode: decodeCostLedgerV0_26_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["cost-ledger"],
     shape: { schema: CostLedgerFileSchema, decode: decodeCostLedgerFile },
@@ -424,9 +438,48 @@ export type LatestCostLedger = CostLedger;
 
 /**
  * Upgrades a parsed cost ledger in memory: drops `$schema`, keeps every other
- * fact. A 0.25.0 ledger's entries are valid current entries as they are.
+ * fact. A 0.25.0 or 0.26.0 ledger's entries are valid current entries as they are.
  */
-export function toLatestCostLedger(value: CostLedgerFile | CostLedgerV0_25_0): LatestCostLedger {
+export function toLatestCostLedger(
+  value: CostLedgerFile | CostLedgerV0_25_0 | CostLedgerV0_26_0,
+): LatestCostLedger {
   const { $schema: _schema, ...ledger } = value;
   return ledger;
+}
+
+// ── code review
+
+// Born with `$schema`: no pre-schema shape and no earlier release, and a
+// document without `$schema` is unreadable. It refuses a key it does not name,
+// at any level.
+
+export type CodeReviewShapes = {
+  [K in CurrentShapeName<"code-review">]: CodeReviewFile;
+};
+
+/** The id of every code review shape the package reads. */
+export type CodeReviewShape = keyof CodeReviewShapes;
+
+export const codeReviewFormat = defineFormat<CodeReviewShapes>({
+  id: "code-review",
+  label: "code review",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["code-review"],
+    shape: { schema: CodeReviewFileSchema, decode: decodeCodeReviewFile },
+  },
+});
+
+/** Reads a run's `code-review.json`. Never throws. */
+export const parseCodeReview: (input: unknown) => ParsedShape<CodeReviewShapes> =
+  codeReviewFormat.parse;
+
+/** The latest code review: phax's in-memory value, with no `$schema`. */
+export type LatestCodeReview = CodeReview;
+
+/** Upgrades a parsed code review in memory: drops `$schema`, keeps every finding. */
+export function toLatestCodeReview(value: CodeReviewFile): LatestCodeReview {
+  const { $schema: _schema, ...review } = value;
+  return review;
 }

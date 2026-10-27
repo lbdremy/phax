@@ -43,14 +43,14 @@ export function messageCostUsd(usage: StreamMessageUsage, price: ModelListPrice)
 
 /**
  * Which invocation an entry records: a phase's turn, fix, handoff, or an
- * interactive phase's first or closing turn, or the run's compliance review.
+ * interactive phase's first or closing turn, or the run's compliance or code review.
  */
 export type InvocationRole =
   | {
       readonly role: "phase" | "fix" | "handoff" | "first-turn" | "closing-turn";
       readonly phase: string;
     }
-  | { readonly role: "compliance"; readonly phase: null };
+  | { readonly role: "compliance" | "code-review"; readonly phase: null };
 
 type LedgerEntryInput = InvocationRole & {
   readonly facts: ClaudeStreamFacts;
@@ -254,7 +254,7 @@ export function ledgerEntryFor(input: LedgerEntryInput): CostLedgerEntry | null 
 
   const earlierCostUsd = earlier.reduce((sum, entry) => sum + entry.costUsd, 0);
   const ref: InvocationRole =
-    input.role === "compliance"
+    input.phase === null
       ? { role: input.role, phase: null }
       : { role: input.role, phase: input.phase };
   return {
@@ -289,6 +289,7 @@ const PHASE_FOLDER = /^phase-(\d{2,})(?:\.reset-(.+))?$/;
 const FIX_STREAM = /^fix-attempt-(\d{2,})\.jsonl$/;
 const TURN_STREAM = /^(first-turn|closing-turn)-(\d{2,})(-retry)?\.jsonl$/;
 const COMPLIANCE_STREAM = "compliance-review.session.jsonl";
+const CODE_REVIEW_STREAM = "code-review.session.jsonl";
 
 /** Whether a run folder entry is a phase folder, live (`phase-01`) or reset (`phase-01.reset-<stamp>`). */
 export function isPhaseFolderName(name: string): boolean {
@@ -347,7 +348,8 @@ function phaseFolderStreams(folder: string, phase: string, names: readonly strin
 /**
  * A run folder's kept Claude invocation streams in the order the run wrote
  * them: phases by id, each phase's `.reset-<stamp>` folders in ascending stamp
- * order before its live folder, and the compliance review last. Any other
+ * order before its live folder, then the compliance review and the code
+ * review. Any other
  * name is ignored.
  */
 export function runStreamsInOrder(runFolder: RunFolderListing): RunStream[] {
@@ -368,6 +370,9 @@ export function runStreamsInOrder(runFolder: RunFolderListing): RunStream[] {
   );
   if (runFolder.entries.includes(COMPLIANCE_STREAM)) {
     streams.push({ role: "compliance", phase: null, relativePath: COMPLIANCE_STREAM });
+  }
+  if (runFolder.entries.includes(CODE_REVIEW_STREAM)) {
+    streams.push({ role: "code-review", phase: null, relativePath: CODE_REVIEW_STREAM });
   }
   return streams;
 }
@@ -390,7 +395,7 @@ export function ledgerFromStreams(
   let ledger: CostLedger = { entries: [] };
   for (const stream of streams) {
     const role: InvocationRole =
-      stream.role === "compliance"
+      stream.phase === null
         ? { role: stream.role, phase: null }
         : { role: stream.role, phase: stream.phase };
     const entry = ledgerEntryFor({

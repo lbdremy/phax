@@ -60,7 +60,7 @@ function keptStreams(runFolder: string): Effect.Effect<KeptStream[], FsError, Fi
       const facts = parseClaudeStream((yield* fs.readText(path)).split("\n"));
       const endedAt = yield* fs.modifiedAt(path);
       streams.push(
-        stream.role === "compliance"
+        stream.phase === null
           ? { role: stream.role, phase: null, facts, endedAt }
           : { role: stream.role, phase: stream.phase, facts, endedAt },
       );

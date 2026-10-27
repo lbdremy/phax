@@ -39,17 +39,17 @@ const escapes = (() => {
 })();
 
 describe("the bundled phax-review skill and the code-review contract", () => {
-  it.fails("lists the same severity ids", () => {
+  it("lists the same severity ids", () => {
     expect(severities.length).toBeGreaterThan(0);
     expect(severities.toSorted()).toEqual(CODE_REVIEW_SEVERITIES.toSorted());
   });
 
-  it.fails("lists the same lens ids", () => {
+  it("lists the same lens ids", () => {
     expect(lenses.length).toBeGreaterThan(0);
     expect(lenses.toSorted()).toEqual(CODE_REVIEW_LENSES.toSorted());
   });
 
-  it.fails("lists the same escape ids", () => {
+  it("lists the same escape ids", () => {
     expect(escapes.length).toBeGreaterThan(0);
     expect(escapes.toSorted()).toEqual(CODE_REVIEW_ESCAPES.toSorted());
   });

@@ -69,9 +69,7 @@ export function nextLedger(
   endedAt: string,
 ): string | null {
   const role: InvocationRole =
-    opts.role === "compliance"
-      ? { role: opts.role, phase: null }
-      : { role: opts.role, phase: opts.phase };
+    opts.phase === null ? { role: opts.role, phase: null } : { role: opts.role, phase: opts.phase };
   const entry = ledgerEntryFor({
     ...role,
     facts: parseClaudeStream(streamText.split("\n")),

@@ -40,6 +40,7 @@ import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import { decideVerdictsFormat, handDecisionAnswerFormat } from "../src/formats/answers.js";
 import {
+  codeReviewFormat,
   complianceReviewFormat,
   costLedgerFormat,
   phaseStatusFormat,
@@ -110,6 +111,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "hand-decision-answer": handDecisionAnswerFormat,
   "decision-record-manifest": decisionRecordManifestFormat,
   "review-record-manifest": reviewRecordManifestFormat,
+  "code-review": codeReviewFormat,
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
@@ -149,6 +151,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "hand-decision-answer": "error",
   "decision-record-manifest": "error",
   "review-record-manifest": "error",
+  "code-review": "error",
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",

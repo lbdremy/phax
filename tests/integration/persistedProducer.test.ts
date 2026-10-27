@@ -797,6 +797,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",
+  // Nothing writes code-review.json yet: phase-03 of plan headless-code-review
+  // adds the writer and removes this entry.
+  "code-review",
 ];
 
 describe("every persisted file phax writes", () => {
