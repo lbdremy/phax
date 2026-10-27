@@ -376,12 +376,19 @@ Given a run whose fix turn runs on Codex with tracing on, when the fix turn runs
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-network-exit — Which exit code does a command exit with when its session fails with kind `network`?
 
 - share-8 — Share exit 8 with rate and usage limits, widened to "transient provider failure (resumable)" — abandons: Telling a limit from an outage by exit code: a wrapper that waits for a limit's reset time gets a network failure that has no reset time and must read the terminal to know whether to retry now or wait hours.
 - new-14 — A new exit 14, "Provider unreachable: network failure (resumable)" — abandons: Existing scripts keyed on 8 as "resumable, retry later": they treat a network failure as a hard failure until they learn 14.
 
 Recommendation: new-14 — An outage and a limit call for different retries (now versus after a reset), and phax prefers explicit per-case values over a widened one; the loss falls on scripts written against a code that never covered network failures, which are failing as exit 5 today anyway.
+
+Decision: new-14 — by operator (Rémy Loubradou), 2026-10-27
+Why: An outage and a limit call for different retries (now versus after a reset), and phax prefers explicit per-case values over a widened one; the loss falls on scripts written against a code that never covered network failures, which are failing as exit 5 today anyway. Advocate: The strongest case for share-8: scripts already treat 8 as resumable and retry-later, so a network failure joins that behavior at once with no new code to learn, and the README table gains no row. Principles: S1, S5. Reversibility: costly. Revised: none.
 
 ### q-record-kind — Does a failed decision record carry the failure kind (r-record-kind), or does the kind live only in the local agent-error.log?
 
@@ -390,9 +397,8 @@ Recommendation: new-14 — An outage and a limit call for different retries (now
 
 Recommendation: record-kind — The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: record-kind — by operator (Rémy Loubradou), 2026-10-27
+Why: The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change. Advocate: The strongest case for log-only: the decision record format stays at 0.28.0, no reader learns a new shape, and the failure kind is operational detail that belongs in a local log rather than in a durable shared record. Principles: S1, S5. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -428,3 +434,8 @@ Page: Troubleshooting a failed agent session
 Reader: An operator whose phax command just failed on an agent session and who wants to know whether to retry, resume or fix something.
 
 Example: The DNS outage case: the terminal's `claude-code session failed (network)` line, the agent-error.log it names, the record refusal that follows it, and the retry or `phax resume` it suggests; then the exit code table rows 5, 8 and 14.
+
+## 12. Decision log
+
+- 2026-10-27 q-network-exit decided new-14 — operator (Rémy Loubradou)
+- 2026-10-27 q-record-kind decided record-kind — operator (Rémy Loubradou)

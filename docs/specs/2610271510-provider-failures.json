@@ -462,7 +462,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-network-exit",
       "question": "Which exit code does a command exit with when its session fails with kind `network`?",
@@ -479,7 +480,28 @@
         }
       ],
       "recommendation": "new-14",
-      "rationale": "An outage and a limit call for different retries (now versus after a reset), and phax prefers explicit per-case values over a widened one; the loss falls on scripts written against a code that never covered network failures, which are failing as exit 5 today anyway."
+      "rationale": "An outage and a limit call for different retries (now versus after a reset), and phax prefers explicit per-case values over a widened one; the loss falls on scripts written against a code that never covered network failures, which are failing as exit 5 today anyway.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "new-14",
+        "abandoned": [
+          "share-8"
+        ],
+        "why": "An outage and a limit call for different retries (now versus after a reset), and phax prefers explicit per-case values over a widened one; the loss falls on scripts written against a code that never covered network failures, which are failing as exit 5 today anyway.",
+        "advocate": "The strongest case for share-8: scripts already treat 8 as resumable and retry-later, so a network failure joins that behavior at once with no new code to learn, and the README table gains no row.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T15:27:21.548Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-record-kind",
@@ -497,10 +519,30 @@
         }
       ],
       "recommendation": "record-kind",
-      "rationale": "The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change."
+      "rationale": "The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "record-kind",
+        "abandoned": [
+          "log-only"
+        ],
+        "why": "The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change.",
+        "advocate": "The strongest case for log-only: the decision record format stays at 0.28.0, no reader learns a new shape, and the failure kind is operational detail that belongs in a local log rather than in a durable shared record.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-27T15:27:21.548Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "One session-outcome reader per provider (Claude Code, Codex, Mistral Vibe), returning an answer or a failure with kind, provider message and session id when there is one; every caller and both `runAgent`/`resumeAgentSession` and `complete` go through it.",
