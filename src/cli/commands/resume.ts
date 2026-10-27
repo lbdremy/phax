@@ -263,7 +263,7 @@ export async function runResume(
   try {
     const program = withRunLock(
       runKey(namespace, shortName),
-      Effect.flatMap(readBundledReviewSkillForRun(config), (bundledReviewSkill) =>
+      Effect.flatMap(readBundledReviewSkillForRun(config, out), (bundledReviewSkill) =>
         executePlan({
           bundledReviewSkill,
           shortName,
