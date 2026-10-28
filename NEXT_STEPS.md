@@ -17,8 +17,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 ### Approved, not yet planned
 
 - [ ] **`provider-failures`** — `docs/specs/2610271510-provider-failures.md`, approved 2026-10-27
-      (brief `docs/briefs/provider-failures.md`). Plan it first: `structured-output` builds on its
-      reader. One session-outcome reader per provider returns the answer or a typed failure
+      (brief `docs/briefs/provider-failures.md`), 0.30.0 with `vibe-3` (#170, merged 2026-10-28),
+      whose Vibe export it reads. Plan it next: `structured-output` builds on its reader. One session-outcome reader per provider returns the answer or a typed failure
       (network, rate or usage limit, provider error, max turns, killed, unknown) with the
       provider's message; a network failure exits 14 with a retry hint; the failed decision record
       gains a required `failure`, and `review-stop.json` a `network` result (both 0.29.0);
@@ -88,6 +88,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-27 | `release-notes-layout` (#167, no spec) | 2 × sonnet-5-5 / medium | $2.51 | 1 / 2 | The plan let a surface summary that opens with a Markdown block marker (`1. `, `- `, `> `, a fence) split its bullet; the builder now escapes it. Execution let the GitHub short body silently drop a What's new item that does not open with a paragraph (now refused, naming the line) and pinned the site's `Before` fold only at one nesting level. In review the operator moved Highlights to lead with the guiding rule, then the lede. The examples read poorly because the specs' surface `before`/`after` were written for implementers: the 0.28.0 spec sidecars were rewritten for readers on main (58384a91) and the `phax-spec` skill now says so (7626d179). phase-02's `releaseCut.test.ts` failure was a background suite racing the agent's own write of `docs/releases/0.28.0.md`. |
 | 2026-10-27 | `headless-code-review` plan 1, review records (#168) | 2 × sonnet-5-5 / medium | $4.20 (one $0.20 fix attempt) | 2 / 5 | The plan read the review's records target from the project the command runs in, so `phax review-compliance <ns>.<run>` from another project committed that run's review to the wrong records branch and could push it to the wrong remote (now: the run's own project, read from its main checkout); and it left the help saying "non-mutating". Execution let a by-hand rerun commit the previous invocation's `compliance-review.json`, gave a missing dedicated clone `spawn git ENOENT` instead of `deferred-destination`, hard-coded `<run>` in the retry command, embedded git's raw multi-line stderr, and printed nothing on success. The plan review caught a test judging "beside the phase records" on one tree (each records commit holds only its own files) and seven exhaustive format registries left optional. |
 | 2026-10-28 | `headless-code-review` plan 2, the headless code review (#169) | 5 × sonnet-5-5 / medium, with one oracle pair | $7.24 ($6.57 for the phases, one $0.07 fix attempt) | 2 / 5 | The plan ran the headless review under the compliance review's posture, answering through a `.phax-context/code-review.json` file: it could edit tracked files and could not run the git its prompt promised (now read-only like headless authoring, answering in its final message, with a worktree snapshot that puts back any change and refuses the answer); and it left `review.code.enabled` out of the config merge, so an overlay dropped it and the review silently never ran. Execution committed a stray `codeReviewSkillIds.test.ts-E` (macOS `sed -i -E`), could leave `code-review.json` and its session file out of step, told every provider to resume through `phax review-code` with a `<session-id>` placeholder, let `@scope` tokens in model text mention GitHub users on the PR, and named only the first allowed id in a refusal. phase-05's second gate attempt was the `releaseCut.test.ts` `afterAll` timeout. |
+| 2026-10-28 | `mistral-vibe-3` (#170) | 3 × sonnet-5-5 / medium-high, 1 × opus-5-5 / medium (with a reason), 1 × sonnet-5-5 / medium; first run with the headless code review on | $16.37 ($12.26 for the phases, $0.79 in fix attempts, $2.59 for the code review) | 5 / 3 | The plan passed every writable root as `--add-dir`, which Vibe trusts as a project and whose `.vibe/` hooks and agents it loads, so a phase agent could plant config a later session would run (now: no `--add-dir` in read-only sessions, writes to `.vibe/` and `.agents/` denied, a root holding one refused). It relied on `VIBE_*` variables that a person's `accept-edits` profile outranks (now refused before spawning, and every confined turn's effective config is checked from its export). It recorded a Vibe phase's usage from its first turn only, gave read-only sessions without commands no `VIBE_TOOLS`, and left MCP and connectors on. Execution wrote a real e2e whose assertions the prompt in the stream satisfied, read a stale `export.json`, and pointed three refusals at a missing `agent-error.log`. The real e2e then found the Mistral API serves only `none`/`high` reasoning, so the catalog keeps two levels. The headless code review: 7 findings, 6 confirmed and 1 partly; it missed both security bugs and MCP, which the PR review found by reading Vibe's source. phase-05 burned two gate attempts on load timeouts (`releaseCut`, `plansEstimateCommand`) and one on `knip`. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -149,7 +150,24 @@ desktop — none is promised by the announcement.
 - [ ] **`releaseCut.test.ts` times out in `afterAll`.** Its 30 s hook failed a phase gate a third
       time on 2026-10-27 (`headless-code-review` phase-05, attempt 2); a resume passed. Find what the
       teardown waits on, or give the hook its own budget, so a green phase does not burn a gate
-      attempt.
+      attempt. A fourth hit on 2026-10-28 (`mistral-vibe-3` phase-05), with
+      `plansEstimateCommand.test.ts`'s 5 s test timeout in the next attempt: both pass alone, so
+      the full suite under a phase's load is too slow for these budgets.
+- [ ] **The Vibe "loose config" e2e case has never run.** `tests/e2e/vibeSecure.test.ts` checks
+      that a hostile `VIBE_HOME` config cannot widen a secure session. A temporary `VIBE_HOME` has no
+      sign-in (Vibe keeps it in the macOS Keychain under the real home), so the case needs
+      `MISTRAL_API_KEY` and is skipped without it. The other five cases passed against Vibe 3.0.3
+      on 2026-10-28. Run it once with a key.
+- [ ] **`phax agent setup providers --write` re-enables every installed provider.** On 2026-10-28
+      it turned Codex on for an operator who wanted only Claude Code and Vibe, and it had written
+      every catalog model into `providers.json`, so the three retired Mistral ids later had to be
+      removed by hand. Let it enable only the providers named, or keep a provider the person
+      disabled disabled.
+- [ ] **A Vibe `accept-edits` profile reached through `agent_paths` is caught only after the
+      turn.** #170 refuses `$VIBE_HOME/agents/accept-edits.toml` before spawning, but a profile in a
+      directory named by Vibe's `agent_paths` setting is caught only by the post-turn config check,
+      once the turn has run. Read `agent_paths` from the config phax already decodes and refuse
+      the same way.
 - [ ] **Phase agents on macOS leave `-E` backups from `sed -i -E`.** BSD `sed` reads `-E` as the
       backup suffix, so `sed -i -E …` writes `<file>-E` beside each edited file. One was committed
       in `headless-code-review` phase-01. Tell phase agents to edit with their file tools, or refuse
@@ -165,11 +183,6 @@ desktop — none is promised by the announcement.
       same agent ran `pnpm test`, the site build and `deno:smoke` at once, and a file failed to load.
       Keep Deno from touching `node_modules` (`nodeModulesDir: "none"` or a separate dir), and tell
       phase agents not to run the gate's commands concurrently.
-- [ ] **Headless authoring can run on Mistral Vibe, which ignores `readOnly`.** Found 2026-10-26
-      reviewing #165: `src/infra/providers/mistralVibe.ts` drops `options.readOnly`, so a headless
-      spec or plan session routed to Vibe runs auto-approved and can write or run anything in the
-      repository unnoticed. Verdicts mode now refuses a Vibe writer; give the Vibe adapter a
-      read-only mode, or refuse Vibe for every read-only session the same way.
 - [ ] **`phax artifact approve` approves a plan whose slug differs from its spec's.** Found
       2026-10-25 while verifying #163: `artifact new plan tally --spec …-tally-counter.md` makes a
       plan that `phax plans lint` refuses (`slug "tally" differs from source spec slug
