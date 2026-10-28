@@ -9,23 +9,26 @@
     "requiredCommands": []
   },
   "preamble": {
-    "summary": "Implements the whole of the provider-failures spec (§5.1 to §5.19, every §6 surface, every acceptance criterion). Each provider (Claude Code, Codex, Mistral Vibe) gets one pure session-outcome reader that turns an ended session into an answer or a failure. A failure carries a failure kind, the provider's own message and the session id when the provider reported one. The reader reads the provider's final result event first, then the transcript's last error event, then stderr, and never reads tool output or model text. Every adapter goes through these readers. The work runs in this order: an oracle pair freezes the reader's table of transcripts and kinds (phase-01, phase-02); the adapters raise typed session failures, write agent-error.log with the cause first, and map a network failure to exit 14 (phase-03); every command prints the cause, the files and a retry hint (phase-04); a run pauses on a network failure, a failed handoff turn is reported as itself, and fix-loop telemetry names its provider (phase-05); a stop's closing turn records a `network` close at review-stop 0.30.0 (phase-06); a failed decision record carries a required `failure` at 0.30.0 (phase-07); and an unknown visibility quotes gh, the cause prints before any secondary refusal, and the troubleshooting page lands (phase-08). Build on vibe-3 (#170): Vibe 3.0.3 writes an export.json on every exit, decoded by src/schemas/vibeExport.ts, whose outcome is reliable on 3.0.3. Only the outcome reading of the Vibe adapter changes. The decision-record-manifest `next` snapshot at 0.30.0 and its frozen 0.28.0 module already exist; review-stop moves from 0.26.0 to 0.30.0 here. Tests never read ~/.phax, a real ~/.claude, ~/.codex or ~/.vibe, the global git config or the real gh: they use tests/helpers/isolateGit.ts, temporary directories, makeFakeGitHub(), the fake backend, tests/helpers/fakeProviderCli.ts, and the fake `vibe` of tests/helpers/vibe3Fixtures.ts.",
-    "requiredCommandsNote": "No new command. The configured `standard` gate verifies every phase. `pnpm exec tsx scripts/schemas-check.ts --write` (phases 06 and 07) is covered by the existing `pnpm exec tsx` allowance. No phase changes a command's help text, so `pnpm gen:usage-spec` and `pnpm docs:cli` are not needed (exit codes appear in no help text). Run them only if a phase ends up changing help.",
+    "summary": "Implements the whole of the provider-failures spec (§5.1 to §5.19, every §6 surface, every acceptance criterion). Each provider (Claude Code, Codex, Mistral Vibe) gets one pure session-outcome reader that turns an ended session into an answer or a failure. A failure carries a failure kind, the provider's own message and the session id when the provider reported one. The reader reads the provider's final result event first, then the transcript's last error event, then stderr, and never reads tool output or model text. Every adapter goes through these readers. The work runs in this order: an oracle pair freezes the reader's table of transcripts and kinds (phase-01, phase-02); the adapters raise typed session failures and write agent-error.log with the cause first (phase-03); every command prints the cause, the files and a retry hint, and a network failure exits 14 (phase-04); a run pauses on a network failure, a failed handoff turn is reported as itself, and fix-loop telemetry names its provider (phase-05); a stop's closing turn records a `network` close at review-stop 0.30.0 (phase-06); a failed decision record carries a required `failure` at 0.30.0 (phase-07); and an unknown visibility quotes gh, the cause prints before any secondary refusal (decide, authoring, run and resume), and the troubleshooting page lands (phase-08). Build on vibe-3 (#170): Vibe 3.0.3 writes an export.json on every exit, decoded by src/schemas/vibeExport.ts, whose outcome is reliable on 3.0.3. Only the outcome reading of the Vibe adapter changes. The decision-record-manifest `next` snapshot at 0.30.0 and its frozen 0.28.0 module already exist; review-stop moves from 0.26.0 to 0.30.0 here. Tests never read ~/.phax, a real ~/.claude, ~/.codex or ~/.vibe, the global git config or the real gh: they use tests/helpers/isolateGit.ts, temporary directories, makeFakeGitHub(), the fake backend, tests/helpers/fakeProviderCli.ts, and the fake `vibe` of tests/helpers/vibe3Fixtures.ts.",
+    "requiredCommandsNote": "No new command. The configured `standard` gate verifies every phase. `pnpm exec tsx scripts/schemas-check.ts --write` (phases 06 and 07) is covered by the existing `pnpm exec tsx` allowance. Help text names exit codes in `src/cli/cliDocs.ts` (decide's `Exit codes:` line in both modes, review-code's failure exit, resume's refused-close exits), so phases 04 and 06 edit it and regenerate `phax.usage.kdl` and `docs/cli/reference.md` with `pnpm gen:usage-spec` and `pnpm docs:cli`, both allowed; `tests/integration/usageSpecDrift.test.ts` and `docsCliDrift.test.ts` keep them in step.",
     "technicalArbitrations": [
       "Where the reader lives and what it returns: pure readers in src/domain/session/ (entry src/domain/session/outcome.ts, one module per provider), decoders in src/schemas/ (claudeOutput.ts, codexOutput.ts, vibeExport.ts), and the adapters in src/infra/providers/ spawn, read export.json and hand the lines, stderr, the end (exit code, signal or timeout) and the export read to the reader. It returns `SessionOutcome` = `{ kind: answer, provider, text, sessionId }` | `{ kind: failure, failure: { provider, kind, message, sessionId, resetAt } }`; the answer holds only `text`, so the Structured output spec can add a structured answer beside it. Loss accepted: no single place both reads and judges a session. The Vibe adapter still opens export.json itself, so an absent or unreadable export reaches the reader as a tagged input, not as the I/O error it was.",
-      "The error a failed session raises: a new tagged `AgentSessionFailedError` (carrying the `SessionFailure`, the agent-error.log path or null, the transcript path or null, and the paused phase id when a run sets one) for kinds network, provider-error, max-turns, killed and unknown. Limits keep `RateLimitError` / `UsageLimitError`, so RateLimitDetected, `rate_limited` and exit 8 stay as they are. They are built from the same failure, with `message` the failure line and `rawMessage` the provider message. Loss accepted: two error families describe one outcome, so a caller that handles any failed session matches three tags, not one.",
-      "How a network failure is recognized: by the provider's verdict alone, matched against one shared table of connection signatures (ENOTFOUND, EAI_AGAIN, ECONNREFUSED, ECONNRESET, ETIMEDOUT, `Can't reach the API server`, `Connection error`, `error sending request`, `stream disconnected`, `dns error`, `failed to lookup address`, `nodename nor servname`, `Network is unreachable`, `getaddrinfo`). Claude Code: the `is_error` result event's `result` text (the synthetic `API Error: …`), else the last `system`/`api_retry` event's error, else stderr; the number of retries is not needed. Codex: the `turn.failed` error message, else the last `error` event, else stderr. Vibe: an export outcome other than `finished`, classified from the export's error code and message, else stderr. Loss accepted: an outage worded outside the table reads as provider-error (exit 5, not resumable) until the table learns that wording.",
+      "The error a failed session raises: a new tagged `AgentSessionFailedError` (carrying the `SessionFailure`, the agent-error.log path or null, the transcript path or null, and the paused phase id when a run sets one) for kinds network, provider-error, max-turns, killed and unknown. Limits keep `RateLimitError` / `UsageLimitError`, so RateLimitDetected, `rate_limited` and exit 8 stay as they are. They are built from the same failure, with `message` the failure line and `rawMessage` the provider message, and gain optional `agentErrorLog` and `transcript` paths, so a limit names its files too (§5.9). Loss accepted: two error families describe one outcome, so a caller that handles any failed session matches three tags, not one.",
+      "How a network failure is recognized: by the provider's verdict alone, matched against one shared table of connection signatures (ENOTFOUND, EAI_AGAIN, ECONNREFUSED, ECONNRESET, ETIMEDOUT, `Can't reach the API server`, `Connection error`, `error sending request`, `stream disconnected`, `dns error`, `failed to lookup address`, `nodename nor servname`, `Network is unreachable`, `getaddrinfo`, ENETUNREACH, EHOSTUNREACH, `Request timed out`, `fetch failed`, `socket hang up`, and the httpx wordings Vibe passes through: `Name or service not known`, `Temporary failure in name resolution`, `All connection attempts failed`, `Connection refused`, `Server disconnected without sending a response`, `Timed out connecting to the model provider`, `Timed out waiting for the model to send its response`, `The model request timed out`). Claude Code: the `is_error` result event's `result` text (the synthetic `API Error: …`), else the last `system`/`api_retry` event's error, else stderr; the number of retries is not needed. Codex: the `turn.failed` error message, else the last `error` event, else stderr. Vibe: an export outcome other than `finished`, classified from the export's `error` (`{message, code}`) and outcome, else stderr. Vibe has no network code: a network failure arrives as code `backend_error` with httpx's message, which the table matches. Loss accepted: an outage worded outside the table reads as provider-error (exit 5, not resumable) until the table learns that wording.",
       "How a run records a paused network failure: a new event `NetworkFailureDetected` beside `RateLimitDetected`, with the same dispositions and the same target states (run and phase `rate_limited`, the resume path a limit already proves). It persists `stoppedReason: network_failure` and `lastError` (the failure line), and writes resume instructions naming `phax resume <run>`. Loss accepted: run-status.json and `phax status` show the state `rate_limited` for an outage; only `stoppedReason` and `lastError` tell it from a limit. That is the price of the spec's non-goal: no failure kind and no new run state in run-status.json.",
       "A failed handoff turn: a new event `HandoffTurnFailed` takes the transitions `HandoffMissing` takes, with `missing: []`, and also persists `lastError` (the failure line) and `stoppedReason: handoff_turn_failed`, so resume re-runs only the handoff. No HandoffMissing is dispatched for it. The pause re-raises an error carrying the session failure, so the CLI prints it and exits with its code. A limit in the handoff turn keeps its own path, and so does a spawn failure (`AgentInvocationError`). Loss accepted: the phase still reads `handoff_failed`, with no missing section, after a turn that failed rather than a handoff that was incomplete.",
-      "How the CLI orders the cause and a secondary refusal. `run`, `resume` and the review commands write no record after a failed session, so they print only the cause lines. The use cases that do write one (decide in both modes, headless authoring) no longer print the record's warnings themselves. When there is one, they raise a `FailureWithFollowUpsError { cause, followUps }`; the CLI prints the cause's lines first and each follow-up after it. A follow-up reads `<kind> record refused, following the failed session: …`. `exitCodeForError` and `exitCodeForAuthoringError` unwrap the cause. Loss accepted: the same failure reaches the CLI in two shapes, depending on whether the records step had anything to say.",
-      "Vibe refusals added by #170. Refusals before a session spawns are phax refusals, not session outcomes: the version floor, a user `accept-edits` profile, Vibe config under an extra root, and a missing transcript path. They keep their errors (`AgentInvocationError`, `SecurityEnforcementError`), their messages and today's agent-error.log (argv, then the message). A missing answer, a missing or invalid export, and an invalid export session id are `provider-error` failures carrying today's messages: the provider broke its own output contract. A config mismatch after the turn stays a phax refusal of a turn that ran (`AgentInvocationError`, exit 5, message kept). Loss accepted: agent-error.log has two shapes; a refusal's log has no `failure:` header, so a reader tells a refusal from a failure by its first line.",
+      "How the CLI orders the cause and a secondary refusal. The review commands write no record after a failed session, so they print only the cause lines. The use cases that do write one no longer print the record's warnings themselves: decide in both modes, headless authoring, and a run, whose phase that failed with a non-pausing kind writes its `failed` record (executePlan) and today prints `[phax] Warning: Phase \"…\" — records destination refused: …` straight to stderr before the CLI prints the cause. When there is one, they raise a `FailureWithFollowUpsError { cause, followUps }`; the CLI prints the cause's lines first and each follow-up after it. A follow-up reads `<kind> record refused, following the failed session: …` (`decision`, `authoring` or `phase`), and says so only when the cause is a session failure (an `AgentSessionFailedError` or a limit error); after any other cause (a refused answer, a spawn failure) the warning keeps today's wording. `exitCodeForError` and `exitCodeForAuthoringError` unwrap the cause. Loss accepted: the same failure reaches the CLI in two shapes, depending on whether the records step had anything to say.",
+      "Vibe refusals added by #170. Refusals before a session spawns are phax refusals, not session outcomes: the version floor, a user `accept-edits` profile, Vibe config under an extra root, and a missing transcript path. They keep their errors (`AgentInvocationError`, `SecurityEnforcementError`), their messages and today's agent-error.log (argv, then the message). A missing answer, a missing or invalid export, and an invalid export session id are `provider-error` failures carrying today's messages: the provider broke its own output contract. A config mismatch after the turn stays a phax refusal of a turn that ran (`AgentInvocationError`, exit 5, message kept), checked on failures too (next arbitration). Loss accepted: agent-error.log has two shapes; a refusal's log has no `failure:` header, so a reader tells a refusal from a failure by its first line.",
+      "Operator decision (2026-10-28, review finding): before honouring a failed Vibe turn, phax checks the effective config of every export that decodes and whose `config` is non-null, as it checks an answer's. A mismatch refuses the turn (`AgentInvocationError`, exit 5, not resumable, with today's message and agent-error.log) and takes precedence over the failure the reader returned. Loss accepted: a real outage that coincides with a config mismatch reads as the config refusal, not as a network failure (exit 5, not 14), so the person sees no retry hint for it. Kept because a secure turn that ran under a config phax did not set and then lost the network would otherwise pause with its edits kept, and a resume could commit them.",
       "A failed decision record's `failure`. A session failure gives its kind; a refused answer (`DecideDocumentError`) gives `answer-refused`; the artifact changing during the session gives `artifact-changed`; a failed write or commit of the decided artifact gives `commit-failed`. Any other error after the writer started (a spawn failure, a Vibe refusal) gives `unknown`. The literals live in src/schemas/decisionRecord.ts, so the schemas package closure gains no domain module, and a type test keeps them equal to the reader's kinds plus the three. In memory, a failed record read from a stamp below 0.30.0 carries `failure: null`; the 0.30.0 file schema requires a value, so the writer cannot write null. Loss accepted: `unknown` also covers phax's own refusals, so the records branch cannot tell a refused spawn from a silent provider.",
       "An interactive stop's first turn (interactive-session.json) lost to a network failure keeps its existing `provider-error` reason, with the failure line as its detail. No new reason is added: the spec adds failure kinds to no persisted shape other than the decision record and review-stop. Loss accepted: an outage at a first turn reads as a provider error in interactive-session.json.",
-      "run-list embeds the review-stop document as `stop`, so it moves to 0.30.0 with review-stop (a `next` snapshot and a frozen 0.26.0 module that embeds the frozen review-stop 0.26.0). Loss accepted: readers of `phax ls --json` learn a new stamp for a change that is only review-stop's.",
+      "run-list embeds the review-stop document as `stop`, so it moves to 0.30.0 with review-stop (a `next` snapshot and a frozen 0.26.0 module, a self-contained copy that inlines review-stop 0.26.0's shapes, since a frozen module imports only `effect`). Loss accepted: readers of `phax ls --json` learn a new stamp for a change that is only review-stop's.",
       "The visibility port: `GitHub.visibility()` returns a reading `{ visibility, ghError }`, where `ghError` is gh's first non-empty stderr line (or the spawn error) when the query failed, else null. The network, auth or other class is a pure domain function, and the refusal's message and remedy are built in src/domain/records/destination.ts. Loss accepted: the init wizard and `configureRecords` adapt to the reading although they ignore its reason.",
       "Codex: an agent turn with no answer message also fails (`provider-error`, no answer was found), not only a completion. Loss accepted: a Codex phase turn that did its work but ended without a final message, accepted today with empty text, now fails with exit 5.",
-      "Vibe outcomes beyond the three observed on 2026-10-28 (finished; config_error with invalid_api_key; infrastructure_failure on an API 400) are classified by rule: any outcome other than `finished` is a failure, its kind read from its error text. Vibe's installed source could not be read from the authoring session, so phase-02 reads it when its sandbox allows and adds the outcome and error-code names it finds (a turn limit, network codes). Loss accepted: until a name is known, a Vibe turn-limit stop reads as provider-error rather than max-turns.",
-      "Reading a session's end needs its signal. spawnClaude, spawnCodex and spawnVibe report the signal or timeout that ended the process, alongside the exit code. In the Vibe adapter this counts as reading its session outcome. Loss accepted: none beyond a touch of the Vibe spawn's close handler."
+      "Vibe outcomes come from Vibe 3.0.3's source, read at plan review on 2026-10-28. Outcomes and exits: `finished` 0; `usage_error`, `config_error` 1; `infrastructure_failure` 2 (the model API after its retries, or the runtime); `turn_limit`, `token_limit`, `price_limit`, `deadline`, `terminated`, `length`, `refusal` 3; `aborted` 4. The export's `error` is `{message (required), code: string | null}`; the codes are `rate_limit`, `context_too_long`, `response_too_long`, `refusal`, `invalid_image_attachment`, `images_not_supported`, `compaction_failed`, `incomplete_stream`, `backend_error`, `invalid_model`, `invalid_api_key`, `internal_error`. Mapping: `turn_limit` → max-turns; `terminated` and `deadline` → killed (Vibe catches SIGTERM, writes `terminated` and exits 3, so a phax timeout kill reads from the export, not from a signal); code `rate_limit` → rate-limit; `invalid_api_key` → provider-error; any other failure is classified from its message by the shared tables (a network failure is `backend_error` with httpx's text), else provider-error. `session_id`, `usage`, `cost_usd`, `steps` and `config` are all nullable in a failure export, so the outcome read decodes them as nullable while `extractVibeExportUsage` keeps its meaning (a null usage or cost gives no usage). Loss accepted: how the `vibe-rs` binary maps a turn error to the export's outcome was read from its strings, not its source; a wording outside the tables reads as provider-error until they learn it.",
+      "Reading a session's end needs its signal. spawnClaude, spawnCodex and spawnVibe report the signal or timeout that ended the process, alongside the exit code. In the Vibe adapter this counts as reading its session outcome. Loss accepted: none beyond a touch of the Vibe spawn's close handler.",
+      "The provider's verdict decides over the exit code: a Claude `is_error: false` result with text, a Codex `turn.completed` with an answer message, or a Vibe `finished` export, followed by a non-zero exit, now reads as an answer. Loss accepted: a provider that reports success and then crashes on its way out is trusted; today such a session fails with `exited with code N`.",
+      "`phax plans overlap` extracts with the LLM fallback and wraps every error into `AnalyzePlanOverlapError`, so a network failure there exits as today, never 14. Loss accepted: that one command gives no retry hint for an outage; the plan leaves its error wrapping alone."
     ],
     "openQuestions": [],
     "arbitratedQuestions": []
@@ -39,10 +42,10 @@
         "Create `src/domain/session/outcome.ts`, pure: no I/O and no `node:` import. Its only import is the `ProviderId` type from `src/domain/routing/types.ts`. Export exactly: `FailureKind` = `network` | `rate-limit` | `usage-limit` | `provider-error` | `max-turns` | `killed` | `unknown`; `FAILURE_KINDS`, those literals in that order; `SessionFailure` { provider: ProviderId; kind: FailureKind; message: string; sessionId: string | null; resetAt: string | null }; `SessionOutcome` = { kind: `answer`; provider; text: string; sessionId: string | null } | { kind: `failure`; failure: SessionFailure }; `SessionEnd` = { kind: `exited`; code: number } | { kind: `signalled`; signal: string } | { kind: `timed-out` }; `EndedSession` { lines: readonly string[] (stdout, one JSON line each); stderr: string; end: SessionEnd }; `VibeExportRead` = { kind: `not-requested` } | { kind: `absent`; path } | { kind: `unreadable`; path; detail } | { kind: `text`; path; text }.",
         "In the same file, export the functions `isTransientFailure(kind: FailureKind): boolean`, `readClaudeOutcome(ended: EndedSession): SessionOutcome`, `readCodexOutcome(ended: EndedSession): SessionOutcome` and `readVibeOutcome(ended: EndedSession, exported: VibeExportRead): SessionOutcome`. Each body throws `new Error(\"not implemented: <function name>\")`, with its parameters prefixed `_` for the linter. These stubs are what the oracles compile and load against.",
         "Document the contract in a module comment, which the next phase implements. Reading order: (1) the provider's final result event decides: a Claude `result` event, a Codex `turn.failed` or `turn.completed`, or a Vibe export with an outcome; (2) with none, a process that ended on a signal or a timeout is `killed`; (3) otherwise the transcript's last error event (a Claude `system`/`api_retry` error, a Codex `error` event); (4) otherwise stderr's first non-empty lines, at most three, joined by a space; (5) otherwise `unknown`, with no session id unless an init or thread event gave one. Tool output (Claude `user` tool_result content, Codex `command_execution` output) and model text (assistant messages) are never read to classify or to word a failure. The provider message is the deciding source's own text. The kind is read from that text: usage-limit signatures before rate-limit, then network signatures; otherwise `provider-error`, or `max-turns` for a turn-limit verdict. The session id comes from the result event, else from the Claude `system`/`init` event, the Codex `thread.started` event or the Vibe export.",
-        "Create `tests/unit/session/outcome.test.ts`. Every test carries the `it.fails` marker, has a distinct title and imports only from `src/domain/session/outcome.ts`. Its fixtures are written by hand in the file, as objects passed to `JSON.stringify`, with no generator and no helper module outside the file. Session ids are valid UUIDs. Assert with `toEqual` on the kind, provider, session id and resetAt, and with `toBe` or `toContain` on messages, exactly as each case below states.",
+        "Create `tests/unit/session/outcome.test.ts`. Every test carries the `it.fails` marker, has a distinct title and imports only from `src/domain/session/outcome.ts`. It imports every exported type and function of that module (types with `import type`), so knip, which has no entry under src/domain/session/, sees each export used. Its fixtures are written by hand in the file, as objects passed to `JSON.stringify`, with no generator and no helper module outside the file. Session ids are valid UUIDs. Assert with `toEqual` on the kind, provider, session id and resetAt, and with `toBe` or `toContain` on messages, exactly as each case below states.",
         "Claude Code cases: (a) init, assistant text, a result with subtype `success`, `is_error: false`, `result: PONG`, exit 0 → answer `PONG` with the result's session id; (b) init, then a result with subtype `error_during_execution`, `is_error: true`, no `result` key and a session id, exit 1 → `provider-error`, message contains `error_during_execution`, session id the result's; (c) a result with subtype `error_max_turns`, `is_error: true`, no `result`, exit 1 → `max-turns` with that session id; (d) the DNS outage: init, ten `{type: system, subtype: api_retry, attempt, max_retries: 10, retry_delay_ms, error_status: null, error: Connection error., session_id}` events, a synthetic assistant message (model `<synthetic>`) holding the API Error text, then a result with `is_error: true` and `result: API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)`, exit 1 → `network`, message exactly that text, session id the result's; (e) a `user` tool_result whose content is `HTTP/1.1 429 Too Many Requests`, an assistant text saying `I hit a rate limit`, then the `error_during_execution` result, exit 1 → `provider-error`, not a limit; (f) a result with `is_error: true` and `result: Claude AI usage limit reached|1793120400`, stderr `Error: something else broke`, exit 1 → `usage-limit`, message the result's text, resetAt `new Date(1793120400 * 1000).toISOString()`; (g) a result with `is_error: true` and `result: API Error: 429 {\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\"}}` → `rate-limit`; (h) no line, empty stderr, end signalled `SIGTERM` → `killed`, message contains `SIGTERM`, session id null; (i) no line, empty stderr, exit 1 → `unknown`, session id null; (j) init only, stderr `Error: connect ECONNREFUSED 127.0.0.1:443`, exit 1 → `network` from stderr, session id the init's; (k) a result with `is_error: true` and `result: API Error: 500 Internal server error`, exit 0 → `provider-error` (an error result is a failure whatever the exit code).",
         "Codex cases: (l) `thread.started`, an `item.completed` agent_message `DONE`, `turn.completed`, exit 0 → answer `DONE` with the thread id; (m) `thread.started`, then `turn.failed` with `error.message: stream disconnected before completion: error sending request for url (https://api.openai.com/v1/responses)`, exit 1 → `network`, message exactly that; (n) an `error` event with `message: You've hit your usage limit. Try again later.`, exit 1 → `usage-limit`; (o) `thread.started`, `turn.completed`, no agent_message, exit 0 → `provider-error`, message contains `no answer`; (p) `turn.failed` with `error.message: unexpected status 400 Bad Request: model not supported` → `provider-error`, message exactly that; (q) an `item.completed` command_execution whose `aggregated_output` is `HTTP/1.1 429 Too Many Requests`, then `turn.failed` with `error.message: tool crashed` → `provider-error`, not a limit.",
-        "Vibe cases (stream entries as tests/helpers/vibe3Fixtures.ts shows them, written by hand here): (r) export `{schema_version: 1, session_id, usage, cost_usd, outcome: finished, exit_code: 0, vibe_version: 3.0.3}` and a stream whose last assistant message has text `PONG`, exit 0 → answer `PONG` with the export's session id; (s) export outcome `config_error` with `error: {code: invalid_api_key}`, exit 1 → `provider-error`, message contains `invalid_api_key`, session id the export's; (t) export outcome `infrastructure_failure`, exit 2, stderr `Error: API error 400: reasoning_effort low is not supported` → `provider-error`, message contains `reasoning_effort low is not supported`; (u) export outcome `infrastructure_failure`, stderr `httpx.ConnectError: [Errno 8] nodename nor servname provided, or not known` → `network`; (v) `not-requested` (a completion), stderr `Error: 429 rate limited`, exit 1 → `rate-limit`; (w) `absent` export at a path, exit 0 → `provider-error`, message contains that path.",
+        "Vibe cases, the export written as Vibe 3.0.3 writes it (`error` is null or `{message, code}` with `message` required and `code` a string or null), stream entries as tests/helpers/vibe3Fixtures.ts shows them, written by hand here: (r) export `{schema_version: 1, session_id, usage, cost_usd, outcome: finished, exit_code: 0, error: null, vibe_version: 3.0.3}` and a stream whose last assistant message has text `PONG`, exit 0 → answer `PONG` with the export's session id; (s) export outcome `config_error`, exit_code 1, `session_id: null`, `error: {message: Invalid API key (from env var MISTRAL_API_KEY), code: invalid_api_key}`, exit 1 → `provider-error`, message contains `Invalid API key` and `invalid_api_key`, session id null; (t) export outcome `infrastructure_failure`, exit 2, `error: {message: API error occurred: Status 400. reasoning_effort low is not supported for this model, code: backend_error}` → `provider-error`, message contains `reasoning_effort low is not supported`; (u) export outcome `infrastructure_failure`, exit 2, `error: {message: [Errno 8] nodename nor servname provided, or not known, code: backend_error}` → `network`, message contains `nodename nor servname`; (u2) export outcome `infrastructure_failure`, `error: {message: Too many requests, code: rate_limit}` → `rate-limit`; (u3) export outcome `turn_limit`, exit 3, `error: null` → `max-turns` with the export's session id; (u4) export outcome `terminated`, exit 3, `error: null` → `killed`, and the same for outcome `deadline`; (u5) a failure export whose `session_id`, `usage`, `cost_usd`, `steps` and `config` are all null, outcome `infrastructure_failure`, `error: {message: All connection attempts failed, code: backend_error}` → `network`, session id null (the export still decodes); (v) `not-requested` (a completion), stderr `Error: 429 rate limited`, exit 1 → `rate-limit`; (w) `absent` export at a path, exit 0 → `provider-error`, message contains that path.",
         "Add one table test that `isTransientFailure` is true exactly for `network`, `rate-limit` and `usage-limit` over `FAILURE_KINDS`.",
         "Run the configured gate: every oracle passes while it is marked, because its stub throws."
       ],
@@ -141,6 +144,14 @@
           "oracle": "the expected answer in the case table",
           "loop": "oracle",
           "criterion": null
+        },
+        {
+          "guarantee": "Vibe's turn_limit, terminated and deadline outcomes read as max-turns and killed, a rate_limit code as rate-limit, a backend_error carrying a connection message as network, and a failure export with null fields still decodes",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the expected outcome in the case table",
+          "loop": "oracle",
+          "criterion": "ac-reader-codex-vibe"
         }
       ],
       "implementationOrder": [
@@ -156,7 +167,7 @@
       "expectedHandoff": "The exact exports of `src/domain/session/outcome.ts` and their signatures. The case list of `tests/unit/session/outcome.test.ts` with each expected kind, plus any case added beyond the plan and why. Any fixture shape that departs from the instructions (for example the api_retry event's fields). Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "test(session): oracles for the session outcome readers",
-        "body": "Fix the session outcome contract (failure kinds, SessionFailure, SessionOutcome, the ended-session input and the three reader entries) in src/domain/session/outcome.ts, with stub readers that throw. Freeze the table of provider transcripts and the outcome each must read as, as expected-failure oracles: Claude Code error results, the DNS outage, limits read only from the provider's verdict, killed and silent sessions, Codex and Vibe failures, and the empty Codex answer."
+        "body": "Fix the session outcome contract (failure kinds, SessionFailure, SessionOutcome, the ended-session input and the three reader entries) in src/domain/session/outcome.ts, with stub readers that throw. Freeze the table of provider transcripts and the outcome each must read as, as expected-failure oracles: Claude Code error results, the DNS outage, limits read only from the provider's verdict, killed and silent sessions, Codex failures, Vibe's export outcomes and error codes as Vibe 3.0.3 writes them, and the empty Codex answer."
       },
       "assignmentReason": "The phase designs the session outcome contract and its fixture table across three providers, a shape no code in the repository holds yet.",
       "model": "claude-opus-5-5",
@@ -168,13 +179,13 @@
       "objective": "Implement the three readers behind the contract, so every provider session reads into exactly one outcome by the provider's own verdict, and discharge the oracles.",
       "detailedInstructions": [
         "Remove every `it.fails` marker from `tests/unit/session/outcome.test.ts`, turning each into `it`. Change nothing else in that file: removing the markers is this phase's only change to it.",
-        "Decoders in src/schemas. In `src/schemas/claudeOutput.ts`, add decoders for a Claude stream result event whose `result` is optional, with `subtype`, `is_error`, `session_id` and an optional `errors` string array; for the `system`/`init` event (its `session_id`); and for the `system`/`api_retry` event (an `error` that is a string or an object with a string `message`). Unknown keys are dropped. Reuse what `src/schemas/claudeStream.ts` already decodes where it fits. Keep the existing exports (`findResultEvent`, `hasErroredResultEvent`, `classifyRateLimit`, `normalizeResetAt`): the adapters still use them until phase-03 removes them. In `src/schemas/codexOutput.ts`, add decoders for `turn.completed`, `turn.failed` (`error.message`) and `error` (`message`) events. In `src/schemas/vibeExport.ts`, decode an optional `error` (`null`, or an object with an optional string `code` and an optional string `message`, other keys accepted). Every export that decodes today must still decode.",
+        "Decoders in src/schemas. In `src/schemas/claudeOutput.ts`, add decoders for a Claude stream result event whose `result` is optional, with `subtype`, `is_error`, `session_id` and an optional `errors` string array; for the `system`/`init` event (its `session_id`); and for the `system`/`api_retry` event (an `error` that is a string or an object with a string `message`). Unknown keys are dropped. Reuse what `src/schemas/claudeStream.ts` already decodes where it fits. Keep the existing exports (`findResultEvent`, `hasErroredResultEvent`, `classifyRateLimit`, `normalizeResetAt`): the adapters still use them until phase-03 removes them. In `src/schemas/codexOutput.ts`, add decoders for `turn.completed`, `turn.failed` (`error.message`) and `error` (`message`) events. In `src/schemas/vibeExport.ts`, add a decoder for outcome reading that takes the export as Vibe 3.0.3 writes it: `error` is null or `{message: string, code: string | null}`, and `session_id`, `usage`, `cost_usd`, `steps` and `config` may each be null. Leave `readVibeExport` and `extractVibeExportUsage` with their meaning (a null usage or cost still gives no usage). Every export that decodes today must still decode.",
         "Create `src/domain/session/signatures.ts`: the shared, case-insensitive network signature table listed in the plan's Technical arbitrations; the usage-limit signatures (usage limit, monthly limit, quota exceeded or reached), checked before the rate-limit ones (rate limit, rate-limited, too many requests, a standalone 429, rate_limit_error); and the reset-time extraction. Copy the reset patterns and the epoch and ISO normalization from `src/schemas/claudeOutput.ts`, so resetAt is an ISO instant or null. One `classifyVerdictText(text)` returns `network`, `rate-limit`, `usage-limit` or null. It is only ever applied to a provider verdict.",
         "Create `src/domain/session/claudeOutcome.ts`. The last decodable result event decides. `is_error: false` with a `result` string is an answer. `is_error: true` with result text is classified by that text; with no match it is `provider-error` with that text, or `max-turns` when its subtype is `error_max_turns`. `is_error: true` without result text is `max-turns` for `error_max_turns`, else `provider-error` whose message is the subtype, followed by `: ` and the first `errors` entry when there is one. An error result fails whatever the exit code. With no result event, apply the reading order of the module comment in outcome.ts (killed, last api_retry error, stderr, unknown), and take the session id from the init event.",
         "Create `src/domain/session/codexOutcome.ts`. The session id comes from `thread.started`. A `turn.failed` decides (its message classified, else `provider-error`). Then `turn.completed` with the last agent_message text is an answer; `turn.completed` with no agent_message is `provider-error` with the message `codex ended its turn with no answer message: no answer was found`. With neither, apply killed, then the last `error` event's message, then stderr, then unknown. `command_execution` items and every item other than agent_message are never read.",
-        "Create `src/domain/session/vibeOutcome.ts`. With a decodable export: outcome `finished` is an answer whose text is the last assistant text of the stream (reuse `findVibeResultEvent` from `src/schemas/vibeOutput.ts`) and whose session id is the export's; a finished export with no assistant text is `provider-error` with the adapter's wording today (the stream holds no assistant message with a text block, so there is no answer to read). Any other outcome is a failure. Its message is the export's `error.message` when it has one, else stderr's first non-empty lines, else the outcome name, with ` (<error.code>)` appended when a code is present. Its kind is classified from that message and the code, else `max-turns` for an outcome Vibe's source shows to be a turn limit, else `provider-error`. With `absent`, `unreadable` or an export that does not decode: at exit 0, `provider-error` with the adapter's three messages today (`vibe wrote no export.json (missing Vibe export at <path>)`, `could not read the Vibe export at <path>: <detail>`, `invalid Vibe export at <path> (<reason>): <detail>`); at a non-zero exit, killed, then stderr, then unknown. With `not-requested` (a completion), the stream's last assistant text answers at exit 0; otherwise killed, then stderr, then unknown.",
+        "Create `src/domain/session/vibeOutcome.ts`. With a decodable export: outcome `finished` is an answer whose text is the last assistant text of the stream (reuse `findVibeResultEvent` from `src/schemas/vibeOutput.ts`) and whose session id is the export's; a finished export with no assistant text is `provider-error` with the adapter's wording today (the stream holds no assistant message with a text block, so there is no answer to read). Any other outcome is a failure. Its message is the export's `error.message` when it has one, else stderr's first non-empty lines, else the outcome name, with ` (<error.code>)` appended when a code is present. Its kind: outcome `turn_limit` → `max-turns`; `terminated` or `deadline` → `killed`; code `rate_limit` → `rate-limit`; code `invalid_api_key` → `provider-error`; otherwise the message classified by `classifyVerdictText` (a network failure is code `backend_error` with httpx's message), else `provider-error`. With `absent`, `unreadable` or an export that does not decode: at exit 0, `provider-error` with the adapter's three messages today (`vibe wrote no export.json (missing Vibe export at <path>)`, `could not read the Vibe export at <path>: <detail>`, `invalid Vibe export at <path> (<reason>): <detail>`); at a non-zero exit, killed, then stderr, then unknown. With `not-requested` (a completion), the stream's last assistant text answers at exit 0; otherwise killed, then stderr, then unknown.",
         "Make `src/domain/session/outcome.ts` delegate its three readers and `isTransientFailure` to these modules, keeping every exported name and signature exactly as phase-01 fixed them. The stubs go.",
-        "If the phase can read it, read Vibe's installed source under `~/.local/share/uv/tools/mistral-vibe/lib/python3.14/site-packages/vibe` (never `~/.vibe`) for the export's outcome values and `error.code` values, network ones above all. Add the names it shows to the Vibe classification: network codes to the network check, and a turn-limit outcome to `max-turns`. Tests never read it. If it cannot be read, keep the rule-based classification and say so in the handoff.",
+        "Vibe's outcomes and error codes are those listed in the plan's Technical arbitrations, read from Vibe 3.0.3's source at plan review. Implement exactly that mapping; do not read Vibe's installed source or `~/.vibe`. Tests never read either.",
         "Extend `tests/unit/claudeOutput.test.ts` and `tests/unit/vibeExport.test.ts` for the new decoders, and create `tests/unit/session/signatures.test.ts` for the signature tables and the reset-time extraction."
       ],
       "planMarkdownAnchor": "#phase-02-outcome-readers",
@@ -212,10 +223,10 @@
           "criterion": null
         },
         {
-          "guarantee": "the Vibe export decoder reads an error code and message and still accepts every export it accepted before",
+          "guarantee": "the Vibe outcome decoder reads error {message, code} and a failure export whose session_id, usage, cost_usd, steps and config are null, while every export decoded before still decodes and extractVibeExportUsage keeps its meaning",
           "size": "small",
           "technique": "example",
-          "oracle": "the decoded export",
+          "oracle": "the decoded export, and the usage read before and after",
           "loop": "in-phase",
           "criterion": null
         },
@@ -257,7 +268,7 @@
         "Any change to an oracle beyond removing its markers."
       ],
       "verification": "The `standard` gate profile in phax.json, whose oracle step the configured oracles provider judges (`discharged` verdict on tests/unit/session/outcome.test.ts).",
-      "expectedHandoff": "The modules and functions behind each reader, and the exact signature tables. The Vibe outcome and error-code names read from Vibe's source, or a note that it could not be read. Any decoder that departs from the instructions (for example how the api_retry error is decoded). Which old helpers in src/schemas/claudeOutput.ts and codexOutput.ts phase-03 can now delete. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The modules and functions behind each reader, and the exact signature tables. The Vibe outcome and error-code mapping as implemented. Any decoder that departs from the instructions (for example how the api_retry error is decoded). Which old helpers in src/schemas/claudeOutput.ts and codexOutput.ts phase-03 can now delete. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "feat(session): read each provider's session outcome",
         "body": "Implement the Claude Code, Codex and Mistral Vibe session readers behind src/domain/session/outcome.ts. Each turns an ended session into an answer, or a failure with its kind, the provider's own message and the session id it reported. The reading order is the final result event, then the signal or timeout, then the last error event, then stderr; tool output and model text are never read. Network and limit verdicts share one signature table. New decoders cover Claude error results with no result text, api_retry and init events, Codex turn and error events, and the Vibe export's error. Discharges the outcome oracles."
@@ -269,20 +280,19 @@
     {
       "id": "phase-03",
       "title": "Adapters fail sessions through the readers",
-      "objective": "Every provider adapter reads its ended session through the outcome readers and raises a typed session failure. agent-error.log opens with the cause, the dispatcher no longer drops the log hint, and a network failure exits 14.",
+      "objective": "Every provider adapter reads its ended session through the outcome readers and raises a typed session failure. agent-error.log opens with the cause, and the dispatcher no longer drops the log hint.",
       "detailedInstructions": [
-        "In `src/domain/errors.ts`, add `AgentSessionFailedError` (tag `AgentSessionFailedError`) with `message` (the failure line `<provider> session failed (<kind>): <provider message>`), `failure: SessionFailure`, `agentErrorLog: string | null`, `transcript: string | null` and `phaseId?: string | undefined` (set by a run, as the limit errors carry it).",
-        "Create `src/domain/session/failureError.ts` with `sessionFailureError(failure, files: { agentErrorLog: string | null; transcript: string | null })`. It returns a `UsageLimitError` or `RateLimitError` for the limit kinds (message the failure line, `rawMessage` the provider message, `resetAt` the failure's, or undefined when null), else an `AgentSessionFailedError`. The adapters and the fake backend both use it.",
+        "In `src/domain/errors.ts`, add `AgentSessionFailedError` (tag `AgentSessionFailedError`) with `message` (the failure line `<provider> session failed (<kind>): <provider message>`), `failure: SessionFailure`, `agentErrorLog: string | null`, `transcript: string | null` and `phaseId?: string | undefined` (set by a run, as the limit errors carry it). Give `RateLimitError` and `UsageLimitError` optional `agentErrorLog?: string | null` and `transcript?: string | null`, so a limit names its files too.",
+        "Create `src/domain/session/failureError.ts` with `sessionFailureError(failure, files: { agentErrorLog: string | null; transcript: string | null })`. It returns a `UsageLimitError` or `RateLimitError` for the limit kinds (message the failure line, `rawMessage` the provider message, `resetAt` the failure's, or undefined when null, and the same two paths), else an `AgentSessionFailedError`. The adapters and the fake backend both use it.",
         "Adapters. In `src/infra/providers/claudeCode.ts`, `codexCli.ts` and `mistralVibe.ts`, make each spawn report how the process ended (exit code, signal, or the probe's timeout) as a `SessionEnd`. Replace the exit-code check, the limit scan and the result lookup of runAgent/resume and complete with one reader call. An answer returns as today, `finalText` being the answer's `text`: an agent turn needs a session id (a missing one is a `provider-error` failure saying no session id was reported), a completion does not. A failure raises `sessionFailureError`, with `agentErrorLog` = `<phaseFolderPath>/agent-error.log` when a folder is given, else null, and `transcript` = `outputJsonlPath`, else null. `persistSessionId` stays on the answer path only. The Claude probe is unchanged.",
-        "Vibe adapter: change only its outcome reading. Read export.json into a `VibeExportRead` (`absent` on ENOENT, `unreadable` on another read error, `text` otherwise) and pass it to the reader; completions pass `not-requested` and gain no `--output-dir`. Keep the version floor, the confinement refusals, the missing-transcript-path refusal and the config-mismatch refusal exactly as they are, with their messages, their errors and their agent-error.log, as the Technical arbitrations say. Run the config-mismatch check after an answer, as today.",
+        "Vibe adapter: change only its outcome reading. Read export.json into a `VibeExportRead` (`absent` on ENOENT, `unreadable` on another read error, `text` otherwise) and pass it to the reader; completions pass `not-requested` and gain no `--output-dir`. Keep the version floor, the confinement refusals, the missing-transcript-path refusal and the config-mismatch refusal exactly as they are, with their messages, their errors and their agent-error.log, as the Technical arbitrations say. Check the effective config of every export that decodes and whose `config` is non-null, before honouring the outcome, answer or failure alike (operator decision, Technical arbitrations): a mismatch refuses the turn as today (`AgentInvocationError`, exit 5, its message and agent-error.log) and takes precedence over the failure the reader returned.",
         "`src/infra/providers/agentErrorLog.ts`: `writeAgentErrorLog(folder, ctx)` takes `failure: SessionFailure | null` and `transcript: string | null` beside argv, exit code and stderr. With a failure, the file opens with `failure: <kind>`, `provider: <provider>`, `message: <provider message on one line>`, `session: <id or none>`, `transcript: <path or none>`, then a blank line, then today's argv, `exit code:` line, blank line and stderr. Without one (a phax refusal), it keeps today's shape. Every adapter writes it for every failed session that has a folder.",
         "`src/ports/backend.ts`: add `AgentSessionFailedError` to the error unions of runAgent, resumeAgentSession and complete, and drop `AgentSessionIdMissingError` from resumeAgentSession (the adapters no longer raise it; executePlan keeps the class for a resume with no recorded session). `src/infra/providers/dispatcher.ts`: remove the `AgentSessionIdMissingError` → `AgentInvocationError` mapping, so a failure keeps its log and transcript.",
         "`src/infra/fakes/backend.ts`: add `failRunWith(runIndex, failure, files?)`, `failNextResumeWith(failure, files?)`, `failResumeWith(resumeIndex, failure, files?)` and `failCompleteWith(completeIndex, failure, files?)`, which raise `sessionFailureError` for the failure. Keep the existing limit knobs, and make their errors' messages follow the failure-line format.",
         "Delete `classifyRateLimit`, `findResultEvent`, `hasErroredResultEvent` and the reset helpers from `src/schemas/claudeOutput.ts`, and `findCodexResultEvent` and `hasCodexErroredResultEvent` from `src/schemas/codexOutput.ts`, once nothing uses them. Move or drop their tests in `tests/unit/claudeOutput.test.ts` and `tests/unit/providers/codexCli.test.ts`.",
         "Add `AgentSessionFailedError` to every explicit error union that lists the limit errors, so each caller type-checks: `src/app/eventAdapter.ts`, `executePlan.ts`, `handoffGeneration.ts`, `fixLoop.ts`, `authorArtifact.ts`, `decideArtifact.ts`, `decideVerdicts.ts` and `extractPlan.ts`. Do not change their behaviour in this phase. A session failure propagates like any other error until phases 04 to 08 handle it.",
-        "`src/cli/commands/runLayers.ts`: `exitCodeForError` returns 14 for an `AgentSessionFailedError` of kind `network` and 5 for every other kind. Add `{ code: 14, meaning: \"Provider unreachable: network failure (resumable)\" }` to `EXIT_CODE_MEANINGS`, add the same row to the README `## Exit codes` table (`tests/unit/readmeExitCodes.test.ts` keeps them in step), and update the comment that names the highest code.",
-        "`docs/upgrading.md` § 0.30.0: one bullet for scripts. A command whose agent cannot reach its provider now exits 14 (resumable), not 5: treat 14 like 8 but retry as soon as the network is back.",
-        "Tests. Extend `tests/helpers/fakeProviderCli.ts` so a script can replay a raw stream (`stream` lines), `stderr` and `exitCode`, or end on a signal. Extend `tests/helpers/vibe3Fixtures.ts` so the fake vibe can print `stderr`. Create `tests/integration/providerSessionFailures.test.ts`, which drives the real node backend with these fakes, with PATH and HOME pointed at temporary directories as fakeProviderCli's `env` gives them, and holds the contract suite over the fake backend and the real adapters. Create `tests/unit/session/failureError.test.ts` for the error mapping and the exit codes. Keep `tests/integration/rateLimit.test.ts` green."
+        "Telemetry. `src/app/telemetry/reportBuilders.ts`: widen `reportAgentFailure` to take an `AgentSessionFailedError` or a limit error as well as an `AgentInvocationError`, reporting the failure kind. In `src/app/executePlan.ts`, widen the phase-turn tap (it reports only `AgentInvocationError` today) so a phase turn's session failure still reaches telemetry. Extend `tests/unit/telemetry/reportBuilders.test.ts`.",
+        "Tests. Extend `tests/helpers/fakeProviderCli.ts` so a script can replay a raw stream (`stream` lines), `stderr` and `exitCode`, or end on a signal. Extend `tests/helpers/vibe3Fixtures.ts` so the fake vibe can print `stderr`. Create `tests/integration/providerSessionFailures.test.ts`, which drives the real node backend with these fakes, with PATH and HOME pointed at temporary directories as fakeProviderCli's `env` gives them, and holds the contract suite over the fake backend and the real adapters. Create `tests/unit/session/failureError.test.ts` for the error mapping. Update `tests/unit/providers/mistralVibe.test.ts`, which asserts `AgentInvocationError` and `vibe exited with code 2` for failures that now read through the outcome reader. Keep `tests/integration/rateLimit.test.ts` green."
       ],
       "planMarkdownAnchor": "#phase-03-adapters-read-outcomes",
       "plannedFilesToCreate": [
@@ -309,13 +319,13 @@
         "src/app/decideArtifact.ts",
         "src/app/decideVerdicts.ts",
         "src/app/extractPlan.ts",
-        "src/cli/commands/runLayers.ts",
         "tests/unit/claudeOutput.test.ts",
         "tests/unit/providers/codexCli.test.ts",
         "tests/helpers/fakeProviderCli.ts",
         "tests/helpers/vibe3Fixtures.ts",
-        "README.md",
-        "docs/upgrading.md"
+        "tests/unit/providers/mistralVibe.test.ts",
+        "src/app/telemetry/reportBuilders.ts",
+        "tests/unit/telemetry/reportBuilders.test.ts"
       ],
       "optionalFilesToEdit": [
         "src/domain/session/outcome.ts",
@@ -324,15 +334,12 @@
         "src/app/interactiveStop.ts",
         "src/app/reviewCompliance.ts",
         "src/app/reviewCode.ts",
-        "src/app/telemetry/reportBuilders.ts",
         "src/schemas/vibeOutput.ts",
         "src/cli/commands/run.ts",
         "src/cli/commands/resume.ts",
         "tests/unit/providers/claudeCode.test.ts",
-        "tests/unit/providers/mistralVibe.test.ts",
         "tests/integration/rateLimit.test.ts",
-        "tests/integration/executePlan.test.ts",
-        "tests/unit/readmeExitCodes.test.ts"
+        "tests/integration/executePlan.test.ts"
       ],
       "mode": "headless",
       "oracle": null,
@@ -403,20 +410,28 @@
           "criterion": null
         },
         {
-          "guarantee": "a network failure exits 14, the other session failures 5 and the limits 8",
+          "guarantee": "a phase turn's session failure, and a limit, reach telemetry with their failure kind",
           "size": "small",
-          "technique": "table",
-          "oracle": "the exit code per failure kind",
+          "technique": "example",
+          "oracle": "the report built for each error",
           "loop": "in-phase",
           "criterion": null
         },
         {
-          "guarantee": "EXIT_CODE_MEANINGS and the README exit code table list the same rows, 14 included",
-          "size": "small",
+          "guarantee": "a failed Vibe turn whose export config differs from what phax set is refused as a config mismatch, not reported as the reader's failure",
+          "size": "medium",
           "technique": "example",
-          "oracle": "the existing README exit code test",
+          "oracle": "the raised AgentInvocationError and its message",
           "loop": "in-phase",
           "criterion": null
+        },
+        {
+          "guarantee": "a limit's error carries the agent-error.log and transcript paths",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the raised error's fields",
+          "loop": "in-phase",
+          "criterion": "ac-log"
         }
       ],
       "implementationOrder": [
@@ -437,10 +452,10 @@
         "Any other change to the Mistral Vibe adapter, which the operator reviews separately."
       ],
       "verification": "The `standard` gate profile in phax.json.",
-      "expectedHandoff": "The exact fields of `AgentSessionFailedError` and the signature of `sessionFailureError` (src/domain/session/failureError.ts). The new fake backend knobs and their signatures. The agent-error.log format as written. Which Vibe refusals stayed AgentInvocationError or SecurityEnforcementError and which became provider-error failures. The callers whose unions were widened, and any caller whose behaviour changed anyway. The new fakeProviderCli and fake vibe options. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The exact fields of `AgentSessionFailedError` and the signature of `sessionFailureError` (src/domain/session/failureError.ts). The new fake backend knobs and their signatures. The agent-error.log format as written. Which Vibe refusals stayed AgentInvocationError or SecurityEnforcementError and which became provider-error failures. The callers whose unions were widened, and any caller whose behaviour changed anyway. The new fakeProviderCli and fake vibe options. The telemetry reports widened. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "feat(providers): fail sessions through the outcome readers",
-        "body": "The Claude Code, Codex and Mistral Vibe adapters now read every ended session through its outcome reader. A failure raises AgentSessionFailedError (or a limit error for the limit kinds) carrying the failure kind, the provider's message, the session id and the paths of agent-error.log and the transcript. agent-error.log opens with the failure, provider, message, session and transcript lines. The dispatcher no longer drops the log hint. A Codex completion with no answer fails instead of returning empty text, and rate limits are no longer read from tool output. A network failure exits 14, a new code listed in EXIT_CODE_MEANINGS and the README. The Vibe adapter's own refusals keep their messages."
+        "body": "The Claude Code, Codex and Mistral Vibe adapters now read every ended session through its outcome reader. A failure raises AgentSessionFailedError (or a limit error for the limit kinds) carrying the failure kind, the provider's message, the session id and the paths of agent-error.log and the transcript. agent-error.log opens with the failure, provider, message, session and transcript lines. The dispatcher no longer drops the log hint. A Codex completion with no answer fails instead of returning empty text, and rate limits are no longer read from tool output. A session that reports success and then exits non-zero now reads as an answer. A failed Vibe turn's export config is checked like an answer's, and a mismatch refuses the turn first. The Vibe adapter's own refusals keep their messages."
       },
       "assignmentReason": "A new error family is threaded through the backend port, three provider adapters, the fake backend and every caller's declared error union, a change that crosses several parts of the architecture.",
       "model": "claude-opus-5-5",
@@ -451,8 +466,11 @@
       "title": "The terminal names the cause, its files and the retry",
       "objective": "Every command whose agent session failed prints the provider, the failure kind and the provider's message, then the session, the agent-error.log and transcript, and for a network failure the command to run again.",
       "detailedInstructions": [
-        "Create `src/cli/commands/sessionFailureOutput.ts` with `renderSessionFailure(err, retry: string | null): readonly string[]`, for an `AgentSessionFailedError` or a limit error carrying the failure line. The lines are: `✗ <provider> session failed (<kind>): <provider message>`; `  session: <id>` when there is one; `  See <agent-error.log> and <transcript>`, naming the transcript by its file name when it sits in the log's folder and by its full path otherwise, or whichever of the two exists; and, for a network failure with a retry, `  Retry once the network is back: <retry>`. Also add `retryCommandLine(words)`, which quotes the words only where a shell needs it and prefixes `phax`.",
-        "Each command builds its retry command from its own parsed arguments, never from process.argv: `phax artifact decide <path as given> --verdicts <file as given>` (plus the flags given), `phax artifact new …` for headless authoring, `phax run <plan>` for a failed plan extraction, `phax review-compliance <run>` and the headless code review's own command.",
+        "`src/cli/commands/runLayers.ts`: `exitCodeForError` returns 14 for an `AgentSessionFailedError` of kind `network` and 5 for every other kind. Add `{ code: 14, meaning: \"Provider unreachable: network failure (resumable)\" }` to `EXIT_CODE_MEANINGS`, add the same row to the README `## Exit codes` table (`tests/unit/readmeExitCodes.test.ts` keeps them in step), and update the comment that names the highest code. Limits keep exit 8.",
+        "`docs/upgrading.md` § 0.30.0: one bullet for scripts. A command whose agent cannot reach its provider now exits 14 (resumable), not 5: treat 14 like 8 but retry as soon as the network is back.",
+        "Help text. In `src/cli/cliDocs.ts`, decide's `Exit codes:` line (both modes) gains 14 for a network failure, and review-code's failure exit says 14 for a network failure. Run `pnpm gen:usage-spec` and `pnpm docs:cli` to regenerate `phax.usage.kdl` and `docs/cli/reference.md`; the drift tests keep them in step.",
+        "Create `src/cli/commands/sessionFailureOutput.ts` with `renderSessionFailure(err, retry: string | null): readonly string[]`, for an `AgentSessionFailedError` or a limit error carrying the failure line and its paths. The lines are: `✗ <provider> session failed (<kind>): <provider message>`; `  session: <id>` when there is one; `  See <agent-error.log> and <transcript>`, naming the transcript by its file name when it sits in the log's folder and by its full path otherwise, or whichever of the two exists; and, for a network failure with a retry, `  Retry once the network is back: <retry>`. Also add `retryCommandLine(words)`, which quotes the words only where a shell needs it and prefixes `phax`.",
+        "Each command builds its retry command from its own parsed arguments, never from process.argv: `phax artifact decide <path as given> --verdicts <file as given>` (plus the flags given; when the verdicts came from stdin, `--verdicts -`, the line adds `(pipe the same verdicts again)`), `phax artifact new …` for headless authoring, `phax run <plan>` for a failed plan extraction, `phax review-compliance <run>` and the headless code review's own command.",
         "`src/cli/commands/artifactDecide.ts`: `reportDecideError` renders a session failure with `renderSessionFailure`, keeps `renderAgentInvocationError` for an `AgentInvocationError`, and the command exits through `exitCodeForAuthoringError` (14 for network). `src/cli/commands/artifact.ts` does the same for headless authoring.",
         "`src/cli/commands/run.ts`: plan extraction and a run that fails on a non-network session failure print the failure lines (no retry hint for a non-transient kind) instead of `phax run failed: <message>`. Make the same change in `src/cli/commands/resume.ts`. A mid-run network failure is rendered by phase-05; until then it prints the same lines with the invoked command as its retry hint.",
         "Review commands. `src/app/reviewCompliance.ts` and `src/app/reviewCode.ts` keep their failed results' reason text and add, in memory only, `sessionFailure: SessionFailure | null`, set when the session failed. Never persist it. `src/cli/commands/reviewCompliance.ts` and `src/cli/commands/reviewCode.ts` print `renderSessionFailure` for such a failure (with their existing retry commands) and exit 14 for a network failure, keeping their current exit code for the others.",
@@ -472,15 +490,21 @@
         "src/cli/commands/reviewCompliance.ts",
         "src/cli/commands/reviewCode.ts",
         "src/app/reviewCompliance.ts",
-        "src/app/reviewCode.ts"
+        "src/app/reviewCode.ts",
+        "src/cli/commands/runLayers.ts",
+        "README.md",
+        "docs/upgrading.md",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
       ],
       "optionalFilesToEdit": [
-        "src/cli/commands/runLayers.ts",
         "src/cli/commands/stopOutput.ts",
         "tests/unit/cli/artifact.test.ts",
         "tests/integration/reviewCodeHeadless.test.ts",
         "tests/integration/complianceReviewRecord.test.ts",
-        "tests/helpers/decideVerdictsHarness.ts"
+        "tests/helpers/decideVerdictsHarness.ts",
+        "tests/unit/readmeExitCodes.test.ts"
       ],
       "mode": "headless",
       "oracle": null,
@@ -525,6 +549,30 @@
           "oracle": "the terminal lines and exit code",
           "loop": "in-phase",
           "criterion": null
+        },
+        {
+          "guarantee": "a network failure exits 14, the other session failures 5 and the limits 8",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the exit code per failure kind",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "EXIT_CODE_MEANINGS and the README exit code table list the same rows, 14 included",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the existing README exit code test",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a limit's failure lines name its agent-error.log and transcript",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected terminal lines",
+          "loop": "in-phase",
+          "criterion": "ac-log"
         }
       ],
       "implementationOrder": [
@@ -543,7 +591,7 @@
       "expectedHandoff": "The exact line format `renderSessionFailure` prints, its signature, and `retryCommandLine`. The retry command each command builds. The in-memory `sessionFailure` field on the review results. Any command left rendering a session failure some other way, and why. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "feat(cli): name the failed session's cause, files and retry",
-        "body": "When an agent session fails, phax artifact decide, artifact new, run, resume, review-compliance and the headless code review now print the provider, the failure kind and the provider's own message, then the session id, the agent-error.log and the transcript to read. A network failure adds the command to run again and exits 14. The review commands carry the session failure in memory only."
+        "body": "When an agent session fails, phax artifact decide, artifact new, run, resume, review-compliance and the headless code review now print the provider, the failure kind and the provider's own message, then the session id, the agent-error.log and the transcript to read. A network failure adds the command to run again and exits 14, a new code listed in EXIT_CODE_MEANINGS, the README and the help text. The review commands carry the session failure in memory only."
       },
       "assignmentReason": null,
       "model": "claude-sonnet-5-5",
@@ -554,11 +602,12 @@
       "title": "A run pauses on a network failure",
       "objective": "A run whose phase or fix turn loses the network pauses resumable and names `phax resume <run>`. A failed handoff turn is reported as that failure, not as a missing handoff. Fix-loop telemetry names the provider that ran the fix.",
       "detailedInstructions": [
-        "`src/domain/events.ts`: add `NetworkFailureDetected` (base fields, `cause: AgentSessionFailedError`, `worktreePath`, `sessionId`) and `HandoffTurnFailed` (base fields, `cause: AgentSessionFailedError`) to the event union.",
+        "`src/domain/events.ts`: add `NetworkFailureDetected` (base fields, `cause: AgentSessionFailedError`, `worktreePath`, `sessionId`, taken from `cause.failure.sessionId`, since the run's current session id is unset when the phase turn itself fails) and `HandoffTurnFailed` (base fields, `cause: AgentSessionFailedError`) to the event union.",
         "`src/domain/reducer.ts`: `NetworkFailureDetected` takes `RateLimitDetected`'s dispositions in every run state. On a running phase in `running` or `fixing`, it goes to run and phase `rate_limited` with PersistState `{ stoppedReason: network_failure, lastError: <failure line> }`, WriteResumeInstructions `{ reason: Network failure, kind: network_failure, phaseId, worktreePath, sessionId, rawMessage }`, and EmitTrace `network_failure.detected` and `resume.available`. `HandoffTurnFailed` takes `HandoffMissing`'s dispositions and target states with `missing: []`, and adds PersistState `{ stoppedReason: handoff_turn_failed, lastError: <failure line> }`. Add both columns to `src/domain/matrix.ts`, and widen `ResumeContext` in `src/domain/effects.ts` with `Network failure` / `network_failure`. Follow the state-machines skill: transitions only through the reducer.",
         "`src/app/resumeInstructions.ts`: a network-failure section that names the provider message and `phax resume <run>`, saying it can run as soon as the network is back. `src/domain/whatsNext.ts`: a `network` scenario whose rendering reads `Run <run> is paused at <phase>.` then `Retry once the network is back: phax resume <run>`.",
         "`src/app/executePlan.ts`: catch an `AgentSessionFailedError` of kind `network` from a phase or fix turn as limits are caught. Dispatch `NetworkFailureDetected`, then re-raise the error with `phaseId` set. Add it to `isResumablePauseError`, so no RunFailed and no duplicate record follow. At the handoff catch site, catch `AgentSessionFailedError` of any kind: dispatch `HandoffTurnFailed`, not `HandoffMissing`, record the step failure, and re-raise a pause error carrying the session failure, so the CLI prints it and exits with its code (14 for network, 5 otherwise). Keep the existing `AgentInvocationError` path.",
         "`src/cli/commands/run.ts` and `src/cli/commands/resume.ts`: for a paused network failure, print `renderSessionFailure(err, null)`, then the `network` whatsNext lines, then the resume-instructions pointer, and exit 14. For a paused handoff turn, print the failure lines and the resume hint. Extend `src/cli/commands/sessionFailureOutput.ts` with what these need.",
+        "`src/cli/commands/runLayers.ts`: `exitCodeForError` maps `HandoffPausedError` to exit 1 today; unwrap its session-failure cause, so a paused handoff turn exits 14 for a network failure and 5 otherwise.",
         "`src/app/fixLoop.ts`: name the fix turn's telemetry operation `phax.<agentOptions.provider>.agent.resume` and its error report's adapter `agentOptions.provider`, the same provider id the phase turn's telemetry uses. Report an `AgentSessionFailedError` too, widening `src/app/telemetry/reportBuilders.ts` if needed.",
         "Tests. Create `tests/integration/networkPause.test.ts`. (1) A run whose phase-02 runAgent fails with a network failure (fake backend knob from phase-03) exits 14, leaves the run `rate_limited` with `stoppedReason: network_failure`, prints `phax resume`, and a later `phax resume` continues the phase to review. (2) A handoff turn failing with kind network reports that failure and dispatches no HandoffMissing, read from the dispatched events. (3) Through the real node backend and the fake claude of tests/helpers/fakeProviderCli.ts, a phase session whose tool output printed `HTTP 429 Too Many Requests` and which then ends `error_during_execution` prints `claude-code session failed (provider-error)`, exits 5, and leaves the run not `rate_limited`. Extend `tests/unit/reducer.test.ts` for both events in every run state, and `tests/integration/fixLoop.test.ts` for a Codex fix turn's operation and adapter. Update `docs/state-machine.md` with the two events."
       ],
@@ -580,7 +629,9 @@
         "src/cli/commands/sessionFailureOutput.ts",
         "tests/unit/reducer.test.ts",
         "tests/integration/fixLoop.test.ts",
-        "docs/state-machine.md"
+        "docs/state-machine.md",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/events.test.ts"
       ],
       "optionalFilesToEdit": [
         "src/app/eventAdapter.ts",
@@ -591,7 +642,6 @@
         "src/app/phaxState.ts",
         "src/domain/errors.ts",
         "src/domain/disposition.ts",
-        "tests/unit/events.test.ts",
         "tests/unit/reducerAwaitingReview.test.ts",
         "tests/unit/reducerHandoffPause.test.ts",
         "tests/integration/resumeHandoff.test.ts",
@@ -641,6 +691,22 @@
           "oracle": "the recorded telemetry operation and adapter",
           "loop": "in-phase",
           "criterion": "ac-telemetry"
+        },
+        {
+          "guarantee": "a paused handoff turn exits 14 for a network failure and 5 for any other kind",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the exit code per failure kind",
+          "loop": "in-phase",
+          "criterion": "ac-handoff"
+        },
+        {
+          "guarantee": "a network pause's resume instructions name the session id the failure reported",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the resume-instructions text",
+          "loop": "in-phase",
+          "criterion": "ac-network-run"
         }
       ],
       "implementationOrder": [
@@ -674,9 +740,10 @@
       "detailedInstructions": [
         "`src/schemas/reviewStop.ts`: add the `LastClose` variant `{ result: network, at, exitCode: 14, detail }`, where `detail` is the provider message and there is no `step`. Every key is required.",
         "Freeze the current shape first: create `src/schemas/history/review-stop/0.26.0.ts`, a self-contained copy of today's review-stop schema (both variants and its LastClose union) with its own `$schema` URL pattern, as `src/schemas/history/interactive-session/0.26.0.ts` does, and never edit it afterwards. Wire it in `src/schemas/persisted.ts`: `readReviewStopFile` reads a stamp below the current one through the frozen decoder, and its value is valid in the current shape as it is. In `packages/schemas/src/formats/interactive.ts`, list 0.26.0 as a release of `review-stop`, export the frozen types from `packages/schemas/src/index.ts`, and add the module to the closure allowlist in `tests/unit/architecturalGuards.test.ts`.",
-        "run-list embeds review-stop: give `run-list` the same treatment. Create `src/schemas/history/run-list/0.26.0.ts`, embedding the frozen review-stop 0.26.0, list it as a release in the package, and register it wherever review-stop's frozen module is registered.",
+        "run-list embeds review-stop: give `run-list` the same treatment. Create `src/schemas/history/run-list/0.26.0.ts`, a self-contained copy of today's run-list schema that inlines review-stop 0.26.0's shapes instead of importing them (a frozen module imports only `effect`, `tests/unit/architecturalGuards.test.ts`), list it as a release in the package, and register it wherever review-stop's frozen module is registered.",
         "Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/review-stop/next.schema.json` and `packages/schemas/snapshots/run-list/next.schema.json`, the history lock entries, `src/schemas/release.ts` (both stamps at 0.30.0) and `packages/schemas/src/generated/index.ts`. Then make every exhaustive format registry in the schemas package tests and `tests/type/schemasPackage.ts` name the new releases.",
         "`src/app/closeStop.ts`: a closing turn that fails with an `AgentSessionFailedError` of kind `network` is refused with `{ result: network, exitCode: 14, detail: <provider message> }`, beside the existing limit refusal. `describeRefusal` reads `the closing turn could not reach the provider: <detail>; retry once the network is back`. The run stays `awaiting_review` through the existing StopCloseRefused path. Update `src/cli/commands/stopOutput.ts` for the new result, and the comment of `exitCodeForError` in `src/cli/commands/runLayers.ts`, which lists a refused close's codes.",
+        "Help text. In `src/cli/cliDocs.ts`, resume's long help, which lists a refused close's exits, gains 14 for a closing turn that could not reach the provider. Run `pnpm gen:usage-spec` and `pnpm docs:cli`.",
         "`docs/upgrading.md` § 0.30.0: one bullet for review UIs. review-stop.json and `phax ls --json` are stamped 0.30.0; `lastClose` gains the result `network` (exit 14, no `step`); 0.26.0 documents still read.",
         "Create `tests/integration/closeStopNetwork.test.ts`, built like tests/integration/declaredStopClose.test.ts. A run awaiting review at a declared stop whose closing turn fails with kind network, through the fake backend, exits 14 on `phax resume <run>`, stays `awaiting_review`, and its review-stop.json, stamped `review-stop/0.30.0.json`, records that `lastClose`. Add decoder tests for a 0.26.0 document and a 0.30.0 network close."
       ],
@@ -701,13 +768,16 @@
         "src/cli/commands/runLayers.ts",
         "tests/unit/architecturalGuards.test.ts",
         "tests/type/schemasPackage.ts",
-        "docs/upgrading.md"
+        "docs/upgrading.md",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
       ],
       "optionalFilesToEdit": [
         "src/schemas/runList.ts",
         "src/domain/reducer.ts",
         "tests/unit/schemasPackage/documents.ts",
-        "tests/unit/schemasPackage/exports.test.ts",
         "tests/unit/schemasPackage/parity.test.ts",
         "tests/unit/schemasPackage/jsonSchemas.test.ts",
         "tests/unit/schemas/interactiveFormats.test.ts",
@@ -871,19 +941,21 @@
       "title": "Unknown visibility says why, and the cause comes first",
       "objective": "An unknown repository visibility quotes gh's first stderr line and suggests a retry for a network or auth failure. A record refusal after a failed session prints after the failure and says it follows it. The troubleshooting page explains a failed agent session.",
       "detailedInstructions": [
-        "Create `src/domain/records/ghFailure.ts`: `classifyGhFailure(firstLine: string | null)` returns `network` (error connecting to, dial tcp, no such host, could not resolve, connection refused, timeout, i/o timeout), `auth` (gh auth login, authentication, not logged in, HTTP 401, Bad credentials) or `other`. Pure and case-insensitive.",
+        "Create `src/domain/records/ghFailure.ts`: `classifyGhFailure(firstLine: string | null)` returns `network` (error connecting to, could not resolve host, dial tcp, no such host, connection refused, i/o timeout, TLS handshake timeout; never a bare `could not resolve`, which gh's `GraphQL: Could not resolve to a Repository` not-found error also says, nor a bare `timeout`), `auth` (gh auth login, authentication, not logged in, HTTP 401, Bad credentials) or `other`. Pure and case-insensitive.",
         "`src/domain/records/destination.ts`: the destination check takes a visibility reading `{ visibility, ghError }`. An unknown visibility's refusal reads `this repo's visibility could not be determined — gh: <first line>` (the plain message when `ghError` is null). Its remedy is `retry once the network is back` for network, `run \\`gh auth login\\`, then retry` for auth, and today's `acknowledgedUnknownVisibility` remedy for other or no line. A refusal for network or auth never mentions acknowledgedUnknownVisibility. What the destination accepts is unchanged: an unknown visibility is still refused.",
         "`src/ports/github.ts`: `visibility(repo)` returns that reading. `src/infra/github.ts`: a failed `gh repo view` keeps gh's first non-empty stderr line (or the spawn error's message when gh could not run) as `ghError`. `src/infra/fakes/github.ts`: keep `setVisibility`, and add `failVisibility(firstLine)`. Adapt `src/app/recordPlumbing.ts`, `src/app/initWizard.ts` and `src/app/configureRecords.ts` to the reading.",
-        "Cause before secondary refusals. In `src/domain/errors.ts`, add `FailureWithFollowUpsError { message, cause, followUps: readonly string[] }`. In `src/app/decideVerdicts.ts`, `src/app/decideArtifact.ts` and `src/app/authorArtifact.ts`, the failure path stops writing the record and push warnings to `input.output`. When there is at least one, it fails with `FailureWithFollowUpsError` around the original error, otherwise with the original error. Record warnings after a failed session read `decision record refused, following the failed session: …` (and `authoring record …`): give `decisionRecordWarning` in `src/app/writeDecisionRecord.ts` and `recordWarning` in authorArtifact a flag for it. `exitCodeForError` and `exitCodeForAuthoringError` in `src/cli/commands/runLayers.ts` return the cause's code. `src/cli/commands/artifactDecide.ts` and `src/cli/commands/artifact.ts` print the cause's lines first (renderSessionFailure, or the existing rendering for other errors), then each follow-up as a warning.",
+        "Cause before secondary refusals. In `src/domain/errors.ts`, add `FailureWithFollowUpsError { message, cause, followUps: readonly string[] }`. In `src/app/decideVerdicts.ts`, `src/app/decideArtifact.ts` and `src/app/authorArtifact.ts`, the failure path still writes the record, but no longer prints the record's refusal and push warnings to `input.output`. When there is at least one, it fails with `FailureWithFollowUpsError` around the original error, otherwise with the original error. Record warnings after a failed session read `decision record refused, following the failed session: …` (and `authoring record …`): give `decisionRecordWarning` in `src/app/writeDecisionRecord.ts` and `recordWarning` in authorArtifact a flag for it, set only when the cause is a session failure (an `AgentSessionFailedError` or a limit error); after any other cause, such as a refused answer, the warning keeps today's wording. `exitCodeForError` and `exitCodeForAuthoringError` in `src/cli/commands/runLayers.ts` return the cause's code. `src/cli/commands/artifactDecide.ts` and `src/cli/commands/artifact.ts` print the cause's lines first (renderSessionFailure, or the existing rendering for other errors), then each follow-up as a warning.",
+        "Runs. A phase that fails with a non-pausing kind writes its `failed` record in `src/app/executePlan.ts` (`failOnRefusal: false`), and `writeRecordForPhase` prints `[phax] Warning: Phase \"…\" — records destination refused: …` straight to stderr before the CLI prints the cause. For a phase whose session failed, collect that warning (and any push warning) instead, worded `phase record refused, following the failed session: …`, and fail with `FailureWithFollowUpsError` around the session failure. `src/cli/commands/run.ts` and `src/cli/commands/resume.ts` print the cause's lines first, then each follow-up as a warning, and exit with the cause's code. A record refusal after a phase that did not fail on its session keeps printing as today.",
         "Docs. Create `docs/agent-session-failures.md`, `Troubleshooting a failed agent session`, for an operator whose command just failed on an agent session and who wants to know whether to retry, resume or fix something. Walk through the DNS outage case: the `claude-code session failed (network)` line, the agent-error.log it names, the record refusal that follows it, and the retry or `phax resume` it suggests. Then list the exit codes 5, 8 and 14 and what to do for each. Register it in `site/pages.ts` beside the upgrading guide. In `README.md` § Troubleshooting, add a bullet for a failed agent session and for exit 14 linking the page, and make the unknown-visibility advice match the new remedies.",
-        "Tests. Create `tests/integration/githubVisibility.test.ts`, a contract suite run against NodeGitHubLayer, with a fake `gh` on PATH as tests/integration/githubRepoWebUrl.test.ts does, and against makeFakeGitHub(): success, a network failure, an auth failure and a no-GitHub-remote failure. Extend `tests/unit/recordsDestination.test.ts` for the three remedies, with the three gh lines of the spec's surface. Create `tests/integration/decideFailureOrder.test.ts`: `runArtifactDecide` in verdicts mode with a fake backend failing the writer, transcripts on and an in-repo destination, and a fake GitHub whose visibility fails with `error connecting to api.github.com`. The session failure line comes before `decision record refused, following the failed session`, the refusal quotes `gh: error connecting to api.github.com`, and the exit code is 14."
+        "Tests. Create `tests/integration/githubVisibility.test.ts`, a contract suite run against NodeGitHubLayer, with a fake `gh` on PATH as tests/integration/githubRepoWebUrl.test.ts does, and against makeFakeGitHub(): success, a network failure, an auth failure and a no-GitHub-remote failure. Extend `tests/unit/recordsDestination.test.ts` for the three remedies, with the three gh lines of the spec's surface. Create `tests/integration/decideFailureOrder.test.ts`: `runArtifactDecide` in verdicts mode with a fake backend failing the writer, transcripts on and an in-repo destination, and a fake GitHub whose visibility fails with `error connecting to api.github.com`. The session failure line comes before `decision record refused, following the failed session`, the refusal quotes `gh: error connecting to api.github.com`, and the exit code is 14. Create `tests/integration/runFailureOrder.test.ts`: a run whose phase session fails with kind provider-error (fake backend), records on with transcripts and an in-repo destination, and a fake GitHub whose visibility fails, prints the failure line before `phase record refused, following the failed session`, and exits 5."
       ],
       "planMarkdownAnchor": "#phase-08-visibility-and-order",
       "plannedFilesToCreate": [
         "src/domain/records/ghFailure.ts",
         "tests/integration/githubVisibility.test.ts",
         "tests/integration/decideFailureOrder.test.ts",
-        "docs/agent-session-failures.md"
+        "docs/agent-session-failures.md",
+        "tests/integration/runFailureOrder.test.ts"
       ],
       "plannedFilesToEdit": [
         "src/domain/records/destination.ts",
@@ -903,7 +975,10 @@
         "src/cli/commands/artifact.ts",
         "tests/unit/recordsDestination.test.ts",
         "site/pages.ts",
-        "README.md"
+        "README.md",
+        "src/app/executePlan.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts"
       ],
       "optionalFilesToEdit": [
         "src/cli/commands/sessionFailureOutput.ts",
@@ -961,6 +1036,22 @@
           "oracle": "the ordered terminal lines and exit code",
           "loop": "in-phase",
           "criterion": "ac-order"
+        },
+        {
+          "guarantee": "a run whose phase session failed and whose phase record is refused prints the failure line before the refusal, which says it follows the failed session",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the ordered terminal lines and exit code",
+          "loop": "in-phase",
+          "criterion": "ac-order"
+        },
+        {
+          "guarantee": "gh's GraphQL could-not-resolve-to-a-Repository error is not classified as a network failure",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the expected class per gh line",
+          "loop": "in-phase",
+          "criterion": null
         }
       ],
       "implementationOrder": [
@@ -973,13 +1064,13 @@
       "excludedScope": [
         "Changing what the records destination accepts: an unknown visibility is still refused.",
         "Classifying failures of gh beyond the visibility check, or of git.",
-        "Ordering for run, resume and the review commands, which write no record after a failed session."
+        "Ordering for the review commands, which write no record after a failed session."
       ],
       "verification": "The `standard` gate profile in phax.json, including its terminal steps (build, site build and the Deno smokes) as the final phase.",
-      "expectedHandoff": "The visibility reading type and where it is defined. The exact refusal messages and remedies per gh class. The fields of FailureWithFollowUpsError and which use cases raise it. The page's route in site/pages.ts. The README lines changed. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The visibility reading type and where it is defined. The exact refusal messages and remedies per gh class. The fields of FailureWithFollowUpsError and which use cases raise it, executePlan included, and how run and resume print the follow-ups. The page's route in site/pages.ts. The README lines changed. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "feat(records): say why visibility is unknown, and print the cause first",
-        "body": "When gh repo view fails, the records visibility refusal now quotes gh's first stderr line. A network or authentication failure suggests a retry (after gh auth login) instead of acknowledgedUnknownVisibility. A decide or authoring session that failed prints its cause before any record refusal, and the refusal says it follows the failed session. Adds the Troubleshooting a failed agent session page and points the README at it."
+        "body": "When gh repo view fails, the records visibility refusal now quotes gh's first stderr line. A network or authentication failure suggests a retry (after gh auth login) instead of acknowledgedUnknownVisibility. A decide, authoring or run session that failed prints its cause before any record refusal, and the refusal says it follows the failed session. Adds the Troubleshooting a failed agent session page and points the README at it."
       },
       "assignmentReason": null,
       "model": "claude-sonnet-5-5",
