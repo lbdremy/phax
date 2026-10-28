@@ -15,7 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
-import { computeSessionUsage } from "../../src/app/recordPlumbing.js";
+import { computeRecordUsage } from "../../src/app/recordPlumbing.js";
 import { dispatch } from "../../src/app/dispatcher.js";
 import type { ClaudeSessionId, PhaseId, RunId } from "../../src/domain/branded.js";
 import { StopCloseRefusedError } from "../../src/domain/errors.js";
@@ -905,7 +905,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
         b.resumeAgentSession(
           VIBE3_SESSION_ID as ClaudeSessionId,
           "continue",
-          turnOptions("fix-01"),
+          turnOptions("fix-attempt-01"),
         ),
       ).pipe(Effect.provide(Layer.succeed(Backend, turnsBackend(second.executable)))),
     );
@@ -973,22 +973,20 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
       const closed = success(await close(VIBE3_SESSION_ID));
 
       const usage = await Effect.runPromise(
-        computeSessionUsage({
+        computeRecordUsage({
           provider: "mistral-vibe",
           folder: run.phaseFolder,
-          turns: [
-            { transcript: "output.jsonl", sessionId: one.sessionId },
-            { transcript: "fix-01.jsonl", sessionId: two.sessionId },
-          ],
+          sessionId: one.sessionId,
         }).pipe(Effect.provide(NodeFileSystemLayer)),
       );
-      expect(usage).toMatchObject({
+      expect(usage).toEqual({
         available: true,
         usage: {
           provider: "mistral-vibe",
           inputTokens: 10987 + 34588,
           cachedInputTokens: 3200 + 9600,
           outputTokens: 3 + 288,
+          costUsd: 0.016503 + 0.054042,
         },
       });
       const transcript = readFileSync(copyPath(VIBE3_SESSION_ID), "utf8");

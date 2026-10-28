@@ -852,8 +852,9 @@ export function stopAtHeldPhase(
       }),
     );
 
-    // The builder's usage now, before any closing turn can grow a vibe
-    // session's meta.json: the record written at closing uses it.
+    // The builder's usage now, from the builder's own turns (for vibe, the
+    // exports of its turn, fix attempts and handoff; never a stop turn's): the
+    // record written at closing uses it.
     const builderUsage = yield* computeRecordUsage({
       provider: input.provider,
       folder: input.phaseFolder,

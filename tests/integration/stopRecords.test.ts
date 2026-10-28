@@ -562,7 +562,8 @@ const writeExport = (folder: string, exportDir: string, exported: string): void 
 
 describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
   it("is the builder's usage read at the hold point, not the export a closing turn wrote", async () => {
-    // The builder's turn wrote output.jsonl, so its export is output.vibe-export.
+    // The builder's turn wrote output.jsonl, so its export is
+    // output.vibe-export; its handoff turn's is handoff-generation.vibe-export.
     const { run, result } = await startHeldRun(world, HOLD_PHASE_02, {
       records: true,
       providerConfig: VIBE_CONFIG,
@@ -575,6 +576,15 @@ describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
             writeExport(
               phaseFolder(prepared, phase),
               "output.vibe-export",
+              vibe3ExportText(VIBE3_EXPORT_SHORT),
+            );
+          }
+        };
+        prepared.backend.onHandoff = (phase) => {
+          if (phase === "phase-02") {
+            writeExport(
+              phaseFolder(prepared, phase),
+              "handoff-generation.vibe-export",
               vibe3ExportText(VIBE3_EXPORT_SHORT),
             );
           }
@@ -609,10 +619,10 @@ describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
         available: true,
         usage: {
           provider: "mistral-vibe",
-          inputTokens: 10987,
-          cachedInputTokens: 3200,
-          outputTokens: 3,
-          costUsd: 0.016503,
+          inputTokens: 10987 * 2,
+          cachedInputTokens: 3200 * 2,
+          outputTokens: 3 * 2,
+          costUsd: 0.016503 * 2,
         },
       },
       stop: { cause: "held", outcome: "corrected" },

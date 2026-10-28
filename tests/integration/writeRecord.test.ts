@@ -20,6 +20,15 @@ import {
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  VIBE3_EXPORT_LONG,
+  VIBE3_EXPORT_SHORT,
+  VIBE3_PONG_STREAM,
+  VIBE3_RESUME_STREAM,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+  vibe3StreamText,
+} from "../helpers/vibe3Fixtures.js";
 
 // Defaults to "private" visibility, matching the fake's happy-path default,
 // so every existing test in this file (none of which exercise the
@@ -254,6 +263,42 @@ describe("writeRecord", () => {
     await run(writeRecord(baseInput()));
 
     expect(readManifest("run-1/phase-01")["usage"]).toEqual({ available: false });
+  });
+
+  it("records a Vibe phase's usage as the sum of its turn, fix attempt and handoff exports, never a stop turn's", async () => {
+    await seedPhaseFolder({
+      "output.jsonl": vibe3StreamText(VIBE3_PONG_STREAM),
+      "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+      "fix-attempt-01.jsonl": vibe3StreamText(VIBE3_RESUME_STREAM),
+      "fix-attempt-01.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_LONG),
+      "handoff-generation.jsonl": vibe3StreamText(VIBE3_RESUME_STREAM),
+      "handoff-generation.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+      "closing-turn-01.jsonl": vibe3StreamText(VIBE3_RESUME_STREAM),
+      "closing-turn-01.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_LONG),
+    });
+
+    const result = await run(
+      writeRecord(
+        baseInput({
+          provider: "mistral-vibe",
+          model: "phax-mistral-medium-3.5-medium",
+          effort: "medium",
+          usage: { kind: "session", sessionId: VIBE3_SESSION_ID },
+        }),
+      ),
+    );
+
+    expect(result.kind).toBe("written");
+    expect(readManifest("run-1/phase-01")["usage"]).toEqual({
+      available: true,
+      usage: {
+        provider: "mistral-vibe",
+        inputTokens: 10987 * 2 + 34588,
+        cachedInputTokens: 3200 * 2 + 9600,
+        outputTokens: 3 * 2 + 288,
+        costUsd: 0.016503 * 2 + 0.054042,
+      },
+    });
   });
 
   it("writes one commit per phase, the second parented onto the first, keyed by phase", async () => {

@@ -101,11 +101,16 @@ describe("assembleRecord", () => {
   it("carries none of a vibe turn's export directories", () => {
     const { artifactPaths } = assembleRecord({
       ...baseInput,
-      files: [...baseInput.files, "output.vibe-export", "fix-01.jsonl", "fix-01.vibe-export"],
+      files: [
+        ...baseInput.files,
+        "output.vibe-export",
+        "fix-attempt-01.jsonl",
+        "fix-attempt-01.vibe-export",
+      ],
     });
     expect(artifactPaths).toEqual([
       "diff.patch",
-      "fix-01.jsonl",
+      "fix-attempt-01.jsonl",
       "output.jsonl",
       "prompt.md",
       "status.json",
