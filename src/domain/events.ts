@@ -1,5 +1,5 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
-import type { RateLimitError, UsageLimitError } from "./errors.js";
+import type { AgentSessionFailedError, RateLimitError, UsageLimitError } from "./errors.js";
 import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 import type { StopCause } from "./state.js";
@@ -196,6 +196,26 @@ export interface RateLimitDetected extends PhaxEventBase {
   readonly sessionId?: ClaudeSessionId | undefined;
 }
 
+// Cross-cutting: a phase or fix turn lost the network. Takes the same
+// dispositions and target states as RateLimitDetected (run and phase
+// `rate_limited`), persisting `stoppedReason: network_failure`. `sessionId`
+// comes from the failure, since the run's session id is unset when the phase
+// turn itself fails.
+export interface NetworkFailureDetected extends PhaxEventBase {
+  readonly type: "NetworkFailureDetected";
+  readonly cause: AgentSessionFailedError;
+  readonly worktreePath?: WorktreePath | undefined;
+  readonly sessionId?: ClaudeSessionId | undefined;
+}
+
+// The handoff turn's session failed (any kind but a limit): takes the
+// transitions HandoffMissing takes, with no missing section, and persists the
+// failure line, so a resume re-runs only the handoff.
+export interface HandoffTurnFailed extends PhaxEventBase {
+  readonly type: "HandoffTurnFailed";
+  readonly cause: AgentSessionFailedError;
+}
+
 // Operator command: reset a stuck phase so the run becomes resumable.
 export interface PhaseResetRequested extends PhaxEventBase {
   readonly type: "PhaseResetRequested";
@@ -314,6 +334,8 @@ export type PhaxEvent =
   | PhaseHadNoChanges
   | ArtifactCompletionFailed
   | RateLimitDetected
+  | NetworkFailureDetected
+  | HandoffTurnFailed
   | PhaseResetRequested
   | ReviewStopReached
   | StopCloseRefused

@@ -62,7 +62,7 @@ PhaseSubState
 stateDiagram-v2
     [*] --> created
     created --> running : RunStarted
-    running --> rate_limited : RateLimitDetected
+    running --> rate_limited : RateLimitDetected / NetworkFailureDetected
     running --> interrupted : RunInterruptRequested / PhaseHadNoChanges
     running --> failed : RunFailed
     running --> review_open : FinalReviewOpened
@@ -90,7 +90,7 @@ stateDiagram-v2
     setting_up_worktree --> running : WorktreeCreated
     running --> gates_failed : GateFailed
     running --> passed : GatePassed
-    running --> rate_limited : RateLimitDetected
+    running --> rate_limited : RateLimitDetected / NetworkFailureDetected
     gates_failed --> fixing : GateStarted (fix attempt)
     fixing --> running : GateFailed (retry)
     fixing --> passed : GatePassed
@@ -148,6 +148,7 @@ interface PhaxEventBase {
 | `HandoffRequested`         | orchestrator asks Claude to write `phase-handoff.md`                                                                      |
 | `HandoffValidated`         | handoff sections all present                                                                                              |
 | `HandoffMissing`           | handoff validation failed (carries `missingSections`)                                                                     |
+| `HandoffTurnFailed`        | the handoff turn's session failed, any kind but a limit (carries the `AgentSessionFailedError`); takes `HandoffMissing`'s transitions with `missing: []`, persists `stoppedReason: handoff_turn_failed` and `lastError` |
 | `CommitCreated`            | `git commit` succeeded (carries `hash`)                                                                                   |
 | `CleanupStarted`           | cleanup shell commands starting                                                                                           |
 | `CleanupCompleted`         | cleanup shell commands done (worktree stays on disk)                                                                      |
@@ -158,6 +159,7 @@ interface PhaxEventBase {
 | Event               | Trigger                                                                                                                                                              |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RateLimitDetected` | `RateLimitError` or `UsageLimitError` from Claude (carries `kind`, `resetAt?`, `cause`, `worktreePath?`, `sessionId?`)                                               |
+| `NetworkFailureDetected` | a phase or fix turn's session failed with kind `network` (carries the `AgentSessionFailedError` as `cause`, `worktreePath?`, `sessionId?` from the failure). Takes `RateLimitDetected`'s dispositions and target states (run and phase `rate_limited`), persists `stoppedReason: network_failure` and `lastError`, and writes `resume-instructions.md` naming `phax resume <run>`; the CLI exits 14 |
 | `PhaseHadNoChanges` | `commitPhase` finds a clean worktree — real problem requiring user attention (transitions run to `interrupted`, phase to `skipped`; writes `resume-instructions.md`) |
 | `ArtifactCompletionFailed` | run-completion step failed after the final phase committed (carries `phaseId`, `worktreePath`, `reason`; transitions run to `interrupted`, phase stays `committed`; writes `resume-instructions.md`) |
 
@@ -201,10 +203,12 @@ The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the 
 | `HandoffRequested`         | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `HandoffValidated`         | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `HandoffMissing`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `HandoffTurnFailed`        | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CommitCreated`            | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CleanupStarted`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CleanupCompleted`         | U       | U       | S            | S           | U           | S      | S         | S       | S        |
 | `RateLimitDetected`        | U       | **H**   | I            | I           | S           | S      | S         | S       | S        |
+| `NetworkFailureDetected`   | U       | **H**   | I            | I           | S           | S      | S         | S       | S        |
 | `PhaseHadNoChanges`        | U       | **H**   | S            | S           | S           | S      | S         | S       | S        |
 | `ArtifactCompletionFailed` | U       | **H**   | S            | S           | U           | S      | S         | S       | S        |
 

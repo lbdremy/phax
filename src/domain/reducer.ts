@@ -735,6 +735,55 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return assertNever(state);
       }
 
+    // HandoffMissing's transitions with no missing section: the handoff turn
+    // failed rather than the handoff coming back incomplete, so the failure
+    // line is persisted for the person reading run-status.json.
+    case "HandoffTurnFailed": {
+      const persistFailure: readonly PhaxCommand[] = [
+        {
+          type: "PersistState",
+          patch: {
+            run: { stoppedReason: "handoff_turn_failed", lastError: event.cause.message },
+          },
+        },
+      ];
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "passed") {
+            return handled(
+              { run: "running", phase: { state: "handoff_failed", missing: [] } },
+              persistFailure,
+            );
+          }
+          // A failed turn of the handoff, first or on resume: pause.
+          if (ps === "committed" || ps === "handoff_failed") {
+            return handled(
+              { run: "interrupted", phase: { state: "handoff_failed", missing: [] } },
+              persistFailure,
+            );
+          }
+          return unexpected(`handoff turn failed while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return unexpected("handoff turn failed while run is rate_limited");
+        case "interrupted":
+          return stale("handoff turn failed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`handoff turn failed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`handoff turn failed on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HandoffTurnFailed while the run awaits review");
+        default:
+          return assertNever(state);
+      }
+    }
+
     case "CommitCreated":
       switch (state.run) {
         case "running": {
@@ -1118,6 +1167,71 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return stale(`rate limit on ${state.run} run`);
         case "awaiting_review":
           return stale("RateLimitDetected while the run awaits review");
+        default:
+          return assertNever(state);
+      }
+
+    // Takes RateLimitDetected's dispositions: the same pause, the same resume
+    // path, told apart only by stoppedReason and lastError.
+    case "NetworkFailureDetected":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          // A close reports a network failure with StopCloseRefused.
+          if (ps === "awaiting_review") {
+            return unexpected("network failure detected while a close of the stop runs");
+          }
+          if (ps === "running" || ps === "fixing") {
+            return handled({ run: "rate_limited", phase: { state: "rate_limited" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "network_failure", lastError: event.cause.message },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason: "Network failure",
+                  kind: "network_failure",
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath,
+                  sessionId: event.sessionId,
+                  rawMessage: event.cause.failure.message,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "network_failure.detected",
+                status: "failed",
+                boundary: event.cause.failure.provider,
+                details: { provider: event.cause.failure.provider },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
+          }
+          return ignored(`network failure while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return ignored("run is already rate_limited");
+        case "interrupted":
+          return ignored("run is interrupted; network failure overridden");
+        case "created":
+          return unexpected("network failure detected before run started");
+        case "review_open":
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`network failure on ${state.run} run`);
+        case "awaiting_review":
+          return stale("NetworkFailureDetected while the run awaits review");
         default:
           return assertNever(state);
       }

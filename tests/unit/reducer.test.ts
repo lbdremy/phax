@@ -8,7 +8,7 @@ import {
   decodeWorktreePath,
 } from "../../src/domain/branded.js";
 import type { DispositionKind } from "../../src/domain/disposition.js";
-import { RateLimitError } from "../../src/domain/errors.js";
+import { AgentSessionFailedError, RateLimitError } from "../../src/domain/errors.js";
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
 import { phaxDispositionMatrix } from "../../src/domain/matrix.js";
 import { interpret } from "../../src/domain/reducer.js";
@@ -36,6 +36,19 @@ const base = {
 const rateLimitError = new RateLimitError({
   message: "rate limited",
   rawMessage: "rate limited",
+});
+
+const networkFailureError = new AgentSessionFailedError({
+  message: "claude-code session failed (network): API Error: getaddrinfo ENOTFOUND",
+  failure: {
+    provider: "claude-code",
+    kind: "network",
+    message: "API Error: getaddrinfo ENOTFOUND",
+    sessionId: "session-9",
+    resetAt: null,
+  },
+  agentErrorLog: null,
+  transcript: null,
 });
 
 const sampleReviewInfo: RunReviewInfo = {
@@ -171,6 +184,20 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     kind: "rate_limit",
     cause: rateLimitError,
+  },
+  NetworkFailureDetected: {
+    ...base,
+    type: "NetworkFailureDetected",
+    phase: phaseId,
+    cause: networkFailureError,
+    worktreePath,
+    sessionId,
+  },
+  HandoffTurnFailed: {
+    ...base,
+    type: "HandoffTurnFailed",
+    phase: phaseId,
+    cause: networkFailureError,
   },
   PhaseResetRequested: {
     ...base,
@@ -700,6 +727,107 @@ describe("interpret — rate limit handling", () => {
   it("rate_limited × RateLimitDetected is Ignored (already paused)", () => {
     const d = interpret(representativeState.rate_limited, sampleEvents.RateLimitDetected);
     expect(d.kind).toBe("Ignored");
+  });
+});
+
+describe("interpret — network failure handling", () => {
+  it.each([
+    ["running", { run: "running", phase: { state: "running" } }],
+    ["fixing", { run: "running", phase: { state: "fixing", attempt: 1 } }],
+  ] satisfies ReadonlyArray<readonly [string, PhaxState]>)(
+    "running + phase=%s × NetworkFailureDetected → rate_limited with the network pause effects",
+    (_name, state) => {
+      const d = interpret(state, sampleEvents.NetworkFailureDetected);
+      expect(d.kind).toBe("Handled");
+      if (d.kind !== "Handled") return;
+      expect(d.nextState).toEqual({ run: "rate_limited", phase: { state: "rate_limited" } });
+      expect(d.effects).toContainEqual({
+        type: "PersistState",
+        patch: {
+          run: {
+            stoppedReason: "network_failure",
+            lastError: "claude-code session failed (network): API Error: getaddrinfo ENOTFOUND",
+          },
+        },
+      });
+      expect(d.effects).toContainEqual({
+        type: "WriteResumeInstructions",
+        ctx: {
+          reason: "Network failure",
+          kind: "network_failure",
+          resetAt: undefined,
+          phaseId,
+          worktreePath,
+          sessionId,
+          rawMessage: "API Error: getaddrinfo ENOTFOUND",
+        },
+      });
+      const traces = d.effects.flatMap((e) => (e.type === "EmitTrace" ? [e.name] : []));
+      expect(traces).toEqual(["network_failure.detected", "resume.available"]);
+    },
+  );
+
+  it("takes RateLimitDetected's disposition in every run state and phase state", () => {
+    const phaseStates: readonly PhaxState[] = [
+      ...runStateNames.map((r) => representativeState[r]),
+      { run: "running", phase: { state: "fixing", attempt: 1 } },
+      { run: "running", phase: { state: "committed", hash: "abc" } },
+      { run: "running", phase: { state: "awaiting_review", cause: "held" } },
+      { run: "interrupted", phase: { state: "gates_exhausted", attempt: 3 } },
+    ];
+    for (const state of phaseStates) {
+      expect(interpret(state, sampleEvents.NetworkFailureDetected).kind).toBe(
+        interpret(state, sampleEvents.RateLimitDetected).kind,
+      );
+    }
+  });
+});
+
+describe("interpret — handoff turn failure", () => {
+  const persistFailure = {
+    type: "PersistState",
+    patch: {
+      run: {
+        stoppedReason: "handoff_turn_failed",
+        lastError: "claude-code session failed (network): API Error: getaddrinfo ENOTFOUND",
+      },
+    },
+  };
+
+  it.each([
+    ["passed", { run: "running", phase: { state: "passed" } }, "running"],
+    ["committed", { run: "running", phase: { state: "committed", hash: "abc" } }, "interrupted"],
+    [
+      "handoff_failed",
+      { run: "running", phase: { state: "handoff_failed", missing: ["## Summary"] } },
+      "interrupted",
+    ],
+  ] satisfies ReadonlyArray<readonly [string, PhaxState, "running" | "interrupted"]>)(
+    "running + phase=%s × HandoffTurnFailed lands where HandoffMissing does, with no missing section",
+    (_name, state, run) => {
+      const d = interpret(state, sampleEvents.HandoffTurnFailed);
+      expect(d.kind).toBe("Handled");
+      if (d.kind !== "Handled") return;
+      expect(d.nextState).toEqual({ run, phase: { state: "handoff_failed", missing: [] } });
+      expect(d.effects).toEqual([persistFailure]);
+      const missing = interpret(state, sampleEvents.HandoffMissing);
+      expect(missing.kind === "Handled" ? missing.nextState.run : null).toBe(run);
+    },
+  );
+
+  it("takes HandoffMissing's disposition in every run state and phase state", () => {
+    const states: readonly PhaxState[] = [
+      ...runStateNames.map((r) => representativeState[r]),
+      { run: "running", phase: { state: "passed" } },
+      { run: "running", phase: { state: "committed", hash: "abc" } },
+      { run: "running", phase: { state: "handoff_failed", missing: [] } },
+      { run: "running", phase: { state: "awaiting_review", cause: "held" } },
+    ];
+    for (const state of states) {
+      expect(interpret(state, sampleEvents.HandoffTurnFailed).kind).toBe(
+        interpret(state, sampleEvents.HandoffMissing).kind,
+      );
+    }
   });
 });
 

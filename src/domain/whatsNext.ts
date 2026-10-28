@@ -26,6 +26,11 @@ export type WhatsNextScenario =
       readonly platform: KeepAwakePlatform;
     }
   | {
+      readonly kind: "network";
+      readonly shortName: string;
+      readonly phaseId?: string | undefined;
+    }
+  | {
       readonly kind: "gates_exhausted";
       readonly shortName: string;
       readonly phaseId?: string | undefined;
@@ -133,6 +138,17 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
       return {
         headline: "The run is paused — a provider limit was reached.",
         steps,
+      };
+    }
+    case "network": {
+      const at = scenario.phaseId !== undefined ? ` at ${scenario.phaseId}` : "";
+      return {
+        headline: `Run ${scenario.shortName} is paused${at}.`,
+        steps: [
+          {
+            title: `Retry once the network is back: phax resume ${scenario.shortName}`,
+          },
+        ],
       };
     }
     case "gates_exhausted": {

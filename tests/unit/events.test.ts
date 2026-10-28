@@ -8,7 +8,7 @@ import {
 } from "../../src/domain/branded.js";
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
-import { RateLimitError } from "../../src/domain/errors.js";
+import { AgentSessionFailedError, RateLimitError } from "../../src/domain/errors.js";
 import { Either } from "effect";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
@@ -53,6 +53,19 @@ const base = {
 const rateLimitError = new RateLimitError({
   message: "rate limited",
   rawMessage: "rate limited",
+});
+
+const networkFailureError = new AgentSessionFailedError({
+  message: "claude-code session failed (network): API Error: getaddrinfo ENOTFOUND",
+  failure: {
+    provider: "claude-code",
+    kind: "network",
+    message: "API Error: getaddrinfo ENOTFOUND",
+    sessionId: "session-9",
+    resetAt: null,
+  },
+  agentErrorLog: null,
+  transcript: null,
 });
 
 /**
@@ -173,6 +186,20 @@ const samples = {
     kind: "rate_limit",
     cause: rateLimitError,
   },
+  NetworkFailureDetected: {
+    ...base,
+    type: "NetworkFailureDetected",
+    phase: phaseId,
+    cause: networkFailureError,
+    worktreePath,
+    sessionId,
+  },
+  HandoffTurnFailed: {
+    ...base,
+    type: "HandoffTurnFailed",
+    phase: phaseId,
+    cause: networkFailureError,
+  },
   ReviewStopReached: {
     ...base,
     type: "ReviewStopReached",
@@ -279,6 +306,9 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.phaseId}`;
     case "RateLimitDetected":
       return `${event.type}:${event.kind}`;
+    case "NetworkFailureDetected":
+    case "HandoffTurnFailed":
+      return `${event.type}:${event.cause.failure.kind}`;
     case "ReviewStopReached":
       return `${event.type}:${event.phaseId}:${event.cause}`;
     case "StopCloseRefused":
@@ -319,6 +349,12 @@ describe("PhaxEvent", () => {
     const event = samples.RateLimitDetected;
     expect(event.kind).toBe("rate_limit");
     expect(event.cause).toBe(rateLimitError);
+  });
+
+  it("preserves the session failure on NetworkFailureDetected and HandoffTurnFailed", () => {
+    expect(samples.NetworkFailureDetected.cause).toBe(networkFailureError);
+    expect(samples.NetworkFailureDetected.sessionId).toBe(sessionId);
+    expect(samples.HandoffTurnFailed.cause.failure.kind).toBe("network");
   });
 
   it("preserves payload on GateFailed", () => {

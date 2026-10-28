@@ -50,6 +50,7 @@ import {
   GateAttemptsExhaustedError,
   GateFailedError,
   GateStepRefusedError,
+  HandoffPausedError,
   InvalidArtifactTransitionError,
   LockConflictError,
   ModelPreflightError,
@@ -201,6 +202,11 @@ export function exitCodeForError(err: unknown): number {
   )
     return 4;
   if (err instanceof AgentSessionFailedError) return err.failure.kind === "network" ? 14 : 5;
+  // A paused handoff turn exits with the failed session's code; a handoff
+  // that came back incomplete keeps the generic one.
+  if (err instanceof HandoffPausedError && err.cause instanceof AgentSessionFailedError) {
+    return exitCodeForError(err.cause);
+  }
   if (
     err instanceof AgentInvocationError ||
     err instanceof AgentSessionIdMissingError ||

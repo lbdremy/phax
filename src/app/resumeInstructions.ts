@@ -171,6 +171,37 @@ function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
   return lines.join("\n");
 }
 
+function buildNetworkFailureInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused before completing: the provider session lost the network.",
+    "Nothing waits for a reset time, so the resume can run as soon as the network is back —",
+    "completed phases are not re-run.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    `- **Provider session:** ${input.sessionId ?? "(not reported)"}`,
+    "",
+    "## Resume",
+    "",
+    "```bash",
+    `phax resume ${input.shortName}`,
+    "```",
+    "",
+  ];
+
+  if (input.rawMessage !== undefined && input.rawMessage.trim().length > 0) {
+    lines.push("## Provider message", "", "```", input.rawMessage.trim().slice(0, 1000), "```", "");
+  }
+
+  return lines.join("\n");
+}
+
 function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
@@ -364,6 +395,9 @@ export function buildResumeInstructions(input: ResumeInstructionsInput): string 
   }
   if (input.kind === "gate_refused") {
     return buildGateRefusalInstructions(input);
+  }
+  if (input.kind === "network_failure") {
+    return buildNetworkFailureInstructions(input);
   }
   if (input.kind === "commit_failed") {
     return buildCommitFailedInstructions(input);

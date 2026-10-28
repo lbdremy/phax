@@ -51,6 +51,10 @@ import {
 } from "./runLayers.js";
 import {
   isSessionFailureError,
+  pausedHandoffFailure,
+  pausedNetworkFailure,
+  renderHandoffTurnPause,
+  renderNetworkPause,
   renderSessionFailure,
   retryCommandLine,
 } from "./sessionFailureOutput.js";
@@ -526,6 +530,22 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         for (const line of renderSessionFailure(err, null).slice(1)) out.warn(line);
         return exitCodeForError(err);
       }
+      const networkPause = pausedNetworkFailure(err);
+      if (networkPause !== null) {
+        for (const line of renderNetworkPause(
+          networkPause,
+          shortName,
+          join(runFolder, "resume-instructions.md"),
+        )) {
+          out.warn(line);
+        }
+        return exitCodeForError(err);
+      }
+      const handoffTurn = pausedHandoffFailure(err);
+      if (handoffTurn !== null) {
+        for (const line of renderHandoffTurnPause(handoffTurn, shortName)) out.warn(line);
+        return exitCodeForError(err);
+      }
       if (err instanceof GateAttemptsExhaustedError) {
         out.warn(`Run "${qualName}" gates exhausted: ${err.message}`);
         out.warn(
@@ -579,8 +599,8 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         return exitCodeForError(err);
       }
       if (isSessionFailureError(err)) {
-        // A mid-run network pause is rendered by the pause itself; until then
-        // the invoked command is the retry hint.
+        // A failure outside a pause (a stop's close, for one) keeps the
+        // invoked command as its retry hint.
         for (const line of renderSessionFailure(err, runRetryCommand(opts))) out.error(line);
         return exitCodeForError(err);
       }

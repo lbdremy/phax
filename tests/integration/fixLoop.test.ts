@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
 import { serializeGateRequest } from "../../src/app/gates.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
-import { GateAttemptsExhaustedError, GateStepRefusedError } from "../../src/domain/errors.js";
+import {
+  AgentSessionFailedError,
+  GateAttemptsExhaustedError,
+  GateStepRefusedError,
+} from "../../src/domain/errors.js";
+import { InMemoryTelemetry } from "../../src/infra/telemetry/inMemory.js";
+import { SystemTelemetry, type TelemetryAttributes } from "../../src/ports/systemTelemetry.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -13,6 +19,20 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+
+/** In-memory telemetry that also keeps the name of every operation it wraps. */
+class OperationRecordingTelemetry extends InMemoryTelemetry {
+  readonly operations: string[] = [];
+
+  override withOperation<A, E, R>(
+    name: string,
+    attrs: TelemetryAttributes,
+    operation: Effect.Effect<A, E, R>,
+  ): Effect.Effect<A, E, R> {
+    this.operations.push(name);
+    return super.withOperation(name, attrs, operation);
+  }
+}
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -607,6 +627,70 @@ describe("runGatesWithFixLoop", () => {
     );
 
     expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe(sessionId);
+  });
+
+  describe("the fix turn's telemetry names the provider that ran it", () => {
+    const codexOpts = {
+      ...baseOpts,
+      agentOptions: {
+        ...baseOpts.agentOptions,
+        provider: "codex-cli" as const,
+        model: "gpt-6-luna",
+      },
+    };
+
+    function codexLayers() {
+      const base = makeLayers();
+      const telemetry = new OperationRecordingTelemetry();
+      const layer = Layer.mergeAll(
+        base.fakeFs.layer,
+        base.fakeShell.layer,
+        base.fakeBackend.layer,
+        base.fakeGit.layer,
+        Layer.succeed(SystemTelemetry, telemetry),
+      );
+      return { ...base, telemetry, layer };
+    }
+
+    it("records the operation phax.codex-cli.agent.resume for a Codex fix turn", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend, telemetry } = codexLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeShell.impl.enqueue(
+        { exitCode: 1, stdout: "", stderr: "test failure" },
+        { exitCode: 0, stdout: "ok", stderr: "" },
+      );
+
+      await Effect.runPromise(runGatesWithFixLoop(codexOpts).pipe(Effect.provide(layer)));
+
+      expect(telemetry.operations).toEqual(["phax.codex-cli.agent.resume"]);
+    });
+
+    it("reports a Codex fix turn that lost the network with adapter codex-cli", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend, telemetry } = codexLayers();
+      seedStatusFiles(fakeFs);
+      fakeBackend.impl.failNextResumeWith({
+        provider: "codex-cli",
+        kind: "network",
+        message: "stream disconnected: error sending request",
+        sessionId: null,
+        resetAt: null,
+      });
+      fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "test failure" });
+
+      const result = await Effect.runPromise(
+        Effect.either(runGatesWithFixLoop(codexOpts).pipe(Effect.provide(layer))),
+      );
+
+      expect(Either.isLeft(result) ? result.left : null).toBeInstanceOf(AgentSessionFailedError);
+      const report = telemetry.errors().find((e) => e.type === "adapter.agent_failed");
+      expect(report).toMatchObject({
+        adapter: "codex-cli",
+        operation: "agent.resume",
+        actual: "network",
+      });
+      expect(telemetry.operations).toEqual(["phax.codex-cli.agent.resume"]);
+    });
   });
 
   describe("attempt numbering", () => {
