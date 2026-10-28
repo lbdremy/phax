@@ -28,6 +28,9 @@
   "review": {
     "compliance": {
       "enabled": true
+    },
+    "code": {
+      "enabled": true
     }
   },
   "publish": {
