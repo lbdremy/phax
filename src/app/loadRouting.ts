@@ -6,7 +6,12 @@ import { ConfigValidationError } from "../domain/errors.js";
 import { type ModelRouting, decodeModelRouting } from "../schemas/modelRouting.js";
 import { type ProviderConfig, decodeProviderConfig } from "../schemas/providerConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
-import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+  RETIRED_MODEL_IDS,
+} from "../domain/routing/defaults.js";
+import { retiredModelIds } from "../domain/routing/providerSetup.js";
 
 export const MODEL_ROUTING_PATH = join(homedir(), ".phax", "model-routing.json");
 export const PROVIDER_CONFIG_PATH = join(homedir(), ".phax", "providers.json");
@@ -52,7 +57,41 @@ export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidation
   });
 }
 
+/**
+ * The provider catalog: ~/.phax/providers.json, else the built-in one. A file
+ * that still lists an id phax no longer routes to is refused, naming each id,
+ * why, and `phax agent setup providers --write`, which drops them.
+ */
 export function loadProviderConfig(): Effect.Effect<
+  ProviderConfig,
+  ConfigValidationError,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const config = yield* readProviderConfigFile();
+    const retired = retiredModelIds(config);
+    if (retired.length > 0) {
+      const lines = retired.map((id) => `  - ${id}: ${RETIRED_MODEL_IDS[id]}`).join("\n");
+      return yield* Effect.fail(
+        new ConfigValidationError({
+          message:
+            `"${PROVIDER_CONFIG_PATH}" lists models phax no longer routes to:\n${lines}\n` +
+            "Run `phax agent setup providers --write` to drop them (it also enables every " +
+            "installed provider), or delete them from the file.",
+          path: PROVIDER_CONFIG_PATH,
+        }),
+      );
+    }
+    return config;
+  });
+}
+
+/**
+ * ~/.phax/providers.json decoded as it is, retired ids included, else the
+ * built-in catalog. Only `phax agent setup providers` reads it this way, to
+ * rewrite the file without them.
+ */
+export function readProviderConfigFile(): Effect.Effect<
   ProviderConfig,
   ConfigValidationError,
   FileSystem

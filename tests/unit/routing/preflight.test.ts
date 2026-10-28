@@ -100,6 +100,42 @@ describe("preflightPhaseModels — id not found", () => {
   });
 });
 
+describe("preflightPhaseModels — retired Mistral aliases", () => {
+  it("refuses the aliases whose reasoning level the Mistral API refuses, against the built-in catalog", () => {
+    const result = preflightPhaseModels(
+      [
+        { id: "phase-01", model: "phax-mistral-medium-3.5-low", effort: "low" },
+        { id: "phase-02", model: "phax-mistral-medium-3.5-medium", effort: "medium" },
+        { id: "phase-03", model: "phax-mistral-medium-3.5-max", effort: "max" },
+        { id: "phase-04", model: "phax-mistral-medium-3.5-high", effort: "high" },
+        { id: "phase-05", model: "phax-mistral-medium-3.5-off", effort: "off" },
+      ],
+      DEFAULT_MODEL_ROUTING,
+      { providers: { ...DEFAULT_PROVIDER_CONFIG.providers, "mistral-vibe": vibeEnabled() } },
+    );
+    expect(result.failures.map((f) => [f.phaseId, f.reasons])).toEqual([
+      ["phase-01", ['model id "phax-mistral-medium-3.5-low" not found in catalog']],
+      ["phase-02", ['model id "phax-mistral-medium-3.5-medium" not found in catalog']],
+      ["phase-03", ['model id "phax-mistral-medium-3.5-max" not found in catalog']],
+    ]);
+  });
+
+  it("refuses an effort the kept high alias does not serve, offering high", () => {
+    const result = preflightPhaseModels(
+      [{ id: "phase-01", model: "phax-mistral-medium-3.5-high", effort: "medium" }],
+      DEFAULT_MODEL_ROUTING,
+      { providers: { ...DEFAULT_PROVIDER_CONFIG.providers, "mistral-vibe": vibeEnabled() } },
+    );
+    expect(result.failures[0]?.reasons[0]).toBe(
+      'effort "medium" is not supported by phax-mistral-medium-3.5-high (supports: high)',
+    );
+  });
+});
+
+function vibeEnabled(): ProviderConfig["providers"][string] {
+  return { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true };
+}
+
 describe("preflightPhaseModels — unsupported effort", () => {
   it("reports unsupported effort with alternatives listing supported efforts", () => {
     const result = preflightPhaseModels(

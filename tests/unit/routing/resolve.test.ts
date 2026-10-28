@@ -105,17 +105,29 @@ describe("resolveModel — cross-family translation via the Claude hub", () => {
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("claude-sonnet/medium with mistral priority selects mistral's medium alias (equivalent)", () => {
+  it("claude-sonnet/high with mistral priority selects mistral's high alias (equivalent)", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "high" },
+      mistralPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("mistral-vibe");
+    expect(result.selected.family).toBe("mistral-medium");
+    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("claude-sonnet/medium with mistral priority runs mistral's high alias as an upgrade", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
       allEnabled,
     );
     expect(result.selected.provider).toBe("mistral-vibe");
-    expect(result.selected.family).toBe("mistral-medium");
-    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-medium");
-    expect(result.selected.thinking).toBe("medium");
-    expect(result.relationship).toBe("equivalent");
+    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("upgrade");
   });
 
   it("claude-opus/medium translates to codex-cli/gpt-5.5/xhigh via the hub (equivalent)", () => {
@@ -623,7 +635,7 @@ describe("resolveModel — terminal claude-code fallback", () => {
 describe("resolveModel — reason and skippedForSecurity", () => {
   it("mentions the selected provider and family in the reason", () => {
     const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "medium" },
+      { model: "claude-sonnet-4-6", effort: "high" },
       mistralPriority,
       allEnabled,
     );

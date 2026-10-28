@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Shell } from "../ports/shell.js";
 import { ConfigValidationError } from "../domain/errors.js";
-import { PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH, loadProviderConfig } from "./loadRouting.js";
+import { PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH, readProviderConfigFile } from "./loadRouting.js";
 import { DEFAULT_MODEL_ROUTING } from "../domain/routing/defaults.js";
 import { planProviderConfig, type ProviderConfigPlan } from "../domain/routing/providerSetup.js";
 import { probeProviders } from "./providerProbe.js";
@@ -28,7 +28,7 @@ export function providerSetup(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
-    const current = yield* loadProviderConfig();
+    const current = yield* readProviderConfigFile();
     const probes = yield* probeProviders(current);
     const plan = planProviderConfig(current, probes, { prune: options.prune });
 

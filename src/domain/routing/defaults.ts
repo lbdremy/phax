@@ -92,21 +92,17 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       xhigh: { claude: "claude-sonnet-5", effort: "xhigh", relation: "equivalent" },
       max: { claude: "claude-sonnet-5", effort: "max", relation: "equivalent" },
     },
-    // Mistral Vibe — one alias per effort, each anchored to its Claude peer.
+    // Mistral Vibe — one alias per reasoning level the Mistral API serves for
+    // mistral-medium-3.5: `none` (the `off` alias) and `high`. It refuses
+    // low, medium and max (checked 2026-10-28), so those aliases are gone.
+    // A Claude effort with no edge here takes the nearest edge of its anchor
+    // (see hubToSpoke in catalog.ts): Sonnet 4.6 low and medium run `high` as
+    // an upgrade, max as a downgrade.
     "phax-mistral-medium-3.5-off": {
       off: { claude: "claude-haiku-4-5-20251001", effort: "none", relation: "equivalent" },
     },
-    "phax-mistral-medium-3.5-low": {
-      low: { claude: "claude-sonnet-4-6", effort: "low", relation: "equivalent" },
-    },
-    "phax-mistral-medium-3.5-medium": {
-      medium: { claude: "claude-sonnet-4-6", effort: "medium", relation: "equivalent" },
-    },
     "phax-mistral-medium-3.5-high": {
       high: { claude: "claude-sonnet-4-6", effort: "high", relation: "equivalent" },
-    },
-    "phax-mistral-medium-3.5-max": {
-      max: { claude: "claude-sonnet-4-6", effort: "max", relation: "equivalent" },
     },
   },
   requestedModelNormalization: {
@@ -115,6 +111,19 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
     opus: "claude-opus",
     fable: "claude-fable",
   },
+};
+
+/**
+ * Catalog ids phax used to ship and no longer routes to, with why. A
+ * providers.json written by an older phax may still list them:
+ * `loadProviderConfig` refuses such a file and `phax agent setup providers
+ * --write` drops them.
+ */
+export const RETIRED_MODEL_IDS: Readonly<Record<string, string>> = {
+  "phax-mistral-medium-3.5-low": "the Mistral API refuses low reasoning for mistral-medium-3.5",
+  "phax-mistral-medium-3.5-medium":
+    "the Mistral API refuses medium reasoning for mistral-medium-3.5",
+  "phax-mistral-medium-3.5-max": "the Mistral API refuses max reasoning for mistral-medium-3.5",
 };
 
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
@@ -210,10 +219,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
         "mistral-medium": {
           models: [
             { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
-            { id: "phax-mistral-medium-3.5-low", efforts: ["low"], status: "active" },
-            { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
             { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
-            { id: "phax-mistral-medium-3.5-max", efforts: ["max"], status: "active" },
           ],
         },
       },

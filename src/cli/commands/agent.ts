@@ -166,7 +166,12 @@ export async function runAgentSetupMistralVibe(
     return 2;
   }
 
-  const { aliasesAdded, aliasesSkipped, backupPath } = result.right;
+  const { aliasesAdded, aliasesSkipped, aliasesRetired, backupPath } = result.right;
+  if (aliasesRetired.length > 0) {
+    out.log(
+      `No longer used, left in ${VIBE_CONFIG_PATH} (Mistral refuses their reasoning level): ${aliasesRetired.join(", ")}`,
+    );
+  }
 
   if (opts.dryRun) {
     out.log("Dry run — no changes written.");
@@ -238,6 +243,11 @@ export async function runAgentSetupProviders(
 
   const { plan, written, backupPath, routingScaffolded, providerConfigPath, modelRoutingPath } =
     result.right;
+  if (plan.retiredRemoved.length > 0) {
+    out.log(
+      `${write ? "Dropped" : "Would drop"} models phax no longer routes to (${plan.retiredRemoved.length}): ${plan.retiredRemoved.join(", ")}`,
+    );
+  }
 
   if (!write) {
     out.log("Dry run — no changes written.");

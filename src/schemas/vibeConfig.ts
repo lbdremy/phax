@@ -14,12 +14,21 @@ export type VibeBaseModel = Schema.Schema.Type<typeof VibeBaseModelSchema>;
 
 const decodeVibeBaseModel = Schema.decodeUnknownEither(VibeBaseModelSchema);
 
-export const PHAX_ALIAS_LEVELS = ["off", "low", "medium", "high", "max"] as const;
+/** The reasoning levels the Mistral API serves for mistral-medium-3.5: one phax alias each. */
+export const PHAX_ALIAS_LEVELS = ["off", "high"] as const;
 export type PhaxAliasLevel = (typeof PHAX_ALIAS_LEVELS)[number];
+
+/**
+ * Aliases an older phax installed for levels the API now refuses (HTTP 400
+ * "reasoning_effort … is not supported"). phax no longer installs or routes
+ * to them; setup reports the ones a config still holds, and never edits them.
+ */
+export const RETIRED_PHAX_ALIAS_LEVELS = ["low", "medium", "max"] as const;
+type RetiredPhaxAliasLevel = (typeof RETIRED_PHAX_ALIAS_LEVELS)[number];
 
 export const PHAX_ALIAS_PREFIX = "phax-mistral-medium-3.5";
 
-export function makePhaxAliasName(level: PhaxAliasLevel): string {
+export function makePhaxAliasName(level: PhaxAliasLevel | RetiredPhaxAliasLevel): string {
   return `${PHAX_ALIAS_PREFIX}-${level}`;
 }
 
