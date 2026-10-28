@@ -53,10 +53,10 @@ describe("PROVIDER_SECURITY_CAPABILITIES", () => {
     expect(cap.mcpAllowlist).toBe("supported");
   });
 
-  it("mistral-vibe has strong filesystem jail and supported MCP allowlist", () => {
+  it("mistral-vibe has strong filesystem jail and no MCP allowlist", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"];
     expect(cap.filesystemJail).toBe("strong");
-    expect(cap.mcpAllowlist).toBe("supported");
+    expect(cap.mcpAllowlist).toBe("unsupported");
   });
 
   it("claude-code has prefix command enforcement", () => {
@@ -183,5 +183,38 @@ describe("securityFilterFor", () => {
     expect(filter("claude-code")).toEqual({ allowed: true });
     expect(filter("codex-cli")).toEqual({ allowed: true });
     expect(filter("mistral-vibe")).toEqual({ allowed: true });
+  });
+});
+
+// No shipped provider is partial today: a capability table of our own keeps
+// the refusal pinned for the next one that is.
+describe("a provider with a partial filesystem jail", () => {
+  const partialTable = {
+    ...PROVIDER_SECURITY_CAPABILITIES,
+    "mistral-vibe": {
+      ...PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"],
+      filesystemJail: "partial",
+    },
+  } as const;
+
+  it("is marked partial-filesystem, downgraded and not strict in secure mode", () => {
+    expect(evaluateProviderSecurity("mistral-vibe", securePolicy, partialTable)).toEqual({
+      provider: "mistral-vibe",
+      satisfiesStrict: false,
+      downgraded: true,
+      marks: ["partial-filesystem"],
+      notes: [],
+    });
+  });
+
+  it("is refused by secure routing, naming the mark, and allowed outside secure mode", () => {
+    expect(securityFilterFor(securePolicy, partialTable)("mistral-vibe")).toEqual({
+      allowed: false,
+      reason: "cannot satisfy strict secure mode (partial-filesystem)",
+    });
+    expect(securityFilterFor(securePolicy, partialTable)("claude-code")).toEqual({ allowed: true });
+    expect(securityFilterFor(unsafePolicy, partialTable)("mistral-vibe")).toEqual({
+      allowed: true,
+    });
   });
 });
