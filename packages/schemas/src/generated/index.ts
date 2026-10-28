@@ -31,7 +31,7 @@ export const CURRENT_SHAPES = {
   "brief-report": "0.21.0",
   "hand-decision-answer": "0.25.0",
   "decision-record-manifest": "0.28.0",
-  "cost-ledger": "next",
+  "cost-ledger": "0.29.0",
   "architecture-request": "0.26.0",
   "architecture-report": "0.26.0",
   "oracle-request": "0.26.0",
@@ -41,6 +41,6 @@ export const CURRENT_SHAPES = {
   "review-stop": "0.26.0",
   "run-list": "0.26.0",
   "decide-verdicts": "0.28.0",
-  "review-record-manifest": "next",
-  "code-review": "next",
+  "review-record-manifest": "0.29.0",
+  "code-review": "0.29.0",
 } as const;
