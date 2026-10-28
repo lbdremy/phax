@@ -98,7 +98,7 @@ export interface FirstTurnInput {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
-  /** The phase's policy. A read-only provider ignores it; vibe runs under it (q-vibe-turns). */
+  /** The phase's policy. Every provider's turns run read-only, so none applies it. */
   readonly policy: SecurityPolicy;
   readonly origin: Origin;
 }
@@ -351,78 +351,36 @@ function settleTurn(
 export const closingTurnLabel = (turn: number): string =>
   `closing-turn-${String(turn).padStart(2, "0")}`;
 
-/**
- * Whether phax's turns on `provider` can write: only mistral-vibe's, which
- * run under the phase's posture (q-vibe-turns). Claude Code and codex turns
- * run read-only.
- */
-export const turnsCanWrite = (provider: ProviderId): boolean => provider === "mistral-vibe";
-
 /** What settling a turn a crash or an interruption left in progress came to. */
 export interface LeftoverSettlement {
   /** The interactive-session document as it now stands, null when none exists. */
   readonly session: InteractiveSession | null;
   /** The first turn settled, 0 when none was (no turn, or a closing turn). */
   readonly settledFirstTurn: number;
-  /** A writing closing turn's edits, restored: the paths and where its versions were kept. */
-  readonly restoredClosingTurn: {
-    readonly paths: readonly string[];
-    readonly keptAt: string;
-  } | null;
 }
 
-// A closing turn left in progress. Only a turn that can write (vibe) had its
-// edits restored, kept aside first; a read-only turn wrote nothing, so any
-// change since is the person's and stays. The seed is rewritten either way.
+// A closing turn left in progress. Every provider's closing turn is read-only,
+// so it wrote nothing and any change since is the person's and stays. Only the
+// handoff copy is dropped and the seed rewritten.
 function settleLeftoverClosingTurn(
   input: FirstTurnInput,
   session: InteractiveSession,
   leftOver: TurnInProgress,
-): Effect.Effect<LeftoverSettlement, FsError | GitError, FileSystem | Git> {
+): Effect.Effect<LeftoverSettlement, FsError, FileSystem> {
   return Effect.gen(function* () {
-    const git = yield* Git;
-    const label = closingTurnLabel(leftOver.turn);
-    let restored: LeftoverSettlement["restoredClosingTurn"] = null;
-    if (turnsCanWrite(session.provider)) {
-      const afterTree = yield* git.snapshotWorktree(input.worktree);
-      const afterHandoff = yield* fingerprintPersonHandoff(input.worktree);
-      const verdict = worktreeChangeVerdict({
-        before: leftOver.beforeTree,
-        after: afterTree,
-        changed:
-          afterTree === leftOver.beforeTree
-            ? []
-            : yield* git.changedPathsBetween(input.worktree, leftOver.beforeTree, afterTree),
-        personHandoffBefore: leftOver.personHandoffBefore,
-        personHandoffAfter: afterHandoff?.sha256 ?? null,
-      });
-      if (verdict.kind === "changed") {
-        const keptAt = yield* keepRefusedTurn(input.worktree, input.phaseFolder, verdict.paths);
-        yield* git.restorePaths(
-          input.worktree,
-          leftOver.beforeTree,
-          verdict.paths.filter((p) => p !== PERSON_HANDOFF_PATH),
-        );
-        if (verdict.personHandoff !== "unchanged") {
-          yield* restorePersonHandoff(input.worktree, input.phaseFolder, label);
-        }
-        restored = { paths: verdict.paths, keptAt };
-      }
-    }
-    yield* dropPersonHandoffCopy(input.phaseFolder, label);
+    yield* dropPersonHandoffCopy(input.phaseFolder, closingTurnLabel(leftOver.turn));
     yield* restoreWorktreeSeed(seedPaths(input.worktree, input.phaseFolder));
     const settled: InteractiveSession = { ...session, turnInProgress: null };
     yield* writeInteractiveSession(input.phaseFolder, settled);
-    return { session: settled, settledFirstTurn: 0, restoredClosingTurn: restored };
+    return { session: settled, settledFirstTurn: 0 };
   });
 }
 
 /**
  * Settle the turn interactive-session.json records in progress, if any: a
  * first turn as `refused-change` when it changed anything, else as `failed`
- * with reason `interrupted`; a closing turn by restoring a writing turn's
- * edits, with no record. Either way the seed is
- * rewritten and `turnInProgress` cleared.
+ * with reason `interrupted`; a closing turn with no record, its edits kept.
+ * Either way the seed is rewritten and `turnInProgress` cleared.
  */
 export function settleLeftoverTurn(
   input: FirstTurnInput,
@@ -431,7 +389,7 @@ export function settleLeftoverTurn(
     const stored = yield* readInteractiveSession(input.phaseFolder);
     const leftOver = stored?.turnInProgress ?? null;
     if (stored === null || leftOver === null) {
-      return { session: stored, settledFirstTurn: 0, restoredClosingTurn: null };
+      return { session: stored, settledFirstTurn: 0 };
     }
     if (leftOver.kind === "closing-turn") {
       return yield* settleLeftoverClosingTurn(input, stored, leftOver);
@@ -448,7 +406,7 @@ export function settleLeftoverTurn(
         resetAt: null,
       },
     );
-    return { session: settled.session, settledFirstTurn: leftOver.turn, restoredClosingTurn: null };
+    return { session: settled.session, settledFirstTurn: leftOver.turn };
   });
 }
 

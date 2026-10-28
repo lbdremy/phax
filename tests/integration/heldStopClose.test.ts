@@ -339,7 +339,6 @@ describe("closing a held stop", () => {
       phaseCommit: c2,
       handoffSource: "closing-turn-resumed",
       changedPaths: ["src/invoiceRow.ts", "tests/invoiceRow.test.ts"],
-      restoredClosingTurn: null,
       oracleStep: "none",
     });
     expect(closed.gateSteps.map((s) => [s.command, s.result])).toEqual([

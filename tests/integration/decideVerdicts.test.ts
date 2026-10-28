@@ -1086,7 +1086,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     expect(h.backend.resumeCalls[0]?.options.provider).toBe("codex-cli");
   });
 
-  it("refuses a model routing sends to mistral-vibe before any session, naming --model", async () => {
+  it("runs the writer on mistral-vibe, read-only, when routing selects it", async () => {
     seed(FILE_VALID);
     const vibeEnabled: ProviderConfig = {
       providers: {
@@ -1094,20 +1094,17 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
         "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
       },
     };
-    const h = world.harness();
+    const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const { error } = expectFailure(
-      world,
+    const done = Either.getOrThrow(
       await h.run({ model: "claude-sonnet-4-6", providerConfig: vibeEnabled }),
-      12,
-      world.headSha(),
     );
 
-    expect(error.reason).toBe("model");
-    expect(error.message).toBe(
-      "Decide refused: routing sends the writer's model claude-sonnet-4-6 to mistral-vibe (phax-mistral-medium-3.5-medium), which ignores read-only — pass --model with a Claude Code or Codex model",
-    );
-    expectNoWriter(world, h);
+    expect(done).toMatchObject({ provider: "mistral-vibe" });
+    expect(h.backend.runCalls[0]?.options).toMatchObject({
+      provider: "mistral-vibe",
+      readOnly: true,
+    });
   });
 
   it("runs --model and --effort as given, naming both as flags", async () => {

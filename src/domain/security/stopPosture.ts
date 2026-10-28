@@ -4,7 +4,7 @@
 import type { ProviderId } from "../routing/types.js";
 import { TURN_STREAM_PATTERN } from "../records/stopArtifacts.js";
 
-export type ReadOnlyNarrowing = "read-only-tools" | "read-only-sandbox" | "none";
+export type ReadOnlyNarrowing = "read-only-tools" | "read-only-sandbox";
 
 export interface PhaxTurn {
   /** The turn's name, such as `first-turn-01`. */
@@ -32,7 +32,7 @@ export function readOnlyNarrowingOf(provider: ProviderId): ReadOnlyNarrowing {
     case "codex-cli":
       return "read-only-sandbox";
     case "mistral-vibe":
-      return "none";
+      return "read-only-tools";
   }
 }
 

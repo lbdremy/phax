@@ -337,7 +337,6 @@ describe("closing a declared stop", () => {
       outcome: "corrected",
       handoffSource: "closing-turn-resumed",
       changedPaths: ["src/invoiceRow.ts"],
-      restoredClosingTurn: null,
     });
     expect(closed.gateSteps.map((s) => [s.command, s.result])).toEqual([
       ["pnpm typecheck", "pass"],
@@ -925,7 +924,7 @@ describe("a close taken up again", () => {
     expect(closed).toMatchObject({ outcome: "corrected", changedPaths: ["src/invoiceRow.ts"] });
   });
 
-  it("restores an interrupted vibe closing turn's edits before the gate", async () => {
+  it("settles an interrupted vibe closing turn read-only and keeps its edits", async () => {
     const run = await stopRun(world, {
       provider: "mistral-vibe",
       model: "devstral-2",
@@ -959,26 +958,17 @@ describe("a close taken up again", () => {
     expect(interrupted?.turnInProgress).toMatchObject({ kind: "closing-turn", turn: 1 });
     expect(read(run, "src/export/labels.ts")).toBe("export const labels = {};\n");
 
-    // `phax resume` takes the close up again: the turn's edit is restored
-    // before the gate, so neither the gate nor the new closing turn sees it.
+    // `phax resume` takes the close up again: a vibe closing turn is read-only
+    // like the others, so the leftover is only settled and the file stays as
+    // the person's work.
     const backend = answering(answerText(), "V1" as ClaudeSessionId);
-    const { result, order } = await close(run, { resume: false, backend });
+    const { result } = await close(run, { resume: false, backend });
     const closed = report(result);
 
-    expect(closed.restoredClosingTurn).toEqual({
-      paths: ["src/export/labels.ts"],
-      keptAt: join(run.phaseFolder, "refused-turn-01"),
-    });
-    expect(order).toEqual(["gate:pnpm typecheck", "gate:pnpm test", "turn:resume:V1"]);
-    expect(backend.resumeCalls[0]!.prompt).not.toContain("labels");
-    expect(existsSync(join(run.worktree, "src/export/labels.ts"))).toBe(false);
-    expect(
-      readFileSync(join(run.phaseFolder, "refused-turn-01", "src/export/labels.ts"), "utf8"),
-    ).toBe("export const labels = {};\n");
-    expect(closed.changedPaths).toEqual(["src/invoiceRow.ts"]);
-    expect(gitIn(run.worktree, "show", "--name-only", "--format=", "HEAD").trim()).toBe(
-      "src/invoiceRow.ts",
-    );
+    expect("restoredClosingTurn" in closed).toBe(false);
+    expect(existsSync(join(run.phaseFolder, "refused-turn-01"))).toBe(false);
+    expect(read(run, "src/export/labels.ts")).toBe("export const labels = {};\n");
+    expect(closed.changedPaths).toEqual(["src/export/labels.ts", "src/invoiceRow.ts"]);
     const settled = await Effect.runPromise(
       readInteractiveSession(run.phaseFolder).pipe(Effect.provide(NodeFileSystemLayer)),
     );

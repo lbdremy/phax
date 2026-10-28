@@ -27,6 +27,12 @@ import type { SecurityPolicy } from "../security/types.js";
 //       get an empty allowlist so a user's own entries cannot widen them.
 //       web_fetch/web_search are left alone, as Claude Code's secure flags do.
 //
+// A read-only session (whatever the policy mode) enables only read_file and
+// grep, plus bash with the secure VIBE_TOOLS when it was granted commands, and
+// carries the two secure variables. A sealed completion disables every tool
+// (`--disabled-tools '*'`): the model still sees tool names, its calls are
+// refused.
+//
 // Network and MCP scoping are not expressed here: the resolved policy is
 // recorded in security.json only.
 
@@ -37,6 +43,8 @@ export interface VibeFlagsInput {
   readonly agentCommands: readonly string[];
   /** The agent an unsafe session runs; secure sessions ignore it. */
   readonly unsafeAgent?: string | undefined;
+  /** A read-only session enables only reading tools (plus bash when it has agent commands). */
+  readonly readOnly?: boolean | undefined;
 }
 
 export interface VibeFlags {
@@ -46,6 +54,45 @@ export interface VibeFlags {
   readonly scope: readonly string[];
   /** Variables merged over the process environment. */
   readonly env: Readonly<Record<string, string>>;
+}
+
+const SECURE_ENV = {
+  VIBE_OUTSIDE_WORKDIR: "deny",
+  VIBE_BYPASS_TOOL_PERMISSIONS: "false",
+} as const;
+
+function readOnlyFlags(input: VibeFlagsInput): VibeFlags {
+  const addDirs =
+    input.security.mode === "unsafe"
+      ? []
+      : input.security.filesystem.allowWrite
+          .filter((path) => path !== input.cwd)
+          .flatMap((path) => ["--add-dir", path]);
+  const withCommands = input.agentCommands.length > 0;
+  return {
+    agent: [
+      "--agent",
+      "accept-edits",
+      "--enabled-tools",
+      "read_file",
+      "--enabled-tools",
+      "grep",
+      ...(withCommands ? ["--enabled-tools", "bash"] : []),
+    ],
+    scope: ["--workdir", input.cwd, ...addDirs],
+    env: withCommands
+      ? { ...SECURE_ENV, VIBE_TOOLS: secureVibeTools(input.agentCommands) }
+      : SECURE_ENV,
+  };
+}
+
+/** The flags of a sealed completion: every tool disabled, the completion's cwd, nothing writable added. */
+export function buildSealedVibeFlags(cwd: string): VibeFlags {
+  return {
+    agent: ["--agent", "accept-edits", "--disabled-tools", "*"],
+    scope: ["--workdir", cwd],
+    env: SECURE_ENV,
+  };
 }
 
 /** The `VIBE_TOOLS` value of a secure session allowlisting `agentCommands` for bash. */
@@ -65,6 +112,7 @@ function secureVibeTools(agentCommands: readonly string[]): string {
  */
 export function buildVibeFlags(input: VibeFlagsInput): VibeFlags {
   const { security, cwd } = input;
+  if (input.readOnly === true) return readOnlyFlags(input);
   if (security.mode === "unsafe") {
     return {
       agent: ["--agent", input.unsafeAgent ?? "auto-approve"],
