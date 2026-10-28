@@ -1,0 +1,487 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.27.0.json",
+  "kind": "spec",
+  "title": "Mistral Vibe 3",
+  "ground": [
+    {
+      "path": "src/infra/providers/mistralVibe.ts",
+      "note": "Today's argv (`--agent auto-approve`, `--output streaming`, `--workdir`, `--add-dir`, `--trust` in unsafe mode), the `VIBE_ACTIVE_MODEL` spawn environment, the session-id discovery after a turn and the `messages.jsonl` transcript capture."
+    },
+    {
+      "path": "src/schemas/vibeOutput.ts",
+      "note": "The stream line schema with `content` a string, and `findVibeSessionId` scanning `logs/session/session_*/meta.json` by mtime and working directory."
+    },
+    {
+      "path": "src/domain/records/usage.ts",
+      "note": "`extractVibeUsage` reading `meta.json` `stats`: `session_prompt_tokens`, `session_completion_tokens`, `session_cost` and four tool-call counts."
+    },
+    {
+      "path": "src/schemas/runRecord.ts",
+      "note": "`VibeTokenUsage`: provider, inputTokens, outputTokens, sessionCostUsd and the four tool-call counts, inside the phase record's `usage`."
+    },
+    {
+      "path": "src/schemas/release.ts",
+      "note": "The phase record manifest is stamped 0.26.0 today."
+    },
+    {
+      "path": "src/domain/security/capabilities.ts",
+      "note": "Vibe's capability is filesystem jail `partial`, command enforcement `none`; anything but `strong` adds the `partial-filesystem` mark, sets `downgraded` and fails strict secure routing."
+    },
+    {
+      "path": "src/domain/security/agentCommands.ts",
+      "note": "Agent commands record the provider's enforcement; a narrow command under `none` is `degraded`, which adds the `command-precision` mark."
+    },
+    {
+      "path": "src/domain/security/stopPosture.ts",
+      "note": "A stop's turns record narrowing `read-only-tools` on Claude Code, `read-only-sandbox` on codex and `none` on mistral-vibe."
+    },
+    {
+      "path": "src/schemas/securityPosture.ts",
+      "note": "The `security.json` shape: `downgraded`, `marks`, `agentCommands[].enforcement`, `stop.turns[].narrowing`."
+    },
+    {
+      "path": "docs/security.md",
+      "note": "The provider capability table (`mistral-vibe` Partial), the shell model (Vibe approval-policy only), the stop record and what phax reads from a provider's store."
+    }
+  ],
+  "context": "phax drives Mistral Vibe as it did for Vibe 2.x. A headless turn runs `vibe -p <prompt> --agent auto-approve --output streaming --workdir <worktree>` with `--add-dir` for the other writable paths, adds `--trust` in unsafe mode, and picks the model through `VIBE_ACTIVE_MODEL`. phax takes the answer from the last stream line whose `content` is a string. It finds the session id by scanning `~/.vibe/logs/session/session_*/meta.json` for the newest directory whose working directory is the worktree. It reads usage from that `meta.json`'s `stats` (prompt and completion tokens, cost and four tool-call counts) and, at a stop's close, copies `messages.jsonl` as the transcript.\n\nThe security capability table records Vibe as filesystem jail `partial` and command enforcement `none`. So a secure Vibe phase's `security.json` has `downgraded: true` with the `partial-filesystem` mark (and `command-precision` when an agent command is narrow), strict secure routing skips Vibe, a stop's first and closing turns on Vibe record narrowing `none` and can write, and a sealed completion on Vibe is refused (\"not yet supported for mistral-vibe\").\n\nThe operator upgraded to Mistral Vibe 3.0.3 on 2026-10-27. It is a rewrite: a Rust client driving a Python app-server. Three live probes that day (model `phax-mistral-medium-3.5-off`) established these facts:\n\n- Stream: each stdout line is a typed entry (`message`, `effect`, `callback`) carrying `sessionId` and `createdAt`. A message's `content` is an array of blocks, for example `{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"PONG\"}],…}`.\n- Store: sessions live under `logs/session/unified/<session id>/`. There is no `stats` and no `messages.jsonl`, and the journal is a recovery log, not a transcript.\n- Export: `--output-dir DIR` writes `DIR/export.json` on every exit (`schema_version: 1`). It holds `session_id`, `usage` {`input_tokens`, `output_tokens`, `cached_input_tokens`, `total_tokens`}, `cost_usd`, `steps`, `outcome`, `exit_code`, `vibe_version`, `config` and `limits`. Its usage and cost count that run only, not the earlier turns of a resumed session.\n- Enforcement: the probe ran under `--agent accept-edits`, with `VIBE_OUTSIDE_WORKDIR=deny` and a `VIBE_TOOLS` bash allowlist of `git status`. The allowed command ran, and edits inside the workdir ran. Reads outside the workdir were refused. Chained, piped, substituted, redirected, unlisted and background commands were refused too. Every refusal reached the model as a tool error, and the run finished with exit 0.\n- Narrowing: `--enabled-tools` limits a session to the named tools. `--disabled-tools '*'` refuses every tool while the model still answers.\n- `--auto-approve` and the `auto-approve` agent skip the outside-workdir check and the denylists.\n- Config layers from defaults through user and project TOML to the `VIBE_*` environment, overrides, agent profile and admin. `tools` merges deeply, so a key phax does not set keeps the user's value.\n- `VIBE_ACTIVE_MODEL` and phax's `[[models]]` alias blocks still work.\n\nNobody runs Vibe through phax today. The approved `provider-failures` spec owns the per-provider session-outcome reader and the failure kinds, and leaves the rest of Vibe 3 to this spec.",
+  "problem": "phax cannot run a single Vibe 3 session:\n\n- The answer is never found, because no stream line has a string `content`.\n- The session id is never found, because no `session_*` directory exists.\n- Usage and the transcript are lost, because `meta.json` has no `stats` and `messages.jsonl` is gone.\n- Each of these surfaces as an invocation error that names none of them.\n\nThe recorded security posture is wrong both ways. phax runs Vibe under `auto-approve`, which turns off every control Vibe 3 has, while recording it as jail `partial` and command enforcement `none`. A read-only session gets Vibe's full tool set, stop turns can write, and sealed completions are refused. Yet Vibe 3 can now confine file and shell calls to the writable roots, allow exactly the phase's commands and narrow a session to reading tools. Because the record says otherwise, secure-mode routing skips Vibe.",
+  "productGoal": {
+    "statement": "phax runs Mistral Vibe 3 sessions end to end. It reads each session's answer, session id, usage and transcript only from what the session's own turns hand it. In secure mode it confines Vibe as tightly as Claude Code: inside the writable roots, to exactly the phase's agent commands, and to reading tools where a session must not write. The recorded posture then says so, and Vibe can lead secure routing. Nobody runs Vibe through phax today, so the change needs no migration.",
+    "guidingRule": "phax reads a Vibe session only from what its turns hand over, and confines it per invocation, never through the person's configuration."
+  },
+  "terminology": [
+    {
+      "term": "Vibe 3",
+      "definition": "Mistral Vibe 3.0.3 or later, the `vibe` executable installed by `uv tool install mistral-vibe`."
+    },
+    {
+      "term": "Headless turn",
+      "definition": "One `vibe -p` invocation phax spawns and waits for. A session is one or more headless turns, the later ones resuming it."
+    },
+    {
+      "term": "Turn stream",
+      "definition": "The stdout of one headless turn: one typed entry per line, kept in the phase or session folder."
+    },
+    {
+      "term": "Vibe export",
+      "definition": "The `export.json` Vibe writes into a turn's output directory on every exit. Its usage and cost count that turn only."
+    },
+    {
+      "term": "Writable roots",
+      "definition": "The paths the phase's security policy allows writing: the worktree, `~/.phax` and any configured extras."
+    },
+    {
+      "term": "Agent commands",
+      "definition": "The shell commands a phase or session is granted (config, gates, brief), as recorded in `security.json` `agentCommands`."
+    },
+    {
+      "term": "Reading tools",
+      "definition": "The Vibe tools that read and change nothing, such as `read_file` and `grep`."
+    },
+    {
+      "term": "Read-only session",
+      "definition": "A session phax runs without the right to write, such as a stop's first or closing turn."
+    },
+    {
+      "term": "Sealed completion",
+      "definition": "A provider call that answers a prompt without touching any file or command."
+    },
+    {
+      "term": "Personal session",
+      "definition": "A session recorded at a stop that the person ran in Vibe's TUI, not one phax spawned headless."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-output-dir",
+      "title": "One output directory per turn",
+      "pattern": "ubiquitous",
+      "statement": "The system shall run each headless Vibe turn with its own output directory under the phase or session folder."
+    },
+    {
+      "id": "r-answer",
+      "title": "Answer from the block array",
+      "pattern": "event",
+      "statement": "WHEN a headless Vibe turn ends THE system SHALL take as its answer the text blocks of the turn stream's last assistant message entry, joined in order."
+    },
+    {
+      "id": "r-session-id",
+      "title": "Session id from the export",
+      "pattern": "event",
+      "statement": "WHEN a headless Vibe turn ends THE system SHALL take the session id from that turn's Vibe export."
+    },
+    {
+      "id": "r-missing",
+      "title": "Missing reads are named",
+      "pattern": "unwanted",
+      "statement": "IF a headless Vibe turn leaves no Vibe export, or its stream holds no assistant message entry with a text block, THEN the system SHALL fail the turn with a message naming what is missing and the path it read."
+    },
+    {
+      "id": "r-usage",
+      "title": "Usage summed over the turns",
+      "pattern": "ubiquitous",
+      "statement": "The system shall record a Vibe session's usage as the sum, over its turns' Vibe exports, of input tokens, cached input tokens, output tokens and cost."
+    },
+    {
+      "id": "r-usage-shape",
+      "title": "Vibe usage shape",
+      "pattern": "ubiquitous",
+      "statement": "The system shall record Vibe usage as `provider`, `inputTokens`, `cachedInputTokens`, `outputTokens` and `costUsd`, all required, with no tool-call counts, in a record stamped 0.30.0."
+    },
+    {
+      "id": "r-transcript",
+      "title": "Transcript from the kept streams",
+      "pattern": "ubiquitous",
+      "statement": "The system shall record a Vibe session's transcript as its kept turn streams, in turn order."
+    },
+    {
+      "id": "r-personal-session",
+      "title": "Personal sessions have no transcript",
+      "pattern": "unwanted",
+      "statement": "IF a recorded Vibe session is a personal session THEN the system SHALL record its transcript as missing with reason `not-found` and SHALL NOT refuse the close for it."
+    },
+    {
+      "id": "r-no-store",
+      "title": "No store reads",
+      "pattern": "ubiquitous",
+      "statement": "The system shall not read Vibe's home directory to find a session, its usage or its transcript."
+    },
+    {
+      "id": "r-version-floor",
+      "title": "Version floor 3.0.3",
+      "pattern": "unwanted",
+      "statement": "IF the installed Vibe is older than 3.0.3 THEN the system SHALL refuse before any Vibe session spawns, with a message naming the installed version, 3.0.3 and `uv tool upgrade mistral-vibe`."
+    },
+    {
+      "id": "r-secure-env",
+      "title": "Per-invocation confinement",
+      "pattern": "optional",
+      "statement": "WHERE secure mode applies THE system SHALL confine each Vibe invocation through `VIBE_*` environment variables and `--agent accept-edits`, leaving the person's Vibe config files untouched."
+    },
+    {
+      "id": "r-secure-edits",
+      "title": "Edits inside, nothing unallowed",
+      "pattern": "optional",
+      "statement": "WHERE secure mode applies THE system SHALL let Vibe edit inside the writable roots without approval and SHALL have every tool call that no rule allows refused."
+    },
+    {
+      "id": "r-secure-outside",
+      "title": "Nothing outside the writable roots",
+      "pattern": "optional",
+      "statement": "WHERE secure mode applies THE system SHALL have every Vibe file or shell call that reaches outside the writable roots refused."
+    },
+    {
+      "id": "r-secure-commands",
+      "title": "Exactly the agent commands",
+      "pattern": "optional",
+      "statement": "WHERE secure mode applies THE system SHALL let a Vibe shell command run, in the foreground or the background, only when it matches one of the agent commands."
+    },
+    {
+      "id": "r-secure-no-autoapprove",
+      "title": "Never auto-approve in secure mode",
+      "pattern": "optional",
+      "statement": "WHERE secure mode applies THE system SHALL run Vibe with neither the `auto-approve` agent nor `--auto-approve`."
+    },
+    {
+      "id": "r-secure-no-widen",
+      "title": "User config cannot widen",
+      "pattern": "unwanted",
+      "statement": "IF the person's Vibe configuration allows more than the phase, through a tool's path or command allowlist or `bypass_tool_permissions`, THEN the system SHALL still confine a secure Vibe session to the phase's writable roots and agent commands."
+    },
+    {
+      "id": "r-capability",
+      "title": "Recorded capability",
+      "pattern": "ubiquitous",
+      "statement": "The system shall record Mistral Vibe's capability as filesystem jail `strong` and command enforcement `prefix`, so that a secure Vibe phase's `security.json` has `downgraded: false` and no `partial-filesystem` mark."
+    },
+    {
+      "id": "r-routing",
+      "title": "Vibe satisfies strict secure routing",
+      "pattern": "state",
+      "statement": "WHILE secure mode applies THE system SHALL count mistral-vibe as satisfying strict secure routing."
+    },
+    {
+      "id": "r-read-only",
+      "title": "Read-only sessions",
+      "pattern": "event",
+      "statement": "WHEN the system runs a read-only Vibe session THE system SHALL enable only Vibe's reading tools, plus the shell for exactly the agent commands the session is granted."
+    },
+    {
+      "id": "r-stop-turns",
+      "title": "Stop turns narrowed",
+      "pattern": "event",
+      "statement": "WHEN the system runs a stop's first or closing turn on Vibe THE system SHALL run it as a read-only session and record its narrowing as `read-only-tools`."
+    },
+    {
+      "id": "r-sealed",
+      "title": "Sealed completions",
+      "pattern": "event",
+      "statement": "WHEN a sealed completion routes to mistral-vibe THE system SHALL run it on Vibe with no tool enabled."
+    },
+    {
+      "id": "r-unsafe",
+      "title": "Unsafe mode unchanged",
+      "pattern": "optional",
+      "statement": "WHERE unsafe mode applies THE system SHALL run Vibe with the `auto-approve` agent and `--trust`."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "internal: secure-mode Vibe invocation",
+      "summary": "A secure-mode Vibe session now runs confined to the writable roots and the phase's agent commands, never under auto-approve.",
+      "binding": "indicative",
+      "before": "# environment\nVIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-off\n\n# argv\nvibe -p \"<prompt>\" --agent auto-approve --output streaming --workdir <worktree> --add-dir ~/.phax",
+      "after": "# environment\nVIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-off\nVIBE_OUTSIDE_WORKDIR=deny\nVIBE_BYPASS_TOOL_PERMISSIONS=false\nVIBE_TOOLS={\"bash\":{\"permission\":\"ask\",\"allowlist\":[\"git status\",\"pnpm test\"]},\"read_file\":{\"allowlist\":[]}}\n\n# argv\nvibe -p \"<prompt>\" --agent accept-edits --output streaming --output-dir <phase>/vibe-turns/turn-01 --workdir <worktree> --add-dir ~/.phax"
+    },
+    {
+      "surface": "file: phase record usage for mistral-vibe",
+      "summary": "A phase record now shows a Vibe session's input, cached input and output tokens and its cost, summed over all its turns.",
+      "binding": "normative",
+      "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.26.0.json\",\n  …\n  \"usage\": {\n    \"available\": true,\n    \"usage\": {\n      \"provider\": \"mistral-vibe\",\n      \"inputTokens\": 45575,\n      \"outputTokens\": 291,\n      \"sessionCostUsd\": 0.070545,\n      \"toolCallsAgreed\": 4,\n      \"toolCallsRejected\": 0,\n      \"toolCallsFailed\": 0,\n      \"toolCallsSucceeded\": 4\n    }\n  }\n}",
+      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.30.0.json\",\n  …\n  \"usage\": {\n    \"available\": true,\n    \"usage\": {\n      \"provider\": \"mistral-vibe\",\n      \"inputTokens\": 45575,\n      \"cachedInputTokens\": 12800,\n      \"outputTokens\": 291,\n      \"costUsd\": 0.070545\n    }\n  }\n}"
+    },
+    {
+      "surface": "file: <run>/<phase>/security.json for a secure mistral-vibe phase",
+      "summary": "A secure Vibe phase's security record now shows it as fully secured, with its agent commands enforced.",
+      "binding": "normative",
+      "before": "{\n  \"version\": 2,\n  \"mode\": \"secure\",\n  \"provider\": \"mistral-vibe\",\n  …\n  \"downgraded\": true,\n  \"marks\": [\"partial-filesystem\", \"command-precision\"],\n  \"agentCommands\": [\n    { \"command\": \"git status\", \"source\": \"config\", \"explicit\": true, \"requiredByPlan\": false, \"enforcement\": \"none\", \"degraded\": true }\n  ],\n  …\n}",
+      "after": "{\n  \"version\": 2,\n  \"mode\": \"secure\",\n  \"provider\": \"mistral-vibe\",\n  …\n  \"downgraded\": false,\n  \"marks\": [],\n  \"agentCommands\": [\n    { \"command\": \"git status\", \"source\": \"config\", \"explicit\": true, \"requiredByPlan\": false, \"enforcement\": \"prefix\", \"degraded\": false }\n  ],\n  …\n}"
+    },
+    {
+      "surface": "file: stop.turns in a closed mistral-vibe stop's security.json",
+      "summary": "A closed stop on Vibe now records that its first and closing turns ran with read-only tools.",
+      "binding": "normative",
+      "before": "\"stop\": {\n  \"cause\": \"held\",\n  \"personWork\": \"outside-phax-enforcement\",\n  \"turns\": [\n    { \"turn\": \"closing-turn-01\", \"kind\": \"closing-turn\", \"narrowing\": \"none\", \"agentCommands\": [] }\n  ]\n}",
+      "after": "\"stop\": {\n  \"cause\": \"held\",\n  \"personWork\": \"outside-phax-enforcement\",\n  \"turns\": [\n    { \"turn\": \"closing-turn-01\", \"kind\": \"closing-turn\", \"narrowing\": \"read-only-tools\", \"agentCommands\": [] }\n  ]\n}"
+    },
+    {
+      "surface": "cli: Vibe version-floor refusal",
+      "summary": "If the installed Vibe is older than 3.0.3, phax now stops before any session starts and shows the command to upgrade.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax run docs/plans/2610281200-example-plan.md\n✗ mistral-vibe 2.13.0 is installed; phax needs 3.0.3 or later.\n  Upgrade it: uv tool upgrade mistral-vibe"
+    },
+    {
+      "surface": "file: docs/security.md provider capability table",
+      "summary": "The security guide now lists Mistral Vibe's filesystem jail as strong.",
+      "binding": "normative",
+      "before": "| `mistral-vibe` | Partial         | None                             | Supported   |",
+      "after": "| `mistral-vibe` | Strong          | None                             | Supported   |"
+    }
+  ],
+  "nonGoals": [
+    "Classifying a Vibe session's failure (exit codes 1–4, `outcome`, failure kinds): the `provider-failures` spec owns it. This spec only establishes that the Vibe export is reliable on 3.0.3, the condition `provider-failures` set for reading it.",
+    "`--agent-socket` and `vibe run-server`: experimental and hidden in 3.0.3. They are an input to the `isolated`-mode spike, not to secure mode.",
+    "Interactive resume of a Vibe session (`vibe --resume <id>`): it stays unsupported, since it cannot be verified headless.",
+    "Network control: Vibe has none, so the network column stays `None`.",
+    "MCP scoping, beyond what read-only narrowing and sealed completions already drop.",
+    "Vibe's limits (`--max-turns`, `--max-price`, `--time-limit`) and `--prompt-file`.",
+    "An `xhigh` alias: the base model's thinking levels run `off`…`max`.",
+    "Reading Vibe 2.x sessions.",
+    "Writing `~/.vibe/config.toml` anywhere except `phax agent setup mistral-vibe`, which is unchanged.",
+    "Migrating existing Vibe records or runs: nobody runs Vibe through phax today."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-turn-dirs",
+      "name": "Each turn has its own output directory",
+      "given": "a phase whose Vibe session runs two headless turns",
+      "when": "both turns end",
+      "then": "each turn has its own output directory under the phase folder holding its own `export.json`, and neither export overwrites the other",
+      "refs": [
+        "r-output-dir"
+      ]
+    },
+    {
+      "id": "ac-pong",
+      "name": "Answer from a block array",
+      "given": "a turn stream of `effect` and `callback` entries whose last assistant message entry is `{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"PONG\"}],…}`",
+      "when": "the turn ends",
+      "then": "the turn's answer is `PONG`",
+      "refs": [
+        "r-answer"
+      ]
+    },
+    {
+      "id": "ac-usage-sum",
+      "name": "Session id and usage from two exports",
+      "given": "a Vibe session of two headless turns whose exports name the same `session_id` and carry usage 10987/3200/3 (input/cached/output) with cost 0.016503, and 34588/9600/288 with cost 0.054042",
+      "when": "the phase is recorded",
+      "then": "the recorded session id is the exports' `session_id`, and the record, stamped `https://docs.phax.run/schemas/phase-record-manifest/0.30.0.json`, carries usage `{\"provider\":\"mistral-vibe\",\"inputTokens\":45575,\"cachedInputTokens\":12800,\"outputTokens\":291,\"costUsd\":0.070545}` with no tool-call counts",
+      "refs": [
+        "r-session-id",
+        "r-usage",
+        "r-usage-shape"
+      ]
+    },
+    {
+      "id": "ac-missing-export",
+      "name": "A missing export is named",
+      "given": "a headless Vibe turn that exits 0 but leaves no `export.json` in its output directory",
+      "when": "phax reads the turn",
+      "then": "the turn fails with a message naming the missing Vibe export and the path phax read",
+      "refs": [
+        "r-missing"
+      ]
+    },
+    {
+      "id": "ac-transcript",
+      "name": "Transcript in turn order",
+      "given": "a stop whose recorded Vibe session ran two headless turns",
+      "when": "the person closes the stop",
+      "then": "the session's recorded transcript is the first turn's stream followed by the second turn's stream",
+      "refs": [
+        "r-transcript"
+      ]
+    },
+    {
+      "id": "ac-personal-session",
+      "name": "A personal session never refuses the close",
+      "given": "a stop whose recorded sessions include one the person ran in Vibe's TUI",
+      "when": "the person closes the stop",
+      "then": "the close succeeds, and that session's transcript is recorded as missing with reason `not-found`",
+      "refs": [
+        "r-personal-session"
+      ]
+    },
+    {
+      "id": "ac-vibe-home-unreadable",
+      "name": "Everything found without the store",
+      "given": "`VIBE_HOME` pointing to an unreadable directory",
+      "when": "a phase runs a two-turn Vibe session and its stop closes",
+      "then": "the answer, the session id, the summed usage and the transcript are all recorded",
+      "refs": [
+        "r-no-store"
+      ]
+    },
+    {
+      "id": "ac-version-floor",
+      "name": "Vibe 2.13.0 refused",
+      "given": "an installed Vibe reporting version 2.13.0",
+      "when": "`phax run` reaches a phase routed to mistral-vibe",
+      "then": "phax refuses before any Vibe session spawns, with a message naming 2.13.0, 3.0.3 and `uv tool upgrade mistral-vibe`",
+      "refs": [
+        "r-version-floor"
+      ]
+    },
+    {
+      "id": "ac-secure-argv",
+      "name": "Secure invocation never auto-approves",
+      "given": "a secure phase routed to mistral-vibe",
+      "when": "phax spawns its turn",
+      "then": "the argv carries `--agent accept-edits` and none of `--agent auto-approve`, `--auto-approve` or `--trust`, the environment carries `VIBE_OUTSIDE_WORKDIR=deny`, and the person's `~/.vibe/config.toml` is byte-identical before and after the run",
+      "refs": [
+        "r-secure-env",
+        "r-secure-no-autoapprove"
+      ]
+    },
+    {
+      "id": "ac-secure-confined",
+      "name": "Secure phase confined to the worktree and its commands",
+      "given": "a secure phase on mistral-vibe whose agent commands are `git status`",
+      "when": "its turn asks Vibe to write a file in the worktree, run `git status`, run `git status && touch x`, run `ls /etc` and start `touch y` in the background",
+      "then": "the worktree file is written and `git status` runs, the other three calls are refused as tool errors, neither `x` nor `y` exists, and the turn finishes with exit 0 and an answer",
+      "refs": [
+        "r-secure-edits",
+        "r-secure-outside",
+        "r-secure-commands"
+      ]
+    },
+    {
+      "id": "ac-loose-config",
+      "name": "A loose user config cannot widen secure mode",
+      "given": "a person's Vibe config with `bypass_tool_permissions = true`, `[tools.bash] allowlist = [\"touch\"]` and a `read_file` allowlist naming a directory outside the worktree",
+      "when": "a secure phase on mistral-vibe asks Vibe to run `touch x` and to read a file in that outside directory",
+      "then": "both calls are refused, no `x` exists, and the config file is byte-identical afterwards",
+      "refs": [
+        "r-secure-no-widen"
+      ]
+    },
+    {
+      "id": "ac-secure-routing",
+      "name": "Secure routing lands on Vibe",
+      "given": "secure mode and `providerPriority` `[\"mistral-vibe\", \"claude-code\"]`",
+      "when": "phax routes a phase",
+      "then": "the phase runs on mistral-vibe, `providerSkippedForSecurity` is empty, and its `security.json` has `downgraded: false`, `marks: []` and agent commands with `enforcement: \"prefix\"`",
+      "refs": [
+        "r-capability",
+        "r-routing"
+      ]
+    },
+    {
+      "id": "ac-read-only",
+      "name": "Read-only session refused writes",
+      "given": "a read-only Vibe session granted the agent command `git status`",
+      "when": "it asks Vibe to `write_file` a worktree file, run `bash touch x` and run `git status`",
+      "then": "`write_file` and `touch x` are refused, `git status` runs, and the worktree is unchanged",
+      "refs": [
+        "r-read-only"
+      ]
+    },
+    {
+      "id": "ac-stop-turns",
+      "name": "Stop turns read-only",
+      "given": "a declared stop on a mistral-vibe phase",
+      "when": "its first and closing turns run and the person closes the stop",
+      "then": "`security.json` `stop.turns` records each turn with `\"narrowing\": \"read-only-tools\"` and `agentCommands: []`, and those turns left the worktree unchanged",
+      "refs": [
+        "r-stop-turns"
+      ]
+    },
+    {
+      "id": "ac-sealed",
+      "name": "Sealed completion on Vibe",
+      "given": "a sealed completion routed to mistral-vibe",
+      "when": "it runs",
+      "then": "it returns the model's answer, Vibe ran with no tool enabled, and it is not refused as unsupported",
+      "refs": [
+        "r-sealed"
+      ]
+    },
+    {
+      "id": "ac-unsafe",
+      "name": "Unsafe mode unchanged",
+      "given": "a phase in unsafe mode routed to mistral-vibe",
+      "when": "phax spawns its turn",
+      "then": "the argv carries `--agent auto-approve` and `--trust`",
+      "refs": [
+        "r-unsafe"
+      ]
+    }
+  ],
+  "openQuestions": [],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "phax reads a Vibe turn only from its own output directory and stream. The answer is the text blocks of the last assistant message entry, the session id comes from the export, the usage is the sum over the turns' exports, and the transcript is the kept turn streams in turn order. A personal session's transcript is `missing`/`not-found` and never refuses a close.",
+      "phax never reads Vibe's home directory. The mtime/working-directory discovery, the `meta.json` usage and the `messages.jsonl` transcript all go.",
+      "The version floor is 3.0.3, refused before any session spawns, naming the installed version, 3.0.3 and `uv tool upgrade mistral-vibe`.",
+      "Secure mode confines Vibe per invocation through `VIBE_*` environment variables and `--agent accept-edits`. It never uses `auto-approve` or `--auto-approve`, and phax sets every key a looser user config could widen (`bypass_tool_permissions`, each tool's path and command allowlists).",
+      "Recorded capability: filesystem jail `strong`, command enforcement `prefix` (operator decision, 2026-10-27). The accepted loss is that the record no longer tells tool-level enforcement from an OS sandbox for Vibe: code an allowed agent command runs can still read outside, exactly as under Claude Code's allowlist.",
+      "Read-only sessions get the reading tools plus the shell for exactly their granted agent commands. Stop turns record `read-only-tools`.",
+      "Sealed completions run on Vibe with no tool enabled. Unsafe mode keeps `--agent auto-approve` and `--trust`.",
+      "`VibeTokenUsage` is `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`, all required, at `$schema` 0.30.0 (operator decision, 2026-10-27). The four tool-call counts are dropped."
+    ],
+    "open": [
+      "How the installed Vibe version is read (once per process or per session), and where the refusal surfaces: preflight, routing or spawn. The refusal must still come before any session spawns.",
+      "The exact set of reading tools, and how a sealed completion disables every tool (`--disabled-tools '*'` or an empty `--enabled-tools`).",
+      "Whether secure mode also denies `web_fetch` and `web_search`. Recommendation: no, matching Claude Code's secure flags.",
+      "The output directory's name and layout under the phase or session folder, and how turn streams are named beside it.",
+      "How a person's TUI session is told apart from a headless one when recording a stop."
+    ],
+    "constraints": [
+      "Related spec: `provider-failures` (approved) owns the Vibe session-outcome reader and the failure kinds. Its Vibe reader reads the export and the V3 stream this spec establishes, so this spec's reading work lands first. It is related, not a prerequisite.",
+      "No back-compat shim: older phase records keep going through the existing versioned readers. The 0.30.0 Vibe usage has no optional fields.",
+      "Never write `~/.vibe/config.toml` or a project Vibe config, except through the unchanged `phax agent setup mistral-vibe`.",
+      "`docs/security.md` must update the capability row, the Vibe provider bullets, the shell-model row (prefix allowlist through `VIBE_TOOLS`, not approval policy only), the stop-turn narrowing list and the section on what phax reads from a provider's store (nothing for Vibe). `docs/model-catalog.md` and `docs/model-routing.md` drop the \"partial\" caveat.",
+      "Tests that drive a real Vibe 3 belong to the deliberate real e2e tier. The unit and integration tiers use recorded Vibe 3 streams and exports."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/security.md — provider capabilities and shell command execution",
+    "reader": "An operator choosing whether to put `mistral-vibe` first in `providerPriority` under secure mode.",
+    "example": "With `\"providerPriority\": [\"mistral-vibe\", \"claude-code\"]` in secure mode, the phase now runs on Vibe. File and shell calls stay inside the worktree, the shell runs only the phase's agent commands, and `security.json` shows `downgraded: false` with no marks."
+  }
+}
