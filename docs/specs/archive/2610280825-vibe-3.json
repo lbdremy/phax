@@ -232,7 +232,7 @@
       "summary": "A secure-mode Vibe session now runs confined to the writable roots and the phase's agent commands, never under auto-approve.",
       "binding": "indicative",
       "before": "# environment\nVIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-off\n\n# argv\nvibe -p \"<prompt>\" --agent auto-approve --output streaming --workdir <worktree> --add-dir ~/.phax",
-      "after": "# environment\nVIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-off\nVIBE_OUTSIDE_WORKDIR=deny\nVIBE_BYPASS_TOOL_PERMISSIONS=false\nVIBE_TOOLS={\"bash\":{\"permission\":\"ask\",\"allowlist\":[\"git status\",\"pnpm test\"]},\"read_file\":{\"allowlist\":[]}}\n\n# argv\nvibe -p \"<prompt>\" --agent accept-edits --output streaming --output-dir <phase>/vibe-turns/turn-01 --workdir <worktree> --add-dir ~/.phax"
+      "after": "# environment\nVIBE_ACTIVE_MODEL=phax-mistral-medium-3.5-off\nVIBE_OUTSIDE_WORKDIR=deny\nVIBE_BYPASS_TOOL_PERMISSIONS=false\nVIBE_ENABLE_MCP=false\nVIBE_ENABLE_CONNECTORS=false\nVIBE_TOOLS={\"bash\":{\"permission\":\"ask\",\"allowlist\":[\"git status\",\"pnpm test\"],\"outside_workdir\":\"deny\"},\"write_file\":{\"allowlist\":[],\"denylist\":[\"<worktree>/.vibe/**\",\"<worktree>/.agents/**\"],\"outside_workdir\":\"deny\"},…}\n\n# argv\nvibe -p \"<prompt>\" --agent accept-edits --output streaming --output-dir <phase>/output.vibe-export --workdir <worktree>"
     },
     {
       "surface": "file: phase record usage for mistral-vibe",
@@ -264,10 +264,17 @@
     },
     {
       "surface": "file: docs/security.md provider capability table",
-      "summary": "The security guide now lists Mistral Vibe's filesystem jail as strong.",
+      "summary": "The security guide now lists Mistral Vibe's filesystem jail as strong, and its MCP allowlist as unsupported, since phax turns Vibe's MCP off instead.",
       "binding": "normative",
       "before": "| `mistral-vibe` | Partial         | None                             | Supported   |",
-      "after": "| `mistral-vibe` | Strong          | None                             | Supported   |"
+      "after": "| `mistral-vibe` | Strong          | None                             | Unsupported (MCP off) |"
+    },
+    {
+      "surface": "cli: Vibe session refused for a config phax cannot vouch for",
+      "summary": "A secure or read-only Vibe session is now refused while a custom accept-edits agent profile, or Vibe config under an extra writable root, could widen it, naming the file to rename or move.",
+      "binding": "normative",
+      "before": "$ phax run --plan docs/plans/2611020915-invoice-export-plan.md\nRun: acme.invoice-export",
+      "after": "$ phax run --plan docs/plans/2611020915-invoice-export-plan.md\nRun: acme.invoice-export\nphax run failed: /home/ana/.vibe/agents/accept-edits.toml replaces Vibe's built-in accept-edits agent, which phax's secure and read-only Vibe sessions run under, so phax cannot vouch for their confinement. Rename it (for example to my-accept-edits.toml) and pick it with --agent my-accept-edits in your own sessions.\n$? = 11"
     }
   ],
   "nonGoals": [

@@ -256,7 +256,7 @@ With `allowDowngrade: false` the `downgrade` edge is skipped and the request fal
 1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
-Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). Vibe has a strong per-invocation jail, so a `secure` run keeps it first in the order instead of skipping it (see [security.md](security.md)).
+Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). Vibe is confined per invocation and recorded as a strong jail, so a `secure` run keeps it first in the order instead of skipping it. That rests on checks around each turn: a user `accept-edits` agent profile, or Vibe config under an extra writable root, refuses the session, and a turn whose resolved config is not the one phax set is refused (see [security.md](security.md)).
 
 **To disable a provider**: set `enabled: false` in `providers.json`. Resolution skips disabled providers even if they appear in `providerPriority`.
 
