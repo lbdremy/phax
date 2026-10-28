@@ -506,6 +506,14 @@ export {
   type DecisionRecordManifestV0_25_0,
 } from "../../../src/schemas/history/decision-record-manifest/0.25.0.js";
 export {
+  DecisionRecordManifestV0_28_0Schema,
+  type DecisionRecordManifestV0_28_0,
+} from "../../../src/schemas/history/decision-record-manifest/0.28.0.js";
+export {
+  InteractiveSessionV0_26_0Schema,
+  type InteractiveSessionV0_26_0,
+} from "../../../src/schemas/history/interactive-session/0.26.0.js";
+export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";
@@ -546,6 +554,10 @@ export {
   type PhaseRecordManifestV0_17_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";
 export {
+  PhaseRecordManifestV0_26_0Schema,
+  type PhaseRecordManifestV0_26_0,
+} from "../../../src/schemas/history/phase-record-manifest/0.26.0.js";
+export {
   BriefRecordV0_20_0Schema,
   type BriefRecordV0_20_0,
 } from "../../../src/schemas/history/brief-record/0.20.0.js";
@@ -553,6 +565,10 @@ export {
   AuthoringRecordManifestV0_17_0Schema,
   type AuthoringRecordManifestV0_17_0,
 } from "../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+export {
+  AuthoringRecordManifestV0_23_0Schema,
+  type AuthoringRecordManifestV0_23_0,
+} from "../../../src/schemas/history/authoring-record-manifest/0.23.0.js";
 export {
   PlanApprovalRecordV0_19_0Schema,
   type PlanApprovalRecordV0_19_0,

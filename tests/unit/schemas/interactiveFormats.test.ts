@@ -401,12 +401,9 @@ describe("interactive-session", () => {
       usage: {
         provider: "mistral-vibe",
         inputTokens: 10,
+        cachedInputTokens: 4,
         outputTokens: 5,
-        sessionCostUsd: 0.01,
-        toolCallsAgreed: 1,
-        toolCallsRejected: 0,
-        toolCallsFailed: 0,
-        toolCallsSucceeded: 1,
+        costUsd: 0.01,
       },
     };
     for (const builderUsage of [null, usage, { available: false }]) {

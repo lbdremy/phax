@@ -23,6 +23,12 @@ import {
   type InteractiveSessionFile,
 } from "../../../../src/schemas/interactiveSession.js";
 import {
+  InteractiveSessionV0_26_0Schema,
+  decodeInteractiveSessionV0_26_0,
+  type InteractiveSessionV0_26_0,
+} from "../../../../src/schemas/history/interactive-session/0.26.0.js";
+import { liftFrozenTokenUsage } from "../../../../src/schemas/runRecord.js";
+import {
   ReviewStopFileSchema,
   decodeReviewStopFile,
   type ReviewStop,
@@ -109,6 +115,8 @@ export function toLatestInteractiveHandoff(
 // ── interactive session
 
 export type InteractiveSessionShapes = {
+  "0.26.0": InteractiveSessionV0_26_0;
+} & {
   [K in CurrentShapeName<"interactive-session">]: InteractiveSessionFile;
 };
 
@@ -119,7 +127,12 @@ export const interactiveSessionFormat = defineFormat<InteractiveSessionShapes>({
   id: "interactive-session",
   label: "interactive session",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.26.0",
+      { schema: InteractiveSessionV0_26_0Schema, decode: decodeInteractiveSessionV0_26_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["interactive-session"],
     shape: { schema: InteractiveSessionFileSchema, decode: decodeInteractiveSessionFile },
@@ -133,12 +146,20 @@ export const parseInteractiveSession: (input: unknown) => ParsedShape<Interactiv
 /** The latest interactive session: phax's in-memory value, with no `$schema`. */
 export type LatestInteractiveSession = InteractiveSession;
 
-/** Upgrades a parsed interactive session in memory: drops `$schema`, keeps every other fact. */
+/**
+ * Upgrades a parsed interactive session in memory: drops `$schema`, keeps
+ * every other fact. A Vibe builder usage a 0.26.0 session recorded counted a
+ * whole session from the session's `meta.json`: it becomes `{ available:
+ * false }`.
+ */
 export function toLatestInteractiveSession(
-  value: InteractiveSessionFile,
+  value: InteractiveSessionFile | InteractiveSessionV0_26_0,
 ): LatestInteractiveSession {
-  const { $schema: _schema, ...recorded } = value;
-  return recorded;
+  const { $schema: _schema, builderUsage, ...recorded } = value;
+  return {
+    ...recorded,
+    builderUsage: builderUsage === null ? null : liftFrozenTokenUsage(builderUsage),
+  };
 }
 
 // ── review stop

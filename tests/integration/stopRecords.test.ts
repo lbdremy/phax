@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop } from "../../src/app/closeStop.js";
@@ -41,6 +41,12 @@ import {
   type HeldWorld,
 } from "../helpers/heldRunFixture.js";
 import { providerStoreRootsUnder } from "../helpers/providerStoreRoots.js";
+import {
+  VIBE3_EXPORT_LONG,
+  VIBE3_EXPORT_SHORT,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+} from "../helpers/vibe3Fixtures.js";
 
 // The record of a stop, written once at closing, on the made-up invoice-export
 // run: phase-02 held (`--hold phase-02`, built by codex in X0), phase-03
@@ -548,52 +554,48 @@ const VIBE_CONFIG = {
   },
 };
 
-/** A vibe session's `meta.json` stats. */
-const vibeStats = (prompt: number, completion: number, cost: number) => ({
-  session_prompt_tokens: prompt,
-  session_completion_tokens: completion,
-  session_cost: cost,
-  tool_calls_agreed: 2,
-  tool_calls_rejected: 0,
-  tool_calls_failed: 0,
-  tool_calls_succeeded: 2,
-});
+/** A turn's `export.json`, in the directory a vibe turn would have been given beside its transcript. */
+const writeExport = (folder: string, exportDir: string, exported: string): void => {
+  mkdirSync(join(folder, exportDir), { recursive: true });
+  writeFileSync(join(folder, exportDir, "export.json"), exported);
+};
 
 describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
-  it("is the builder V0's usage read at the hold point, not the meta.json a closing turn grew", async () => {
-    const metaPath = join(
-      world.home,
-      ".vibe",
-      "logs",
-      "session",
-      "session_20261024_V0",
-      "meta.json",
-    );
-    const writeMeta = (value: object): void => {
-      mkdirSync(dirname(metaPath), { recursive: true });
-      writeFileSync(metaPath, JSON.stringify({ session_id: "V0", ...value }));
-    };
+  it("is the builder's usage read at the hold point, not the export a closing turn wrote", async () => {
+    // The builder's turn wrote output.jsonl, so its export is output.vibe-export.
     const { run, result } = await startHeldRun(world, HOLD_PHASE_02, {
       records: true,
       providerConfig: VIBE_CONFIG,
       // phase-02 is built by vibe, natively.
       plan: invoiceExportPlan({ "phase-02": "phax-mistral-medium-3.5-medium" }),
       prepare: (prepared) => {
-        prepared.backend.builderSessions.set("phase-02", "V0");
+        prepared.backend.builderSessions.set("phase-02", VIBE3_SESSION_ID);
         prepared.backend.onBuild = (phase) => {
-          if (phase === "phase-02") writeMeta({ stats: vibeStats(1000, 200, 0.05) });
+          if (phase === "phase-02") {
+            writeExport(
+              phaseFolder(prepared, phase),
+              "output.vibe-export",
+              vibe3ExportText(VIBE3_EXPORT_SHORT),
+            );
+          }
         };
       },
     });
     failedWith(result, AwaitingReviewStopError);
     expect(readJson(join(phaseFolder(run, "phase-02"), "agent-binding.json"))).toMatchObject({
       provider: "mistral-vibe",
-      sessionId: "V0",
+      sessionId: VIBE3_SESSION_ID,
     });
 
-    // The closing turn resumes V0 and grows its meta.json.
+    // The closing turn resumes the session and writes an export of its own.
     run.backend.onReadOnly = (phase) => {
-      if (phase === "phase-02") writeMeta({ stats: vibeStats(5000, 900, 0.4) });
+      if (phase === "phase-02") {
+        writeExport(
+          phaseFolder(run, phase),
+          "closing-turn-01.vibe-export",
+          vibe3ExportText(VIBE3_EXPORT_LONG),
+        );
+      }
     };
     writeFileSync(
       join(worktreeOf(run, "phase-02"), "src", "invoiceRow.ts"),
@@ -601,16 +603,16 @@ describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
     );
     await resumeHeldRun(run);
 
-    expect(readFileSync(metaPath, "utf8")).toContain('"session_prompt_tokens":5000');
     expect(manifestOf(run, "phase-02")).toMatchObject({
       provider: "mistral-vibe",
       usage: {
         available: true,
         usage: {
           provider: "mistral-vibe",
-          inputTokens: 1000,
-          outputTokens: 200,
-          sessionCostUsd: 0.05,
+          inputTokens: 10987,
+          cachedInputTokens: 3200,
+          outputTokens: 3,
+          costUsd: 0.016503,
         },
       },
       stop: { cause: "held", outcome: "corrected" },

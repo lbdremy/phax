@@ -212,7 +212,7 @@ function parseAuthoredDocument(
 
 /** What the record needs to know of the session once the agent has returned. */
 interface ObservedSession {
-  /** The first run's session id, so the record can locate a vibe session's usage. */
+  /** The first run's session id, which the record withholds from its artifacts. */
   sessionId?: string;
   /** The session id the retry reported, when it returned. */
   retrySessionId?: string;

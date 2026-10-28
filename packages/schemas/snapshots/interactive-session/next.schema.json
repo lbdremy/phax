@@ -1,0 +1,681 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax interactive session",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "SafeSessionId": {
+      "type": "string",
+      "description": "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "phaseId",
+    "provider",
+    "interactiveResume",
+    "current",
+    "history",
+    "firstTurns",
+    "turnInProgress",
+    "transcripts",
+    "builderUsage"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The interactive-session format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/interactive-session/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/interactive-session\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "phaseId": {
+      "type": "string",
+      "description": "a string matching the pattern ^phase-\\d{2}$",
+      "pattern": "^phase-\\d{2}$"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-cli",
+        "mistral-vibe"
+      ]
+    },
+    "interactiveResume": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified"
+      ],
+      "description": "Whether phax has verified that the provider resumes a session interactively."
+    },
+    "current": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "provider",
+            "model",
+            "effort",
+            "sessionId",
+            "startedAt",
+            "origin"
+          ],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "claude-code",
+                "codex-cli",
+                "mistral-vibe"
+              ]
+            },
+            "model": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "effort": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "sessionId": {
+              "$ref": "#/$defs/SafeSessionId"
+            },
+            "startedAt": {
+              "type": "string",
+              "description": "An ISO-8601 instant.",
+              "title": "nonEmptyString",
+              "minLength": 1
+            },
+            "origin": {
+              "type": "string",
+              "enum": [
+                "first-turn",
+                "new-session",
+                "builder"
+              ],
+              "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "effort",
+          "sessionId",
+          "startedAt",
+          "origin"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex-cli",
+              "mistral-vibe"
+            ]
+          },
+          "model": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "effort": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "sessionId": {
+            "$ref": "#/$defs/SafeSessionId"
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "An ISO-8601 instant.",
+            "title": "nonEmptyString",
+            "minLength": 1
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "first-turn",
+              "new-session",
+              "builder"
+            ],
+            "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "firstTurns": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "outcome",
+              "origin",
+              "startedAt",
+              "endedAt",
+              "sessionId"
+            ],
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "answered"
+                ]
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "first-turn",
+                  "new-session"
+                ],
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
+              },
+              "startedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "endedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "sessionId": {
+                "$ref": "#/$defs/SafeSessionId"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "outcome",
+              "origin",
+              "startedAt",
+              "endedAt",
+              "changedPaths",
+              "keptAt"
+            ],
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "refused-change"
+                ]
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "first-turn",
+                  "new-session"
+                ],
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
+              },
+              "startedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "endedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "changedPaths": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "keptAt": {
+                "type": "string",
+                "description": "The folder holding the turn's versions of the changed paths.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "outcome",
+              "origin",
+              "startedAt",
+              "endedAt",
+              "reason",
+              "detail",
+              "resetAt"
+            ],
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "first-turn",
+                  "new-session"
+                ],
+                "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
+              },
+              "startedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "endedAt": {
+                "type": "string",
+                "description": "An ISO-8601 instant.",
+                "title": "nonEmptyString",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "rate-limit",
+                  "usage-limit",
+                  "provider-error",
+                  "invalid-answer",
+                  "interrupted"
+                ]
+              },
+              "detail": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "resetAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "turnInProgress": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "origin",
+                "turn",
+                "beforeTree",
+                "personHandoffBefore",
+                "startedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "first-turn"
+                  ],
+                  "description": "A read-only first turn is in progress."
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "first-turn",
+                    "new-session"
+                  ],
+                  "description": "How a first turn's session began: the first turn, or `phax enter-phase --new-session`. A first turn is never the builder."
+                },
+                "turn": {
+                  "$ref": "#/$defs/Int",
+                  "description": "a number between 1 and 99",
+                  "title": "between(1, 99)",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "beforeTree": {
+                  "type": "string",
+                  "description": "The worktree's tree id before the turn.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                },
+                "personHandoffBefore": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "A sha256 hex digest.",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The sha256 of the person's handoff file before the turn, or null if absent."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "An ISO-8601 instant.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "origin",
+                "turn",
+                "beforeTree",
+                "personHandoffBefore",
+                "startedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "closing-turn"
+                  ],
+                  "description": "A stop's closing turn is in progress."
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "first-turn",
+                    "new-session",
+                    "builder"
+                  ],
+                  "description": "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase."
+                },
+                "turn": {
+                  "$ref": "#/$defs/Int",
+                  "description": "a number between 1 and 99",
+                  "title": "between(1, 99)",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "beforeTree": {
+                  "type": "string",
+                  "description": "The worktree's tree id before the turn.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                },
+                "personHandoffBefore": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "A sha256 hex digest.",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The sha256 of the person's handoff file before the turn, or null if absent."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "An ISO-8601 instant.",
+                  "title": "nonEmptyString",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "transcripts": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "status",
+                  "sha256"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "captured"
+                    ]
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "description": "The sha256 of the copied file's bytes.",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "status",
+                  "reason",
+                  "detail"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "missing"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "not-found",
+                      "unreadable"
+                    ]
+                  },
+                  "detail": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Null until a close copies the recorded sessions' transcripts, then one entry per recorded session."
+    },
+    "builderUsage": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "available",
+                "usage"
+              ],
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                },
+                "usage": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cacheCreationInputTokens",
+                        "cacheReadInputTokens",
+                        "outputTokens",
+                        "totalCostUsd"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "claude-code"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cacheCreationInputTokens": {
+                          "type": "number"
+                        },
+                        "cacheReadInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "totalCostUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "reasoningOutputTokens"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "codex-cli"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "reasoningOutputTokens": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "costUsd"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "mistral-vibe"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "costUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "available"
+              ],
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A held phase's builder usage, read once at the hold point before any closing turn; null at a declared stop."
+    }
+  },
+  "additionalProperties": false
+}

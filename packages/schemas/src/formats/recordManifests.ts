@@ -29,10 +29,20 @@ import {
   type DecisionRecordManifestV0_25_0,
 } from "../../../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import {
+  DecisionRecordManifestV0_28_0Schema,
+  decodeDecisionRecordManifestV0_28_0,
+  type DecisionRecordManifestV0_28_0,
+} from "../../../../src/schemas/history/decision-record-manifest/0.28.0.js";
+import {
   AuthoringRecordManifestV0_17_0Schema,
   decodeAuthoringRecordManifestV0_17_0,
   type AuthoringRecordManifestV0_17_0,
 } from "../../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+import {
+  AuthoringRecordManifestV0_23_0Schema,
+  decodeAuthoringRecordManifestV0_23_0,
+  type AuthoringRecordManifestV0_23_0,
+} from "../../../../src/schemas/history/authoring-record-manifest/0.23.0.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   decodeAuthoringRecordManifestPreSchema,
@@ -44,6 +54,11 @@ import {
   type PhaseRecordManifestV0_17_0,
 } from "../../../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import {
+  PhaseRecordManifestV0_26_0Schema,
+  decodePhaseRecordManifestV0_26_0,
+  type PhaseRecordManifestV0_26_0,
+} from "../../../../src/schemas/history/phase-record-manifest/0.26.0.js";
+import {
   PhaseRecordManifestPreSchemaSchema,
   decodePhaseRecordManifestPreSchema,
   type PhaseRecordManifestPreSchema,
@@ -51,6 +66,7 @@ import {
 import {
   RunRecordManifestFileSchema,
   decodeRunRecordManifestFile,
+  liftFrozenTokenUsage,
   type RunRecordManifest,
   type RunRecordManifestFile,
 } from "../../../../src/schemas/runRecord.js";
@@ -82,6 +98,7 @@ export type PhaseRecordManifest = RunRecordManifestFile;
 export type PhaseRecordManifestShapes = {
   "pre-schema": PhaseRecordManifestPreSchema;
   "0.17.0": PhaseRecordManifestV0_17_0;
+  "0.26.0": PhaseRecordManifestV0_26_0;
 } & {
   [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
@@ -100,6 +117,10 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
     [
       "0.17.0",
       { schema: PhaseRecordManifestV0_17_0Schema, decode: decodePhaseRecordManifestV0_17_0 },
+    ],
+    [
+      "0.26.0",
+      { schema: PhaseRecordManifestV0_26_0Schema, decode: decodePhaseRecordManifestV0_26_0 },
     ],
   ],
   current: {
@@ -120,21 +141,39 @@ export type LatestPhaseRecordManifest = RunRecordManifest;
  * invents one: a shape older than `oracle`, `mode` and `stop` gets
  * `oracle: null`, `mode: "headless"` and `stop: null`, because no phax that
  * wrote it could run an oracle phase or stop a phase. Its recorded surfaces
- * are kept as they are.
+ * are kept as they are. A Vibe usage a shape older than 0.30.0 recorded
+ * counted a whole session from the session's `meta.json`: it becomes
+ * `{ available: false }`.
  */
 export function toLatestPhaseRecordManifest(
-  value: PhaseRecordManifestPreSchema | PhaseRecordManifestV0_17_0 | PhaseRecordManifest,
+  value:
+    | PhaseRecordManifestPreSchema
+    | PhaseRecordManifestV0_17_0
+    | PhaseRecordManifestV0_26_0
+    | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
   if ("stop" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    const { $schema: _schema, usage, ...recorded } = value;
+    return { ...recorded, usage: liftFrozenTokenUsage(usage) };
   }
   if ("$schema" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, oracle: null, mode: "headless", stop: null };
+    const { $schema: _schema, usage, ...recorded } = value;
+    return {
+      ...recorded,
+      usage: liftFrozenTokenUsage(usage),
+      oracle: null,
+      mode: "headless",
+      stop: null,
+    };
   }
-  const { version: _version, ...recorded } = value;
-  return { ...recorded, oracle: null, mode: "headless", stop: null };
+  const { version: _version, usage, ...recorded } = value;
+  return {
+    ...recorded,
+    usage: liftFrozenTokenUsage(usage),
+    oracle: null,
+    mode: "headless",
+    stop: null,
+  };
 }
 
 // ── authoring record manifest
@@ -142,6 +181,7 @@ export function toLatestPhaseRecordManifest(
 export type AuthoringRecordManifestShapes = {
   "pre-schema": AuthoringRecordManifestPreSchema;
   "0.17.0": AuthoringRecordManifestV0_17_0;
+  "0.23.0": AuthoringRecordManifestV0_23_0;
 } & {
   [K in CurrentShapeName<"authoring-record-manifest">]: AuthoringRecordManifestFile;
 };
@@ -162,6 +202,13 @@ export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifes
       {
         schema: AuthoringRecordManifestV0_17_0Schema,
         decode: decodeAuthoringRecordManifestV0_17_0,
+      },
+    ],
+    [
+      "0.23.0",
+      {
+        schema: AuthoringRecordManifestV0_23_0Schema,
+        decode: decodeAuthoringRecordManifestV0_23_0,
       },
     ],
   ],
@@ -189,34 +236,39 @@ export type LatestAuthoringRecordManifest = AuthoringRecordManifest;
 /**
  * Upgrades a parsed authoring manifest in memory. Keeps every recorded fact;
  * never invents one: a shape older than `retry` gets `retry: "none"`, because
- * no phax that wrote it ever resumed a headless session.
+ * no phax that wrote it ever resumed a headless session. A Vibe usage a shape
+ * older than 0.30.0 recorded counted a whole session from the session's
+ * `meta.json`: it becomes `{ available: false }`.
  */
 export function toLatestAuthoringRecordManifest(
   value:
     | AuthoringRecordManifestPreSchema
     | AuthoringRecordManifestV0_17_0
+    | AuthoringRecordManifestV0_23_0
     | AuthoringRecordManifestFile,
 ): LatestAuthoringRecordManifest {
   if ("retry" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    const { $schema: _schema, usage, ...recorded } = value;
+    return { ...recorded, usage: liftFrozenTokenUsage(usage) };
   }
   if ("$schema" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, retry: "none" };
+    const { $schema: _schema, usage, ...recorded } = value;
+    return { ...recorded, usage: liftFrozenTokenUsage(usage), retry: "none" };
   }
-  const { version: _version, ...recorded } = value;
-  return { ...recorded, retry: "none" };
+  const { version: _version, usage, ...recorded } = value;
+  return { ...recorded, usage: liftFrozenTokenUsage(usage), retry: "none" };
 }
 
 // ── decision record manifest
 
 // Born with `$schema`: no pre-schema shape, and a manifest without `$schema`
 // is unreadable. The 0.25.0 shape is frozen: every manifest it describes is an
-// interactive record, valid as it is in the current shape.
+// interactive record, valid as it is in the current shape but for a Vibe usage.
+// The 0.28.0 shape is frozen too, for the Vibe usage alone.
 
 export type DecisionRecordManifestShapes = {
   "0.25.0": DecisionRecordManifestV0_25_0;
+  "0.28.0": DecisionRecordManifestV0_28_0;
 } & {
   [K in CurrentShapeName<"decision-record-manifest">]: DecisionRecordManifestFile;
 };
@@ -232,6 +284,10 @@ export const decisionRecordManifestFormat = defineFormat<DecisionRecordManifestS
     [
       "0.25.0",
       { schema: DecisionRecordManifestV0_25_0Schema, decode: decodeDecisionRecordManifestV0_25_0 },
+    ],
+    [
+      "0.28.0",
+      { schema: DecisionRecordManifestV0_28_0Schema, decode: decodeDecisionRecordManifestV0_28_0 },
     ],
   ],
   current: {
@@ -253,13 +309,15 @@ export type LatestDecisionRecordManifest = DecisionRecordManifest;
 
 /**
  * Upgrades a parsed decision manifest in memory: drops `$schema`, keeps every
- * other fact. A 0.25.0 manifest is an interactive record, valid as it is.
+ * other fact. A 0.25.0 manifest is an interactive record, valid as it is. A
+ * Vibe usage a shape older than 0.30.0 recorded counted a whole session from
+ * the session's `meta.json`: it becomes `{ available: false }`.
  */
 export function toLatestDecisionRecordManifest(
-  value: DecisionRecordManifestFile | DecisionRecordManifestV0_25_0,
+  value: DecisionRecordManifestFile | DecisionRecordManifestV0_25_0 | DecisionRecordManifestV0_28_0,
 ): LatestDecisionRecordManifest {
   const { $schema: _schema, ...recorded } = value;
-  return recorded;
+  return { ...recorded, usage: liftFrozenTokenUsage(recorded.usage) };
 }
 
 // ── review record manifest
