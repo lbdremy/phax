@@ -498,11 +498,10 @@ The cost ledger covers Claude Code invocations, for every phase, and also counts
 
 #### What phax reads from a provider's session store
 
-At closing, phax reads only what it needs from each provider's own store. The roots are `~/.claude`, `~/.codex` and `~/.vibe`, moved by `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME` (an empty variable counts as unset).
+At closing, phax reads only what it needs from each provider's own store. The roots are `~/.claude` and `~/.codex`, moved by `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (an empty variable counts as unset). phax reads nothing from Mistral Vibe's home.
 
-- **What it reads at closing:** the transcript file of each recorded session, and nothing else. Claude Code: `projects/<slug>/<session id>.jsonl`, where the slug is the worktree's path with every character outside `A-Z a-z 0-9` replaced by `-`. When that misses, it tries the slug of the worktree's real path (`/var/…` is `/private/var/…` on macOS). When both miss, phax lists the names under `projects/` and tries `<name>/<session id>.jsonl` in each. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names. Mistral Vibe: `logs/session/<directory>/messages.jsonl`.
-- **Finding a Vibe session's directory,** for the transcript and for usage: phax lists the names under `logs/session` and reads the `meta.json` of the `session_*` directories whose name ends with a prefix of the session id, decoding only `session_id`. When no name ends that way, it reads the `meta.json` of every `session_*` directory, until one names the id. Take `session_20261024_0199a1b2` for the session `0199a1b2-…`: phax reads its `meta.json` first, and the others only if no name matches. For usage it reads that session's `meta.json` statistics.
-- **Learning a new Vibe session's id** after a turn: phax reads the `meta.json` of the session directories modified since the turn started, and keeps the one whose working directory matches.
+- **What it reads at closing:** the transcript file of each recorded session, and nothing else. Claude Code: `projects/<slug>/<session id>.jsonl`, where the slug is the worktree's path with every character outside `A-Z a-z 0-9` replaced by `-`. When that misses, it tries the slug of the worktree's real path (`/var/…` is `/private/var/…` on macOS). When both miss, phax lists the names under `projects/` and tries `<name>/<session id>.jsonl` in each. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names.
+- **Mistral Vibe:** nothing. The answer, session id, usage and transcript come from the turn's stream and from the `export.json` Vibe writes into the turn's own output directory, beside the stream. A session you ran in Vibe's TUI therefore has no transcript.
 - **What it never reads:** a provider's credentials or configuration.
 - **Where the copies go:** the run folder only. They never enter a commit or a record.
 - **Session ids** that are not made of letters, digits, `.`, `_` and `-` are refused before any path is built.
@@ -614,7 +613,7 @@ Every run has a security mode, from `security.profile` in `phax.json` or `--secu
 | `unsafe`   | Anything on your machine. phax warns you. For plans you trust.                                                                                         |
 | `isolated` | An external sandbox. Planned, refused today.                                                                                                           |
 
-Providers differ: Claude Code and Codex jail the filesystem; Vibe only partly, so a `secure` run skips it and falls back to Claude Code. No provider filters network by domain, and only Codex can cut a phase's network off. The mode a phase actually ran with is in its `security.json`. `phax security status` shows what each installed provider can enforce.
+Providers differ: Claude Code and Codex jail the filesystem, and Vibe is confined per invocation (tool-level, with a prefix allowlist for the phase's agent commands), so a `secure` run keeps all three. Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). No provider filters network by domain, and only Codex can cut a phase's network off. The mode a phase actually ran with is in its `security.json`. `phax security status` shows what each installed provider can enforce.
 
 The agent can run your gate commands and the commands in `security.agentCommands`, and nothing else where the provider supports an allowlist. The phax binary has no network permission of its own: what reaches the network (an agent, `git push`, `gh`) is a program it starts. And phax never builds a shell command from your data: every command it runs gets its arguments one by one. [`docs/security.md`](docs/security.md) has the details.
 

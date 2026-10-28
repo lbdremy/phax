@@ -88,7 +88,7 @@ PHAX applies the strongest available provider-native controls for each provider:
 | -------------- | --------------- | ------------------------------ | ------------- |
 | `claude-code`  | Strong          | None enforced (profile recorded) | Supported   |
 | `codex-cli`    | Strong          | On/off (sandbox egress toggle)   | Supported   |
-| `mistral-vibe` | Partial         | None                             | Supported   |
+| `mistral-vibe` | Strong          | None                             | Supported   |
 
 **No provider enforces a domain allowlist.** `network.allowDomains` and the
 `dev-allowlist` profile are carried into the policy and recorded in `security.json`, but no
@@ -118,11 +118,18 @@ network control at all.
 
 **Mistral Vibe** (`mistral-vibe`):
 
-- Filesystem isolation is partial (weaker than Claude/Codex)
+- Secure mode confines every Vibe invocation through `VIBE_*` environment variables under `--agent accept-edits`: `VIBE_OUTSIDE_WORKDIR=deny`, `VIBE_BYPASS_TOOL_PERMISSIONS=false` and a `VIBE_TOOLS` JSON naming the permitted tools. phax writes no Vibe config file
+- Secure mode never auto-approves and never passes `--trust`, whatever the provider entry's default agent says
+- A user's own `config.toml` cannot widen a secure session: its bypass flag, bash allowlist entries and file-tool allowlists are overridden per invocation, so a user's own allowlist entries never reach secure phax sessions
+- The worktree is `--workdir`; each writable root beyond it is one `--add-dir`
 - Network controls are unsupported
-- When secure mode is requested, Vibe is skipped in strict routing unless it's the terminal fallback
-- Marked as "partially secured" with appropriate warnings
-- Shell tool calls are auto-approved, with no per-command allowlist (see [Shell command execution](#shell-command-execution))
+- Shell tool calls are checked against a prefix allowlist of the phase's agent commands through `VIBE_TOOLS` (see [Shell command execution](#shell-command-execution))
+- Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`)
+- Recorded as filesystem jail `strong` with command enforcement `prefix`, so secure mode forced to `mistral-vibe` runs the phase on Vibe, not on a Claude Code fallback
+
+Example: with `providerPriority` `[mistral-vibe, claude-code]` in secure mode, the phase runs on Vibe, and its `security.json` shows `"provider": "mistral-vibe"`, `"downgraded": false` and `"marks": []`.
+
+**Accepted loss.** Vibe's enforcement is tool-level: code that an allowed agent command runs can still read outside the roots, as under Claude Code's allowlist.
 
 ### Skill edit grants (Claude Code)
 
@@ -161,17 +168,18 @@ the start:
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `claude-code`  | **Per-command allowlist.** Bash is denied by default; phax allowlists exactly the gate commands (`--allowedTools "Bash(<cmd>:*)"`). Every other shell command is denied.                                        |
 | `codex-cli`    | **OS-sandboxed execution.** Any command may run, but the `workspace-write` sandbox confines writes to the writable roots and the network profile gates egress. There is no per-command allowlist surface.       |
-| `mistral-vibe` | **Approval-policy only.** The `auto-approve` agent permits shell tool calls with no per-command allowlist; isolation rests on the partial filesystem jail (already reflected by the `partial-filesystem` mark). |
+| `mistral-vibe` | **Prefix allowlist.** `VIBE_TOOLS` gives `bash` `permission: ask` with an allowlist equal to the phase's agent commands, so any other call is refused in a headless turn. Chained, outside-the-roots and background calls fall outside the prefixes. |
 
 Notes:
 
 - Claude's allowlist is **exact**: a `pnpm format:check` gate permits
   `pnpm format:check`, not `pnpm format`. If a phase needs a sibling command
   (such as a formatter's write variant), add it as its own gate entry.
-- Codex and Vibe permit broader command execution than Claude, but this is **not**
-  a filesystem-isolation downgrade — codex keeps a strong OS sandbox, and Vibe's
-  weaker isolation is already surfaced via its security mark. For that reason the
-  broader shell surface is documented here rather than emitted as a separate mark.
+- Codex permits broader command execution than Claude, but this is **not** a
+  filesystem-isolation downgrade — codex keeps a strong OS sandbox. For that reason
+  the broader shell surface is documented here rather than emitted as a separate mark.
+- Vibe's allowlist is a prefix match, recorded as `prefix` enforcement. It checks the
+  call, not what an allowed command goes on to do.
 
 ## Security Artifacts
 
@@ -224,7 +232,7 @@ These artifacts are:
 ```
 
 - `personWork` says that what the person did in the worktree, by hand, with any editor or with any agent, ran outside phax's enforcement. The rest of the file is the posture the builder ran under, which the person's work did not have.
-- `turns` names each first and closing turn phax ran, retries included, with the posture it actually ran under: `read-only-tools` on Claude Code, `read-only-sandbox` on codex, `none` on mistral-vibe. Every such turn runs with no agent commands.
+- `turns` names each first and closing turn phax ran, retries included, with the posture it actually ran under: `read-only-tools` on Claude Code, `read-only-sandbox` on codex, and `read-only-tools` on mistral-vibe too (`read_file` and `grep` only). Every such turn runs with no agent commands.
 - `version` moved from 1 to 2. A version-1 file reads as a phase that never stopped, and rewriting it at a close makes it version 2.
 - The phase's record carries the file.
 
@@ -232,10 +240,9 @@ These artifacts are:
 
 A close copies the transcript of each session it recorded into the run folder, `<run>/<phase>/interactive-transcripts/<session id>.jsonl`, with mode 0600 in a folder with mode 0700. The copies stay there: they never enter a commit or a record, whatever `records.transcript` says, because a session the person continued ran outside phax's enforcement and may hold secrets they typed. The record carries each transcript's sha256 only.
 
-- **Roots.** `~/.claude`, `~/.codex` and `~/.vibe`, moved by `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `VIBE_HOME`. An empty variable counts as unset.
-- **At closing, phax reads only the transcript file of each recorded session.** Claude Code: `projects/<slug>/<session id>.jsonl`, the slug being the worktree path with every character outside `A-Z a-z 0-9` replaced by `-`. When it misses, phax tries the slug of the worktree's real path (`/var/…` is `/private/var/…` on macOS). When both miss, it lists the names under `projects/` and tries `<name>/<session id>.jsonl` in each. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names. Mistral Vibe: `logs/session/<directory>/messages.jsonl`.
-- **A Vibe session's directory,** for the transcript and for usage: phax lists the names under `logs/session` and reads the `meta.json` of the `session_*` directories whose name ends with a prefix of the session id, decoding only `session_id`. When no name ends that way, it reads the `meta.json` of every `session_*` directory, until one names the id. For usage it reads that session's `meta.json` statistics.
-- **A new Vibe session's id,** after a turn: phax reads the `meta.json` of the session directories modified since the turn started and matches their working directory.
+- **Roots.** `~/.claude` and `~/.codex`, moved by `CLAUDE_CONFIG_DIR` and `CODEX_HOME`. An empty variable counts as unset. phax reads nothing from `~/.vibe` or `VIBE_HOME`.
+- **At closing, phax reads only the transcript file of each recorded session.** Claude Code: `projects/<slug>/<session id>.jsonl`, the slug being the worktree path with every character outside `A-Z a-z 0-9` replaced by `-`. When it misses, phax tries the slug of the worktree's real path (`/var/…` is `/private/var/…` on macOS). When both miss, it lists the names under `projects/` and tries `<name>/<session id>.jsonl` in each. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names.
+- **Mistral Vibe: nothing.** The answer, the session id, the usage and the transcript come from the turn's own stream and from the `export.json` Vibe writes into the turn's `--output-dir`, `<turn>.vibe-export/` beside the stream. A close builds a Vibe session's transcript from the turn streams kept in the phase folder whose first entry carries the session id, so a session the person ran in Vibe's TUI has no transcript.
 - **Never read:** a provider's credentials or configuration.
 - **Session ids** outside letters, digits, `.`, `_` and `-` are refused before any path is built.
 
@@ -288,7 +295,7 @@ When `secure` mode is active, providers that cannot satisfy strict security requ
 
 - Claude Code is the guaranteed strong baseline (never filtered)
 - Codex CLI is strong and supported
-- Mistral Vibe is partial and may be skipped in strict contexts
+- Mistral Vibe is strong (per-invocation confinement) and runs under strict secure mode
 
 Skipped providers are recorded in `RoutingResolution.skippedForSecurity` and appear in the security artifact and final report.
 

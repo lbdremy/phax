@@ -16,6 +16,8 @@ export interface CliResult {
 
 export interface RunCliOptions {
   timeout?: number;
+  /** Variables merged over the process environment. */
+  env?: Readonly<Record<string, string>>;
 }
 
 export function runCli(args: string[], cwd: string, opts: RunCliOptions = {}): CliResult {
@@ -24,7 +26,7 @@ export function runCli(args: string[], cwd: string, opts: RunCliOptions = {}): C
     cwd,
     encoding: "utf8",
     timeout,
-    env: { ...process.env },
+    env: { ...process.env, ...opts.env },
   });
 
   const timedOut = result.signal === "SIGTERM" || result.status === null;

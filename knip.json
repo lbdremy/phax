@@ -34,5 +34,5 @@
     "react"
   ],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
-  "ignoreBinaries": ["claude", "gh", "usage"]
+  "ignoreBinaries": ["claude", "gh", "usage", "vibe"]
 }
