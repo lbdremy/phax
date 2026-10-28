@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
 import {
   AgentInvocationError,
+  type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
   GateFailedError,
@@ -75,6 +76,7 @@ export function runGatesWithFixLoop(
   | GitError
   | SetupCommandFailedError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
@@ -175,6 +177,7 @@ export function runGatesWithFixLoop(
     | GitError
     | SetupCommandFailedError
     | AgentInvocationError
+    | AgentSessionFailedError
     | AgentSessionIdMissingError
     | RateLimitError
     | UsageLimitError

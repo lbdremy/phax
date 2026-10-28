@@ -6,6 +6,7 @@ import { deviationPaths, findUnexplainedDeviations } from "../domain/reconciliat
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import {
   type AgentInvocationError,
+  type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   type RateLimitError,
   type RegistryCorruptionError,
@@ -108,6 +109,7 @@ export function generatePhaseHandoff(
   | ShellError
   | SetupCommandFailedError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError

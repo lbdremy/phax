@@ -10,7 +10,11 @@ import {
   runVibeCompletion,
 } from "../../../src/infra/providers/mistralVibe.js";
 import { renderAgentInvocationError } from "../../../src/cli/commands/runLayers.js";
-import { AgentInvocationError, SecurityEnforcementError } from "../../../src/domain/errors.js";
+import {
+  AgentInvocationError,
+  AgentSessionFailedError,
+  SecurityEnforcementError,
+} from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import {
@@ -323,6 +327,19 @@ describe("parseVibeVersion", () => {
   });
 });
 
+// An export as Vibe 3.0.3 writes it for a turn that failed early.
+const failedExportText = (outcome: string, error: { message: string; code: string | null }) =>
+  JSON.stringify({
+    ...VIBE3_EXPORT_SHORT,
+    session_id: null,
+    usage: null,
+    cost_usd: null,
+    config: null,
+    outcome,
+    exit_code: 2,
+    error,
+  });
+
 describe("runVibeAgent against a fake vibe", () => {
   let root: string;
   let phaseFolder: string;
@@ -363,6 +380,15 @@ describe("runVibeAgent against a fake vibe", () => {
     if (Either.isRight(result)) throw new Error("expected the turn to fail");
     expect(result.left).toBeInstanceOf(AgentInvocationError);
     return result.left as AgentInvocationError;
+  };
+  const sessionFailureOf = async (
+    executable: string,
+    options: AgentRunOptions = optionsFor(),
+  ): Promise<AgentSessionFailedError> => {
+    const result = await run(executable, options);
+    if (Either.isRight(result)) throw new Error("expected the turn to fail");
+    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
+    return result.left as AgentSessionFailedError;
   };
 
   it("answers with the stream's PONG and the export's session id, and keeps both beside each other", async () => {
@@ -557,6 +583,23 @@ describe("runVibeAgent against a fake vibe", () => {
 
       expect(error.message).toContain("enabled_tools is ");
     });
+
+    it("refuses a failed secure turn whose export config differs, before reading its failure", async () => {
+      const fake = fakeIn({
+        exitCode: 2,
+        exportText: failedExportText("infrastructure_failure", {
+          message: "All connection attempts failed",
+          code: "backend_error",
+        }),
+        configOverride: { bypass_tool_permissions: true },
+      });
+
+      const error = await failureOf(fake.executable, secureOptions());
+
+      expect(error.message).toContain("bypass_tool_permissions is ");
+      expect(error.message).toContain("its result is refused");
+      expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).not.toMatch(/^failure:/);
+    });
   });
 
   describe("runVibeCompletion", () => {
@@ -596,7 +639,8 @@ describe("runVibeAgent against a fake vibe", () => {
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(AgentInvocationError);
+        expect(result.left).toBeInstanceOf(AgentSessionFailedError);
+        expect(result.left.message).toContain("mistral-vibe session failed (provider-error): ");
         expect(result.left.message).toContain("no completion answer");
       }
     });
@@ -651,7 +695,7 @@ describe("runVibeAgent against a fake vibe", () => {
   it("fails naming the missing export and the exact path read when the turn wrote none", async () => {
     const fake = fakeIn({});
 
-    const error = await failureOf(fake.executable);
+    const error = await sessionFailureOf(fake.executable);
 
     expect(error.message).toContain("missing Vibe export");
     expect(error.message).toContain(join(phaseFolder, "output.vibe-export", "export.json"));
@@ -665,7 +709,7 @@ describe("runVibeAgent against a fake vibe", () => {
     await run(fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) }).executable);
     expect(existsSync(exportPath)).toBe(true);
 
-    const error = await failureOf(fakeIn({}).executable);
+    const error = await sessionFailureOf(fakeIn({}).executable);
 
     expect(error.message).toContain(`missing Vibe export at ${exportPath}`);
   });
@@ -673,7 +717,7 @@ describe("runVibeAgent against a fake vibe", () => {
   it("fails naming the invalid export and its path when export.json does not decode", async () => {
     const fake = fakeIn({ exportText: '{"schema_version":2}' });
 
-    const error = await failureOf(fake.executable);
+    const error = await sessionFailureOf(fake.executable);
 
     expect(error.message).toContain("invalid Vibe export");
     expect(error.message).toContain(join(phaseFolder, "output.vibe-export", "export.json"));
@@ -688,22 +732,50 @@ describe("runVibeAgent against a fake vibe", () => {
       exportText: vibe3ExportText(VIBE3_EXPORT_SHORT),
     });
 
-    const error = await failureOf(fake.executable);
+    const error = await sessionFailureOf(fake.executable);
 
     expect(error.message).toContain("no assistant message with a text block");
-    expect(error.message).toContain(transcript);
+    expect(error.transcript).toBe(transcript);
     expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(
       "no assistant message with a text block",
     );
   });
 
-  it("fails on a non-zero exit without reading an export", async () => {
+  it("answers from a finished export even when the process then exits non-zero", async () => {
     const fake = fakeIn({ exitCode: 2, exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
 
-    const error = await failureOf(fake.executable);
+    const result = await run(fake.executable);
 
-    expect(error.message).toBe("vibe exited with code 2");
-    expect(error.exitCode).toBe(2);
+    expect(Either.isRight(result) && result.right.finalText).toBe("PONG");
+  });
+
+  it("fails a turn whose export reports a backend error with the provider's own text", async () => {
+    const fake = fakeIn({
+      exitCode: 2,
+      stderr: "Traceback: httpx.ConnectError\n",
+      exportText: failedExportText("infrastructure_failure", {
+        message: "All connection attempts failed",
+        code: "backend_error",
+      }),
+    });
+
+    const error = await sessionFailureOf(fake.executable);
+
+    expect(error.failure).toEqual({
+      provider: "mistral-vibe",
+      kind: "network",
+      message: "All connection attempts failed (backend_error)",
+      sessionId: VIBE3_SESSION_ID,
+      resetAt: null,
+    });
+    expect(error.message).toBe(
+      "mistral-vibe session failed (network): All connection attempts failed (backend_error)",
+    );
+    expect(error.message).not.toContain("exited with code");
+    expect(error.agentErrorLog).toBe(join(phaseFolder, "agent-error.log"));
+    expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toMatch(
+      /^failure: network\nprovider: mistral-vibe\n/,
+    );
   });
 
   it("refuses a turn without a transcript path before spawning anything", async () => {

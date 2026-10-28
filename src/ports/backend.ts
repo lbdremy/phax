@@ -2,7 +2,7 @@ import { Context, Effect } from "effect";
 import type { ClaudeSessionId } from "../domain/branded.js";
 import type {
   AgentInvocationError,
-  AgentSessionIdMissingError,
+  AgentSessionFailedError,
   RateLimitError,
   SecurityEnforcementError,
   UsageLimitError,
@@ -102,13 +102,26 @@ export type TranscriptRead =
       readonly detail: string;
     };
 
+/**
+ * The agent operations below read every ended session through its provider's
+ * outcome reader (src/domain/session/outcome.ts). A session that ended without
+ * an answer fails with `AgentSessionFailedError`, or with `RateLimitError` /
+ * `UsageLimitError` for the limit kinds, each carrying the paths of its
+ * agent-error.log and transcript when they exist. `AgentInvocationError` and
+ * `SecurityEnforcementError` are phax's own refusals, or a spawn that failed.
+ */
 export interface BackendOps {
   runAgent(
     prompt: string,
     options: AgentRunOptions,
   ): Effect.Effect<
     AgentRunResult,
-    AgentInvocationError | RateLimitError | UsageLimitError | SecurityEnforcementError | FsError
+    | AgentInvocationError
+    | AgentSessionFailedError
+    | RateLimitError
+    | UsageLimitError
+    | SecurityEnforcementError
+    | FsError
   >;
 
   resumeAgentSession(
@@ -118,7 +131,7 @@ export interface BackendOps {
   ): Effect.Effect<
     AgentRunResult,
     | AgentInvocationError
-    | AgentSessionIdMissingError
+    | AgentSessionFailedError
     | RateLimitError
     | UsageLimitError
     | SecurityEnforcementError
@@ -130,7 +143,7 @@ export interface BackendOps {
     options: CompletionOptions,
   ): Effect.Effect<
     CompletionResult,
-    AgentInvocationError | RateLimitError | UsageLimitError | FsError
+    AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
   >;
 
   /**

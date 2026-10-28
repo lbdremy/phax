@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { RunId } from "../../../src/domain/branded.js";
-import { AgentInvocationError, GateFailedError } from "../../../src/domain/errors.js";
+import {
+  AgentInvocationError,
+  GateFailedError,
+  RateLimitError,
+  UsageLimitError,
+} from "../../../src/domain/errors.js";
+import { sessionFailureError } from "../../../src/domain/session/failureError.js";
 import { GitError } from "../../../src/ports/git.js";
 import { ShellError } from "../../../src/ports/shell.js";
 import {
+  isAgentFailure,
   reportAgentFailure,
   reportGitFailure,
   reportShellFailure,
@@ -155,6 +162,53 @@ describe("reportAgentFailure", () => {
     });
 
     expect(report.expected).toBe("exit 0");
+  });
+
+  it("reports a phase turn's session failure with its failure kind", () => {
+    const e = sessionFailureError(
+      {
+        provider: "claude-code",
+        kind: "network",
+        message: "API Error: Can't reach the API server (ENOTFOUND)",
+        sessionId: null,
+        resetAt: null,
+      },
+      { agentErrorLog: "/runs/r/phase-01/agent-error.log", transcript: null },
+    );
+
+    const report = reportAgentFailure(e, {
+      runId,
+      operationId: "phase-01",
+      adapter: "claude-code",
+      operation: "agent.run",
+    });
+
+    expect(report).toMatchObject({
+      type: "adapter.agent_failed",
+      operationId: "phase-01",
+      adapter: "claude-code",
+      operation: "agent.run",
+      actual: "network",
+      cause: e,
+    });
+    expect("exitCode" in report).toBe(false);
+  });
+
+  it.each([
+    ["rate-limit", RateLimitError],
+    ["usage-limit", UsageLimitError],
+  ] as const)("reports a %s with its failure kind", (kind, ErrorClass) => {
+    const e = new ErrorClass({ message: "limit", rawMessage: "limit" });
+
+    const report = reportAgentFailure(e, { runId, adapter: "codex-cli", operation: "agent.run" });
+
+    expect(report.actual).toBe(kind);
+  });
+
+  it("tells the agent failures it reports from other errors", () => {
+    expect(isAgentFailure(new AgentInvocationError({ message: "x" }))).toBe(true);
+    expect(isAgentFailure(new RateLimitError({ message: "x", rawMessage: "x" }))).toBe(true);
+    expect(isAgentFailure(new GitError({ message: "x", command: "git" }))).toBe(false);
   });
 });
 

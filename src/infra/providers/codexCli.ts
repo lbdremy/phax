@@ -14,22 +14,21 @@ import type {
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
-  AgentSessionIdMissingError,
-  RateLimitError,
+  type AgentSessionFailedError,
+  type RateLimitError,
   SecurityEnforcementError,
-  UsageLimitError,
+  type UsageLimitError,
 } from "../../domain/errors.js";
-import { decodeClaudeSessionId } from "../../domain/branded.js";
 import {
   buildCodexSecurityFlags,
   codexModelId,
   mapReasoningEffort,
 } from "../../domain/session/codexFlags.js";
-import { classifyRateLimit } from "../../schemas/claudeOutput.js";
-import { findCodexResultEvent, hasCodexErroredResultEvent } from "../../schemas/codexOutput.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import { readCodexOutcome, type SessionEnd } from "../../domain/session/outcome.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { persistSessionId } from "./sessionWriter.js";
-import { writeAgentErrorLog } from "./agentErrorLog.js";
+import { answerSessionId, failSession, sessionEndOf, writeAgentErrorLog } from "./agentErrorLog.js";
 import { captureFromStore, listStoreNames, notFound, readStoreFile } from "./transcriptStore.js";
 
 type CodexProviderEntry = ProviderConfig["providers"][string];
@@ -43,8 +42,9 @@ function wrapFsError(err: unknown): FsError {
 
 interface SpawnResult {
   readonly lines: string[];
-  readonly exitCode: number;
   readonly stderr: string;
+  /** How the process ended: its exit code, or the signal that stopped it. */
+  readonly end: SessionEnd;
 }
 
 // A read-only turn (phax's own turns at a stop): codex's read-only sandbox and
@@ -124,9 +124,9 @@ function spawnCodex(
       stderrBuf += chunk.toString("utf8");
     });
 
-    proc.on("close", (code) => {
+    proc.on("close", (code, signal) => {
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
-      const result = { lines, exitCode: code ?? 1, stderr: stderrBuf };
+      const result = { lines, stderr: stderrBuf, end: sessionEndOf(code, signal) };
       // Resolve once the stream is flushed: the cost ledger reads it next.
       if (writeStream === undefined) resolve(result);
       else writeStream.end(() => resolve(result));
@@ -137,17 +137,6 @@ function spawnCodex(
       reject(err);
     });
   });
-}
-
-function rateLimitErrorFor(classification: {
-  kind: "rate_limit" | "usage_limit";
-  rawMessage: string;
-  resetAt?: string | undefined;
-}): RateLimitError | UsageLimitError {
-  const fields = { rawMessage: classification.rawMessage, resetAt: classification.resetAt };
-  return classification.kind === "usage_limit"
-    ? new UsageLimitError({ message: "Codex stopped: usage limit reached.", ...fields })
-    : new RateLimitError({ message: "Codex stopped: rate limit hit.", ...fields });
 }
 
 export function buildCodexCompletionArgs(
@@ -184,13 +173,13 @@ export function runCodexCompletion(
   entry: CodexProviderEntry,
 ): Effect.Effect<
   CompletionResult,
-  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
   const args = buildCodexCompletionArgs(entry, options);
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, undefined, options.cwd),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
@@ -199,26 +188,13 @@ export function runCodexCompletion(
         }),
     });
 
-    if (exitCode !== 0 || hasCodexErroredResultEvent(lines)) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
-      }
-    }
-
-    if (exitCode !== 0) {
+    const outcome = readCodexOutcome({ lines, stderr, end });
+    if (outcome.kind === "failure") {
       return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `codex exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv,
-        }),
+        sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-
-    const found = findCodexResultEvent(lines);
-    return { finalText: found?.finalText ?? "" };
+    return { finalText: outcome.text };
   });
 }
 
@@ -296,7 +272,7 @@ export function runCodexAgent(
 ): Effect.Effect<
   AgentRunResult,
   | AgentInvocationError
-  | AgentSessionIdMissingError
+  | AgentSessionFailedError
   | RateLimitError
   | UsageLimitError
   | SecurityEnforcementError
@@ -314,7 +290,7 @@ export function runCodexAgent(
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
@@ -329,44 +305,20 @@ export function runCodexAgent(
       },
     });
 
-    if (exitCode !== 0 || hasCodexErroredResultEvent(lines)) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
-      }
+    const failed = {
+      argv,
+      end,
+      stderr,
+      phaseFolderPath: options.phaseFolderPath,
+      transcript: options.outputJsonlPath,
+    };
+    const outcome = readCodexOutcome({ lines, stderr, end });
+    if (outcome.kind === "failure") {
+      return yield* Effect.fail(failSession(outcome.failure, failed));
     }
-
-    if (exitCode !== 0) {
-      writeAgentErrorLog(options.phaseFolderPath, { argv, exitCode, stderr });
-      return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `codex exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv,
-          phaseFolderPath: options.phaseFolderPath,
-        }),
-      );
-    }
-
-    const found = findCodexResultEvent(lines);
-    if (!found) {
-      return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: "No result event with session_id found in codex output",
-          outputPath: options.outputJsonlPath ?? "",
-        }),
-      );
-    }
-
-    const sessionIdResult = decodeClaudeSessionId(found.sessionId);
+    const sessionIdResult = answerSessionId(outcome);
     if (Either.isLeft(sessionIdResult)) {
-      return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: `Invalid session_id in codex output: "${found.sessionId}"`,
-          outputPath: options.outputJsonlPath ?? "",
-        }),
-      );
+      return yield* Effect.fail(failSession(sessionIdResult.left, failed));
     }
 
     const capturedSessionId = sessionIdResult.right;
@@ -381,7 +333,7 @@ export function runCodexAgent(
     return {
       sessionId: capturedSessionId,
       outputPath: options.outputJsonlPath ?? "",
-      finalText: found.finalText,
+      finalText: outcome.text,
     };
   });
 }

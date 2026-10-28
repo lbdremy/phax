@@ -1,13 +1,6 @@
 import { Effect, Layer } from "effect";
 import { Backend } from "../../ports/backend.js";
-import {
-  AgentInvocationError,
-  AgentSessionIdMissingError,
-  RateLimitError,
-  SecurityEnforcementError,
-  UsageLimitError,
-} from "../../domain/errors.js";
-import type { FsError } from "../../ports/fs.js";
+import { AgentInvocationError } from "../../domain/errors.js";
 import { ProviderStoreRoots } from "../../ports/providerStores.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import {
@@ -18,13 +11,6 @@ import {
 } from "./claudeCode.js";
 import { captureCodexTranscript, runCodexAgent, runCodexCompletion } from "./codexCli.js";
 import { captureVibeTranscript, runVibeAgent, runVibeCompletion } from "./mistralVibe.js";
-
-type RunAgentError =
-  | AgentInvocationError
-  | RateLimitError
-  | UsageLimitError
-  | SecurityEnforcementError
-  | FsError;
 
 /**
  * The backend that runs the provider CLIs. Its adapters read the provider
@@ -45,14 +31,7 @@ function nodeBackend(
   return {
     runAgent: (prompt, options) => {
       if (options.provider === "claude-code") {
-        return runClaudeAgent(prompt, options).pipe(
-          Effect.mapError(
-            (e): RunAgentError =>
-              e instanceof AgentSessionIdMissingError
-                ? new AgentInvocationError({ message: e.message })
-                : e,
-          ),
-        );
+        return runClaudeAgent(prompt, options);
       }
       if (options.provider === "mistral-vibe") {
         const entry = providerConfig.providers["mistral-vibe"];
@@ -61,14 +40,7 @@ function nodeBackend(
             new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
           );
         }
-        return runVibeAgent(prompt, options, entry).pipe(
-          Effect.mapError(
-            (e): RunAgentError =>
-              e instanceof AgentSessionIdMissingError
-                ? new AgentInvocationError({ message: e.message })
-                : e,
-          ),
-        );
+        return runVibeAgent(prompt, options, entry);
       }
       if (options.provider === "codex-cli") {
         const entry = providerConfig.providers["codex-cli"];
@@ -77,14 +49,7 @@ function nodeBackend(
             new AgentInvocationError({ message: "codex-cli not found in provider config" }),
           );
         }
-        return runCodexAgent(prompt, options, entry).pipe(
-          Effect.mapError(
-            (e): RunAgentError =>
-              e instanceof AgentSessionIdMissingError
-                ? new AgentInvocationError({ message: e.message })
-                : e,
-          ),
-        );
+        return runCodexAgent(prompt, options, entry);
       }
       return Effect.fail(
         new AgentInvocationError({

@@ -45,6 +45,7 @@ import {
 } from "../domain/decide/revision.js";
 import {
   AgentInvocationError,
+  type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   ArtifactCommitFailedError,
   type ArtifactValidationError,
@@ -168,6 +169,7 @@ export type DecideArtifactError =
   | ArtifactValidationError
   | ArtifactCommitFailedError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
@@ -525,6 +527,7 @@ function handBack(
   AcceptedAnswer,
   | DecideDocumentError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError

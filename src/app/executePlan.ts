@@ -16,6 +16,7 @@ import { lastRecordedAttemptLogName } from "../domain/gate/attemptFiles.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
+  type AgentSessionFailedError,
   AgentSessionIdMissingError,
   ArtifactCompletionPausedError,
   AwaitingReviewStopError,
@@ -77,7 +78,7 @@ import {
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
-import { reportAgentFailure } from "./telemetry/reportBuilders.js";
+import { isAgentFailure, reportAgentFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { encodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
@@ -358,6 +359,7 @@ export type ExecutePlanError =
   | WorktreeCreationError
   | SetupCommandFailedError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | GateFailedError
   | GateAttemptsExhaustedError
@@ -2182,7 +2184,7 @@ export function executePlan(
             streamPath: join(phaseFolderPath, "output.jsonl"),
           }).pipe(
             Effect.tapError((e) =>
-              e instanceof AgentInvocationError
+              isAgentFailure(e)
                 ? telemetry.recordError(
                     reportAgentFailure(e, {
                       runId,

@@ -15,13 +15,18 @@ import type {
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
-  AgentSessionIdMissingError,
-  RateLimitError,
+  type AgentSessionFailedError,
+  type RateLimitError,
   SecurityEnforcementError,
-  UsageLimitError,
+  type UsageLimitError,
 } from "../../domain/errors.js";
-import { decodeClaudeSessionId } from "../../domain/branded.js";
 import { vibeExportDirOf, vibeExportFileOf } from "../../domain/records/usage.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import {
+  readVibeOutcome,
+  type SessionEnd,
+  type VibeExportRead,
+} from "../../domain/session/outcome.js";
 import {
   buildSealedVibeFlags,
   buildVibeFlags,
@@ -33,16 +38,14 @@ import {
   type VibeFlags,
   type VibeFlagsInput,
 } from "../../domain/session/vibeFlags.js";
-import { classifyRateLimit } from "../../schemas/claudeOutput.js";
-import { decodeVibeExportText } from "../../schemas/vibeExport.js";
+import { decodeVibeOutcomeText } from "../../schemas/vibeExport.js";
 import {
-  findVibeResultEvent,
   findVibeStreamHead,
   parseVibeVersion,
   type VibeVersion,
 } from "../../schemas/vibeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
-import { writeAgentErrorLog } from "./agentErrorLog.js";
+import { answerSessionId, failSession, sessionEndOf, writeAgentErrorLog } from "./agentErrorLog.js";
 import { captureFromStore, isAbsence, notFound } from "./transcriptStore.js";
 
 type VibeProviderEntry = {
@@ -60,8 +63,9 @@ function wrapFsError(err: unknown): FsError {
 
 interface SpawnResult {
   readonly lines: string[];
-  readonly exitCode: number;
   readonly stderr: string;
+  /** How the process ended: its exit code, the signal that stopped it, or the spawn timeout. */
+  readonly end: SessionEnd;
 }
 
 // Each invocation carries its own confinement, built by `buildVibeFlags`
@@ -172,6 +176,7 @@ function spawnVibe(
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
     let stderrBuf = "";
+    let timedOut = false;
 
     let writeStream: ReturnType<typeof createWriteStream> | undefined;
     if (outputJsonlPath) {
@@ -207,10 +212,11 @@ function spawnVibe(
       stderrBuf += chunk.toString("utf8");
     });
 
-    proc.on("close", (code) => {
+    proc.on("close", (code, signal) => {
       clearTimeout(killTimer);
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
-      const result = { lines, exitCode: code ?? 1, stderr: stderrBuf };
+      const end: SessionEnd = timedOut ? { kind: "timed-out" } : sessionEndOf(code, signal);
+      const result = { lines, stderr: stderrBuf, end };
       // Resolve once the stream is flushed: the cost ledger reads it next.
       if (writeStream === undefined) resolve(result);
       else writeStream.end(() => resolve(result));
@@ -233,21 +239,22 @@ function spawnVibe(
     const killTimer =
       killAfterMs !== undefined
         ? setTimeout(() => {
+            timedOut = true;
             proc.kill("SIGTERM");
           }, killAfterMs)
         : undefined;
   });
 }
 
-function rateLimitErrorFor(classification: {
-  kind: "rate_limit" | "usage_limit";
-  rawMessage: string;
-  resetAt?: string | undefined;
-}): RateLimitError | UsageLimitError {
-  const fields = { rawMessage: classification.rawMessage, resetAt: classification.resetAt };
-  return classification.kind === "usage_limit"
-    ? new UsageLimitError({ message: "Vibe stopped: usage limit reached.", ...fields })
-    : new RateLimitError({ message: "Vibe stopped: rate limit hit.", ...fields });
+/** What reading a turn's `export.json` gave: its text, or why there is none. */
+async function readVibeExport(path: string): Promise<VibeExportRead> {
+  try {
+    return { kind: "text", path, text: await readFile(path, "utf8") };
+  } catch (err) {
+    return isAbsence(err)
+      ? { kind: "absent", path }
+      : { kind: "unreadable", path, detail: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // Vibe 3.0.3 is the first release whose headless turns write an export.json
@@ -388,14 +395,14 @@ export function runVibeCompletion(
   entry: VibeProviderEntry,
 ): Effect.Effect<
   CompletionResult,
-  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
   const flags = buildSealedVibeFlags(options.cwd);
   const args = ["-p", prompt, ...flags.agent, "--output", "streaming", ...flags.scope];
   const argv = [entry.executable, ...args];
   return Effect.gen(function* () {
     yield* requireSupportedVibe(entry.executable, undefined);
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnVibe(entry, args, undefined, options.cwd, options.model, flags.env),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
@@ -403,31 +410,13 @@ export function runVibeCompletion(
           argv,
         }),
     });
-    if (exitCode !== 0) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
-      }
+    const outcome = readVibeOutcome({ lines, stderr, end }, { kind: "not-requested" });
+    if (outcome.kind === "failure") {
       return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `vibe exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv,
-        }),
+        sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-    const found = findVibeResultEvent(lines);
-    if (!found) {
-      return yield* Effect.fail(
-        new AgentInvocationError({
-          message:
-            "vibe's stream holds no assistant message with a text block, so there is no completion answer to read",
-          argv,
-        }),
-      );
-    }
-    return { finalText: found.finalText };
+    return { finalText: outcome.text };
   });
 }
 
@@ -439,7 +428,7 @@ export function runVibeAgent(
 ): Effect.Effect<
   AgentRunResult,
   | AgentInvocationError
-  | AgentSessionIdMissingError
+  | AgentSessionFailedError
   | RateLimitError
   | UsageLimitError
   | SecurityEnforcementError
@@ -502,73 +491,53 @@ export function runVibeAgent(
       catch: wrapFsError,
     });
 
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model, envAdditions),
       catch: (err): AgentInvocationError =>
         failInvocation(err instanceof Error ? err.message : String(err)),
     });
 
-    if (exitCode !== 0) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
+    const exportRead = yield* Effect.promise(() => readVibeExport(exportPath));
+    const outcome = readVibeOutcome({ lines, stderr, end }, exportRead);
+
+    // The config the turn ran with is checked before its outcome is honoured:
+    // an answer's always, a failure's whenever its export decodes with one. A
+    // mismatch refuses the turn, whatever the reader made of it.
+    const decoded = exportRead.kind === "text" ? decodeVibeOutcomeText(exportRead.text) : undefined;
+    if (decoded !== undefined && Either.isRight(decoded)) {
+      const { config } = decoded.right;
+      if (outcome.kind === "answer" || (config !== undefined && config !== null)) {
+        const mismatch = vibeConfigMismatch(flagsInput, config);
+        if (mismatch !== undefined) {
+          return yield* Effect.fail(
+            failInvocation(
+              `vibe ran this turn under a config phax did not set (${mismatch}, read from ${exportPath}), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings.`,
+            ),
+          );
+        }
       }
-      writeAgentErrorLog(options.phaseFolderPath, { argv, exitCode, stderr });
-      return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `vibe exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv,
-          phaseFolderPath: options.phaseFolderPath,
-        }),
-      );
     }
 
-    const found = findVibeResultEvent(lines);
-    if (!found) {
-      return yield* Effect.fail(
-        failInvocation(
-          `vibe's stream holds no assistant message with a text block, so there is no answer to read (stream: ${transcriptPath})`,
-        ),
-      );
+    const failed = {
+      argv,
+      end,
+      stderr,
+      phaseFolderPath: options.phaseFolderPath,
+      transcript: transcriptPath,
+    };
+    if (outcome.kind === "failure") {
+      return yield* Effect.fail(failSession(outcome.failure, failed));
     }
-
-    const exportText = yield* Effect.tryPromise({
-      try: () => readFile(exportPath, "utf8"),
-      catch: (err) =>
-        failInvocation(
-          isAbsence(err)
-            ? `vibe wrote no export.json (missing Vibe export at ${exportPath})`
-            : `could not read the Vibe export at ${exportPath}: ${err instanceof Error ? err.message : String(err)}`,
-        ),
-    });
-    const exported = decodeVibeExportText(exportText);
-    if (Either.isLeft(exported)) {
-      return yield* Effect.fail(
-        failInvocation(
-          `invalid Vibe export at ${exportPath} (${exported.left.reason}): ${exported.left.detail}`,
-        ),
-      );
-    }
-
-    const mismatch = vibeConfigMismatch(flagsInput, exported.right.config);
-    if (mismatch !== undefined) {
-      return yield* Effect.fail(
-        failInvocation(
-          `vibe ran this turn under a config phax did not set (${mismatch}, read from ${exportPath}), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings.`,
-        ),
-      );
-    }
-
-    const sessionIdResult = decodeClaudeSessionId(exported.right.session_id);
+    const sessionIdResult = answerSessionId(outcome);
     if (Either.isLeft(sessionIdResult)) {
-      return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: `Invalid session_id in the Vibe export at ${exportPath}: "${exported.right.session_id}"`,
-          outputPath: transcriptPath,
-        }),
-      );
+      const failure =
+        outcome.sessionId === null
+          ? sessionIdResult.left
+          : {
+              ...sessionIdResult.left,
+              message: `Invalid session_id in the Vibe export at ${exportPath}: "${outcome.sessionId}"`,
+            };
+      return yield* Effect.fail(failSession(failure, failed));
     }
 
     const capturedSessionId = sessionIdResult.right;
@@ -583,7 +552,7 @@ export function runVibeAgent(
     return {
       sessionId: capturedSessionId,
       outputPath: transcriptPath,
-      finalText: found.finalText,
+      finalText: outcome.text,
     };
   });
 }
