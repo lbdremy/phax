@@ -1071,6 +1071,7 @@ function copyTranscript(
       sessionId: recorded.sessionId,
       startedAt: recorded.startedAt,
       cwd: input.worktree,
+      phaseFolder: input.phaseFolder,
     });
     const destination = join(input.phaseFolder, file);
     if (read.status === "found") {

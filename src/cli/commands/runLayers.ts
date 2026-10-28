@@ -115,8 +115,8 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
  * The provider backend with this invocation's provider store roots
  * (`ProviderStoreRootsLive`), resolved once from the environment and the home
  * directory. The roots are both read by the backend's adapters and provided to
- * the use case, so transcript capture, record usage and vibe session discovery
- * read the same stores. Every command that runs a provider or writes a record
+ * the use case, so transcript capture and record usage read the same stores
+ * (vibe has none: its turns are read from their stream and export). Every command that runs a provider or writes a record
  * builds its backend through this.
  */
 export function makeProviderBackendLayer(

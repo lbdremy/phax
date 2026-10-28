@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -14,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
+import { computeSessionUsage } from "../../src/app/recordPlumbing.js";
 import { dispatch } from "../../src/app/dispatcher.js";
 import type { ClaudeSessionId, PhaseId, RunId } from "../../src/domain/branded.js";
 import { StopCloseRefusedError } from "../../src/domain/errors.js";
@@ -36,6 +38,16 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import { providerStoreRootsUnder } from "../helpers/providerStoreRoots.js";
+import {
+  VIBE3_EXPORT_LONG,
+  VIBE3_EXPORT_SHORT,
+  VIBE3_PONG_STREAM,
+  VIBE3_RESUME_STREAM,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+  vibe3StreamText,
+  writeFakeVibe,
+} from "../helpers/vibe3Fixtures.js";
 import {
   SHORT,
   createHeldWorld,
@@ -808,4 +820,217 @@ describe("transcripts at a held stop's close", () => {
     expectNoBranchHoldsTranscripts(run.world.repoRoot);
     expect(heldGit(tree(), "status", "--porcelain")).toBe("");
   });
+});
+
+// ── A Vibe session, with Vibe's home unreadable ────────────────────────────
+
+/** The real adapter over a fake `vibe` executable; one per turn so each writes its own export. */
+const turnsBackend = (executable: string) =>
+  Effect.runSync(
+    Effect.provide(
+      Backend,
+      makeNodeBackendLayer({
+        ...DEFAULT_PROVIDER_CONFIG,
+        providers: {
+          ...DEFAULT_PROVIDER_CONFIG.providers,
+          "mistral-vibe": {
+            ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"],
+            enabled: true,
+            executable,
+          },
+        },
+      }),
+    ),
+  );
+
+describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadable", () => {
+  let world: World;
+  let run: StoppedRun;
+  let vibeHome: string;
+
+  beforeEach(async () => {
+    world = createWorld();
+    const home = join(world.root, "home");
+    mkdirSync(home, { recursive: true });
+    vi.stubEnv("HOME", home);
+    // Vibe's home holds a session, and cannot be read: phax must not try.
+    vibeHome = join(world.root, "vibe-home");
+    mkdirSync(join(vibeHome, "logs", "session"), { recursive: true });
+    chmodSync(vibeHome, 0o000);
+    vi.stubEnv("VIBE_HOME", vibeHome);
+    const { loadConfig } = await import("../../src/app/loadConfig.js");
+    vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+    run = await stopRun(world, {
+      provider: "mistral-vibe",
+      model: "phax-mistral-medium-3.5-medium",
+      sessionId: VIBE3_SESSION_ID,
+    });
+  });
+
+  afterEach(() => {
+    chmodSync(vibeHome, 0o700);
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    world.cleanup();
+  });
+
+  const copyPath = (sessionId: string): string => copyOf(run.phaseFolder, sessionId);
+
+  const turnOptions = (name: string) => ({
+    provider: "mistral-vibe" as const,
+    model: "phax-mistral-medium-3.5-medium",
+    effort: "medium",
+    cwd: run.worktree,
+    security: run.policy,
+    outputJsonlPath: join(run.phaseFolder, `${name}.jsonl`),
+    phaseFolderPath: run.phaseFolder,
+  });
+
+  /** Two turns of the session, as phase-03's first reading and a resume of it. */
+  async function runTwoTurns() {
+    const first = writeFakeVibe(join(world.root, "bin-first"), {
+      exportText: vibe3ExportText(VIBE3_EXPORT_SHORT),
+    });
+    const second = writeFakeVibe(join(world.root, "bin-second"), {
+      stream: vibe3StreamText(VIBE3_RESUME_STREAM),
+      exportText: vibe3ExportText(VIBE3_EXPORT_LONG),
+    });
+    const one = await Effect.runPromise(
+      Effect.flatMap(Backend, (b) => b.runAgent("read", turnOptions("output"))).pipe(
+        Effect.provide(Layer.succeed(Backend, turnsBackend(first.executable))),
+      ),
+    );
+    const two = await Effect.runPromise(
+      Effect.flatMap(Backend, (b) =>
+        b.resumeAgentSession(
+          VIBE3_SESSION_ID as ClaudeSessionId,
+          "continue",
+          turnOptions("fix-01"),
+        ),
+      ).pipe(Effect.provide(Layer.succeed(Backend, turnsBackend(second.executable)))),
+    );
+    return { one, two };
+  }
+
+  const closeInput = () => ({
+    runId: run.runId as RunId,
+    shortName: run.shortName,
+    runPath: run.runPath,
+    phase: PHASE_03,
+    phaseFolder: run.phaseFolder,
+    worktree: run.worktree,
+    gateSteps: GATE_STEPS,
+    gateRequest: Effect.succeed("{}"),
+    fileReconciliationMode: "report_only" as const,
+    phases: [PHASE_03],
+    oracles: null,
+    mainCheckout: run.world.repoRoot,
+  });
+
+  async function close(sessionId: string) {
+    const backend = makeFakeBackend().impl;
+    backend.addResumeResponse({
+      sessionId: sessionId as ClaudeSessionId,
+      outputPath: "",
+      finalText: answerText(),
+    });
+    const { layer } = layersOf(withStore(backend, world.root), {});
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        yield* dispatch(
+          {
+            eventId: randomUUID(),
+            occurredAt: new Date().toISOString(),
+            run: run.shortName as unknown as RunId,
+            phase: "phase-03" as PhaseId,
+            type: "RunResumeRequested",
+          },
+          {
+            runPath: run.runPath,
+            shortName: run.shortName,
+            phaseFolderPath: run.phaseFolder,
+            phaseId: "phase-03",
+          },
+        );
+        return yield* Effect.either(closeStop(closeInput()));
+      }).pipe(Effect.provide(layer)),
+    );
+  }
+
+  const correct = (): void => {
+    mkdirSync(join(run.worktree, "src"), { recursive: true });
+    writeFileSync(join(run.worktree, "src", "invoiceRow.ts"), CORRECTED_HEADER);
+  };
+
+  it.skipIf(process.getuid?.() === 0)(
+    "records the answers, the session id, the summed usage and the transcript of a two-turn session",
+    async () => {
+      const { one, two } = await runTwoTurns();
+      expect([one.finalText, two.finalText]).toEqual(["PONG", "DONE"]);
+      expect([one.sessionId, two.sessionId]).toEqual([VIBE3_SESSION_ID, VIBE3_SESSION_ID]);
+      correct();
+
+      const closed = success(await close(VIBE3_SESSION_ID));
+
+      const usage = await Effect.runPromise(
+        computeSessionUsage({
+          provider: "mistral-vibe",
+          folder: run.phaseFolder,
+          turns: [
+            { transcript: "output.jsonl", sessionId: one.sessionId },
+            { transcript: "fix-01.jsonl", sessionId: two.sessionId },
+          ],
+        }).pipe(Effect.provide(NodeFileSystemLayer)),
+      );
+      expect(usage).toMatchObject({
+        available: true,
+        usage: {
+          provider: "mistral-vibe",
+          inputTokens: 10987 + 34588,
+          cachedInputTokens: 3200 + 9600,
+          outputTokens: 3 + 288,
+        },
+      });
+      const transcript = readFileSync(copyPath(VIBE3_SESSION_ID), "utf8");
+      expect(transcript).toBe(
+        vibe3StreamText(VIBE3_PONG_STREAM) + vibe3StreamText(VIBE3_RESUME_STREAM),
+      );
+      const digest = digestOf(readFileSync(copyPath(VIBE3_SESSION_ID)));
+      expect(transcriptsOf(run.phaseFolder)).toEqual([
+        { sessionId: VIBE3_SESSION_ID, status: "captured", sha256: digest },
+      ]);
+      expect(closed.sessions).toEqual([
+        expect.objectContaining({
+          provider: "mistral-vibe",
+          sessionId: VIBE3_SESSION_ID,
+          transcript: { status: "captured", sha256: digest },
+        }),
+      ]);
+    },
+  );
+
+  it.skipIf(process.getuid?.() === 0)(
+    "records a session the person ran in Vibe's own interface as missing, and still closes",
+    async () => {
+      await runTwoTurns();
+      const doc = sessionDoc(run.phaseFolder);
+      writeFileSync(
+        join(run.phaseFolder, "interactive-session.json"),
+        JSON.stringify({
+          ...doc,
+          history: [],
+          current: { ...(doc["current"] as object), sessionId: "personal-session" },
+        }),
+      );
+      correct();
+
+      const closed = success(await close("personal-session"));
+
+      expect(copiesIn(run.phaseFolder)).toEqual([]);
+      expect(transcriptsOf(run.phaseFolder)).toMatchObject([
+        { sessionId: "personal-session", status: "missing", reason: "not-found" },
+      ]);
+      expect(closed).toMatchObject({ cause: "declared", outcome: "corrected" });
+    },
+  );
 });

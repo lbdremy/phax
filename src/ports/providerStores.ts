@@ -6,10 +6,10 @@ import {
 
 /**
  * The providers' session-store roots, resolved once per invocation at the CLI
- * edge (`ProviderStoreRootsLive`). The provider adapters, the record writers'
- * usage and vibe session discovery all read these, so they read the same
- * stores. The default holds no root: a store read then finds nothing, and vibe
- * usage is unavailable.
+ * edge (`ProviderStoreRootsLive`). The Claude Code and codex adapters read
+ * these, so a transcript capture and the record writers read the same stores.
+ * Vibe has no root: phax never reads its home directory. The default holds no
+ * root: a store read then finds nothing.
  */
 export class ProviderStoreRoots extends Context.Reference<ProviderStoreRoots>()(
   "phax/ProviderStoreRoots",

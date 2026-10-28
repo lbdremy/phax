@@ -61,7 +61,7 @@ function nodeBackend(
             new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
           );
         }
-        return runVibeAgent(prompt, options, entry, roots.vibe).pipe(
+        return runVibeAgent(prompt, options, entry).pipe(
           Effect.mapError(
             (e): RunAgentError =>
               e instanceof AgentSessionIdMissingError
@@ -133,7 +133,7 @@ function nodeBackend(
             new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
           );
         }
-        return runVibeAgent(prompt, options, entry, roots.vibe, sessionId);
+        return runVibeAgent(prompt, options, entry, sessionId);
       }
       if (options.provider === "codex-cli") {
         const entry = providerConfig.providers["codex-cli"];
@@ -158,7 +158,7 @@ function nodeBackend(
         case "codex-cli":
           return captureCodexTranscript(roots.codex, request);
         case "mistral-vibe":
-          return captureVibeTranscript(roots.vibe, request);
+          return captureVibeTranscript(request);
       }
     },
   };

@@ -1,167 +1,110 @@
 import { Either, Schema } from "effect";
-import { readdir, readFile, realpath, stat } from "node:fs/promises";
-import { join } from "node:path";
 
 /**
- * Shape of one line in `vibe -p --output streaming`. Each line is a
- * conversation message keyed by `role` ("system" | "user" | "assistant"). The
- * streaming format does not carry a session id; that is discovered via
- * {@link findVibeSessionId} from the vibe session log directory.
+ * What phax reads from `vibe -p --output streaming` (Vibe 3). Each line is a
+ * typed entry (`message`, `effect`, `callback`) carrying the `sessionId` and
+ * the `createdAt` (epoch milliseconds) of the session it belongs to. A
+ * message's `content` is an array of blocks. Only those keys are decoded; the
+ * rest of an entry is ignored, and a line that does not decode is skipped.
  */
-export const VibeStreamingMessageSchema = Schema.Struct({
-  role: Schema.String,
-  content: Schema.NullishOr(Schema.String),
+const VibeEntryHeaderSchema = Schema.Struct({
+  type: Schema.String,
+  sessionId: Schema.NonEmptyString,
+  createdAt: Schema.Number.pipe(Schema.finite()),
 });
 
-export type VibeStreamingMessage = Schema.Schema.Type<typeof VibeStreamingMessageSchema>;
+const VibeMessageSchema = Schema.Struct({
+  type: Schema.Literal("message"),
+  role: Schema.String,
+  content: Schema.Array(Schema.Unknown),
+});
 
-const decodeVibeStreamingMessage = Schema.decodeUnknownEither(VibeStreamingMessageSchema);
+const VibeTextBlockSchema = Schema.Struct({
+  type: Schema.Literal("text"),
+  text: Schema.String,
+});
+
+const decodeVibeEntryHeader = Schema.decodeUnknownEither(VibeEntryHeaderSchema);
+const decodeVibeMessage = Schema.decodeUnknownEither(VibeMessageSchema);
+const decodeVibeTextBlock = Schema.decodeUnknownEither(VibeTextBlockSchema);
+
+function parseJsonLine(line: string): unknown {
+  if (!line.trim()) return undefined;
+  try {
+    return JSON.parse(line) as unknown;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
- * Find the final assistant message text in vibe's streaming output.
- *
- * Scans from the last line backwards for `role === "assistant"` with a
- * non-empty `content` string. Returns the captured `finalText`, or `undefined`
- * if no assistant message is present.
+ * A text block of a message's content, or undefined for any other block:
+ * a `type: text` block whose `text` is not a string is not one either.
+ */
+function textOfBlock(block: unknown): string | undefined {
+  const decoded = decodeVibeTextBlock(block);
+  return Either.isRight(decoded) ? decoded.right.text : undefined;
+}
+
+/**
+ * The text of the last assistant message of vibe's stream: the text blocks of
+ * the last entry with `type: message` and `role: assistant` that holds at
+ * least one `type: text` block, joined in order with no separator. Effect and
+ * callback entries, other roles and messages without a text block are
+ * skipped, as is any line that does not decode. `undefined` when there is no
+ * such message.
  */
 export function findVibeResultEvent(lines: readonly string[]): { finalText: string } | undefined {
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i];
-    if (!line?.trim()) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const decoded = decodeVibeStreamingMessage(parsed);
-    if (Either.isLeft(decoded)) continue;
-    const msg = decoded.right;
-    if (msg.role === "assistant" && typeof msg.content === "string" && msg.content.length > 0) {
-      return { finalText: msg.content };
+    const parsed = parseJsonLine(lines[i] ?? "");
+    if (parsed === undefined) continue;
+    const message = decodeVibeMessage(parsed);
+    if (Either.isLeft(message) || message.right.role !== "assistant") continue;
+    const texts = message.right.content.flatMap((block) => {
+      const text = textOfBlock(block);
+      return text === undefined ? [] : [text];
+    });
+    if (texts.length > 0) return { finalText: texts.join("") };
+  }
+  return undefined;
+}
+
+/** The session id and the creation time (epoch milliseconds) a stream's entry carries. */
+export interface VibeStreamHead {
+  readonly sessionId: string;
+  readonly createdAt: number;
+}
+
+/**
+ * The first entry of a stream that decodes, as its session id and creation
+ * time: how a kept turn stream is told to belong to a session, and where it
+ * falls among that session's turns. `undefined` when no line decodes.
+ */
+export function findVibeStreamHead(lines: readonly string[]): VibeStreamHead | undefined {
+  for (const line of lines) {
+    const parsed = parseJsonLine(line);
+    if (parsed === undefined) continue;
+    const header = decodeVibeEntryHeader(parsed);
+    if (Either.isRight(header)) {
+      return { sessionId: header.right.sessionId, createdAt: header.right.createdAt };
     }
   }
   return undefined;
 }
 
-/**
- * The streaming format has no terminal error event — `vibe` reports failures
- * via process exit code and stderr. We keep the function for symmetry with the
- * codex adapter and as a hook for future error rows; today it inspects each
- * line for an explicit `role: "error"` shape, which the live CLI does not
- * emit, so it returns false in practice.
- */
-export function hasVibeErroredResultEvent(lines: readonly string[]): boolean {
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      (parsed as { role?: unknown }).role === "error"
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-const VibeSessionMetaSchema = Schema.Struct({
-  session_id: Schema.String,
-  start_time: Schema.optional(Schema.String),
-  environment: Schema.optional(
-    Schema.Struct({
-      working_directory: Schema.optional(Schema.String),
-    }),
-  ),
-});
-
-const decodeVibeSessionMeta = Schema.decodeUnknownEither(VibeSessionMetaSchema);
-
-export interface FindVibeSessionOptions {
-  readonly cwd: string;
-  readonly sinceMs: number;
-  /** vibe's home (`ProviderStoreRoots`); null means no store, so no session is found. */
-  readonly vibeRoot: string | null;
+/** A Vibe release as `vibe --version` prints it. */
+export interface VibeVersion {
+  readonly major: number;
+  readonly minor: number;
+  readonly patch: number;
 }
 
 /**
- * Discover the session id of the vibe run we just executed.
- *
- * `vibe -p --output streaming` does not emit a session id in its events; it
- * persists one in `<vibe root>/logs/session/session_<ts>_<short>/meta.json`.
- * We pick the most recent meta whose `environment.working_directory` matches
- * `cwd` and whose containing directory's mtime is at or after `sinceMs`.
- *
- * The path match is symlink-robust: vibe records the canonicalized working
- * directory (e.g. macOS resolves `/var/...` → `/private/var/...`), while phax
- * passes the cwd as given. Comparing both the raw and `realpath`-resolved forms
- * keeps the match correct when `state.root` lives under a symlinked path.
+ * The first `major.minor.patch` triple in what `vibe --version` printed
+ * (`vibe 3.0.3`), or undefined when the text holds none.
  */
-async function resolveReal(path: string): Promise<string> {
-  try {
-    return await realpath(path);
-  } catch {
-    return path;
-  }
-}
-
-async function sameDirectory(a: string, b: string): Promise<boolean> {
-  if (a === b) return true;
-  return (await resolveReal(a)) === (await resolveReal(b));
-}
-
-export async function findVibeSessionId(
-  options: FindVibeSessionOptions,
-): Promise<string | undefined> {
-  if (options.vibeRoot === null) return undefined;
-  const root = join(options.vibeRoot, "logs", "session");
-  let entries: string[];
-  try {
-    entries = await readdir(root);
-  } catch {
-    return undefined;
-  }
-
-  let best: { sessionId: string; mtimeMs: number } | undefined;
-  for (const name of entries) {
-    if (!name.startsWith("session_")) continue;
-    const dir = join(root, name);
-    let dirStat;
-    try {
-      dirStat = await stat(dir);
-    } catch {
-      continue;
-    }
-    if (!dirStat.isDirectory()) continue;
-    if (dirStat.mtimeMs + 1000 < options.sinceMs) continue;
-
-    let metaText: string;
-    try {
-      metaText = await readFile(join(dir, "meta.json"), "utf8");
-    } catch {
-      continue;
-    }
-    let metaParsed: unknown;
-    try {
-      metaParsed = JSON.parse(metaText);
-    } catch {
-      continue;
-    }
-    const decoded = decodeVibeSessionMeta(metaParsed);
-    if (Either.isLeft(decoded)) continue;
-    const meta = decoded.right;
-    const workingDir = meta.environment?.working_directory;
-    if (workingDir === undefined) continue;
-    if (!(await sameDirectory(workingDir, options.cwd))) continue;
-    if (best === undefined || dirStat.mtimeMs > best.mtimeMs) {
-      best = { sessionId: meta.session_id, mtimeMs: dirStat.mtimeMs };
-    }
-  }
-  return best?.sessionId;
+export function parseVibeVersion(text: string): VibeVersion | undefined {
+  const match = /(\d+)\.(\d+)\.(\d+)/.exec(text);
+  if (match === null) return undefined;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
