@@ -1,8 +1,9 @@
 import { Effect, Either } from "effect";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildVibeArgs, runVibeAgent } from "../../../src/infra/providers/mistralVibe.js";
 import { AgentInvocationError, SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
@@ -144,18 +145,37 @@ describe("buildVibeArgs — secure mode", () => {
     expect(addDirs).toEqual(["/home/me/.phax"]);
   });
 
-  it("uses entry.defaultAgent as the (restricted) agent injection point", () => {
-    const restrictedEntry = { ...baseEntry, defaultAgent: "phax-restricted" };
-    const args = buildVibeArgs(restrictedEntry, "p", baseOptions(securePolicy));
-    const idx = args.indexOf("--agent");
-    expect(args[idx + 1]).toBe("phax-restricted");
+  it("runs the accept-edits agent whatever the provider entry's defaultAgent says", () => {
+    const entry = { ...baseEntry, defaultAgent: "auto-approve" };
+    const args = buildVibeArgs(entry, "p", baseOptions(securePolicy));
+    expect(args[args.indexOf("--agent") + 1]).toBe("accept-edits");
+    expect(args).not.toContain("auto-approve");
+    expect(args).not.toContain("--auto-approve");
   });
 
-  it("appends --resume while keeping the secure vector", () => {
-    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy), "sess-xyz");
-    expect(args).not.toContain("--trust");
-    const resumeIdx = args.indexOf("--resume");
-    expect(args[resumeIdx + 1]).toBe("sess-xyz");
+  it("keeps the argv order: prompt, agent, output, output dir, workdir, add-dirs, resume", () => {
+    const args = buildVibeArgs(
+      baseEntry,
+      "p",
+      { ...baseOptions(securePolicy), outputJsonlPath: "/runs/r1/phase-01/output.jsonl" },
+      "sess-xyz",
+    );
+    expect(args).toEqual([
+      "-p",
+      "p",
+      "--agent",
+      "accept-edits",
+      "--output",
+      "streaming",
+      "--output-dir",
+      "/runs/r1/phase-01/output.vibe-export",
+      "--workdir",
+      "/tmp/work",
+      "--add-dir",
+      "/home/me/.phax",
+      "--resume",
+      "sess-xyz",
+    ]);
   });
 
   it("isolated mode follows the secure branch for type totality (CLI gates it earlier)", () => {
@@ -179,7 +199,7 @@ describe("buildVibeArgs — secure mode fail-closed", () => {
       const e = err as SecurityEnforcementError;
       expect(e.provider).toBe("mistral-vibe");
       expect(e.mode).toBe("secure");
-      expect(e.message).toMatch(/--trust/);
+      expect(e.message).toMatch(/writable path/);
     }
   });
 });
@@ -357,6 +377,59 @@ describe("runVibeAgent against a fake vibe", () => {
       vibe3ExportText(VIBE3_EXPORT_SHORT),
     );
     expect(readFileSync(join(phaseFolder, "claude-session-id.txt"), "utf8")).toBe(VIBE3_SESSION_ID);
+  });
+
+  it("confines a secure turn through argv and environment, leaving VIBE_HOME's config untouched", async () => {
+    const vibeHome = join(root, "vibe-home");
+    mkdirSync(vibeHome, { recursive: true });
+    const config = join(vibeHome, "config.toml");
+    writeFileSync(config, 'bypass_tool_permissions = true\n[tools.bash]\nallowlist = ["rm"]\n');
+    const sha = () => createHash("sha256").update(readFileSync(config)).digest("hex");
+    const before = sha();
+    vi.stubEnv("VIBE_HOME", vibeHome);
+    const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+    const options: AgentRunOptions = {
+      ...optionsFor(),
+      security: {
+        ...securePolicy,
+        filesystem: { allowRead: [root], allowWrite: [root, join(root, "phax-home")] },
+      },
+      agentCommands: ["pnpm test:integration"],
+    };
+
+    try {
+      const result = await run(fake.executable, options);
+      expect(Either.isRight(result)).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
+    expect(turn).toContain("--agent accept-edits");
+    expect(turn).not.toContain("auto-approve");
+    expect(turn).not.toContain("--trust");
+    expect(turn).toContain(`--workdir ${root} --add-dir ${join(root, "phax-home")}`);
+    const env = fake.turnEnv();
+    expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
+    expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
+    expect(JSON.parse(env["VIBE_TOOLS"] ?? "null")).toMatchObject({
+      bash: { permission: "ask", allowlist: ["pnpm test:integration"] },
+    });
+    expect(env["VIBE_ACTIVE_MODEL"]).toBe("mistral-large");
+    expect(sha()).toBe(before);
+  });
+
+  it("adds no confinement variables to an unsafe turn", async () => {
+    const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+    await run(fake.executable);
+
+    const env = fake.turnEnv();
+    expect(env["VIBE_OUTSIDE_WORKDIR"]).toBeUndefined();
+    expect(env["VIBE_TOOLS"]).toBeUndefined();
+    expect(fake.invocations().find((line) => line.startsWith("-p "))).toContain(
+      "--agent auto-approve",
+    );
   });
 
   it("passes --output-dir the turn's export directory, and --resume on a resume", async () => {

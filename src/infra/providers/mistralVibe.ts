@@ -19,7 +19,7 @@ import {
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
 import { vibeExportDirOf, vibeExportFileOf } from "../../domain/records/usage.js";
-import type { SecurityPolicy } from "../../domain/security/types.js";
+import { buildVibeFlags, type VibeFlags } from "../../domain/session/vibeFlags.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { decodeVibeExportText } from "../../schemas/vibeExport.js";
 import {
@@ -51,54 +51,23 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
-// Centralized secure-mode Vibe flag set. Vibe's provider-native controls are
-// weaker than Claude/Codex (see PROVIDER_SECURITY_CAPABILITIES): filesystem
-// jail is "partial" and network allowlisting is "unsupported". Strict callers
-// skip Vibe via the routing fallback (phase-03); when Vibe is invoked in
-// secure mode here PHAX hardens what it can and the evaluation surfaces the
-// partial-secured marking. Today's surface:
-//   --agent <entry.defaultAgent ?? "auto-approve">
-//       The approval policy. `entry.defaultAgent` is the injection point for a
-//       PHAX-specific restricted agent (configurable per project); the default
-//       remains auto-approve for non-interactive runs.
-//   --workdir <cwd>
-//       Scopes the agent's working directory to the worktree (allowWrite[0]).
-//   --add-dir <path>
-//       Additional readable/writable directories beyond cwd. Emitted only for
-//       ~/.phax and any project-configured extras.
-//   (no --trust)
-//       Unsafe mode emits --trust to grant blanket directory trust; secure
-//       mode drops it so only the explicit workdir + add-dir set is allowed.
-//
-// Not yet expressible via Vibe CLI flags (tracked in runbook 04b):
-//   - Per-command allowlist: Vibe provides no command-level restriction flag.
-//     The frozen agentCommands set (config ∪ gates) is recorded in security.json
-//     with enforcement: "none"; the approval policy is the effective constraint.
-//   - Tool-level restriction beyond the agent's approval policy.
-//   - Network allowlist: not supported by vibe — the partial-secured marking
-//     and VIBE_PARTIAL_SECURED_MESSAGE surface this; the resolved domains
-//     stay on SecurityPolicy and land in security.json (phase-09).
-//   - MCP scoping: vibe configures MCP via its config; PHAX records the
-//     resolved mcp policy on SecurityPolicy but does not emit a flag here
-//     until 04b confirms an override surface.
-function buildVibeSecurityFlags(security: SecurityPolicy, cwd: string): string[] {
-  if (security.mode === "unsafe") {
-    return ["--trust", "--workdir", cwd];
-  }
-  // secure / isolated (CLI gates isolated before reaching here; treat as
-  // secure for type totality).
-  if (security.filesystem.allowWrite.length === 0) {
-    throw new SecurityEnforcementError({
-      message:
-        "Mistral Vibe secure mode requires at least one writable path in the security policy; refusing to run with blanket --trust.",
-      provider: "mistral-vibe",
-      mode: security.mode,
-    });
-  }
-  const addDirs = security.filesystem.allowWrite
-    .filter((p) => p !== cwd)
-    .flatMap((p) => ["--add-dir", p]);
-  return ["--workdir", cwd, ...addDirs];
+// Each invocation carries its own confinement, built by `buildVibeFlags`
+// (src/domain/session/vibeFlags.ts); no Vibe config file is read or written.
+// A secure session runs under `--agent accept-edits`, scoped to `--workdir`
+// plus one `--add-dir` per extra writable root, with VIBE_OUTSIDE_WORKDIR=deny,
+// VIBE_BYPASS_TOOL_PERMISSIONS=false and a VIBE_TOOLS that allowlists exactly
+// the phase's agent commands for bash and empties every file tool's allowlist,
+// so a looser user config cannot widen it. The provider entry's `defaultAgent`
+// applies to unsafe sessions only, which keep auto-approve and `--trust`.
+// Network and MCP scoping have no per-invocation surface: the resolved policy
+// is recorded in security.json.
+function vibeFlagsOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFlags {
+  return buildVibeFlags({
+    security: options.security,
+    cwd: options.cwd,
+    agentCommands: options.agentCommands ?? [],
+    unsafeAgent: entry.defaultAgent,
+  });
 }
 
 export function buildVibeArgs(
@@ -107,21 +76,20 @@ export function buildVibeArgs(
   options: AgentRunOptions,
   resumeSessionId?: string,
 ): string[] {
-  const securityFlags = buildVibeSecurityFlags(options.security, options.cwd);
+  const flags = vibeFlagsOf(entry, options);
   // Model selection goes through modelEnvVar (VIBE_ACTIVE_MODEL) set by spawnVibe;
   // `vibe` has no `--target` flag, so it must not be added back to this argv.
   const args: string[] = [
     "-p",
     prompt,
-    "--agent",
-    entry.defaultAgent ?? "auto-approve",
+    ...flags.agent,
     "--output",
     "streaming",
     // Each turn's export (usage, session id, outcome) lands beside its stream.
     ...(options.outputJsonlPath === undefined
       ? []
       : ["--output-dir", vibeExportDirOf(options.outputJsonlPath)]),
-    ...securityFlags,
+    ...flags.scope,
   ];
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
@@ -135,6 +103,7 @@ function spawnVibe(
   outputJsonlPath: string | undefined,
   cwd: string,
   modelAlias: string,
+  envAdditions: Readonly<Record<string, string>>,
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
@@ -148,6 +117,7 @@ function spawnVibe(
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
+      ...envAdditions,
       ...(entry.modelEnvVar ? { [entry.modelEnvVar]: modelAlias } : {}),
     };
 
@@ -367,8 +337,10 @@ export function runVibeAgent(
     );
   }
   let args: string[];
+  let envAdditions: Readonly<Record<string, string>>;
   try {
     args = buildVibeArgs(entry, prompt, options, resumeSessionId);
+    envAdditions = vibeFlagsOf(entry, options).env;
   } catch (err) {
     if (err instanceof SecurityEnforcementError) {
       return Effect.fail(err);
@@ -388,7 +360,7 @@ export function runVibeAgent(
     });
 
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model),
+      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model, envAdditions),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
           argv,

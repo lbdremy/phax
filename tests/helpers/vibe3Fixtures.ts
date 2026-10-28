@@ -168,13 +168,16 @@ interface FakeVibe {
   /** How many invocations were `--version` reads, and how many were `-p` turns. */
   versionReads(): number;
   turns(): number;
+  /** The `VIBE_*` environment of the last `-p` turn; empty before any turn. */
+  turnEnv(): Readonly<Record<string, string>>;
 }
 
 /**
  * Write a `vibe` stand-in into `dir`. `--version` prints `version`; `-p`
  * prints `stream`, then writes `exportText` as `export.json` into its
  * `--output-dir` (nothing when `exportText` is undefined) and exits with
- * `exitCode`. Every invocation is logged. The executable's path is its own, so
+ * `exitCode`. Every invocation is logged, and a turn's `VIBE_*` environment
+ * is kept. The executable's path is its own, so
  * the adapter's once-per-executable version read starts fresh in every test.
  */
 export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeVibe {
@@ -191,6 +194,7 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
       'here="$(dirname "$0")"',
       'echo "$*" >> "$here/invocations.log"',
       'if [ "$1" = "--version" ]; then cat "$here/version.txt"; exit 0; fi',
+      'env | grep "^VIBE_" > "$here/turn-env.txt"',
       'out=""',
       "while [ $# -gt 0 ]; do",
       '  if [ "$1" = "--output-dir" ]; then out="$2"; fi',
@@ -210,5 +214,18 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
     invocations,
     versionReads: () => invocations().filter((line) => line === "--version").length,
     turns: () => invocations().filter((line) => line.startsWith("-p ")).length,
+    turnEnv: () => {
+      const file = join(dir, "turn-env.txt");
+      if (!existsSync(file)) return {};
+      return Object.fromEntries(
+        readFileSync(file, "utf8")
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            const at = line.indexOf("=");
+            return [line.slice(0, at), line.slice(at + 1)];
+          }),
+      );
+    },
   };
 }

@@ -7,7 +7,6 @@ import type {
 } from "../../../src/domain/security/capabilities.js";
 import {
   PROVIDER_SECURITY_CAPABILITIES,
-  VIBE_PARTIAL_SECURED_MESSAGE,
   evaluateProviderSecurity,
   securityFilterFor,
 } from "../../../src/domain/security/capabilities.js";
@@ -54,9 +53,9 @@ describe("PROVIDER_SECURITY_CAPABILITIES", () => {
     expect(cap.mcpAllowlist).toBe("supported");
   });
 
-  it("mistral-vibe has partial filesystem jail and supported MCP allowlist", () => {
+  it("mistral-vibe has strong filesystem jail and supported MCP allowlist", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"];
-    expect(cap.filesystemJail).toBe("partial");
+    expect(cap.filesystemJail).toBe("strong");
     expect(cap.mcpAllowlist).toBe("supported");
   });
 
@@ -68,8 +67,8 @@ describe("PROVIDER_SECURITY_CAPABILITIES", () => {
     expect(PROVIDER_SECURITY_CAPABILITIES["codex-cli"].commandEnforcement).toBe("none");
   });
 
-  it("mistral-vibe has none command enforcement", () => {
-    expect(PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"].commandEnforcement).toBe("none");
+  it("mistral-vibe has prefix command enforcement", () => {
+    expect(PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"].commandEnforcement).toBe("prefix");
   });
 });
 
@@ -136,24 +135,16 @@ describe("evaluateProviderSecurity — secure mode, codex-cli", () => {
 });
 
 describe("evaluateProviderSecurity — secure mode, mistral-vibe", () => {
-  it("does not satisfy strict security (partial filesystem jail)", () => {
+  it("satisfies strict security and is not downgraded", () => {
     const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
-    expect(result.satisfiesStrict).toBe(false);
+    expect(result.satisfiesStrict).toBe(true);
+    expect(result.downgraded).toBe(false);
   });
 
-  it("is marked as downgraded", () => {
+  it("has no marks or notes", () => {
     const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
-    expect(result.downgraded).toBe(true);
-  });
-
-  it("carries the partial-filesystem mark", () => {
-    const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
-    expect(result.marks).toContain("partial-filesystem");
-  });
-
-  it("includes the partial-secured message in notes", () => {
-    const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
-    expect(result.notes).toContain(VIBE_PARTIAL_SECURED_MESSAGE);
+    expect(result.marks).toEqual([]);
+    expect(result.notes).toEqual([]);
   });
 });
 
@@ -167,16 +158,7 @@ describe("evaluateProviderSecurity — secure mode, network profile interaction"
     // change whether a provider satisfies strict secure mode.
     expect(evaluateProviderSecurity("claude-code", openNetworkPolicy).satisfiesStrict).toBe(true);
     expect(evaluateProviderSecurity("codex-cli", openNetworkPolicy).satisfiesStrict).toBe(true);
-  });
-
-  it("mistral-vibe stays downgraded under any network profile", () => {
-    const openNetworkPolicy: SecurityPolicy = {
-      ...securePolicy,
-      network: { profile: "open" },
-    };
-    const result = evaluateProviderSecurity("mistral-vibe", openNetworkPolicy);
-    expect(result.satisfiesStrict).toBe(false);
-    expect(result.marks).toContain("partial-filesystem");
+    expect(evaluateProviderSecurity("mistral-vibe", openNetworkPolicy).satisfiesStrict).toBe(true);
   });
 });
 
@@ -185,14 +167,6 @@ describe("evaluateProviderSecurity — commandEnforcement does not affect strict
     const result = evaluateProviderSecurity("codex-cli", securePolicy);
     expect(result.satisfiesStrict).toBe(true);
     expect(result.downgraded).toBe(false);
-  });
-
-  it("mistral-vibe strictness is driven by filesystemJail, not commandEnforcement", () => {
-    const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
-    // downgraded because of partial filesystem jail, not commandEnforcement
-    expect(result.satisfiesStrict).toBe(false);
-    expect(result.marks).toContain("partial-filesystem");
-    expect(result.marks).not.toContain("command-precision");
   });
 });
 
@@ -204,13 +178,10 @@ describe("securityFilterFor", () => {
     expect(filter("mistral-vibe")).toEqual({ allowed: true });
   });
 
-  it("in secure mode allows a strong jail and refuses a partial one, naming its marks", () => {
+  it("in secure mode allows every provider, each holding a strong jail", () => {
     const filter = securityFilterFor(securePolicy);
     expect(filter("claude-code")).toEqual({ allowed: true });
     expect(filter("codex-cli")).toEqual({ allowed: true });
-    expect(filter("mistral-vibe")).toEqual({
-      allowed: false,
-      reason: "cannot satisfy strict secure mode (partial-filesystem)",
-    });
+    expect(filter("mistral-vibe")).toEqual({ allowed: true });
   });
 });

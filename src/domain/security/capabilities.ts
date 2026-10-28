@@ -23,9 +23,9 @@ export const PROVIDER_SECURITY_CAPABILITIES: Record<ProviderId, ProviderSecurity
     commandEnforcement: "none",
   },
   "mistral-vibe": {
-    filesystemJail: "partial",
+    filesystemJail: "strong",
     mcpAllowlist: "supported",
-    commandEnforcement: "none",
+    commandEnforcement: "prefix",
   },
 };
 
@@ -38,9 +38,6 @@ export interface SecurityEvaluation {
   readonly marks: readonly SecurityMark[];
   readonly notes: readonly string[];
 }
-
-export const VIBE_PARTIAL_SECURED_MESSAGE =
-  "Mistral Vibe is running with provider-native restrictions, but filesystem/network isolation is weaker than Claude Code or Codex. For stronger isolation, use the future external-sandbox mode.";
 
 export function evaluateProviderSecurity(
   provider: ProviderId,
@@ -56,10 +53,6 @@ export function evaluateProviderSecurity(
 
   if (cap.filesystemJail !== "strong") {
     marks.push("partial-filesystem");
-  }
-
-  if (provider === "mistral-vibe" && marks.length > 0) {
-    notes.push(VIBE_PARTIAL_SECURED_MESSAGE);
   }
 
   // A strong filesystem jail is the only hard gate for strict-secure. Network is

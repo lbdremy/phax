@@ -4,6 +4,8 @@ import {
   DEFAULT_PROVIDER_CONFIG,
 } from "../../../src/domain/routing/defaults.js";
 import { resolveModel } from "../../../src/domain/routing/resolve.js";
+import { securityFilterFor } from "../../../src/domain/security/capabilities.js";
+import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import type { ProviderId, SecurityFilter } from "../../../src/domain/routing/types.js";
 import type { ModelRouting } from "../../../src/schemas/modelRouting.js";
 import type { ProviderConfig } from "../../../src/schemas/providerConfig.js";
@@ -110,5 +112,28 @@ describe("resolveModel — security fallback", () => {
     expect(result.selected.provider).toBe("mistral-vibe");
     expect(result.skippedForSecurity).toBeUndefined();
     expect(result.reason).not.toMatch(/Skipped for security/);
+  });
+});
+
+describe("resolveModel — strict secure routing on the recorded capabilities", () => {
+  const securePolicy: SecurityPolicy = {
+    mode: "secure",
+    filesystem: { allowRead: ["/repo"], allowWrite: ["/repo"] },
+    network: { profile: "provider-only" },
+    mcp: { mode: "disabled", allow: [] },
+    agentCommands: [],
+    failClosed: true,
+  };
+
+  it("lands on mistral-vibe ahead of claude-code and skips none", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      { ...DEFAULT_MODEL_ROUTING, providerPriority: ["mistral-vibe", "claude-code"] },
+      allEnabled,
+      securityFilterFor(securePolicy),
+    );
+
+    expect(result.selected.provider).toBe("mistral-vibe");
+    expect(result.skippedForSecurity ?? []).toEqual([]);
   });
 });
