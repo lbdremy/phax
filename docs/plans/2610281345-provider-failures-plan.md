@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271510-provider-failures.md
 completes-spec: true
+approved:
+  date: 2026-10-28
+  baseline: deceb37
 ---
 # Provider failures
 
