@@ -1,12 +1,23 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+import { computeSessionUsage } from "../../src/app/recordPlumbing.js";
 import {
   extractClaudeUsage,
   extractCodexUsage,
-  extractVibeUsage,
+  extractVibeExportUsage,
+  vibeExportDirOf,
+  vibeExportFileOf,
 } from "../../src/domain/records/usage.js";
+import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import {
+  VIBE3_EXPORT_LONG,
+  VIBE3_EXPORT_SHORT,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+} from "../helpers/vibe3Fixtures.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const codexFixturePath = join(here, "providers", "fixtures", "codex-exec-sample.jsonl");
@@ -96,83 +107,112 @@ describe("extractCodexUsage", () => {
   });
 });
 
-describe("extractVibeUsage", () => {
-  it("extracts usage from the session meta.json .stats object", () => {
-    const metaJson = JSON.stringify({
-      session_id: "session_123_abc",
-      stats: {
-        session_prompt_tokens: 1000,
-        session_completion_tokens: 200,
-        session_cost: 0.05,
-        tool_calls_agreed: 3,
-        tool_calls_rejected: 1,
-        tool_calls_failed: 0,
-        tool_calls_succeeded: 2,
-      },
+describe("vibeExportDirOf and vibeExportFileOf", () => {
+  it.each([
+    ["output.jsonl", "output.vibe-export"],
+    ["fix-01.jsonl", "fix-01.vibe-export"],
+    ["first-turn-01.jsonl", "first-turn-01.vibe-export"],
+    ["retry-output.jsonl", "retry-output.vibe-export"],
+    ["/runs/r1/phase-01/output.jsonl", "/runs/r1/phase-01/output.vibe-export"],
+  ])("names the export directory of %s beside it: %s", (transcript, exportDir) => {
+    expect(vibeExportDirOf(transcript)).toBe(exportDir);
+    expect(vibeExportFileOf(transcript)).toBe(`${exportDir}/export.json`);
+  });
+
+  it("replaces only a trailing .jsonl", () => {
+    expect(vibeExportDirOf("a.jsonl.d/output.jsonl")).toBe("a.jsonl.d/output.vibe-export");
+  });
+});
+
+describe("extractVibeExportUsage", () => {
+  it("maps the export's usage and cost to the recorded usage, ignoring the keys phax does not read", () => {
+    expect(extractVibeExportUsage(vibe3ExportText(VIBE3_EXPORT_SHORT))).toEqual({
+      provider: "mistral-vibe",
+      inputTokens: 10987,
+      cachedInputTokens: 3200,
+      outputTokens: 3,
+      costUsd: 0.016503,
     });
-    const usage = extractVibeUsage(metaJson);
+  });
+
+  it.each([
+    ["malformed JSON", "{not json"],
+    ["a schema_version other than 1", JSON.stringify({ ...VIBE3_EXPORT_SHORT, schema_version: 2 })],
+    ["no usage", JSON.stringify({ ...VIBE3_EXPORT_SHORT, usage: undefined })],
+    ["an empty text", ""],
+  ])("returns undefined for %s rather than throwing", (_name, text) => {
+    expect(extractVibeExportUsage(text)).toBeUndefined();
+  });
+});
+
+describe("computeSessionUsage on mistral-vibe", () => {
+  const FOLDER = "/work/phase-01";
+
+  function usageOf(
+    exports: Readonly<Record<string, string>>,
+    transcripts: readonly string[],
+  ): Promise<unknown> {
+    const fs = makeFakeFileSystem();
+    for (const [path, text] of Object.entries(exports)) fs.impl.setFile(`${FOLDER}/${path}`, text);
+    return Effect.runPromise(
+      computeSessionUsage({
+        provider: "mistral-vibe",
+        folder: FOLDER,
+        turns: transcripts.map((transcript) => ({ transcript, sessionId: VIBE3_SESSION_ID })),
+      }).pipe(Effect.provide(fs.layer)),
+    );
+  }
+
+  it("sums two turns of one session field by field, with no tool-call counts", async () => {
+    const usage = await usageOf(
+      {
+        "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+        "retry-output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_LONG),
+      },
+      ["output.jsonl", "retry-output.jsonl"],
+    );
     expect(usage).toEqual({
-      provider: "mistral-vibe",
-      inputTokens: 1000,
-      outputTokens: 200,
-      sessionCostUsd: 0.05,
-      toolCallsAgreed: 3,
-      toolCallsRejected: 1,
-      toolCallsFailed: 0,
-      toolCallsSucceeded: 2,
-    });
-  });
-
-  it("extracts usage from a real vibe 2.13.0 stats shape, ignoring extra fields", () => {
-    // Captured verbatim from a live ~/.vibe/logs/session/<id>/meta.json.
-    const metaJson = JSON.stringify({
-      session_id: "session_123_abc",
-      stats: {
-        steps: 4,
-        session_prompt_tokens: 25418,
-        session_completion_tokens: 179,
-        tool_calls_agreed: 2,
-        tool_calls_rejected: 0,
-        tool_calls_failed: 0,
-        tool_calls_succeeded: 2,
-        context_tokens: 8653,
-        last_turn_prompt_tokens: 8596,
-        last_turn_completion_tokens: 57,
-        last_turn_duration: 8.81681000000026,
-        tokens_per_second: 6.464923254555596,
-        input_price_per_million: 1.5,
-        output_price_per_million: 7.5,
-        session_total_llm_tokens: 25597,
-        last_turn_total_tokens: 8653,
-        session_cost: 0.039469500000000005,
+      available: true,
+      usage: {
+        provider: "mistral-vibe",
+        inputTokens: 45575,
+        cachedInputTokens: 12800,
+        outputTokens: 291,
+        costUsd: 0.070545,
       },
     });
-    expect(extractVibeUsage(metaJson)).toEqual({
-      provider: "mistral-vibe",
-      inputTokens: 25418,
-      outputTokens: 179,
-      sessionCostUsd: 0.039469500000000005,
-      toolCallsAgreed: 2,
-      toolCallsRejected: 0,
-      toolCallsFailed: 0,
-      toolCallsSucceeded: 2,
+  });
+
+  it("counts a turn once per export, never deduplicating by session id", async () => {
+    const usage = await usageOf(
+      {
+        "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+        "fix-01.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+      },
+      ["output.jsonl", "fix-01.jsonl"],
+    );
+    expect(usage).toMatchObject({
+      available: true,
+      usage: { inputTokens: 21974, outputTokens: 6 },
     });
   });
 
-  it("returns undefined when .stats is absent (usage could not be captured)", () => {
-    const metaJson = JSON.stringify({ session_id: "session_123_abc" });
-    expect(extractVibeUsage(metaJson)).toBeUndefined();
+  it("is unavailable when one turn's export is missing", async () => {
+    const usage = await usageOf(
+      { "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT) },
+      ["output.jsonl", "retry-output.jsonl"],
+    );
+    expect(usage).toEqual({ available: false });
   });
 
-  it("returns undefined for malformed JSON rather than throwing", () => {
-    expect(extractVibeUsage("{not json")).toBeUndefined();
-  });
-
-  it("returns undefined for a .stats object missing a required field", () => {
-    const metaJson = JSON.stringify({
-      session_id: "session_123_abc",
-      stats: { session_prompt_tokens: 1000, session_completion_tokens: 200 },
-    });
-    expect(extractVibeUsage(metaJson)).toBeUndefined();
+  it("is unavailable when one turn's export does not decode", async () => {
+    const usage = await usageOf(
+      {
+        "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+        "retry-output.vibe-export/export.json": "{not json",
+      },
+      ["output.jsonl", "retry-output.jsonl"],
+    );
+    expect(usage).toEqual({ available: false });
   });
 });

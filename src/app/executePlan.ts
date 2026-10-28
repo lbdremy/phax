@@ -475,8 +475,8 @@ export function executePlan(
         oracle: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
         mode: args.mode,
         stop: args.stop,
-        // A session's usage reads a vibe session under the ProviderStoreRoots
-        // vibe root the run's layer provides.
+        // A session's usage reads a vibe session's `export.json`, beside the
+        // phase's transcript.
         usage: args.usage,
         records: config.records,
         ...(config.records.destination.kind === "repo"
@@ -1757,8 +1757,8 @@ export function executePlan(
         currentModel = undefined;
         currentEffort = undefined;
 
-        // Its usage is the builder's at the hold point, so a closing turn
-        // that grew a vibe session's meta.json is not counted.
+        // Its usage is the builder's at the hold point, so a closing turn's
+        // usage is not counted.
         const writeHeldRecord = (stop: NonNullable<RecordStop>) =>
           writeStopRecord({
             phase,

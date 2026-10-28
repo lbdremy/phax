@@ -64,8 +64,8 @@ export interface WriteAuthoringRecordInput {
   /** The artifact commit; absent when the session did not commit. */
   readonly sourceSha?: string | undefined;
   /**
-   * The agent session id, used to locate a vibe session's `meta.json` for
-   * usage; withheld from every recorded artifact.
+   * The agent session id; withheld from every recorded artifact. A vibe
+   * session's usage is read from its turns' `export.json`, not by this id.
    */
   readonly sessionId?: string | undefined;
   /** The session id the retry reported; absent when there was no retry or it failed. */

@@ -3,7 +3,8 @@ import { join } from "node:path";
 import {
   extractClaudeUsage,
   extractCodexUsage,
-  extractVibeUsage,
+  extractVibeExportUsage,
+  vibeExportFileOf,
 } from "../domain/records/usage.js";
 import {
   decideRecordsDestination,
@@ -11,14 +12,9 @@ import {
   type RepoVisibility,
 } from "../domain/records/destination.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
-import {
-  readVibeSessionMetaText,
-  type VibeStoreReads,
-} from "../domain/session/vibeSessionStore.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
-import { ProviderStoreRoots } from "../ports/providerStores.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
@@ -191,10 +187,10 @@ export function commitRecordTree(
 
 /**
  * Read a session's token usage from its provider-specific source: Claude and
- * codex carry it in `output.jsonl`, vibe keeps none there and records it in the
- * session `meta.json` under the `ProviderStoreRoots` vibe root. Any failure to
- * read degrades to the explicitly unavailable variant — usage is never
- * reported as zero (spec §5.5).
+ * codex carry it in `output.jsonl`, vibe keeps none there and writes it in the
+ * `export.json` of the turn's `--output-dir`, beside the transcript. Any
+ * failure to read degrades to the explicitly unavailable variant — usage is
+ * never reported as zero (spec §5.5).
  */
 export function computeRecordUsage(input: {
   readonly provider: ProviderId;
@@ -218,12 +214,11 @@ interface SessionTurn {
 /**
  * A session's token usage over every turn it ran (the first run and, for a
  * retried authoring session, its resume). Claude and codex report each
- * invocation's usage in that turn's transcript, so the turns are summed field
- * by field. Vibe keeps a session's usage in its `meta.json`, which a resume
- * may keep under the same session id: each distinct session id is counted
- * once, under the `ProviderStoreRoots` vibe root; with no vibe root, vibe
- * usage is unavailable. When any turn's usage cannot be read the whole is
- * unavailable, never a partial count shown as a total.
+ * invocation's usage in that turn's transcript, vibe in the `export.json` of
+ * that turn's export directory (`vibeExportFileOf`), whose usage counts that
+ * turn only: the turns are summed field by field, never deduplicated by
+ * session id. When any turn's usage cannot be read the whole is unavailable,
+ * never a partial count shown as a total.
  */
 export function computeSessionUsage(input: {
   readonly provider: ProviderId;
@@ -241,15 +236,8 @@ export function computeSessionUsage(input: {
         counted.push(usage);
       }
     } else {
-      const vibeRoot = (yield* ProviderStoreRoots).vibe;
-      if (vibeRoot === null) return UNAVAILABLE_TOKEN_USAGE;
-      const sessionIds = new Set(input.turns.map((turn) => turn.sessionId));
-      for (const sessionId of sessionIds) {
-        const metaText =
-          sessionId === undefined
-            ? null
-            : yield* readVibeSessionMetaText(fileSystemReads(fs), vibeRoot, sessionId);
-        const usage = metaText === null ? undefined : extractVibeUsage(metaText);
+      for (const turn of input.turns) {
+        const usage = yield* readVibeExportUsage(fs, join(input.folder, turn.transcript));
         if (usage === undefined) return UNAVAILABLE_TOKEN_USAGE;
         counted.push(usage);
       }
@@ -274,6 +262,19 @@ function readTranscriptUsage(
     const text = yield* fs.readText(outputPath).pipe(Effect.orElseSucceed(() => ""));
     const lines = text.split("\n");
     return provider === "claude-code" ? extractClaudeUsage(lines) : extractCodexUsage(lines);
+  });
+}
+
+/** One Vibe turn's usage from the `export.json` beside its transcript, or undefined when it cannot be read. */
+function readVibeExportUsage(
+  fs: FileSystemOps,
+  transcriptPath: string,
+): Effect.Effect<ProviderTokenUsage | undefined, never> {
+  return Effect.gen(function* () {
+    const text = yield* fs
+      .readText(vibeExportFileOf(transcriptPath))
+      .pipe(Effect.orElseSucceed(() => undefined));
+    return text === undefined ? undefined : extractVibeExportUsage(text);
   });
 }
 
@@ -302,21 +303,10 @@ function addUsage(a: ProviderTokenUsage, b: ProviderTokenUsage): ProviderTokenUs
     return {
       provider: "mistral-vibe",
       inputTokens: a.inputTokens + b.inputTokens,
+      cachedInputTokens: a.cachedInputTokens + b.cachedInputTokens,
       outputTokens: a.outputTokens + b.outputTokens,
-      sessionCostUsd: a.sessionCostUsd + b.sessionCostUsd,
-      toolCallsAgreed: a.toolCallsAgreed + b.toolCallsAgreed,
-      toolCallsRejected: a.toolCallsRejected + b.toolCallsRejected,
-      toolCallsFailed: a.toolCallsFailed + b.toolCallsFailed,
-      toolCallsSucceeded: a.toolCallsSucceeded + b.toolCallsSucceeded,
+      costUsd: a.costUsd + b.costUsd,
     };
   }
   return undefined;
-}
-
-/** The vibe session finder's reads, through the FileSystem port; a failed read is null. */
-function fileSystemReads(fs: FileSystemOps): VibeStoreReads {
-  return {
-    list: (path) => fs.list(path).pipe(Effect.orElseSucceed(() => null)),
-    readText: (path) => fs.readText(path).pipe(Effect.orElseSucceed(() => null)),
-  };
 }

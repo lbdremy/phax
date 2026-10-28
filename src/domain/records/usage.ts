@@ -1,4 +1,6 @@
+import { Either } from "effect";
 import type { ClaudeTokenUsage, CodexTokenUsage, VibeTokenUsage } from "../../schemas/runRecord.js";
+import { decodeVibeExportText, type VibeExport } from "../../schemas/vibeExport.js";
 
 function parseJsonLine(line: string): unknown {
   const trimmed = line.trim();
@@ -108,59 +110,48 @@ export function extractCodexUsage(
 }
 
 /**
- * Extract token usage from a vibe session's `meta.json` `.stats` object.
- *
- * vibe's streaming transcript carries no usage at all; phax already reads
- * this same session directory to discover the session id
- * (`findVibeSessionId` in `src/schemas/vibeOutput.ts`). `.stats` is the
- * richest of the three sources: it also carries tool-call agreement counts
- * nothing else exposes.
- *
- * Field names verified against live `~/.vibe/logs/session/<id>/meta.json`
- * (vibe 2.13.0): the session-wide token counts are `session_prompt_tokens`
- * and `session_completion_tokens` — vibe exposes no `input_tokens`/
- * `output_tokens` keys at the `stats` level.
+ * The directory a headless Vibe turn writes its `export.json` into: the turn's
+ * transcript name with a trailing `.jsonl` replaced by `.vibe-export`
+ * (`output.jsonl` -> `output.vibe-export`, `fix-01.jsonl` ->
+ * `fix-01.vibe-export`). It works on a folder-relative name and a full path
+ * alike. The adapter that passes it as `--output-dir` and the usage reader
+ * both name it through this one function.
  */
-export function extractVibeUsage(metaJsonText: string): VibeTokenUsage | undefined {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(metaJsonText) as unknown;
-  } catch {
-    return undefined;
-  }
-  if (!isRecord(parsed)) return undefined;
+export function vibeExportDirOf(transcriptPath: string): string {
+  return transcriptPath.replace(/\.jsonl$/, ".vibe-export");
+}
 
-  const stats = parsed["stats"];
-  if (!isRecord(stats)) return undefined;
+/**
+ * Whether `name`, an entry of a phase folder, is a Vibe turn's export
+ * directory. Its `config` and journal are Vibe's own, so a phase record never
+ * carries one.
+ */
+export function isVibeExportDir(name: string): boolean {
+  return name.endsWith(".vibe-export");
+}
 
-  const inputTokens = num(stats["session_prompt_tokens"]);
-  const outputTokens = num(stats["session_completion_tokens"]);
-  const sessionCostUsd = num(stats["session_cost"]);
-  const toolCallsAgreed = num(stats["tool_calls_agreed"]);
-  const toolCallsRejected = num(stats["tool_calls_rejected"]);
-  const toolCallsFailed = num(stats["tool_calls_failed"]);
-  const toolCallsSucceeded = num(stats["tool_calls_succeeded"]);
+/** The `export.json` Vibe writes inside a turn's export directory. */
+export function vibeExportFileOf(transcriptPath: string): string {
+  return `${vibeExportDirOf(transcriptPath)}/export.json`;
+}
 
-  if (
-    inputTokens === undefined ||
-    outputTokens === undefined ||
-    sessionCostUsd === undefined ||
-    toolCallsAgreed === undefined ||
-    toolCallsRejected === undefined ||
-    toolCallsFailed === undefined ||
-    toolCallsSucceeded === undefined
-  ) {
-    return undefined;
-  }
-
+function vibeUsageOf(exported: VibeExport): VibeTokenUsage {
   return {
     provider: "mistral-vibe",
-    inputTokens,
-    outputTokens,
-    sessionCostUsd,
-    toolCallsAgreed,
-    toolCallsRejected,
-    toolCallsFailed,
-    toolCallsSucceeded,
+    inputTokens: exported.usage.input_tokens,
+    cachedInputTokens: exported.usage.cached_input_tokens,
+    outputTokens: exported.usage.output_tokens,
+    costUsd: exported.cost_usd,
   };
+}
+
+/**
+ * Extract one turn's token usage from the text of the `export.json` Vibe 3
+ * writes into its `--output-dir`. Its usage and cost count that turn only: a
+ * session's usage is the sum over its turns' exports. Returns `undefined`
+ * when the text is not a version-1 export.
+ */
+export function extractVibeExportUsage(exportJsonText: string): VibeTokenUsage | undefined {
+  const decoded = decodeVibeExportText(exportJsonText);
+  return Either.isLeft(decoded) ? undefined : vibeUsageOf(decoded.right);
 }

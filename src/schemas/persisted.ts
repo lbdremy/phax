@@ -40,7 +40,10 @@
 // as a refused lift, which still reads. A run status or registry stamped
 // below its current stamp is read by its frozen 0.17.0 decoder, and a phase
 // status by its frozen 0.20.0 decoder, lifted with `mode: "headless"` and
-// `stop: null`. `readDocumentSidecar`
+// `stop: null`. A phase, authoring or decision record manifest or an
+// interactive session stamped below its current stamp is read by the frozen
+// decoder of the release that wrote its shape, and every Vibe usage it carries
+// lifts to unavailable (`liftFrozenTokenUsage`). `readDocumentSidecar`
 // also reports the shape a spec or plan sidecar is stamped at. A format born with `$schema`
 // has no pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first with the
@@ -89,15 +92,19 @@ import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
 import { decodeDecideVerdictsFile, type DecideVerdicts } from "./decideVerdicts.js";
 import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDecisionAnswer.js";
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
+import { decodeAuthoringRecordManifestV0_23_0 } from "./history/authoring-record-manifest/0.23.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
 import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
+import { decodeDecisionRecordManifestV0_28_0 } from "./history/decision-record-manifest/0.28.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
+import { decodeInteractiveSessionV0_26_0 } from "./history/interactive-session/0.26.0.js";
 import { decodePhaseRecordManifestV0_17_0 } from "./history/phase-record-manifest/0.17.0.js";
+import { decodePhaseRecordManifestV0_26_0 } from "./history/phase-record-manifest/0.26.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
@@ -163,6 +170,7 @@ import { decodeRegistryFile, type Registry } from "./registry.js";
 import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
+import { liftFrozenTokenUsage } from "./runRecord.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -1301,15 +1309,30 @@ export const readBriefRecordFile: Reader<BriefRecord> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...record }) => record,
   });
 
+// A session stamped below the format's current stamp is read by the frozen
+// 0.26.0 decoder; its builder usage, when it is a Vibe usage, lifts to
+// unavailable.
 /** Reads a declared interactive phase's `interactive-session.json`. Born with `$schema`. */
-export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, input) =>
-  readSchemaBornPersisted(input, {
+export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("interactive-session", input)) {
+    const older = decodeInteractiveSessionV0_26_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "interactive-session", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, builderUsage, ...session } = older.right;
+    return Either.right({
+      ...session,
+      builderUsage: builderUsage === null ? null : liftFrozenTokenUsage(builderUsage),
+    });
+  }
+  return readSchemaBornPersisted(input, {
     format: "interactive-session",
     label: "interactive session",
     file,
     decodeCurrent: decodeInteractiveSessionFile,
     fromCurrent: ({ $schema: _schema, ...session }) => session,
   });
+};
 
 /**
  * Reads a gate attempt's `checks-attempt-NN.oracle-request.json`. Born with
@@ -1406,20 +1429,34 @@ function fromRecordManifestFile({ $schema: _schema, ...manifest }: RecordManifes
   return manifest;
 }
 
-// An authoring manifest written before `retry` (pre-schema, or stamped below
-// the format's current stamp and read by the frozen 0.17.0 decoder) is
-// upgraded with `retry: "none"`: no phax before it ever resumed a headless
-// session. An absent `sourceSha` stays absent.
+// An authoring manifest stamped below the format's current stamp is read by
+// the frozen 0.23.0 decoder when stamped 0.23.0 or later, else by the frozen
+// 0.17.0 decoder. One written before `retry` (pre-schema, or read by the
+// 0.17.0 decoder) is upgraded with `retry: "none"`: no phax before it ever
+// resumed a headless session. Every lift turns a Vibe usage into unavailable.
+// An absent `sourceSha` stays absent.
 const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("authoring-record-manifest", input)) {
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.23.0") >= 0) {
+      const older = decodeAuthoringRecordManifestV0_23_0(input);
+      if (Either.isLeft(older)) {
+        return Either.left(
+          readError(file, "authoring-record-manifest", formatFirstViolation(older.left)),
+        );
+      }
+      const { $schema: _schema, usage, ...manifest } = older.right;
+      return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage) });
+    }
     const older = decodeAuthoringRecordManifestV0_17_0(input);
     if (Either.isLeft(older)) {
       return Either.left(
         readError(file, "authoring-record-manifest", formatFirstViolation(older.left)),
       );
     }
-    const { $schema: _schema, ...manifest } = older.right;
-    return Either.right({ ...manifest, retry: "none" });
+    const { $schema: _schema, usage, ...manifest } = older.right;
+    return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" });
   }
   return readPersisted(input, {
     format: "authoring-record-manifest",
@@ -1428,8 +1465,8 @@ const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
     decodeCurrent: decodeRecordManifestFile,
     decodePreSchema: decodeAuthoringRecordManifestPreSchema,
     fromCurrent: fromRecordManifestFile,
-    fromPreSchema: ({ version: _version, ...manifest }) =>
-      Either.right({ ...manifest, retry: "none" }),
+    fromPreSchema: ({ version: _version, usage, ...manifest }) =>
+      Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" }),
   });
 };
 
@@ -1447,21 +1484,41 @@ function isStampedBelowCurrent(
   );
 }
 
-// A phase manifest written before `oracle` (pre-schema, or stamped below the
-// format's current stamp and read by the frozen 0.17.0 decoder) is upgraded
-// with `oracle: null`, `mode: "headless"` and `stop: null`: no phax before it
-// could run an oracle phase or stop a phase.
+// A phase manifest stamped below the format's current stamp is read by the
+// frozen 0.26.0 decoder when stamped 0.26.0 or later, else by the frozen
+// 0.17.0 decoder. One written before `oracle` (pre-schema, or read by the
+// 0.17.0 decoder) is upgraded with `oracle: null`, `mode: "headless"` and
+// `stop: null`: no phax before it could run an oracle phase or stop a phase.
+// Every lift turns a Vibe usage into unavailable.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) => {
     if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
+      // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+      const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+      if (compareReleases(release, "0.26.0") >= 0) {
+        const older = decodePhaseRecordManifestV0_26_0(input);
+        if (Either.isLeft(older)) {
+          return Either.left(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+          );
+        }
+        const { $schema: _schema, usage, ...manifest } = older.right;
+        return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage) });
+      }
       const older = decodePhaseRecordManifestV0_17_0(input);
       if (Either.isLeft(older)) {
         return Either.left(
           readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
         );
       }
-      const { $schema: _schema, ...manifest } = older.right;
-      return Either.right({ ...manifest, oracle: null, mode: "headless", stop: null });
+      const { $schema: _schema, usage, ...manifest } = older.right;
+      return Either.right({
+        ...manifest,
+        usage: liftFrozenTokenUsage(usage),
+        oracle: null,
+        mode: "headless",
+        stop: null,
+      });
     }
     return readPersisted(input, {
       format: "phase-record-manifest",
@@ -1470,8 +1527,14 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       decodeCurrent: decodeRecordManifestFile,
       decodePreSchema: decodePhaseRecordManifestPreSchema,
       fromCurrent: fromRecordManifestFile,
-      fromPreSchema: ({ version: _version, ...manifest }) =>
-        Either.right({ ...manifest, oracle: null, mode: "headless", stop: null }),
+      fromPreSchema: ({ version: _version, usage, ...manifest }) =>
+        Either.right({
+          ...manifest,
+          usage: liftFrozenTokenUsage(usage),
+          oracle: null,
+          mode: "headless",
+          stop: null,
+        }),
     });
   };
 }
@@ -1482,18 +1545,25 @@ const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest
 const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 
 // Born with `$schema`: a decision manifest without one is unreadable. One
-// stamped below the format's current stamp is read by the frozen 0.25.0
-// decoder and lifted unchanged: it is an interactive record, valid as it is.
+// stamped below the format's current stamp is read by the frozen 0.28.0
+// decoder when stamped 0.28.0 or later, else by the frozen 0.25.0 decoder; an
+// 0.25.0 manifest is an interactive record, valid as it is. Every lift turns a
+// Vibe usage into unavailable.
 const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("decision-record-manifest", input)) {
-    const older = decodeDecisionRecordManifestV0_25_0(input);
+    // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
+    const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    const older =
+      compareReleases(release, "0.28.0") >= 0
+        ? decodeDecisionRecordManifestV0_28_0(input)
+        : decodeDecisionRecordManifestV0_25_0(input);
     if (Either.isLeft(older)) {
       return Either.left(
         readError(file, "decision-record-manifest", formatFirstViolation(older.left)),
       );
     }
     const { $schema: _schema, ...manifest } = older.right;
-    return Either.right(manifest);
+    return Either.right({ ...manifest, usage: liftFrozenTokenUsage(manifest.usage) });
   }
   return readSchemaBornPersisted(input, {
     format: "decision-record-manifest",

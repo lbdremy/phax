@@ -9,11 +9,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { computeRecordUsage } from "../../src/app/recordPlumbing.js";
 import { makeProviderBackendLayer, provideRunLayers } from "../../src/cli/commands/runLayers.js";
-import { extractVibeUsage } from "../../src/domain/records/usage.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import type { ProviderId } from "../../src/domain/routing/types.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -26,6 +25,7 @@ import { ProviderStoreRoots } from "../../src/ports/providerStores.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { providerStoreRootsUnder, rootsUnder } from "../helpers/providerStoreRoots.js";
+import { VIBE3_EXPORT_SHORT, VIBE3_SESSION_ID, vibe3ExportText } from "../helpers/vibe3Fixtures.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 
 let root: string;
@@ -352,38 +352,39 @@ describe("the provider store roots of a command's layers", () => {
 });
 
 describe("record usage on mistral-vibe", () => {
-  const META = JSON.stringify({
-    session_id: "X1abcdef",
-    stats: {
-      session_prompt_tokens: 1200,
-      session_completion_tokens: 80,
-      session_cost: 0.02,
-      tool_calls_agreed: 3,
-      tool_calls_rejected: 0,
-      tool_calls_failed: 1,
-      tool_calls_succeeded: 2,
-    },
-  });
-
-  it("reads the session's meta.json through the shared finder under the passed vibe root", async () => {
-    writeBytes(join(vibeSessions(), "session_20261024_100500_X1ab", "meta.json"), META);
-
-    const usage = await Effect.runPromise(
-      computeRecordUsage({ provider: "mistral-vibe", folder: tree, sessionId: "X1abcdef" }).pipe(
-        Effect.provide(Layer.merge(NodeFileSystemLayer, providerStoreRootsUnder(home))),
-      ),
+  it("reads the export.json beside the phase's transcript, whatever the provider stores hold", async () => {
+    writeBytes(
+      join(tree, "output.vibe-export", "export.json"),
+      vibe3ExportText(VIBE3_EXPORT_SHORT),
     );
 
-    expect(usage).toEqual({ available: true, usage: extractVibeUsage(META) });
+    const usage = await Effect.runPromise(
+      computeRecordUsage({
+        provider: "mistral-vibe",
+        folder: tree,
+        sessionId: VIBE3_SESSION_ID,
+      }).pipe(Effect.provide(NodeFileSystemLayer)),
+    );
+
+    expect(usage).toEqual({
+      available: true,
+      usage: {
+        provider: "mistral-vibe",
+        inputTokens: 10987,
+        cachedInputTokens: 3200,
+        outputTokens: 3,
+        costUsd: 0.016503,
+      },
+    });
   });
 
-  it("is unavailable with no vibe root", async () => {
-    writeBytes(join(vibeSessions(), "session_20261024_100500_X1ab", "meta.json"), META);
-
+  it("is unavailable when the turn wrote no export", async () => {
     const usage = await Effect.runPromise(
-      computeRecordUsage({ provider: "mistral-vibe", folder: tree, sessionId: "X1abcdef" }).pipe(
-        Effect.provide(NodeFileSystemLayer),
-      ),
+      computeRecordUsage({
+        provider: "mistral-vibe",
+        folder: tree,
+        sessionId: VIBE3_SESSION_ID,
+      }).pipe(Effect.provide(NodeFileSystemLayer)),
     );
 
     expect(usage).toEqual({ available: false });

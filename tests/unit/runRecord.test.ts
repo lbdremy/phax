@@ -68,6 +68,20 @@ describe("TokenUsageSchema", () => {
       usage: {
         provider: "mistral-vibe",
         inputTokens: 1000,
+        cachedInputTokens: 300,
+        outputTokens: 200,
+        costUsd: 0.05,
+      },
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects a vibe usage that still carries the session cost and tool-call counts", () => {
+    const result = decodeTokenUsage({
+      available: true,
+      usage: {
+        provider: "mistral-vibe",
+        inputTokens: 1000,
         outputTokens: 200,
         sessionCostUsd: 0.05,
         toolCallsAgreed: 3,
@@ -76,7 +90,7 @@ describe("TokenUsageSchema", () => {
         toolCallsSucceeded: 3,
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects an available usage reported as a bare number (never zero-as-unavailable)", () => {

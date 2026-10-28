@@ -10,6 +10,7 @@ import type {
 } from "../../schemas/runRecord.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
 import { isStopArtifact } from "./stopArtifacts.js";
+import { isVibeExportDir } from "./usage.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
 
@@ -77,7 +78,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
   // copies (`interactive-transcripts/`) are among them, so `records.transcript`
   // decides only about `output.jsonl`.
   const { shape, artifactPaths } = selectRecordArtifacts(
-    input.files.filter((file) => !isStopArtifact(file)),
+    input.files.filter((file) => !isStopArtifact(file) && !isVibeExportDir(file)),
     input.transcriptEnabled,
     PHASE_TRANSCRIPT_FILES,
   );

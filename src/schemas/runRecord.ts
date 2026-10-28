@@ -49,21 +49,16 @@ export const CodexTokenUsageSchema = Schema.Struct({
 export type CodexTokenUsage = Schema.Schema.Type<typeof CodexTokenUsageSchema>;
 
 /**
- * vibe carries no usage in its transcript stream; this is read from the
- * session's `meta.json` `.stats` object instead (see
- * `findVibeSessionId` in `src/schemas/vibeOutput.ts` for how the session
- * directory is located). It is the richest of the three sources: it also
- * carries tool-call agreement stats nothing else exposes.
+ * vibe carries no usage in its transcript stream; it is the sum over the
+ * `export.json` each headless turn writes into its `--output-dir` (see
+ * `vibeExportFileOf` in `src/domain/records/usage.ts`).
  */
 export const VibeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("mistral-vibe"),
   inputTokens: Schema.Number,
+  cachedInputTokens: Schema.Number,
   outputTokens: Schema.Number,
-  sessionCostUsd: Schema.Number,
-  toolCallsAgreed: Schema.Number,
-  toolCallsRejected: Schema.Number,
-  toolCallsFailed: Schema.Number,
-  toolCallsSucceeded: Schema.Number,
+  costUsd: Schema.Number,
 });
 
 export type VibeTokenUsage = Schema.Schema.Type<typeof VibeTokenUsageSchema>;
@@ -89,6 +84,35 @@ export const TokenUsageSchema = Schema.Union(
 export type TokenUsage = Schema.Schema.Type<typeof TokenUsageSchema>;
 
 export const UNAVAILABLE_TOKEN_USAGE: TokenUsage = { available: false };
+
+/**
+ * A token usage as a frozen shape recorded it, or as the current shape does.
+ * A frozen Vibe usage is told apart by its `sessionCostUsd`: whatever else it
+ * counted (tool calls), it is not the current Vibe usage.
+ */
+export type FrozenTokenUsage =
+  | { readonly available: false }
+  | {
+      readonly available: true;
+      readonly usage:
+        | ClaudeTokenUsage
+        | CodexTokenUsage
+        | VibeTokenUsage
+        | { readonly provider: "mistral-vibe"; readonly sessionCostUsd: number };
+    };
+
+/**
+ * Lifts a token usage a frozen shape recorded to the current one. Claude Code
+ * and Codex usage, and a current Vibe usage, are kept as recorded. A frozen
+ * Vibe usage counted a whole session from its `meta.json`, which no current
+ * reader can reproduce, so it lifts to unavailable.
+ */
+export function liftFrozenTokenUsage(usage: FrozenTokenUsage): TokenUsage {
+  if (!usage.available) return usage;
+  const recorded = usage.usage;
+  if ("sessionCostUsd" in recorded) return UNAVAILABLE_TOKEN_USAGE;
+  return { available: true, usage: recorded };
+}
 
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 

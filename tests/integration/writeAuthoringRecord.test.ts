@@ -17,7 +17,12 @@ import { decodeAuthoringRecordManifestFile } from "../../src/schemas/authoringRe
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
-import { providerStoreRootsUnder, rootsUnder } from "../helpers/providerStoreRoots.js";
+import {
+  VIBE3_EXPORT_LONG,
+  VIBE3_EXPORT_SHORT,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+} from "../helpers/vibe3Fixtures.js";
 
 const fakeGitHub = makeFakeGitHub();
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer);
@@ -377,102 +382,80 @@ describe("writeAuthoringRecord (real git)", () => {
     });
   });
 
-  describe("vibe: each distinct session id counted once", () => {
-    let home: string;
-
-    beforeEach(() => {
-      home = mkdtempSync(join(tmpdir(), "phax-authoring-record-vibe-"));
-    });
-
-    afterEach(() => {
-      removeTempDir(home);
-    });
-
-    // vibe's usage is read from the stores under the test's own HOME.
-    function runUnderHome(input: WriteAuthoringRecordInput) {
-      return Effect.runPromise(
-        Effect.provide(
-          writeAuthoringRecord(input),
-          Layer.merge(LAYER, providerStoreRootsUnder(home)),
-        ),
-      );
+  describe("vibe: every turn's export is counted", () => {
+    // Each turn wrote an export.json into the directory named after its transcript.
+    async function seedVibeExport(exportDir: string, exported: string): Promise<void> {
+      await mkdir(join(sessionFolder, exportDir), { recursive: true });
+      await writeFile(join(sessionFolder, exportDir, "export.json"), exported);
     }
 
-    // vibe names a session directory `session_<timestamp>_<short id>`.
-    async function seedVibeSession(sessionId: string, promptTokens: number): Promise<void> {
-      const dir = join(
-        rootsUnder(home).vibe ?? "",
-        "logs",
-        "session",
-        `session_20261024_120000_${sessionId}`,
-      );
-      await mkdir(dir, { recursive: true });
-      await writeFile(
-        join(dir, "meta.json"),
-        JSON.stringify({
-          session_id: sessionId,
-          stats: {
-            session_prompt_tokens: promptTokens,
-            session_completion_tokens: 10,
-            session_cost: 0.01,
-            tool_calls_agreed: 1,
-            tool_calls_rejected: 0,
-            tool_calls_failed: 0,
-            tool_calls_succeeded: 1,
-          },
-        }),
-      );
-    }
-
-    it("a resume that kept the session id is counted once", async () => {
+    it("a resume that kept the session id adds the retry's own usage", async () => {
       await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
-      await seedVibeSession("vibe-1", 3000);
+      await seedVibeExport("output.vibe-export", vibe3ExportText(VIBE3_EXPORT_SHORT));
+      await seedVibeExport("retry-output.vibe-export", vibe3ExportText(VIBE3_EXPORT_LONG));
 
-      await runUnderHome(
+      await run(
         baseInput({
           provider: "mistral-vibe",
           retry: "retried",
-          sessionId: "vibe-1",
-          retrySessionId: "vibe-1",
+          sessionId: VIBE3_SESSION_ID,
+          retrySessionId: VIBE3_SESSION_ID,
         }),
       );
 
-      expect((readManifest() as Record<string, unknown>)["usage"]).toMatchObject({
-        available: true,
-        usage: { provider: "mistral-vibe", inputTokens: 3000, outputTokens: 10 },
-      });
-    });
-
-    it("a resume under a new session id adds that session's usage", async () => {
-      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
-      await seedVibeSession("vibe-1", 3000);
-      await seedVibeSession("vibe-2", 700);
-
-      await runUnderHome(
-        baseInput({
-          provider: "mistral-vibe",
-          retry: "retried",
-          sessionId: "vibe-1",
-          retrySessionId: "vibe-2",
-        }),
-      );
-
-      expect((readManifest() as Record<string, unknown>)["usage"]).toMatchObject({
+      const manifest = readManifest() as Record<string, unknown>;
+      expect(Either.isRight(decodeAuthoringRecordManifestFile(manifest))).toBe(true);
+      expect(manifest["usage"]).toEqual({
         available: true,
         usage: {
           provider: "mistral-vibe",
-          inputTokens: 3700,
-          outputTokens: 20,
-          toolCallsAgreed: 2,
+          inputTokens: 45575,
+          cachedInputTokens: 12800,
+          outputTokens: 291,
+          costUsd: 0.070545,
         },
       });
     });
 
-    it("with no vibe root, vibe usage is unavailable", async () => {
+    it("a first answer alone is counted from its own export", async () => {
       await seedSession({ "brief.md": "b\n", "prompt.md": "p\n" });
-      await seedVibeSession("vibe-1", 3000);
+      await seedVibeExport("output.vibe-export", vibe3ExportText(VIBE3_EXPORT_SHORT));
 
-      await run(baseInput({ provider: "mistral-vibe", sessionId: "vibe-1" }));
+      await run(baseInput({ provider: "mistral-vibe", sessionId: VIBE3_SESSION_ID }));
+
+      expect((readManifest() as Record<string, unknown>)["usage"]).toEqual({
+        available: true,
+        usage: {
+          provider: "mistral-vibe",
+          inputTokens: 10987,
+          cachedInputTokens: 3200,
+          outputTokens: 3,
+          costUsd: 0.016503,
+        },
+      });
+    });
+
+    it("a retry with no export makes the whole usage unavailable", async () => {
+      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n", "retry-prompt.md": "r\n" });
+      await seedVibeExport("output.vibe-export", vibe3ExportText(VIBE3_EXPORT_SHORT));
+
+      await run(
+        baseInput({
+          provider: "mistral-vibe",
+          retry: "retried",
+          sessionId: VIBE3_SESSION_ID,
+          retrySessionId: VIBE3_SESSION_ID,
+        }),
+      );
+
+      expect((readManifest() as Record<string, unknown>)["usage"]).toEqual({ available: false });
+    });
+
+    it("an export that does not decode makes the usage unavailable", async () => {
+      await seedSession({ "brief.md": "b\n", "prompt.md": "p\n" });
+      await seedVibeExport("output.vibe-export", '{"schema_version":2}\n');
+
+      await run(baseInput({ provider: "mistral-vibe", sessionId: VIBE3_SESSION_ID }));
 
       expect((readManifest() as Record<string, unknown>)["usage"]).toEqual({ available: false });
     });

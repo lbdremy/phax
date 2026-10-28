@@ -117,7 +117,10 @@ import { renderTestLine } from "../../../src/domain/plan/testLineGrammar.js";
 import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
-import { RunRecordManifestFileSchema } from "../../../src/schemas/runRecord.js";
+import {
+  RunRecordManifestFileSchema,
+  liftFrozenTokenUsage,
+} from "../../../src/schemas/runRecord.js";
 import {
   compareReleases,
   schemaUrl,
@@ -912,6 +915,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     RunRecordManifestFileSchema,
     withSchemaUrl("phase-record-manifest", {
       ...stepped(phaseRecordManifest),
+      usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
       oracle: null,
       mode: "headless",
       stop: null,
@@ -921,6 +925,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     AuthoringRecordManifestFileSchema,
     withSchemaUrl("authoring-record-manifest", {
       ...stepped(authoringRecordManifest),
+      usage: liftFrozenTokenUsage(authoringRecordManifest.usage),
       retry: "none",
     }),
   ),
@@ -1356,6 +1361,7 @@ export const heldPhaseRecordManifestDocument: Doc = encoded(
   RunRecordManifestFileSchema,
   withSchemaUrl("phase-record-manifest", {
     ...stepped(phaseRecordManifest),
+    usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
     oracle: null,
     mode: "headless",
     stop: {

@@ -64,8 +64,8 @@ export interface WriteRecordInput {
 
 /**
  * The record's usage source: a headless phase's session, read now (its
- * `output.jsonl`, or a vibe session's `meta.json` found by its id under the
- * `ProviderStoreRoots` vibe root); a held phase's builder usage recorded at the
+ * `output.jsonl`, or a vibe session's `export.json` in the `output.vibe-export`
+ * directory beside it); a held phase's builder usage recorded at the
  * hold point; or none, for a phase no agent session built.
  */
 export type RecordUsageSource =

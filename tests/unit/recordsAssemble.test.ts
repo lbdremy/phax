@@ -98,6 +98,20 @@ describe("assembleRecord", () => {
     ]);
   });
 
+  it("carries none of a vibe turn's export directories", () => {
+    const { artifactPaths } = assembleRecord({
+      ...baseInput,
+      files: [...baseInput.files, "output.vibe-export", "fix-01.jsonl", "fix-01.vibe-export"],
+    });
+    expect(artifactPaths).toEqual([
+      "diff.patch",
+      "fix-01.jsonl",
+      "output.jsonl",
+      "prompt.md",
+      "status.json",
+    ]);
+  });
+
   it("records the source sha as a back-reference when the phase committed", () => {
     const { manifest } = assembleRecord({ ...baseInput, sourceSha: "a726aff" });
     expect(manifest.sourceSha).toBe("a726aff");

@@ -1070,13 +1070,20 @@ describe("documents from another release", () => {
     // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen
     // 0.26.0 shape (test strategies as strings), the frozen 0.25.0 shape (modelReason) or
     // the frozen 0.20.0 shape, which has no preamble questions.
+    // A phase manifest stamped 0.26.0 or later, or an authoring manifest stamped
+    // 0.23.0 or later, below its current stamp is read as the frozen shape of
+    // that release, which differs from the current one only in a Vibe usage.
     const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
     const document = !below
       ? validDocuments[id]
       : id === "authoring-record-manifest"
-        ? withoutKey(validDocuments[id], "retry")
+        ? compareReleases(release, "0.23.0") >= 0
+          ? validDocuments[id]
+          : withoutKey(validDocuments[id], "retry")
         : id === "phase-record-manifest"
-          ? withoutKey(withoutKey(withoutKey(validDocuments[id], "oracle"), "mode"), "stop")
+          ? compareReleases(release, "0.26.0") >= 0
+            ? validDocuments[id]
+            : withoutKey(withoutKey(withoutKey(validDocuments[id], "oracle"), "mode"), "stop")
           : id === "plan-approval-record" || id === "spec-approval-record"
             ? withoutKey(validDocuments[id], "approvedBy")
             : id === "spec-document"

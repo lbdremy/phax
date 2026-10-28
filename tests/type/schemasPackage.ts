@@ -21,6 +21,7 @@ import type {
   InteractiveHandoffShape,
   InteractiveSession,
   InteractiveSessionShape,
+  InteractiveSessionV0_26_0,
   LatestFirstReading,
   LatestInteractiveHandoff,
   LatestInteractiveSession,
@@ -51,6 +52,7 @@ import type {
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
   AuthoringRecordManifestV0_17_0,
+  AuthoringRecordManifestV0_23_0,
   BriefRecord,
   BriefRecordShape,
   BriefRecordV0_20_0,
@@ -69,6 +71,7 @@ import type {
   ReviewRecordManifest,
   ReviewRecordManifestShape,
   DecisionRecordManifestV0_25_0,
+  DecisionRecordManifestV0_28_0,
   DocumentFormatId,
   GateAttribution,
   GateAttributionShape,
@@ -133,6 +136,7 @@ import type {
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
   PhaseRecordManifestV0_17_0,
+  PhaseRecordManifestV0_26_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -297,6 +301,8 @@ import type {
   DecideVerdictsFile as PhaxDecideVerdictsFile,
 } from "../../src/schemas/decideVerdicts.js";
 import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
+import type { DecisionRecordManifestV0_28_0 as FrozenDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
+import type { InteractiveSessionV0_26_0 as FrozenInteractiveSessionV0_26_0 } from "../../src/schemas/history/interactive-session/0.26.0.js";
 import type {
   ReviewRecordManifest as PhaxReviewRecordManifest,
   ReviewRecordManifestFile as PhaxReviewRecordManifestFile,
@@ -353,6 +359,7 @@ import type {
 } from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import type { AuthoringRecordManifestV0_17_0 as FrozenAuthoringRecordManifestV0_17_0 } from "../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+import type { AuthoringRecordManifestV0_23_0 as FrozenAuthoringRecordManifestV0_23_0 } from "../../src/schemas/history/authoring-record-manifest/0.23.0.js";
 import type { BriefRecordV0_20_0 as FrozenBriefRecordV0_20_0 } from "../../src/schemas/history/brief-record/0.20.0.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
@@ -364,6 +371,7 @@ import type { CostLedgerV0_25_0 as FrozenCostLedgerV0_25_0 } from "../../src/sch
 import type { CostLedgerV0_26_0 as FrozenCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0.26.0.js";
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
+import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
@@ -416,7 +424,10 @@ void phaxToPackage;
 // parsePhaseRecordManifest is a union over shapes, assignable to Parsed over their values
 const parsed = parsePhaseRecordManifest({});
 const asParsed: Parsed<
-  FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | PhaseRecordManifest
+  | FrozenPhaseRecordManifest
+  | FrozenPhaseRecordManifestV0_17_0
+  | FrozenPhaseRecordManifestV0_26_0
+  | PhaseRecordManifest
 > = parsed;
 void asParsed;
 
@@ -424,11 +435,14 @@ void asParsed;
 if (parsed.ok) {
   const shape: Equals<
     typeof parsed.shape,
-    "pre-schema" | "0.17.0" | Current<"phase-record-manifest">
+    "pre-schema" | "0.17.0" | "0.26.0" | Current<"phase-record-manifest">
   > = true;
   const exact: Equals<
     typeof parsed.value,
-    FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
+    | FrozenPhaseRecordManifest
+    | FrozenPhaseRecordManifestV0_17_0
+    | FrozenPhaseRecordManifestV0_26_0
+    | RunRecordManifestFile
   > = true;
   void shape;
   void exact;
@@ -581,7 +595,10 @@ const complete: Equals<DocumentFormatId, FormatId> = true;
 void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
-  const shape: Equals<typeof document.shape, "pre-schema" | "0.19.0" | Current<FormatId>> = true;
+  const shape: Equals<
+    typeof document.shape,
+    "pre-schema" | "0.19.0" | "0.23.0" | Current<FormatId>
+  > = true;
   void format;
   void shape;
   if (
@@ -669,7 +686,7 @@ const shapeIds: Equals<
   | ReviewStopShape
   | RunListShape
   | DecideVerdictsShape,
-  "pre-schema" | "0.19.0" | Current<FormatId>
+  "pre-schema" | "0.19.0" | "0.23.0" | Current<FormatId>
 > = true;
 void shapeIds;
 const eachShapeId: [
@@ -685,10 +702,13 @@ const eachShapeId: [
     PlanDocumentShape,
     "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | "0.26.0" | Current<"plan-document">
   >,
-  Equals<PhaseRecordManifestShape, "pre-schema" | "0.17.0" | Current<"phase-record-manifest">>,
+  Equals<
+    PhaseRecordManifestShape,
+    "pre-schema" | "0.17.0" | "0.26.0" | Current<"phase-record-manifest">
+  >,
   Equals<
     AuthoringRecordManifestShape,
-    "pre-schema" | "0.17.0" | Current<"authoring-record-manifest">
+    "pre-schema" | "0.17.0" | "0.23.0" | Current<"authoring-record-manifest">
   >,
   Equals<
     GateAttributionShape,
@@ -769,12 +789,16 @@ const parseValues: [
   >,
   Equals<
     Value<typeof parsePhaseRecordManifest>,
-    FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
+    | FrozenPhaseRecordManifest
+    | FrozenPhaseRecordManifestV0_17_0
+    | FrozenPhaseRecordManifestV0_26_0
+    | RunRecordManifestFile
   >,
   Equals<
     Value<typeof parseAuthoringRecordManifest>,
     | FrozenAuthoringRecordManifest
     | FrozenAuthoringRecordManifestV0_17_0
+    | FrozenAuthoringRecordManifestV0_23_0
     | PhaxAuthoringRecordManifestFile
   >,
   Equals<
@@ -1076,18 +1100,26 @@ if (document.ok && document.format === "hand-decision-answer") {
 // one current shape, and an in-memory value without $schema
 const decisionManifestTypes: [
   Equals<DecisionRecordManifest, PhaxDecisionRecordManifestFile>,
-  Equals<DecisionRecordManifestShape, "0.25.0" | Current<"decision-record-manifest">>,
+  Equals<DecisionRecordManifestShape, "0.25.0" | "0.28.0" | Current<"decision-record-manifest">>,
   Equals<
     Value<typeof parseDecisionRecordManifest>,
-    FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+    | FrozenDecisionRecordManifestV0_25_0
+    | FrozenDecisionRecordManifestV0_28_0
+    | PhaxDecisionRecordManifestFile
   >,
   Equals<LatestDecisionRecordManifest, PhaxDecisionRecordManifest>,
   Equals<
     Parameters<typeof toLatestDecisionRecordManifest>,
-    [value: PhaxDecisionRecordManifestFile | FrozenDecisionRecordManifestV0_25_0]
+    [
+      value:
+        | PhaxDecisionRecordManifestFile
+        | FrozenDecisionRecordManifestV0_25_0
+        | FrozenDecisionRecordManifestV0_28_0,
+    ]
   >,
   Equals<DecisionRecordManifestV0_25_0, FrozenDecisionRecordManifestV0_25_0>,
-] = [true, true, true, true, true, true];
+  Equals<DecisionRecordManifestV0_28_0, FrozenDecisionRecordManifestV0_28_0>,
+] = [true, true, true, true, true, true, true];
 void decisionManifestTypes;
 declare const latestDecisionManifest: LatestDecisionRecordManifest;
 // @ts-expect-error: the in-memory decision record manifest carries no $schema
@@ -1095,7 +1127,9 @@ void latestDecisionManifest.$schema;
 if (document.ok && document.format === "decision-record-manifest") {
   const exact: Equals<
     typeof document.value,
-    FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+    | FrozenDecisionRecordManifestV0_25_0
+    | FrozenDecisionRecordManifestV0_28_0
+    | PhaxDecisionRecordManifestFile
   > = true;
   void exact;
 }
@@ -1227,10 +1261,17 @@ const interactiveTypes: [
   Equals<LatestInteractiveHandoff, PhaxInteractiveHandoff>,
   Equals<Parameters<typeof toLatestInteractiveHandoff>, [value: PhaxInteractiveHandoffFile]>,
   Equals<InteractiveSession, PhaxInteractiveSessionFile>,
-  Equals<InteractiveSessionShape, Current<"interactive-session">>,
-  Equals<Value<typeof parseInteractiveSession>, PhaxInteractiveSessionFile>,
+  Equals<InteractiveSessionShape, "0.26.0" | Current<"interactive-session">>,
+  Equals<
+    Value<typeof parseInteractiveSession>,
+    FrozenInteractiveSessionV0_26_0 | PhaxInteractiveSessionFile
+  >,
   Equals<LatestInteractiveSession, PhaxInteractiveSession>,
-  Equals<Parameters<typeof toLatestInteractiveSession>, [value: PhaxInteractiveSessionFile]>,
+  Equals<
+    Parameters<typeof toLatestInteractiveSession>,
+    [value: PhaxInteractiveSessionFile | FrozenInteractiveSessionV0_26_0]
+  >,
+  Equals<InteractiveSessionV0_26_0, FrozenInteractiveSessionV0_26_0>,
   Equals<ReviewStop, PhaxReviewStopFile>,
   Equals<ReviewStopShape, Current<"review-stop">>,
   Equals<Value<typeof parseReviewStop>, PhaxReviewStopFile>,
@@ -1242,6 +1283,7 @@ const interactiveTypes: [
   Equals<LatestRunList, PhaxRunList>,
   Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile]>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -1433,7 +1475,13 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestPhaseRecordManifest>,
-    [value: FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile]
+    [
+      value:
+        | FrozenPhaseRecordManifest
+        | FrozenPhaseRecordManifestV0_17_0
+        | FrozenPhaseRecordManifestV0_26_0
+        | RunRecordManifestFile,
+    ]
   >,
   Equals<
     Parameters<typeof toLatestAuthoringRecordManifest>,
@@ -1441,6 +1489,7 @@ const toLatestParameters: [
       value:
         | FrozenAuthoringRecordManifest
         | FrozenAuthoringRecordManifestV0_17_0
+        | FrozenAuthoringRecordManifestV0_23_0
         | PhaxAuthoringRecordManifestFile,
     ]
   >,
@@ -1574,6 +1623,11 @@ const authoringV0_17_0IsFrozen: Equals<
   FrozenAuthoringRecordManifestV0_17_0
 > = true;
 void authoringV0_17_0IsFrozen;
+const authoringV0_23_0IsFrozen: Equals<
+  AuthoringRecordManifestV0_23_0,
+  FrozenAuthoringRecordManifestV0_23_0
+> = true;
+void authoringV0_23_0IsFrozen;
 
 // parseRecordManifest names the format and the shape, and narrows to the exact type
 const recordManifestFormats: Equals<
@@ -1588,12 +1642,15 @@ const anyManifest = parseRecordManifest({});
 const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifest
   | FrozenPhaseRecordManifestV0_17_0
+  | FrozenPhaseRecordManifestV0_26_0
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
+  | FrozenAuthoringRecordManifestV0_23_0
   | AuthoringRecordManifest
   | DecisionRecordManifest
   | FrozenDecisionRecordManifestV0_25_0
+  | FrozenDecisionRecordManifestV0_28_0
   | ReviewRecordManifest
 > = anyManifest;
 void anyManifestAsParsed;
@@ -1603,7 +1660,10 @@ if (anyManifest.ok) {
     typeof anyManifest.shape,
     | "pre-schema"
     | "0.17.0"
+    | "0.23.0"
     | "0.25.0"
+    | "0.26.0"
+    | "0.28.0"
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
     | Current<"decision-record-manifest">
@@ -1617,7 +1677,9 @@ if (anyManifest.ok) {
   } else if (anyManifest.format === "decision-record-manifest") {
     const exact: Equals<
       typeof anyManifest.value,
-      FrozenDecisionRecordManifestV0_25_0 | PhaxDecisionRecordManifestFile
+      | FrozenDecisionRecordManifestV0_25_0
+      | FrozenDecisionRecordManifestV0_28_0
+      | PhaxDecisionRecordManifestFile
     > = true;
     void exact;
   } else if (anyManifest.format === "authoring-record-manifest") {
@@ -1625,13 +1687,17 @@ if (anyManifest.ok) {
       typeof anyManifest.value,
       | FrozenAuthoringRecordManifest
       | FrozenAuthoringRecordManifestV0_17_0
+      | FrozenAuthoringRecordManifestV0_23_0
       | PhaxAuthoringRecordManifestFile
     > = true;
     void exact;
   } else {
     const exact: Equals<
       typeof anyManifest.value,
-      FrozenPhaseRecordManifest | FrozenPhaseRecordManifestV0_17_0 | RunRecordManifestFile
+      | FrozenPhaseRecordManifest
+      | FrozenPhaseRecordManifestV0_17_0
+      | FrozenPhaseRecordManifestV0_26_0
+      | RunRecordManifestFile
     > = true;
     void exact;
   }
@@ -1665,6 +1731,11 @@ const phaseRecordManifestV0_17_0IsFrozen: Equals<
   FrozenPhaseRecordManifestV0_17_0
 > = true;
 void phaseRecordManifestV0_17_0IsFrozen;
+const phaseRecordManifestV0_26_0IsFrozen: Equals<
+  PhaseRecordManifestV0_26_0,
+  FrozenPhaseRecordManifestV0_26_0
+> = true;
+void phaseRecordManifestV0_26_0IsFrozen;
 // The current gate attribution upgrades to the latest value.
 declare const phaxGateAttribution: PhaxGateAttributionFile;
 const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);
