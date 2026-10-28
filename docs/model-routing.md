@@ -67,8 +67,8 @@ Cross-family translation uses a **star topology** rooted at Claude. Every edge i
       "high":   { "claude": "claude-sonnet-4-6", "effort": "high",   "relation": "equivalent" },
       "xhigh":  { "claude": "claude-opus-4-8",   "effort": "medium", "relation": "equivalent" }
     },
-    "phax-mistral-medium-3.5-medium": {
-      "medium": { "claude": "claude-sonnet-4-6", "effort": "medium", "relation": "equivalent" }
+    "phax-mistral-medium-3.5-high": {
+      "high": { "claude": "claude-sonnet-4-6", "effort": "high", "relation": "equivalent" }
     }
   }
 }
@@ -76,7 +76,7 @@ Cross-family translation uses a **star topology** rooted at Claude. Every edge i
 
 Resolution uses this table in three directions:
 
-- **hub → spoke**: find the spoke id whose edge points at the requested Claude id + effort and belongs to the target family. The stored relation applies as-is.
+- **hub → spoke**: find the spoke id whose edge points at the requested Claude id + effort and belongs to the target family. The stored relation applies as-is. Without an edge for that effort, the edge anchored on the same Claude id whose effort is nearest is taken (ties prefer the lower), and the relation records the shift: `upgrade` when the spoke's Claude effort is higher than asked, `downgrade` when lower. `ultracode` is never matched this way.
 - **spoke → hub**: direct lookup `equivalence[id][effort]`; the relation is **inverted** (`downgrade ↔ upgrade`).
 - **spoke → spoke**: compose the two hops (spoke1 → hub, hub → spoke2). The resulting relation is the composition of both hops.
 
@@ -147,11 +147,8 @@ Config version 2. Old `tiers`, `normalization`, and `defaultTier` fields are rej
       "high":   { "claude": "claude-sonnet-4-6",         "effort": "high",   "relation": "equivalent" },
       "xhigh":  { "claude": "claude-opus-4-8",           "effort": "medium", "relation": "equivalent" }
     },
-    "phax-mistral-medium-3.5-off":    { "off":    { "claude": "claude-haiku-4-5-20251001", "effort": "none",   "relation": "equivalent" } },
-    "phax-mistral-medium-3.5-low":    { "low":    { "claude": "claude-sonnet-4-6",         "effort": "low",    "relation": "equivalent" } },
-    "phax-mistral-medium-3.5-medium": { "medium": { "claude": "claude-sonnet-4-6",         "effort": "medium", "relation": "equivalent" } },
-    "phax-mistral-medium-3.5-high":   { "high":   { "claude": "claude-sonnet-4-6",         "effort": "high",   "relation": "equivalent" } },
-    "phax-mistral-medium-3.5-max":    { "max":    { "claude": "claude-sonnet-4-6",         "effort": "max",    "relation": "equivalent" } }
+    "phax-mistral-medium-3.5-off":  { "off":  { "claude": "claude-haiku-4-5-20251001", "effort": "none", "relation": "equivalent" } },
+    "phax-mistral-medium-3.5-high": { "high": { "claude": "claude-sonnet-4-6",         "effort": "high", "relation": "equivalent" } }
   },
   "requestedModelNormalization": {
     "haiku":  "claude-haiku",
@@ -195,8 +192,9 @@ Each `families` entry contains a `models` array of versioned entries with `id`, 
 - Plan family: `claude-sonnet`
 - Priority: `mistral-vibe` first (enabled)
 - Provider serves `mistral-medium`, not `claude-sonnet` → hub → spoke lookup
-- Find spoke whose edge is `{claude: "claude-sonnet-4-6", effort: "medium"}` in `mistral-medium` → `phax-mistral-medium-3.5-medium`
-- **Result**: `mistral-vibe`, `phax-mistral-medium-3.5-medium`, effort `medium`, relationship `equivalent`
+- No `mistral-medium` edge is `{claude: "claude-sonnet-4-6", effort: "medium"}`: the Mistral API serves only `none` and `high` reasoning for mistral-medium-3.5, so phax ships only the `off` and `high` aliases
+- Nearest edge anchored on `claude-sonnet-4-6`: `high` → `phax-mistral-medium-3.5-high`, one effort above the request
+- **Result**: `mistral-vibe`, `phax-mistral-medium-3.5-high`, effort `high`, relationship `upgrade`
 
 ### Example 3 — gpt-5.5/xhigh, codex-cli enabled (native passthrough)
 
@@ -253,7 +251,7 @@ With `allowDowngrade: false` the `downgrade` edge is skipped and the request fal
 
 **To enable Mistral Vibe** as first priority:
 
-1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases.
+1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases: `phax-mistral-medium-3.5-off` and `phax-mistral-medium-3.5-high`, the two reasoning levels (`none` and `high`) the Mistral API serves for mistral-medium-3.5. Aliases an older phax installed for `low`, `medium` and `max` are named, not removed.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
 Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). Vibe is confined per invocation and recorded as a strong jail, so a `secure` run keeps it first in the order instead of skipping it. That rests on checks around each turn: a user `accept-edits` agent profile, or Vibe config under an extra writable root, refuses the session, and a turn whose resolved config is not the one phax set is refused (see [security.md](security.md)).
