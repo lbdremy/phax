@@ -49,6 +49,11 @@ import {
   provideRunLayers,
   renderAgentInvocationError,
 } from "./runLayers.js";
+import {
+  isSessionFailureError,
+  renderSessionFailure,
+  retryCommandLine,
+} from "./sessionFailureOutput.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { renderStop } from "./stopOutput.js";
 import { readPackageVersion } from "./usage.js";
@@ -69,6 +74,23 @@ export interface RunCommandOptions {
   refresh?: boolean;
   verbose?: boolean;
   trace?: boolean;
+}
+
+/** The `phax run` command line these options were parsed from, for a retry hint. */
+function runRetryCommand(opts: RunCommandOptions): string {
+  return retryCommandLine([
+    "run",
+    ...(opts.shortName === undefined ? [] : [opts.shortName]),
+    "--plan",
+    opts.plan,
+    ...(opts.allowDirty === true ? ["--allow-dirty"] : []),
+    ...(opts.providerPriority === undefined ? [] : ["--provider-priority", opts.providerPriority]),
+    ...(opts.dryRun === true ? ["--dry-run"] : []),
+    ...(opts.security === undefined ? [] : ["--security", opts.security]),
+    ...(opts.refresh === true ? ["--refresh"] : []),
+    ...(opts.allowSkillEdits === true ? ["--allow-skill-edits"] : []),
+    ...(opts.hold === undefined ? [] : opts.hold === true ? ["--hold"] : ["--hold", opts.hold]),
+  ]);
 }
 
 // A project defines a single gate profile; there is no depth-scalar
@@ -285,6 +307,11 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     const err = extracted.left;
     if (err instanceof RateLimitError || err instanceof UsageLimitError) {
       out.error(`Plan extraction paused: ${err.message}`);
+      for (const line of renderSessionFailure(err, null).slice(1)) out.error(line);
+      return exitCodeForError(err);
+    }
+    if (isSessionFailureError(err)) {
+      for (const line of renderSessionFailure(err, runRetryCommand(opts))) out.error(line);
       return exitCodeForError(err);
     }
     out.error(`Plan extraction failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -496,6 +523,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           ),
         );
         out.warn(`See ${join(runFolder, "resume-instructions.md")} for details.`);
+        for (const line of renderSessionFailure(err, null).slice(1)) out.warn(line);
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {
@@ -548,6 +576,12 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           ),
         );
         out.warn(`See ${join(runFolder, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (isSessionFailureError(err)) {
+        // A mid-run network pause is rendered by the pause itself; until then
+        // the invoked command is the retry hint.
+        for (const line of renderSessionFailure(err, runRetryCommand(opts))) out.error(line);
         return exitCodeForError(err);
       }
       if (err instanceof AgentInvocationError) {

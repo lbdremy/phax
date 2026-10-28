@@ -22,7 +22,13 @@ import type { RunReviewInfo } from "../../domain/runReviewInfo.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import type { ResolvedCodeReviewConfig, ResolvedConfig } from "../../schemas/phaxConfig.js";
-import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import {
+  exitCodeForError,
+  makeProviderBackendLayer,
+  makeRepoRootedFileSystemLayer,
+} from "./runLayers.js";
+import { renderSessionFailure } from "./sessionFailureOutput.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { Session } from "../../ports/session.js";
@@ -111,6 +117,14 @@ async function runHeadless(
   const outcome = result.right;
   const review = outcome.review;
   if (review.kind === "failed") {
+    if (review.sessionFailure != null) {
+      const err = sessionFailureError(
+        review.sessionFailure,
+        review.sessionFailureFiles ?? { agentErrorLog: null, transcript: null },
+      );
+      for (const line of renderSessionFailure(err, retryCommand)) out.error(line);
+      return review.sessionFailure.kind === "network" ? exitCodeForError(err) : 1;
+    }
     out.error(`Code review failed: ${review.reason}. To retry, run: ${retryCommand}`);
     return 1;
   }

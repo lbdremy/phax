@@ -47,6 +47,11 @@ import {
   exitCodeForError,
   makeProviderBackendLayer,
 } from "./runLayers.js";
+import {
+  isSessionFailureError,
+  renderSessionFailure,
+  retryCommandLine,
+} from "./sessionFailureOutput.js";
 
 const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
 
@@ -469,7 +474,28 @@ export async function runCreateArtifactHeadless(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    out.error(`✗ authoring failed: ${result.left.message}`);
+    if (isSessionFailureError(result.left)) {
+      const retry = retryCommandLine([
+        "artifact",
+        "new",
+        kind,
+        slug,
+        ...(sourceSpecArg === undefined ? [] : ["--spec", sourceSpecArg]),
+        ...(completion.last ? ["--last"] : []),
+        ...(completion.notLast ? ["--not-last"] : []),
+        "--headless",
+        "--brief",
+        opts.brief,
+        ...(opts.model === undefined ? [] : ["--model", opts.model]),
+        ...(opts.effort === undefined ? [] : ["--effort", opts.effort]),
+      ]);
+      const pipeNote = opts.brief === "-" ? " (pipe the same brief again)" : "";
+      for (const line of renderSessionFailure(result.left, `${retry}${pipeNote}`)) {
+        out.error(line);
+      }
+    } else {
+      out.error(`✗ authoring failed: ${result.left.message}`);
+    }
     return exitCodeForAuthoringError(result.left);
   }
 

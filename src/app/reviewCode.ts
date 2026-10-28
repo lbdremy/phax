@@ -1,4 +1,7 @@
 import { Effect, Either } from "effect";
+import { AgentSessionFailedError } from "../domain/errors.js";
+import type { SessionFailureFiles } from "../domain/session/failureError.js";
+import type { SessionFailure } from "../domain/session/outcome.js";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
@@ -412,7 +415,14 @@ export type HeadlessCodeReviewResult =
       readonly reviewPath: string;
       readonly session: CodeReviewSession;
     }
-  | { readonly kind: "failed"; readonly reason: string };
+  | {
+      readonly kind: "failed";
+      readonly reason: string;
+      /** In memory only, never persisted: the failed session, when the agent's session failed. */
+      readonly sessionFailure?: SessionFailure | null;
+      /** In memory only: the agent-error.log and transcript the failed session left. */
+      readonly sessionFailureFiles?: SessionFailureFiles | null;
+    };
 
 /**
  * Review a run's change in one headless, read-only session, and keep its
@@ -510,7 +520,16 @@ export function reviewCodeHeadless(
     }
 
     if (Either.isLeft(agentResult)) {
-      return fail(`the session failed: ${agentResult.left.message}`);
+      const sessionError =
+        agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
+      return {
+        ...fail(`the session failed: ${agentResult.left.message}`),
+        sessionFailure: sessionError?.failure ?? null,
+        sessionFailureFiles:
+          sessionError === null
+            ? null
+            : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
+      } satisfies HeadlessCodeReviewResult;
     }
 
     const finalText = agentResult.right.finalText.trim();
