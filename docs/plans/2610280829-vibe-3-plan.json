@@ -1,0 +1,686 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.28.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610280825-vibe-3.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "mistral-vibe-3",
+    "title": "Mistral Vibe 3",
+    "requiredCommands": []
+  },
+  "preamble": {
+    "summary": "Bring phax's Mistral Vibe provider to Vibe 3.0.3. phax will read each headless turn only from what the turn hands over: its stream, and the `export.json` Vibe writes into a per-turn output directory. It will never read `~/.vibe`. In secure mode it will confine every Vibe invocation through `VIBE_*` environment variables and `--agent accept-edits`, and record the capability as filesystem jail `strong` and command enforcement `prefix`. It will run read-only sessions, stop turns and sealed completions on Vibe with narrowed tools. Vibe usage moves to `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }` at 0.30.0. Nobody runs Vibe through phax today, so there is no migration.\n\nOrder with `provider-failures`: run this plan first. That spec's Vibe session-outcome reader then reads the `outcome` and `exit_code` of the `export.json` this plan establishes, and finds the 0.30.0 decision-record-manifest snapshot and frozen 0.28.0 module already in place.\n\nThe work goes inside-out: persisted usage, then reading Vibe 3 sessions, then secure confinement, then read-only narrowing, then the real end-to-end suite and the docs. Unit and integration tests use recorded Vibe 3 streams and exports (the 2026-10-27 probe fixtures) and fake `vibe` executables in temporary directories. A phase agent cannot check Vibe's real enforcement from its worktree. The real-CLI suite of phase-05 is the deliberate `pnpm test:e2e:real` tier, which the operator runs with Vibe 3.0.3 installed, so the confinement criteria stay provisional until that run.",
+    "requiredCommandsNote": "No new command. The `standard` gate profile verifies every phase. Phases may run `pnpm exec tsx scripts/schemas-check.ts --write` and `pnpm test:integration`, which `security.agentCommands` already allows.",
+    "technicalArbitrations": [
+      "Where a turn's Vibe export lives: each headless Vibe turn gets `--output-dir` set to its transcript path with `.jsonl` replaced by `.vibe-export` (`output.jsonl` → `output.vibe-export/`, `fix-01.jsonl` → `fix-01.vibe-export/`). One pure domain function names that directory for the adapter that writes it and for the record-usage reader. A Vibe agent turn without a transcript path is refused before spawning. Loss accepted: every Vibe caller must give a transcript path, as every caller in `src/app` already does.",
+      "Usage counts every turn: one export per transcript the caller lists, never deduplicated by session id. A missing or unreadable export makes the whole usage unavailable, as for the other providers. Loss accepted: none; the old dedupe existed only because `meta.json` held whole-session totals.",
+      "A stop's Vibe transcript: `TranscriptRequest` gains a required `phaseFolder`. The Vibe capture lists the `*.jsonl` files directly in that folder and keeps those whose first decodable entry carries the session id. It orders them by that entry's `createdAt`, concatenates their bytes, and returns `missing`/`not-found` when none matches. Claude Code and Codex ignore the field. Loss accepted: a session the person ran in Vibe's TUI has no transcript (the spec's decision). No kept stream carries its id, which is how it is told apart.",
+      "Missing reads are named (spec §5.4): a turn with no `export.json` in its output directory, or no assistant message entry with a text block, fails as an `AgentInvocationError` naming what is missing and the path read.",
+      "The version floor: the adapter runs `vibe --version` once per process (memoized per executable) before its first Vibe session. It refuses below 3.0.3, or on an answer it cannot parse (naming what was printed), with an `AgentInvocationError` naming the installed version, 3.0.3 and `uv tool upgrade mistral-vibe`. Loss accepted: one short extra process per phax process that uses Vibe.",
+      "The secure environment: `VIBE_OUTSIDE_WORKDIR=deny` and `VIBE_BYPASS_TOOL_PERMISSIONS=false`. `VIBE_TOOLS` holds `bash` with `permission: ask` and `allowlist` equal to the session's agent commands, plus `read_file`, `write_file`, `edit` and `grep`, each with `allowlist: []`. The argv carries `--agent accept-edits`, `--workdir` and one `--add-dir` for each writable root beyond the worktree. Loss accepted: a user's own allowlist entries never reach secure phax sessions.",
+      "Narrowing: a read-only session runs `--agent accept-edits --enabled-tools read_file --enabled-tools grep`. With agent commands it adds `--enabled-tools bash` and the secure `VIBE_TOOLS`. Either way it carries the two other secure variables. A sealed completion runs `--agent accept-edits --disabled-tools '*'` with the same two variables, `--workdir` the completion's cwd and no `--add-dir`. Secure mode does not deny `web_fetch`/`web_search`, matching Claude Code's secure flags. Loss accepted: the model still sees tool names; its calls are refused.",
+      "Remove the writing closing turn: once every provider's stop turns are read-only, `turnsCanWrite` and the restore of an interrupted writing closing turn's edits have no provider left. That restore covers `LeftoverSettlement.restoredClosingTurn`, its kept versions and its stop-output line. All of it is removed rather than left as a branch no provider takes. Loss accepted: an interactive-session document that an older phax left with a Vibe writing closing turn in progress is settled as a read-only turn. Its edits stay in the worktree, and the next close's comparison reports them.",
+      "Persisted usage at 0.30.0: `VibeTokenUsage` becomes `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`, all required. Every format embedding it moves to a `next` snapshot at 0.30.0, with its current shape frozen under `src/schemas/history/<format>/<stamp>.ts` and stamp routing, as commit 351d3267 did for decision-record-manifest 0.25.0. The formats are phase-record-manifest 0.26.0, authoring-record-manifest 0.23.0, decision-record-manifest 0.28.0 and interactive-session 0.26.0. A frozen Vibe usage with tool-call counts lifts to `{ available: false }`. Whichever of this plan and `provider-failures` runs second finds the decision-record-manifest `next.schema.json` and frozen 0.28.0 module already there, and only edits the current shape. Loss accepted: an older `@lbdremy/phax-schemas` cannot read 0.30.0 records.",
+      "Decide's verdicts writer on Vibe: `resolveVerdictsModel` refuses a model routed to mistral-vibe only because the adapter could not hold a session read-only. Phase-04 makes Vibe honour `readOnly`, so the refusal is removed with it rather than left stating a reason that no longer holds. Loss accepted: a writer routed to Vibe now runs there under the read-only narrowing instead of being refused up front.",
+      "The persisted `stop.turns[].narrowing` literal keeps `none` in `src/schemas/securityPosture.ts`: security.json files recorded before this change carry it. Only `readOnlyNarrowingOf` stops returning it. Loss accepted: the persisted enum admits a value no current provider writes."
+    ],
+    "openQuestions": [],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Vibe usage from the turn exports, at 0.30.0",
+      "objective": "Phase records, authoring records, decision records and interactive sessions record a Vibe session's usage as its input, cached input and output tokens and its cost, summed over the `export.json` of every turn, in formats stamped 0.30.0. Older records keep reading through frozen decoders.",
+      "detailedInstructions": [
+        "Create `src/schemas/vibeExport.ts`: an Effect Schema for Vibe's `export.json`, `schema_version` literal `1` only. It requires `session_id` (non-empty string), `usage` with `input_tokens`, `output_tokens`, `cached_input_tokens` and `total_tokens` (non-negative finite numbers), `cost_usd` (number), `outcome` (string), `exit_code` (number) and `vibe_version` (string). Unknown keys are accepted and ignored (`limits`, `config`, `steps`, `journal_dir`, timestamps and anything later). Export `VibeExport`, a decoder from JSON text that returns an Either with a typed refusal (never a throw), and nothing else knip would flag.",
+        "In `src/domain/records/usage.ts`, remove `extractVibeUsage` and its `meta.json` doc comment. Add `vibeExportDirOf(transcriptPath)`, which replaces a trailing `.jsonl` with `.vibe-export` (`output.jsonl` → `output.vibe-export`, `fix-01.jsonl` → `fix-01.vibe-export`, `first-turn-01.jsonl` → `first-turn-01.vibe-export`) and works on a folder-relative name or a full path alike. Add `vibeExportFileOf(transcriptPath)`, the `export.json` inside that directory. Add `extractVibeExportUsage(exportJsonText)`, returning `{ provider: 'mistral-vibe', inputTokens, cachedInputTokens, outputTokens, costUsd }` or undefined when the export does not decode. Decode through `src/schemas/vibeExport.ts` if `tests/unit/architecturalGuards.test.ts` lets `src/domain/records` import a schema decoder. Otherwise move the decode into `src/app/recordPlumbing.ts` and give the domain function the decoded `VibeExport`.",
+        "In `src/schemas/runRecord.ts`, change `VibeTokenUsageSchema` to `{ provider: Literal('mistral-vibe'), inputTokens, cachedInputTokens, outputTokens, costUsd }`, all required numbers, with no tool-call counts and no optional field.",
+        "In `src/app/recordPlumbing.ts`, rewrite the Vibe branch of `computeSessionUsage`. For each listed turn, in order, read `vibeExportFileOf(join(folder, turn.transcript))` through the FileSystem port. Any turn whose export is missing or does not decode makes the whole usage `UNAVAILABLE_TOKEN_USAGE`. Sum field by field in `addUsage`'s Vibe branch, never deduplicating by session id. Drop the `ProviderStoreRoots` read, `readVibeSessionMetaText`, `fileSystemReads` and the vibe-store imports, and update the doc comments on `computeRecordUsage` and `computeSessionUsage`.",
+        "Update the comments that describe Vibe usage as read from `meta.json` under the vibe root: `src/app/writeRecord.ts` (around line 67), `src/app/writeAuthoringRecord.ts` (around line 67) and, if present, `src/app/executePlan.ts` (around lines 478 and 1761) and `src/app/authorArtifact.ts` (line 215). Comments only; the session id stays passed where it already is.",
+        "If `readVibeSessionMetaText` in `src/domain/session/vibeSessionStore.ts` becomes an unused export, drop that export so knip stays green. Phase-02 deletes the module.",
+        "Freeze each format's current shape before changing it, following commit 351d3267 (decision-record-manifest 0.25.0): create `src/schemas/history/phase-record-manifest/0.26.0.ts`, `src/schemas/history/authoring-record-manifest/0.23.0.ts`, `src/schemas/history/decision-record-manifest/0.28.0.ts` and `src/schemas/history/interactive-session/0.26.0.ts`. Each is a self-contained copy of today's shape, including the old `VibeTokenUsage` with `sessionCostUsd` and four tool-call counts, and imports nothing from the current schemas.",
+        "In `src/schemas/persisted.ts`, route each format by stamp. A document stamped from the frozen release up to below 0.30.0 is read by the new frozen decoder and lifted to the current shape. Older stamps keep their existing frozen decoders (pre-schema, 0.17.0, decision 0.25.0). Every lift turns an available Vibe usage (any frozen Vibe shape) into `{ available: false }` and keeps Claude Code and Codex usage as recorded. For interactive-session the field is `builderUsage` (null stays null). For decision records it is each variant's `usage`.",
+        "Create `packages/schemas/snapshots/<format>/next.schema.json` for phase-record-manifest, authoring-record-manifest, decision-record-manifest and interactive-session. Then run `pnpm exec tsx scripts/schemas-check.ts --write` to regenerate `src/schemas/release.ts` (the four stamps become 0.30.0), `packages/schemas/src/generated/index.ts` and `packages/schemas/history.lock.json`. Never edit generated files by hand.",
+        "Mirror the frozen shapes in the schemas package: `packages/schemas/src/formats/recordManifests.ts` and `packages/schemas/src/formats/interactive.ts` (each format's shape table and its lift to the latest shape), plus `packages/schemas/src/index.ts` re-exports, following how the decision-record-manifest 0.25.0 frozen module is wired.",
+        "Update the exhaustive registries the schemas-package tests hold: `tests/type/schemasPackage.ts`, `tests/unit/schemasPackage/parity.test.ts`, `tests/unit/schemasPackage/exports.test.ts` and `tests/unit/schemasPackage/recordManifests.test.ts`. Also update any other test that pins the four formats' shape lists or valid documents (see the optional list).",
+        "Create `tests/helpers/vibe3Fixtures.ts` holding the 2026-10-27 probe's `export.json`. Use `session_id` `b8e0e3a1-9ad8-2100-46e7-4a199256f640`, `schema_version` 1, `vibe_version` `3.0.3` and `outcome` `finished`, with two turn variants: usage 10987/3200/3 (input/cached/output) at cost 0.016503, and 34588/9600/288 at cost 0.054042. Phase-02 adds the stream fixtures to the same file.",
+        "Create `tests/unit/vibeExport.test.ts` for the decoder. Rewrite the Vibe cases of `tests/unit/recordsUsage.test.ts`, and update `tests/unit/runRecord.test.ts` and `tests/integration/writeAuthoringRecord.test.ts` for the new shape and the export-based read. Tests use temporary directories only: no `~/.vibe`, no `VIBE_HOME`.",
+        "Leave `src/schemas/costLedger.ts` and the cost ledger alone: they embed no Vibe usage and read no Vibe file (verified while planning)."
+      ],
+      "planMarkdownAnchor": "#phase-01-vibe-export-usage",
+      "plannedFilesToCreate": [
+        "src/schemas/vibeExport.ts",
+        "src/schemas/history/phase-record-manifest/0.26.0.ts",
+        "src/schemas/history/authoring-record-manifest/0.23.0.ts",
+        "src/schemas/history/decision-record-manifest/0.28.0.ts",
+        "src/schemas/history/interactive-session/0.26.0.ts",
+        "packages/schemas/snapshots/phase-record-manifest/next.schema.json",
+        "packages/schemas/snapshots/authoring-record-manifest/next.schema.json",
+        "packages/schemas/snapshots/decision-record-manifest/next.schema.json",
+        "packages/schemas/snapshots/interactive-session/next.schema.json",
+        "tests/helpers/vibe3Fixtures.ts",
+        "tests/unit/vibeExport.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/records/usage.ts",
+        "src/schemas/runRecord.ts",
+        "src/app/recordPlumbing.ts",
+        "src/app/writeRecord.ts",
+        "src/app/writeAuthoringRecord.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/release.ts",
+        "packages/schemas/src/formats/recordManifests.ts",
+        "packages/schemas/src/formats/interactive.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/recordManifests.test.ts",
+        "tests/unit/recordsUsage.test.ts",
+        "tests/unit/runRecord.test.ts",
+        "tests/integration/writeAuthoringRecord.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/app/authorArtifact.ts",
+        "src/domain/session/vibeSessionStore.ts",
+        "src/schemas/decisionRecord.ts",
+        "src/schemas/interactiveSession.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/runDirectoryFormats.test.ts",
+        "tests/unit/schemas/interactiveFormats.test.ts",
+        "tests/unit/decisionRecord.test.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/integration/writeDecisionRecord.test.ts",
+        "tests/integration/recordsExplain.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/integration/stopTurnCosts.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "Record writers (app) consume `computeSessionUsage`, which now needs, for Vibe, only the folder and the turns' transcript names. The adapter that writes each export directory (phase-02) and the usage reader share one producer, `vibeExportDirOf`/`vibeExportFileOf` in `src/domain/records/usage.ts`. Persisted readers (`src/schemas/persisted.ts` and `@lbdremy/phax-schemas`) take any stamped record and return the current shape, lifting a frozen Vibe usage to unavailable.",
+      "testStrategy": [
+        {
+          "guarantee": "a Vibe export decodes with unknown keys ignored, and a schema_version other than 1 or a missing usage field is refused with a typed error",
+          "size": "small",
+          "technique": "example",
+          "oracle": "decoded value and typed refusal",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "arbitrary or malformed export text is refused, never a crash",
+          "size": "small",
+          "technique": "fuzz",
+          "oracle": "the decoder's typed refusal",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "each transcript name maps to its own export directory beside it",
+          "size": "small",
+          "technique": "table",
+          "oracle": "output.jsonl to output.vibe-export, fix-01.jsonl to fix-01.vibe-export, first-turn-01.jsonl to first-turn-01.vibe-export",
+          "loop": "in-phase",
+          "criterion": "ac-turn-dirs"
+        },
+        {
+          "guarantee": "two turn exports of one session sum to the spec's usage, with no tool-call counts",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "provider mistral-vibe, inputTokens 45575, cachedInputTokens 12800, outputTokens 291, costUsd 0.070545",
+          "loop": "in-phase",
+          "criterion": "ac-usage-sum"
+        },
+        {
+          "guarantee": "one missing or undecodable export among the turns makes the whole usage unavailable",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "available false",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a phase record written with Vibe usage is stamped phase-record-manifest 0.30.0 and decodes back to the same value",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the 0.30.0 schema URL and round-trip equality",
+          "loop": "in-phase",
+          "criterion": "ac-usage-sum"
+        },
+        {
+          "guarantee": "a record stamped below 0.30.0 in each of the four formats reads through its frozen decoder, Vibe usage lifted to unavailable and Claude or Codex usage kept",
+          "size": "small",
+          "technique": "table",
+          "oracle": "lifted current-shape document per (format, stamp, provider)",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the frozen modules and snapshots match the history lock and the generated stamps",
+          "size": "small",
+          "technique": "example",
+          "oracle": "schemas-check and the schemas-package parity suite",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Freeze the four current shapes under `src/schemas/history/`.",
+        "`src/schemas/vibeExport.ts` and its tests.",
+        "`VibeTokenUsageSchema` and the `usage.ts` functions.",
+        "`computeSessionUsage` / `addUsage` in `recordPlumbing.ts`.",
+        "Stamp routing and lifts in `persisted.ts`.",
+        "`next.schema.json` snapshots, then `schemas-check --write`.",
+        "Schemas-package mirror and registry tests.",
+        "Comment updates in the record writers."
+      ],
+      "excludedScope": [
+        "Writing the export directory: the adapter's `--output-dir` is phase-02.",
+        "Deleting `src/domain/session/vibeSessionStore.ts` and the vibe store root (phase-02).",
+        "The cost ledger, which carries no Vibe usage.",
+        "Reading `outcome`/`exit_code` to classify failures: the `provider-failures` spec."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exact exports of `src/domain/records/usage.ts` (`vibeExportDirOf`, `vibeExportFileOf`, `extractVibeExportUsage` and their signatures), and whether the export decode lives in the domain or in `recordPlumbing.ts`. The new `VibeTokenUsage` shape. The four frozen module paths and the stamps now in `src/schemas/release.ts`. The fixture names exported by `tests/helpers/vibe3Fixtures.ts`. Whether `readVibeSessionMetaText` was dropped from `vibeSessionStore.ts`. Any deviation from the planned file lists (in particular which registry tests needed no change), with the reason.",
+      "commit": {
+        "subject": "feat(records): read Vibe usage from its turn exports, at 0.30.0",
+        "body": "Vibe 3 keeps no usage in a session meta.json: each headless turn writes\nan export.json whose usage and cost count that turn only. Record a Vibe\nsession's usage as the sum over its turns' exports, as input, cached\ninput and output tokens and cost, and drop the tool-call counts.\n\nThe four formats that embed the usage (phase-, authoring- and\ndecision-record manifests, interactive-session) move to a next snapshot\nat 0.30.0. Their current shapes are frozen under src/schemas/history\nwith stamp routing, and a frozen Vibe usage lifts to unavailable."
+      },
+      "assignmentReason": "Four persisted formats change at once, each with a frozen history module, stamp routing, lifts and the schemas-package mirror. A miss breaks reading archived records, so this phase takes a higher effort than the default.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-02",
+      "title": "Run Vibe 3 sessions from their stream and export",
+      "objective": "phax runs a Vibe 3 headless turn end to end. The answer comes from the stream's block content, the session id from the turn's export, and a stop's transcript from the kept turn streams. Vibe older than 3.0.3 is refused before any session spawns, and Vibe's home directory is never read.",
+      "detailedInstructions": [
+        "Rewrite `src/schemas/vibeOutput.ts` for the Vibe 3 stream. Each line is a typed entry (`message`, `effect`, `callback`) carrying `sessionId` and `createdAt`, and a message's `content` is an array of blocks. Decode only what phax uses, ignoring unknown keys and skipping undecodable lines. The answer is the text blocks of the last entry with `type: message` and `role: assistant` that holds at least one `type: text` block, joined in order with no separator. Also export a reader for a stream's first decodable entry (its `sessionId` and `createdAt`) for the transcript capture. Remove `findVibeSessionId` and the `session_*`/`meta.json` scan. Keep `hasVibeErroredResultEvent` only if a Vibe 3 entry still carries an error worth classifying for rate limits; otherwise remove it and keep the stderr classification. Failure kinds belong to `provider-failures`.",
+        "Add a version parser beside the stream schema (for example `parseVibeVersion`). It reads `vibe 3.0.3` style output to a semver triple, or reports the text as unparseable.",
+        "In `src/infra/providers/mistralVibe.ts`, refuse an agent turn (run or resume) without `outputJsonlPath` with an `AgentInvocationError` before spawning. Otherwise pass `--output-dir <vibeExportDirOf(outputJsonlPath)>` (from `src/domain/records/usage.ts`) and create that directory first. Keep the stream copied to `outputJsonlPath` as today.",
+        "After the turn exits 0, read the answer from the stream. When no assistant message entry has a text block, fail with an `AgentInvocationError` naming the missing assistant text and the stream path. Read `vibeExportFileOf(outputJsonlPath)` and decode it with `src/schemas/vibeExport.ts`. When it is absent or does not decode, fail with an `AgentInvocationError` naming the missing (or invalid) Vibe export and the exact path read. Take the session id from the export's `session_id`, decode it as today, and `persistSessionId` it.",
+        "Version floor: before the adapter's first Vibe session in the process, run `<executable> --version` once per executable and memoize the result (a module-level map keyed by executable). Below 3.0.3, refuse with an `AgentInvocationError` whose message reads `mistral-vibe <installed> is installed; phax needs 3.0.3 or later.` followed by `Upgrade it: uv tool upgrade mistral-vibe`. On unparseable output, refuse naming what it printed, 3.0.3 and the upgrade command. The refusal comes before any `vibe -p` spawn. Let tests reset or bypass the memo without exporting a test-only API that knip flags.",
+        "Replace `captureVibeTranscript`. It takes the `TranscriptRequest` and lists the `*.jsonl` files directly in `request.phaseFolder` (no recursion, so `interactive-transcripts/` and the `.vibe-export` directories are skipped). It keeps the files whose first decodable entry's `sessionId` equals `request.sessionId`, orders them by that entry's `createdAt`, and concatenates their bytes. With none matching it returns `missing`/`not-found` with a detail naming the session and the folder; a read failure returns `missing`/`unreadable`. It never fails and never reads Vibe's home.",
+        "In `src/ports/backend.ts`, add a required `phaseFolder: string` to `TranscriptRequest` and update the `captureTranscript` doc comment (Vibe reads the kept turn streams, not a store). In `src/app/closeStop.ts`, pass `input.phaseFolder`. Claude Code and Codex captures ignore the field. Update `src/infra/fakes/backend.ts` if it needs the field.",
+        "Remove the Vibe store root. `src/infra/providers/dispatcher.ts` stops passing `roots.vibe` to `runVibeAgent` and the capture. Drop `vibe` from `src/domain/session/storeRoots.ts` (the `VIBE_HOME`/`.vibe` root), from `src/ports/providerStores.ts` and from `src/infra/providerStoreRoots.ts`, and from `tests/helpers/providerStoreRoots.ts` and `tests/setup/providerStores.ts`. Delete `src/domain/session/vibeSessionStore.ts` and `tests/unit/session/vibeSessionStore.test.ts`. Update the comment in `src/cli/commands/runLayers.ts`.",
+        "Extend `tests/helpers/vibe3Fixtures.ts` with the probe stream: `effect` and `callback` entries, then an assistant message `{type: message, role: assistant, content: [{type: text, text: PONG}], sessionId: b8e0e3a1-9ad8-2100-46e7-4a199256f640, createdAt: 1793116136395, …}`. Add a helper that writes a fake `vibe` executable into a temporary directory. The fake prints the version on `--version`, prints a given stream on `-p`, and writes a given `export.json` into its `--output-dir`, or none.",
+        "Tests: rewrite `tests/unit/providers/mistralVibe.test.ts` (answer, missing export, missing assistant text, session id, version floor, turn without transcript path refused), update `tests/unit/providerDispatcher.test.ts` and `tests/unit/session/storeRoots.test.ts`, and update `tests/integration/providerTranscriptStores.test.ts` for the kept-stream capture. Add an integration case where `VIBE_HOME` points to an unreadable directory (chmod 000 in a temp dir) and a two-turn Vibe session plus its stop close still record the answer, session id, summed usage and transcript. Put it in `tests/integration/stopTranscripts.test.ts` or the closest existing stop-close suite. Never read the real `~/.vibe`."
+      ],
+      "planMarkdownAnchor": "#phase-02-vibe-sessions",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/vibeOutput.ts",
+        "src/infra/providers/mistralVibe.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/ports/backend.ts",
+        "src/app/closeStop.ts",
+        "src/ports/providerStores.ts",
+        "src/infra/providerStoreRoots.ts",
+        "src/domain/session/storeRoots.ts",
+        "src/domain/session/vibeSessionStore.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/helpers/providerStoreRoots.ts",
+        "tests/helpers/vibe3Fixtures.ts",
+        "tests/unit/session/vibeSessionStore.test.ts",
+        "tests/unit/session/storeRoots.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts",
+        "tests/unit/providerDispatcher.test.ts",
+        "tests/integration/providerTranscriptStores.test.ts",
+        "tests/integration/stopTranscripts.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/backend.ts",
+        "src/infra/providers/claudeCode.ts",
+        "src/infra/providers/codexCli.ts",
+        "src/infra/providers/transcriptStore.ts",
+        "tests/setup/providerStores.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/integration/heldStopClose.test.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/writeAuthoringRecord.test.ts",
+        "tests/integration/stopTurnCosts.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "`Backend.captureTranscript` (port, consumed by `closeStop`) gains a required `phaseFolder`: the folder whose kept turn streams hold a Vibe session. `ProviderStoreRoots` (port) drops `vibe`: nothing reads Vibe's home. The adapter writes each turn's export at `vibeExportDirOf(transcript)`, the location phase-01's usage reader already expects.",
+      "testStrategy": [
+        {
+          "guarantee": "the answer is the text blocks of the stream's last assistant message entry, past effect and callback entries",
+          "size": "small",
+          "technique": "example",
+          "oracle": "PONG",
+          "loop": "in-phase",
+          "criterion": "ac-pong"
+        },
+        {
+          "guarantee": "arbitrary stream lines are skipped or decoded, never a crash",
+          "size": "small",
+          "technique": "fuzz",
+          "oracle": "the stream reader returns an answer or none",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "two turns of one session each write their own export.json under the phase folder, neither overwriting the other",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "two distinct export.json files with their own usage",
+          "loop": "in-phase",
+          "criterion": "ac-turn-dirs"
+        },
+        {
+          "guarantee": "the session id recorded for a turn is its export's session_id",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the fixture session_id",
+          "loop": "in-phase",
+          "criterion": "ac-usage-sum"
+        },
+        {
+          "guarantee": "a turn that exits 0 with no export.json, or with no assistant text block, fails naming what is missing and the path read",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "AgentInvocationError message holding the missing item and the path",
+          "loop": "in-phase",
+          "criterion": "ac-missing-export"
+        },
+        {
+          "guarantee": "Vibe 2.13.0 or unparseable --version output is refused before any vibe -p spawn, 3.0.3 runs, and the version is read once per executable",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "refusal naming 2.13.0, 3.0.3 and uv tool upgrade mistral-vibe, and the fake's invocation log",
+          "loop": "in-phase",
+          "criterion": "ac-version-floor"
+        },
+        {
+          "guarantee": "a stop's Vibe transcript is its kept turn streams concatenated in createdAt order",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "byte equality with the first stream followed by the second",
+          "loop": "in-phase",
+          "criterion": "ac-transcript"
+        },
+        {
+          "guarantee": "a recorded session no kept stream names is missing with reason not-found, and the close still succeeds",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "transcript outcome missing/not-found and a successful close",
+          "loop": "in-phase",
+          "criterion": "ac-personal-session"
+        },
+        {
+          "guarantee": "with VIBE_HOME unreadable, a two-turn session and its stop close record answer, session id, summed usage and transcript",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "recorded values equal the fixtures",
+          "loop": "in-phase",
+          "criterion": "ac-vibe-home-unreadable"
+        }
+      ],
+      "implementationOrder": [
+        "Stream schema and version parser in `vibeOutput.ts`.",
+        "Fixtures and the fake executable helper.",
+        "`TranscriptRequest.phaseFolder` and the `closeStop` call.",
+        "Adapter: transcript-path refusal, `--output-dir`, answer, export read, session id, version floor, kept-stream capture.",
+        "Dispatcher and store-root removal, deletion of `vibeSessionStore.ts`.",
+        "Integration tests."
+      ],
+      "excludedScope": [
+        "Secure-mode environment and argv (phase-03).",
+        "Read-only narrowing, stop-turn posture and sealed completions (phase-04).",
+        "Classifying a session's outcome or exit code: the `provider-failures` spec.",
+        "Reading Vibe 2.x sessions or `vibe --resume` interactively."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exported functions of `src/schemas/vibeOutput.ts` and their signatures. The memo mechanism of the version floor and how tests reset it. The fake-executable helper in `tests/helpers/vibe3Fixtures.ts` and how to drive it (version, stream, export or none). The exact refusal messages. Confirmation that no code path reads `VIBE_HOME` or `~/.vibe`. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(vibe): run Vibe 3 sessions from their stream and export",
+        "body": "Vibe 3 streams typed entries whose message content is a block array,\nkeeps no session_* directory, and writes export.json into --output-dir\non every exit. Give each headless turn its own export directory beside\nits stream. Take the answer from the last assistant message's text\nblocks, the session id from the export, and a stop's transcript from\nthe kept turn streams in createdAt order. Name a missing export or\nanswer with the path read.\n\nRefuse a Vibe older than 3.0.3 before any session spawns. Remove the\nvibe store root: phax no longer reads Vibe's home directory."
+      },
+      "assignmentReason": "The phase redesigns how phax learns everything about a Vibe session: answer, session id, transcript capture, port field and store-root removal across infra, ports and app, against a stream format no code reads yet. That calls for a higher effort than the default.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-03",
+      "title": "Confine secure Vibe sessions per invocation",
+      "objective": "A secure-mode Vibe session runs confined to the writable roots and exactly the phase's agent commands, through `VIBE_*` variables and `--agent accept-edits`, never under auto-approve. Its `security.json` records it as fully secured, so Vibe can lead strict secure routing.",
+      "detailedInstructions": [
+        "Create `src/domain/session/vibeFlags.ts`, a pure builder in the manner of `src/domain/session/codexFlags.ts` and `claudePermissionFlags.ts`. Given the security policy, the cwd and the agent commands, it returns the Vibe argv flags and the environment additions. Unsafe: `--agent auto-approve`, `--trust`, `--workdir <cwd>`, no extra variables. Secure (and isolated, for type totality, as today): `--agent accept-edits`, `--workdir <cwd>`, one `--add-dir` per `security.filesystem.allowWrite` entry other than the cwd, and the environment `VIBE_OUTSIDE_WORKDIR=deny`, `VIBE_BYPASS_TOOL_PERMISSIONS=false` and `VIBE_TOOLS`. `VIBE_TOOLS` is the JSON `{bash: {permission: ask, allowlist: [<agent commands in order>]}, read_file: {allowlist: []}, write_file: {allowlist: []}, edit: {allowlist: []}, grep: {allowlist: []}}`. Keep the refusal of a secure policy with no writable path (`SecurityEnforcementError`). Never emit `--auto-approve` or `auto-approve` in secure mode. Do not set `web_fetch`/`web_search`.",
+        "In `src/infra/providers/mistralVibe.ts`, replace `buildVibeSecurityFlags` and the hard-coded `--agent` with the builder. Drop the `entry.defaultAgent` override for secure mode, so a provider entry cannot turn auto-approve back on. Merge the environment additions over `process.env` with the model variable. Rewrite the header comment so it describes the per-invocation confinement, not the old partial surface. Keep the argv order `-p <prompt> --agent … --output streaming --output-dir … --workdir … --add-dir …`, then `--resume <id>` on a resumed turn.",
+        "In `src/domain/security/capabilities.ts`, set mistral-vibe to `filesystemJail: strong` and `commandEnforcement: prefix`. Remove `VIBE_PARTIAL_SECURED_MESSAGE` and its note branch. Nothing else in `evaluateProviderSecurity` changes: a strong jail clears `partial-filesystem` and `downgraded`, and `prefix` makes narrow agent commands not degraded.",
+        "Update the tests that pin Vibe's old posture: `tests/unit/security/capabilities.test.ts`, `tests/unit/routing/securityFallback.test.ts` (secure routing with priority mistral-vibe, claude-code now lands on Vibe with `providerSkippedForSecurity` empty), `tests/unit/security/agentCommands.test.ts` and `tests/unit/security/posture.test.ts` where they assert Vibe's `none`/degraded/marks, and `tests/integration/routing.test.ts` if it asserts the skip.",
+        "Add a medium test with the phase-02 fake `vibe` executable. A secure phase on Vibe spawns with `--agent accept-edits` and none of `--agent auto-approve`, `--auto-approve` or `--trust`, and with `VIBE_OUTSIDE_WORKDIR=deny` in its environment. A `config.toml` in a temporary `VIBE_HOME` is byte-identical before and after. Record the argv and environment through the fake, not by reading any real home.",
+        "Check `tests/e2e/semanticTrace.providers.test.ts` and its snapshots for a recorded Vibe argv or posture; update it only if it pins the secure argv (the e2e tier is not run by this phase). Update `src/app/securityStatus.ts` only if it prints the removed partial note."
+      ],
+      "planMarkdownAnchor": "#phase-03-secure-vibe",
+      "plannedFilesToCreate": [
+        "src/domain/session/vibeFlags.ts",
+        "tests/unit/session/vibeFlags.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/providers/mistralVibe.ts",
+        "src/domain/security/capabilities.ts",
+        "tests/unit/security/capabilities.test.ts",
+        "tests/unit/routing/securityFallback.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/security/agentCommands.test.ts",
+        "tests/unit/security/posture.test.ts",
+        "tests/integration/routing.test.ts",
+        "tests/e2e/semanticTrace.providers.test.ts",
+        "src/app/securityStatus.ts",
+        "tests/helpers/vibe3Fixtures.ts",
+        "tests/unit/runArgv.test.ts",
+        "tests/unit/dryRun.test.ts",
+        "tests/integration/stopSecurityRecord.test.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "The Vibe adapter (infra) consumes `AgentRunOptions.security` and `agentCommands`, as the Claude and Codex adapters do. The pure builder in `src/domain/session/vibeFlags.ts` produces `{ argv flags, env additions }` from them. `PROVIDER_SECURITY_CAPABILITIES` (domain) is the single producer of the recorded posture: routing and `security.json` read it unchanged.",
+      "testStrategy": [
+        {
+          "guarantee": "a secure Vibe invocation carries accept-edits, the workdir and one add-dir per extra writable root, never auto-approve, --auto-approve or --trust, and the three secure variables with bash allowlisted to exactly the agent commands",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the spec's section 6 secure-mode invocation",
+          "loop": "in-phase",
+          "criterion": "ac-secure-argv"
+        },
+        {
+          "guarantee": "a secure spawn leaves a config.toml in a temporary VIBE_HOME byte-identical and carries VIBE_OUTSIDE_WORKDIR=deny",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "sha256 before and after, and the fake's recorded environment",
+          "loop": "in-phase",
+          "criterion": "ac-secure-argv"
+        },
+        {
+          "guarantee": "the secure environment sets every key a loose user config could widen: bypass false, the bash allowlist and an empty allowlist for each file tool",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the decoded VIBE_TOOLS JSON and VIBE_BYPASS_TOOL_PERMISSIONS",
+          "loop": "in-phase",
+          "criterion": "ac-loose-config"
+        },
+        {
+          "guarantee": "a secure Vibe phase's posture is not downgraded, has no marks, and records each agent command with prefix enforcement, not degraded",
+          "size": "small",
+          "technique": "example",
+          "oracle": "evaluated posture and agentCommands entries",
+          "loop": "in-phase",
+          "criterion": "ac-secure-routing"
+        },
+        {
+          "guarantee": "strict secure routing with priority mistral-vibe then claude-code selects mistral-vibe and skips none",
+          "size": "small",
+          "technique": "example",
+          "oracle": "selected provider and empty providerSkippedForSecurity",
+          "loop": "in-phase",
+          "criterion": "ac-secure-routing"
+        },
+        {
+          "guarantee": "an unsafe Vibe invocation carries --agent auto-approve and --trust",
+          "size": "small",
+          "technique": "example",
+          "oracle": "expected argv",
+          "loop": "in-phase",
+          "criterion": "ac-unsafe"
+        },
+        {
+          "guarantee": "a secure policy with no writable path is refused before spawning",
+          "size": "small",
+          "technique": "example",
+          "oracle": "SecurityEnforcementError",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "`src/domain/session/vibeFlags.ts` and its unit test.",
+        "Adapter wiring in `mistralVibe.ts`.",
+        "Capability change in `capabilities.ts`.",
+        "Routing, capability and posture tests.",
+        "The medium fake-executable test."
+      ],
+      "excludedScope": [
+        "Read-only sessions, stop-turn narrowing and sealed completions (phase-04).",
+        "Real-Vibe confinement checks (phase-05, e2e tier).",
+        "Network control and MCP scoping.",
+        "Writing any Vibe config file."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exported signature of `src/domain/session/vibeFlags.ts` (inputs, and the shape of the returned argv and env), so phase-04 extends it for read-only and sealed calls. The exact `VIBE_TOOLS` JSON produced for a sample command list. Confirmation that `VIBE_PARTIAL_SECURED_MESSAGE` is gone and no caller remains. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(security): confine secure Vibe sessions per invocation",
+        "body": "Vibe 3 can deny calls outside the workdir, allowlist shell commands and\nrefuse whatever no rule allows, but only when auto-approve is off. Run\nsecure Vibe sessions under --agent accept-edits with\nVIBE_OUTSIDE_WORKDIR=deny, VIBE_BYPASS_TOOL_PERMISSIONS=false and a\nVIBE_TOOLS that allowlists exactly the phase's agent commands and\nempties every file tool's allowlist, so a looser user config cannot\nwiden the session. Unsafe mode keeps auto-approve and --trust.\n\nRecord Vibe's capability as filesystem jail strong and command\nenforcement prefix: a secure Vibe phase is no longer downgraded, and\nVibe can lead strict secure routing."
+      },
+      "assignmentReason": "This phase designs phax's confinement of a provider through a permission system no code in the repository drives yet. It is a security boundary, and a mistake widens what an agent can do, so it runs on the stronger model.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "Read-only Vibe sessions, stop turns and sealed completions",
+      "objective": "Read-only Vibe sessions get only Vibe's reading tools, plus the shell for exactly their granted commands. A stop's first and closing turns on Vibe run read-only and record `read-only-tools`. Sealed completions run on Vibe with no tool enabled. The writing-closing-turn path, which no provider takes any more, is removed.",
+      "detailedInstructions": [
+        "Extend `src/domain/session/vibeFlags.ts`. A read-only session (`AgentRunOptions.readOnly === true`), whatever the policy mode, gets `--agent accept-edits --enabled-tools read_file --enabled-tools grep` with `VIBE_OUTSIDE_WORKDIR=deny` and `VIBE_BYPASS_TOOL_PERMISSIONS=false`. When it has agent commands, it adds `--enabled-tools bash` and the secure `VIBE_TOOLS` (bash allowlist = the granted commands, file tools `allowlist: []`). It carries `--workdir <cwd>` and no `--add-dir` beyond what the secure builder gives. A sealed completion gets `--agent accept-edits --disabled-tools '*'`, the same two variables, `--workdir <completion cwd>`, no `--add-dir` and no `VIBE_TOOLS`.",
+        "In `src/infra/providers/mistralVibe.ts`, honour `readOnly` on run and resume through the builder. Add a sealed-completion entry, for example `runVibeCompletion(prompt, options, entry)`. It goes through the version floor, spawns with the model variable and the sealed flags, and returns the answer from the stream (the phase-02 reader). It needs no export directory and records no session. A missing answer is an `AgentInvocationError` naming it.",
+        "In `src/infra/providers/dispatcher.ts`, route `complete` for mistral-vibe to the sealed completion and drop the `not yet supported for mistral-vibe` refusal. Look up the provider entry as `runAgent` does.",
+        "In `src/domain/security/stopPosture.ts`, `readOnlyNarrowingOf('mistral-vibe')` returns `read-only-tools`. Drop `none` from the domain `ReadOnlyNarrowing` type if nothing else needs it, but keep the `none` literal in `src/schemas/securityPosture.ts`, which older security.json files carry.",
+        "In `src/app/interactiveStop.ts`, remove `turnsCanWrite` and the writing branch of `settleLeftoverClosingTurn`. A leftover closing turn on any provider now only drops the handoff copy, rewrites the seed and clears `turnInProgress`. Remove `restoredClosingTurn` from `LeftoverSettlement`, and any helper only that branch used (let knip confirm; `keepRefusedTurn`/`restorePersonHandoff` stay if first turns use them). Update the comments that say Vibe turns run under the phase's posture (`q-vibe-turns`, around lines 101 and 355).",
+        "In `src/app/closeStop.ts`, remove `restoredClosingTurn` from the close report and its producers. In `src/cli/commands/stopOutput.ts`, remove the `restored an interrupted closing turn's edits` line. Then update `tests/integration/declaredStopClose.test.ts` and `tests/integration/heldStopClose.test.ts`: drop the Vibe writing-turn restore cases, and add one where a leftover Vibe closing turn is settled read-only and its edits stay in the worktree.",
+        "In `src/domain/decide/model.ts`, remove the refusal of a verdicts writer routed to mistral-vibe and its doc sentence, since the adapter now holds a session read-only. Update `tests/unit/decide/model.test.ts`.",
+        "In `README.md`, fix the lines that say Vibe stop turns run under the phase's posture or can write. They now run read-only like the others.",
+        "Update `tests/unit/security/stopPosture.test.ts` and `tests/integration/stopSecurityRecord.test.ts`: a closed Vibe stop records `read-only-tools` with `agentCommands: []` for each turn. Extend `tests/unit/session/vibeFlags.test.ts` and `tests/unit/providers/mistralVibe.test.ts` for read-only and sealed calls, and `tests/unit/providerDispatcher.test.ts` for the sealed completion."
+      ],
+      "planMarkdownAnchor": "#phase-04-read-only-vibe",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/session/vibeFlags.ts",
+        "src/infra/providers/mistralVibe.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/domain/security/stopPosture.ts",
+        "src/app/interactiveStop.ts",
+        "src/app/closeStop.ts",
+        "src/cli/commands/stopOutput.ts",
+        "src/domain/decide/model.ts",
+        "README.md",
+        "tests/unit/session/vibeFlags.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts",
+        "tests/unit/providerDispatcher.test.ts",
+        "tests/unit/security/stopPosture.test.ts",
+        "tests/unit/decide/model.test.ts",
+        "tests/integration/stopSecurityRecord.test.ts",
+        "tests/integration/declaredStopClose.test.ts",
+        "tests/integration/heldStopClose.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/securityPosture.ts",
+        "tests/integration/declaredStopProviderArgv.test.ts",
+        "tests/integration/heldStopReentry.test.ts",
+        "tests/integration/enterPhaseStop.test.ts",
+        "tests/integration/decideVerdicts.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/unit/interactive/reviewStop.test.ts",
+        "tests/unit/npmReadme.test.ts",
+        "tests/helpers/heldRunFixture.ts",
+        "tests/helpers/vibe3Fixtures.ts"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": "`AgentRunOptions.readOnly` (port) is now honoured by the Vibe adapter, as by Claude Code and Codex. `Backend.complete` (port) serves mistral-vibe. `LeftoverSettlement` (app) and the close report consumed by `stopOutput.ts` (cli) lose `restoredClosingTurn`. `readOnlyNarrowingOf` (domain) is the single producer of the `stop.turns[].narrowing` value.",
+      "testStrategy": [
+        {
+          "guarantee": "a read-only Vibe session enables only read_file and grep, plus bash with the granted commands allowlisted when it has any, under accept-edits",
+          "size": "small",
+          "technique": "table",
+          "oracle": "expected argv and env per (no commands, some commands)",
+          "loop": "in-phase",
+          "criterion": "ac-read-only"
+        },
+        {
+          "guarantee": "a closed stop on a Vibe phase records each first and closing turn with narrowing read-only-tools and no agent commands",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "security.json stop.turns",
+          "loop": "in-phase",
+          "criterion": "ac-stop-turns"
+        },
+        {
+          "guarantee": "a sealed completion routed to mistral-vibe runs with --disabled-tools '*', no add-dir, and returns the model's answer",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the fake's recorded argv and its PONG answer",
+          "loop": "in-phase",
+          "criterion": "ac-sealed"
+        },
+        {
+          "guarantee": "a leftover closing turn on Vibe is settled read-only: turnInProgress cleared and the worktree edits kept",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "interactive-session.json and the worktree file content",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a verdicts writer routed to mistral-vibe resolves instead of being refused",
+          "size": "small",
+          "technique": "example",
+          "oracle": "resolveVerdictsModel returns Right with provider mistral-vibe",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Read-only and sealed flags in `vibeFlags.ts`.",
+        "Adapter `readOnly` handling and sealed completion.",
+        "Dispatcher `complete` routing.",
+        "`readOnlyNarrowingOf`.",
+        "Removal of the writing closing turn across `interactiveStop.ts`, `closeStop.ts` and `stopOutput.ts`.",
+        "Decide refusal removal.",
+        "README and tests."
+      ],
+      "excludedScope": [
+        "Real-Vibe checks of read-only enforcement (phase-05).",
+        "Changing the persisted `security.json` shape.",
+        "MCP scoping beyond what the narrowing already drops.",
+        "Interactive resume of a Vibe session."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The read-only and sealed outputs of `vibeFlags.ts`. The name and signature of the sealed-completion entry in `mistralVibe.ts`. What was removed with the writing closing turn (functions, fields, the CLI line) and what stayed because first turns use it. The README lines changed. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(security): narrow Vibe read-only sessions, stop turns and sealed completions",
+        "body": "Vibe 3 can limit a session to named tools or refuse every tool. Run a\nread-only Vibe session with only read_file and grep, plus bash for\nexactly its granted commands. Run a sealed completion with every tool\ndisabled, which also lifts its refusal. A stop's first and closing turns\non Vibe now run read-only and record read-only-tools.\n\nWith every provider's stop turns read-only, remove the writing closing\nturn: turnsCanWrite, the restore of an interrupted turn's edits and its\nstop-output line. Decide's verdicts writer is no longer refused on\nVibe."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "Vibe 3 end to end, and the docs",
+      "objective": "A real-CLI suite proves Vibe 3's secure confinement, loose-config resistance and read-only narrowing when the operator runs it. The docs tell an operator that Vibe runs fully secured, reads nothing from Vibe's home, and needs 3.0.3.",
+      "detailedInstructions": [
+        "Create `tests/e2e/vibeSecure.test.ts`, run only by `pnpm test:e2e:real`, following `tests/e2e/realFlow.test.ts` and the helpers in `tests/e2e/helpers/` (`runCli.ts`, `tempEnv.ts`, `providers.ts`). Skip unless `vibe --version` reports 3.0.3 or later. Each case uses its own temporary repository (`tests/helpers/isolateGit.ts`) as working directory.",
+        "Case `secure confined`: a secure phase forced to mistral-vibe with agent command `git status`, whose prompt asks Vibe to write a file in the worktree, run `git status`, run `git status && touch x`, run `ls /etc` and start `touch y` in the background. Assert the worktree file exists, neither `x` nor `y` exists, the run's phase succeeded with an answer, and its `security.json` has `downgraded: false`, `marks: []` and `enforcement: prefix`. Where the stream is available, assert the three unallowed calls appear as refused tool calls.",
+        "Case `loose config`: run against a temporary `VIBE_HOME` whose `config.toml` the test writes, never a copy of `~/.vibe`. It holds phax's model alias block, `bypass_tool_permissions = true`, `[tools.bash] allowlist = [\"touch\"]` and a `read_file` allowlist naming a temporary directory outside the worktree. The prompt asks Vibe to run `touch x` and read a file in that directory. Assert both are refused, no `x` exists, and the config file is byte-identical afterwards. The suite needs the provider credential from the environment (for example `MISTRAL_API_KEY`) and skips with a clear reason when it is absent.",
+        "Case `read-only`: a read-only Vibe session granted `git status` (a held or declared stop's first turn, or the narrowest real entry that reaches a read-only Vibe session) asks Vibe to `write_file` a worktree file, run `touch x` and run `git status`. Assert the worktree is unchanged and `stop.turns` records `read-only-tools`.",
+        "In `tests/e2e/helpers/providers.ts`, run mistral-vibe in `secure` mode in `E2E_PROVIDERS`, and make `expectedSelectedProvider` return the forced provider for Vibe too. Update the comments that say Vibe's jail is partial.",
+        "`docs/security.md`: change the capability row to `| mistral-vibe | Strong | None | Supported |` with the table's existing column alignment. Rewrite the Vibe provider bullets (per-invocation `VIBE_*` confinement under `--agent accept-edits`, never auto-approve in secure mode, a user config cannot widen it). Change the shell-model row to a prefix allowlist through `VIBE_TOOLS`, not approval policy only. Vibe stop turns move to `read-only-tools` in the stop-turn narrowing list. The section on what phax reads from a provider's store now says nothing is read for Vibe: the answer, session id, usage and transcript come from the turn's stream and export. Add the spec's §11 example: with `providerPriority` `[mistral-vibe, claude-code]` in secure mode the phase runs on Vibe, and `security.json` shows `downgraded: false` with no marks. State the accepted loss: Vibe's enforcement is tool-level, so code an allowed agent command runs can still read outside the roots, as under Claude Code's allowlist.",
+        "`README.md`: drop the claim that Vibe is only partly jailed and skipped by secure runs (around line 617). Remove `~/.vibe`/`VIBE_HOME` from the provider store roots and the Vibe session-id discovery bullet (around lines 501–505).",
+        "`docs/model-routing.md` and `docs/model-catalog.md`: drop the partial-jail caveat for Vibe. `docs/architecture-provider.md`: update any Vibe security or store-read statement. `docs/upgrading.md`: add a step for this release saying Mistral Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`) and that phax no longer reads `~/.vibe`.",
+        "Do not run `pnpm test:e2e:real`: the operator runs it with Vibe 3.0.3 installed. The gate typechecks the new suite through `pnpm test:type`."
+      ],
+      "planMarkdownAnchor": "#phase-05-vibe-end-to-end",
+      "plannedFilesToCreate": [
+        "tests/e2e/vibeSecure.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/e2e/helpers/providers.ts",
+        "docs/security.md",
+        "README.md",
+        "docs/architecture-provider.md",
+        "docs/model-routing.md",
+        "docs/model-catalog.md",
+        "docs/upgrading.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/e2e/helpers/tempEnv.ts",
+        "tests/e2e/helpers/runCli.ts",
+        "tests/e2e/semanticTrace.providers.test.ts",
+        "tests/unit/npmReadme.test.ts",
+        "src/cli/cliDocs.ts",
+        "docs/e2e-testing.md"
+      ],
+      "mode": "headless",
+      "oracle": null,
+      "boundaryContracts": null,
+      "testStrategy": [
+        {
+          "guarantee": "a secure Vibe phase writes in the worktree and runs git status, while the chained, outside and background calls are refused as tool errors and the turn still answers",
+          "size": "large",
+          "technique": "smoke",
+          "oracle": "worktree files, the absence of x and y, and security.json",
+          "loop": "in-phase",
+          "criterion": "ac-secure-confined"
+        },
+        {
+          "guarantee": "a loose user config in VIBE_HOME cannot let a secure session run touch or read outside, and stays byte-identical",
+          "size": "large",
+          "technique": "smoke",
+          "oracle": "absence of x, refused read and sha256 of config.toml",
+          "loop": "in-phase",
+          "criterion": "ac-loose-config"
+        },
+        {
+          "guarantee": "a read-only Vibe session granted git status cannot write_file or touch, and runs git status",
+          "size": "large",
+          "technique": "smoke",
+          "oracle": "unchanged worktree and stop.turns narrowing",
+          "loop": "in-phase",
+          "criterion": "ac-read-only"
+        },
+        {
+          "guarantee": "secure mode forced to mistral-vibe runs the phase on Vibe, not on the Claude Code fallback",
+          "size": "large",
+          "technique": "smoke",
+          "oracle": "selected provider in the phase record and downgraded false",
+          "loop": "in-phase",
+          "criterion": "ac-secure-routing"
+        }
+      ],
+      "implementationOrder": [
+        "`tests/e2e/helpers/providers.ts`.",
+        "`tests/e2e/vibeSecure.test.ts`.",
+        "`docs/security.md`.",
+        "README and the other docs pages."
+      ],
+      "excludedScope": [
+        "Running `pnpm test:e2e:real` (the operator runs it).",
+        "Network control, MCP scoping, Vibe limits and an `xhigh` alias.",
+        "Editing `.claude/skills/` files (that needs `--allow-skill-edits`)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. `pnpm test:e2e:real` is never run by this phase: the operator runs it with Mistral Vibe 3.0.3 installed and the provider credential exported, and its results are what confirm the confinement criteria.",
+      "expectedHandoff": "How to run the new suite (`pnpm test:e2e:real`, required Vibe version, the credential variable it needs and its skip reasons), and which real entry the read-only case uses. A statement that the e2e suite was typechecked but not run, so the operator's run is still owed. The docs sections changed. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "docs(security): show Mistral Vibe as strongly jailed, with a real secure e2e suite",
+        "body": "Add a real-CLI suite for Vibe 3 in secure mode: confinement to the\nworktree and the phase's agent commands, a loose user config that\ncannot widen it, and a read-only session refused writes. The e2e\nproviders helper now runs Vibe in secure mode.\n\nUpdate the security guide (capability row, Vibe bullets, shell model,\nstop-turn narrowing, store reads), the README, the routing, catalog\nand architecture-provider pages, and the upgrade notes: Vibe 3.0.3 is\nrequired, and phax reads nothing from ~/.vibe."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
