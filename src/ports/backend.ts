@@ -86,6 +86,11 @@ export interface TranscriptRequest {
   readonly startedAt: string;
   /** The stop's worktree, where the session ran: Claude Code files its sessions by it. */
   readonly cwd: string;
+  /**
+   * The stop's phase folder: vibe keeps no session store phax reads, so its
+   * transcript is the turn streams kept directly in this folder.
+   */
+  readonly phaseFolder: string;
 }
 
 /** A transcript's bytes exactly as the provider stored them, or why they could not be read. */
@@ -138,12 +143,13 @@ export interface BackendOps {
   probe(prompt: string, options: ProbeOptions): Effect.Effect<ProbeResult, AgentInvocationError>;
 
   /**
-   * Find one session's transcript in its provider's own session store, under
-   * the `ProviderStoreRoots` the backend was built with, and read its bytes.
-   * It writes nothing and never fails: an unsafe session id, an absent file
-   * or any I/O error is a `missing` read. It reads only that session's
-   * transcript (and, for vibe, the `session_id` of candidate `meta.json`s),
-   * never a credential or configuration file.
+   * Find one session's transcript and read its bytes: Claude Code and codex
+   * from their own session store, under the `ProviderStoreRoots` the backend
+   * was built with; vibe from the turn streams kept in `request.phaseFolder`
+   * (it has no store phax reads). It writes nothing and never fails: an
+   * unsafe session id, an absent file or any I/O error is a `missing` read.
+   * It reads only that session's transcript, never a credential or
+   * configuration file.
    */
   captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>;
 }

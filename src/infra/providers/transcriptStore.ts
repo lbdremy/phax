@@ -23,7 +23,7 @@ export function notFound(detail: string): TranscriptRead {
   return { status: "missing", reason: "not-found", detail };
 }
 
-export function unreadable(err: unknown): TranscriptRead {
+function unreadable(err: unknown): TranscriptRead {
   return {
     status: "missing",
     reason: "unreadable",

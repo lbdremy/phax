@@ -8,7 +8,6 @@ export function rootsUnder(home: string): ProviderStoreRootsValue {
   return {
     claude: join(home, ".claude"),
     codex: join(home, ".codex"),
-    vibe: join(home, ".vibe"),
   };
 }
 
@@ -17,11 +16,11 @@ export function providerStoreRootsUnder(home: string): Layer.Layer<ProviderStore
   return Layer.succeed(ProviderStoreRoots, rootsUnder(home));
 }
 
-const PROVIDER_STORE_VARIABLES = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "VIBE_HOME"] as const;
+const PROVIDER_STORE_VARIABLES = ["CLAUDE_CONFIG_DIR", "CODEX_HOME"] as const;
 
 /**
  * The environment for a phax CLI process a test starts: `process.env` with HOME
- * at `home`, `extra` merged over it, and the three provider store variables
+ * at `home`, `extra` merged over it, and the two provider store variables
  * deleted, so a developer's or CI's stores never reach it.
  */
 export function childEnvUnder(

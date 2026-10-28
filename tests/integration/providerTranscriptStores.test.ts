@@ -25,7 +25,14 @@ import { ProviderStoreRoots } from "../../src/ports/providerStores.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { providerStoreRootsUnder, rootsUnder } from "../helpers/providerStoreRoots.js";
-import { VIBE3_EXPORT_SHORT, VIBE3_SESSION_ID, vibe3ExportText } from "../helpers/vibe3Fixtures.js";
+import {
+  VIBE3_EXPORT_SHORT,
+  VIBE3_PONG_STREAM,
+  VIBE3_RESUME_STREAM,
+  VIBE3_SESSION_ID,
+  vibe3ExportText,
+  vibe3StreamText,
+} from "../helpers/vibe3Fixtures.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 
 let root: string;
@@ -72,7 +79,7 @@ function writeBytes(path: string, bytes: Uint8Array | string): void {
 function capture(
   provider: ProviderId,
   sessionId: string,
-  overrides: { cwd?: string; startedAt?: string } = {},
+  overrides: { cwd?: string; startedAt?: string; phaseFolder?: string } = {},
 ): Promise<TranscriptRead> {
   return Effect.flatMap(Backend, (backend) =>
     backend.captureTranscript({
@@ -80,6 +87,7 @@ function capture(
       sessionId,
       startedAt: overrides.startedAt ?? STARTED_AT,
       cwd: overrides.cwd ?? tree,
+      phaseFolder: overrides.phaseFolder ?? phaseFolderOf(),
     }),
   ).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
@@ -99,6 +107,7 @@ function rootsAndCapture(provider: ProviderId) {
         sessionId: "X1",
         startedAt: STARTED_AT,
         cwd: tree,
+        phaseFolder: phaseFolderOf(),
       }),
     };
   });
@@ -111,7 +120,8 @@ function bytesOf(read: TranscriptRead): Uint8Array {
 
 const claudeProjects = () => join(home, ".claude", "projects");
 const codexSessions = () => join(home, ".codex", "sessions");
-const vibeSessions = () => join(home, ".vibe", "logs", "session");
+// The folder a run's vibe turns keep their streams in.
+const phaseFolderOf = () => join(root, "state", "runs", "invoice-export", "phase-02");
 
 describe("captureTranscript on Claude Code", () => {
   it("finds the transcript by the worktree's raw slug", async () => {
@@ -245,48 +255,73 @@ describe("captureTranscript on codex", () => {
 });
 
 describe("captureTranscript on mistral-vibe", () => {
-  function seedVibe(name: string, sessionId: string, messages?: Uint8Array | string): string {
-    const dir = join(vibeSessions(), name);
-    writeBytes(join(dir, "meta.json"), JSON.stringify({ session_id: sessionId }));
-    if (messages !== undefined) writeBytes(join(dir, "messages.jsonl"), messages);
-    return dir;
-  }
+  const FIRST = vibe3StreamText(VIBE3_PONG_STREAM);
+  const SECOND = vibe3StreamText(VIBE3_RESUME_STREAM);
+  const keep = (name: string, bytes: Uint8Array | string): void =>
+    writeBytes(join(phaseFolderOf(), name), bytes);
+  const captured = async (sessionId = VIBE3_SESSION_ID) => capture("mistral-vibe", sessionId);
 
-  it("reads the messages.jsonl of the session the finder locates", async () => {
-    seedVibe("session_20261024_100000_X0ab", "X0abcdef", "other\n");
-    seedVibe("session_20261024_100500_X1ab", "X1abcdef", '{"role":"user"}\n');
+  it("is the session's kept turn streams concatenated in createdAt order, whatever their names", async () => {
+    // The later turn sorts first by name: only createdAt orders them.
+    keep("a-resume.jsonl", SECOND);
+    keep("z-first.jsonl", FIRST);
 
-    const read = await capture("mistral-vibe", "X1abcdef");
-
-    expect(new TextDecoder().decode(bytesOf(read))).toBe('{"role":"user"}\n');
+    expect(new TextDecoder().decode(bytesOf(await captured()))).toBe(FIRST + SECOND);
   });
 
-  it("returns the bytes exactly, invalid UTF-8 included", async () => {
-    seedVibe("session_20261024_100500_X1ab", "X1abcdef", INVALID_UTF8);
+  it("keeps only the streams whose first entry names the session", async () => {
+    const other = vibe3StreamText(VIBE3_PONG_STREAM).replaceAll(VIBE3_SESSION_ID, "other-session");
+    keep("output.jsonl", FIRST);
+    keep("fix-01.jsonl", other);
 
-    expect(bytesOf(await capture("mistral-vibe", "X1abcdef"))).toEqual(INVALID_UTF8);
+    expect(new TextDecoder().decode(bytesOf(await captured()))).toBe(FIRST);
+    expect(new TextDecoder().decode(bytesOf(await captured("other-session")))).toBe(other);
   });
 
-  it("is not-found for a session directory without messages.jsonl, or no session", async () => {
-    expect(await capture("mistral-vibe", "X1abcdef")).toMatchObject({
+  it("lists the folder's own files only: interactive-transcripts and export directories are skipped", async () => {
+    keep("output.jsonl", FIRST);
+    keep(join("interactive-transcripts", `${VIBE3_SESSION_ID}.jsonl`), SECOND);
+    keep(join("output.vibe-export", "nested.jsonl"), SECOND);
+
+    expect(new TextDecoder().decode(bytesOf(await captured()))).toBe(FIRST);
+  });
+
+  it("returns the bytes exactly, invalid UTF-8 after the first entry included", async () => {
+    const [firstLine] = FIRST.split("\n");
+    const bytes = Uint8Array.from([...new TextEncoder().encode(`${firstLine}\n`), ...INVALID_UTF8]);
+    keep("output.jsonl", bytes);
+
+    expect(bytesOf(await captured())).toEqual(bytes);
+  });
+
+  it("is not-found when no kept stream names the session, as for one run in vibe's own interface", async () => {
+    keep("output.jsonl", FIRST);
+    keep("notes.jsonl", "not a vibe stream\n");
+
+    expect(await captured("a-personal-session")).toMatchObject({
       status: "missing",
       reason: "not-found",
     });
-    seedVibe("session_20261024_100500_X1ab", "X1abcdef");
-    expect(await capture("mistral-vibe", "X1abcdef")).toMatchObject({
-      status: "missing",
-      reason: "not-found",
-    });
   });
 
-  it.skipIf(!canLock)("is unreadable when the session folder cannot be read", async () => {
-    seedVibe("session_20261024_100500_X1ab", "X1abcdef", "x\n");
-    lock(vibeSessions());
+  it("is not-found when the phase folder is not there", async () => {
+    expect(await captured()).toMatchObject({ status: "missing", reason: "not-found" });
+  });
 
-    expect(await capture("mistral-vibe", "X1abcdef")).toMatchObject({
-      status: "missing",
-      reason: "unreadable",
-    });
+  it.skipIf(!canLock)("is unreadable when the phase folder cannot be read", async () => {
+    keep("output.jsonl", FIRST);
+    lock(phaseFolderOf());
+
+    expect(await captured()).toMatchObject({ status: "missing", reason: "unreadable" });
+  });
+
+  it.skipIf(!canLock)("never reads vibe's home, whatever VIBE_HOME is", async () => {
+    const vibeHome = join(root, "vibe-home");
+    writeBytes(join(vibeHome, "logs", "session", "session_1", "messages.jsonl"), FIRST);
+    vi.stubEnv("VIBE_HOME", vibeHome);
+    lock(vibeHome);
+
+    expect(await captured()).toMatchObject({ status: "missing", reason: "not-found" });
   });
 });
 
@@ -342,7 +377,7 @@ describe("the provider store roots of a command's layers", () => {
       probe.pipe(Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG))),
     );
 
-    expect(roots).toEqual({ claude: null, codex: null, vibe: null });
+    expect(roots).toEqual({ claude: null, codex: null });
     expect(read).toEqual({
       status: "missing",
       reason: "not-found",

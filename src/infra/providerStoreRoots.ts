@@ -5,8 +5,8 @@ import { ProviderStoreRoots } from "../ports/providerStores.js";
 
 /**
  * The provider store roots of this invocation, from the environment and the
- * home directory. The only code that reads `CLAUDE_CONFIG_DIR`, `CODEX_HOME`
- * and `VIBE_HOME`.
+ * home directory. The only code that reads `CLAUDE_CONFIG_DIR` and
+ * `CODEX_HOME`.
  */
 export const ProviderStoreRootsLive: Layer.Layer<ProviderStoreRoots> = Layer.sync(
   ProviderStoreRoots,

@@ -4,6 +4,6 @@
 // in any child that inherits its environment. Not used by vitest.e2e.config.ts,
 // which also backs `test:e2e:real`: a real provider binary would read an
 // empty value.
-for (const variable of ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "VIBE_HOME"]) {
+for (const variable of ["CLAUDE_CONFIG_DIR", "CODEX_HOME"]) {
   process.env[variable] = "";
 }

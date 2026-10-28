@@ -1,5 +1,5 @@
 import { Effect, Either } from "effect";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { mkdir, readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -18,23 +18,19 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
+import { vibeExportDirOf, vibeExportFileOf } from "../../domain/records/usage.js";
 import type { SecurityPolicy } from "../../domain/security/types.js";
-import { findVibeSessionDir, type VibeStoreReads } from "../../domain/session/vibeSessionStore.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
+import { decodeVibeExportText } from "../../schemas/vibeExport.js";
 import {
   findVibeResultEvent,
-  findVibeSessionId,
-  hasVibeErroredResultEvent,
+  findVibeStreamHead,
+  parseVibeVersion,
+  type VibeVersion,
 } from "../../schemas/vibeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
-import {
-  captureFromStore,
-  isAbsence,
-  notFound,
-  readStoreFile,
-  unreadable,
-} from "./transcriptStore.js";
+import { captureFromStore, isAbsence, notFound } from "./transcriptStore.js";
 
 type VibeProviderEntry = {
   readonly executable: string;
@@ -121,6 +117,10 @@ export function buildVibeArgs(
     entry.defaultAgent ?? "auto-approve",
     "--output",
     "streaming",
+    // Each turn's export (usage, session id, outcome) lands beside its stream.
+    ...(options.outputJsonlPath === undefined
+      ? []
+      : ["--output-dir", vibeExportDirOf(options.outputJsonlPath)]),
     ...securityFlags,
   ];
   if (resumeSessionId) {
@@ -216,47 +216,129 @@ function rateLimitErrorFor(classification: {
     : new RateLimitError({ message: "Vibe stopped: rate limit hit.", ...fields });
 }
 
-// The vibe session finder's reads, straight from disk; a failed read is null.
-// The first error other than absence is kept, so a store that cannot be read
-// is told apart from one that holds no such session.
-function nodeVibeReads(): { reads: VibeStoreReads; firstError: () => unknown } {
-  let error: unknown;
-  const keep = (err: unknown): null => {
-    if (error === undefined && !isAbsence(err)) error = err;
-    return null;
-  };
-  return {
-    reads: {
-      list: (path) => Effect.promise(() => readdir(path).catch(keep)),
-      readText: (path) => Effect.promise(() => readFile(path, "utf8").catch(keep)),
-    },
-    firstError: () => error,
-  };
+// Vibe 3.0.3 is the first release whose headless turns write an export.json
+// into --output-dir and whose secure controls phax relies on.
+const MIN_VIBE_VERSION: VibeVersion = { major: 3, minor: 0, patch: 3 };
+const MIN_VIBE_VERSION_TEXT = "3.0.3";
+const VIBE_UPGRADE_HINT = "Upgrade it: uv tool upgrade mistral-vibe";
+const VERSION_TIMEOUT_MS = 30_000;
+
+const versionTextOf = (version: VibeVersion): string =>
+  `${version.major}.${version.minor}.${version.patch}`;
+
+function isBelowFloor(version: VibeVersion): boolean {
+  if (version.major !== MIN_VIBE_VERSION.major) return version.major < MIN_VIBE_VERSION.major;
+  if (version.minor !== MIN_VIBE_VERSION.minor) return version.minor < MIN_VIBE_VERSION.minor;
+  return version.patch < MIN_VIBE_VERSION.patch;
 }
 
-// vibe's transcript file in a session directory. The name is unverified
-// against a current vibe release, like `vibe --resume`.
-const VIBE_TRANSCRIPT_FILE = "messages.jsonl";
+function readVersionOutput(executable: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      executable,
+      ["--version"],
+      { timeout: VERSION_TIMEOUT_MS, encoding: "utf8" },
+      (error, stdout, stderr) => {
+        const printed = `${stdout}${stderr}`.trim();
+        // A binary that cannot run prints nothing; one that ran and failed
+        // printed something, which the version parse then judges.
+        if (error !== null && printed === "") reject(error);
+        else resolve(printed);
+      },
+    );
+  });
+}
+
+// What each executable printed for `--version`, read once per process. A read
+// that failed is forgotten, so the next session asks again. Tests give each fake
+// its own path, which is its own key.
+const versionOutputs = new Map<string, Promise<string>>();
+
+function versionOutputOf(executable: string): Promise<string> {
+  const known = versionOutputs.get(executable);
+  if (known !== undefined) return known;
+  const read = readVersionOutput(executable);
+  versionOutputs.set(executable, read);
+  read.catch(() => versionOutputs.delete(executable));
+  return read;
+}
+
+/** Refuses a vibe older than 3.0.3, or one whose `--version` cannot be read, before any session spawns. */
+function requireSupportedVibe(
+  executable: string,
+  phaseFolderPath: string | undefined,
+): Effect.Effect<void, AgentInvocationError> {
+  const argv = [executable, "--version"];
+  const refuse = (message: string): AgentInvocationError =>
+    new AgentInvocationError({ message, argv, phaseFolderPath });
+  return Effect.tryPromise({
+    try: () => versionOutputOf(executable),
+    catch: (err) =>
+      refuse(
+        `Could not run ${executable} --version: ${err instanceof Error ? err.message : String(err)}\nphax needs mistral-vibe ${MIN_VIBE_VERSION_TEXT} or later. ${VIBE_UPGRADE_HINT}`,
+      ),
+  }).pipe(
+    Effect.flatMap((printed) => {
+      const version = parseVibeVersion(printed);
+      if (version === undefined) {
+        return Effect.fail(
+          refuse(
+            `mistral-vibe printed ${JSON.stringify(printed)} for --version, which phax cannot read as a version; phax needs ${MIN_VIBE_VERSION_TEXT} or later.\n${VIBE_UPGRADE_HINT}`,
+          ),
+        );
+      }
+      return isBelowFloor(version)
+        ? Effect.fail(
+            refuse(
+              `mistral-vibe ${versionTextOf(version)} is installed; phax needs ${MIN_VIBE_VERSION_TEXT} or later.\n${VIBE_UPGRADE_HINT}`,
+            ),
+          )
+        : Effect.void;
+    }),
+  );
+}
 
 /**
- * A vibe session's transcript: the `messages.jsonl` of the session directory
- * the shared finder (`findVibeSessionDir`) locates under
- * `<vibe root>/logs/session`.
+ * A vibe session's transcript: the turn streams kept directly in the phase
+ * folder (`request.phaseFolder`, no recursion) whose first decodable entry
+ * carries the session id, ordered by that entry's `createdAt` and
+ * concatenated byte for byte. A session no kept stream names (one the person
+ * ran in vibe's own interface) is `not-found`. Vibe's home is never read.
  */
 export function captureVibeTranscript(
-  vibeRoot: string | null,
   request: TranscriptRequest,
 ): Effect.Effect<TranscriptRead, never> {
-  return captureFromStore(vibeRoot, request.sessionId, async (root) => {
-    const { reads, firstError } = nodeVibeReads();
-    const dir = await Effect.runPromise(findVibeSessionDir(reads, root, request.sessionId));
-    if (dir === null) {
-      const error = firstError();
-      return error === undefined
-        ? notFound(`no vibe session ${request.sessionId} under ${join(root, "logs", "session")}`)
-        : unreadable(error);
+  return captureFromStore(request.phaseFolder, request.sessionId, async (folder) => {
+    let entries;
+    try {
+      entries = await readdir(folder, { withFileTypes: true });
+    } catch (err) {
+      if (isAbsence(err)) return notFound(`no phase folder ${folder}`);
+      throw err;
     }
-    return readStoreFile(join(dir, VIBE_TRANSCRIPT_FILE));
+    const turns: { name: string; createdAt: number; bytes: Buffer }[] = [];
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+      let bytes: Buffer;
+      try {
+        bytes = await readFile(join(folder, entry.name));
+      } catch (err) {
+        if (isAbsence(err)) continue;
+        throw err;
+      }
+      const head = findVibeStreamHead(bytes.toString("utf8").split("\n"));
+      if (head?.sessionId === request.sessionId) {
+        turns.push({ name: entry.name, createdAt: head.createdAt, bytes });
+      }
+    }
+    if (turns.length === 0) {
+      return notFound(`no kept turn stream of vibe session ${request.sessionId} in ${folder}`);
+    }
+    turns.sort((a, b) => a.createdAt - b.createdAt || a.name.localeCompare(b.name));
+    return {
+      status: "found",
+      bytes: new Uint8Array(Buffer.concat(turns.map((turn) => turn.bytes))),
+    };
   });
 }
 
@@ -264,8 +346,6 @@ export function runVibeAgent(
   prompt: string,
   options: AgentRunOptions,
   entry: VibeProviderEntry,
-  /** Where the session is discovered (`ProviderStoreRoots`); null finds none. */
-  vibeRoot: string | null,
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
@@ -276,6 +356,16 @@ export function runVibeAgent(
   | SecurityEnforcementError
   | FsError
 > {
+  const transcriptPath = options.outputJsonlPath;
+  if (transcriptPath === undefined) {
+    return Effect.fail(
+      new AgentInvocationError({
+        message:
+          "A mistral-vibe turn needs a transcript path (outputJsonlPath): its export.json is written beside it.",
+        phaseFolderPath: options.phaseFolderPath,
+      }),
+    );
+  }
   let args: string[];
   try {
     args = buildVibeArgs(entry, prompt, options, resumeSessionId);
@@ -286,33 +376,33 @@ export function runVibeAgent(
     throw err;
   }
   const argv = [entry.executable, ...args];
+  const failInvocation = (message: string): AgentInvocationError =>
+    new AgentInvocationError({ message, argv, phaseFolderPath: options.phaseFolderPath });
 
   return Effect.gen(function* () {
-    const startedAtMs = Date.now();
+    yield* requireSupportedVibe(entry.executable, options.phaseFolderPath);
+
+    yield* Effect.tryPromise({
+      try: () => mkdir(vibeExportDirOf(transcriptPath), { recursive: true }),
+      catch: wrapFsError,
+    });
 
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, options.outputJsonlPath, options.cwd, options.model),
+      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
           argv,
           stderr: err instanceof Error ? err.message : String(err),
         });
-        return new AgentInvocationError({
-          message: err instanceof Error ? err.message : String(err),
-          argv,
-          phaseFolderPath: options.phaseFolderPath,
-        });
+        return failInvocation(err instanceof Error ? err.message : String(err));
       },
     });
 
-    if (exitCode !== 0 || hasVibeErroredResultEvent(lines)) {
+    if (exitCode !== 0) {
       const classification = classifyRateLimit(stderr, lines);
       if (classification !== undefined) {
         return yield* Effect.fail(rateLimitErrorFor(classification));
       }
-    }
-
-    if (exitCode !== 0) {
       writeAgentErrorLog(options.phaseFolderPath, { argv, exitCode, stderr });
       return yield* Effect.fail(
         new AgentInvocationError({
@@ -328,37 +418,37 @@ export function runVibeAgent(
     const found = findVibeResultEvent(lines);
     if (!found) {
       return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: "No assistant message found in vibe streaming output",
-          outputPath: options.outputJsonlPath ?? "",
-        }),
+        failInvocation(
+          `vibe's stream holds no assistant message with a text block, so there is no answer to read (stream: ${transcriptPath})`,
+        ),
       );
     }
 
-    const sessionIdString = yield* Effect.tryPromise({
-      try: () => findVibeSessionId({ cwd: options.cwd, sinceMs: startedAtMs, vibeRoot }),
-      catch: (err): AgentSessionIdMissingError =>
-        new AgentSessionIdMissingError({
-          message: `Failed to read vibe session log: ${err instanceof Error ? err.message : String(err)}`,
-          outputPath: options.outputJsonlPath ?? "",
-        }),
+    const exportPath = vibeExportFileOf(transcriptPath);
+    const exportText = yield* Effect.tryPromise({
+      try: () => readFile(exportPath, "utf8"),
+      catch: (err) =>
+        failInvocation(
+          isAbsence(err)
+            ? `vibe wrote no export.json (missing Vibe export at ${exportPath})`
+            : `could not read the Vibe export at ${exportPath}: ${err instanceof Error ? err.message : String(err)}`,
+        ),
     });
-
-    if (sessionIdString === undefined) {
+    const exported = decodeVibeExportText(exportText);
+    if (Either.isLeft(exported)) {
       return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: "No vibe session log meta.json found for the current run",
-          outputPath: options.outputJsonlPath ?? "",
-        }),
+        failInvocation(
+          `invalid Vibe export at ${exportPath} (${exported.left.reason}): ${exported.left.detail}`,
+        ),
       );
     }
 
-    const sessionIdResult = decodeClaudeSessionId(sessionIdString);
+    const sessionIdResult = decodeClaudeSessionId(exported.right.session_id);
     if (Either.isLeft(sessionIdResult)) {
       return yield* Effect.fail(
         new AgentSessionIdMissingError({
-          message: `Invalid session_id in vibe session log: "${sessionIdString}"`,
-          outputPath: options.outputJsonlPath ?? "",
+          message: `Invalid session_id in the Vibe export at ${exportPath}: "${exported.right.session_id}"`,
+          outputPath: transcriptPath,
         }),
       );
     }
@@ -374,7 +464,7 @@ export function runVibeAgent(
 
     return {
       sessionId: capturedSessionId,
-      outputPath: options.outputJsonlPath ?? "",
+      outputPath: transcriptPath,
       finalText: found.finalText,
     };
   });
