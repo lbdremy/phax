@@ -25,6 +25,7 @@ import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import { FailureWithFollowUpsError, UsageLimitError } from "../../src/domain/errors.js";
 import { planCacheKey } from "../../src/domain/planCache/key.js";
 import { structureFindings } from "../../src/domain/plan/lint.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -1642,16 +1643,29 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
     expect(recordsBranchExists()).toBe(false);
   });
 
-  it("a failed decide warns when its record is refused, and still fails as the decide did", async () => {
+  it("a failed decide hands its refused record to the CLI, and still fails as the decide did", async () => {
     writeSpec(SPEC, specDocument([Q1]));
     commitAll();
     const h = harness();
     h.github.setVisibility("public");
     h.backend.failNextResumeWithRateLimit({ kind: "usage_limit" });
 
-    expectRefused(await h.run({ records: RECORDS_ON }), 8, headSha());
+    const result = await h.run({ records: RECORDS_ON });
+    expectRefused(result, 8, headSha());
 
-    expect(h.warnings.some((w) => w.startsWith("decision record refused: "))).toBe(true);
+    // The refusal rides on the error, after the cause, saying it follows the failed session.
+    const error = Either.isLeft(result) ? result.left : undefined;
+    expect(error).toBeInstanceOf(FailureWithFollowUpsError);
+    expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
+      UsageLimitError,
+    );
+    expect(
+      error instanceof FailureWithFollowUpsError &&
+        error.followUps.every((w) =>
+          w.startsWith("decision record refused, following the failed session: "),
+        ),
+    ).toBe(true);
+    expect(h.warnings.some((w) => w.startsWith("decision record refused"))).toBe(false);
     expect(recordsBranchExists()).toBe(false);
   });
 });

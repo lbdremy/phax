@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { GitHub, GitHubError } from "../ports/github.js";
 import type { BranchName } from "../domain/branded.js";
-import type { RepoVisibility } from "../domain/records/destination.js";
+import type { RepoVisibility, VisibilityReading } from "../domain/records/destination.js";
 import { formatParseError } from "../schemas/formatError.js";
 import { decodeGithubRepoView } from "../schemas/githubRepoView.js";
 
@@ -49,15 +49,19 @@ function ghRun(
 function ghRunAllowFail(
   args: readonly string[],
   cwd: string,
-): Effect.Effect<{ stdout: string; stderr: string; exitCode: number }, never> {
-  return Effect.sync(() => ({ stdout: "", stderr: "", exitCode: 0 })).pipe(
-    Effect.flatMap(() =>
-      ghRun(args, cwd).pipe(
-        Effect.map((r) => ({ ...r, exitCode: 0 })),
-        Effect.catchAll((err) =>
-          Effect.succeed({ stdout: "", stderr: err.stderr ?? "", exitCode: err.exitCode ?? 1 }),
-        ),
-      ),
+): Effect.Effect<
+  { stdout: string; stderr: string; exitCode: number; message: string | null },
+  never
+> {
+  return ghRun(args, cwd).pipe(
+    Effect.map((r) => ({ ...r, exitCode: 0, message: null })),
+    Effect.catchAll((err) =>
+      Effect.succeed({
+        stdout: "",
+        stderr: err.stderr ?? "",
+        exitCode: err.exitCode ?? 1,
+        message: err.message,
+      }),
     ),
   );
 }
@@ -74,12 +78,20 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
 
   visibility: (repo) =>
     ghRunAllowFail(["repo", "view", "--json", "visibility", "-q", ".visibility"], repo).pipe(
-      Effect.map(({ stdout, exitCode }): RepoVisibility => {
-        if (exitCode !== 0) return "unknown";
+      Effect.map(({ stdout, stderr, exitCode, message }): VisibilityReading => {
+        if (exitCode !== 0) {
+          // gh's own first non-empty stderr line; the spawn error's message
+          // when gh could not run at all.
+          const firstLine = stderr
+            .split("\n")
+            .map((line) => line.trim())
+            .find((line) => line !== "");
+          return { visibility: "unknown", ghError: firstLine ?? message };
+        }
         const value = stdout.trim().toUpperCase();
-        if (value === "PUBLIC") return "public";
-        if (value === "PRIVATE") return "private";
-        return "unknown";
+        const visibility: RepoVisibility =
+          value === "PUBLIC" ? "public" : value === "PRIVATE" ? "private" : "unknown";
+        return { visibility, ghError: null };
       }),
     ),
 

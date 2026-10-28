@@ -13,6 +13,9 @@ import {
   type AgentInvocationError,
   type AgentSessionFailedError,
   type AgentSessionIdMissingError,
+  type FailureWithFollowUpsError,
+  failWithFollowUps,
+  isSessionFailureCause,
   type RateLimitError,
   type SecurityEnforcementError,
   type UsageLimitError,
@@ -158,6 +161,7 @@ export type AuthorArtifactError =
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
+  | FailureWithFollowUpsError
   | SecurityEnforcementError
   | FsError
   | GitError;
@@ -545,11 +549,13 @@ export function authorArtifact(
           })
         : { kind: "no-record" };
     if (Either.isLeft(outcome)) {
-      const warning = recordWarning(record);
-      if (warning !== undefined) input.output.warn(warning);
-      const pushWarning = recordPushWarning(recordPush);
-      if (pushWarning !== undefined) input.output.warn(pushWarning);
-      return yield* Effect.fail(outcome.left);
+      // The cause prints first: the record's warnings ride on the error.
+      return yield* Effect.fail(
+        failWithFollowUps(outcome.left, [
+          recordWarning(record, isSessionFailureCause(outcome.left)),
+          recordPushWarning(recordPush),
+        ]),
+      );
     }
     return { ...outcome.right, record, recordPush };
   });
@@ -601,7 +607,10 @@ function recordSession(
  * say (written, or records off). A refused destination names its remedy, as
  * phase records do.
  */
-export function recordWarning(record: AuthoringRecordStatus): string | undefined {
+export function recordWarning(
+  record: AuthoringRecordStatus,
+  followingFailedSession = false,
+): string | undefined {
   switch (record.kind) {
     case "written":
     case "records-off":
@@ -609,7 +618,7 @@ export function recordWarning(record: AuthoringRecordStatus): string | undefined
     case "deferred-destination":
       return "authoring record not written — the dedicated records clone is not configured (run `phax records sync`)";
     case "refused":
-      return `authoring record refused: ${record.message} (remedy: ${record.remedy})`;
+      return `authoring record refused${followingFailedSession ? ", following the failed session" : ""}: ${record.message} (remedy: ${record.remedy})`;
     case "write-failed":
       return `failed to write the authoring record (${record.message})`;
   }

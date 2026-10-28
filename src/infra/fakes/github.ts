@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 import type { BranchName } from "../../domain/branded.js";
-import type { RepoVisibility } from "../../domain/records/destination.js";
+import type { RepoVisibility, VisibilityReading } from "../../domain/records/destination.js";
 import { GitHub, type GitHubOps, GitHubError } from "../../ports/github.js";
 
 export type GitHubCall =
@@ -31,6 +31,7 @@ export class FakeGitHubImpl implements GitHubOps {
   // Defaults to "private" — the common happy-path case — so existing tests
   // that never call setVisibility() keep an in-repo destination allowed.
   configuredVisibility: RepoVisibility = "private";
+  private visibilityError: string | null = null;
   configuredDefaultBranch = "main";
   configuredWebUrl = "https://github.com/example/repo";
   private nextRepoWebUrlError: string | undefined;
@@ -56,6 +57,13 @@ export class FakeGitHubImpl implements GitHubOps {
 
   setVisibility(value: RepoVisibility): void {
     this.configuredVisibility = value;
+    this.visibilityError = null;
+  }
+
+  /** Make `visibility` read as unknown, carrying gh's first stderr line. */
+  failVisibility(firstLine: string): void {
+    this.configuredVisibility = "unknown";
+    this.visibilityError = firstLine;
   }
 
   setDefaultBranch(branch: string): void {
@@ -113,9 +121,12 @@ export class FakeGitHubImpl implements GitHubOps {
     return Effect.succeed(this.recognized);
   }
 
-  visibility(repo: string): Effect.Effect<RepoVisibility, GitHubError> {
+  visibility(repo: string): Effect.Effect<VisibilityReading, GitHubError> {
     this.calls.push({ method: "visibility", repo });
-    return Effect.succeed(this.configuredVisibility);
+    return Effect.succeed({
+      visibility: this.configuredVisibility,
+      ghError: this.visibilityError,
+    });
   }
 
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError> {

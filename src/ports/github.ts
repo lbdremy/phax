@@ -1,6 +1,6 @@
 import { Context, Data, Effect } from "effect";
 import type { BranchName } from "../domain/branded.js";
-import type { RepoVisibility } from "../domain/records/destination.js";
+import type { VisibilityReading } from "../domain/records/destination.js";
 
 export class GitHubError extends Data.TaggedError("GitHubError")<{
   message: string;
@@ -20,8 +20,10 @@ export interface GitHubOps {
    * unavailable, the repo is on a non-GitHub host, or the query fails —
    * never guessed as `"private"` (spec §5.4 requires an explicit
    * acknowledgement before an unknown visibility is treated as safe).
+   * `ghError` is the host's own first stderr line when the query failed,
+   * never a guess; null otherwise.
    */
-  visibility(repo: string): Effect.Effect<RepoVisibility, GitHubError>;
+  visibility(repo: string): Effect.Effect<VisibilityReading, GitHubError>;
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError>;
   /**
    * The repository's `https://` web URL, as the host reports it. Never

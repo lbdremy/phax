@@ -82,6 +82,7 @@ import {
   StopCloseRefusedError,
   UnsafeGitStateError,
   UsageLimitError,
+  FailureWithFollowUpsError,
 } from "../../domain/errors.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
@@ -191,6 +192,8 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
 ];
 
 export function exitCodeForError(err: unknown): number {
+  // Follow-up warnings never change the exit code: the cause's code stands.
+  if (err instanceof FailureWithFollowUpsError) return exitCodeForError(err.cause);
   // A refused close carries its own code: 4, 5, 1, 8 or 14.
   if (err instanceof StopCloseRefusedError) return err.lastClose.exitCode;
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
@@ -269,6 +272,7 @@ export function exitCodeForError(err: unknown): number {
  * keeps its generic code.
  */
 export function exitCodeForAuthoringError(err: unknown): number {
+  if (err instanceof FailureWithFollowUpsError) return exitCodeForAuthoringError(err.cause);
   if (err instanceof ArtifactCommitFailedError) return 12;
   return exitCodeForError(err);
 }

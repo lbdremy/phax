@@ -49,6 +49,7 @@ import {
 } from "./runLayers.js";
 import {
   isSessionFailureError,
+  splitFollowUps,
   renderSessionFailure,
   retryCommandLine,
 } from "./sessionFailureOutput.js";
@@ -474,7 +475,8 @@ export async function runCreateArtifactHeadless(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    if (isSessionFailureError(result.left)) {
+    const { cause, followUps } = splitFollowUps(result.left);
+    if (isSessionFailureError(cause)) {
       const retry = retryCommandLine([
         "artifact",
         "new",
@@ -490,12 +492,13 @@ export async function runCreateArtifactHeadless(
         ...(opts.effort === undefined ? [] : ["--effort", opts.effort]),
       ]);
       const pipeNote = opts.brief === "-" ? " (pipe the same brief again)" : "";
-      for (const line of renderSessionFailure(result.left, `${retry}${pipeNote}`)) {
+      for (const line of renderSessionFailure(cause, `${retry}${pipeNote}`)) {
         out.error(line);
       }
     } else {
-      out.error(`✗ authoring failed: ${result.left.message}`);
+      out.error(`✗ authoring failed: ${(cause as { message: string }).message}`);
     }
+    for (const followUp of followUps) out.warn(followUp);
     return exitCodeForAuthoringError(result.left);
   }
 

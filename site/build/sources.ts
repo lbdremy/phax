@@ -22,6 +22,7 @@ const SOURCE_FILES = [
   "docs/oracle-phases.md",
   "docs/assignment-bounds.md",
   "docs/upgrading.md",
+  "docs/agent-session-failures.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */

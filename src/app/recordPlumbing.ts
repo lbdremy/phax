@@ -10,7 +10,7 @@ import {
 import {
   decideRecordsDestination,
   type RecordsDestinationRefusalReason,
-  type RepoVisibility,
+  type VisibilityReading,
 } from "../domain/records/destination.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
@@ -101,12 +101,14 @@ export function resolveRecordDestination(
     // transcripts on — a skeleton record is safe in-repo whatever the
     // visibility, and a dedicated repo is safe whatever the visibility, so
     // asking avoids a needless `gh` call in both of those cases.
-    let visibility: RepoVisibility = "unknown";
+    let visibility: VisibilityReading = { visibility: "unknown", ghError: null };
     if (input.records.transcript && input.records.destination.kind === "in-repo") {
       const github = yield* GitHub;
       visibility = yield* github
         .visibility(input.repoRoot)
-        .pipe(Effect.orElseSucceed(() => "unknown" as const));
+        .pipe(
+          Effect.orElseSucceed((): VisibilityReading => ({ visibility: "unknown", ghError: null })),
+        );
     }
     const decision = decideRecordsDestination({
       transcript: input.records.transcript,

@@ -117,7 +117,7 @@ export function configureRecords(
     }
 
     const github = yield* GitHub;
-    const visibility = yield* github.visibility(repoRoot);
+    const { visibility } = yield* github.visibility(repoRoot);
 
     const records = yield* askRecordsAnswers({ visibility });
 

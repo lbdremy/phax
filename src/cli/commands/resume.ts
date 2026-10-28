@@ -44,6 +44,7 @@ import {
 } from "./runLayers.js";
 import {
   isSessionFailureError,
+  splitFollowUps,
   pausedHandoffFailure,
   pausedNetworkFailure,
   renderHandoffTurnPause,
@@ -312,7 +313,7 @@ export async function runResume(
     );
 
     if (Either.isLeft(result)) {
-      const err = result.left;
+      const { cause: err, followUps } = splitFollowUps(result.left);
       if (err instanceof AwaitingReviewStopError) {
         for (const line of renderStop(err.report)) out.log(line);
         return exitCodeForError(err);
@@ -423,6 +424,7 @@ export async function runResume(
           ...(opts.skipOracle === true ? ["--skip-oracle"] : []),
         ]);
         for (const line of renderSessionFailure(err, retry)) out.error(line);
+        for (const followUp of followUps) out.warn(followUp);
         return exitCodeForError(err);
       }
       if (err instanceof AgentInvocationError) {

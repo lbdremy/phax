@@ -150,7 +150,7 @@ export function runInitWizard(input: {
       let records: WizardAnswers["records"];
       if (recordsEnabled) {
         const github = yield* GitHub;
-        const visibility = yield* github.visibility(cwd);
+        const { visibility } = yield* github.visibility(cwd);
         records = yield* askRecordsAnswers({ visibility });
       }
 
