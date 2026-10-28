@@ -31,6 +31,9 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **A turn that ran under another config is refused.** After each secure or read-only turn, phax compares the config Vibe ran with (its `export.json`) with what phax set, and refuses the result on a difference, naming the field in `agent-error.log`.
 - **MCP on Vibe.** MCP servers and connectors are off in a session whose `mcp.mode` is `disabled` or `allowlist`: Vibe cannot load only some servers.
 - **Records.** Vibe usage is `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`, summed over the phase's turn, fix attempts and handoff. Older records still read; an older `@lbdremy/phax-schemas` cannot read 0.30.0 records.
+- **Two Mistral efforts, `off` and `high`.** The Mistral API serves only `none` and `high` reasoning for mistral-medium-3.5, so `phax-mistral-medium-3.5-low`, `-medium` and `-max` are gone from the catalog. `phax plans lint` and `phax run` refuse a plan that names one: rewrite it to `phax-mistral-medium-3.5-off` (effort `off`) or `phax-mistral-medium-3.5-high` (effort `high`). A Claude Sonnet 4.6 phase routed to Vibe runs the `high` alias, recorded as an `upgrade` from `low` or `medium` and a `downgrade` from `max`.
+- **`~/.phax/providers.json` that still lists them.** Every command that reads the provider catalog refuses it, naming each id. Run `phax agent setup providers --write` to drop them: it also enables every provider whose CLI is installed, so set `enabled: false` again on any you do not want. Or delete the three entries by hand.
+- **The three aliases in your Vibe config.** `phax agent setup mistral-vibe` installs only the `off` and `high` aliases, and names the old ones it finds in `~/.vibe/config.toml` without touching them. Delete their `[[models]]` blocks if you like; nothing uses them.
 
 ### 0.28.0
 
