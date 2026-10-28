@@ -1,3 +1,7 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 // Every unit and integration suite runs with the provider store variables
 // empty, which phax reads as unset (`resolveProviderStoreRoots`), so a
 // suite's stubbed HOME governs every provider store, in the test process and
@@ -7,3 +11,8 @@
 for (const variable of ["CLAUDE_CONFIG_DIR", "CODEX_HOME"]) {
   process.env[variable] = "";
 }
+
+// Vibe's home is an empty folder of its own, so the adapter's check for a user
+// `accept-edits` profile never looks into the real ~/.vibe. A suite that needs
+// one writes it here or stubs VIBE_HOME.
+process.env["VIBE_HOME"] = mkdtempSync(join(tmpdir(), "phax-test-vibe-home-"));

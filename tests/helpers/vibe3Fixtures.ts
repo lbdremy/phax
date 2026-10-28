@@ -159,6 +159,12 @@ interface FakeVibeOptions {
   readonly exportText?: string | undefined;
   /** The exit code of a `-p` turn; default 0. */
   readonly exitCode?: number;
+  /**
+   * Top-level keys laid over the export's `config` after the fake has resolved
+   * it, as an agent profile would: `{ bypass_tool_permissions: true }` is a
+   * turn that ran under auto-approve whatever phax set.
+   */
+  readonly configOverride?: Readonly<Record<string, unknown>>;
 }
 
 interface FakeVibe {
@@ -172,13 +178,59 @@ interface FakeVibe {
   turnEnv(): Readonly<Record<string, string>>;
 }
 
+// The fake, a Node script run by the test's own node. Its export's `config` is
+// the export template's own `config` with what the turn's flags and VIBE_*
+// variables set laid over it, as Vibe resolves them: the values phax sets, read
+// back. A turn that sets none (an unsafe one) keeps the template's config.
+const FAKE_VIBE_SCRIPT = `
+const { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = process.getBuiltinModule("node:fs");
+const { dirname, join } = process.getBuiltinModule("node:path");
+const here = dirname(process.argv[1]);
+const args = process.argv.slice(2);
+appendFileSync(join(here, "invocations.log"), args.join(" ") + "\\n");
+if (args[0] === "--version") {
+  process.stdout.write(readFileSync(join(here, "version.txt"), "utf8"));
+  process.exit(0);
+}
+const vibeEnv = Object.entries(process.env).filter(([key]) => key.startsWith("VIBE_"));
+writeFileSync(join(here, "turn-env.txt"), vibeEnv.map(([key, value]) => key + "=" + value + "\\n").join(""));
+const valueOf = (flag) => { const at = args.indexOf(flag); return at === -1 ? undefined : args[at + 1]; };
+const out = valueOf("--output-dir");
+process.stdout.write(readFileSync(join(here, "stream.jsonl"), "utf8"));
+const template = join(here, "export.json");
+if (out !== undefined && existsSync(template)) {
+  mkdirSync(out, { recursive: true });
+  const exported = JSON.parse(readFileSync(template, "utf8"));
+  const enabled = args.flatMap((arg, at) => (arg === "--enabled-tools" ? [args[at + 1]] : []));
+  const env = process.env;
+  const resolved = { ...(exported.config ?? {}) };
+  if (env.VIBE_BYPASS_TOOL_PERMISSIONS !== undefined) {
+    resolved.bypass_tool_permissions = env.VIBE_BYPASS_TOOL_PERMISSIONS === "true";
+  }
+  if (env.VIBE_OUTSIDE_WORKDIR !== undefined) resolved.outside_workdir = env.VIBE_OUTSIDE_WORKDIR;
+  if (env.VIBE_TOOLS !== undefined) resolved.tools = JSON.parse(env.VIBE_TOOLS);
+  if (enabled.length > 0) resolved.enabled_tools = enabled;
+  if (env.VIBE_ENABLE_MCP !== undefined) resolved.enable_mcp = env.VIBE_ENABLE_MCP === "true";
+  if (env.VIBE_ENABLE_CONNECTORS !== undefined) {
+    resolved.enable_connectors = env.VIBE_ENABLE_CONNECTORS === "true";
+  }
+  const override = join(here, "config-override.json");
+  const config = existsSync(override)
+    ? { ...resolved, ...JSON.parse(readFileSync(override, "utf8")) }
+    : resolved;
+  writeFileSync(join(out, "export.json"), JSON.stringify({ ...exported, config }, null, 2) + "\\n");
+}
+process.exit(Number(readFileSync(join(here, "exit-code.txt"), "utf8")));
+`;
+
 /**
  * Write a `vibe` stand-in into `dir`. `--version` prints `version`; `-p`
  * prints `stream`, then writes `exportText` as `export.json` into its
- * `--output-dir` (nothing when `exportText` is undefined) and exits with
- * `exitCode`. Every invocation is logged, and a turn's `VIBE_*` environment
- * is kept. The executable's path is its own, so
- * the adapter's once-per-executable version read starts fresh in every test.
+ * `--output-dir`, its `config` resolved from the turn's flags and variables
+ * (nothing when `exportText` is undefined), and exits with `exitCode`. Every
+ * invocation is logged, and a turn's `VIBE_*` environment is kept. The
+ * executable's path is its own, so the adapter's once-per-executable version
+ * read starts fresh in every test.
  */
 export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeVibe {
   mkdirSync(dir, { recursive: true });
@@ -186,26 +238,12 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
   const log = join(dir, "invocations.log");
   writeFileSync(join(dir, "version.txt"), `${options.version ?? "vibe 3.0.3"}\n`);
   writeFileSync(join(dir, "stream.jsonl"), options.stream ?? vibe3StreamText(VIBE3_PONG_STREAM));
+  writeFileSync(join(dir, "exit-code.txt"), String(options.exitCode ?? 0));
   if (options.exportText !== undefined) writeFileSync(join(dir, "export.json"), options.exportText);
-  writeFileSync(
-    executable,
-    [
-      "#!/bin/sh",
-      'here="$(dirname "$0")"',
-      'echo "$*" >> "$here/invocations.log"',
-      'if [ "$1" = "--version" ]; then cat "$here/version.txt"; exit 0; fi',
-      'env | grep "^VIBE_" > "$here/turn-env.txt"',
-      'out=""',
-      "while [ $# -gt 0 ]; do",
-      '  if [ "$1" = "--output-dir" ]; then out="$2"; fi',
-      "  shift",
-      "done",
-      'cat "$here/stream.jsonl"',
-      'if [ -n "$out" ] && [ -f "$here/export.json" ]; then mkdir -p "$out"; cp "$here/export.json" "$out/export.json"; fi',
-      `exit ${options.exitCode ?? 0}`,
-      "",
-    ].join("\n"),
-  );
+  if (options.configOverride !== undefined) {
+    writeFileSync(join(dir, "config-override.json"), JSON.stringify(options.configOverride));
+  }
+  writeFileSync(executable, `#!${process.execPath}\n${FAKE_VIBE_SCRIPT}`);
   chmodSync(executable, 0o755);
   const invocations = (): readonly string[] =>
     existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [];
