@@ -201,13 +201,13 @@
       "id": "r-record-kind",
       "title": "A failed decision record carries the failure kind",
       "pattern": "ubiquitous",
-      "statement": "The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.29.0."
+      "statement": "The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.30.0."
     },
     {
       "id": "r-close-network",
       "title": "A stop's closing turn records a network failure",
       "pattern": "event",
-      "statement": "WHEN a stop's closing turn fails with kind `network` THE system SHALL record the refused close in review-stop.json with result `network` and exit code 14, at `$schema` 0.29.0."
+      "statement": "WHEN a stop's closing turn fails with kind `network` THE system SHALL record the refused close in review-stop.json with result `network` and exit code 14, at `$schema` 0.30.0."
     },
     {
       "id": "r-telemetry",
@@ -257,14 +257,14 @@
       "summary": "A failed decision record says why the decide failed.",
       "binding": "normative",
       "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json\",\n  \"kind\": \"decision\",\n  \"decisionId\": \"2610271200-audio-export/02\",\n  \"mode\": \"verdicts\",\n  \"outcome\": \"failed\",\n  \"commit\": null,\n  …\n}",
-      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/decision-record-manifest/0.29.0.json\",\n  \"kind\": \"decision\",\n  \"decisionId\": \"2610271200-audio-export/02\",\n  \"mode\": \"verdicts\",\n  \"outcome\": \"failed\",\n  \"failure\": \"network\",\n  \"commit\": null,\n  …\n}"
+      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json\",\n  \"kind\": \"decision\",\n  \"decisionId\": \"2610271200-audio-export/02\",\n  \"mode\": \"verdicts\",\n  \"outcome\": \"failed\",\n  \"failure\": \"network\",\n  \"commit\": null,\n  …\n}"
     },
     {
       "surface": "file: review-stop.json",
       "summary": "When a stop's closing turn loses the network, the stop's last close says so, and the run still waits for your review.",
       "binding": "normative",
       "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/review-stop/0.26.0.json\",\n  \"run\": \"notebook.audio-export\",\n  \"cause\": \"declared\",\n  \"state\": \"awaiting_review\",\n  …\n  \"lastClose\": {\n    \"result\": \"close-error\",\n    \"at\": \"2026-10-27T14:02:11.408Z\",\n    \"exitCode\": 5,\n    \"step\": \"closing-turn\",\n    \"detail\": \"claude exited with code 1\"\n  },\n  …\n}",
-      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/review-stop/0.29.0.json\",\n  \"run\": \"notebook.audio-export\",\n  \"cause\": \"declared\",\n  \"state\": \"awaiting_review\",\n  …\n  \"lastClose\": {\n    \"result\": \"network\",\n    \"at\": \"2026-10-27T14:02:11.408Z\",\n    \"exitCode\": 14,\n    \"detail\": \"API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)\"\n  },\n  …\n}"
+      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/review-stop/0.30.0.json\",\n  \"run\": \"notebook.audio-export\",\n  \"cause\": \"declared\",\n  \"state\": \"awaiting_review\",\n  …\n  \"lastClose\": {\n    \"result\": \"network\",\n    \"at\": \"2026-10-27T14:02:11.408Z\",\n    \"exitCode\": 14,\n    \"detail\": \"API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)\"\n  },\n  …\n}"
     },
     {
       "surface": "cli: exit codes",
@@ -470,7 +470,7 @@
       "name": "A failed decision record names its failure",
       "given": "a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice",
       "when": "their decision records are written",
-      "then": "both record.json files are stamped `decision-record-manifest/0.29.0.json`, carry `failure: \"network\"` and `failure: \"answer-refused\"` respectively, and a failed record stamped 0.29.0 without `failure` is refused when read",
+      "then": "both record.json files are stamped `decision-record-manifest/0.30.0.json`, carry `failure: \"network\"` and `failure: \"answer-refused\"` respectively, and a failed record stamped 0.30.0 without `failure` is refused when read",
       "refs": [
         "r-record-kind"
       ]
@@ -480,7 +480,7 @@
       "name": "A closing turn's network failure",
       "given": "a run awaiting review at a stop whose closing turn fails with kind `network`",
       "when": "`phax resume <run>` closes the stop",
-      "then": "it exits 14, the run stays `awaiting_review`, and review-stop.json, stamped `review-stop/0.29.0.json`, records `lastClose` with result `network` and `exitCode` 14",
+      "then": "it exits 14, the run stays `awaiting_review`, and review-stop.json, stamped `review-stop/0.30.0.json`, records `lastClose` with result `network` and `exitCode` 14",
       "refs": [
         "r-close-network",
         "r-network-exit"
@@ -544,8 +544,8 @@
       "options": [
         {
           "id": "record-kind",
-          "label": "The failed decision record gains a required `failure` (a failure kind or `answer-refused`), at $schema 0.29.0",
-          "abandons": "A stable decision record format: every reader of decision records learns a 0.29.0 shape, and older failed records are read through the versioned reader without a kind."
+          "label": "The failed decision record gains a required `failure` (a failure kind or `answer-refused`), at $schema 0.30.0",
+          "abandons": "A stable decision record format: every reader of decision records learns a 0.30.0 shape, and older failed records are read through the versioned reader without a kind."
         },
         {
           "id": "log-only",
@@ -582,13 +582,13 @@
     "settled": [
       "One session-outcome reader per provider (Claude Code, Codex, Mistral Vibe), returning an answer or a failure with kind, provider message and session id when there is one; every caller and both `runAgent`/`resumeAgentSession` and `complete` go through it.",
       "Reading order: the provider's final result event, then the transcript's last error event, then stderr; tool output and model text are never scanned. The limit classification moves onto this reader.",
-      "The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.29.0 stay readable through the versioned reader.",
+      "The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.30.0 stay readable through the versioned reader.",
       "A network failure is transient like a usage limit: exit 14 (q-network-exit), provider message, retry hint, and a run left resumable.",
-      "review-stop.json's refused close gains a `network` result with exit 14, at review-stop 0.29.0; older stamps are read as today.",
+      "review-stop.json's refused close gains a `network` result with exit 14, at review-stop 0.30.0; older stamps are read as today.",
       "The cause prints before any secondary refusal; a record refusal after a failed session says it follows it.",
       "An `unknown` visibility quotes gh's first stderr line; network and auth failures suggest a retry, never `acknowledgedUnknownVisibility`.",
       "agent-error.log records kind, provider, message, session id or `none`, transcript path, then argv, exit code and stderr.",
-      "No back-compat shims: a persisted shape that gains a failure kind gains it as a required field, with `$schema` at 0.29.0."
+      "No back-compat shims: a persisted shape that gains a failure kind gains it as a required field, with `$schema` at 0.30.0."
     ],
     "open": [
       "How a provider's network error is recognized per provider (Claude Code's synthetic API error and its `api_retry` events, Codex's and Vibe's equivalents), as long as only the provider's verdict is read.",

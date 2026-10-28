@@ -124,11 +124,11 @@ The system shall write in a failed session's agent-error.log the failure kind, t
 
 ### 5.17 A failed decision record carries the failure kind
 
-The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.29.0.
+The system shall write in every decision record whose outcome is `failed` a required `failure`: the failure kind when the session failed, `answer-refused` when the session answered and phax refused the answer, `artifact-changed` when the artifact changed while the session ran, or `commit-failed` when writing or committing the decided artifact failed, at `$schema` 0.30.0.
 
 ### 5.18 A stop's closing turn records a network failure
 
-WHEN a stop's closing turn fails with kind `network` THE system SHALL record the refused close in review-stop.json with result `network` and exit code 14, at `$schema` 0.29.0.
+WHEN a stop's closing turn fails with kind `network` THE system SHALL record the refused close in review-stop.json with result `network` and exit code 14, at `$schema` 0.30.0.
 
 ### 5.19 Fix-loop telemetry names its provider
 
@@ -258,7 +258,7 @@ before:
 after:
 
     {
-      "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.29.0.json",
+      "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
       "kind": "decision",
       "decisionId": "2610271200-audio-export/02",
       "mode": "verdicts",
@@ -293,7 +293,7 @@ before:
 after:
 
     {
-      "$schema": "https://docs.phax.run/schemas/review-stop/0.29.0.json",
+      "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
       "run": "notebook.audio-export",
       "cause": "declared",
       "state": "awaiting_review",
@@ -415,11 +415,11 @@ Given any failed session that keeps an agent-error.log, when phax writes its age
 
 ### A failed decision record names its failure
 
-Given a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice, when their decision records are written, then both record.json files are stamped `decision-record-manifest/0.29.0.json`, carry `failure: "network"` and `failure: "answer-refused"` respectively, and a failed record stamped 0.29.0 without `failure` is refused when read. (refs §5.17)
+Given a verdicts decide session that fails with kind `network`, and another whose answer phax refused twice, when their decision records are written, then both record.json files are stamped `decision-record-manifest/0.30.0.json`, carry `failure: "network"` and `failure: "answer-refused"` respectively, and a failed record stamped 0.30.0 without `failure` is refused when read. (refs §5.17)
 
 ### A closing turn's network failure
 
-Given a run awaiting review at a stop whose closing turn fails with kind `network`, when `phax resume <run>` closes the stop, then it exits 14, the run stays `awaiting_review`, and review-stop.json, stamped `review-stop/0.29.0.json`, records `lastClose` with result `network` and `exitCode` 14. (refs §5.18, §5.6)
+Given a run awaiting review at a stop whose closing turn fails with kind `network`, when `phax resume <run>` closes the stop, then it exits 14, the run stays `awaiting_review`, and review-stop.json, stamped `review-stop/0.30.0.json`, records `lastClose` with result `network` and `exitCode` 14. (refs §5.18, §5.6)
 
 ### Fix-loop telemetry names Codex
 
@@ -443,7 +443,7 @@ Why: An outage and a limit call for different retries (now versus after a reset)
 
 ### q-record-kind — Does a failed decision record carry the failure kind (r-record-kind), or does the kind live only in the local agent-error.log?
 
-- record-kind — The failed decision record gains a required `failure` (a failure kind or `answer-refused`), at $schema 0.29.0 — abandons: A stable decision record format: every reader of decision records learns a 0.29.0 shape, and older failed records are read through the versioned reader without a kind.
+- record-kind — The failed decision record gains a required `failure` (a failure kind or `answer-refused`), at $schema 0.30.0 — abandons: A stable decision record format: every reader of decision records learns a 0.30.0 shape, and older failed records are read through the versioned reader without a kind.
 - log-only — Only agent-error.log carries the kind; the record stays at 0.28.0 (drop r-record-kind and ac-record-kind) — abandons: Knowing from the shared records why a decide session failed: a reviewer on the records branch cannot tell an outage from a refused answer, and the local log is lost once the state folder is pruned.
 
 Recommendation: record-kind — The records branch is where a failed session is reviewed after the fact, and a network failure that cost $6 should read differently there from an answer phax refused; a schema bump with no back-compat shim is the cost phax already accepts for every persisted change.
@@ -457,13 +457,13 @@ Settled:
 
 - One session-outcome reader per provider (Claude Code, Codex, Mistral Vibe), returning an answer or a failure with kind, provider message and session id when there is one; every caller and both `runAgent`/`resumeAgentSession` and `complete` go through it.
 - Reading order: the provider's final result event, then the transcript's last error event, then stderr; tool output and model text are never scanned. The limit classification moves onto this reader.
-- The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.29.0 stay readable through the versioned reader.
+- The failure kinds are exactly `network`, `rate-limit`, `usage-limit`, `provider-error`, `max-turns`, `killed`, `unknown`; the failed decision record adds `answer-refused`, `artifact-changed` and `commit-failed` (q-record-kind); failed records stamped before 0.30.0 stay readable through the versioned reader.
 - A network failure is transient like a usage limit: exit 14 (q-network-exit), provider message, retry hint, and a run left resumable.
-- review-stop.json's refused close gains a `network` result with exit 14, at review-stop 0.29.0; older stamps are read as today.
+- review-stop.json's refused close gains a `network` result with exit 14, at review-stop 0.30.0; older stamps are read as today.
 - The cause prints before any secondary refusal; a record refusal after a failed session says it follows it.
 - An `unknown` visibility quotes gh's first stderr line; network and auth failures suggest a retry, never `acknowledgedUnknownVisibility`.
 - agent-error.log records kind, provider, message, session id or `none`, transcript path, then argv, exit code and stderr.
-- No back-compat shims: a persisted shape that gains a failure kind gains it as a required field, with `$schema` at 0.29.0.
+- No back-compat shims: a persisted shape that gains a failure kind gains it as a required field, with `$schema` at 0.30.0.
 
 Left open:
 
