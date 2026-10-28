@@ -12,19 +12,26 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
 `oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-10-27
+## The queue, as of 2026-10-28
 
 ### Approved, not yet planned
 
-- [ ] **`headless-code-review`** — `docs/specs/2610271007-headless-code-review.md`, approved
-      2026-10-27 (brief `docs/briefs/headless-code-review.md`). The compliance review's twin for
-      code: opt-in `review.code.enabled` (optional, false when absent) runs a headless review at
-      run end following `phax-review`; a versioned `code-review.json` (findings with `lens`,
-      `escape`, `criterion`) in the run folder and the records; findings in the PR body; the
-      person fixes by resuming the session with `phax review-code <run>`; `--headless` by hand.
-      Both reviews reach `phax/records/v1` through one review-entry shape. Plan 1, review records
-      (the entry shape and the compliance review's entry), merged as #168 on 2026-10-27; plan 2, the
-      headless code review, completes the spec.
+- [ ] **`provider-failures`** — `docs/specs/2610271510-provider-failures.md`, approved 2026-10-27
+      (brief `docs/briefs/provider-failures.md`). Plan it first: `structured-output` builds on its
+      reader. One session-outcome reader per provider returns the answer or a typed failure
+      (network, rate or usage limit, provider error, max turns, killed, unknown) with the
+      provider's message; a network failure exits 14 with a retry hint; the failed decision record
+      gains a required `failure`, and `review-stop.json` a `network` result (both 0.29.0);
+      `agent-error.log` holds the cause; an `unknown` visibility says why `gh` failed.
+
+- [ ] **`structured-output`** — `docs/specs/2610271515-structured-output.md`, approved 2026-10-27
+      (brief `docs/briefs/structured-output.md`), after `provider-failures`. Two validations: one
+      simplified provider schema, derived from the full one, shared by Claude Code (`--json-schema`)
+      and Codex (`--output-schema`, strict); phax's full decoder stays the judge, with one
+      corrective resume. Six calls move to native output, plus the headless code review; the
+      compliance review becomes a read-only structured answer whose Markdown phax renders from the
+      fields. Vibe 3.0.3 has no schema option and stays on the prompt schema. A Claude combination
+      that fails falls back to the prompt schema for that call.
 
 - [ ] **`acceptance-tests`** — `docs/specs/2610271119-acceptance-tests.md`, approved 2026-10-27
       (brief `docs/briefs/acceptance-tests.md`). "Oracle phases" become acceptance phases:
@@ -48,8 +55,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       use of it before deciding the rest. The 2026-10-27 revision (lens/escape/criterion, Q14–Q17)
       and an unresolved review (an appended oracle pair breaks on the run footprint, a missing test
       whose code is right cannot be an oracle pair, stale project skill copies) are in its history
-      (f2854cbd and this session's review). Revisit, or abandon, once `headless-code-review` has
-      been used.
+      (f2854cbd and this session's review). Revisit, or abandon, once `headless-code-review` (#169,
+      merged 2026-10-28) has been used.
 
 ## Model policy tracking
 
@@ -80,6 +87,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-26 | `release-notes` (#166, no spec) | 3 × sonnet-5-5 / medium, 1 × sonnet-5-5 / high, with one oracle pair | $6.08 | 3 / 5 | The plan resolved an archived plan's relative links from `docs/plans/archive/`, where they were written at `docs/plans/` (the oracle had it right: the run stopped at phase-02's gate and the operator fixed the implementation, no assertion edited), had the placeholder refusal name the spec's `.md` instead of its sidecar, and left a spec's lede, guiding rule and summaries with raw relative links. Execution let the notes script ignore unknown arguments, read `--github-body` from the repository root, wrote a site test that could not fail, let two tests read the global git config, and documented two placements loosely. The plan review caught a link rule that would have broken the site build after the tag push, and the GitHub body cap (now a short body linking to the site). The compliance review's "main's lint was red" was Deno relinking oxlint (follow-up below). |
 | 2026-10-27 | `release-notes-layout` (#167, no spec) | 2 × sonnet-5-5 / medium | $2.51 | 1 / 2 | The plan let a surface summary that opens with a Markdown block marker (`1. `, `- `, `> `, a fence) split its bullet; the builder now escapes it. Execution let the GitHub short body silently drop a What's new item that does not open with a paragraph (now refused, naming the line) and pinned the site's `Before` fold only at one nesting level. In review the operator moved Highlights to lead with the guiding rule, then the lede. The examples read poorly because the specs' surface `before`/`after` were written for implementers: the 0.28.0 spec sidecars were rewritten for readers on main (58384a91) and the `phax-spec` skill now says so (7626d179). phase-02's `releaseCut.test.ts` failure was a background suite racing the agent's own write of `docs/releases/0.28.0.md`. |
 | 2026-10-27 | `headless-code-review` plan 1, review records (#168) | 2 × sonnet-5-5 / medium | $4.20 (one $0.20 fix attempt) | 2 / 5 | The plan read the review's records target from the project the command runs in, so `phax review-compliance <ns>.<run>` from another project committed that run's review to the wrong records branch and could push it to the wrong remote (now: the run's own project, read from its main checkout); and it left the help saying "non-mutating". Execution let a by-hand rerun commit the previous invocation's `compliance-review.json`, gave a missing dedicated clone `spawn git ENOENT` instead of `deferred-destination`, hard-coded `<run>` in the retry command, embedded git's raw multi-line stderr, and printed nothing on success. The plan review caught a test judging "beside the phase records" on one tree (each records commit holds only its own files) and seven exhaustive format registries left optional. |
+| 2026-10-28 | `headless-code-review` plan 2, the headless code review (#169) | 5 × sonnet-5-5 / medium, with one oracle pair | $7.24 ($6.57 for the phases, one $0.07 fix attempt) | 2 / 5 | The plan ran the headless review under the compliance review's posture, answering through a `.phax-context/code-review.json` file: it could edit tracked files and could not run the git its prompt promised (now read-only like headless authoring, answering in its final message, with a worktree snapshot that puts back any change and refuses the answer); and it left `review.code.enabled` out of the config merge, so an overlay dropped it and the review silently never ran. Execution committed a stray `codeReviewSkillIds.test.ts-E` (macOS `sed -i -E`), could leave `code-review.json` and its session file out of step, told every provider to resume through `phax review-code` with a `<session-id>` placeholder, let `@scope` tokens in model text mention GitHub users on the PR, and named only the first allowed id in a refusal. phase-05's second gate attempt was the `releaseCut.test.ts` `afterAll` timeout. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -138,17 +146,18 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
-- [ ] **A provider network failure reads as a visibility refusal.** Found 2026-10-27 in steme-lab:
-      a DNS outage (`ENOTFOUND`) killed `phax artifact decide --verdicts`'s writer session after
-      ~6 min ($6.33). phax printed `✗ claude exited with code 1`, pointing at `agent-error.log`,
-      which holds only the command and its exit code; the cause sat in `output.jsonl`'s synthetic
-      `API Error: Can't reach the API server` message. Before that line, writing the failed
-      session's decision record ran `gh repo view`, which failed on the same outage, so phax
-      reported "this repo's visibility could not be determined" with the remedy
-      `acknowledgedUnknownVisibility` — read as the cause. Surface the provider's error message
-      when a session exits non-zero, treat a network failure as transient (like a usage limit,
-      exit 8), and have an `unknown` visibility say why `gh` failed and suggest a retry instead of
-      the acknowledgement.
+- [ ] **`releaseCut.test.ts` times out in `afterAll`.** Its 30 s hook failed a phase gate a third
+      time on 2026-10-27 (`headless-code-review` phase-05, attempt 2); a resume passed. Find what the
+      teardown waits on, or give the hook its own budget, so a green phase does not burn a gate
+      attempt.
+- [ ] **Phase agents on macOS leave `-E` backups from `sed -i -E`.** BSD `sed` reads `-E` as the
+      backup suffix, so `sed -i -E …` writes `<file>-E` beside each edited file. One was committed
+      in `headless-code-review` phase-01. Tell phase agents to edit with their file tools, or refuse
+      `*-E` files at reconciliation.
+- [ ] **A worktree left dirty after the phase commit blocks cleanup.** In the same run phase-01's
+      agent deleted the committed `-E` file after its commit, without committing the deletion, and
+      the cleanup refused the dirty worktree, failing the phase. Say which paths are dirty and how to
+      recover (`git checkout` then `phax resume`), or commit-or-restore after the handoff turn.
 - [ ] **Deno relinks `node_modules` in phase worktrees past the lockfile.** Found 2026-10-26
       reviewing #166: with `nodeModulesDir: "auto"` (`deno.json`), a `pnpm deno:smoke` in a phase
       worktree relinked `node_modules/oxlint` to 1.69.0 while `pnpm-lock.yaml` pins 1.64.0, so the
@@ -238,6 +247,9 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Spec candidates, deliberately not written yet
 
+- [ ] **A structured phase handoff** (raised 2026-10-27, out of `structured-output`'s scope). The
+      handoff turn returns a structured answer instead of `phase-handoff.md`'s Markdown; every later
+      phase reads it, so it gets its own spec after `structured-output` lands. No brief yet.
 - [ ] **Oracles provider: the oracle's own quality** (raised 2026-10-23, out of `test-strategy`'s
       scope). The provider checks that an oracle phase's tests fail on their assertion, not on a
       crash or an import error; that table and generator files are oracle files, frozen like the
