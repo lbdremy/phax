@@ -4,6 +4,7 @@ import {
   extractClaudeUsage,
   extractCodexUsage,
   extractVibeExportUsage,
+  phaseSessionTranscripts,
   vibeExportFileOf,
 } from "../domain/records/usage.js";
 import {
@@ -186,21 +187,36 @@ export function commitRecordTree(
 }
 
 /**
- * Read a session's token usage from its provider-specific source: Claude and
- * codex carry it in `output.jsonl`, vibe keeps none there and writes it in the
- * `export.json` of the turn's `--output-dir`, beside the transcript. Any
- * failure to read degrades to the explicitly unavailable variant — usage is
- * never reported as zero (spec §5.5).
+ * Read a phase session's token usage from its provider-specific source:
+ * Claude and codex carry it in `output.jsonl`, vibe keeps none there and
+ * writes it in the `export.json` of each turn's `--output-dir`, beside the
+ * turn's transcript, counting that turn only, so a vibe phase sums its turn,
+ * its fix attempts and its handoff (`phaseSessionTranscripts`). Any failure to
+ * read degrades to the explicitly unavailable variant — usage is never
+ * reported as zero (spec §5.5).
  */
 export function computeRecordUsage(input: {
   readonly provider: ProviderId;
   readonly folder: string;
   readonly sessionId: string | undefined;
 }): Effect.Effect<TokenUsage, never, FileSystem> {
-  return computeSessionUsage({
-    provider: input.provider,
-    folder: input.folder,
-    turns: [{ transcript: RECORD_TRANSCRIPT_FILE, sessionId: input.sessionId }],
+  return Effect.gen(function* () {
+    if (input.provider !== "mistral-vibe") {
+      return yield* computeSessionUsage({
+        provider: input.provider,
+        folder: input.folder,
+        turns: [{ transcript: RECORD_TRANSCRIPT_FILE, sessionId: input.sessionId }],
+      });
+    }
+    const fs = yield* FileSystem;
+    const names = yield* fs.list(input.folder).pipe(Effect.orElseSucceed(() => []));
+    const transcripts = phaseSessionTranscripts(names);
+    if (transcripts.length === 0) return UNAVAILABLE_TOKEN_USAGE;
+    return yield* computeSessionUsage({
+      provider: input.provider,
+      folder: input.folder,
+      turns: transcripts.map((transcript) => ({ transcript, sessionId: input.sessionId })),
+    });
   });
 }
 

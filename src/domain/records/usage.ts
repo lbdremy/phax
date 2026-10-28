@@ -121,6 +121,31 @@ export function vibeExportDirOf(transcriptPath: string): string {
   return transcriptPath.replace(/\.jsonl$/, ".vibe-export");
 }
 
+const PHASE_SESSION_TURN = /^(output|handoff-generation|fix-attempt-(\d+))\.(jsonl|vibe-export)$/;
+
+/**
+ * The transcripts of a phase's builder session, named from a phase folder's
+ * entries (`names`: a turn's stream or its export directory), in run order:
+ * its turn (`output.jsonl`), its fix attempts ascending, then its handoff. A
+ * Vibe export counts its own turn only, so a phase's usage is the sum over
+ * these. Stop turns are other sessions' and are left out.
+ */
+export function phaseSessionTranscripts(names: readonly string[]): readonly string[] {
+  const turns = new Map<string, number>();
+  for (const name of names) {
+    const match = PHASE_SESSION_TURN.exec(name);
+    if (match?.[1] === undefined) continue;
+    const rank =
+      match[1] === "output"
+        ? -1
+        : match[1] === "handoff-generation"
+          ? Number.MAX_SAFE_INTEGER
+          : Number(match[2]);
+    turns.set(`${match[1]}.jsonl`, rank);
+  }
+  return [...turns].toSorted((a, b) => a[1] - b[1]).map(([transcript]) => transcript);
+}
+
 /**
  * Whether `name`, an entry of a phase folder, is a Vibe turn's export
  * directory. Its `config` and journal are Vibe's own, so a phase record never

@@ -8,6 +8,7 @@ import {
   extractClaudeUsage,
   extractCodexUsage,
   extractVibeExportUsage,
+  phaseSessionTranscripts,
   vibeExportDirOf,
   vibeExportFileOf,
 } from "../../src/domain/records/usage.js";
@@ -107,10 +108,41 @@ describe("extractCodexUsage", () => {
   });
 });
 
+describe("phaseSessionTranscripts", () => {
+  it("names the builder's turn, its fix attempts ascending and its handoff, from streams or exports", () => {
+    expect(
+      phaseSessionTranscripts([
+        "handoff-generation.jsonl",
+        "fix-attempt-10.vibe-export",
+        "fix-attempt-02.jsonl",
+        "fix-attempt-02.vibe-export",
+        "output.vibe-export",
+        "prompt.md",
+      ]),
+    ).toEqual([
+      "output.jsonl",
+      "fix-attempt-02.jsonl",
+      "fix-attempt-10.jsonl",
+      "handoff-generation.jsonl",
+    ]);
+  });
+
+  it("leaves out stop turns, retries and anything else", () => {
+    expect(
+      phaseSessionTranscripts([
+        "first-turn-01.jsonl",
+        "closing-turn-01.vibe-export",
+        "retry-output.jsonl",
+        "output.jsonl.bak",
+      ]),
+    ).toEqual([]);
+  });
+});
+
 describe("vibeExportDirOf and vibeExportFileOf", () => {
   it.each([
     ["output.jsonl", "output.vibe-export"],
-    ["fix-01.jsonl", "fix-01.vibe-export"],
+    ["fix-attempt-01.jsonl", "fix-attempt-01.vibe-export"],
     ["first-turn-01.jsonl", "first-turn-01.vibe-export"],
     ["retry-output.jsonl", "retry-output.vibe-export"],
     ["/runs/r1/phase-01/output.jsonl", "/runs/r1/phase-01/output.vibe-export"],
@@ -187,9 +219,9 @@ describe("computeSessionUsage on mistral-vibe", () => {
     const usage = await usageOf(
       {
         "output.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
-        "fix-01.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
+        "fix-attempt-01.vibe-export/export.json": vibe3ExportText(VIBE3_EXPORT_SHORT),
       },
-      ["output.jsonl", "fix-01.jsonl"],
+      ["output.jsonl", "fix-attempt-01.jsonl"],
     );
     expect(usage).toMatchObject({
       available: true,
