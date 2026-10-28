@@ -22,9 +22,11 @@ export const PROVIDER_SECURITY_CAPABILITIES: Record<ProviderId, ProviderSecurity
     mcpAllowlist: "supported",
     commandEnforcement: "none",
   },
+  // Vibe turns MCP servers and connectors on or off, but cannot load only an
+  // allowlist of them: under `mcp.mode: "allowlist"` it runs with none.
   "mistral-vibe": {
     filesystemJail: "strong",
-    mcpAllowlist: "supported",
+    mcpAllowlist: "unsupported",
     commandEnforcement: "prefix",
   },
 };
@@ -42,12 +44,13 @@ export interface SecurityEvaluation {
 export function evaluateProviderSecurity(
   provider: ProviderId,
   policy: SecurityPolicy,
+  capabilities: Record<ProviderId, ProviderSecurityCapability> = PROVIDER_SECURITY_CAPABILITIES,
 ): SecurityEvaluation {
   if (policy.mode !== "secure") {
     return { provider, satisfiesStrict: true, downgraded: false, marks: [], notes: [] };
   }
 
-  const cap = PROVIDER_SECURITY_CAPABILITIES[provider];
+  const cap = capabilities[provider];
   const marks: SecurityMark[] = [];
   const notes: string[] = [];
 
@@ -70,12 +73,15 @@ export function evaluateProviderSecurity(
  * secure mode, and in secure mode only a provider that satisfies it strictly.
  * Shared with `phax plans estimate` so both route a phase the same way.
  */
-export function securityFilterFor(policy: SecurityPolicy): SecurityFilter {
+export function securityFilterFor(
+  policy: SecurityPolicy,
+  capabilities: Record<ProviderId, ProviderSecurityCapability> = PROVIDER_SECURITY_CAPABILITIES,
+): SecurityFilter {
   return (provider) => {
     if (policy.mode !== "secure") {
       return { allowed: true };
     }
-    const evaluation = evaluateProviderSecurity(provider, policy);
+    const evaluation = evaluateProviderSecurity(provider, policy, capabilities);
     return evaluation.satisfiesStrict
       ? { allowed: true }
       : {
