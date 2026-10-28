@@ -15,7 +15,7 @@ function refusalOf(text: string) {
 }
 
 describe("decodeVibeExportText", () => {
-  it("decodes the probe's exports, ignoring limits, config, steps, journal_dir and timestamps", () => {
+  it("decodes the probe's exports with their config, ignoring limits, steps, journal_dir and timestamps", () => {
     const decoded = decodeVibeExportText(vibe3ExportText(VIBE3_EXPORT_LONG));
     if (Either.isLeft(decoded)) throw new Error(decoded.left.detail);
     expect(decoded.right).toEqual({
@@ -31,6 +31,7 @@ describe("decodeVibeExportText", () => {
       outcome: "finished",
       exit_code: 0,
       vibe_version: "3.0.3",
+      config: { active_model: "mistral-medium-3.5" },
     });
   });
 
