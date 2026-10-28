@@ -256,6 +256,8 @@ With `allowDowngrade: false` the `downgrade` edge is skipped and the request fal
 1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
+Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). Vibe has a strong per-invocation jail, so a `secure` run keeps it first in the order instead of skipping it (see [security.md](security.md)).
+
 **To disable a provider**: set `enabled: false` in `providers.json`. Resolution skips disabled providers even if they appear in `providerPriority`.
 
 **No silent capability downgrade**: when `allowDowngrade: false`, resolution will not route to a weaker cross-family equivalent. It falls through to the next priority provider or the `claude-code` terminal.

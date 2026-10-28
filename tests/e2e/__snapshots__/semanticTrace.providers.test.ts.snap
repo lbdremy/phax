@@ -316,7 +316,7 @@ exports[`E2E semantic trace — per-provider snapshots > pins the semantic trace
 ]
 `;
 
-exports[`E2E semantic trace — per-provider snapshots > pins the semantic trace for mistral-vibe-secure-downgrade > semantic-trace-mistral-vibe-secure-downgrade 1`] = `
+exports[`E2E semantic trace — per-provider snapshots > pins the semantic trace for mistral-vibe-secure > semantic-trace-mistral-vibe-secure 1`] = `
 [
   {
     "step": "config.discover",
@@ -361,13 +361,13 @@ exports[`E2E semantic trace — per-provider snapshots > pins the semantic trace
   },
   {
     "operationId": "phase-01",
-    "reason": "Provider priority selected claude-code; claude-sonnet/low runs natively on claude-code as claude-sonnet-4-6/low (exact). Skipped for security: mistral-vibe (cannot satisfy strict secure mode (partial-filesystem)).",
-    "relationship": "exact",
+    "reason": "Provider priority selected mistral-vibe; claude-sonnet/low translated via Claude hub to mistral-medium → phax-mistral-medium-3.5-low/low (equivalent).",
+    "relationship": "equivalent",
     "requestedEffort": "low",
     "requestedFamily": "claude-sonnet",
-    "selectedConcreteModel": "claude-sonnet-4-6",
-    "selectedFamily": "claude-sonnet",
-    "selectedProvider": "claude-code",
+    "selectedConcreteModel": "phax-mistral-medium-3.5-low",
+    "selectedFamily": "mistral-medium",
+    "selectedProvider": "mistral-vibe",
     "selectedThinking": "low",
     "type": "agent.model.resolved",
   },
@@ -377,24 +377,19 @@ exports[`E2E semantic trace — per-provider snapshots > pins the semantic trace
     "mode": "secure",
     "networkProfile": "provider-only",
     "operationId": "phase-01",
-    "provider": "claude-code",
+    "provider": "mistral-vibe",
     "sandboxEnabled": true,
-    "skippedForSecurity": [
-      {
-        "provider": "mistral-vibe",
-        "reason": "cannot satisfy strict secure mode (partial-filesystem)",
-      },
-    ],
+    "skippedForSecurity": [],
     "type": "security.policy.applied",
   },
   {
-    "adapter": "claude-code",
+    "adapter": "mistral-vibe",
     "operation": "agent.run",
     "operationId": "phase-01",
     "type": "adapter.call.started",
   },
   {
-    "adapter": "claude-code",
+    "adapter": "mistral-vibe",
     "operation": "agent.run",
     "operationId": "phase-01",
     "type": "adapter.call.succeeded",

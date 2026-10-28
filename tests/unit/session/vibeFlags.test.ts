@@ -107,10 +107,10 @@ describe("buildVibeFlags — secure", () => {
   });
 });
 
-describe("buildVibeFlags — read-only", () => {
-  const readOnly = (security: SecurityPolicy, agentCommands: readonly string[]) =>
-    buildVibeFlags({ security, cwd: "/work/tree", agentCommands, readOnly: true });
+const readOnly = (security: SecurityPolicy, agentCommands: readonly string[]) =>
+  buildVibeFlags({ security, cwd: "/work/tree", agentCommands, readOnly: true });
 
+describe("buildVibeFlags — read-only", () => {
   it("enables only read_file and grep when it has no agent commands", () => {
     const flags = readOnly(securePolicy, []);
     expect(flags.agent).toEqual([

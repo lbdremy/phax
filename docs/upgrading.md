@@ -21,6 +21,13 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.30.0
+
+- **Mistral Vibe 3.0.3 or later is required.** Run `uv tool upgrade mistral-vibe`. phax checks `vibe --version` before its first Vibe session and refuses an older Vibe, naming the installed version.
+- **phax no longer reads `~/.vibe`.** A Vibe turn's answer, session id, usage and transcript come from its stream and from the `export.json` Vibe writes beside it. `VIBE_HOME` is no longer a provider store root. `phax agent setup mistral-vibe --install-model-aliases` still appends the phax aliases to your Vibe config.
+- **Secure mode runs Vibe.** It is recorded as filesystem jail `strong`, with command enforcement `prefix`, so a `secure` run no longer falls back to Claude Code. Your own `config.toml` allowlists never reach a secure phax session.
+- **Records.** Vibe usage is `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`. Older records still read; an older `@lbdremy/phax-schemas` cannot read 0.30.0 records.
+
 ### 0.28.0
 
 - **A spec or plan option named `other`.** `other` is now a reserved id, implicit on every question. A live spec or plan that lists an option, or a recommendation, with the id `other` is refused: an authored answer exits 5, `phax artifact approve` and `decide` on the artifact exit 12, and `phax artifact status` reports a §9 that does not parse. Rename that option (in the sidecar and in the Markdown alike) before upgrading. A `Decision: other — …` line, and a verdict that chooses `other`, are accepted.

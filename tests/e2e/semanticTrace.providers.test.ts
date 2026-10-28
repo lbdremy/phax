@@ -11,8 +11,8 @@
  * This is the regression guard for the routing/selection layer:
  *   - codex must resolve to codex-cli/openai-gpt (a family-key mismatch silently
  *     falls back to claude-code — the bug that shipped once);
- *   - vibe must resolve to mistral-vibe in unsafe mode, and DOWNGRADE to
- *     claude-code under strict secure mode (partial filesystem jail).
+ *   - vibe must resolve to mistral-vibe in unsafe mode and in strict secure
+ *     mode (strong per-invocation filesystem jail), with no downgrade.
  * A change to any of those alters the pinned trace and fails loudly.
  *
  * It does NOT exercise provider adapter argv (the fakes bypass the real CLIs),
@@ -138,10 +138,10 @@ const CASES: readonly ProviderTraceCase[] = [
     enable: "mistral-vibe",
     securityMode: "unsafe",
   },
-  // mistral-vibe under strict secure: partial jail can't satisfy the policy, so
-  // routing skips it and downgrades to claude-code (recorded as skippedForSecurity).
+  // mistral-vibe under strict secure: its per-invocation jail is strong, so
+  // routing keeps it and nothing is skipped for security.
   {
-    name: "mistral-vibe-secure-downgrade",
+    name: "mistral-vibe-secure",
     providerPriority: ["mistral-vibe", "claude-code"],
     enable: "mistral-vibe",
     securityMode: "secure",
