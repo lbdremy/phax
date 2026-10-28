@@ -24,9 +24,13 @@ Only the releases that ask for something are listed. phax never asks for a step 
 ### 0.30.0
 
 - **Mistral Vibe 3.0.3 or later is required.** Run `uv tool upgrade mistral-vibe`. phax checks `vibe --version` before its first Vibe session and refuses an older Vibe, naming the installed version.
-- **phax no longer reads `~/.vibe`.** A Vibe turn's answer, session id, usage and transcript come from its stream and from the `export.json` Vibe writes beside it. `VIBE_HOME` is no longer a provider store root. `phax agent setup mistral-vibe --install-model-aliases` still appends the phax aliases to your Vibe config.
-- **Secure mode runs Vibe.** It is recorded as filesystem jail `strong`, with command enforcement `prefix`, so a `secure` run no longer falls back to Claude Code. Your own `config.toml` allowlists never reach a secure phax session.
-- **Records.** Vibe usage is `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`. Older records still read; an older `@lbdremy/phax-schemas` cannot read 0.30.0 records.
+- **phax no longer reads sessions from `~/.vibe`.** A Vibe turn's answer, session id, usage and transcript come from its stream and from the `export.json` Vibe writes beside it. `VIBE_HOME` is no longer a provider store root. `phax agent setup mistral-vibe --install-model-aliases` still appends the phax aliases to your Vibe config.
+- **Secure mode runs Vibe.** It is recorded as filesystem jail `strong`, with command enforcement `prefix`, so a `secure` run no longer falls back to Claude Code. Your own `config.toml` settings (bypass, `outside_workdir`, tool allowlists) never reach a secure or read-only phax session.
+- **Rename a custom `accept-edits` agent.** If `~/.vibe/agents/accept-edits.toml` (or `$VIBE_HOME/agents/accept-edits.toml`) exists, phax refuses every secure and read-only Vibe session (a stop's turns, decide, authoring), naming the file: it would replace the built-in agent phax runs. Rename it, for example to `my-accept-edits.toml`, and pick it with `--agent my-accept-edits` in your own sessions.
+- **Vibe config under an extra writable root.** A secure Vibe session is refused when a root in `security.filesystem.allowWrite` holds `.vibe/` or `.agents/`, naming it: Vibe loads hooks, agents and tools from such a root. Move that config out, or drop the root. Phase agents on Vibe can no longer write `.vibe/` or `.agents/` in the worktree either.
+- **A turn that ran under another config is refused.** After each secure or read-only turn, phax compares the config Vibe ran with (its `export.json`) with what phax set, and refuses the result on a difference, naming the field in `agent-error.log`.
+- **MCP on Vibe.** MCP servers and connectors are off in a session whose `mcp.mode` is `disabled` or `allowlist`: Vibe cannot load only some servers.
+- **Records.** Vibe usage is `{ provider, inputTokens, cachedInputTokens, outputTokens, costUsd }`, summed over the phase's turn, fix attempts and handoff. Older records still read; an older `@lbdremy/phax-schemas` cannot read 0.30.0 records.
 
 ### 0.28.0
 
