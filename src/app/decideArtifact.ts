@@ -95,6 +95,7 @@ import {
   decisionRecordWarning,
   writeDecisionRecord,
 } from "./writeDecisionRecord.js";
+import { decisionFailureOf } from "./decideFailure.js";
 
 export interface DecideArtifactInput {
   /** Repo-relative path of the spec or plan. */
@@ -762,7 +763,7 @@ export function decideArtifact(
     );
     const accepted = observed.accepted;
     const end: DecisionRecordEnd = Either.isLeft(ended)
-      ? { outcome: "failed", commit: null }
+      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.left) }
       : ended.right.kind === "committed"
         ? { outcome: "committed", commit: ended.right.commit.hash }
         : { outcome: ended.right.kind, commit: null };

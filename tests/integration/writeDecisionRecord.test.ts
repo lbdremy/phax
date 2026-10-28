@@ -223,13 +223,18 @@ describe("writeDecisionRecord (real git)", () => {
     await seedFolder({ "prompt.md": "the decide prompt\n" });
 
     const result = await run(
-      baseInput({ end: { outcome: "failed", commit: null }, arbitrated: 0, departed: 0 }),
+      baseInput({
+        end: { outcome: "failed", commit: null, failure: "provider-error" },
+        arbitrated: 0,
+        departed: 0,
+      }),
     );
 
     expect(result).toMatchObject({ kind: "written", shape: "skeleton", fileCount: 2 });
     expect(JSON.parse(show("record.json"))).toMatchObject({
       outcome: "failed",
       commit: null,
+      failure: "provider-error",
       usage: { available: false },
     });
   });
@@ -304,12 +309,18 @@ describe("writeDecisionRecord (real git)", () => {
     it("a failed decide records outcome failed with commit null", async () => {
       await seedFolder({ ...VERDICTS_FOLDER, "retry-prompt.md": "again\n" });
 
-      await run(verdictsInput({ end: { outcome: "failed", commit: null }, arbitrated: 0 }));
+      await run(
+        verdictsInput({
+          end: { outcome: "failed", commit: null, failure: "answer-refused" },
+          arbitrated: 0,
+        }),
+      );
 
       expect(JSON.parse(show("record.json"))).toMatchObject({
         mode: "verdicts",
         outcome: "failed",
         commit: null,
+        failure: "answer-refused",
       });
       expect(lsRecords()).toContain(`${KEY}/retry-prompt.md`);
     });

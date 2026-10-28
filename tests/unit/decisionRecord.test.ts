@@ -60,12 +60,44 @@ describe("decision record manifest", () => {
     if (Either.isRight(decoded)) expect(encodeDecisionRecordManifest(decoded.right)).toEqual(FILE);
   });
 
-  it.each(["declined", "undecided", "failed"] as const)(
-    "decodes a %s manifest, which names no commit",
+  it.each(["declined", "undecided"] as const)(
+    "decodes a %s manifest, which names no commit and no failure",
     (outcome) => {
       expect(decodes({ ...FILE, outcome, commit: null, arbitrated: 0, departed: 0 })).toBe(true);
+      expect(
+        decodes({ ...FILE, outcome, commit: null, arbitrated: 0, departed: 0, failure: "network" }),
+      ).toBe(false);
     },
   );
+
+  it("decodes a failed manifest naming its failure, and refuses one that names none", () => {
+    const failed = { ...FILE, outcome: "failed", commit: null, arbitrated: 0, departed: 0 };
+    expect(decodes({ ...failed, failure: "network" })).toBe(true);
+    expect(decodes(failed)).toBe(false);
+    expect(decodes({ ...failed, failure: null })).toBe(false);
+    expect(decodes({ ...failed, failure: "exploded" })).toBe(false);
+  });
+
+  it("reads a failed manifest stamped 0.30.0 without a failure as refused", () => {
+    const failed = { ...FILE, outcome: "failed", commit: null };
+    expect(Either.isLeft(readRecordManifestFile("sha:decision/x/01/record.json", failed))).toBe(
+      true,
+    );
+  });
+
+  it("reads a failed manifest stamped 0.28.0 or 0.25.0 with failure null", () => {
+    for (const release of ["0.28.0", "0.25.0"]) {
+      const old = {
+        ...FILE,
+        $schema: schemaUrl("decision-record-manifest", release),
+        outcome: "failed",
+        commit: null,
+      };
+      expect(readRecordManifestFile("sha:decision/x/01/record.json", old), release).toEqual(
+        Either.right({ ...MANIFEST, outcome: "failed", commit: null, failure: null }),
+      );
+    }
+  });
 
   it("refuses a commit on an uncommitted outcome, and none on a committed one", () => {
     expect(decodes({ ...FILE, outcome: "declined" })).toBe(false);
@@ -149,7 +181,10 @@ describe("decision record manifest", () => {
 
     it("decodes a committed and a failed verdicts manifest, each with its requestedModel", () => {
       expect(decodes(verdictsFile({}))).toBe(true);
-      expect(decodes(verdictsFile({ outcome: "failed", commit: null }))).toBe(true);
+      expect(
+        decodes(verdictsFile({ outcome: "failed", commit: null, failure: "answer-refused" })),
+      ).toBe(true);
+      expect(decodes(verdictsFile({ outcome: "failed", commit: null }))).toBe(false);
     });
 
     it("refuses mode verdicts with an outcome only interactive has", () => {

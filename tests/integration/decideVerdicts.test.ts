@@ -585,10 +585,12 @@ describe("decide --verdicts — a writer's answer is checked", { timeout: 30_000
         mode: "verdicts",
         outcome: "failed",
         commit: null,
+        failure: "answer-refused",
         arbitrated: 0,
         questions: verdicts.map((v) => v.question),
         requestedModel: "claude-sonnet-5-5",
       });
+      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.30.0"));
     },
   );
 
@@ -1163,7 +1165,39 @@ describe(
       const manifest = JSON.parse(
         world.git(["show", `${RECORDS_BRANCH}:decision/${AUTHORING_ID}/01/record.json`]),
       ) as Json;
-      expect(manifest).toMatchObject({ mode: "verdicts", outcome: "failed", commit: null });
+      expect(manifest).toMatchObject({
+        mode: "verdicts",
+        outcome: "failed",
+        commit: null,
+        failure: "usage-limit",
+      });
+    });
+
+    it("a session failing with kind network exits 14 and records failure network at 0.30.0", async () => {
+      seed(FILE_VALID);
+      world.keepAuthoringSession(AUTHORING_ID);
+      const h = world.harness();
+      h.backend.failNextResumeWith({
+        provider: "claude-code",
+        kind: "network",
+        message: "getaddrinfo ENOTFOUND api.anthropic.com",
+        sessionId: null,
+        resetAt: null,
+      });
+
+      const { error } = expectFailure(
+        world,
+        await h.run({ records: RECORDS_ON }),
+        14,
+        world.headSha(),
+      );
+
+      expect(error.tag).toBe("AgentSessionFailedError");
+      const manifest = JSON.parse(
+        world.git(["show", `${RECORDS_BRANCH}:decision/${AUTHORING_ID}/01/record.json`]),
+      ) as Json;
+      expect(manifest).toMatchObject({ outcome: "failed", commit: null, failure: "network" });
+      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.30.0"));
     });
 
     it("a limit on the corrective resume is not retried either", async () => {
@@ -1219,7 +1253,7 @@ describe(
       const manifest = JSON.parse(
         world.git(["show", `${RECORDS_BRANCH}:decision/${AUTHORING_ID}/01/record.json`]),
       ) as Json;
-      expect(manifest).toMatchObject({ outcome: "failed", commit: null });
+      expect(manifest).toMatchObject({ outcome: "failed", commit: null, failure: "commit-failed" });
     });
   },
 );

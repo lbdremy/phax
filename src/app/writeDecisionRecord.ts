@@ -7,7 +7,8 @@ import { type Git, type GitError } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
 import {
   encodeDecisionRecordManifest,
-  type DecisionRecordManifest,
+  type DecisionFailure,
+  type WrittenDecisionRecordManifest,
 } from "../schemas/decisionRecord.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
 import type { ProviderId } from "../schemas/providerId.js";
@@ -65,7 +66,8 @@ const DECISION_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([
 /** How an interactive decide ended, and the commit when it landed. */
 export type DecisionRecordEnd =
   | { readonly outcome: "committed"; readonly commit: string }
-  | { readonly outcome: "declined" | "undecided" | "failed"; readonly commit: null };
+  | { readonly outcome: "declined" | "undecided"; readonly commit: null }
+  | { readonly outcome: "failed"; readonly commit: null; readonly failure: DecisionFailure };
 
 /**
  * How a verdicts-mode decide ended: landed, or failed. There is no operator to
@@ -73,7 +75,7 @@ export type DecisionRecordEnd =
  */
 export type VerdictsRecordEnd =
   | { readonly outcome: "committed"; readonly commit: string }
-  | { readonly outcome: "failed"; readonly commit: null };
+  | { readonly outcome: "failed"; readonly commit: null; readonly failure: DecisionFailure };
 
 interface DecisionRecordFields {
   /** The source repository; receives the commit for an `in-repo` destination. */
@@ -186,7 +188,9 @@ export function writeDecisionRecord(
       effort: input.effort,
       usage,
     } as const;
-    const manifest: DecisionRecordManifest =
+    // Not `DecisionRecordManifest`: that admits `failure: null`, which only a
+    // record lifted from an older stamp carries and no writer may emit.
+    const manifest: WrittenDecisionRecordManifest =
       input.mode === "interactive"
         ? { ...common, mode: "interactive", ...input.end }
         : { ...common, mode: "verdicts", requestedModel: input.requestedModel, ...input.end };

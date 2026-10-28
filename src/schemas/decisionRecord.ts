@@ -1,6 +1,11 @@
 import { Schema, type Types } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
-import { RecordShapeSchema, TokenUsageSchema } from "./runRecord.js";
+import {
+  liftFrozenTokenUsage,
+  RecordShapeSchema,
+  TokenUsageSchema,
+  type FrozenTokenUsage,
+} from "./runRecord.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
 /**
@@ -25,6 +30,29 @@ export const InteractiveDecisionOutcomeSchema = Schema.Literal(
  * `committed` record names a commit.
  */
 export const VerdictsDecisionOutcomeSchema = Schema.Literal("committed", "failed");
+
+/**
+ * Why a failed decide failed: the failed session's kind, `answer-refused` (a
+ * document refused, retried or not), `artifact-changed` (the artifact changed
+ * during the session) or `commit-failed` (the decided artifact could not be
+ * written or committed). Defined here so the schemas package closure gains no
+ * domain module; a type test keeps it equal to the reader's kinds plus the
+ * three.
+ */
+export const DecisionFailureSchema = Schema.Literal(
+  "network",
+  "rate-limit",
+  "usage-limit",
+  "provider-error",
+  "max-turns",
+  "killed",
+  "unknown",
+  "answer-refused",
+  "artifact-changed",
+  "commit-failed",
+);
+
+export type DecisionFailure = Schema.Schema.Type<typeof DecisionFailureSchema>;
 
 /** How a decide that spawned a session ended, in either mode. */
 export const DecisionRecordOutcomeSchema = Schema.Literal(
@@ -118,11 +146,20 @@ const InteractiveCommittedFields = {
   ...usageField,
 };
 
-const InteractiveUncommittedFields = {
+const InteractiveUnsettledFields = {
   ...decisionRecordManifestFields,
   mode: Schema.Literal("interactive"),
-  outcome: Schema.Literal("declined", "undecided", "failed"),
+  outcome: Schema.Literal("declined", "undecided"),
   commit: Schema.Null,
+  ...usageField,
+};
+
+const InteractiveFailedFields = {
+  ...decisionRecordManifestFields,
+  mode: Schema.Literal("interactive"),
+  outcome: Schema.Literal("failed"),
+  commit: Schema.Null,
+  failure: DecisionFailureSchema,
   ...usageField,
 };
 
@@ -141,15 +178,26 @@ const VerdictsFailedFields = {
   mode: Schema.Literal("verdicts"),
   outcome: Schema.Literal("failed"),
   commit: Schema.Null,
+  failure: DecisionFailureSchema,
   ...usageField,
 };
 
-/** A decision record manifest in memory: never a `$schema`. */
+/** A failed manifest in memory: `failure` is null only for a stamp below 0.30.0. */
+type WithLiftedFailure<T extends { readonly failure: DecisionFailure }> = Types.Simplify<
+  Omit<T, "failure"> & { readonly failure: DecisionFailure | null }
+>;
+
+/**
+ * A decision record manifest in memory: never a `$schema`. A failed variant's
+ * `failure` is null only when read from a stamp below 0.30.0, which recorded
+ * none; the file schema requires a value, so the writer cannot write null.
+ */
 export type DecisionRecordManifest =
   | Types.Simplify<Schema.Struct.Type<typeof InteractiveCommittedFields>>
-  | Types.Simplify<Schema.Struct.Type<typeof InteractiveUncommittedFields>>
+  | Types.Simplify<Schema.Struct.Type<typeof InteractiveUnsettledFields>>
+  | WithLiftedFailure<Schema.Struct.Type<typeof InteractiveFailedFields>>
   | Types.Simplify<Schema.Struct.Type<typeof VerdictsCommittedFields>>
-  | Types.Simplify<Schema.Struct.Type<typeof VerdictsFailedFields>>;
+  | WithLiftedFailure<Schema.Struct.Type<typeof VerdictsFailedFields>>;
 
 /**
  * A decision record's `record.json` as phax writes it: `$schema` first, then
@@ -165,7 +213,11 @@ export const DecisionRecordManifestFileSchema = Schema.Union(
   }),
   Schema.Struct({
     $schema: schemaUrlField("decision-record-manifest"),
-    ...InteractiveUncommittedFields,
+    ...InteractiveUnsettledFields,
+  }),
+  Schema.Struct({
+    $schema: schemaUrlField("decision-record-manifest"),
+    ...InteractiveFailedFields,
   }),
   Schema.Struct({
     $schema: schemaUrlField("decision-record-manifest"),
@@ -181,6 +233,16 @@ export type DecisionRecordManifestFile = Schema.Schema.Type<
   typeof DecisionRecordManifestFileSchema
 >;
 
+/**
+ * A manifest as a writer builds it: the file's fields without `$schema`. Unlike
+ * `DecisionRecordManifest`, a failed one always names its failure.
+ */
+export type WrittenDecisionRecordManifest = DecisionRecordManifestFile extends infer F
+  ? F extends unknown
+    ? Omit<F, "$schema">
+    : never
+  : never;
+
 export const decodeDecisionRecordManifestFile = Schema.decodeUnknownEither(
   DecisionRecordManifestFileSchema,
   { onExcessProperty: "error" },
@@ -190,4 +252,22 @@ export const encodeDecisionRecordManifest = Schema.encodeSync(DecisionRecordMani
 
 export function isDecisionRecordManifest(manifest: object): manifest is DecisionRecordManifest {
   return "kind" in manifest && manifest.kind === "decision";
+}
+
+/**
+ * Lifts a manifest a frozen shape (below 0.30.0) described into the current
+ * in-memory one: its Vibe usage becomes unavailable, and a failed record,
+ * which named no failure, gets `failure: null`. The frozen shapes differ from
+ * the current one in these two fields alone, so the lifted value is a
+ * `DecisionRecordManifest`.
+ */
+export function liftFrozenDecisionManifest(
+  manifest: Omit<DecisionRecordManifest, "usage" | "failure"> & {
+    readonly usage: FrozenTokenUsage;
+  },
+): DecisionRecordManifest {
+  const lifted = { ...manifest, usage: liftFrozenTokenUsage(manifest.usage) };
+  return (
+    manifest.outcome === "failed" ? { ...lifted, failure: null } : lifted
+  ) as DecisionRecordManifest;
 }
