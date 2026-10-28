@@ -1,6 +1,7 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { decodeVibeExportText } from "../../src/schemas/vibeExport.js";
+import { extractVibeExportUsage } from "../../src/domain/records/usage.js";
+import { decodeVibeExportText, decodeVibeOutcomeText } from "../../src/schemas/vibeExport.js";
 import {
   VIBE3_EXPORT_LONG,
   VIBE3_EXPORT_SHORT,
@@ -118,6 +119,83 @@ function mutate(text: string, next: () => number): string {
       return text.slice(0, at) + "null" + text.slice(at + 3);
   }
 }
+
+describe("decodeVibeOutcomeText", () => {
+  const failureExport = {
+    schema_version: 1,
+    session_id: null,
+    usage: null,
+    cost_usd: null,
+    outcome: "infrastructure_failure",
+    exit_code: 2,
+    error: { message: "All connection attempts failed", code: "backend_error" },
+    vibe_version: "3.0.3",
+    steps: null,
+    config: null,
+  };
+
+  it("decodes a failure export whose session id, usage, cost, steps and config are null", () => {
+    const decoded = decodeVibeOutcomeText(JSON.stringify(failureExport));
+    if (Either.isLeft(decoded)) throw new Error(decoded.left.detail);
+    expect(decoded.right).toEqual({
+      schema_version: 1,
+      session_id: null,
+      usage: null,
+      cost_usd: null,
+      outcome: "infrastructure_failure",
+      exit_code: 2,
+      error: { message: "All connection attempts failed", code: "backend_error" },
+      vibe_version: "3.0.3",
+      config: null,
+    });
+  });
+
+  it("reads an error with a null code, and a null error", () => {
+    const noCode = decodeVibeOutcomeText(
+      JSON.stringify({ ...failureExport, error: { message: "boom", code: null } }),
+    );
+    const noError = decodeVibeOutcomeText(JSON.stringify({ ...failureExport, error: null }));
+    if (Either.isLeft(noCode) || Either.isLeft(noError)) throw new Error("expected both to decode");
+    expect(noCode.right.error).toEqual({ message: "boom", code: null });
+    expect(noError.right.error).toBeNull();
+  });
+
+  it("decodes every export decodeVibeExportText decodes, with the same values", () => {
+    for (const exported of [VIBE3_EXPORT_SHORT, VIBE3_EXPORT_LONG]) {
+      const text = vibe3ExportText(exported);
+      const strict = decodeVibeExportText(text);
+      const outcome = decodeVibeOutcomeText(text);
+      if (Either.isLeft(strict) || Either.isLeft(outcome)) throw new Error("expected both");
+      expect(outcome.right).toEqual(strict.right);
+    }
+  });
+
+  it.each([
+    ["an error without a message", { ...failureExport, error: { code: "backend_error" } }],
+    ["a schema_version other than 1", { ...failureExport, schema_version: 2 }],
+    ["an empty session_id", { ...failureExport, session_id: "" }],
+    ["a missing outcome", { ...failureExport, outcome: undefined }],
+  ])("refuses %s", (_name, exported) => {
+    expect(Either.isLeft(decodeVibeOutcomeText(JSON.stringify(exported)))).toBe(true);
+  });
+
+  it("refuses text that is not JSON", () => {
+    expect(Either.isLeft(decodeVibeOutcomeText("{ not json"))).toBe(true);
+  });
+
+  it("leaves the strict decode, and the usage read from it, as they were", () => {
+    const text = JSON.stringify(failureExport);
+    expect(Either.isLeft(decodeVibeExportText(text))).toBe(true);
+    expect(extractVibeExportUsage(text)).toBeUndefined();
+    expect(extractVibeExportUsage(vibe3ExportText(VIBE3_EXPORT_SHORT))).toEqual({
+      provider: "mistral-vibe",
+      inputTokens: 10987,
+      cachedInputTokens: 3200,
+      outputTokens: 3,
+      costUsd: 0.016503,
+    });
+  });
+});
 
 describe("decodeVibeExportText fuzz", () => {
   it("never throws on mutated exports and arbitrary strings: it decodes or refuses", () => {
