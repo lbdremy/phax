@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
-import { buildVibeFlags } from "../../../src/domain/session/vibeFlags.js";
+import { buildSealedVibeFlags, buildVibeFlags } from "../../../src/domain/session/vibeFlags.js";
 
 const securePolicy: SecurityPolicy = {
   mode: "secure",
@@ -104,6 +104,62 @@ describe("buildVibeFlags — secure", () => {
         agentCommands: [],
       }),
     ).toThrow(SecurityEnforcementError);
+  });
+});
+
+describe("buildVibeFlags — read-only", () => {
+  const readOnly = (security: SecurityPolicy, agentCommands: readonly string[]) =>
+    buildVibeFlags({ security, cwd: "/work/tree", agentCommands, readOnly: true });
+
+  it("enables only read_file and grep when it has no agent commands", () => {
+    const flags = readOnly(securePolicy, []);
+    expect(flags.agent).toEqual([
+      "--agent",
+      "accept-edits",
+      "--enabled-tools",
+      "read_file",
+      "--enabled-tools",
+      "grep",
+    ]);
+    expect(flags.scope).toEqual([
+      "--workdir",
+      "/work/tree",
+      "--add-dir",
+      "/home/me/.phax",
+      "--add-dir",
+      "/data/extra",
+    ]);
+    expect(flags.env).toEqual({
+      VIBE_OUTSIDE_WORKDIR: "deny",
+      VIBE_BYPASS_TOOL_PERMISSIONS: "false",
+    });
+  });
+
+  it("adds bash and the secure VIBE_TOOLS when it has agent commands", () => {
+    const flags = readOnly(securePolicy, AGENT_COMMANDS);
+    expect(flags.agent.slice(-2)).toEqual(["--enabled-tools", "bash"]);
+    const tools = JSON.parse(flags.env["VIBE_TOOLS"] ?? "{}");
+    expect(tools.bash).toEqual({ permission: "ask", allowlist: AGENT_COMMANDS });
+    expect(tools.write_file).toEqual({ allowlist: [] });
+    expect(flags.env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
+  });
+
+  it("is narrowed whatever the policy mode, with no --trust and no --add-dir for unsafe", () => {
+    const flags = readOnly(unsafePolicy, []);
+    expect(flags.agent).toContain("--enabled-tools");
+    expect(flags.agent).not.toContain("auto-approve");
+    expect(flags.scope).toEqual(["--workdir", "/work/tree"]);
+    expect(flags.env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
+  });
+});
+
+describe("buildSealedVibeFlags", () => {
+  it("disables every tool, with the cwd, no add-dir and no VIBE_TOOLS", () => {
+    expect(buildSealedVibeFlags("/work/tree")).toEqual({
+      agent: ["--agent", "accept-edits", "--disabled-tools", "*"],
+      scope: ["--workdir", "/work/tree"],
+      env: { VIBE_OUTSIDE_WORKDIR: "deny", VIBE_BYPASS_TOOL_PERMISSIONS: "false" },
+    });
   });
 });
 

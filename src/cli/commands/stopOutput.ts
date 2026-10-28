@@ -179,11 +179,6 @@ export function renderStopClosed(closed: ClosedStop): string[] {
   const { report } = closed;
   const { heading, handoffFile, done } = closedLines(closed);
   const lines: string[] = [heading];
-  if (report.restoredClosingTurn !== null) {
-    lines.push(
-      `  restored an interrupted closing turn's edits (${report.restoredClosingTurn.paths.join(", ")}); its versions are in ${report.restoredClosingTurn.keptAt}`,
-    );
-  }
   for (const step of report.gateSteps) {
     lines.push(`  gate  ${step.command}   ${step.result}`);
   }

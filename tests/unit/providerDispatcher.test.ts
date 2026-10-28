@@ -31,6 +31,7 @@ vi.mock("../../src/infra/providers/codexCli.js", () => ({
 }));
 vi.mock("../../src/infra/providers/mistralVibe.js", () => ({
   runVibeAgent: vi.fn(() => Effect.succeed(STUB_RUN_RESULT)),
+  runVibeCompletion: vi.fn(() => Effect.succeed({ finalText: "PONG" })),
   captureVibeTranscript: vi.fn(() => Effect.succeed(STUB_READ)),
 }));
 
@@ -110,6 +111,31 @@ describe("provider dispatcher", () => {
     );
     expect(claude.runClaudeAgent).not.toHaveBeenCalled();
     expect(codex.runCodexAgent).not.toHaveBeenCalled();
+  });
+
+  it("routes a mistral-vibe completion to the sealed Vibe completion with its provider-config entry", async () => {
+    const { vibe } = await adapters();
+    const options = {
+      provider: "mistral-vibe" as const,
+      model: "devstral-2",
+      effort: "medium",
+      cwd: "/tmp",
+    };
+    const result = await Effect.flatMap(Backend, (backend) =>
+      backend.complete("test prompt", options),
+    ).pipe(
+      Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
+      Effect.provide(
+        Layer.succeed(ProviderStoreRoots, { claude: "/h/.claude", codex: "/h/.codex" }),
+      ),
+      Effect.runPromise,
+    );
+    expect(result.finalText).toBe("PONG");
+    expect(vibe.runVibeCompletion).toHaveBeenCalledWith(
+      "test prompt",
+      options,
+      DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"],
+    );
   });
 
   it("routes codex-cli to the Codex adapter with its provider-config entry", async () => {

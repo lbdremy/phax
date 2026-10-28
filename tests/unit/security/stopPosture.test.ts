@@ -9,7 +9,7 @@ describe("readOnlyNarrowingOf", () => {
   it.each([
     ["claude-code", "read-only-tools"],
     ["codex-cli", "read-only-sandbox"],
-    ["mistral-vibe", "none"],
+    ["mistral-vibe", "read-only-tools"],
   ] as const)("%s runs a read-only turn with %s", (provider, narrowing) => {
     expect(readOnlyNarrowingOf(provider)).toBe(narrowing);
   });
@@ -54,7 +54,7 @@ describe("stopPostureOf", () => {
   it.each([
     ["claude-code", "read-only-tools"],
     ["codex-cli", "read-only-sandbox"],
-    ["mistral-vibe", "none"],
+    ["mistral-vibe", "read-only-tools"],
   ] as const)("a held stop on %s: every turn %s and no agent command", (provider, narrowing) => {
     expect(stopPostureOf({ cause: "held", provider, names })).toEqual({
       cause: "held",

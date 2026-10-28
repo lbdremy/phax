@@ -17,7 +17,7 @@ import {
   runClaudeProbe,
 } from "./claudeCode.js";
 import { captureCodexTranscript, runCodexAgent, runCodexCompletion } from "./codexCli.js";
-import { captureVibeTranscript, runVibeAgent } from "./mistralVibe.js";
+import { captureVibeTranscript, runVibeAgent, runVibeCompletion } from "./mistralVibe.js";
 
 type RunAgentError =
   | AgentInvocationError
@@ -107,11 +107,13 @@ function nodeBackend(
         return runCodexCompletion(prompt, options, entry);
       }
       if (options.provider === "mistral-vibe") {
-        return Effect.fail(
-          new AgentInvocationError({
-            message: "sealed completion is not yet supported for mistral-vibe",
-          }),
-        );
+        const entry = providerConfig.providers["mistral-vibe"];
+        if (!entry) {
+          return Effect.fail(
+            new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
+          );
+        }
+        return runVibeCompletion(prompt, options, entry);
       }
       return Effect.fail(
         new AgentInvocationError({

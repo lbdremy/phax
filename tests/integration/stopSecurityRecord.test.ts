@@ -51,7 +51,7 @@ const NO_HOLD: RunHold = { selection: "none" };
 const NARROWING: Readonly<Record<string, string>> = {
   "claude-code": "read-only-tools",
   "codex-cli": "read-only-sandbox",
-  "mistral-vibe": "none",
+  "mistral-vibe": "read-only-tools",
 };
 
 let world: HeldWorld;

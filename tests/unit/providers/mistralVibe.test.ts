@@ -4,7 +4,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildVibeArgs, runVibeAgent } from "../../../src/infra/providers/mistralVibe.js";
+import {
+  buildVibeArgs,
+  runVibeAgent,
+  runVibeCompletion,
+} from "../../../src/infra/providers/mistralVibe.js";
 import { AgentInvocationError, SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
@@ -417,6 +421,76 @@ describe("runVibeAgent against a fake vibe", () => {
     });
     expect(env["VIBE_ACTIVE_MODEL"]).toBe("mistral-large");
     expect(sha()).toBe(before);
+  });
+
+  it.each([
+    { commands: [] as string[], bash: false },
+    { commands: ["pnpm test:integration"], bash: true },
+  ])(
+    "runs a read-only turn with only reading tools ($commands commands)",
+    async ({ commands, bash }) => {
+      const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+      const result = await run(fake.executable, {
+        ...optionsFor(),
+        readOnly: true,
+        agentCommands: commands,
+      });
+
+      expect(Either.isRight(result)).toBe(true);
+      const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
+      expect(turn).toContain("--agent accept-edits --enabled-tools read_file --enabled-tools grep");
+      expect(turn.includes("--enabled-tools bash")).toBe(bash);
+      expect(turn).not.toContain("--trust");
+      expect(turn).not.toContain("auto-approve");
+      const env = fake.turnEnv();
+      expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
+      expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
+      expect(env["VIBE_TOOLS"] !== undefined).toBe(bash);
+    },
+  );
+
+  describe("runVibeCompletion", () => {
+    const complete = (executable: string) =>
+      Effect.runPromise(
+        Effect.either(
+          runVibeCompletion(
+            "say PONG",
+            { provider: "mistral-vibe", model: "mistral-large", effort: "medium", cwd: root },
+            entryOf(executable),
+          ),
+        ),
+      );
+
+    it("disables every tool, adds no directory, and answers from the stream", async () => {
+      const fake = fakeIn({});
+
+      const result = await complete(fake.executable);
+
+      expect(Either.isRight(result) && result.right.finalText).toBe("PONG");
+      const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
+      expect(turn).toContain("--agent accept-edits --disabled-tools *");
+      expect(turn).toContain(`--workdir ${root}`);
+      expect(turn).not.toContain("--add-dir");
+      expect(turn).not.toContain("--output-dir");
+      const env = fake.turnEnv();
+      expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
+      expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
+      expect(env["VIBE_TOOLS"]).toBeUndefined();
+      expect(env["VIBE_ACTIVE_MODEL"]).toBe("mistral-large");
+    });
+
+    it("fails naming the missing answer when the stream has no assistant text", async () => {
+      const fake = fakeIn({ stream: vibe3StreamText([vibe3Effect(1)]) });
+
+      const result = await complete(fake.executable);
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(AgentInvocationError);
+        expect(result.left.message).toContain("no completion answer");
+      }
+    });
   });
 
   it("adds no confinement variables to an unsafe turn", async () => {

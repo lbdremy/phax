@@ -284,7 +284,7 @@ phax artifact decide <path> --verdicts verdicts.json --by operator
 phax artifact schema verdicts                                # the file's JSON Schema
 ```
 
-A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider) records the verdicts and revises the body where a departing verdict implies it. A verdict that returns to the recommendation after a departure restores the body: it names the sections it restores when the departure named revised sections, and none when it named none. The writer runs read-only like every decide session; Mistral Vibe ignores read-only, so a model routed to it is refused before any session — pass `--model` with a Claude Code or Codex model. phax checks its answer against the file, commits, and leaves the artifact Draft for you to read before approving. `other` is a reserved choice on every question. See [Deciding from a verdicts file](docs/arbitration.md#deciding-from-a-verdicts-file).
+A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider) records the verdicts and revises the body where a departing verdict implies it. A verdict that returns to the recommendation after a departure restores the body: it names the sections it restores when the departure named revised sections, and none when it named none. The writer runs read-only like every decide session, on any provider. phax checks its answer against the file, commits, and leaves the artifact Draft for you to read before approving. `other` is a reserved choice on every question. See [Deciding from a verdicts file](docs/arbitration.md#deciding-from-a-verdicts-file).
 
 **The approval lock.** `phax artifact approve` refuses, with exit 12, while a spec or plan has an open question, and names `phax artifact decide`. Hand-authored artifacts are locked too, and an artifact with no question section is approved as before.
 
@@ -431,7 +431,7 @@ You review the phase by hand, with any agent, or by continuing the builder's own
 
 Leave your corrections uncommitted. A commit of your own in the stopped worktree is refused (exit 1) with `git -C <worktree> reset --soft <phase commit>`, which keeps its changes uncommitted. `phax reset-phase` at a held stop discards the phase commit and the phase's worktree; the phase runs again and is held again when it commits.
 
-The closing turn resumes the builder read-only, on every provider: Claude Code with its reading tools and no shell, codex with `exec resume` under `sandbox_mode=read-only` and `approval_policy=never`. On codex, the read-only override is the provider's to honour: codex merges a rollout's persisted permissions on resume, so a builder that ran with `workspace-write` may keep it. phax compares the worktree after every turn, but cannot see a write outside it. mistral-vibe keeps the phase's own posture.
+The closing turn resumes the builder read-only, on every provider: Claude Code with its reading tools and no shell, Mistral Vibe with only `read_file` and `grep`, codex with `exec resume` under `sandbox_mode=read-only` and `approval_policy=never`. On codex, the read-only override is the provider's to honour: codex merges a rollout's persisted permissions on resume, so a builder that ran with `workspace-write` may keep it. phax compares the worktree after every turn, but cannot see a write outside it.
 
 The phase's record is written at closing, once. It names the builder's provider, model, effort and session, the phase commit as its source, and the review commit as part of the stop. Its usage is the builder's, read when the run stopped, so it leaves out the closing turn on every provider. See [The record of a stop](#the-record-of-a-stop). A resume finishes a hold or a close that was interrupted: a held phase that committed but did not stop stops then, and a close that landed but did not clean up runs its cleanup, writing the record only if the phase has none.
 
@@ -462,7 +462,7 @@ An interactive transcript's content never reaches the records branch, whatever `
 
 #### The security record
 
-The phase's `security.json` has a `stop` section, `null` for a phase that never stopped. A close sets it to the cause, `personWork: "outside-phax-enforcement"`, and one entry for each first and closing turn phax ran. Each entry names the turn, its kind, the narrowing it ran under (`read-only-tools` on Claude Code, `read-only-sandbox` on codex, `none` on mistral-vibe) and its agent commands, which are none. The other fields stay the posture the builder ran under, which your own work did not have. The record carries the file.
+The phase's `security.json` has a `stop` section, `null` for a phase that never stopped. A close sets it to the cause, `personWork: "outside-phax-enforcement"`, and one entry for each first and closing turn phax ran. Each entry names the turn, its kind, the narrowing it ran under (`read-only-tools` on Claude Code and mistral-vibe, `read-only-sandbox` on codex) and its agent commands, which are none. The other fields stay the posture the builder ran under, which your own work did not have. The record carries the file.
 
 #### Review handoff, PR and run list
 

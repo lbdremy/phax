@@ -6,6 +6,8 @@ import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
   AgentRunResult,
+  CompletionOptions,
+  CompletionResult,
   TranscriptRead,
   TranscriptRequest,
 } from "../../ports/backend.js";
@@ -19,7 +21,11 @@ import {
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
 import { vibeExportDirOf, vibeExportFileOf } from "../../domain/records/usage.js";
-import { buildVibeFlags, type VibeFlags } from "../../domain/session/vibeFlags.js";
+import {
+  buildSealedVibeFlags,
+  buildVibeFlags,
+  type VibeFlags,
+} from "../../domain/session/vibeFlags.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { decodeVibeExportText } from "../../schemas/vibeExport.js";
 import {
@@ -67,6 +73,7 @@ function vibeFlagsOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFl
     cwd: options.cwd,
     agentCommands: options.agentCommands ?? [],
     unsafeAgent: entry.defaultAgent,
+    readOnly: options.readOnly,
   });
 }
 
@@ -309,6 +316,59 @@ export function captureVibeTranscript(
       status: "found",
       bytes: new Uint8Array(Buffer.concat(turns.map((turn) => turn.bytes))),
     };
+  });
+}
+
+/**
+ * A one-message sealed Vibe completion: every tool disabled, no session
+ * recorded and no export read. The answer comes from the stream.
+ */
+export function runVibeCompletion(
+  prompt: string,
+  options: CompletionOptions,
+  entry: VibeProviderEntry,
+): Effect.Effect<
+  CompletionResult,
+  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+> {
+  const flags = buildSealedVibeFlags(options.cwd);
+  const args = ["-p", prompt, ...flags.agent, "--output", "streaming", ...flags.scope];
+  const argv = [entry.executable, ...args];
+  return Effect.gen(function* () {
+    yield* requireSupportedVibe(entry.executable, undefined);
+    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+      try: () => spawnVibe(entry, args, undefined, options.cwd, options.model, flags.env),
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
+          message: err instanceof Error ? err.message : String(err),
+          argv,
+        }),
+    });
+    if (exitCode !== 0) {
+      const classification = classifyRateLimit(stderr, lines);
+      if (classification !== undefined) {
+        return yield* Effect.fail(rateLimitErrorFor(classification));
+      }
+      return yield* Effect.fail(
+        new AgentInvocationError({
+          message: `vibe exited with code ${exitCode}`,
+          exitCode,
+          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
+          argv,
+        }),
+      );
+    }
+    const found = findVibeResultEvent(lines);
+    if (!found) {
+      return yield* Effect.fail(
+        new AgentInvocationError({
+          message:
+            "vibe's stream holds no assistant message with a text block, so there is no completion answer to read",
+          argv,
+        }),
+      );
+    }
+    return { finalText: found.finalText };
   });
 }
 

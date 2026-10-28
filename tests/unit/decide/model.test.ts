@@ -167,7 +167,7 @@ describe("resolveVerdictsModel", () => {
     expect(Either.isRight(resolved)).toBe(true);
   });
 
-  it("refuses a model routing sends to mistral-vibe, which ignores read-only, naming --model", () => {
+  it("resolves a model routing sends to mistral-vibe, which holds a session read-only", () => {
     const vibeEnabled: ProviderConfig = {
       providers: {
         ...DEFAULT_PROVIDER_CONFIG.providers,
@@ -176,13 +176,13 @@ describe("resolveVerdictsModel", () => {
     };
     for (const model of ["claude-sonnet-4-6", "phax-mistral-medium-3.5-medium"]) {
       const resolved = resolveVerdictsModel(model, "medium", ROUTING, vibeEnabled);
-      expect(Either.isLeft(resolved), model).toBe(true);
-      if (Either.isLeft(resolved)) {
-        expect(resolved.left).toContain(model);
-        expect(resolved.left).toContain("mistral-vibe");
-        expect(resolved.left).toContain("pass --model with a Claude Code or Codex model");
-      }
+      expect(Either.isRight(resolved), model).toBe(true);
     }
+    expect(
+      Either.getOrThrow(
+        resolveVerdictsModel("phax-mistral-medium-3.5-medium", "medium", ROUTING, vibeEnabled),
+      ).provider,
+    ).toBe("mistral-vibe");
     // The built-in default still routes to Claude Code with Vibe enabled.
     expect(
       Either.getOrThrow(resolveVerdictsModel(undefined, undefined, ROUTING, vibeEnabled)).provider,

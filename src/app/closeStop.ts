@@ -121,12 +121,7 @@ import {
   writeSecurityFile,
   type PhaseModel,
 } from "./interactiveFiles.js";
-import {
-  closingTurnLabel,
-  settleLeftoverTurn,
-  type FirstTurnInput,
-  type LeftoverSettlement,
-} from "./interactiveStop.js";
+import { closingTurnLabel, settleLeftoverTurn, type FirstTurnInput } from "./interactiveStop.js";
 import { readPhaseBase, readPhaseCommit } from "./phaseStatusUpdates.js";
 import {
   reconcilePhaseFiles,
@@ -194,8 +189,6 @@ interface CloseReportFacts {
   readonly gateSteps: readonly GateStepResult[];
   /** The paths the corrections changed, sorted. */
   readonly changedPaths: readonly string[];
-  /** A writing closing turn's edits an earlier close left in progress, restored before the gate. */
-  readonly restoredClosingTurn: LeftoverSettlement["restoredClosingTurn"];
   /** Whether the close's gate ended with the `authored` oracle step, which passed. */
   readonly oracleStep: OracleStep;
   /** The stop's recorded sessions with their transcripts' outcomes, oldest first. */
@@ -452,7 +445,6 @@ function finishLandedCommit(
       gateLog,
       gateSteps: [],
       changedPaths,
-      restoredClosingTurn: null,
       // Git cannot tell whether the landed commit's gate ran the authored
       // step: the attempt's own files do.
       oracleStep: yield* landedOracleStep(input, layout, gateLog),
@@ -1357,7 +1349,6 @@ function closeSteps(
       gateLog: gate.log,
       gateSteps: gate.steps,
       changedPaths,
-      restoredClosingTurn: leftover.restoredClosingTurn,
       // The gate passed, so an oracle step it ran passed too.
       oracleStep: oracle.step === undefined ? "none" : "authored",
       sessions,
