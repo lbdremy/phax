@@ -109,7 +109,7 @@ describe("buildVibeArgs — unsafe mode", () => {
 
   it.each([
     ["/runs/r1/phase-01/output.jsonl", "/runs/r1/phase-01/output.vibe-export"],
-    ["/runs/r1/phase-01/fix-01.jsonl", "/runs/r1/phase-01/fix-01.vibe-export"],
+    ["/runs/r1/phase-01/fix-attempt-01.jsonl", "/runs/r1/phase-01/fix-attempt-01.vibe-export"],
   ])("sends --output-dir the export directory of the transcript %s", (transcript, exportDir) => {
     const args = buildVibeArgs(baseEntry, "p", {
       ...baseOptions(unsafePolicy),
@@ -446,9 +446,117 @@ describe("runVibeAgent against a fake vibe", () => {
       const env = fake.turnEnv();
       expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
       expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
-      expect(env["VIBE_TOOLS"] !== undefined).toBe(bash);
+      expect(JSON.parse(env["VIBE_TOOLS"] ?? "{}").bash.allowlist).toEqual(commands);
     },
   );
+
+  describe("the confinement checked around a turn", () => {
+    const secureOptions = (allowWrite: readonly string[] = [root]): AgentRunOptions => ({
+      ...optionsFor(),
+      security: { ...securePolicy, filesystem: { allowRead: [root], allowWrite } },
+      agentCommands: ["git status"],
+    });
+    const readOnlyOptions = (): AgentRunOptions => ({ ...optionsFor(), readOnly: true });
+    const securityRefusalOf = async (executable: string, options: AgentRunOptions) => {
+      const result = await run(executable, options);
+      if (Either.isRight(result)) throw new Error("expected the turn to be refused");
+      expect(result.left).toBeInstanceOf(SecurityEnforcementError);
+      return result.left as SecurityEnforcementError;
+    };
+    const withAcceptEditsProfile = () => {
+      const vibeHome = join(root, "vibe-home");
+      mkdirSync(join(vibeHome, "agents"), { recursive: true });
+      const profile = join(vibeHome, "agents", "accept-edits.toml");
+      writeFileSync(profile, "bypass_tool_permissions = true\n");
+      vi.stubEnv("VIBE_HOME", vibeHome);
+      return profile;
+    };
+
+    afterEach(() => vi.unstubAllEnvs());
+
+    it.each([
+      ["a secure", () => secureOptions()],
+      ["a read-only", () => readOnlyOptions()],
+    ])(
+      "refuses %s session before spawning when a user accept-edits profile would replace the built-in one",
+      async (_kind, options) => {
+        const profile = withAcceptEditsProfile();
+        const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+        const error = await securityRefusalOf(fake.executable, options());
+
+        expect(error.message).toContain(profile);
+        expect(error.message).toContain("Rename it");
+        expect(fake.turns()).toBe(0);
+      },
+    );
+
+    it("runs an unsafe session whatever the user's accept-edits profile says", async () => {
+      withAcceptEditsProfile();
+      const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+      expect(Either.isRight(await run(fake.executable))).toBe(true);
+    });
+
+    it.each([".vibe", ".agents"])(
+      "refuses a secure session whose extra writable root holds %s, naming it",
+      async (dir) => {
+        const extra = join(root, "extra");
+        mkdirSync(join(extra, dir), { recursive: true });
+        const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+        const error = await securityRefusalOf(fake.executable, secureOptions([root, extra]));
+
+        expect(error.message).toContain(join(extra, dir));
+        expect(error.message).toContain("--add-dir");
+        expect(fake.turns()).toBe(0);
+      },
+    );
+
+    it("runs a read-only session in the worktree alone, with no --add-dir", async () => {
+      const extra = join(root, "extra");
+      mkdirSync(join(extra, ".vibe"), { recursive: true });
+      const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+      const result = await run(fake.executable, {
+        ...readOnlyOptions(),
+        security: { ...securePolicy, filesystem: { allowRead: [root], allowWrite: [root, extra] } },
+      });
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(fake.invocations().find((line) => line.startsWith("-p "))).not.toContain("--add-dir");
+    });
+
+    it.each([
+      ["bypass_tool_permissions", { bypass_tool_permissions: true }],
+      ["outside_workdir", { outside_workdir: "ask" }],
+      ["tools.bash.allowlist", { tools: { bash: { permission: "ask", allowlist: ["rm"] } } }],
+      ["enable_mcp", { enable_mcp: true }],
+    ])(
+      "refuses a secure turn that ran with another %s, writing agent-error.log",
+      async (field, configOverride) => {
+        const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT), configOverride });
+
+        const error = await failureOf(fake.executable, secureOptions());
+
+        expect(error.message).toContain(`${field} is `);
+        expect(error.message).toContain("its result is refused");
+        expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(field);
+        expect(existsSync(join(phaseFolder, "claude-session-id.txt"))).toBe(false);
+      },
+    );
+
+    it("refuses a read-only turn that ran with more tools than phax enabled", async () => {
+      const fake = fakeIn({
+        exportText: vibe3ExportText(VIBE3_EXPORT_SHORT),
+        configOverride: { enabled_tools: ["read_file", "grep", "write_file"] },
+      });
+
+      const error = await failureOf(fake.executable, readOnlyOptions());
+
+      expect(error.message).toContain("enabled_tools is ");
+    });
+  });
 
   describe("runVibeCompletion", () => {
     const complete = (executable: string) =>
@@ -526,7 +634,7 @@ describe("runVibeAgent against a fake vibe", () => {
     await run(first.executable, optionsFor(join(phaseFolder, "output.jsonl")));
     const resumed = await run(
       second.executable,
-      optionsFor(join(phaseFolder, "fix-01.jsonl")),
+      optionsFor(join(phaseFolder, "fix-attempt-01.jsonl")),
       VIBE3_SESSION_ID,
     );
 
@@ -534,9 +642,9 @@ describe("runVibeAgent against a fake vibe", () => {
     expect(readFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "utf8")).toBe(
       vibe3ExportText(VIBE3_EXPORT_SHORT),
     );
-    expect(readFileSync(join(phaseFolder, "fix-01.vibe-export", "export.json"), "utf8")).toBe(
-      vibe3ExportText(VIBE3_EXPORT_LONG),
-    );
+    expect(
+      readFileSync(join(phaseFolder, "fix-attempt-01.vibe-export", "export.json"), "utf8"),
+    ).toBe(vibe3ExportText(VIBE3_EXPORT_LONG));
   });
 
   it("fails naming the missing export and the exact path read when the turn wrote none", async () => {
@@ -546,6 +654,19 @@ describe("runVibeAgent against a fake vibe", () => {
 
     expect(error.message).toContain("missing Vibe export");
     expect(error.message).toContain(join(phaseFolder, "output.vibe-export", "export.json"));
+    expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(
+      "missing Vibe export",
+    );
+  });
+
+  it("never reads an earlier turn's export on the same transcript path", async () => {
+    const exportPath = join(phaseFolder, "output.vibe-export", "export.json");
+    await run(fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) }).executable);
+    expect(existsSync(exportPath)).toBe(true);
+
+    const error = await failureOf(fakeIn({}).executable);
+
+    expect(error.message).toContain(`missing Vibe export at ${exportPath}`);
   });
 
   it("fails naming the invalid export and its path when export.json does not decode", async () => {
@@ -555,6 +676,9 @@ describe("runVibeAgent against a fake vibe", () => {
 
     expect(error.message).toContain("invalid Vibe export");
     expect(error.message).toContain(join(phaseFolder, "output.vibe-export", "export.json"));
+    expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(
+      "invalid Vibe export",
+    );
   });
 
   it("fails naming the missing assistant text and the stream when no assistant message has a text block", async () => {
@@ -567,6 +691,9 @@ describe("runVibeAgent against a fake vibe", () => {
 
     expect(error.message).toContain("no assistant message with a text block");
     expect(error.message).toContain(transcript);
+    expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(
+      "no assistant message with a text block",
+    );
   });
 
   it("fails on a non-zero exit without reading an export", async () => {
@@ -609,6 +736,9 @@ describe("runVibeAgent against a fake vibe", () => {
         );
         expect(fake.invocations()).toEqual(["--version"]);
         expect(existsSync(join(phaseFolder, "output.vibe-export"))).toBe(false);
+        expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).toContain(
+          `mistral-vibe ${installed} is installed`,
+        );
       },
     );
 
@@ -642,7 +772,11 @@ describe("runVibeAgent against a fake vibe", () => {
       const fake = fakeIn({ exportText });
 
       await run(fake.executable);
-      await run(fake.executable, optionsFor(join(phaseFolder, "fix-01.jsonl")), VIBE3_SESSION_ID);
+      await run(
+        fake.executable,
+        optionsFor(join(phaseFolder, "fix-attempt-01.jsonl")),
+        VIBE3_SESSION_ID,
+      );
 
       expect(fake.versionReads()).toBe(1);
       expect(fake.turns()).toBe(2);

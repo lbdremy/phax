@@ -1,7 +1,8 @@
 import { Effect, Either } from "effect";
 import { execFile, spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
@@ -24,7 +25,13 @@ import { vibeExportDirOf, vibeExportFileOf } from "../../domain/records/usage.js
 import {
   buildSealedVibeFlags,
   buildVibeFlags,
+  isConfinedVibeSession,
+  VIBE_PROJECT_CONFIG_DIRS,
+  vibeAcceptEditsOverridePath,
+  vibeConfigMismatch,
+  vibeExtraRoots,
   type VibeFlags,
+  type VibeFlagsInput,
 } from "../../domain/session/vibeFlags.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { decodeVibeExportText } from "../../schemas/vibeExport.js";
@@ -58,23 +65,73 @@ interface SpawnResult {
 }
 
 // Each invocation carries its own confinement, built by `buildVibeFlags`
-// (src/domain/session/vibeFlags.ts); no Vibe config file is read or written.
-// A secure session runs under `--agent accept-edits`, scoped to `--workdir`
-// plus one `--add-dir` per extra writable root, with VIBE_OUTSIDE_WORKDIR=deny,
+// (src/domain/session/vibeFlags.ts); no Vibe config file is written. A secure
+// session runs under `--agent accept-edits`, scoped to `--workdir` plus one
+// `--add-dir` per extra writable root, with VIBE_OUTSIDE_WORKDIR=deny,
 // VIBE_BYPASS_TOOL_PERMISSIONS=false and a VIBE_TOOLS that allowlists exactly
 // the phase's agent commands for bash and empties every file tool's allowlist,
 // so a looser user config cannot widen it. The provider entry's `defaultAgent`
 // applies to unsafe sessions only, which keep auto-approve and `--trust`.
-// Network and MCP scoping have no per-invocation surface: the resolved policy
-// is recorded in security.json.
-function vibeFlagsOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFlags {
-  return buildVibeFlags({
+// Network scoping has no per-invocation surface: the resolved policy is
+// recorded in security.json.
+//
+// What the environment cannot hold is checked around the turn. Before it, a
+// confined session is refused when a user `accept-edits` profile would replace
+// Vibe's built-in one, and a secure one when an --add-dir root holds Vibe
+// config (Vibe trusts and loads it). After it, the config the turn ran with
+// (its export's `config`) is read back against what phax set, and a turn that
+// ran under anything else is refused: a resumed session can bring back the
+// agent it last ran with.
+function vibeFlagsInputOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFlagsInput {
+  return {
     security: options.security,
     cwd: options.cwd,
     agentCommands: options.agentCommands ?? [],
     unsafeAgent: entry.defaultAgent,
     readOnly: options.readOnly,
-  });
+  };
+}
+
+function vibeFlagsOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFlags {
+  return buildVibeFlags(vibeFlagsInputOf(entry, options));
+}
+
+// Whether a Vibe config path is there for Vibe to load. One this process may
+// not reach counts as absent: Vibe runs as the same user and cannot load it
+// either, so a VIBE_HOME phax cannot read refuses nothing.
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch (err) {
+    if (isAbsence(err)) return false;
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EACCES" || code === "EPERM") return false;
+    throw err;
+  }
+}
+
+/**
+ * Why a confined session must not start, or undefined: a user profile that
+ * replaces the built-in `accept-edits`, or (secure sessions) Vibe config under
+ * an --add-dir root.
+ */
+async function confinementRefusal(input: VibeFlagsInput): Promise<string | undefined> {
+  if (!isConfinedVibeSession(input)) return undefined;
+  const override = vibeAcceptEditsOverridePath(process.env, homedir());
+  if (override !== null && (await exists(override))) {
+    return `${override} replaces Vibe's built-in accept-edits agent, which phax's secure and read-only Vibe sessions run under, so phax cannot vouch for their confinement. Rename it (for example to my-accept-edits.toml) and pick it with --agent my-accept-edits in your own sessions.`;
+  }
+  if (input.readOnly === true) return undefined;
+  for (const root of vibeExtraRoots(input.security, input.cwd)) {
+    for (const dir of VIBE_PROJECT_CONFIG_DIRS) {
+      const path = join(root, dir);
+      if (await exists(path)) {
+        return `${path} is Vibe config under a writable root phax opens with --add-dir, which Vibe trusts and loads (hooks, agents, tools), so phax cannot vouch for the session's confinement. Move it out of ${root}, or drop ${root} from security.filesystem.allowWrite.`;
+      }
+    }
+  }
+  return undefined;
 }
 
 export function buildVibeArgs(
@@ -246,8 +303,10 @@ function requireSupportedVibe(
   phaseFolderPath: string | undefined,
 ): Effect.Effect<void, AgentInvocationError> {
   const argv = [executable, "--version"];
-  const refuse = (message: string): AgentInvocationError =>
-    new AgentInvocationError({ message, argv, phaseFolderPath });
+  const refuse = (message: string): AgentInvocationError => {
+    writeAgentErrorLog(phaseFolderPath, { argv, stderr: message });
+    return new AgentInvocationError({ message, argv, phaseFolderPath });
+  };
   return Effect.tryPromise({
     try: () => versionOutputOf(executable),
     catch: (err) =>
@@ -388,14 +447,14 @@ export function runVibeAgent(
 > {
   const transcriptPath = options.outputJsonlPath;
   if (transcriptPath === undefined) {
+    const message =
+      "A mistral-vibe turn needs a transcript path (outputJsonlPath): its export.json is written beside it.";
+    writeAgentErrorLog(options.phaseFolderPath, { argv: [entry.executable], stderr: message });
     return Effect.fail(
-      new AgentInvocationError({
-        message:
-          "A mistral-vibe turn needs a transcript path (outputJsonlPath): its export.json is written beside it.",
-        phaseFolderPath: options.phaseFolderPath,
-      }),
+      new AgentInvocationError({ message, phaseFolderPath: options.phaseFolderPath }),
     );
   }
+  const flagsInput = vibeFlagsInputOf(entry, options);
   let args: string[];
   let envAdditions: Readonly<Record<string, string>>;
   try {
@@ -408,26 +467,45 @@ export function runVibeAgent(
     throw err;
   }
   const argv = [entry.executable, ...args];
-  const failInvocation = (message: string): AgentInvocationError =>
-    new AgentInvocationError({ message, argv, phaseFolderPath: options.phaseFolderPath });
+  // Every refusal that names the phase folder writes agent-error.log too: the
+  // CLI points at that file whenever the error names the folder.
+  const failInvocation = (message: string): AgentInvocationError => {
+    writeAgentErrorLog(options.phaseFolderPath, { argv, stderr: message });
+    return new AgentInvocationError({ message, argv, phaseFolderPath: options.phaseFolderPath });
+  };
 
   return Effect.gen(function* () {
     yield* requireSupportedVibe(entry.executable, options.phaseFolderPath);
 
+    const refusal = yield* Effect.tryPromise({
+      try: () => confinementRefusal(flagsInput),
+      catch: wrapFsError,
+    });
+    if (refusal !== undefined) {
+      return yield* Effect.fail(
+        new SecurityEnforcementError({
+          message: refusal,
+          provider: "mistral-vibe",
+          mode: options.security.mode,
+        }),
+      );
+    }
+
+    // A turn that reuses a transcript path (a resumed phase re-runs into
+    // output.jsonl) must not read the previous turn's export.
+    const exportPath = vibeExportFileOf(transcriptPath);
     yield* Effect.tryPromise({
-      try: () => mkdir(vibeExportDirOf(transcriptPath), { recursive: true }),
+      try: async () => {
+        await mkdir(vibeExportDirOf(transcriptPath), { recursive: true });
+        await rm(exportPath, { force: true });
+      },
       catch: wrapFsError,
     });
 
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model, envAdditions),
-      catch: (err): AgentInvocationError => {
-        writeAgentErrorLog(options.phaseFolderPath, {
-          argv,
-          stderr: err instanceof Error ? err.message : String(err),
-        });
-        return failInvocation(err instanceof Error ? err.message : String(err));
-      },
+      catch: (err): AgentInvocationError =>
+        failInvocation(err instanceof Error ? err.message : String(err)),
     });
 
     if (exitCode !== 0) {
@@ -456,7 +534,6 @@ export function runVibeAgent(
       );
     }
 
-    const exportPath = vibeExportFileOf(transcriptPath);
     const exportText = yield* Effect.tryPromise({
       try: () => readFile(exportPath, "utf8"),
       catch: (err) =>
@@ -471,6 +548,15 @@ export function runVibeAgent(
       return yield* Effect.fail(
         failInvocation(
           `invalid Vibe export at ${exportPath} (${exported.left.reason}): ${exported.left.detail}`,
+        ),
+      );
+    }
+
+    const mismatch = vibeConfigMismatch(flagsInput, exported.right.config);
+    if (mismatch !== undefined) {
+      return yield* Effect.fail(
+        failInvocation(
+          `vibe ran this turn under a config phax did not set (${mismatch}, read from ${exportPath}), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings.`,
         ),
       );
     }

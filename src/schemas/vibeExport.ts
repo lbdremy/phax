@@ -6,9 +6,11 @@ const TokenCountSchema = Schema.Number.pipe(Schema.finite(), Schema.nonNegative(
 /**
  * The `export.json` Vibe 3 writes into a headless turn's `--output-dir`
  * (`schema_version` 1): the turn's session id, its usage and cost, and how it
- * ended. The usage and the cost count that turn only. Keys phax does not read
- * (`limits`, `config`, `steps`, `journal_dir`, timestamps and whatever Vibe
- * adds later) are accepted and dropped.
+ * ended, and the config it ran with. The usage and the cost count that turn
+ * only. `config` is read as is: the adapter compares the values phax set
+ * (`vibeConfigMismatch`), and Vibe writes it null when it never loaded one.
+ * Keys phax does not read (`limits`, `steps`, `journal_dir`, timestamps and
+ * whatever Vibe adds later) are accepted and dropped.
  */
 const VibeExportSchema = Schema.Struct({
   schema_version: Schema.Literal(1),
@@ -23,6 +25,7 @@ const VibeExportSchema = Schema.Struct({
   outcome: Schema.String,
   exit_code: Schema.Number,
   vibe_version: Schema.String,
+  config: Schema.optional(Schema.Unknown),
 });
 
 export type VibeExport = Schema.Schema.Type<typeof VibeExportSchema>;
