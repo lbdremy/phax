@@ -57,14 +57,26 @@ other way, from the person who uses it.
    something weaker than the criterion says, is a finding.
 3. **Boundaries.** External input decoded where it enters; persisted formats (a new field
    is required, not optional for older files); what crosses a port; how failures are
-   mapped to errors, messages and exit codes.
+   mapped to errors, messages and exit codes. Then two questions the diff alone does not
+   answer:
+   - **What the change assumes of each dependency it drives**: a library, a service, a
+     command-line tool, a platform. Its defaults, which of its settings wins over which,
+     what it trusts, what it keeps from one call or session to the next, the errors it
+     returns. Check each assumption in the dependency's installed source, at the version
+     the project locks, or in its documentation. Write one you could not check as
+     assumed, not as fact.
+   - **Who can widen a trust boundary**: for a change that grants, restricts or checks
+     access (authentication, permissions, input validation, secrets, a sandbox), what does
+     the check read, and who controls it: the user's own configuration, files the system
+     or its agents write, state restored from an earlier session, a plugin, a default.
 4. **The core.** Invariants and state transitions; totality: every variant of a sum type
    and every state handled, or refused explicitly.
 5. **The edge.** Adapters and side effects: a missing file, a timeout, a partial write, a
    concurrent run, cleanup after a failure. Side effects only where the architecture puts
    them.
 6. **Across.** The tests as code (below), the architecture's boundaries beyond what an
-   architecture check enforces, the docs against the behaviour.
+   architecture check enforces, the docs against the behaviour: each claim the change's
+   docs, help text and README make, checked in the code one by one.
 
 Read the parts from the repository's architecture (`phax architecture`, or its README and
 CLAUDE.md), not from this list: the steps name kinds of code, not layers.
@@ -80,7 +92,7 @@ test you have read asserts.
 | `wrong-oracle` | A test compares with what its author believed. A frozen oracle that is wrong passes the whole run. | The oracle against the criterion's text. Review the oracles first. |
 | `same-author` | An `in-phase` test is written by the agent that wrote the code, with the same misreading. | Assertions that restate what the code does instead of what the spec asks. |
 | `weakened` | Under a failing gate, a fix attempt may delete an assertion, skip a test or widen a matcher. | The tests a phase changed after a failing gate attempt: its gate logs say which attempts failed, its `fix-attempt-NN.jsonl` transcripts in the run folder what each one edited. |
-| `fake-drift` | A small test runs against a fake; nothing binds the fake to the real adapter. | Each fake used: which contract test runs the same cases against the real one? |
+| `fake-drift` | A small test runs against a fake; nothing binds the fake to the real adapter. | Each fake used: which contract test runs the same cases against the real one? Each behaviour of a real dependency that only a fake, or the author's belief, encodes. |
 | `unexplored-input` | An example covers the points chosen; a property covers what its generator produces. | What no test and no generator feeds in: empty, limits, unicode, large, malformed. |
 | `omission` | A test cannot fail on what nobody wrote. | A criterion, a state, a variant or an error path with no line; what is left out on purpose and not written down. |
 | `untestable` | No assertion reaches it. | Surface coherence, wording of output and errors, naming, security posture, performance, docs. |
@@ -100,6 +112,10 @@ Tests have defects too, and a defect there hides the others.
   network, shared state between tests.
 - **It was left switched off.** `.skip`, `.only`, `.todo`, or an expected-failure marker
   left after its oracle was discharged.
+- **It never ran.** A test the gate does not execute: behind an environment variable,
+  outside the gate's profile, needing credentials or a real service. It has proved
+  nothing in this run, its own setup included. List each one; one that is the only test
+  of a criterion is an `omission` finding.
 - **The oracle failed for the wrong reason.** At its oracle phase it must fail on its
   assertion, not on a crash, an import error or a missing fixture.
 
@@ -143,3 +159,4 @@ The developer is in the session and owns every change.
 - Raise a preference above `info`.
 - Report a finding without its escape: if the tests do catch it, it is not a finding.
 - Trust a handoff, a commit message or a test name over the diff.
+- State a dependency's behaviour you did not check as a fact.
