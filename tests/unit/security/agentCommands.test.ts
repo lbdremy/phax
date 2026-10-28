@@ -33,16 +33,19 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     expect(degraded).toBe(true);
   });
 
-  it("narrow allowance (deno fmt) is degraded under mistral-vibe (none)", () => {
+  it("narrow allowance (deno fmt) is NOT degraded under mistral-vibe (prefix)", () => {
     const { records, degraded } = computeFrozenAgentCommands({
-      configCommands: ["deno fmt"],
+      configCommands: ["deno fmt", "pnpm test:integration"],
       gateCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "mistral-vibe",
     });
-    expect(records[0]?.degraded).toBe(true);
-    expect(degraded).toBe(true);
+    expect(records.map((r) => [r.command, r.enforcement, r.degraded])).toEqual([
+      ["deno fmt", "prefix", false],
+      ["pnpm test:integration", "prefix", false],
+    ]);
+    expect(degraded).toBe(false);
   });
 
   it("narrow allowance (deno fmt) is NOT degraded under claude-code (prefix)", () => {
@@ -223,17 +226,15 @@ describe("computeFrozenAgentCommands — brief grant", () => {
   });
 
   it("`phax brief` is degraded on a provider without prefix enforcement", () => {
-    for (const provider of ["codex-cli", "mistral-vibe"] as const) {
-      const { records, degraded } = computeFrozenAgentCommands({
-        configCommands: [],
-        gateCommands: [],
-        briefCommands: ["phax brief"],
-        requiredCommands: [],
-        provider,
-      });
-      expect(records[0]?.degraded, provider).toBe(true);
-      expect(degraded, provider).toBe(true);
-    }
+    const { records, degraded } = computeFrozenAgentCommands({
+      configCommands: [],
+      gateCommands: [],
+      briefCommands: ["phax brief"],
+      requiredCommands: [],
+      provider: "codex-cli",
+    });
+    expect(records[0]?.degraded).toBe(true);
+    expect(degraded).toBe(true);
   });
 });
 
