@@ -51,6 +51,7 @@ import {
 } from "./runLayers.js";
 import {
   isSessionFailureError,
+  splitFollowUps,
   pausedHandoffFailure,
   pausedNetworkFailure,
   renderHandoffTurnPause,
@@ -504,7 +505,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     );
 
     if (Either.isLeft(result)) {
-      const err = result.left;
+      const { cause: err, followUps } = splitFollowUps(result.left);
       const qualName = runKey(namespace, shortName);
       if (err instanceof AwaitingReviewStopError) {
         for (const line of renderStop(err.report)) out.log(line);
@@ -602,6 +603,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         // A failure outside a pause (a stop's close, for one) keeps the
         // invoked command as its retry hint.
         for (const line of renderSessionFailure(err, runRetryCommand(opts))) out.error(line);
+        for (const followUp of followUps) out.warn(followUp);
         return exitCodeForError(err);
       }
       if (err instanceof AgentInvocationError) {

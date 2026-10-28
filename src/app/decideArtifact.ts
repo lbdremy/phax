@@ -52,6 +52,9 @@ import {
   DecideDocumentError,
   DecideRefusedError,
   type DocumentMigrationRequiredError,
+  type FailureWithFollowUpsError,
+  failWithFollowUps,
+  isSessionFailureCause,
   type RateLimitError,
   type SecurityEnforcementError,
   type UsageLimitError,
@@ -174,6 +177,7 @@ export type DecideArtifactError =
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
+  | FailureWithFollowUpsError
   | SecurityEnforcementError
   | PromptError
   | FsError
@@ -801,11 +805,13 @@ export function decideArtifact(
           })
         : { kind: "no-record" };
     if (Either.isLeft(ended)) {
-      const warning = decisionRecordWarning(record);
-      if (warning !== undefined) input.output.warn(warning);
-      const pushWarning = decisionRecordPushWarning(recordPush);
-      if (pushWarning !== undefined) input.output.warn(pushWarning);
-      return yield* Effect.fail(ended.left);
+      // The cause prints first: the record's warnings ride on the error.
+      return yield* Effect.fail(
+        failWithFollowUps(ended.left, [
+          decisionRecordWarning(record, isSessionFailureCause(ended.left)),
+          decisionRecordPushWarning(recordPush),
+        ]),
+      );
     }
     const facts: DecideSessionFacts = {
       decisionId,

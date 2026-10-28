@@ -30,6 +30,7 @@ import {
 } from "./runLayers.js";
 import {
   isSessionFailureError,
+  splitFollowUps,
   renderSessionFailure,
   retryCommandLine,
 } from "./sessionFailureOutput.js";
@@ -84,6 +85,16 @@ function renderResult(result: DecideArtifactResult, out: OutputPort): void {
 }
 
 function reportDecideError(
+  failure: { readonly message: string },
+  out: OutputPort,
+  retry: string | null,
+): void {
+  const { cause, followUps } = splitFollowUps(failure);
+  reportDecideCause(cause as { readonly message: string }, out, retry);
+  for (const followUp of followUps) out.warn(followUp);
+}
+
+function reportDecideCause(
   err: { readonly message: string },
   out: OutputPort,
   retry: string | null,

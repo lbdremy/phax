@@ -92,6 +92,44 @@ export class UsageLimitError extends Data.TaggedError("UsageLimitError")<{
   transcript?: string | null | undefined;
 }> {}
 
+/** Whether an error is a failed agent session: a session failure or a limit. */
+export function isSessionFailureCause(error: unknown): boolean {
+  return (
+    error instanceof AgentSessionFailedError ||
+    error instanceof RateLimitError ||
+    error instanceof UsageLimitError
+  );
+}
+
+/**
+ * A command's failure that also has secondary warnings (a record refused or
+ * not pushed after the failed session). The use case hands them over instead
+ * of printing them, so the CLI prints the cause first and each follow-up
+ * after it; the exit code is the cause's.
+ */
+export class FailureWithFollowUpsError extends Data.TaggedError("FailureWithFollowUpsError")<{
+  message: string;
+  cause: unknown;
+  followUps: readonly string[];
+}> {}
+
+/**
+ * Fail with `cause`, wrapped with the follow-ups when there are any, else as
+ * itself.
+ */
+export function failWithFollowUps<E>(
+  cause: E,
+  followUps: readonly (string | undefined)[],
+): E | FailureWithFollowUpsError {
+  const present = followUps.filter((line): line is string => line !== undefined);
+  if (present.length === 0) return cause;
+  return new FailureWithFollowUpsError({
+    message: cause instanceof Error ? cause.message : String(cause),
+    cause,
+    followUps: present,
+  });
+}
+
 export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   message: string;
   command: string;

@@ -47,6 +47,9 @@ import {
   StopRecordPausedError,
   UnsafeGitStateError,
   UsageLimitError,
+  type FailureWithFollowUpsError,
+  failWithFollowUps,
+  isSessionFailureCause,
   WorktreeCreationError,
 } from "../domain/errors.js";
 import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
@@ -378,6 +381,7 @@ export type ExecutePlanError =
   | RegistryCorruptionError
   | RateLimitError
   | UsageLimitError
+  | FailureWithFollowUpsError
   | SecurityEnforcementError
   | SecurityPreflightError
   | SkillEditConsentError
@@ -450,6 +454,10 @@ export function executePlan(
   // helper writes both the committed and the failed case so the two cannot
   // drift, and the guard set makes it exactly one per phase.
   const recordedPhaseIds = new Set<string>();
+  // Warnings a failed phase's record owes after its failed session: the CLI
+  // prints them after the cause, so they ride on the error instead of
+  // reaching stderr first.
+  const failedRecordFollowUps: string[] = [];
   function writeRecordForPhase(args: {
     readonly phaseId: string;
     readonly phaseFolderPath: string;
@@ -467,6 +475,9 @@ export function executePlan(
     // runs inside Effect.tapError over the phase's own original failure and
     // must never let a records concern mask it. Defaults to failing hard.
     readonly failOnRefusal?: boolean;
+    // The phase failed on its agent session: a refusal is then collected as a
+    // follow-up of that failure instead of printed ahead of it.
+    readonly followingFailedSession?: boolean;
   }): Effect.Effect<void, RecordsDestinationRefusedError, Git | FileSystem | GitHub> {
     if (!config.records.enabled || recordedPhaseIds.has(args.phaseId)) return Effect.void;
     return Effect.gen(function* () {
@@ -509,7 +520,13 @@ export function executePlan(
       if (result.kind === "refused") {
         const message = `Phase "${args.phaseId}" — records destination refused: ${result.message} (remedy: ${result.remedy})`;
         if (args.failOnRefusal === false) {
-          process.stderr.write(`[phax] Warning: ${message}\n`);
+          if (args.followingFailedSession === true) {
+            failedRecordFollowUps.push(
+              `phase record refused, following the failed session: ${message}`,
+            );
+          } else {
+            process.stderr.write(`[phax] Warning: ${message}\n`);
+          }
           return;
         }
         return yield* Effect.fail(
@@ -2838,6 +2855,7 @@ export function executePlan(
             usage: { kind: "session", sessionId: currentSessionId },
             outcome: "failed",
             failOnRefusal: false,
+            followingFailedSession: isSessionFailureCause(e),
           }).pipe(Effect.catchAll(() => Effect.void));
         }
       }),
@@ -2997,6 +3015,11 @@ export function executePlan(
               dispatchCtx(currentPhaseFolderPath, currentPhaseId),
             );
           }).pipe(Effect.catchAll(() => Effect.void)),
+    ),
+    // The failed phase's record refusal follows its session failure: hand the
+    // warning to the CLI on the error, which prints the cause first.
+    Effect.mapError((e) =>
+      isSessionFailureCause(e) ? failWithFollowUps(e, failedRecordFollowUps) : e,
     ),
   );
 }

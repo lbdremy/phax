@@ -14,6 +14,7 @@ import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
   AuthoringDocumentError,
+  FailureWithFollowUpsError,
   RateLimitError,
 } from "../../src/domain/errors.js";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
@@ -1032,7 +1033,7 @@ describe("authorArtifact — authoring record", () => {
     expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
   });
 
-  it("a failed session's record warning goes to the output port", async () => {
+  it("a failed session's record warning rides on the error, for the CLI to print after the cause", async () => {
     const { run } = setup("not json");
     const warnings: string[] = [];
 
@@ -1049,6 +1050,13 @@ describe("authorArtifact — authoring record", () => {
     expect(Either.isLeft(result)).toBe(true);
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
+    ]);
+    const error = Either.isLeft(result) ? result.left : undefined;
+    expect(error).toBeInstanceOf(FailureWithFollowUpsError);
+    expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
+      AuthoringDocumentError,
+    );
+    expect(error instanceof FailureWithFollowUpsError && error.followUps).toEqual([
       "authoring record not written — the dedicated records clone is not configured (run `phax records sync`)",
     ]);
   });
@@ -1197,7 +1205,7 @@ describe("authorArtifact — authoring record push", () => {
     );
   });
 
-  it("a failed session's push warning goes to the output port, after its record warning", async () => {
+  it("a failed session's push warning rides on the error, after its record warning", async () => {
     const { git, run } = setup("not json");
     git.failNextPushBranch("network unreachable");
     const warnings: string[] = [];
@@ -1213,6 +1221,9 @@ describe("authorArtifact — authoring record push", () => {
     expect(Either.isLeft(result)).toBe(true);
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
+    ]);
+    const error = Either.isLeft(result) ? result.left : undefined;
+    expect(error instanceof FailureWithFollowUpsError && error.followUps).toEqual([
       `authoring record not pushed to ${PUBLISH_REMOTE} (network unreachable) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     ]);
   });

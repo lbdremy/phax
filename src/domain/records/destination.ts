@@ -1,7 +1,17 @@
 import type { RecordsDestination } from "../../schemas/recordsConfig.js";
+import { classifyGhFailure } from "./ghFailure.js";
 
 /** The source repo's detected visibility, as reported by the host. */
 export type RepoVisibility = "public" | "private" | "unknown";
+
+/**
+ * What the host answered about the source repo's visibility: the visibility,
+ * and gh's own first stderr line when the query failed (else null).
+ */
+export interface VisibilityReading {
+  readonly visibility: RepoVisibility;
+  readonly ghError: string | null;
+}
 
 export type RecordsDestinationRefusalReason =
   | "public-source-in-repo"
@@ -10,7 +20,7 @@ export type RecordsDestinationRefusalReason =
 export interface RecordsDestinationInput {
   readonly transcript: boolean;
   readonly destination: RecordsDestination;
-  readonly visibility: RepoVisibility;
+  readonly visibility: VisibilityReading;
 }
 
 interface RecordsDestinationAllowed {
@@ -39,7 +49,8 @@ export type RecordsDestinationDecision = RecordsDestinationAllowed | RecordsDest
 export function decideRecordsDestination(
   input: RecordsDestinationInput,
 ): RecordsDestinationDecision {
-  const { transcript, destination, visibility } = input;
+  const { transcript, destination } = input;
+  const { visibility, ghError } = input.visibility;
 
   // A dedicated records repo serves exactly one project and carries no
   // source code, so it is allowed whatever the source repo's visibility.
@@ -65,14 +76,19 @@ export function decideRecordsDestination(
   }
 
   if (visibility === "unknown" && destination.acknowledgedUnknownVisibility !== true) {
+    const failureClass = classifyGhFailure(ghError);
+    const cause = ghError === null ? "" : ` — gh: ${ghError}`;
     return {
       kind: "refused",
       reason: "unacknowledged-unknown-visibility",
       destination,
-      message:
-        "this repo's visibility could not be determined, and transcripts are enabled with an in-repo destination",
+      message: `this repo's visibility could not be determined${cause}, and transcripts are enabled with an in-repo destination`,
       remedy:
-        "set records.destination.acknowledgedUnknownVisibility to true once you have confirmed this repo is private, or disable transcripts",
+        failureClass === "network"
+          ? "retry once the network is back"
+          : failureClass === "auth"
+            ? "run `gh auth login`, then retry"
+            : "set records.destination.acknowledgedUnknownVisibility to true once you have confirmed this repo is private, or disable transcripts",
     };
   }
 

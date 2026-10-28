@@ -238,7 +238,10 @@ export type DecisionRecordPush = RecordsPushResult | { readonly kind: "no-record
  * nothing to say (written, or records off). A refused destination names its
  * remedy, as authoring records do.
  */
-export function decisionRecordWarning(record: DecisionRecordStatus): string | undefined {
+export function decisionRecordWarning(
+  record: DecisionRecordStatus,
+  followingFailedSession = false,
+): string | undefined {
   switch (record.kind) {
     case "written":
     case "records-off":
@@ -246,7 +249,7 @@ export function decisionRecordWarning(record: DecisionRecordStatus): string | un
     case "deferred-destination":
       return "decision record not written — the dedicated records clone is not configured (run `phax records sync`)";
     case "refused":
-      return `decision record refused: ${record.message} (remedy: ${record.remedy})`;
+      return `decision record refused${followingFailedSession ? ", following the failed session" : ""}: ${record.message} (remedy: ${record.remedy})`;
     case "write-failed":
       return `failed to write the decision record (${record.message})`;
   }

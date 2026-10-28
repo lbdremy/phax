@@ -1,6 +1,7 @@
 import { basename, dirname } from "node:path";
 import {
   AgentSessionFailedError,
+  FailureWithFollowUpsError,
   HandoffPausedError,
   RateLimitError,
   UsageLimitError,
@@ -18,6 +19,19 @@ export function isSessionFailureError(err: unknown): err is SessionFailureError 
     err instanceof RateLimitError ||
     err instanceof UsageLimitError
   );
+}
+
+/**
+ * A failure split into its cause and the follow-up warnings that ride on it:
+ * a command prints the cause's lines first, then each follow-up.
+ */
+export function splitFollowUps(err: unknown): {
+  readonly cause: unknown;
+  readonly followUps: readonly string[];
+} {
+  return err instanceof FailureWithFollowUpsError
+    ? { cause: err.cause, followUps: err.followUps }
+    : { cause: err, followUps: [] };
 }
 
 const SAFE_WORD = /^[A-Za-z0-9_@%+=:,./-]+$/;

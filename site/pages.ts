@@ -202,6 +202,13 @@ export default definePageMap({
         "Upgrade phax, refresh the skills and phax.schema.json it copied into your repository, and the one-time steps each release asks for.",
     },
     {
+      route: "/guide/agent-session-failures",
+      title: "Troubleshooting a failed agent session",
+      source: "docs/agent-session-failures.md",
+      description:
+        "Read a failed agent session's cause, files and retry hint, and what to do for exit 5, 8 and 14.",
+    },
+    {
       route: "/guide/plan-estimate",
       title: "Estimating a plan",
       source: "docs/plan-estimate.md",
