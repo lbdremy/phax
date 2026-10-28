@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610280825-vibe-3.md",
+  "specFingerprint": "36ecafcc674679ec12a26907167a97fd72b3b9550e0aa763e19596bdc4d574b0",
+  "approvedAt": "2026-10-28T08:43:46.422Z",
+  "baseline": "cd84d228c860a97124c0f16624a5efed1159ebd2",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
