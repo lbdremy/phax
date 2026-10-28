@@ -3,9 +3,10 @@
  * with PHAX_E2E_RUN=1, Vibe 3.0.3 or later on $PATH, phax's model aliases in
  * Vibe's home (`phax agent setup mistral-vibe --install-model-aliases`), the
  * mistral-vibe provider enabled in `~/.phax/providers.json`
- * (`phax agent setup providers --write`), and the provider credential in the
- * environment (MISTRAL_API_KEY). Without the provider enabled, routing would
- * fall back to Claude Code, so the suite skips and says so.
+ * (`phax agent setup providers --write`), and Vibe signed in (its own login, or
+ * MISTRAL_API_KEY in the environment). Without the provider enabled, routing
+ * would fall back to Claude Code, so the suite skips and says so. A Vibe that
+ * cannot sign in fails the cases with its own authentication error.
  *
  * Cases, each in its own temporary repository:
  *   - secure confined: a secure phase writes in the worktree and runs its one
@@ -55,8 +56,6 @@ import { runCli } from "./helpers/runCli.js";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
 import { expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
 
-const CREDENTIAL = "MISTRAL_API_KEY";
-
 function vibeVersionAtLeast303(): boolean {
   const r = spawnSync("vibe", ["--version"], { encoding: "utf8", timeout: 5_000, stdio: "pipe" });
   if (r.status !== 0) return false;
@@ -85,7 +84,6 @@ function skipReason(): string | undefined {
   if (process.env["PHAX_E2E_RUN"] !== "1") return "PHAX_E2E_RUN=1 is not set";
   if (!probeProvider("vibe")) return "the vibe executable is not on $PATH";
   if (!vibeVersionAtLeast303()) return "vibe is older than 3.0.3";
-  if (!process.env[CREDENTIAL]) return `${CREDENTIAL} is not set (the provider credential)`;
   if (!vibeProviderEnabled()) {
     return "mistral-vibe is not enabled in ~/.phax/providers.json (phax agent setup providers --write); routing would run Claude Code instead";
   }
@@ -256,11 +254,14 @@ function expectRefused(
   }
 }
 
-/** A bash call whose command holds `fragment`. */
+/**
+ * A shell call whose command holds `fragment`: a bash call, or a background
+ * process Vibe 3.0.3 starts through its own `process.start` tool.
+ */
 const bashCall =
   (fragment: string) =>
   (call: VibeToolCall): boolean =>
-    call.tool.endsWith("bash") && call.target.includes(fragment);
+    (call.tool.endsWith("bash") || call.tool === "process.start") && call.target.includes(fragment);
 
 /** The config a turn ran with, read from the export beside its stream. */
 function exportConfigOf(transcriptPath: string): Record<string, unknown> {
@@ -275,11 +276,23 @@ function worktreeOf(env: TempEnv): string {
   return join(env.phaxHome, "worktrees", run, "phase-01");
 }
 
+/** Commits the plan and config a case wrote, so `phax run` starts on a clean tree. */
+function commitSetup(env: TempEnv): void {
+  for (const args of [
+    ["add", "-A"],
+    ["commit", "-q", "--allow-empty", "-m", "chore: e2e setup"],
+  ]) {
+    const r = spawnSync("git", args, { cwd: env.repoDir, encoding: "utf8", stdio: "pipe" });
+    expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
+  }
+}
+
 function runPhase(
   env: TempEnv,
   extraEnv: Record<string, string> = {},
   extraArgs: readonly string[] = [],
 ) {
+  commitSetup(env);
   return runCli(
     [
       "run",
@@ -397,7 +410,9 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
     },
   );
 
-  it(
+  // A temporary VIBE_HOME has no sign-in of its own: Vibe then needs the key in
+  // the environment.
+  it.skipIf(!process.env["MISTRAL_API_KEY"])(
     "loose config: a user VIBE_HOME cannot widen the session, and stays untouched",
     { timeout: 600_000 },
     () => {
@@ -476,8 +491,9 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       };
       const base: AgentRunOptions = {
         provider: "mistral-vibe",
-        model: "phax-mistral-medium-3.5-low",
-        effort: "low",
+        // The API takes only `none` and `high` reasoning for this model.
+        model: "phax-mistral-medium-3.5-off",
+        effort: "off",
         cwd,
         security,
         phaseFolderPath: phaseFolder,
@@ -550,6 +566,9 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const held = runPhase(env, {}, ["--hold", "phase-01"]);
       failed ||= held.exitCode !== 13;
       expect(held.exitCode, `stdout:\n${held.stdout}\nstderr:\n${held.stderr}`).toBe(13);
+
+      // A person's correction: an unchanged stop closes without a closing turn.
+      writeFileSync(join(worktreeOf(env), "review-note.txt"), "checked by a person\n");
 
       const shortName = (runDir(env).split("/").pop() as string).split(".").slice(1).join(".");
       const resumed = runCli(["resume", shortName, "--yes", "--verbose"], env.repoDir, {
