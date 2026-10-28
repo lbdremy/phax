@@ -28,6 +28,11 @@ import {
   makeProviderBackendLayer,
   renderAgentInvocationError,
 } from "./runLayers.js";
+import {
+  isSessionFailureError,
+  renderSessionFailure,
+  retryCommandLine,
+} from "./sessionFailureOutput.js";
 
 export interface DecideCommandOptions {
   readonly question?: string;
@@ -78,8 +83,14 @@ function renderResult(result: DecideArtifactResult, out: OutputPort): void {
   if (pushWarning !== undefined) out.warn(pushWarning);
 }
 
-function reportDecideError(err: { readonly message: string }, out: OutputPort): void {
-  if (err instanceof AgentInvocationError) {
+function reportDecideError(
+  err: { readonly message: string },
+  out: OutputPort,
+  retry: string | null,
+): void {
+  if (isSessionFailureError(err)) {
+    for (const line of renderSessionFailure(err, retry)) out.error(line);
+  } else if (err instanceof AgentInvocationError) {
     // A handback that could not resume says why (Claude Code's stderr).
     const { message, logHint } = renderAgentInvocationError(err);
     out.error(`✗ ${message}`);
@@ -215,8 +226,32 @@ export async function runArtifactDecide(
     deps.githubLayer ?? NodeGitHubLayer,
   );
 
+  const sharedFlags = [
+    ...(opts.doctrine === undefined ? [] : ["--doctrine", opts.doctrine]),
+    ...(opts.model === undefined ? [] : ["--model", opts.model]),
+    ...(opts.effort === undefined ? [] : ["--effort", opts.effort]),
+  ];
+  const interactiveRetry = retryCommandLine([
+    "artifact",
+    "decide",
+    pathArg,
+    ...(opts.question === undefined ? [] : ["--question", opts.question]),
+    ...sharedFlags,
+  ]);
+
   if (opts.verdicts !== undefined) {
     const source = opts.verdicts;
+    const verdictsRetry =
+      retryCommandLine([
+        "artifact",
+        "decide",
+        pathArg,
+        "--verdicts",
+        source,
+        ...(opts.by === undefined ? [] : ["--by", opts.by]),
+        ...sharedFlags,
+        ...(opts.json === true ? ["--json"] : []),
+      ]) + (source === "-" ? " (pipe the same verdicts again)" : "");
     const json = opts.json === true;
     // --json keeps stdout for the one report object: progress goes to stderr.
     const progress = json ? { log: out.warn, warn: out.warn } : out;
@@ -258,7 +293,7 @@ export async function runArtifactDecide(
     }).pipe(Effect.provide(layer));
     const verdictsResult = await Effect.runPromise(Effect.either(verdictsEffect));
     if (Either.isLeft(verdictsResult)) {
-      reportDecideError(verdictsResult.left, out);
+      reportDecideError(verdictsResult.left, out, verdictsRetry);
       return exitCodeForAuthoringError(verdictsResult.left);
     }
     renderVerdictsResult(verdictsResult.right, out, json);
@@ -296,7 +331,7 @@ export async function runArtifactDecide(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    reportDecideError(result.left, out);
+    reportDecideError(result.left, out, interactiveRetry);
     return exitCodeForAuthoringError(result.left);
   }
   renderResult(result.right, out);

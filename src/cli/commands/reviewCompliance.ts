@@ -16,7 +16,13 @@ import type { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
-import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import {
+  exitCodeForError,
+  makeProviderBackendLayer,
+  makeRepoRootedFileSystemLayer,
+} from "./runLayers.js";
+import { isSessionFailureError, renderSessionFailure } from "./sessionFailureOutput.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import type { FileSystem } from "../../ports/fs.js";
 import type { Backend } from "../../ports/backend.js";
@@ -120,6 +126,18 @@ export async function runReviewCompliance(
   }
 
   if (review.kind === "failed") {
+    if (review.sessionFailure != null) {
+      const err = sessionFailureError(
+        review.sessionFailure,
+        review.sessionFailureFiles ?? { agentErrorLog: null, transcript: null },
+      );
+      if (isSessionFailureError(err)) {
+        for (const line of renderSessionFailure(err, `phax review-compliance ${shortName}`)) {
+          out.error(line);
+        }
+        return review.sessionFailure.kind === "network" ? exitCodeForError(err) : 1;
+      }
+    }
     out.error(
       `Compliance review failed: ${review.failureReason ?? "unknown error"}. ` +
         `To retry, run: phax review-compliance ${shortName}`,

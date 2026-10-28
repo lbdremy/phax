@@ -1,4 +1,7 @@
 import { Effect, Either } from "effect";
+import { AgentSessionFailedError } from "../domain/errors.js";
+import type { SessionFailureFiles } from "../domain/session/failureError.js";
+import type { SessionFailure } from "../domain/session/outcome.js";
 import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { ResolvedComplianceReviewConfig } from "../schemas/phaxConfig.js";
@@ -51,6 +54,10 @@ export interface ComplianceReviewResult {
   readonly structuredVerdictMissing?: boolean;
   readonly mdArtifactPath?: string;
   readonly failureReason?: string;
+  /** In memory only, never persisted: the failed session, when the agent's session failed. */
+  readonly sessionFailure?: SessionFailure | null;
+  /** In memory only: the agent-error.log and transcript the failed session left. */
+  readonly sessionFailureFiles?: SessionFailureFiles | null;
 }
 
 export interface ReviewComplianceOpts {
@@ -225,7 +232,17 @@ export function reviewCompliance(
           result: "failure",
         }),
       );
-      return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
+      const sessionError =
+        agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
+      return {
+        kind: "failed",
+        failureReason: reason,
+        sessionFailure: sessionError?.failure ?? null,
+        sessionFailureFiles:
+          sessionError === null
+            ? null
+            : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
+      } satisfies ComplianceReviewResult;
     }
 
     const mdExistsResult = yield* Effect.either(fs.exists(agentMdPath));

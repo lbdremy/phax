@@ -32,6 +32,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AwaitingReviewStopError,
   AgentInvocationError,
+  AgentSessionFailedError,
   AgentSessionIdMissingError,
   ArtifactArbiterRefusedError,
   ArtifactCommitFailedError,
@@ -185,6 +186,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   { code: 11, meaning: "Security or preflight refusal" },
   { code: 12, meaning: "Artifact lifecycle refusal" },
   { code: 13, meaning: "Awaiting review at an interactive or held phase (resumable)" },
+  { code: 14, meaning: "Provider unreachable: network failure (resumable)" },
 ];
 
 export function exitCodeForError(err: unknown): number {
@@ -198,6 +200,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof GateStepRefusedError
   )
     return 4;
+  if (err instanceof AgentSessionFailedError) return err.failure.kind === "network" ? 14 : 5;
   if (
     err instanceof AgentInvocationError ||
     err instanceof AgentSessionIdMissingError ||

@@ -42,6 +42,11 @@ import {
   provideRunLayers,
   renderAgentInvocationError,
 } from "./runLayers.js";
+import {
+  isSessionFailureError,
+  renderSessionFailure,
+  retryCommandLine,
+} from "./sessionFailureOutput.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { renderStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
 import { readPackageVersion } from "./usage.js";
@@ -330,6 +335,7 @@ export async function runResume(
           ),
         );
         out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        for (const line of renderSessionFailure(err, null).slice(1)) out.warn(line);
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {
@@ -382,6 +388,21 @@ export async function runResume(
           ),
         );
         out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (isSessionFailureError(err)) {
+        // A mid-run network pause is rendered by the pause itself; until then
+        // the invoked command is the retry hint.
+        const retry = retryCommandLine([
+          "resume",
+          runRefArg,
+          ...(opts.yes === true ? ["--yes"] : []),
+          ...(opts.providerPriority === undefined
+            ? []
+            : ["--provider-priority", opts.providerPriority]),
+          ...(opts.skipOracle === true ? ["--skip-oracle"] : []),
+        ]);
+        for (const line of renderSessionFailure(err, retry)) out.error(line);
         return exitCodeForError(err);
       }
       if (err instanceof AgentInvocationError) {
