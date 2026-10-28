@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610271510-provider-failures.md
 completes-spec: true
 approved:
