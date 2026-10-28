@@ -9,6 +9,7 @@ import {
   runVibeAgent,
   runVibeCompletion,
 } from "../../../src/infra/providers/mistralVibe.js";
+import { renderAgentInvocationError } from "../../../src/cli/commands/runLayers.js";
 import { AgentInvocationError, SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
@@ -741,6 +742,17 @@ describe("runVibeAgent against a fake vibe", () => {
         );
       },
     );
+
+    it("points the rendered refusal at an agent-error.log that exists", async () => {
+      const fake = fakeIn({ version: "vibe 2.13.0", exportText });
+
+      const { message, logHint } = renderAgentInvocationError(await failureOf(fake.executable));
+
+      const logPath = join(phaseFolder, "agent-error.log");
+      expect(message).toContain("mistral-vibe 2.13.0 is installed");
+      expect(logHint).toBe(`See ${logPath} for the full agent output.`);
+      expect(readFileSync(logPath, "utf8")).toContain("uv tool upgrade mistral-vibe");
+    });
 
     it.each(["not a version", "", "vibe 3.0"])(
       "refuses unparseable --version output %j, naming what was printed",
