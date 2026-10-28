@@ -14,6 +14,7 @@ import {
 import {
   DecisionRecordManifestFileSchema,
   decodeDecisionRecordManifestFile,
+  liftFrozenDecisionManifest,
   type DecisionRecordManifest,
   type DecisionRecordManifestFile,
 } from "../../../../src/schemas/decisionRecord.js";
@@ -317,7 +318,9 @@ export function toLatestDecisionRecordManifest(
   value: DecisionRecordManifestFile | DecisionRecordManifestV0_25_0 | DecisionRecordManifestV0_28_0,
 ): LatestDecisionRecordManifest {
   const { $schema: _schema, ...recorded } = value;
-  return { ...recorded, usage: liftFrozenTokenUsage(recorded.usage) };
+  // A current failed record already names its failure; a frozen one never does.
+  if ("failure" in recorded) return recorded;
+  return liftFrozenDecisionManifest(recorded);
 }
 
 // ── review record manifest

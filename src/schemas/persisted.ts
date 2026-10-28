@@ -83,7 +83,7 @@ import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeCodeReviewFile, type CodeReview } from "./codeReview.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
-import { decodeDecisionRecordManifestFile } from "./decisionRecord.js";
+import { decodeDecisionRecordManifestFile, liftFrozenDecisionManifest } from "./decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "./reviewRecord.js";
 import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js";
 import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError.js";
@@ -1561,7 +1561,8 @@ const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 // stamped below the format's current stamp is read by the frozen 0.28.0
 // decoder when stamped 0.28.0 or later, else by the frozen 0.25.0 decoder; an
 // 0.25.0 manifest is an interactive record, valid as it is. Every lift turns a
-// Vibe usage into unavailable.
+// Vibe usage into unavailable, and a failed record, which named no failure
+// before 0.30.0, gets `failure: null`.
 const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("decision-record-manifest", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
@@ -1576,7 +1577,7 @@ const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
       );
     }
     const { $schema: _schema, ...manifest } = older.right;
-    return Either.right({ ...manifest, usage: liftFrozenTokenUsage(manifest.usage) });
+    return Either.right(liftFrozenDecisionManifest(manifest));
   }
   return readSchemaBornPersisted(input, {
     format: "decision-record-manifest",

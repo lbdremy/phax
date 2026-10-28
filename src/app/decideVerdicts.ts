@@ -84,6 +84,7 @@ import {
   decisionRecordWarning,
   writeDecisionRecord,
 } from "./writeDecisionRecord.js";
+import { decisionFailureOf } from "./decideFailure.js";
 
 /** Where the verdicts file is read from: a repo-relative or absolute path, or stdin. */
 export type VerdictsSource =
@@ -584,7 +585,7 @@ export function decideVerdicts(
     );
     const accepted = observed.accepted;
     const end: VerdictsRecordEnd = Either.isLeft(ended)
-      ? { outcome: "failed", commit: null }
+      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.left) }
       : { outcome: "committed", commit: ended.right.commit.hash };
     const record = yield* writeDecisionRecord({
       mode: "verdicts",

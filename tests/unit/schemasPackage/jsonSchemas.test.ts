@@ -91,7 +91,10 @@ function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
     case "authoring-record-manifest":
       return [authoringManifest, withoutKey(authoringManifest, "sourceSha")];
     case "decision-record-manifest":
-      return [decisionManifest, { ...decisionManifest, outcome: "failed", commit: null }];
+      return [
+        decisionManifest,
+        { ...decisionManifest, outcome: "failed", commit: null, failure: "network" },
+      ];
     case "review-record-manifest":
       return [reviewManifest, { ...reviewManifest, review: "code-review" }];
     case "record-manifest":
