@@ -35,6 +35,16 @@ import {
   type ReviewStopFile,
 } from "../../../../src/schemas/reviewStop.js";
 import {
+  ReviewStopV0_26_0Schema,
+  decodeReviewStopV0_26_0,
+  type ReviewStopV0_26_0,
+} from "../../../../src/schemas/history/review-stop/0.26.0.js";
+import {
+  RunListV0_26_0Schema,
+  decodeRunListV0_26_0,
+  type RunListV0_26_0,
+} from "../../../../src/schemas/history/run-list/0.26.0.js";
+import {
   RunListFileSchema,
   decodeRunListFile,
   type RunList,
@@ -165,6 +175,8 @@ export function toLatestInteractiveSession(
 // ── review stop
 
 export type ReviewStopShapes = {
+  "0.26.0": ReviewStopV0_26_0;
+} & {
   [K in CurrentShapeName<"review-stop">]: ReviewStopFile;
 };
 
@@ -175,7 +187,7 @@ export const reviewStopFormat = defineFormat<ReviewStopShapes>({
   id: "review-stop",
   label: "review stop",
   preSchema: null,
-  releases: [],
+  releases: [["0.26.0", { schema: ReviewStopV0_26_0Schema, decode: decodeReviewStopV0_26_0 }]],
   current: {
     name: CURRENT_SHAPES["review-stop"],
     shape: { schema: ReviewStopFileSchema, decode: decodeReviewStopFile },
@@ -189,8 +201,11 @@ export const parseReviewStop: (input: unknown) => ParsedShape<ReviewStopShapes> 
 /** The latest review stop: phax's in-memory value, with no `$schema`. */
 export type LatestReviewStop = ReviewStop;
 
-/** Upgrades a parsed review stop in memory: drops `$schema`, keeps every other fact. */
-export function toLatestReviewStop(value: ReviewStopFile): LatestReviewStop {
+/**
+ * Upgrades a parsed review stop in memory: drops `$schema`, keeps every other
+ * fact. A 0.26.0 stop is valid in the current shape as it is.
+ */
+export function toLatestReviewStop(value: ReviewStopFile | ReviewStopV0_26_0): LatestReviewStop {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }
@@ -198,6 +213,8 @@ export function toLatestReviewStop(value: ReviewStopFile): LatestReviewStop {
 // ── run list
 
 export type RunListShapes = {
+  "0.26.0": RunListV0_26_0;
+} & {
   [K in CurrentShapeName<"run-list">]: RunListFile;
 };
 
@@ -208,7 +225,7 @@ export const runListFormat = defineFormat<RunListShapes>({
   id: "run-list",
   label: "run list",
   preSchema: null,
-  releases: [],
+  releases: [["0.26.0", { schema: RunListV0_26_0Schema, decode: decodeRunListV0_26_0 }]],
   current: {
     name: CURRENT_SHAPES["run-list"],
     shape: { schema: RunListFileSchema, decode: decodeRunListFile },
@@ -221,8 +238,11 @@ export const parseRunList: (input: unknown) => ParsedShape<RunListShapes> = runL
 /** The latest run list: phax's in-memory value, with no `$schema`. */
 export type LatestRunList = RunList;
 
-/** Upgrades a parsed run list in memory: drops `$schema`, keeps every other fact. */
-export function toLatestRunList(value: RunListFile): LatestRunList {
+/**
+ * Upgrades a parsed run list in memory: drops `$schema`, keeps every other
+ * fact. A 0.26.0 list is valid in the current shape as it is.
+ */
+export function toLatestRunList(value: RunListFile | RunListV0_26_0): LatestRunList {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }

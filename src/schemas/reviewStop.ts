@@ -54,6 +54,13 @@ const LastCloseSchema = Schema.Union(
     exitCode: Schema.Literal(8),
     resetAt: Schema.NullOr(Schema.String),
   }),
+  // A closing turn that could not reach the provider: `detail` is the provider's message.
+  Schema.Struct({
+    result: Schema.Literal("network"),
+    at: InstantSchema,
+    exitCode: Schema.Literal(14),
+    detail: Schema.NonEmptyString,
+  }),
   // A provider error in the closing session exits 5; a Git, file or shell error exits 1.
   Schema.Struct({
     result: Schema.Literal("close-error"),

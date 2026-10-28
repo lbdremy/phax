@@ -15,6 +15,8 @@ import * as specDocumentV0_25_0 from "../../../src/schemas/history/spec-document
 import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as phaxPlanV0_17_0 from "../../../src/schemas/history/phax-plan/0.17.0.js";
 import * as costLedgerV0_26_0 from "../../../src/schemas/history/cost-ledger/0.26.0.js";
+import * as reviewStopV0_26_0 from "../../../src/schemas/history/review-stop/0.26.0.js";
+import * as runListV0_26_0 from "../../../src/schemas/history/run-list/0.26.0.js";
 import * as phaxPlanV0_26_0 from "../../../src/schemas/history/phax-plan/0.26.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import * as specApprovalRecordV0_19_0 from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
@@ -138,7 +140,9 @@ describe("schemas package entry", () => {
       "RegistryV0_17_0Schema",
       "ReviewRecordManifestSchema",
       "ReviewStopSchema",
+      "ReviewStopV0_26_0Schema",
       "RunListSchema",
+      "RunListV0_26_0Schema",
       "RunStatusPreSchemaSchema",
       "RunStatusSchema",
       "RunStatusV0_17_0Schema",
@@ -364,6 +368,15 @@ describe("schemas package entry", () => {
     expect(entry.CostLedgerV0_26_0Schema).toBe(costLedgerV0_26_0.CostLedgerV0_26_0Schema);
     expect(costLedgerV0_26_0.decodeCostLedgerV0_26_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodeCostLedgerV0_26_0");
+  });
+
+  it("re-exports the review-stop and run-list 0.26.0 frozen modules' schemas, never a copy, and never their decoders", () => {
+    expect(entry.ReviewStopV0_26_0Schema).toBe(reviewStopV0_26_0.ReviewStopV0_26_0Schema);
+    expect(reviewStopV0_26_0.decodeReviewStopV0_26_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeReviewStopV0_26_0");
+    expect(entry.RunListV0_26_0Schema).toBe(runListV0_26_0.RunListV0_26_0Schema);
+    expect(runListV0_26_0.decodeRunListV0_26_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeRunListV0_26_0");
   });
 
   it("re-exports the brief-record 0.20.0 frozen module's schema, never a copy, and never its decoder", () => {

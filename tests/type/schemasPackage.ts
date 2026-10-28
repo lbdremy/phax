@@ -29,8 +29,10 @@ import type {
   LatestRunList,
   ReviewStop,
   ReviewStopShape,
+  ReviewStopV0_26_0,
   RunList,
   RunListShape,
+  RunListV0_26_0,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
@@ -303,6 +305,8 @@ import type {
 import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import type { DecisionRecordManifestV0_28_0 as FrozenDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
 import type { InteractiveSessionV0_26_0 as FrozenInteractiveSessionV0_26_0 } from "../../src/schemas/history/interactive-session/0.26.0.js";
+import type { ReviewStopV0_26_0 as FrozenReviewStopV0_26_0 } from "../../src/schemas/history/review-stop/0.26.0.js";
+import type { RunListV0_26_0 as FrozenRunListV0_26_0 } from "../../src/schemas/history/run-list/0.26.0.js";
 import type {
   ReviewRecordManifest as PhaxReviewRecordManifest,
   ReviewRecordManifestFile as PhaxReviewRecordManifestFile,
@@ -1273,16 +1277,23 @@ const interactiveTypes: [
   >,
   Equals<InteractiveSessionV0_26_0, FrozenInteractiveSessionV0_26_0>,
   Equals<ReviewStop, PhaxReviewStopFile>,
-  Equals<ReviewStopShape, Current<"review-stop">>,
-  Equals<Value<typeof parseReviewStop>, PhaxReviewStopFile>,
+  Equals<ReviewStopShape, "0.26.0" | Current<"review-stop">>,
+  Equals<Value<typeof parseReviewStop>, FrozenReviewStopV0_26_0 | PhaxReviewStopFile>,
   Equals<LatestReviewStop, PhaxReviewStop>,
-  Equals<Parameters<typeof toLatestReviewStop>, [value: PhaxReviewStopFile]>,
+  Equals<
+    Parameters<typeof toLatestReviewStop>,
+    [value: PhaxReviewStopFile | FrozenReviewStopV0_26_0]
+  >,
+  Equals<ReviewStopV0_26_0, FrozenReviewStopV0_26_0>,
   Equals<RunList, PhaxRunListFile>,
-  Equals<RunListShape, Current<"run-list">>,
-  Equals<Value<typeof parseRunList>, PhaxRunListFile>,
+  Equals<RunListShape, "0.26.0" | Current<"run-list">>,
+  Equals<Value<typeof parseRunList>, FrozenRunListV0_26_0 | PhaxRunListFile>,
   Equals<LatestRunList, PhaxRunList>,
-  Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile]>,
+  Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile | FrozenRunListV0_26_0]>,
+  Equals<RunListV0_26_0, FrozenRunListV0_26_0>,
 ] = [
+  true,
+  true,
   true,
   true,
   true,

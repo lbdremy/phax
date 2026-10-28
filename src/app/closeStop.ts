@@ -25,6 +25,7 @@ import {
   GateFailedError,
   GateStepRefusedError,
   InvalidTransitionError,
+  AgentSessionFailedError,
   RateLimitError,
   StopCloseRefusedError,
   UsageLimitError,
@@ -320,6 +321,24 @@ const limitRefusal = (error: RateLimitError | UsageLimitError): Refusal => ({
   resetAt: error.resetAt ?? null,
 });
 
+// A closing turn that could not reach the provider keeps the run awaiting
+// review, with the provider's own message.
+const isNetworkFailure = (error: unknown): error is AgentSessionFailedError =>
+  error instanceof AgentSessionFailedError && error.failure.kind === "network";
+
+const networkRefusal = (error: AgentSessionFailedError): Refusal => ({
+  result: "network",
+  exitCode: 14,
+  detail: error.failure.message,
+});
+
+/** The refusal a failed closing turn records: its limit, its network failure, else a close error. */
+function closingTurnRefusal(error: unknown): Refusal {
+  if (isLimit(error)) return limitRefusal(error);
+  if (isNetworkFailure(error)) return networkRefusal(error);
+  return closeError("closing-turn", error);
+}
+
 function describeRefusal(lastClose: RefusedClose): string {
   switch (lastClose.result) {
     case "gate-failed":
@@ -336,6 +355,8 @@ function describeRefusal(lastClose: RefusedClose): string {
       return lastClose.resetAt === null
         ? "a rate or usage limit stopped the closing turn"
         : `a rate or usage limit stopped the closing turn; it resets at ${lastClose.resetAt}`;
+    case "network":
+      return `the closing turn could not reach the provider: ${lastClose.detail}; retry once the network is back`;
     case "close-error":
       return `the close failed at its ${lastClose.step} step: ${lastClose.detail}`;
   }
@@ -784,8 +805,8 @@ function attemptClosingTurn(
       );
       if (Either.isRight(resumed)) {
         first = { result: resumed.right, binding, source: "closing-turn-resumed", label };
-      } else if (isLimit(resumed.left)) {
-        return { kind: "refused", refusal: limitRefusal(resumed.left) };
+      } else if (isLimit(resumed.left) || isNetworkFailure(resumed.left)) {
+        return { kind: "refused", refusal: closingTurnRefusal(resumed.left) };
       }
     }
 
@@ -817,12 +838,7 @@ function attemptClosingTurn(
         "agent.run",
       );
       if (Either.isLeft(started)) {
-        return {
-          kind: "refused",
-          refusal: isLimit(started.left)
-            ? limitRefusal(started.left)
-            : closeError("closing-turn", started.left),
-        };
+        return { kind: "refused", refusal: closingTurnRefusal(started.left) };
       }
       first = {
         result: started.right,
@@ -853,12 +869,7 @@ function attemptClosingTurn(
       "agent.resume",
     );
     if (Either.isLeft(retry)) {
-      return {
-        kind: "refused",
-        refusal: isLimit(retry.left)
-          ? limitRefusal(retry.left)
-          : closeError("closing-turn", retry.left),
-      };
+      return { kind: "refused", refusal: closingTurnRefusal(retry.left) };
     }
     const retried = decodeHandoffAnswer(retry.right.finalText);
     if (Either.isRight(retried)) {

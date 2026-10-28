@@ -1,0 +1,1530 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax run list",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "runs"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The run-list format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/run-list/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/run-list\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "qualifiedName",
+          "namespace",
+          "shortName",
+          "state",
+          "branch",
+          "currentPhase",
+          "gateProfile",
+          "updatedAt",
+          "lockState",
+          "recordsPending",
+          "archivePath",
+          "stop"
+        ],
+        "properties": {
+          "qualifiedName": {
+            "type": "string",
+            "description": "The run's qualified name: `<namespace>.<short name>`.",
+            "title": "nonEmptyString",
+            "minLength": 1
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "shortName": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "failed",
+              "review_open",
+              "completed",
+              "stopped",
+              "archived",
+              "interrupted",
+              "rate_limited",
+              "awaiting_review"
+            ]
+          },
+          "branch": {
+            "type": "string"
+          },
+          "currentPhase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The phase the run reached as `<n>/<total>`, or null when unknown."
+          },
+          "gateProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run's gate profile, or null when unknown."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "The run's last update, as `YYYY-MM-DD HH:MM`."
+          },
+          "lockState": {
+            "type": "string",
+            "enum": [
+              "none",
+              "active",
+              "stale"
+            ]
+          },
+          "recordsPending": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Int",
+                "description": "a non-negative number",
+                "title": "greaterThanOrEqualTo(0)",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The count of pending records, or null when records are off or not readable here."
+          },
+          "archivePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where an archived run was moved, or null."
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "$schema",
+                      "run",
+                      "cause",
+                      "state",
+                      "phase",
+                      "firstReading",
+                      "worktree",
+                      "seed",
+                      "session",
+                      "commands",
+                      "lastClose",
+                      "closeBase"
+                    ],
+                    "properties": {
+                      "$schema": {
+                        "type": "string",
+                        "description": "The review-stop format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/review-stop/<X.Y.Z>.json",
+                        "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/review-stop\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+                      },
+                      "run": {
+                        "type": "string",
+                        "description": "The run's qualified name.",
+                        "title": "nonEmptyString",
+                        "minLength": 1
+                      },
+                      "cause": {
+                        "type": "string",
+                        "enum": [
+                          "declared"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "awaiting_review"
+                        ]
+                      },
+                      "phase": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "mode",
+                          "position",
+                          "of"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a string matching the pattern ^phase-\\d{2}$",
+                            "pattern": "^phase-\\d{2}$"
+                          },
+                          "title": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "interactive"
+                            ]
+                          },
+                          "position": {
+                            "$ref": "#/$defs/Int",
+                            "description": "a number greater than or equal to 1",
+                            "title": "greaterThanOrEqualTo(1)",
+                            "minimum": 1
+                          },
+                          "of": {
+                            "$ref": "#/$defs/Int",
+                            "description": "a number greater than or equal to 1",
+                            "title": "greaterThanOrEqualTo(1)",
+                            "minimum": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "firstReading": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The path of first-reading.md, or null when no first turn answered."
+                      },
+                      "worktree": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "seed": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "session": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "provider",
+                              "sessionId",
+                              "origin",
+                              "interactiveResume"
+                            ],
+                            "properties": {
+                              "provider": {
+                                "type": "string",
+                                "enum": [
+                                  "claude-code",
+                                  "codex-cli",
+                                  "mistral-vibe"
+                                ]
+                              },
+                              "sessionId": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "origin": {
+                                "type": "string",
+                                "enum": [
+                                  "first-turn",
+                                  "new-session"
+                                ]
+                              },
+                              "interactiveResume": {
+                                "type": "string",
+                                "enum": [
+                                  "verified",
+                                  "unverified"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "commands": {
+                        "type": "object",
+                        "required": [
+                          "continue",
+                          "freshStart",
+                          "enterPhase",
+                          "close",
+                          "reset"
+                        ],
+                        "properties": {
+                          "continue": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "cwd",
+                                  "argv",
+                                  "env"
+                                ],
+                                "properties": {
+                                  "cwd": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  },
+                                  "argv": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "required": [],
+                                    "properties": {},
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "freshStart": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "enterPhase": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "close": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "reset": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "lastClose": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "log"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "gate-failed"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      4
+                                    ]
+                                  },
+                                  "log": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "paths"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "worktree-changed"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "paths": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "paths"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-turn-edited"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "paths": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "defects"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "handoff-invalid"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "defects": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "reason"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-answer-invalid"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "reason": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "resetAt"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "limit"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      8
+                                    ]
+                                  },
+                                  "resetAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "network"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      14
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "step",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "close-error"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-turn"
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "step",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "close-error"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "gate",
+                                      "commit",
+                                      "files"
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "interrupted"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      130
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "closeBase": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/NonEmptyString"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The HEAD sha a close recorded before its gate, or null before any close."
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "$schema",
+                      "run",
+                      "cause",
+                      "state",
+                      "phase",
+                      "phaseCommit",
+                      "worktree",
+                      "seed",
+                      "session",
+                      "commands",
+                      "lastClose",
+                      "closeBase"
+                    ],
+                    "properties": {
+                      "$schema": {
+                        "type": "string",
+                        "description": "The review-stop format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/review-stop/<X.Y.Z>.json",
+                        "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/review-stop\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+                      },
+                      "run": {
+                        "type": "string",
+                        "description": "The run's qualified name.",
+                        "title": "nonEmptyString",
+                        "minLength": 1
+                      },
+                      "cause": {
+                        "type": "string",
+                        "enum": [
+                          "held"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "awaiting_review"
+                        ]
+                      },
+                      "phase": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "mode",
+                          "position",
+                          "of"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a string matching the pattern ^phase-\\d{2}$",
+                            "pattern": "^phase-\\d{2}$"
+                          },
+                          "title": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "headless"
+                            ]
+                          },
+                          "position": {
+                            "$ref": "#/$defs/Int",
+                            "description": "a number greater than or equal to 1",
+                            "title": "greaterThanOrEqualTo(1)",
+                            "minimum": 1
+                          },
+                          "of": {
+                            "$ref": "#/$defs/Int",
+                            "description": "a number greater than or equal to 1",
+                            "title": "greaterThanOrEqualTo(1)",
+                            "minimum": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "phaseCommit": {
+                        "type": "string",
+                        "description": "The full object name of the phase's commit, which the stop holds.",
+                        "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+                      },
+                      "worktree": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "seed": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "session": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "provider",
+                              "sessionId",
+                              "origin",
+                              "interactiveResume"
+                            ],
+                            "properties": {
+                              "provider": {
+                                "type": "string",
+                                "enum": [
+                                  "claude-code",
+                                  "codex-cli",
+                                  "mistral-vibe"
+                                ]
+                              },
+                              "sessionId": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "origin": {
+                                "type": "string",
+                                "enum": [
+                                  "builder",
+                                  "new-session"
+                                ]
+                              },
+                              "interactiveResume": {
+                                "type": "string",
+                                "enum": [
+                                  "verified",
+                                  "unverified"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "commands": {
+                        "type": "object",
+                        "required": [
+                          "continue",
+                          "freshStart",
+                          "enterPhase",
+                          "close",
+                          "reset"
+                        ],
+                        "properties": {
+                          "continue": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "cwd",
+                                  "argv",
+                                  "env"
+                                ],
+                                "properties": {
+                                  "cwd": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  },
+                                  "argv": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "required": [],
+                                    "properties": {},
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "freshStart": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "enterPhase": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "close": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "reset": {
+                            "type": "object",
+                            "required": [
+                              "cwd",
+                              "argv",
+                              "env"
+                            ],
+                            "properties": {
+                              "cwd": {
+                                "$ref": "#/$defs/NonEmptyString"
+                              },
+                              "argv": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "env": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {},
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "lastClose": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "log"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "gate-failed"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      4
+                                    ]
+                                  },
+                                  "log": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "paths"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "worktree-changed"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "paths": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "paths"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-turn-edited"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "paths": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "defects"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "handoff-invalid"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "defects": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "reason"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-answer-invalid"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "reason": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "resetAt"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "limit"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      8
+                                    ]
+                                  },
+                                  "resetAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "network"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      14
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "step",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "close-error"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      5
+                                    ]
+                                  },
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "closing-turn"
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode",
+                                  "step",
+                                  "detail"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "close-error"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "gate",
+                                      "commit",
+                                      "files"
+                                    ]
+                                  },
+                                  "detail": {
+                                    "$ref": "#/$defs/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "result",
+                                  "at",
+                                  "exitCode"
+                                ],
+                                "properties": {
+                                  "result": {
+                                    "type": "string",
+                                    "enum": [
+                                      "interrupted"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "description": "An ISO-8601 instant.",
+                                    "title": "nonEmptyString",
+                                    "minLength": 1
+                                  },
+                                  "exitCode": {
+                                    "type": "number",
+                                    "enum": [
+                                      130
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "closeBase": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/NonEmptyString"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The HEAD sha a close recorded before its gate, or null before any close."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run's review-stop document while it awaits review; null when the run is not awaiting review, or when its review-stop document cannot be read."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
