@@ -209,6 +209,8 @@ function refusalReason(lastClose: RefusedClose): string {
       return `the closing turn gave no valid handoff (${lastClose.reason}); write .phax-context/correction-handoff.md, then resume again`;
     case "limit":
       return `the closing turn hit a limit${lastClose.resetAt !== null ? ` (resets ${lastClose.resetAt})` : ""}; resume again later`;
+    case "network":
+      return `the closing turn could not reach the provider (${lastClose.detail}); resume again once the network is back`;
     case "close-error":
       return `the ${lastClose.step} step failed: ${lastClose.detail}`;
   }

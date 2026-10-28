@@ -24,6 +24,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 ### 0.30.0
 
 - **Exit 14: the provider could not be reached.** A command whose agent cannot reach its provider (a network failure) now exits 14, which is resumable, instead of 5. Treat 14 like 8, but retry as soon as the network is back.
+- **Review UIs: `review-stop.json` and `phax ls --json` are stamped 0.30.0.** A stop's `lastClose` gains the result `network` (`{ result, at, exitCode: 14, detail }`, no `step`) when its closing turn could not reach the provider; the run stays `awaiting_review`. 0.26.0 documents still read.
 - **Mistral Vibe 3.0.3 or later is required.** Run `uv tool upgrade mistral-vibe`. phax checks `vibe --version` before its first Vibe session and refuses an older Vibe, naming the installed version.
 - **phax no longer reads sessions from `~/.vibe`.** A Vibe turn's answer, session id, usage and transcript come from its stream and from the `export.json` Vibe writes beside it. `VIBE_HOME` is no longer a provider store root. `phax agent setup mistral-vibe --install-model-aliases` still appends the phax aliases to your Vibe config.
 - **Secure mode runs Vibe.** It is recorded as filesystem jail `strong`, with command enforcement `prefix`, so a `secure` run no longer falls back to Claude Code. Your own `config.toml` settings (bypass, `outside_workdir`, tool allowlists) never reach a secure or read-only phax session.

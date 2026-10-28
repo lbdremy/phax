@@ -588,6 +588,8 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/plan-document/pre-schema.ts",
   "src/schemas/history/registry/0.17.0.ts",
   "src/schemas/history/registry/pre-schema.ts",
+  "src/schemas/history/review-stop/0.26.0.ts",
+  "src/schemas/history/run-list/0.26.0.ts",
   "src/schemas/history/run-status/0.17.0.ts",
   "src/schemas/history/run-status/pre-schema.ts",
   "src/schemas/history/spec-approval-record/0.19.0.ts",

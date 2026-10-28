@@ -169,6 +169,7 @@ import {
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
+import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
 import { liftFrozenTokenUsage } from "./runRecord.js";
 import {
@@ -1348,15 +1349,27 @@ export const readOracleRequestFile: Reader<OracleRequest> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...request }) => request,
   });
 
+// A review stop stamped below the format's current stamp is read by the frozen
+// 0.26.0 decoder; its value is valid in the current shape as it is (the
+// current `lastClose` only gains the `network` result).
 /** Reads a run's `review-stop.json`. Born with `$schema`. */
-export const readReviewStopFile: Reader<ReviewStop> = (file, input) =>
-  readSchemaBornPersisted(input, {
+export const readReviewStopFile: Reader<ReviewStop> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("review-stop", input)) {
+    const older = decodeReviewStopV0_26_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "review-stop", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...stop } = older.right;
+    return Either.right(stop);
+  }
+  return readSchemaBornPersisted(input, {
     format: "review-stop",
     label: "review stop",
     file,
     decodeCurrent: decodeReviewStopFile,
     fromCurrent: ({ $schema: _schema, ...stop }) => stop,
   });
+};
 
 // A cost ledger stamped 0.26.0 or later, below the format's current stamp, is
 // read by the frozen 0.26.0 decoder; one stamped lower by the frozen 0.25.0
