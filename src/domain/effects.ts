@@ -13,6 +13,7 @@ export interface ResumeContext {
   readonly reason:
     | "Rate limit"
     | "Usage limit"
+    | "Network failure"
     | "No changes"
     | "Gate checks failed"
     | "Gate step refused"
@@ -25,6 +26,7 @@ export interface ResumeContext {
   readonly kind:
     | "rate_limit"
     | "usage_limit"
+    | "network_failure"
     | "no_changes"
     | "gates_exhausted"
     | "gate_refused"

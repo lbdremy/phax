@@ -1,7 +1,13 @@
 import { basename, dirname } from "node:path";
-import { AgentSessionFailedError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
+import {
+  AgentSessionFailedError,
+  HandoffPausedError,
+  RateLimitError,
+  UsageLimitError,
+} from "../../domain/errors.js";
 import { sessionFailureLine } from "../../domain/session/failureError.js";
 import type { SessionFailure } from "../../domain/session/outcome.js";
+import { buildWhatsNext, renderWhatsNext } from "../../domain/whatsNext.js";
 
 /** What a command renders: a failed session's error, or a limit built from one. */
 export type SessionFailureError = AgentSessionFailedError | RateLimitError | UsageLimitError;
@@ -55,4 +61,57 @@ export function renderSessionFailure(
     lines.push(`  Retry once the network is back: ${retry}`);
   }
   return lines;
+}
+
+/**
+ * The failure of a run that paused on a lost network, or null for any other
+ * error: only a pause names its phase, so a network failure raised elsewhere
+ * (a stop's close, plan extraction) keeps the retry of the command that ran.
+ */
+export function pausedNetworkFailure(err: unknown): AgentSessionFailedError | null {
+  return err instanceof AgentSessionFailedError &&
+    err.failure.kind === "network" &&
+    err.phaseId !== undefined
+    ? err
+    : null;
+}
+
+/** The failed session of a paused handoff turn, or null for a handoff that came back incomplete. */
+export function pausedHandoffFailure(err: unknown): AgentSessionFailedError | null {
+  return err instanceof HandoffPausedError && err.cause instanceof AgentSessionFailedError
+    ? err.cause
+    : null;
+}
+
+/**
+ * What a run that paused on a network failure prints: the failure, the run's
+ * pause with the one command to run once the network is back, and where the
+ * resume instructions are.
+ */
+export function renderNetworkPause(
+  err: AgentSessionFailedError,
+  shortName: string,
+  resumeInstructionsPath: string,
+): readonly string[] {
+  const next = buildWhatsNext({ kind: "network", shortName, phaseId: err.phaseId }, new Date());
+  return [
+    ...renderSessionFailure(err, null),
+    renderWhatsNext(next),
+    `See ${resumeInstructionsPath} for details.`,
+  ];
+}
+
+/**
+ * What a run whose handoff turn failed prints: the failure, then the resume
+ * that re-runs only the handoff (for a network failure, the retry line).
+ */
+export function renderHandoffTurnPause(
+  err: AgentSessionFailedError,
+  shortName: string,
+): readonly string[] {
+  const resume = retryCommandLine(["resume", shortName]);
+  const lines = renderSessionFailure(err, resume);
+  return err.failure.kind === "network"
+    ? lines
+    : [...lines, `  Resume to re-run only the handoff: ${resume}`];
 }

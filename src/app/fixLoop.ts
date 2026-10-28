@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
 import {
-  AgentInvocationError,
+  type AgentInvocationError,
   type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
@@ -27,7 +27,7 @@ import {
   makeGateEvaluatedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
-import { reportAgentFailure } from "./telemetry/reportBuilders.js";
+import { isAgentFailure, reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome, type OracleStep } from "./gates.js";
@@ -378,7 +378,7 @@ export function runGatesWithFixLoop(
       );
       const backend = yield* Backend;
       const fixResult = yield* telemetry.withOperation(
-        "phax.claude-code-cli.agent.resume",
+        `phax.${agentOptions.provider}.agent.resume`,
         { "phax.phase.id": phaseId },
         withInvocationCost(
           backend.resumeAgentSession(currentSessionId, fixPrompt, {
@@ -395,12 +395,12 @@ export function runGatesWithFixLoop(
           },
         ).pipe(
           Effect.tapError((e) =>
-            e instanceof AgentInvocationError
+            isAgentFailure(e)
               ? telemetry.recordError(
                   reportAgentFailure(e, {
                     runId,
                     operationId: phaseId,
-                    adapter: "claude-code-cli",
+                    adapter: agentOptions.provider,
                     operation: "agent.resume",
                   }),
                 )

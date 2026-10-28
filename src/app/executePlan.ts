@@ -16,7 +16,7 @@ import { lastRecordedAttemptLogName } from "../domain/gate/attemptFiles.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
-  type AgentSessionFailedError,
+  AgentSessionFailedError,
   AgentSessionIdMissingError,
   ArtifactCompletionPausedError,
   AwaitingReviewStopError,
@@ -176,6 +176,11 @@ import { makeOracleRequest } from "../domain/gate/oracleRequest.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
+}
+
+/** A session that lost the network: the only failed session a run pauses on besides a limit. */
+function isNetworkFailureError(e: unknown): e is AgentSessionFailedError {
+  return e instanceof AgentSessionFailedError && e.failure.kind === "network";
 }
 
 function isNoChangesError(e: unknown): e is PhaseHadNoChangesError {
@@ -586,9 +591,17 @@ export function executePlan(
   // and reaches committed/failed there — so no record is written for one, which
   // also avoids a duplicate record when the resumed phase later commits. Kept in
   // lockstep with the RunFailed guard at the end of the pipe (§5.1).
+  // A network failure of a phase or fix turn pauses the run; a stop's close
+  // reports its own failures, and a failed handoff turn is wrapped into a
+  // HandoffPausedError before it reaches here.
+  function isPausingNetworkFailure(e: unknown): e is AgentSessionFailedError {
+    return isNetworkFailureError(e) && !closeInFlight;
+  }
+
   function isResumablePauseError(e: unknown): boolean {
     return (
       isRateLimitError(e) ||
+      isPausingNetworkFailure(e) ||
       isNoChangesError(e) ||
       isGateAttemptsExhaustedError(e) ||
       isGateStepRefusedError(e) ||
@@ -2428,6 +2441,38 @@ export function executePlan(
                   }),
                 );
               }),
+            // A session that failed (any kind but a limit) is reported as
+            // that failure, not as a handoff that came back incomplete: the
+            // pause error carries it, so the CLI prints it and exits with
+            // its code, and a resume re-runs only the handoff.
+            AgentSessionFailedError: (e) =>
+              Effect.gen(function* () {
+                yield* dispatch(
+                  { ...eventBase(phase.id), type: "HandoffTurnFailed", cause: e },
+                  ctx,
+                );
+                yield* telemetry.recordEvent(
+                  makeStepCompletedTelemetryEvent({
+                    runId,
+                    operationId: phase.id,
+                    step: "handoff.generate",
+                    result: "failure",
+                  }),
+                );
+                return yield* Effect.fail(
+                  new HandoffPausedError({
+                    message: `Phase "${phase.id}" handoff generation failed: ${e.message}`,
+                    phaseId: phase.id,
+                    cause: new AgentSessionFailedError({
+                      message: e.message,
+                      failure: e.failure,
+                      agentErrorLog: e.agentErrorLog,
+                      transcript: e.transcript,
+                      phaseId: phase.id,
+                    }),
+                  }),
+                );
+              }),
             AgentInvocationError: (e) =>
               Effect.gen(function* () {
                 yield* dispatch(
@@ -2818,6 +2863,34 @@ export function executePlan(
         yield* dispatch(rateLimitEvent, dispatchCtx(currentPhaseFolderPath, currentPhaseId));
         return yield* Effect.fail(e);
       }).pipe(Effect.catchAll(() => Effect.fail(e))),
+    ),
+    // A network failure pauses the run the same way: NetworkFailureDetected
+    // moves run and phase to `rate_limited` and writes resume-instructions.md.
+    // The re-raised error carries the paused phase id, and the session id the
+    // failure reported (the run's own is unset when the phase turn itself failed).
+    Effect.catchIf(isPausingNetworkFailure, (e) =>
+      Effect.gen(function* () {
+        const sessionId = e.failure.sessionId ?? currentSessionId;
+        yield* dispatch(
+          {
+            ...eventBase(currentPhaseId),
+            type: "NetworkFailureDetected",
+            cause: e,
+            worktreePath: currentWorktreePath as WorktreePath | undefined,
+            sessionId: sessionId as ClaudeSessionId | undefined,
+          },
+          dispatchCtx(currentPhaseFolderPath, currentPhaseId),
+        ).pipe(Effect.catchAll(() => Effect.void));
+        return yield* Effect.fail(
+          new AgentSessionFailedError({
+            message: e.message,
+            failure: e.failure,
+            agentErrorLog: e.agentErrorLog,
+            transcript: e.transcript,
+            phaseId: currentPhaseId,
+          }),
+        );
+      }),
     ),
     // A no-changes exit pauses the run instead of failing it: the event was
     // already dispatched inside commitPhase, so we just re-raise here to ensure
