@@ -5,6 +5,7 @@ import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import type { DeclaredReviewStop, HeldReviewStop, LastClose } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
+import type { SessionFailure } from "./session/outcome.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
   message: string;
@@ -59,11 +60,27 @@ export class AgentSessionIdMissingError extends Data.TaggedError("AgentSessionId
   outputPath: string;
 }> {}
 
+/**
+ * A provider session that ended without an answer, for every failure kind but
+ * the limits (those raise `RateLimitError` / `UsageLimitError`). `message` is
+ * the failure line `<provider> session failed (<kind>): <provider message>`;
+ * the files are null when the session had no phase folder or no transcript.
+ */
+export class AgentSessionFailedError extends Data.TaggedError("AgentSessionFailedError")<{
+  message: string;
+  failure: SessionFailure;
+  agentErrorLog: string | null;
+  transcript: string | null;
+  phaseId?: string | undefined;
+}> {}
+
 export class RateLimitError extends Data.TaggedError("RateLimitError")<{
   message: string;
   rawMessage: string;
   resetAt?: string | undefined;
   phaseId?: string | undefined;
+  agentErrorLog?: string | null | undefined;
+  transcript?: string | null | undefined;
 }> {}
 
 export class UsageLimitError extends Data.TaggedError("UsageLimitError")<{
@@ -71,6 +88,8 @@ export class UsageLimitError extends Data.TaggedError("UsageLimitError")<{
   rawMessage: string;
   resetAt?: string | undefined;
   phaseId?: string | undefined;
+  agentErrorLog?: string | null | undefined;
+  transcript?: string | null | undefined;
 }> {}
 
 export class GateFailedError extends Data.TaggedError("GateFailedError")<{

@@ -159,6 +159,8 @@ interface FakeVibeOptions {
   readonly exportText?: string | undefined;
   /** The exit code of a `-p` turn; default 0. */
   readonly exitCode?: number;
+  /** What a `-p` turn writes to stderr; nothing by default. */
+  readonly stderr?: string;
   /**
    * Top-level keys laid over the export's `config` after the fake has resolved
    * it, as an agent profile would: `{ bypass_tool_permissions: true }` is a
@@ -197,6 +199,7 @@ writeFileSync(join(here, "turn-env.txt"), vibeEnv.map(([key, value]) => key + "=
 const valueOf = (flag) => { const at = args.indexOf(flag); return at === -1 ? undefined : args[at + 1]; };
 const out = valueOf("--output-dir");
 process.stdout.write(readFileSync(join(here, "stream.jsonl"), "utf8"));
+if (existsSync(join(here, "stderr.txt"))) process.stderr.write(readFileSync(join(here, "stderr.txt"), "utf8"));
 const template = join(here, "export.json");
 if (out !== undefined && existsSync(template)) {
   mkdirSync(out, { recursive: true });
@@ -220,12 +223,12 @@ if (out !== undefined && existsSync(template)) {
     : resolved;
   writeFileSync(join(out, "export.json"), JSON.stringify({ ...exported, config }, null, 2) + "\\n");
 }
-process.exit(Number(readFileSync(join(here, "exit-code.txt"), "utf8")));
+process.exitCode = Number(readFileSync(join(here, "exit-code.txt"), "utf8"));
 `;
 
 /**
  * Write a `vibe` stand-in into `dir`. `--version` prints `version`; `-p`
- * prints `stream`, then writes `exportText` as `export.json` into its
+ * prints `stream` and writes `stderr`, then writes `exportText` as `export.json` into its
  * `--output-dir`, its `config` resolved from the turn's flags and variables
  * (nothing when `exportText` is undefined), and exits with `exitCode`. Every
  * invocation is logged, and a turn's `VIBE_*` environment is kept. The
@@ -240,6 +243,7 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
   writeFileSync(join(dir, "stream.jsonl"), options.stream ?? vibe3StreamText(VIBE3_PONG_STREAM));
   writeFileSync(join(dir, "exit-code.txt"), String(options.exitCode ?? 0));
   if (options.exportText !== undefined) writeFileSync(join(dir, "export.json"), options.exportText);
+  if (options.stderr !== undefined) writeFileSync(join(dir, "stderr.txt"), options.stderr);
   if (options.configOverride !== undefined) {
     writeFileSync(join(dir, "config-override.json"), JSON.stringify(options.configOverride));
   }

@@ -2,7 +2,18 @@ import { Effect, Layer } from "effect";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ClaudeSessionId } from "../../domain/branded.js";
-import { AgentInvocationError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
+import {
+  AgentInvocationError,
+  type AgentSessionFailedError,
+  type RateLimitError,
+  type UsageLimitError,
+} from "../../domain/errors.js";
+import type { ProviderId } from "../../domain/routing/types.js";
+import {
+  sessionFailureError,
+  type SessionFailureFiles,
+} from "../../domain/session/failureError.js";
+import type { SessionFailure } from "../../domain/session/outcome.js";
 import {
   Backend,
   type BackendOps,
@@ -19,6 +30,20 @@ import {
 interface RateLimitKnob {
   readonly kind: "rate_limit" | "usage_limit";
   readonly resetAt?: string | undefined;
+}
+
+/** A queued session failure: what the reader would have read, and the files the session left. */
+interface FailureKnob {
+  readonly failure: SessionFailure;
+  readonly files: SessionFailureFiles;
+}
+
+type SessionError = AgentSessionFailedError | RateLimitError | UsageLimitError;
+
+const NO_FILES: SessionFailureFiles = { agentErrorLog: null, transcript: null };
+
+function failureKnob(failure: SessionFailure, files?: Partial<SessionFailureFiles>): FailureKnob {
+  return { failure, files: { ...NO_FILES, ...files } };
 }
 
 export class FakeBackendImpl implements BackendOps {
@@ -157,26 +182,77 @@ export class FakeBackendImpl implements BackendOps {
     this.completeRateLimitKnob = knob;
   }
 
-  private limitError(knob?: RateLimitKnob): RateLimitError | UsageLimitError {
+  private readonly runFailures = new Map<number, FailureKnob>();
+  private readonly resumeFailures = new Map<number, FailureKnob>();
+  private readonly completeFailures = new Map<number, FailureKnob>();
+  private nextResumeFailure: FailureKnob | undefined;
+
+  /** Fail the `runAgent` call at this 0-based index as a session ending in `failure` would. */
+  failRunWith(
+    runIndex: number,
+    failure: SessionFailure,
+    files?: Partial<SessionFailureFiles>,
+  ): void {
+    this.runFailures.set(runIndex, failureKnob(failure, files));
+  }
+
+  /** Fail the next `resumeAgentSession` call as a session ending in `failure` would. */
+  failNextResumeWith(failure: SessionFailure, files?: Partial<SessionFailureFiles>): void {
+    this.nextResumeFailure = failureKnob(failure, files);
+  }
+
+  /** Fail the `resumeAgentSession` call at this 0-based index as a session ending in `failure` would. */
+  failResumeWith(
+    resumeIndex: number,
+    failure: SessionFailure,
+    files?: Partial<SessionFailureFiles>,
+  ): void {
+    this.resumeFailures.set(resumeIndex, failureKnob(failure, files));
+  }
+
+  /** Fail the `complete` call at this 0-based index as a session ending in `failure` would. */
+  failCompleteWith(
+    completeIndex: number,
+    failure: SessionFailure,
+    files?: Partial<SessionFailureFiles>,
+  ): void {
+    this.completeFailures.set(completeIndex, failureKnob(failure, files));
+  }
+
+  private knobError(knob: FailureKnob): SessionError {
+    return sessionFailureError(knob.failure, knob.files);
+  }
+
+  /** A limit knob's error, built as the adapters build one from the reader's failure. */
+  private limitError(provider: ProviderId, knob?: RateLimitKnob): SessionError {
     const k = knob ?? this.rateLimitKnob;
-    const fields = {
-      rawMessage: k?.kind === "usage_limit" ? "usage limit reached" : "rate limit exceeded",
-      resetAt: k?.resetAt,
-    };
-    return k?.kind === "usage_limit"
-      ? new UsageLimitError({ message: "FakeBackend: usage limit reached.", ...fields })
-      : new RateLimitError({ message: "FakeBackend: rate limit hit.", ...fields });
+    const usage = k?.kind === "usage_limit";
+    return sessionFailureError(
+      {
+        provider,
+        kind: usage ? "usage-limit" : "rate-limit",
+        message: usage ? "usage limit reached" : "rate limit exceeded",
+        sessionId: null,
+        resetAt: k?.resetAt ?? null,
+      },
+      NO_FILES,
+    );
   }
 
   complete(
     prompt: string,
     options: CompletionOptions,
-  ): Effect.Effect<CompletionResult, AgentInvocationError | RateLimitError | UsageLimitError> {
+  ): Effect.Effect<CompletionResult, AgentInvocationError | SessionError> {
     const callIndex = this.completeIdx;
     this.completeCalls.push({ prompt, options });
+    const queued = this.completeFailures.get(callIndex);
+    if (queued !== undefined) {
+      this.completeIdx++;
+      return Effect.fail(this.knobError(queued));
+    }
     if (this.rateLimitAtCompleteIndex === callIndex) {
       this.completeIdx++;
-      return Effect.fail(this.limitError(this.completeRateLimitKnob));
+      return Effect.fail(this.limitError(options.provider, this.completeRateLimitKnob));
     }
     const result = this.completeResponses[this.completeIdx++];
     if (result === undefined) {
@@ -228,13 +304,18 @@ export class FakeBackendImpl implements BackendOps {
   runAgent(
     prompt: string,
     options: AgentRunOptions,
-  ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
+  ): Effect.Effect<AgentRunResult, AgentInvocationError | SessionError> {
     const callIndex = this.runIdx;
     this.runCalls.push({ prompt, options });
     this.onRunAgent?.(prompt, options);
+    const queued = this.runFailures.get(callIndex);
+    if (queued !== undefined) {
+      this.runIdx++;
+      return Effect.fail(this.knobError(queued));
+    }
     if (this.rateLimitAtRunIndex === callIndex) {
       this.runIdx++;
-      return Effect.fail(this.limitError());
+      return Effect.fail(this.limitError(options.provider));
     }
     const result = this.runResponses[this.runIdx++];
     if (result === undefined) {
@@ -249,17 +330,26 @@ export class FakeBackendImpl implements BackendOps {
     sessionId: ClaudeSessionId,
     prompt: string,
     options: AgentRunOptions,
-  ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
+  ): Effect.Effect<AgentRunResult, AgentInvocationError | SessionError> {
     const callIndex = this.resumeCalls.length;
     this.resumeCalls.push({ sessionId, prompt, options });
     this.onResumeAgent?.(sessionId, prompt, options);
+    const queued = this.resumeFailures.get(callIndex);
+    if (queued !== undefined) {
+      return Effect.fail(this.knobError(queued));
+    }
+    if (this.nextResumeFailure !== undefined) {
+      const knob = this.nextResumeFailure;
+      this.nextResumeFailure = undefined;
+      return Effect.fail(this.knobError(knob));
+    }
     if (this.rateLimitAtResumeIndex === callIndex) {
-      return Effect.fail(this.limitError(this.resumeAtIndexKnob));
+      return Effect.fail(this.limitError(options.provider, this.resumeAtIndexKnob));
     }
     if (this.resumeRateLimitKnob !== undefined) {
       const knob = this.resumeRateLimitKnob;
       this.resumeRateLimitKnob = undefined;
-      return Effect.fail(this.limitError(knob));
+      return Effect.fail(this.limitError(options.provider, knob));
     }
     if (this.resumeFailure !== undefined) {
       const message = this.resumeFailure;

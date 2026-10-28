@@ -17,25 +17,20 @@ import type {
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
-  AgentSessionIdMissingError,
-  RateLimitError,
+  type AgentSessionFailedError,
+  type RateLimitError,
   SecurityEnforcementError,
-  UsageLimitError,
+  type UsageLimitError,
 } from "../../domain/errors.js";
-import { decodeClaudeSessionId } from "../../domain/branded.js";
 import {
   claudePermissionFlags,
   claudeReadOnlyFlags,
 } from "../../domain/session/claudePermissionFlags.js";
-import {
-  classifyRateLimit,
-  findResultEvent,
-  hasErroredResultEvent,
-  type RateLimitClassification,
-} from "../../schemas/claudeOutput.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import { readClaudeOutcome, type SessionEnd } from "../../domain/session/outcome.js";
 import { buildSkillEditGrantSettings } from "./claudeSkillEditSettings.js";
 import { persistSessionId } from "./sessionWriter.js";
-import { writeAgentErrorLog } from "./agentErrorLog.js";
+import { answerSessionId, failSession, sessionEndOf, writeAgentErrorLog } from "./agentErrorLog.js";
 import {
   captureFromStore,
   claudeProjectSlug,
@@ -55,6 +50,8 @@ interface SpawnResult {
   readonly lines: string[];
   readonly exitCode: number;
   readonly stderr: string;
+  /** How the process ended: its exit code, or the signal that stopped it. */
+  readonly end: SessionEnd;
 }
 
 // Grace between asking a timed-out probe to stop and forcing it, so a process
@@ -129,10 +126,15 @@ function spawnClaude(
           }, timeoutMs)
         : undefined;
 
-    proc.on("close", (code) => {
+    proc.on("close", (code, signal) => {
       clearTimeout(killTimer);
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
-      const result = { lines, exitCode: code ?? 1, stderr: stderrBuf };
+      const result = {
+        lines,
+        exitCode: code ?? 1,
+        stderr: stderrBuf,
+        end: sessionEndOf(code, signal),
+      };
       // Resolve once the stream is flushed: the cost ledger reads it next.
       if (writeStream === undefined) resolve(result);
       else writeStream.end(() => resolve(result));
@@ -206,25 +208,6 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
   return args;
 }
 
-/** Build a typed rate-limit / usage-limit error from a classification. */
-function rateLimitErrorFor(
-  classification: RateLimitClassification,
-): RateLimitError | UsageLimitError {
-  const fields = {
-    rawMessage: classification.rawMessage,
-    resetAt: classification.resetAt,
-  };
-  return classification.kind === "usage_limit"
-    ? new UsageLimitError({
-        message: "Claude Code stopped: usage limit reached.",
-        ...fields,
-      })
-    : new RateLimitError({
-        message: "Claude Code stopped: rate limit hit.",
-        ...fields,
-      });
-}
-
 /**
  * Build the sealed argument set for a tool-less model completion call.
  *
@@ -260,11 +243,11 @@ export function runClaudeCompletion(
   options: CompletionOptions,
 ): Effect.Effect<
   CompletionResult,
-  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
   const args = buildCompletionArgs(options);
   return Effect.gen(function* () {
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnClaude(args, prompt, undefined, options.cwd),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
@@ -273,35 +256,13 @@ export function runClaudeCompletion(
         }),
     });
 
-    if (exitCode !== 0 || hasErroredResultEvent(lines)) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
-      }
-    }
-
-    if (exitCode !== 0) {
+    const outcome = readClaudeOutcome({ lines, stderr, end });
+    if (outcome.kind === "failure") {
       return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `claude exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv: ["claude", ...args],
-        }),
+        sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-
-    const found = findResultEvent(lines);
-    if (!found) {
-      return yield* Effect.fail(
-        new AgentInvocationError({
-          message: "No result event found in claude completion output",
-          argv: ["claude", ...args],
-        }),
-      );
-    }
-
-    return { finalText: found.finalText };
+    return { finalText: outcome.text };
   });
 }
 
@@ -396,7 +357,7 @@ export function runClaudeAgent(
 ): Effect.Effect<
   AgentRunResult,
   | AgentInvocationError
-  | AgentSessionIdMissingError
+  | AgentSessionFailedError
   | RateLimitError
   | UsageLimitError
   | SecurityEnforcementError
@@ -411,62 +372,37 @@ export function runClaudeAgent(
     }
     throw err;
   }
+  const argv = ["claude", ...args];
   return Effect.gen(function* () {
-    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+    const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () => spawnClaude(args, prompt, options.outputJsonlPath, options.cwd),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
-          argv: ["claude", ...args],
+          argv,
           stderr: err instanceof Error ? err.message : String(err),
         });
         return new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
-          argv: ["claude", ...args],
+          argv,
           phaseFolderPath: options.phaseFolderPath,
         });
       },
     });
 
-    // Reclassify a failure as a rate/usage limit when the output carries one of
-    // the known signatures — on a non-zero exit, or on an errored result event.
-    if (exitCode !== 0 || hasErroredResultEvent(lines)) {
-      const classification = classifyRateLimit(stderr, lines);
-      if (classification !== undefined) {
-        return yield* Effect.fail(rateLimitErrorFor(classification));
-      }
+    const failed = {
+      argv,
+      end,
+      stderr,
+      phaseFolderPath: options.phaseFolderPath,
+      transcript: options.outputJsonlPath,
+    };
+    const outcome = readClaudeOutcome({ lines, stderr, end });
+    if (outcome.kind === "failure") {
+      return yield* Effect.fail(failSession(outcome.failure, failed));
     }
-
-    if (exitCode !== 0) {
-      writeAgentErrorLog(options.phaseFolderPath, { argv: ["claude", ...args], exitCode, stderr });
-      return yield* Effect.fail(
-        new AgentInvocationError({
-          message: `claude exited with code ${exitCode}`,
-          exitCode,
-          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv: ["claude", ...args],
-          phaseFolderPath: options.phaseFolderPath,
-        }),
-      );
-    }
-
-    const found = findResultEvent(lines);
-    if (!found) {
-      return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: "No result event with session_id found in claude output",
-          outputPath: options.outputJsonlPath ?? "",
-        }),
-      );
-    }
-
-    const sessionIdResult = decodeClaudeSessionId(found.sessionId);
+    const sessionIdResult = answerSessionId(outcome);
     if (Either.isLeft(sessionIdResult)) {
-      return yield* Effect.fail(
-        new AgentSessionIdMissingError({
-          message: `Invalid session_id in claude output: "${found.sessionId}"`,
-          outputPath: options.outputJsonlPath ?? "",
-        }),
-      );
+      return yield* Effect.fail(failSession(sessionIdResult.left, failed));
     }
 
     const capturedSessionId = sessionIdResult.right;
@@ -481,7 +417,7 @@ export function runClaudeAgent(
     return {
       sessionId: capturedSessionId,
       outputPath: options.outputJsonlPath ?? "",
-      finalText: found.finalText,
+      finalText: outcome.text,
     };
   });
 }

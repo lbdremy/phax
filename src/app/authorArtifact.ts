@@ -11,6 +11,7 @@ import {
   ArtifactCreationError,
   AuthoringDocumentError,
   type AgentInvocationError,
+  type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   type RateLimitError,
   type SecurityEnforcementError,
@@ -153,6 +154,7 @@ export type AuthorArtifactError =
   | AuthoringDocumentError
   | ArtifactCommitFailedError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError

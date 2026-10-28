@@ -13,6 +13,7 @@ import {
 import { withPhaseKinds } from "../domain/plan/phaseHeader.js";
 import {
   AgentInvocationError,
+  type AgentSessionFailedError,
   PlanValidationError,
   RateLimitError,
   UsageLimitError,
@@ -55,6 +56,7 @@ function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
 export type ExtractPlanError =
   | PlanValidationError
   | AgentInvocationError
+  | AgentSessionFailedError
   | RateLimitError
   | UsageLimitError
   | FsError;

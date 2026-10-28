@@ -2,8 +2,8 @@
 // version, session and API key source, the assistant messages' usage, the
 // rate-limit events' window readings and how many failed to decode, the last
 // result's per-model usage and every result's duration. Provider output, so unknown keys are ignored; a line that is not
-// JSON, or no event this module reads, is skipped, as `findResultEvent` skips
-// one. A missing token count is 0. The cost ledger's domain receives only
+// JSON, or no event this module reads, is skipped, as `scanClaudeOutcomeEvents`
+// skips one. A missing token count is 0. The cost ledger's domain receives only
 // these facts, never raw lines.
 import { Either, Schema } from "effect";
 

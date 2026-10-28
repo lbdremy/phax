@@ -1,33 +1,128 @@
+import { Either } from "effect";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { decodeClaudeSessionId, type ClaudeSessionId } from "../../domain/branded.js";
+import type {
+  AgentSessionFailedError,
+  RateLimitError,
+  UsageLimitError,
+} from "../../domain/errors.js";
+import { sessionFailureError } from "../../domain/session/failureError.js";
+import type { SessionEnd, SessionFailure, SessionOutcome } from "../../domain/session/outcome.js";
 
 export interface AgentErrorContext {
   readonly argv: readonly string[];
   readonly exitCode?: number | undefined;
   readonly stderr?: string | undefined;
+  /** The failed session's outcome; absent or null for a phax refusal. */
+  readonly failure?: SessionFailure | null | undefined;
+  /** The session's transcript, named in the failure header. */
+  readonly transcript?: string | null | undefined;
+}
+
+/** The path agent-error.log takes in a phase folder, or null without one. */
+function agentErrorLogPath(phaseFolderPath: string | undefined): string | null {
+  return phaseFolderPath ? join(phaseFolderPath, "agent-error.log") : null;
+}
+
+/**
+ * The header a failed session's log opens with: the failure kind, the
+ * provider, its message on one line, the session id and the transcript.
+ */
+function failureHeader(failure: SessionFailure, transcript: string | null): string[] {
+  return [
+    `failure: ${failure.kind}`,
+    `provider: ${failure.provider}`,
+    `message: ${failure.message.replace(/\s*\r?\n\s*/g, " ").trim()}`,
+    `session: ${failure.sessionId ?? "none"}`,
+    `transcript: ${transcript ?? "none"}`,
+    "",
+  ];
 }
 
 /**
  * Write a human-readable agent-error.log into the phase folder when an agent
- * process exits non-zero or fails to spawn. Never throws — a logging failure
- * must not mask the underlying agent failure.
+ * session fails, or phax refuses one. A failed session's log opens with its
+ * failure header; a refusal's keeps the argv-first shape. Never throws — a
+ * logging failure must not mask the underlying agent failure.
  */
 export function writeAgentErrorLog(
   phaseFolderPath: string | undefined,
   ctx: AgentErrorContext,
 ): void {
-  if (!phaseFolderPath) return;
+  const filePath = agentErrorLogPath(phaseFolderPath);
+  if (filePath === null) return;
   try {
     const content = [
+      ...(ctx.failure ? failureHeader(ctx.failure, ctx.transcript ?? null) : []),
       ctx.argv.join(" "),
       `exit code: ${ctx.exitCode ?? "unknown"}`,
       "",
       ctx.stderr ?? "",
     ].join("\n");
-    const filePath = join(phaseFolderPath, "agent-error.log");
     mkdirSync(dirname(filePath), { recursive: true });
     writeFileSync(filePath, content, "utf8");
   } catch {
     // never throw — logging failure must not mask the underlying agent failure
   }
+}
+
+/** A closed process's end, from Node's `close` arguments. */
+export function sessionEndOf(code: number | null, signal: NodeJS.Signals | null): SessionEnd {
+  return code === null && signal !== null
+    ? { kind: "signalled", signal }
+    : { kind: "exited", code: code ?? 1 };
+}
+
+/** A failed session as an adapter saw it: what it ran, how it ended, where it wrote. */
+export interface FailedSessionContext {
+  readonly argv: readonly string[];
+  readonly end: SessionEnd;
+  readonly stderr: string;
+  readonly phaseFolderPath: string | undefined;
+  readonly transcript: string | undefined;
+}
+
+/**
+ * Writes the failed session's agent-error.log (when it has a phase folder) and
+ * returns the error the session raises, naming that log and the transcript.
+ */
+export function failSession(
+  failure: SessionFailure,
+  ctx: FailedSessionContext,
+): AgentSessionFailedError | RateLimitError | UsageLimitError {
+  const transcript = ctx.transcript ?? null;
+  writeAgentErrorLog(ctx.phaseFolderPath, {
+    argv: ctx.argv,
+    exitCode: ctx.end.kind === "exited" ? ctx.end.code : undefined,
+    stderr: ctx.stderr,
+    failure,
+    transcript,
+  });
+  return sessionFailureError(failure, {
+    agentErrorLog: agentErrorLogPath(ctx.phaseFolderPath),
+    transcript,
+  });
+}
+
+/**
+ * The session id an agent turn's answer must carry, or the `provider-error`
+ * failure it reads as without one (or with one phax cannot keep).
+ */
+export function answerSessionId(
+  answer: Extract<SessionOutcome, { kind: "answer" }>,
+): Either.Either<ClaudeSessionId, SessionFailure> {
+  const failure = (message: string): SessionFailure => ({
+    provider: answer.provider,
+    kind: "provider-error",
+    message,
+    sessionId: null,
+    resetAt: null,
+  });
+  if (answer.sessionId === null) {
+    return Either.left(failure(`${answer.provider} reported no session id for the turn`));
+  }
+  return Either.mapLeft(decodeClaudeSessionId(answer.sessionId), () =>
+    failure(`${answer.provider} reported an invalid session id: "${answer.sessionId}"`),
+  );
 }

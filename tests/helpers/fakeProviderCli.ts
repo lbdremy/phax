@@ -11,7 +11,9 @@ import { join } from "node:path";
  *   writes a file in its cwd, then prints a canned stream (Claude's
  *   stream-json init, assistant message and result; codex's `--json` thread,
  *   item and turn events) carrying the script's final text and session id,
- *   or reports a rate limit and exits 1;
+ *   or reports a rate limit and exits 1, or replays the script's raw
+ *   `stream`; then writes its `stderr` and ends on its `signal` or
+ *   `exitCode`;
  * - appends the lines it printed to its session store under `$HOME`, as the
  *   real CLI keeps its transcript: Claude to
  *   `.claude/projects/<slug of its cwd>/<id>.jsonl`, codex to
@@ -42,6 +44,17 @@ interface FakeCliScript {
   readonly resultModelUsage?: Readonly<Record<string, Readonly<Record<string, number>>>>;
   /** Claude Code's version in the init event, e.g. `2.1.302`; none by default. */
   readonly claudeCodeVersion?: string;
+  /**
+   * A raw stream to replay instead of the canned one: each entry is printed
+   * as one line, a string as is and anything else as JSON.
+   */
+  readonly stream?: readonly unknown[];
+  /** Written to stderr once the stream is printed. */
+  readonly stderr?: string;
+  /** The exit code to end with once the stream is printed; 0 by default. */
+  readonly exitCode?: number;
+  /** A signal the CLI sends itself once the stream is printed, ending on it (e.g. `SIGTERM`). */
+  readonly signal?: string;
 }
 
 interface FakeCliInvocation {
@@ -85,13 +98,30 @@ function keepInStore(storeFile) {
     fs.appendFileSync(file, printed.join("\\n") + "\\n");
   });
 }
+// Replay the script's raw stream instead of the canned one, when it has one.
+// Then write its stderr and end on its signal or exit code, whichever stream
+// was printed.
 function answer(stream) {
   if (script.writeFile) {
     const target = path.join(process.cwd(), script.writeFile.path);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, script.writeFile.content);
   }
-  stream();
+  if (script.stream !== undefined) {
+    for (const entry of script.stream) {
+      const line = typeof entry === "string" ? entry : JSON.stringify(entry);
+      printed.push(line);
+      process.stdout.write(line + "\\n");
+    }
+  } else {
+    stream();
+  }
+  if (script.stderr !== undefined) process.stderr.write(script.stderr);
+  if (script.signal !== undefined) {
+    process.stdout.write("", () => process.kill(process.pid, script.signal));
+    return;
+  }
+  if (script.exitCode !== undefined) process.exitCode = script.exitCode;
 }
 let stdin = "";
 process.stdin.on("data", (chunk) => { stdin += chunk; });

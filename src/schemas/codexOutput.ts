@@ -37,13 +37,6 @@ export type CodexItemCompletedAgentMessageEvent = Schema.Schema.Type<
 const decodeThreadStarted = Schema.decodeUnknownEither(CodexThreadStartedEventSchema);
 const decodeItemCompleted = Schema.decodeUnknownEither(CodexItemCompletedAgentMessageEventSchema);
 
-const ERROR_EVENT_TYPES: ReadonlySet<string> = new Set([
-  "error",
-  "turn.failed",
-  "thread.error",
-  "item.failed",
-]);
-
 function parseLine(line: string): unknown | undefined {
   if (!line.trim()) return undefined;
   try {
@@ -51,49 +44,6 @@ function parseLine(line: string): unknown | undefined {
   } catch {
     return undefined;
   }
-}
-
-export function findCodexResultEvent(
-  lines: readonly string[],
-): { sessionId: string; finalText: string } | undefined {
-  let sessionId: string | undefined;
-  let finalText: string | undefined;
-
-  for (const line of lines) {
-    const parsed = parseLine(line);
-    if (parsed === undefined) continue;
-    if (sessionId === undefined) {
-      const decoded = decodeThreadStarted(parsed);
-      if (Either.isRight(decoded)) {
-        sessionId = decoded.right.thread_id;
-        continue;
-      }
-    }
-    const itemDecoded = decodeItemCompleted(parsed);
-    if (Either.isRight(itemDecoded)) {
-      finalText = itemDecoded.right.item.text;
-    }
-  }
-
-  if (sessionId === undefined) return undefined;
-  return { sessionId, finalText: finalText ?? "" };
-}
-
-export function hasCodexErroredResultEvent(lines: readonly string[]): boolean {
-  for (const line of lines) {
-    const parsed = parseLine(line);
-    if (parsed === undefined) continue;
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "type" in parsed &&
-      typeof (parsed as { type: unknown }).type === "string" &&
-      ERROR_EVENT_TYPES.has((parsed as { type: string }).type)
-    ) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**

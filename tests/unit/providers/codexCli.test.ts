@@ -6,10 +6,7 @@ import { buildCodexArgs, buildCodexCompletionArgs } from "../../../src/infra/pro
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
-import {
-  findCodexResultEvent,
-  hasCodexErroredResultEvent,
-} from "../../../src/schemas/codexOutput.js";
+import { readCodexOutcome } from "../../../src/domain/session/outcome.js";
 
 const baseEntry = {
   enabled: true,
@@ -183,16 +180,19 @@ describe("buildCodexArgs — secure mode fail-closed", () => {
   });
 });
 
-describe("findCodexResultEvent", () => {
-  it("extracts sessionId and finalText from the captured codex --json sample", () => {
-    const found = findCodexResultEvent(sampleLines);
-    expect(found).toEqual({
+const exited0 = { kind: "exited", code: 0 } as const;
+
+describe("readCodexOutcome on the captured codex --json sample", () => {
+  it("answers with the thread id and the agent message", () => {
+    expect(readCodexOutcome({ lines: sampleLines, stderr: "", end: exited0 })).toEqual({
+      kind: "answer",
+      provider: "codex-cli",
+      text: "ok",
       sessionId: "019e8fb5-be1b-7040-b45a-150db63ddff2",
-      finalText: "ok",
     });
   });
 
-  it("returns the last agent_message text when multiple item.completed events exist", () => {
+  it("answers with the last agent message when several are emitted", () => {
     const lines = [
       JSON.stringify({ type: "thread.started", thread_id: "tid-1" }),
       JSON.stringify({
@@ -203,32 +203,23 @@ describe("findCodexResultEvent", () => {
         type: "item.completed",
         item: { id: "item_1", type: "agent_message", text: "last" },
       }),
+      JSON.stringify({ type: "turn.completed" }),
     ];
-    expect(findCodexResultEvent(lines)?.finalText).toBe("last");
+    const outcome = readCodexOutcome({ lines, stderr: "", end: exited0 });
+    expect(outcome.kind === "answer" ? outcome.text : outcome).toBe("last");
   });
 
-  it("returns undefined when no thread.started event is present", () => {
-    expect(findCodexResultEvent([])).toBeUndefined();
-    expect(findCodexResultEvent(['{"type":"turn.started"}'])).toBeUndefined();
-    expect(findCodexResultEvent(["not json"])).toBeUndefined();
-  });
-
-  it("returns sessionId with empty finalText when no agent_message item is emitted", () => {
-    const found = findCodexResultEvent([
-      JSON.stringify({ type: "thread.started", thread_id: "tid-only" }),
-    ]);
-    expect(found).toEqual({ sessionId: "tid-only", finalText: "" });
-  });
-
-  it("ignores non-agent-message item.completed events", () => {
+  it("fails a completed turn whose only completed item is not an agent message", () => {
     const lines = [
       JSON.stringify({ type: "thread.started", thread_id: "tid-x" }),
       JSON.stringify({
         type: "item.completed",
         item: { id: "i", type: "reasoning", text: "should-be-ignored" },
       }),
+      JSON.stringify({ type: "turn.completed" }),
     ];
-    expect(findCodexResultEvent(lines)).toEqual({ sessionId: "tid-x", finalText: "" });
+    const outcome = readCodexOutcome({ lines, stderr: "", end: exited0 });
+    expect(outcome.kind === "failure" ? outcome.failure.kind : outcome).toBe("provider-error");
   });
 });
 
@@ -298,21 +289,22 @@ describe("buildCodexCompletionArgs — sealed completion", () => {
   });
 });
 
-describe("hasCodexErroredResultEvent", () => {
-  it("returns true on a turn.failed event (codex emits this with exit 0)", () => {
-    const errorLines = [
+describe("readCodexOutcome on a turn.failed exiting 0", () => {
+  it("fails with the turn's own message", () => {
+    const lines = [
       JSON.stringify({ type: "thread.started", thread_id: "tid-err" }),
       JSON.stringify({ type: "error", message: "boom" }),
       JSON.stringify({ type: "turn.failed", error: { message: "boom" } }),
     ];
-    expect(hasCodexErroredResultEvent(errorLines)).toBe(true);
-  });
-
-  it("returns false for the happy-path captured sample", () => {
-    expect(hasCodexErroredResultEvent(sampleLines)).toBe(false);
-  });
-
-  it("returns false for an empty line array", () => {
-    expect(hasCodexErroredResultEvent([])).toBe(false);
+    expect(readCodexOutcome({ lines, stderr: "", end: exited0 })).toEqual({
+      kind: "failure",
+      failure: {
+        provider: "codex-cli",
+        kind: "provider-error",
+        message: "boom",
+        sessionId: "tid-err",
+        resetAt: null,
+      },
+    });
   });
 });

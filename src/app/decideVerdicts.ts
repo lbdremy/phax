@@ -31,6 +31,7 @@ import {
 import { buildVerdictsPrompt } from "../domain/decide/verdictsPrompt.js";
 import {
   AgentInvocationError,
+  type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   ArtifactCommitFailedError,
   DecideDocumentError,
@@ -299,6 +300,7 @@ interface ObservedWriter {
 type WriterError =
   | DecideDocumentError
   | AgentInvocationError
+  | AgentSessionFailedError
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError

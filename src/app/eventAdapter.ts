@@ -14,7 +14,7 @@ import type {
 import type {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
-  AgentSessionIdMissingError,
+  AgentSessionFailedError,
   PhaseHadNoChangesError,
   RegistryCorruptionError,
   SecurityEnforcementError,
@@ -55,7 +55,7 @@ export function adaptAgentRun(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  AgentInvocationError | SecurityEnforcementError | FsError,
+  AgentInvocationError | AgentSessionFailedError | SecurityEnforcementError | FsError,
   Backend
 > {
   return Backend.pipe(
@@ -102,7 +102,7 @@ export function adaptAgentResume(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  AgentInvocationError | AgentSessionIdMissingError | SecurityEnforcementError | FsError,
+  AgentInvocationError | AgentSessionFailedError | SecurityEnforcementError | FsError,
   Backend
 > {
   return Backend.pipe(
