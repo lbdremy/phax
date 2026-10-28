@@ -281,8 +281,8 @@ describe("writeRecord", () => {
       writeRecord(
         baseInput({
           provider: "mistral-vibe",
-          model: "phax-mistral-medium-3.5-medium",
-          effort: "medium",
+          model: "phax-mistral-medium-3.5-high",
+          effort: "high",
           usage: { kind: "session", sessionId: VIBE3_SESSION_ID },
         }),
       ),

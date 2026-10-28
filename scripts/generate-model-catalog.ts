@@ -235,7 +235,7 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 | \`equivalentFor\`  | Star-lookup through the Claude hub (hub→spoke, spoke→hub, spoke→spoke)       |
 | \`isClaudeFamily\` | True for \`claude-haiku\`, \`claude-sonnet\`, \`claude-opus\`                      |
 
-\`equivalentFor\` semantics: equivalence table edges are stated hub-centric. Hub → spoke uses the stored relation directly; spoke → hub inverts it (\`downgrade ↔ upgrade\`); spoke → spoke composes two hops.
+\`equivalentFor\` semantics: equivalence table edges are stated hub-centric. Hub → spoke uses the stored relation of the exact \`(claude, effort)\` edge; without one it takes the nearest-effort edge anchored on the same Claude id (ties prefer the lower) and records the shift as \`upgrade\` or \`downgrade\` (never for \`ultracode\`); spoke → hub inverts the relation (\`downgrade ↔ upgrade\`); spoke → spoke composes two hops.
 
 ## Resolution pipeline
 
@@ -281,7 +281,7 @@ Valid ids: \`claude-code\`, \`mistral-vibe\`, \`codex-cli\`. The list is parsed 
 | Request                               | Priority           | allowDowngrade | Result                                                                     |
 | ------------------------------------- | ------------------ | -------------- | -------------------------------------------------------------------------- |
 | \`claude-sonnet-4-6\` / \`medium\`        | claude-code only   | —              | claude-code, \`claude-sonnet-4-6\`, \`medium\`, \`exact\`                        |
-| \`claude-sonnet-4-6\` / \`medium\`        | mistral-vibe first | —              | mistral-vibe, \`phax-mistral-medium-3.5-medium\`, \`medium\`, \`equivalent\`     |
+| \`claude-sonnet-4-6\` / \`medium\`        | mistral-vibe first | —              | mistral-vibe, \`phax-mistral-medium-3.5-high\`, \`high\`, \`upgrade\` (nearest edge) |
 | \`gpt-5.5\` / \`xhigh\`                  | codex-cli first    | —              | codex-cli, \`gpt-5.5\`, \`xhigh\`, \`exact\`                                    |
 | \`gpt-5.5\` / \`xhigh\` (codex disabled) | —                  | true           | claude-code, \`claude-opus-4-8\`, \`medium\`, \`equivalent\` (hub translation)   |
 | \`claude-opus-4-8\` / \`ultracode\`       | any                | any            | claude-code, \`claude-opus-4-8\`, \`ultracode\`, \`exact\`                       |

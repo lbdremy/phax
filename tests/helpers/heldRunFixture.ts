@@ -144,8 +144,14 @@ const PHASES: readonly { title: string; interactive?: boolean; model?: string }[
 
 const idOf = (index: number): string => `phase-${String(index + 1).padStart(2, "0")}`;
 
-/** The made-up invoice-export plan and its plan.md; `models` overrides a phase's model by id. */
-export function invoiceExportPlan(models: Readonly<Record<string, string>> = {}): {
+/**
+ * The made-up invoice-export plan and its plan.md; `models` overrides a
+ * phase's model by id, and `efforts` its effort (medium otherwise).
+ */
+export function invoiceExportPlan(
+  models: Readonly<Record<string, string>> = {},
+  efforts: Readonly<Record<string, PhaxPlanPhase["effort"]>> = {},
+): {
   plan: PhaxPlan;
   planMd: string;
 } {
@@ -161,7 +167,7 @@ export function invoiceExportPlan(models: Readonly<Record<string, string>> = {})
         id: idOf(i),
         title: spec.title,
         model: models[idOf(i)] ?? spec.model ?? "claude-sonnet-5-5",
-        effort: "medium",
+        effort: efforts[idOf(i)] ?? "medium",
         planMarkdownAnchor: `#${idOf(i)}`,
         plannedFilesToCreate: spec.interactive === true ? [] : [`src/${idOf(i)}.ts`],
         plannedFilesToEdit: [],

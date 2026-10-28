@@ -5,6 +5,7 @@ import { FileSystem, FsError } from "../ports/fs.js";
 import { ConfigValidationError } from "../domain/errors.js";
 import {
   PHAX_ALIAS_LEVELS,
+  RETIRED_PHAX_ALIAS_LEVELS,
   makePhaxAliasName,
   extractBaseModel,
   renderPhaxAliasBlocks,
@@ -23,6 +24,8 @@ export interface VibeSetupOptions {
 export interface VibeSetupResult {
   readonly aliasesAdded: readonly string[];
   readonly aliasesSkipped: readonly string[];
+  /** Aliases an older phax installed for levels the API refuses; reported, never removed. */
+  readonly aliasesRetired: readonly string[];
   readonly backupPath: string | undefined;
 }
 
@@ -78,13 +81,16 @@ export function vibeSetup(
 
     const aliasesAdded = missing.map(makePhaxAliasName);
     const aliasesSkipped = present.map(makePhaxAliasName);
+    const aliasesRetired = RETIRED_PHAX_ALIAS_LEVELS.map(makePhaxAliasName).filter((alias) =>
+      isAliasPresent(originalContent, alias),
+    );
 
     if (!install || dryRun) {
-      return { aliasesAdded, aliasesSkipped, backupPath: undefined };
+      return { aliasesAdded, aliasesSkipped, aliasesRetired, backupPath: undefined };
     }
 
     if (missing.length === 0) {
-      return { aliasesAdded: [], aliasesSkipped, backupPath: undefined };
+      return { aliasesAdded: [], aliasesSkipped, aliasesRetired, backupPath: undefined };
     }
 
     const backupPath = `${VIBE_CONFIG_PATH}.phax-backup-${Date.now()}`;
@@ -110,6 +116,6 @@ export function vibeSetup(
         }),
     );
 
-    return { aliasesAdded, aliasesSkipped, backupPath };
+    return { aliasesAdded, aliasesSkipped, aliasesRetired, backupPath };
   });
 }

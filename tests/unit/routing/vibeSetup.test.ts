@@ -144,14 +144,14 @@ describe("vibeSetup", () => {
     expect(err.path).toBe(VIBE_CONFIG_PATH);
   });
 
-  it("dry-run lists all five aliases and writes nothing", async () => {
+  it("dry-run lists both aliases and writes nothing", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile(VIBE_CONFIG_PATH, BASE_CONFIG);
     const initialSize = impl.files.size;
 
     const result = await run(vibeSetup({ dryRun: true }).pipe(Effect.provide(layer)));
 
-    expect(result.aliasesAdded).toHaveLength(5);
+    expect(result.aliasesAdded).toHaveLength(2);
     expect(result.aliasesSkipped).toHaveLength(0);
     expect(result.backupPath).toBeUndefined();
     expect(impl.files.size).toBe(initialSize);
@@ -164,18 +164,18 @@ describe("vibeSetup", () => {
 
     const result = await run(vibeSetup({}).pipe(Effect.provide(layer)));
 
-    expect(result.aliasesAdded).toHaveLength(5);
+    expect(result.aliasesAdded).toHaveLength(2);
     expect(result.backupPath).toBeUndefined();
     expect(impl.files.get(VIBE_CONFIG_PATH)).toBe(BASE_CONFIG);
   });
 
-  it("install appends all five aliases and creates a backup", async () => {
+  it("install appends both aliases and creates a backup", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile(VIBE_CONFIG_PATH, BASE_CONFIG);
 
     const result = await run(vibeSetup({ install: true }).pipe(Effect.provide(layer)));
 
-    expect(result.aliasesAdded).toHaveLength(5);
+    expect(result.aliasesAdded).toHaveLength(2);
     expect(result.aliasesSkipped).toHaveLength(0);
     expect(result.backupPath).toBeDefined();
 
@@ -200,7 +200,7 @@ describe("vibeSetup", () => {
     const result = await run(vibeSetup({ install: true }).pipe(Effect.provide(layer)));
 
     expect(result.aliasesAdded).toHaveLength(0);
-    expect(result.aliasesSkipped).toHaveLength(5);
+    expect(result.aliasesSkipped).toHaveLength(2);
     expect(result.backupPath).toBeUndefined();
     expect(impl.files.get(VIBE_CONFIG_PATH)).toBe(afterFirst);
   });
@@ -234,13 +234,10 @@ auto_compact_threshold = 0.9
 
     const result = await run(vibeSetup({ install: true }).pipe(Effect.provide(layer)));
 
-    expect(result.aliasesAdded).toHaveLength(3);
-    expect(result.aliasesSkipped).toHaveLength(2);
-    expect(result.aliasesAdded).toContain(makePhaxAliasName("medium"));
-    expect(result.aliasesAdded).toContain(makePhaxAliasName("high"));
-    expect(result.aliasesAdded).toContain(makePhaxAliasName("max"));
-    expect(result.aliasesSkipped).toContain(makePhaxAliasName("off"));
-    expect(result.aliasesSkipped).toContain(makePhaxAliasName("low"));
+    expect(result.aliasesAdded).toEqual([makePhaxAliasName("high")]);
+    expect(result.aliasesSkipped).toEqual([makePhaxAliasName("off")]);
+    // An alias an older phax installed for a refused level is reported, not touched.
+    expect(result.aliasesRetired).toEqual([makePhaxAliasName("low")]);
 
     const newContent = impl.files.get(VIBE_CONFIG_PATH)!;
     expect(newContent.startsWith(partial)).toBe(true);

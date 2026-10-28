@@ -13,6 +13,7 @@ import {
   DEFAULT_PROVIDER_CONFIG,
 } from "../../../src/domain/routing/defaults.js";
 import type { ModelRouting } from "../../../src/schemas/modelRouting.js";
+import { VIBE_CONFIG_PATH } from "../../../src/app/vibeSetup.js";
 
 // Mock loadRouting so tests don't touch the filesystem
 vi.mock("../../../src/app/loadRouting.js", () => ({
@@ -193,14 +194,9 @@ describe("runAgentSetupMistralVibe", () => {
     const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
     vi.mocked(vibeSetup).mockReturnValue(
       Effect.succeed({
-        aliasesAdded: [
-          "phax-mistral-medium-3.5-off",
-          "phax-mistral-medium-3.5-low",
-          "phax-mistral-medium-3.5-medium",
-          "phax-mistral-medium-3.5-high",
-          "phax-mistral-medium-3.5-max",
-        ],
+        aliasesAdded: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
         aliasesSkipped: [],
+        aliasesRetired: [],
         backupPath: undefined,
       }),
     );
@@ -218,12 +214,9 @@ describe("runAgentSetupMistralVibe", () => {
     const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
     vi.mocked(vibeSetup).mockReturnValue(
       Effect.succeed({
-        aliasesAdded: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-low"],
-        aliasesSkipped: [
-          "phax-mistral-medium-3.5-medium",
-          "phax-mistral-medium-3.5-high",
-          "phax-mistral-medium-3.5-max",
-        ],
+        aliasesAdded: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
+        aliasesSkipped: [],
+        aliasesRetired: [],
         backupPath: "/home/user/.vibe/config.toml.phax-backup-12345",
       }),
     );
@@ -243,13 +236,8 @@ describe("runAgentSetupMistralVibe", () => {
     vi.mocked(vibeSetup).mockReturnValue(
       Effect.succeed({
         aliasesAdded: [],
-        aliasesSkipped: [
-          "phax-mistral-medium-3.5-off",
-          "phax-mistral-medium-3.5-low",
-          "phax-mistral-medium-3.5-medium",
-          "phax-mistral-medium-3.5-high",
-          "phax-mistral-medium-3.5-max",
-        ],
+        aliasesSkipped: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
+        aliasesRetired: [],
         backupPath: undefined,
       }),
     );
@@ -258,6 +246,27 @@ describe("runAgentSetupMistralVibe", () => {
     const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("already present");
+  });
+
+  it("names the aliases left from levels Mistral refuses, without touching them", async () => {
+    const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
+    vi.mocked(vibeSetup).mockReturnValue(
+      Effect.succeed({
+        aliasesAdded: [],
+        aliasesSkipped: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
+        aliasesRetired: ["phax-mistral-medium-3.5-low", "phax-mistral-medium-3.5-max"],
+        backupPath: undefined,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
+    expect(code).toBe(0);
+    expect(lines.join("\n")).toContain(
+      "No longer used, left in " +
+        `${VIBE_CONFIG_PATH} (Mistral refuses their reasoning level): ` +
+        "phax-mistral-medium-3.5-low, phax-mistral-medium-3.5-max",
+    );
   });
 });
 
@@ -278,6 +287,7 @@ describe("runAgentSetupProviders", () => {
           enabled: ["mistral-vibe"],
           disabled: [],
           unchanged: ["claude-code", "codex-cli"],
+          retiredRemoved: [],
         },
         written: false,
         backupPath: undefined,
@@ -296,6 +306,33 @@ describe("runAgentSetupProviders", () => {
     expect(text).toContain("mistral-vibe");
   });
 
+  it("--write names the retired models it drops", async () => {
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: [],
+          disabled: [],
+          unchanged: ["claude-code", "mistral-vibe"],
+          retiredRemoved: ["phax-mistral-medium-3.5-low", "phax-mistral-medium-3.5-max"],
+        },
+        written: true,
+        backupPath: undefined,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runAgentSetupProviders({ write: true }, out);
+    expect(code).toBe(0);
+    expect(lines.join("\n")).toContain(
+      "Dropped models phax no longer routes to (2): phax-mistral-medium-3.5-low, phax-mistral-medium-3.5-max",
+    );
+  });
+
   it("--write prints enabled providers and config path", async () => {
     const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
     vi.mocked(providerSetup).mockReturnValue(
@@ -305,6 +342,7 @@ describe("runAgentSetupProviders", () => {
           enabled: ["mistral-vibe"],
           disabled: [],
           unchanged: ["claude-code", "codex-cli"],
+          retiredRemoved: [],
         },
         written: true,
         backupPath: undefined,
@@ -332,6 +370,7 @@ describe("runAgentSetupProviders", () => {
           enabled: [],
           disabled: [],
           unchanged: ["claude-code"],
+          retiredRemoved: [],
         },
         written: true,
         backupPath,

@@ -97,7 +97,7 @@ describe("provider dispatcher", () => {
     const options = {
       ...baseOptions,
       provider: "mistral-vibe" as const,
-      model: "phax-mistral-medium-3.5-medium",
+      model: "phax-mistral-medium-3.5-high",
     };
 
     const result = await runWithProvider(options);

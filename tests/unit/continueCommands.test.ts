@@ -301,7 +301,7 @@ describe("codex continue and fresh-start commands", () => {
 });
 
 describe("mistral-vibe commands", () => {
-  const opts = { cwd: WORKTREE, model: "phax-mistral-medium-3.5-medium", effort: "medium" };
+  const opts = { cwd: WORKTREE, model: "phax-mistral-medium-3.5-high", effort: "high" };
 
   it("has no continue command: interactive resume is unverified", () => {
     const result = mistralSessionAdapter.buildContinueCommand({
@@ -331,7 +331,7 @@ describe("mistral-vibe commands", () => {
         "Read .phax-context/interactive-review.md, then review phase-03 with me.",
       ],
       cwd: WORKTREE,
-      env: { VIBE_ACTIVE_MODEL: "phax-mistral-medium-3.5-medium" },
+      env: { VIBE_ACTIVE_MODEL: "phax-mistral-medium-3.5-high" },
     });
   });
 
@@ -345,7 +345,7 @@ describe("mistral-vibe commands", () => {
       }),
     );
     expect(result.args).toEqual(["--workdir", WORKTREE, "go"]);
-    expect(result.env).toEqual({ MY_VIBE_MODEL: "phax-mistral-medium-3.5-medium" });
+    expect(result.env).toEqual({ MY_VIBE_MODEL: "phax-mistral-medium-3.5-high" });
   });
 
   it("trusts the workdir for an unsafe phase", () => {

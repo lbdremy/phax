@@ -174,13 +174,13 @@ describe("resolveVerdictsModel", () => {
         "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
       },
     };
-    for (const model of ["claude-sonnet-4-6", "phax-mistral-medium-3.5-medium"]) {
+    for (const model of ["claude-sonnet-4-6", "phax-mistral-medium-3.5-high"]) {
       const resolved = resolveVerdictsModel(model, "medium", ROUTING, vibeEnabled);
       expect(Either.isRight(resolved), model).toBe(true);
     }
     expect(
       Either.getOrThrow(
-        resolveVerdictsModel("phax-mistral-medium-3.5-medium", "medium", ROUTING, vibeEnabled),
+        resolveVerdictsModel("phax-mistral-medium-3.5-high", "medium", ROUTING, vibeEnabled),
       ).provider,
     ).toBe("mistral-vibe");
     // The built-in default still routes to Claude Code with Vibe enabled.

@@ -43,7 +43,7 @@ const BASE_CONFIG: ProviderConfig = {
         "mistral-medium": {
           models: [
             { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
-            { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
+            { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
           ],
         },
       },
@@ -100,9 +100,7 @@ describe("planProviderConfig", () => {
           defaultAgent: "custom-agent",
           families: {
             "mistral-medium": {
-              models: [
-                { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
-              ],
+              models: [{ id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" }],
             },
           },
         },
@@ -118,7 +116,7 @@ describe("planProviderConfig", () => {
     expect(entry.defaultAgent).toBe("custom-agent");
     expect(entry.families).toEqual({
       "mistral-medium": {
-        models: [{ id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" }],
+        models: [{ id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" }],
       },
     });
   });
@@ -167,5 +165,60 @@ describe("planProviderConfig", () => {
     expect(plan.enabled).toEqual([]);
     expect(plan.disabled).toEqual([]);
     expect(plan.unchanged).toHaveLength(3);
+  });
+
+  it("drops the Mistral aliases phax retired, keeps the rest, and names what it dropped", () => {
+    const vibe = BASE_CONFIG.providers["mistral-vibe"]!;
+    const older: ProviderConfig = {
+      providers: {
+        ...BASE_CONFIG.providers,
+        "mistral-vibe": {
+          ...vibe,
+          families: {
+            "mistral-medium": {
+              models: [
+                { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
+                { id: "phax-mistral-medium-3.5-low", efforts: ["low"], status: "active" },
+                { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
+                { id: "phax-mistral-medium-3.5-max", efforts: ["max"], status: "active" },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const plan = planProviderConfig(older, [], { prune: false });
+
+    expect(plan.retiredRemoved).toEqual([
+      "phax-mistral-medium-3.5-low",
+      "phax-mistral-medium-3.5-max",
+    ]);
+    expect(plan.config.providers["mistral-vibe"]).toEqual(vibe);
+    expect(plan.config.providers["claude-code"]).toEqual(BASE_CONFIG.providers["claude-code"]);
+  });
+
+  it("drops a family every model of which is retired", () => {
+    const older: ProviderConfig = {
+      providers: {
+        "mistral-vibe": {
+          ...BASE_CONFIG.providers["mistral-vibe"]!,
+          families: {
+            "mistral-medium": {
+              models: [{ id: "phax-mistral-medium-3.5-low", efforts: ["low"], status: "active" }],
+            },
+          },
+        },
+      },
+    };
+
+    const plan = planProviderConfig(older, [], { prune: false });
+
+    expect(plan.config.providers["mistral-vibe"]!.families).toEqual({});
+    expect(plan.retiredRemoved).toEqual(["phax-mistral-medium-3.5-low"]);
+  });
+
+  it("names nothing when no retired model is listed", () => {
+    expect(planProviderConfig(BASE_CONFIG, [], { prune: false }).retiredRemoved).toEqual([]);
   });
 });

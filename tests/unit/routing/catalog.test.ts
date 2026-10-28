@@ -57,7 +57,7 @@ describe("familyOfId", () => {
     expect(familyOfId("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
     expect(familyOfId("gpt-6-sol", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
     expect(familyOfId("gpt-6-luna", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
-    expect(familyOfId("phax-mistral-medium-3.5-medium", DEFAULT_PROVIDER_CONFIG)).toBe(
+    expect(familyOfId("phax-mistral-medium-3.5-high", DEFAULT_PROVIDER_CONFIG)).toBe(
       "mistral-medium",
     );
   });
@@ -208,9 +208,9 @@ describe("equivalentFor (star lookup)", () => {
       routing,
       DEFAULT_PROVIDER_CONFIG,
     );
-    expect(mistralSub?.id).toBe("phax-mistral-medium-3.5-medium");
-    expect(mistralSub?.effort).toBe("medium");
-    expect(mistralSub?.relation).toBe("equivalent");
+    expect(mistralSub?.id).toBe("phax-mistral-medium-3.5-high");
+    expect(mistralSub?.effort).toBe("high");
+    expect(mistralSub?.relation).toBe("upgrade");
 
     const codexSub = equivalentFor(
       "claude-sonnet-4-6",
@@ -280,19 +280,60 @@ describe("equivalentFor (star lookup)", () => {
   });
 
   it("spoke → spoke: routes through the Claude hub and composes relations", () => {
-    // gpt-5.5/medium → sonnet/medium (equivalent inverted = equivalent),
-    // sonnet/medium → mistral-medium/medium (equivalent).
+    // gpt-5.5/high → sonnet/high (equivalent inverted = equivalent),
+    // sonnet/high → mistral-medium/high (equivalent).
     // Compose: equivalent + equivalent = equivalent.
     const sub = equivalentFor(
       "gpt-5.5",
-      "medium",
+      "high",
       "mistral-medium",
       routing,
       DEFAULT_PROVIDER_CONFIG,
     );
-    expect(sub?.id).toBe("phax-mistral-medium-3.5-medium");
-    expect(sub?.effort).toBe("medium");
+    expect(sub?.id).toBe("phax-mistral-medium-3.5-high");
+    expect(sub?.effort).toBe("high");
     expect(sub?.relation).toBe("equivalent");
+  });
+
+  it("hub → spoke: a Claude effort with no edge takes its anchor's nearest edge, naming the shift", () => {
+    const cases = [
+      { effort: "low", relation: "upgrade" },
+      { effort: "medium", relation: "upgrade" },
+      { effort: "high", relation: "equivalent" },
+      { effort: "max", relation: "downgrade" },
+    ] as const;
+    for (const { effort, relation } of cases) {
+      const sub = equivalentFor(
+        "claude-sonnet-4-6",
+        effort,
+        "mistral-medium",
+        routing,
+        DEFAULT_PROVIDER_CONFIG,
+      );
+      expect(sub, effort).toEqual({ id: "phax-mistral-medium-3.5-high", effort: "high", relation });
+    }
+    // Haiku 4.5's only edge is the `off` alias.
+    expect(
+      equivalentFor(
+        "claude-haiku-4-5-20251001",
+        "none",
+        "mistral-medium",
+        routing,
+        DEFAULT_PROVIDER_CONFIG,
+      ),
+    ).toEqual({ id: "phax-mistral-medium-3.5-off", effort: "off", relation: "equivalent" });
+  });
+
+  it("hub → spoke: a Claude id no edge anchors gets no nearest edge", () => {
+    expect(
+      equivalentFor(
+        "claude-sonnet-5-5",
+        "medium",
+        "mistral-medium",
+        routing,
+        DEFAULT_PROVIDER_CONFIG,
+      ),
+    ).toBeUndefined();
   });
 
   it("returns undefined when source id is not in the catalog", () => {

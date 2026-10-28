@@ -44,10 +44,10 @@ describe("renderCommandLine", () => {
       renderCommandLine({
         cwd: "/wt",
         argv: ["vibe", "--workdir", "/wt", "Read it's seed"],
-        env: { VIBE_ACTIVE_MODEL: "phax-mistral-medium-3.5-medium" },
+        env: { VIBE_ACTIVE_MODEL: "phax-mistral-medium-3.5-high" },
       }),
     ).toBe(
-      `cd '/wt' && VIBE_ACTIVE_MODEL='phax-mistral-medium-3.5-medium' 'vibe' '--workdir' '/wt' 'Read it'\\''s seed'`,
+      `cd '/wt' && VIBE_ACTIVE_MODEL='phax-mistral-medium-3.5-high' 'vibe' '--workdir' '/wt' 'Read it'\\''s seed'`,
     );
   });
 

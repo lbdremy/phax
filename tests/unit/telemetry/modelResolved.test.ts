@@ -13,8 +13,8 @@ const baseFields = {
   requestedEffort: "medium" as const,
   selectedProvider: "mistral-vibe" as const,
   selectedFamily: "mistral-medium" as const,
-  selectedConcreteModel: "phax-mistral-medium-3.5-medium",
-  selectedThinking: "medium" as const,
+  selectedConcreteModel: "phax-mistral-medium-3.5-high",
+  selectedThinking: "high" as const,
   relationship: "equivalent" as const,
   reason: "Provider priority selected mistral-vibe; translated via Claude hub.",
 };
@@ -76,8 +76,8 @@ describe("projectEvent for agent.model.resolved", () => {
       requestedEffort: "medium",
       selectedProvider: "mistral-vibe",
       selectedFamily: "mistral-medium",
-      selectedConcreteModel: "phax-mistral-medium-3.5-medium",
-      selectedThinking: "medium",
+      selectedConcreteModel: "phax-mistral-medium-3.5-high",
+      selectedThinking: "high",
       relationship: "equivalent",
     });
   });

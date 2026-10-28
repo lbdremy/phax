@@ -200,6 +200,15 @@ export function equivalentFor(
   return undefined;
 }
 
+/**
+ * Hub → spoke. An edge for the exact `(claudeId, claudeEffort)` wins. Without
+ * one, the edge of `targetFamily` anchored on the same Claude id whose Claude
+ * effort is nearest is taken (ties prefer the lower), and the relation records
+ * the shift: a lower Claude effort than asked is a downgrade, a higher one an
+ * upgrade. This serves a spoke that offers fewer levels than its anchor, such
+ * as Mistral's `off` and `high`. `ultracode` is never matched this way: it
+ * stays Claude's own ceiling.
+ */
 function hubToSpoke(
   claudeId: string,
   claudeEffort: ThinkingLevel,
@@ -207,6 +216,7 @@ function hubToSpoke(
   routing: ModelRouting,
   providerCfg: ProviderConfig,
 ): EquivalentSubstitution | undefined {
+  let nearest: { readonly sub: EquivalentSubstitution; readonly distance: number } | undefined;
   for (const [spokeId, byEffort] of Object.entries(routing.equivalence)) {
     const spokeLocation = entryFor(spokeId, providerCfg);
     if (!spokeLocation || spokeLocation.family !== targetFamily) continue;
@@ -214,16 +224,33 @@ function hubToSpoke(
     // never a valid destination in this direction.
     if (spokeLocation.entry.status === "deprecated") continue;
     for (const [spokeEffort, edge] of Object.entries(byEffort)) {
-      if (edge.claude === claudeId && edge.effort === claudeEffort) {
+      if (edge.claude !== claudeId) continue;
+      if (edge.effort === claudeEffort) {
         return {
           id: spokeId,
           effort: spokeEffort as ThinkingLevel,
           relation: edge.relation,
         };
       }
+      if (claudeEffort === "ultracode") continue;
+      const shift = EFFORT_ORDINAL[edge.effort] - EFFORT_ORDINAL[claudeEffort];
+      const distance = Math.abs(shift);
+      const closer =
+        nearest === undefined ||
+        distance < nearest.distance ||
+        (distance === nearest.distance && shift < 0);
+      if (!closer) continue;
+      nearest = {
+        sub: {
+          id: spokeId,
+          effort: spokeEffort as ThinkingLevel,
+          relation: composeRelations(edge.relation, shift < 0 ? "downgrade" : "upgrade"),
+        },
+        distance,
+      };
     }
   }
-  return undefined;
+  return nearest?.sub;
 }
 
 function spokeToHub(

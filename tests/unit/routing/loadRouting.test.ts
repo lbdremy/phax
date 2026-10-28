@@ -5,6 +5,7 @@ import {
   loadProviderConfig,
   MODEL_ROUTING_PATH,
   PROVIDER_CONFIG_PATH,
+  readProviderConfigFile,
 } from "../../../src/app/loadRouting.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -118,7 +119,52 @@ describe("path constants", () => {
     expect(MODEL_ROUTING_PATH).toMatch(/\.phax[/\\]model-routing\.json$/);
   });
 
+  it("refuses a providers.json that still lists the Mistral aliases phax retired, naming each and the setup command", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(withRetiredMistralAliases()));
+    const err = await runFail(loadProviderConfig().pipe(Effect.provide(layer)));
+    expect(err.path).toBe(PROVIDER_CONFIG_PATH);
+    expect(err.message).toContain(
+      "  - phax-mistral-medium-3.5-low: the Mistral API refuses low reasoning for mistral-medium-3.5",
+    );
+    expect(err.message).toContain("phax-mistral-medium-3.5-medium");
+    expect(err.message).toContain("phax-mistral-medium-3.5-max");
+    expect(err.message).toContain("phax agent setup providers --write");
+  });
+
+  it("readProviderConfigFile reads the same file as it is, for setup to rewrite", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const listed = withRetiredMistralAliases();
+    impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(listed));
+    const result = await run(readProviderConfigFile().pipe(Effect.provide(layer)));
+    expect(result).toEqual(listed);
+  });
+
   it("PROVIDER_CONFIG_PATH ends with .phax/providers.json", () => {
     expect(PROVIDER_CONFIG_PATH).toMatch(/\.phax[/\\]providers\.json$/);
   });
 });
+
+/** The built-in catalog as an older phax wrote it: Mistral with all five aliases. */
+function withRetiredMistralAliases(): typeof DEFAULT_PROVIDER_CONFIG {
+  const vibe = DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!;
+  return {
+    providers: {
+      ...DEFAULT_PROVIDER_CONFIG.providers,
+      "mistral-vibe": {
+        ...vibe,
+        families: {
+          "mistral-medium": {
+            models: [
+              { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
+              { id: "phax-mistral-medium-3.5-low", efforts: ["low"], status: "active" },
+              { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
+              { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
+              { id: "phax-mistral-medium-3.5-max", efforts: ["max"], status: "active" },
+            ],
+          },
+        },
+      },
+    },
+  };
+}

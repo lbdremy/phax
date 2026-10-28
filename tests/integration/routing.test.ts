@@ -36,8 +36,8 @@ const HANDOFF_CONTENT = [
 
 const shortName = Either.getOrThrow(decodeShortName("routing-test"));
 
-// Single-phase plan with claude-sonnet-4-6 + medium effort.
-// claude-sonnet medium → standard tier → first provider in priority wins.
+// Single-phase plan with claude-sonnet-4-6 + high effort.
+// claude-sonnet high → mistral's high alias → first provider in priority wins.
 const rawPlan = {
   version: 1,
   run: {
@@ -51,7 +51,7 @@ const rawPlan = {
       id: "phase-01",
       title: "Only Phase",
       model: "claude-sonnet-4-6",
-      effort: "medium" as const,
+      effort: "high" as const,
       planMarkdownAnchor: "#phase-01-only",
       plannedFilesToCreate: [] as const,
       plannedFilesToEdit: [] as const,
@@ -107,7 +107,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("resolves claude-sonnet-4-6/medium to mistral-vibe with the phax alias", async () => {
+  it("resolves claude-sonnet-4-6/high to mistral-vibe with the phax alias", async () => {
     const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
@@ -238,8 +238,8 @@ describe("executePlan routing — mistral-vibe priority", () => {
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
     const call = fakeBackend.impl.runCalls[0];
     expect(call?.options.provider).toBe("mistral-vibe");
-    expect(call?.options.model).toBe("phax-mistral-medium-3.5-medium");
-    expect(call?.options.effort).toBe("medium");
+    expect(call?.options.model).toBe("phax-mistral-medium-3.5-high");
+    expect(call?.options.effort).toBe("high");
 
     // The agent.model.resolved event should have been recorded.
     const resolvedEvent = events.find((e) => e.type === "agent.model.resolved");
@@ -247,7 +247,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     if (resolvedEvent?.type === "agent.model.resolved") {
       expect(resolvedEvent.selectedProvider).toBe("mistral-vibe");
       expect(resolvedEvent.selectedFamily).toBe("mistral-medium");
-      expect(resolvedEvent.selectedConcreteModel).toBe("phax-mistral-medium-3.5-medium");
+      expect(resolvedEvent.selectedConcreteModel).toBe("phax-mistral-medium-3.5-high");
       expect(resolvedEvent.relationship).toBe("equivalent");
       expect(resolvedEvent.requestedFamily).toBe("claude-sonnet");
     }
@@ -258,6 +258,6 @@ describe("executePlan routing — mistral-vibe priority", () => {
       selected: { provider: string; concreteModel: string };
     };
     expect(artifact.selected.provider).toBe("mistral-vibe");
-    expect(artifact.selected.concreteModel).toBe("phax-mistral-medium-3.5-medium");
+    expect(artifact.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
   });
 });

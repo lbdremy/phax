@@ -862,7 +862,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
     vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
     run = await stopRun(world, {
       provider: "mistral-vibe",
-      model: "phax-mistral-medium-3.5-medium",
+      model: "phax-mistral-medium-3.5-high",
       sessionId: VIBE3_SESSION_ID,
     });
   });
@@ -878,8 +878,8 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
 
   const turnOptions = (name: string) => ({
     provider: "mistral-vibe" as const,
-    model: "phax-mistral-medium-3.5-medium",
-    effort: "medium",
+    model: "phax-mistral-medium-3.5-high",
+    effort: "high",
     cwd: run.worktree,
     security: run.policy,
     outputJsonlPath: join(run.phaseFolder, `${name}.jsonl`),
