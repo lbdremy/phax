@@ -1,4 +1,7 @@
 import type { ProviderId } from "../routing/types.js";
+import { readClaudeOutcome } from "./claudeOutcome.js";
+import { readCodexOutcome } from "./codexOutcome.js";
+import { readVibeOutcome } from "./vibeOutcome.js";
 
 /**
  * The session outcome contract: how an ended provider session (Claude Code,
@@ -98,21 +101,10 @@ export type VibeExportRead =
   | { readonly kind: "text"; readonly path: string; readonly text: string };
 
 /** Whether a failure of this kind may pass if retried later. */
-export function isTransientFailure(_kind: FailureKind): boolean {
-  throw new Error("not implemented: isTransientFailure");
+export function isTransientFailure(kind: FailureKind): boolean {
+  return kind === "network" || kind === "rate-limit" || kind === "usage-limit";
 }
 
-/** Read an ended Claude Code session (`--output-format stream-json`). */
-export function readClaudeOutcome(_ended: EndedSession): SessionOutcome {
-  throw new Error("not implemented: readClaudeOutcome");
-}
-
-/** Read an ended Codex session (`codex exec --json`). */
-export function readCodexOutcome(_ended: EndedSession): SessionOutcome {
-  throw new Error("not implemented: readCodexOutcome");
-}
-
-/** Read an ended Mistral Vibe session: its stream and its `export.json`. */
-export function readVibeOutcome(_ended: EndedSession, _exported: VibeExportRead): SessionOutcome {
-  throw new Error("not implemented: readVibeOutcome");
-}
+// The readers: Claude Code (`--output-format stream-json`), Codex
+// (`codex exec --json`) and Mistral Vibe (its stream and its `export.json`).
+export { readClaudeOutcome, readCodexOutcome, readVibeOutcome };

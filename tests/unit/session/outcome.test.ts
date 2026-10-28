@@ -50,7 +50,7 @@ const claudeInit = {
 };
 
 describe("readClaudeOutcome", () => {
-  it.fails("reads a success result as the answer with the result's session id", () => {
+  it("reads a success result as the answer with the result's session id", () => {
     const outcome = readClaudeOutcome(
       ended(
         [
@@ -79,7 +79,7 @@ describe("readClaudeOutcome", () => {
     });
   });
 
-  it.fails("reads an error_during_execution result as a provider-error naming the subtype", () => {
+  it("reads an error_during_execution result as a provider-error naming the subtype", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended(
@@ -103,7 +103,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.message).toContain("error_during_execution");
   });
 
-  it.fails("reads an error_max_turns result with no result text as max-turns", () => {
+  it("reads an error_max_turns result with no result text as max-turns", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended(
@@ -125,7 +125,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.resetAt).toEqual(null);
   });
 
-  it.fails("reads the DNS outage, ten api_retry events then the synthetic API Error, as network", () => {
+  it("reads the DNS outage, ten api_retry events then the synthetic API Error, as network", () => {
     const apiError =
       "API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)";
     const retries = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((attempt) => ({
@@ -172,7 +172,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.message).toBe(apiError);
   });
 
-  it.fails("never reads a 429 in tool output or model text as a limit", () => {
+  it("never reads a 429 in tool output or model text as a limit", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended(
@@ -216,7 +216,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.resetAt).toEqual(null);
   });
 
-  it.fails("lets the result's usage limit win over a different error on stderr", () => {
+  it("lets the result's usage limit win over a different error on stderr", () => {
     const limit = "Claude AI usage limit reached|1793120400";
     const failure = failureOf(
       readClaudeOutcome(
@@ -241,7 +241,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.message).toBe(limit);
   });
 
-  it.fails("reads a 429 rate_limit_error API Error result as rate-limit", () => {
+  it("reads a 429 rate_limit_error API Error result as rate-limit", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended(
@@ -262,7 +262,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.sessionId).toEqual(CLAUDE_SESSION);
   });
 
-  it.fails("reads a session ended by SIGTERM with no output as killed", () => {
+  it("reads a session ended by SIGTERM with no output as killed", () => {
     const failure = failureOf(
       readClaudeOutcome(ended([], { kind: "signalled", signal: "SIGTERM" })),
     );
@@ -273,7 +273,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.message).toContain("SIGTERM");
   });
 
-  it.fails("reads a silent exit 1 as unknown with no session id", () => {
+  it("reads a silent exit 1 as unknown with no session id", () => {
     const failure = failureOf(readClaudeOutcome(ended([], exited(1))));
     expect(failure.kind).toEqual("unknown");
     expect(failure.provider).toEqual("claude-code");
@@ -281,7 +281,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.resetAt).toEqual(null);
   });
 
-  it.fails("reads a connection refusal on stderr as network with the init's session id", () => {
+  it("reads a connection refusal on stderr as network with the init's session id", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended([claudeInit], exited(1), "Error: connect ECONNREFUSED 127.0.0.1:443\n"),
@@ -292,7 +292,7 @@ describe("readClaudeOutcome", () => {
     expect(failure.message).toContain("ECONNREFUSED");
   });
 
-  it.fails("reads an error result as a failure even when the process exited 0", () => {
+  it("reads an error result as a failure even when the process exited 0", () => {
     const failure = failureOf(
       readClaudeOutcome(
         ended(
@@ -321,7 +321,7 @@ const codexThread = { type: "thread.started", thread_id: CODEX_THREAD };
 const codexTurnStarted = { type: "turn.started" };
 
 describe("readCodexOutcome", () => {
-  it.fails("reads a completed turn's agent message as the answer with the thread id", () => {
+  it("reads a completed turn's agent message as the answer with the thread id", () => {
     const outcome = readCodexOutcome(
       ended(
         [
@@ -344,7 +344,7 @@ describe("readCodexOutcome", () => {
     });
   });
 
-  it.fails("reads a stream disconnection in turn.failed as network with its exact message", () => {
+  it("reads a stream disconnection in turn.failed as network with its exact message", () => {
     const message =
       "stream disconnected before completion: error sending request for url (https://api.openai.com/v1/responses)";
     const failure = failureOf(
@@ -362,7 +362,7 @@ describe("readCodexOutcome", () => {
     expect(failure.message).toBe(message);
   });
 
-  it.fails("reads a usage limit error event as usage-limit", () => {
+  it("reads a usage limit error event as usage-limit", () => {
     const failure = failureOf(
       readCodexOutcome(
         ended(
@@ -376,7 +376,7 @@ describe("readCodexOutcome", () => {
     expect(failure.message).toContain("usage limit");
   });
 
-  it.fails("reads a completed turn with no agent message as a provider-error with no answer", () => {
+  it("reads a completed turn with no agent message as a provider-error with no answer", () => {
     const failure = failureOf(
       readCodexOutcome(
         ended(
@@ -397,7 +397,7 @@ describe("readCodexOutcome", () => {
     expect(failure.message).toContain("no answer");
   });
 
-  it.fails("reads an unsupported model in turn.failed as a provider-error with its own text", () => {
+  it("reads an unsupported model in turn.failed as a provider-error with its own text", () => {
     const message = "unexpected status 400 Bad Request: model not supported";
     const failure = failureOf(
       readCodexOutcome(
@@ -410,7 +410,7 @@ describe("readCodexOutcome", () => {
     expect(failure.message).toBe(message);
   });
 
-  it.fails("never reads a 429 in command output as a limit", () => {
+  it("never reads a 429 in command output as a limit", () => {
     const failure = failureOf(
       readCodexOutcome(
         ended(
@@ -491,7 +491,7 @@ function vibeFailureExport(
 }
 
 describe("readVibeOutcome", () => {
-  it.fails("reads a finished export as the stream's last assistant text with the export's session id", () => {
+  it("reads a finished export as the stream's last assistant text with the export's session id", () => {
     const outcome = readVibeOutcome(
       ended(vibePongStream, exited(0)),
       exportText({
@@ -513,7 +513,7 @@ describe("readVibeOutcome", () => {
     });
   });
 
-  it.fails("reads a config_error with invalid_api_key as a provider-error naming key and code", () => {
+  it("reads a config_error with invalid_api_key as a provider-error naming key and code", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended([], exited(1)),
@@ -542,7 +542,7 @@ describe("readVibeOutcome", () => {
     expect(failure.message).toContain("invalid_api_key");
   });
 
-  it.fails("reads a backend_error the model refused as a provider-error with its text", () => {
+  it("reads a backend_error the model refused as a provider-error with its text", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended([], exited(2)),
@@ -560,7 +560,7 @@ describe("readVibeOutcome", () => {
     expect(failure.message).toContain("reasoning_effort low is not supported");
   });
 
-  it.fails("reads a backend_error carrying a DNS failure as network", () => {
+  it("reads a backend_error carrying a DNS failure as network", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended([], exited(2)),
@@ -578,7 +578,7 @@ describe("readVibeOutcome", () => {
     expect(failure.message).toContain("nodename nor servname");
   });
 
-  it.fails("reads the rate_limit error code as rate-limit", () => {
+  it("reads the rate_limit error code as rate-limit", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended([], exited(2)),
@@ -594,7 +594,7 @@ describe("readVibeOutcome", () => {
     expect(failure.sessionId).toEqual(VIBE_SESSION);
   });
 
-  it.fails("reads a turn_limit outcome as max-turns with the export's session id", () => {
+  it("reads a turn_limit outcome as max-turns with the export's session id", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended(vibePongStream, exited(3)),
@@ -606,7 +606,7 @@ describe("readVibeOutcome", () => {
     expect(failure.resetAt).toEqual(null);
   });
 
-  it.fails("reads a terminated outcome as killed", () => {
+  it("reads a terminated outcome as killed", () => {
     const failure = failureOf(
       readVibeOutcome(ended([], exited(3)), exportText(vibeFailureExport("terminated", 3, null))),
     );
@@ -614,7 +614,7 @@ describe("readVibeOutcome", () => {
     expect(failure.sessionId).toEqual(VIBE_SESSION);
   });
 
-  it.fails("reads a deadline outcome as killed", () => {
+  it("reads a deadline outcome as killed", () => {
     const failure = failureOf(
       readVibeOutcome(ended([], exited(3)), exportText(vibeFailureExport("deadline", 3, null))),
     );
@@ -622,7 +622,7 @@ describe("readVibeOutcome", () => {
     expect(failure.sessionId).toEqual(VIBE_SESSION);
   });
 
-  it.fails("decodes a failure export whose nullable fields are all null and reads it as network", () => {
+  it("decodes a failure export whose nullable fields are all null and reads it as network", () => {
     const failure = failureOf(
       readVibeOutcome(
         ended([], exited(2)),
@@ -645,7 +645,7 @@ describe("readVibeOutcome", () => {
     expect(failure.message).toContain("All connection attempts failed");
   });
 
-  it.fails("reads a completion's rate limit on stderr when no export was requested", () => {
+  it("reads a completion's rate limit on stderr when no export was requested", () => {
     const failure = failureOf(
       readVibeOutcome(ended([], exited(1), "Error: 429 rate limited\n"), {
         kind: "not-requested",
@@ -656,7 +656,7 @@ describe("readVibeOutcome", () => {
     expect(failure.sessionId).toEqual(null);
   });
 
-  it.fails("reads an absent export as a provider-error naming its path", () => {
+  it("reads an absent export as a provider-error naming its path", () => {
     const failure = failureOf(
       readVibeOutcome(ended(vibePongStream, exited(0)), {
         kind: "absent",
@@ -673,7 +673,7 @@ describe("readVibeOutcome", () => {
 describe("isTransientFailure", () => {
   const transient: readonly FailureKind[] = ["network", "rate-limit", "usage-limit"];
 
-  it.fails("is true exactly for network, rate-limit and usage-limit", () => {
+  it("is true exactly for network, rate-limit and usage-limit", () => {
     expect(FAILURE_KINDS.map((kind) => [kind, isTransientFailure(kind)])).toEqual(
       FAILURE_KINDS.map((kind) => [kind, transient.includes(kind)]),
     );
