@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.phax.run/schemas/spec-document/0.27.0.json",
   "kind": "spec",
-  "title": "Headless code review",
+  "title": "Headless code review — a run reviews its own code before its pull request",
   "ground": [
     {
       "path": "src/app/reviewCompliance.ts",
@@ -72,7 +72,7 @@
   "problem": "Nothing in phax reviews the code until a person sits down and runs `phax review-code`. The compliance review checks the work against the plan and, by design, not the code. A run can therefore open its pull request with nothing on it about what its tests could not see. A person who wants a machine to do the first code-review pass must open an interactive session and wait for it. The findings exist only in that conversation: not in the run folder, not in the pull request, and in no format another tool can read. The Draft `headless-review` spec tried to solve this with review plans, appended runs, a review loop and finding history. That is too much to ship, and the operator set it aside on 2026-10-27.",
   "productGoal": {
     "statement": "Give the code review the same opt-in, run-end, headless form the compliance review already has. It follows the `phax-review` skill and returns a versioned list of findings. phax keeps the list as `code-review.json` in the run folder and lists the findings in the pull request. The session it ran in becomes the run's review session, so the person opens it with `phax review-code <run>` and asks for the fixes there. The same review can be run by hand on a review_open run.",
-    "guidingRule": "Wherever the compliance review already decides something, the headless code review does the same."
+    "guidingRule": "The code review works like the compliance review: turned on in phax.json, run at the end of the run, kept in the run folder and the records, and shown in the pull request."
   },
   "terminology": [
     {
@@ -290,10 +290,10 @@
     },
     {
       "surface": "cli: phax review-code --headless",
-      "summary": "Running `phax review-code <run> --headless` runs the code review without a person on a run in review, writes its findings to the run folder, and leaves the session ready to resume.",
+      "summary": "Running `phax review-code <run> --headless` runs the code review without a person on a run in review, in a read-only session that leaves your worktree as it was, writes its findings to the run folder, and leaves the session ready to resume.",
       "binding": "normative",
       "before": "$ phax review-code greet-cli\nStarting code review session in ~/.phax/worktrees/acme.greet-cli/phase-03",
-      "after": "$ phax review-code greet-cli --headless\nCode review: 2 findings (1 bug, 1 concern)\nFindings: ~/.phax/runs/acme.greet-cli/code-review.json\nFix them in the session: phax review-code greet-cli\n\n$ phax review-code greet-cli --headless\nCode review failed: answer refused: findings[0].lens: \"security\" is not a lens. To retry, run: phax review-code greet-cli --headless\n$? = 1"
+      "after": "$ phax review-code greet-cli --headless\nCode review: 2 findings (1 bug, 1 concern)\nFindings: ~/.phax/runs/acme.greet-cli/code-review.json\nFix them in the session: phax review-code greet-cli\n\n$ phax review-code greet-cli --headless\nCode review failed: answer refused: findings[0].lens: \"security\" is not a lens (expected one of surface, acceptance, boundary, core, edge, tests, architecture, docs). To retry, run: phax review-code greet-cli --headless\n$? = 1"
     },
     {
       "surface": "cli: phax review-code",

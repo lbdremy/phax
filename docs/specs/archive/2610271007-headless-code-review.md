@@ -7,7 +7,7 @@ approved:
   date: 2026-10-27
   baseline: ab4381c
 ---
-# Headless code review
+# Headless code review — a run reviews its own code before its pull request
 
 ## 1. Context
 
@@ -44,7 +44,7 @@ Nothing in phax reviews the code until a person sits down and runs `phax review-
 
 Give the code review the same opt-in, run-end, headless form the compliance review already has. It follows the `phax-review` skill and returns a versioned list of findings. phax keeps the list as `code-review.json` in the run folder and lists the findings in the pull request. The session it ran in becomes the run's review session, so the person opens it with `phax review-code <run>` and asks for the fixes there. The same review can be run by hand on a review_open run.
 
-> Wherever the compliance review already decides something, the headless code review does the same.
+> The code review works like the compliance review: turned on in phax.json, run at the end of the run, kept in the run folder and the records, and shown in the pull request.
 
 ## 4. Terminology
 
@@ -225,7 +225,7 @@ Summary: The headless code review session answers with a versioned list of findi
 
 ### cli: phax review-code --headless — normative
 
-Summary: Running `phax review-code <run> --headless` runs the code review without a person on a run in review, writes its findings to the run folder, and leaves the session ready to resume.
+Summary: Running `phax review-code <run> --headless` runs the code review without a person on a run in review, in a read-only session that leaves your worktree as it was, writes its findings to the run folder, and leaves the session ready to resume.
 
 before:
 
@@ -240,7 +240,7 @@ after:
     Fix them in the session: phax review-code greet-cli
 
     $ phax review-code greet-cli --headless
-    Code review failed: answer refused: findings[0].lens: "security" is not a lens. To retry, run: phax review-code greet-cli --headless
+    Code review failed: answer refused: findings[0].lens: "security" is not a lens (expected one of surface, acceptance, boundary, core, edge, tests, architecture, docs). To retry, run: phax review-code greet-cli --headless
     $? = 1
 
 ### cli: phax review-code — indicative
