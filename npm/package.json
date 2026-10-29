@@ -1,6 +1,6 @@
 {
   "name": "@lbdremy/phax",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
   "keywords": [
     "agent-harness",
