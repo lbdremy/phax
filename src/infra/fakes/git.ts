@@ -10,6 +10,7 @@ import {
 } from "../../ports/git.js";
 import type { ChangedPath } from "../../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
+import type { ProtectedObservation } from "../../domain/security/protectedPaths.js";
 
 // Deterministic 40-hex object id derived from bytes, so the fake round-trips
 // blobs and trees without a real hash. Not git-compatible; collision-free enough
@@ -81,6 +82,7 @@ export type GitCall =
   | { method: "headTree"; path: string }
   | { method: "snapshotWorktree"; path: string }
   | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
+  | { method: "observeWorktree"; path: string; base: string; trackedPaths: readonly string[] }
   | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] }
   | { method: "diffTrees"; repo: string; fromTree: string; toTree: string }
   | { method: "commitTree"; worktree: string; tree: string; subject: string; body: string };
@@ -684,6 +686,28 @@ export class FakeGitImpl implements GitOps {
     this.calls.push({ method: "changedPathsBetween", path, fromTree, toTree });
     if (fromTree === toTree) return Effect.succeed([]);
     return Effect.succeed(this.treeChanges.get(`${fromTree}..${toTree}`) ?? []);
+  }
+
+  private readonly observations = new Map<string, ProtectedObservation>();
+
+  /** Scripts what `observeWorktree` answers for the worktree at `path`, whatever base and paths are asked. */
+  setObservation(path: string, observation: ProtectedObservation): void {
+    this.observations.set(path, observation);
+  }
+
+  observeWorktree(
+    path: string,
+    base: string,
+    trackedPaths: readonly string[],
+  ): Effect.Effect<ProtectedObservation, GitError> {
+    this.calls.push({ method: "observeWorktree", path, base, trackedPaths: [...trackedPaths] });
+    return Effect.succeed(
+      this.observations.get(path) ?? {
+        entries: [],
+        tracked: trackedPaths.map((p) => ({ path: p, state: "same" as const })),
+        untracked: [],
+      },
+    );
   }
 
   restorePaths(
