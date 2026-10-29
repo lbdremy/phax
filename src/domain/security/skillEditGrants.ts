@@ -1,3 +1,5 @@
+import { matchProtected, type ProtectedList } from "./protectedPaths.js";
+
 const SKILLS_PREFIX = ".claude/skills/";
 
 // Characters with meaning in Claude permission-rule syntax; a path containing
@@ -79,5 +81,43 @@ export function formatSkillEditConsentRefusal(gaps: readonly SkillEditConsentGap
     "Security preflight failed: the plan edits skill files, which requires --allow-skill-edits.",
     ...gaps.map((gap) => `  ${gap.phaseId}: ${gap.files.join(", ")}`),
     "Re-run with --allow-skill-edits to grant exactly these files.",
+  ].join("\n");
+}
+
+export interface SkillEditProtectedConflict {
+  readonly phaseId: string;
+  readonly file: string;
+  readonly entry: string;
+  readonly glob: string;
+}
+
+/**
+ * The granted skill files a protected glob matches: files the plan asks to
+ * edit and the operator keeps for themselves. In phase order, then grant order.
+ */
+export function skillEditProtectedConflicts(
+  phases: readonly SkillEditConsentPhase[],
+  list: ProtectedList,
+): readonly SkillEditProtectedConflict[] {
+  const conflicts: SkillEditProtectedConflict[] = [];
+  for (const phase of phases) {
+    for (const file of phaseSkillEditGrants(phase)) {
+      const matched = matchProtected(list, file);
+      if (matched !== undefined) {
+        conflicts.push({ phaseId: phase.id, file, entry: matched.entry, glob: matched.glob });
+      }
+    }
+  }
+  return conflicts;
+}
+
+/** The refusal message for a skill edit grant on a protected path. */
+export function formatSkillEditProtectedRefusal(
+  conflicts: readonly SkillEditProtectedConflict[],
+): string {
+  return [
+    "Security preflight failed: a skill edit grant names a protected path.",
+    ...conflicts.map((c) => `  ${c.phaseId}: ${c.file} (${c.entry} ${c.glob})`),
+    "Protected paths are the operator's decision: drop the file from the plan, or the glob from protectedPaths in phax.json.",
   ].join("\n");
 }

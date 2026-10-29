@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSkillEditGrantSettings } from "../../../src/infra/providers/claudeSkillEditSettings.js";
+import {
+  buildClaudeSessionSettings,
+  buildSkillEditGrantSettings,
+} from "../../../src/infra/providers/claudeSkillEditSettings.js";
 
 const ALLOW_ECHO = `echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'`;
 
@@ -64,5 +67,34 @@ describe("buildSkillEditGrantSettings", () => {
   it("round-trips through JSON", () => {
     const settings = buildSkillEditGrantSettings("/wt", [".claude/skills/foo/SKILL.md"]);
     expect(JSON.parse(JSON.stringify(settings))).toEqual(settings);
+  });
+});
+
+describe("buildClaudeSessionSettings", () => {
+  const DENY = ["Edit(//wt/**/steme.baseline.json)", "Edit(//wt/phax.json)"];
+  const GRANTS = [".claude/skills/foo/SKILL.md"];
+
+  it("is undefined with no grant and no deny rule", () => {
+    expect(buildClaudeSessionSettings("/wt", [], [])).toBeUndefined();
+  });
+
+  it("is exactly the deny rules when there is no grant", () => {
+    const settings = buildClaudeSessionSettings("/wt", [], DENY);
+    expect(JSON.stringify(settings)).toBe(
+      '{"permissions":{"deny":["Edit(//wt/**/steme.baseline.json)","Edit(//wt/phax.json)"]}}',
+    );
+  });
+
+  it("is the grant hooks alone when there is no deny rule", () => {
+    expect(buildClaudeSessionSettings("/wt", GRANTS, [])).toEqual(
+      buildSkillEditGrantSettings("/wt", GRANTS),
+    );
+  });
+
+  it("merges the grant hooks with the deny rules", () => {
+    expect(buildClaudeSessionSettings("/wt", GRANTS, DENY)).toEqual({
+      ...buildSkillEditGrantSettings("/wt", GRANTS),
+      permissions: { deny: DENY },
+    });
   });
 });

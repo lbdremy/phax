@@ -8,6 +8,7 @@ import type {
   UsageLimitError,
 } from "../domain/errors.js";
 import type { ProviderId } from "../domain/routing/types.js";
+import type { ProtectedList } from "../domain/security/protectedPaths.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import type { FsError } from "./fs.js";
 
@@ -61,6 +62,12 @@ export interface AgentRunOptions {
    * headless authoring never set it.
    */
   readonly skillEditGrants?: readonly string[] | undefined;
+  /**
+   * The protected list: phax.json's `protectedPaths` plus the loaded phax.json.
+   * In secure mode the claude and Vibe providers derive native deny rules from
+   * it; codex ignores it. Absent means nothing is declared.
+   */
+  readonly protectedPaths?: ProtectedList | undefined;
   /**
    * A session that answers and never writes (decide's handback, headless
    * authoring). The claude provider keeps only its reading tools, plus the

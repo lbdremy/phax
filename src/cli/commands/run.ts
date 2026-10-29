@@ -15,6 +15,7 @@ import {
   PlanStaleError,
   RateLimitError,
   SkillEditConsentError,
+  SkillEditProtectedError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { checkPlanRunnable } from "../../app/artifactStatus.js";
@@ -421,7 +422,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   );
   if (Either.isLeft(preflightResult)) {
     const err = preflightResult.left;
-    if (err instanceof SkillEditConsentError) {
+    if (err instanceof SkillEditConsentError || err instanceof SkillEditProtectedError) {
       out.error(err.message);
       return exitCodeForError(err);
     }

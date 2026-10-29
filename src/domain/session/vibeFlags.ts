@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { SecurityEnforcementError } from "../errors.js";
+import { type ProtectedList, vibeProtectedDenylist } from "../security/protectedPaths.js";
 import type { SecurityPolicy } from "../security/types.js";
 
 // The Vibe 3 confinement a session runs under, built per invocation: phax
@@ -31,7 +32,9 @@ import type { SecurityPolicy } from "../security/types.js";
 //       get an empty allowlist so a user's own entries cannot widen them, and
 //       every tool phax names denies reaching outside the working directories
 //       whatever a user's per-tool `outside_workdir` says. write_file and edit
-//       deny `<root>/.vibe/**` and `<root>/.agents/**` in every root.
+//       deny `<root>/.vibe/**` and `<root>/.agents/**` in every root, then (a
+//       secure session with protected paths) the worktree's protected literal
+//       and `**/` entries, under its resolved path.
 //       web_fetch/web_search are left alone, as Claude Code's secure flags do.
 //   VIBE_ENABLE_MCP=false, VIBE_ENABLE_CONNECTORS=false
 //       When the policy disables MCP or allowlists servers: no MCP server or
@@ -59,6 +62,12 @@ export interface VibeFlagsInput {
   readonly unsafeAgent?: string | undefined;
   /** A read-only session enables only reading tools (plus bash when it has agent commands). */
   readonly readOnly?: boolean | undefined;
+  /**
+   * The protected list and the worktree's resolved path (`root`), whose entries
+   * join the write_file and edit denylists of a secure session. Vibe compares
+   * resolved paths, so `root` is the realpath, not necessarily `cwd`.
+   */
+  readonly protectedPaths?: { readonly root: string; readonly list: ProtectedList } | undefined;
 }
 
 export interface VibeFlags {
@@ -117,15 +126,17 @@ export const VIBE_PROJECT_CONFIG_DIRS = [".vibe", ".agents"] as const;
 function vibeTools(
   agentCommands: readonly string[],
   roots: readonly string[],
+  protectedEntries: readonly string[] = [],
 ): Record<string, Record<string, unknown>> {
   const configGuards = roots.flatMap((root) =>
     VIBE_PROJECT_CONFIG_DIRS.map((dir) => `${root}/${dir}/**`),
   );
+  const denylist = [...configGuards, ...protectedEntries];
   return {
     bash: { permission: "ask", allowlist: [...agentCommands], outside_workdir: "deny" },
     read_file: { allowlist: [], outside_workdir: "deny" },
-    write_file: { allowlist: [], denylist: configGuards, outside_workdir: "deny" },
-    edit: { allowlist: [], denylist: configGuards, outside_workdir: "deny" },
+    write_file: { allowlist: [], denylist, outside_workdir: "deny" },
+    edit: { allowlist: [], denylist, outside_workdir: "deny" },
     grep: { allowlist: [] },
   };
 }
@@ -177,7 +188,16 @@ export function buildVibeFlags(input: VibeFlagsInput): VibeFlags {
     env: {
       ...SECURE_ENV,
       ...mcpEnv(security),
-      VIBE_TOOLS: JSON.stringify(vibeTools(input.agentCommands, [cwd, ...extraRoots])),
+      VIBE_TOOLS: JSON.stringify(
+        vibeTools(
+          input.agentCommands,
+          [cwd, ...extraRoots],
+          // The worktree only, never the extra roots.
+          input.protectedPaths === undefined
+            ? []
+            : vibeProtectedDenylist(input.protectedPaths.root, input.protectedPaths.list),
+        ),
+      ),
     },
   };
 }

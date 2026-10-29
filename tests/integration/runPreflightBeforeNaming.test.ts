@@ -170,6 +170,8 @@ interface RefusalScenario {
   /** Runs after the fixture commit and before the snapshot. */
   readonly arrange?: (roots: PreflightRepo) => void;
   readonly exitCode: number;
+  /** Extra `phax run` flags. */
+  readonly flags?: { readonly allowSkillEdits?: boolean };
   /** The single error line `phax run` prints: the unchanged message and prefix. */
   readonly errorLine: (roots: PreflightRepo) => string;
 }
@@ -296,6 +298,20 @@ const SCENARIOS = {
 
 // Refusals that share a step with another scenario above.
 const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
+  "skill-edit-consent (a granted skill file a protected glob matches)": {
+    fixture: {
+      config: { protectedPaths: [".claude/skills/**"] },
+      plan: { phases: [{ plannedFilesToCreate: [SKILL_FILE] }] },
+    },
+    flags: { allowSkillEdits: true },
+    exitCode: 11,
+    errorLine: () =>
+      [
+        "Security preflight failed: a skill edit grant names a protected path.",
+        `  phase-01: ${SKILL_FILE} (protectedPaths[0] .claude/skills/**)`,
+        "Protected paths are the operator's decision: drop the file from the plan, or the glob from protectedPaths in phax.json.",
+      ].join("\n"),
+  },
   "phase-models (a Model reason line)": {
     fixture: { plan: { phases: [{ headerLines: ["**Model reason:** old label"] }] } },
     exitCode: 11,
@@ -405,7 +421,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
       const before = snapshotRepo(r);
       const out = recordingOutput();
 
-      const code = await runRun({ plan: "plan.md", trace: true }, out.port);
+      const code = await runRun({ plan: "plan.md", trace: true, ...scenario.flags }, out.port);
 
       expect(code).toBe(scenario.exitCode);
       expect(out.errors).toEqual([scenario.errorLine(r)]);

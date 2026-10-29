@@ -30,6 +30,27 @@ export interface BuildPhasePromptOptions {
   readonly briefSection?: string | undefined;
   /** The phase's role in an oracle pair, or null for an ordinary phase. */
   readonly oracleRole: OracleRole | null;
+  /** The protected globs, the loaded phax.json's path included; absent when nothing is declared. */
+  readonly protectedPaths?: readonly string[] | undefined;
+}
+
+/**
+ * The `## Protected paths` section: the files that are the operator's decision,
+ * one glob per line, and what to do about a hole in one of them. None when
+ * nothing is declared.
+ */
+function protectedPathsLines(globs: readonly string[] | undefined): string[] {
+  if (globs === undefined) return [];
+  return [
+    "## Protected paths",
+    "",
+    "These files are the operator's decision. No phase may create, change, delete or rename them, by any tool or command.",
+    "",
+    ...globs.map((glob) => `- ${glob}`),
+    "",
+    "If a hole cannot be fixed in the code, leave the gate failing and explain the hole in your reply. Never accept it in a protected file, and never work around it.",
+    "",
+  ];
 }
 
 /**
@@ -74,6 +95,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     gateCommands,
     briefSection,
     oracleRole,
+    protectedPaths,
   } = opts;
   const handoffSection = renderPreviousHandoff(previousHandoff);
 
@@ -137,6 +159,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     JSON.stringify(shown, null, 2),
     "",
     ...briefLines,
+    ...protectedPathsLines(protectedPaths),
     "## Execution rules",
     "",
     "- Respect the current phase scope.",

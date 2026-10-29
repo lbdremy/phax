@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
+import { protectedList } from "../../../src/domain/security/protectedPaths.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import {
   buildSealedVibeFlags,
@@ -247,6 +248,75 @@ describe("vibeConfigMismatch", () => {
   it("never compares an unsafe session", () => {
     const unsafeInput: VibeFlagsInput = { security: unsafePolicy, cwd: "/w", agentCommands: [] };
     expect(vibeConfigMismatch(unsafeInput, { bypass_tool_permissions: true })).toBeUndefined();
+  });
+});
+
+const toolsOf = (input: VibeFlagsInput) =>
+  JSON.parse(buildVibeFlags(input).env["VIBE_TOOLS"] ?? "null") as Record<
+    string,
+    { denylist?: string[] }
+  >;
+
+describe("protected paths", () => {
+  // phax.json is implied, as the loaded config always is.
+  const list = protectedList(["**/steme.baseline.json", "config/*.json"], "phax.json") ?? [];
+  const ROOT = "/real/work/tree";
+  const ENTRIES = [
+    `${ROOT}/steme.baseline.json`,
+    `${ROOT}/**/steme.baseline.json`,
+    `${ROOT}/phax.json`,
+  ];
+  const guards = ["/work/tree", "/home/me/.phax", "/data/extra"].flatMap((root) => [
+    `${root}/.vibe/**`,
+    `${root}/.agents/**`,
+  ]);
+  const protectedInput: VibeFlagsInput = {
+    security: securePolicy,
+    cwd: "/work/tree",
+    agentCommands: AGENT_COMMANDS,
+    protectedPaths: { root: ROOT, list },
+  };
+  it("appends the native entries to the write_file and edit denylists after the guards, under root", () => {
+    const tools = toolsOf(protectedInput);
+    expect(tools["write_file"]?.denylist).toEqual([...guards, ...ENTRIES]);
+    expect(tools["edit"]?.denylist).toEqual([...guards, ...ENTRIES]);
+    expect(tools["bash"]).not.toHaveProperty("denylist");
+    const flags = buildVibeFlags(protectedInput);
+    expect(flags.scope.slice(0, 2)).toEqual(["--workdir", "/work/tree"]);
+  });
+
+  it("gives no entry for a wildcard glob and none under the extra roots", () => {
+    const denylist = toolsOf(protectedInput)["write_file"]?.denylist ?? [];
+    expect(denylist.some((entry) => entry.includes("config/"))).toBe(false);
+    expect(denylist.filter((entry) => entry.startsWith("/data/extra")).length).toBe(2);
+  });
+
+  it("leaves the denylists as they are when nothing is declared", () => {
+    const { protectedPaths: _none, ...plain } = protectedInput;
+    expect(toolsOf(plain)["write_file"]?.denylist).toEqual(guards);
+  });
+
+  it("adds nothing for an unsafe or a read-only session", () => {
+    const unsafe = buildVibeFlags({ ...protectedInput, security: unsafePolicy });
+    expect(unsafe.env).toEqual({});
+    const readOnlyTools = toolsOf({ ...protectedInput, readOnly: true });
+    expect(readOnlyTools["write_file"]?.denylist).toEqual([
+      "/work/tree/.vibe/**",
+      "/work/tree/.agents/**",
+    ]);
+  });
+
+  it("accepts the export that holds the protected entries", () => {
+    expect(vibeConfigMismatch(protectedInput, resolvedConfig(protectedInput))).toBeUndefined();
+  });
+
+  it("names a denylist that lacks an entry", () => {
+    const config = resolvedConfig(protectedInput);
+    const tools = config["tools"] as Record<string, Record<string, unknown>>;
+    tools["write_file"] = { ...tools["write_file"], denylist: guards };
+    expect(vibeConfigMismatch(protectedInput, config)).toBe(
+      `tools.write_file.denylist is ${JSON.stringify(guards)}, phax set ${JSON.stringify([...guards, ...ENTRIES])}`,
+    );
   });
 });
 

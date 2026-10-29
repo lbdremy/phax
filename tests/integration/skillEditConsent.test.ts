@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type RunId } from "../../src/domain/branded.js";
-import { SkillEditConsentError } from "../../src/domain/errors.js";
+import { SkillEditConsentError, SkillEditProtectedError } from "../../src/domain/errors.js";
+import { protectedList } from "../../src/domain/security/protectedPaths.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -66,8 +67,10 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
   ).plan;
 }
 
-function makeConfig(stateRoot: string): ResolvedConfig {
+function makeConfig(stateRoot: string, protectedGlobs?: readonly string[]): ResolvedConfig {
+  const list = protectedList(protectedGlobs, "phax.json");
   return {
+    ...(list === null ? {} : { protectedPaths: list }),
     raw: {
       version: 1,
       name: "test-project",
@@ -172,6 +175,7 @@ describe("executePlan — skill edit consent preflight", () => {
     runId: RunId,
     startIndex: number,
     allowSkillEdits?: boolean,
+    protectedGlobs?: readonly string[],
   ) {
     return Effect.runPromise(
       Effect.either(
@@ -181,7 +185,7 @@ describe("executePlan — skill edit consent preflight", () => {
           namespace: "test-project",
           plan,
           planMd: planMdFor(plan),
-          config: makeConfig(stateRoot),
+          config: makeConfig(stateRoot, protectedGlobs),
           gateProfileId: "full",
           allowDirty: false,
           runPath,
@@ -221,6 +225,75 @@ describe("executePlan — skill edit consent preflight", () => {
     expect(
       fakeGit.impl.calls.filter((c) => c.method === "createBranch" || c.method === "addWorktree"),
     ).toEqual([]);
+  });
+
+  it("refuses a granted skill file a protected glob matches, naming it, before any phase", async () => {
+    const plan = makePlan(1);
+    const { layer, fakeGit, fakeBackend } = makeLayers();
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(
+        shortName,
+        planMdFor(plan),
+        plan,
+        makeConfig(stateRoot, [".claude/skills/**"]),
+        undefined,
+        true,
+      ).pipe(Effect.provide(layer)),
+    );
+
+    const result = await run(plan, layer, runPath, runId, 0, true, [".claude/skills/**"]);
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(SkillEditProtectedError);
+      expect(result.left.message).toBe(
+        [
+          "Security preflight failed: a skill edit grant names a protected path.",
+          `  phase-02: ${SKILL_FILE} (protectedPaths[0] .claude/skills/**)`,
+          "Protected paths are the operator's decision: drop the file from the plan, or the glob from protectedPaths in phax.json.",
+        ].join("\n"),
+      );
+    }
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    expect(
+      fakeGit.impl.calls.filter((c) => c.method === "createBranch" || c.method === "addWorktree"),
+    ).toEqual([]);
+    await expect(readFile(join(runPath, "phase-01", "status.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("refuses on resume too, only for the phases still to run", async () => {
+    const plan = makePlan(1);
+    const { layer, fakeBackend } = makeLayers();
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(
+        shortName,
+        planMdFor(plan),
+        plan,
+        makeConfig(stateRoot, [".claude/skills/**"]),
+        undefined,
+        true,
+      ).pipe(Effect.provide(layer)),
+    );
+    await markPhase01Committed(stateRoot, runPath);
+
+    const result = await run(plan, layer, runPath, runId, 1, true, [".claude/skills/**"]);
+
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(SkillEditProtectedError);
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+  });
+
+  it("does not refuse a protected skill file when no consent was given: the consent refusal comes first", async () => {
+    const plan = makePlan(1);
+    const { layer } = makeLayers();
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, planMdFor(plan), plan, makeConfig(stateRoot)).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    const result = await run(plan, layer, runPath, runId, 0, false, [".claude/skills/**"]);
+
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(SkillEditConsentError);
   });
 
   it("proceeds with consent and records it in run-status.json", async () => {

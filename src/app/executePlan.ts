@@ -43,6 +43,7 @@ import {
   SecurityPreflightError,
   SetupCommandFailedError,
   SkillEditConsentError,
+  SkillEditProtectedError,
   StopCloseRefusedError,
   StopRecordPausedError,
   UnsafeGitStateError,
@@ -386,6 +387,7 @@ export type ExecutePlanError =
   | SecurityEnforcementError
   | SecurityPreflightError
   | SkillEditConsentError
+  | SkillEditProtectedError
   | ModelPreflightError
   | PlanSectionsPreflightError
   | AssignmentPreflightError
@@ -2044,6 +2046,7 @@ export function executePlan(
           security: securityPolicy,
           agentCommands: resumeFrozenResult.records.map((r) => r.command),
           skillEditGrants,
+          ...(config.protectedPaths === undefined ? {} : { protectedPaths: config.protectedPaths }),
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };
@@ -2153,6 +2156,9 @@ export function executePlan(
           gateCommands: gateCommandStrings,
           briefSection,
           oracleRole: oracleRoleOf(plan.phases, phase.id),
+          ...(config.protectedPaths === undefined
+            ? {}
+            : { protectedPaths: config.protectedPaths.map((entry) => entry.glob) }),
         });
 
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
@@ -2201,6 +2207,7 @@ export function executePlan(
           security: securityPolicy,
           agentCommands: frozenResult.records.map((r) => r.command),
           skillEditGrants,
+          ...(config.protectedPaths === undefined ? {} : { protectedPaths: config.protectedPaths }),
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };

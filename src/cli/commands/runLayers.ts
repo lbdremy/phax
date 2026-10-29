@@ -75,6 +75,7 @@ import {
   SecurityEnforcementError,
   SecurityPreflightError,
   SkillEditConsentError,
+  SkillEditProtectedError,
   SpecApprovalUnrecordedError,
   SpecEditedSinceApprovalError,
   SpecNotApprovedError,
@@ -226,6 +227,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof SecurityEnforcementError ||
     err instanceof SecurityPreflightError ||
     err instanceof SkillEditConsentError ||
+    err instanceof SkillEditProtectedError ||
     err instanceof ModelPreflightError ||
     err instanceof PlanSectionsPreflightError ||
     err instanceof AssignmentPreflightError ||
