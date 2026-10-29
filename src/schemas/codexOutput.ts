@@ -11,6 +11,13 @@ import { Either, Schema } from "effect";
  * Failure cases additionally emit (exit code is still 0):
  *   {"type":"error","message":"..."}
  *   {"type":"turn.failed","error":{"message":"..."}}
+ *
+ * On a network loss codex-cli 0.165.0 never ends the turn: it emits
+ *   {"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: …)"}
+ * up to 5/5, then repeats
+ *   {"type":"error","message":"Reconnecting... waiting for network (Connection failed: …)"}
+ * for as long as it runs, with no `turn.failed`. Only an interrupt ends it; the
+ * session is then read from the last `error` event.
  */
 
 export const CodexThreadStartedEventSchema = Schema.Struct({
@@ -81,7 +88,7 @@ type CodexTurnEnd =
 interface CodexOutcomeEvents {
   /** The first `thread.started` event's thread id. */
   readonly threadId: string | undefined;
-  /** The text of the last agent message. */
+  /** The text of the last agent message that is not blank. */
   readonly agentMessage: string | undefined;
   readonly turnEnd: CodexTurnEnd | undefined;
   /** The last `error` event's message. */
@@ -103,7 +110,8 @@ export function scanCodexOutcomeEvents(lines: readonly string[]): CodexOutcomeEv
     }
     const item = decodeItemCompleted(parsed);
     if (Either.isRight(item)) {
-      agentMessage = item.right.item.text;
+      // A blank agent message is no answer.
+      if (item.right.item.text.trim().length > 0) agentMessage = item.right.item.text;
       continue;
     }
     if (Either.isRight(decodeCodexTurnCompletedEvent(parsed))) {
