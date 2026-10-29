@@ -160,6 +160,19 @@ desktop — none is promised by the announcement.
 - [ ] **Most `phax resume` hints outside network and handoff still lack `--yes`.** The
       awaiting-review, hold-point and stop-record sections of `resume-instructions.md` and the reducer
       trace details print `phax resume <run>`, which only previews.
+- [ ] **A `**/` protected glob does not see inside a submodule, and nothing says so.** With a
+      submodule declared, `phax validate` refuses `vendor/lint-rules/allow.json` but accepts
+      `**/allow.json` and `vendor/**/allow.json`, which never match the submodule's files (spec
+      `protected-paths` §5.4, on purpose). Found in the #174 e2e. An operator may think the
+      submodule's copy is covered: list the submodules a `**/` glob skips in the validate line.
+- [ ] **`failedStep: "protected-paths"` is not in the run records.** It lives only in the gate
+      event and the error; the records keep the gate-attribution `protectedPaths` block and the
+      resume instructions. A records reader asking "why did this attempt fail" must infer it from
+      the block. Found in the #174 e2e.
+- [ ] **`phax plans lint` does not warn about a planned edit of a protected path.** A plan that
+      lists a protected file under "Planned files to edit" is found only at the gate or through
+      the native refusal, after the agent has spent the turn. A lint warning matching the planned
+      lists against `protectedPaths` (left out of spec `protected-paths` on purpose).
 
 - [ ] **The Vibe "loose config" e2e case has never run.** `tests/e2e/vibeSecure.test.ts` checks
       that a hostile `VIBE_HOME` config cannot widen a secure session. A temporary `VIBE_HOME` has no
