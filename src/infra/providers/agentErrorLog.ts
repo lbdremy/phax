@@ -1,12 +1,29 @@
 import { Either } from "effect";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { decodeClaudeSessionId, type ClaudeSessionId } from "../../domain/branded.js";
 import type {
   AgentSessionFailedError,
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
+import { vibeExportDirOf } from "../../domain/records/usage.js";
+import {
+  AGENT_ERROR_LOG,
+  archivedLogName,
+  archivedTranscriptName,
+  nextFailureNumber,
+  transcriptOfLog,
+  withTranscriptLine,
+} from "../../domain/session/failureArchive.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import type { SessionEnd, SessionFailure, SessionOutcome } from "../../domain/session/outcome.js";
 
@@ -22,7 +39,50 @@ export interface AgentErrorContext {
 
 /** The path agent-error.log takes in a phase folder, or null without one. */
 function agentErrorLogPath(phaseFolderPath: string | undefined): string | null {
-  return phaseFolderPath ? join(phaseFolderPath, "agent-error.log") : null;
+  return phaseFolderPath ? join(phaseFolderPath, AGENT_ERROR_LOG) : null;
+}
+
+/**
+ * Before a session starts in `phaseFolderPath`, archive the failure an
+ * earlier session left there, so it neither reads as this session's nor
+ * loses its transcript: `agent-error.log` becomes `agent-error.failed-NN.log`
+ * and, when the new session is about to write the same transcript
+ * (`nextTranscript`), that transcript (and a Vibe turn's export directory)
+ * takes the matching `.failed-NN` name, which the archived log's
+ * `transcript:` line then names. A transcript the new session does not
+ * overwrite stays where it is. Never throws: archiving must not stop the
+ * session.
+ */
+export function archivePreviousFailure(
+  phaseFolderPath: string | undefined,
+  nextTranscript: string | undefined,
+): void {
+  const logPath = agentErrorLogPath(phaseFolderPath);
+  if (phaseFolderPath === undefined || logPath === null) return;
+  try {
+    if (!existsSync(logPath)) return;
+    const n = nextFailureNumber(readdirSync(phaseFolderPath));
+    let log = readFileSync(logPath, "utf8");
+    const transcript = transcriptOfLog(log);
+    if (
+      transcript !== null &&
+      nextTranscript !== undefined &&
+      resolve(transcript) === resolve(nextTranscript) &&
+      existsSync(transcript)
+    ) {
+      const archived = archivedTranscriptName(transcript, n);
+      renameSync(transcript, archived);
+      const exportDir = vibeExportDirOf(transcript);
+      if (exportDir !== transcript && existsSync(exportDir)) {
+        renameSync(exportDir, vibeExportDirOf(archived));
+      }
+      log = withTranscriptLine(log, archived);
+    }
+    writeFileSync(join(phaseFolderPath, archivedLogName(n)), log, "utf8");
+    unlinkSync(logPath);
+  } catch {
+    // never throw — a failed archive must not stop the session
+  }
 }
 
 /**

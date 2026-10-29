@@ -9,6 +9,7 @@ import type {
   TokenUsage,
 } from "../../schemas/runRecord.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
+import { isArchivedTranscript } from "../session/failureArchive.js";
 import { isStopArtifact } from "./stopArtifacts.js";
 import { isVibeExportDir } from "./usage.js";
 
@@ -54,7 +55,10 @@ const PHASE_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([TRANSCRIPT_FILE]);
  * retried, `retry-output.jsonl`). Full = skeleton plus every transcript
  * present, and only when both the config enables the transcript and the
  * provider actually produced one. The transcripts are kept or dropped
- * together. Shared by phase and authoring records.
+ * together. An earlier failed session's archived transcript
+ * (`output.failed-NN.jsonl`) is another session's and never carried; its
+ * archived `agent-error.failed-NN.log` is, as `agent-error.log` is. Shared by
+ * phase and authoring records.
  */
 export function selectRecordArtifacts(
   files: readonly string[],
@@ -63,6 +67,7 @@ export function selectRecordArtifacts(
 ): { readonly shape: RecordShape; readonly artifactPaths: readonly string[] } {
   const includeTranscript = transcriptEnabled && files.some((file) => transcriptFiles.has(file));
   const artifactPaths = files
+    .filter((file) => !isArchivedTranscript(file))
     .filter((file) => !transcriptFiles.has(file) || includeTranscript)
     .toSorted((a, b) => a.localeCompare(b));
   return { shape: includeTranscript ? "full" : "skeleton", artifactPaths };

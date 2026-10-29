@@ -11,6 +11,22 @@ import {
 } from "./claudeCode.js";
 import { captureCodexTranscript, runCodexAgent, runCodexCompletion } from "./codexCli.js";
 import { captureVibeTranscript, runVibeAgent, runVibeCompletion } from "./mistralVibe.js";
+import { archivePreviousFailure } from "./agentErrorLog.js";
+import type { AgentRunOptions } from "../../ports/backend.js";
+
+/**
+ * An agent session, after archiving the failure an earlier session left in
+ * its folder (see `archivePreviousFailure`): one place for every provider.
+ */
+function afterArchivingPreviousFailure<A, E>(
+  options: AgentRunOptions,
+  session: () => Effect.Effect<A, E>,
+): Effect.Effect<A, E> {
+  return Effect.suspend(() => {
+    archivePreviousFailure(options.phaseFolderPath, options.outputJsonlPath);
+    return session();
+  });
+}
 
 /**
  * The backend that runs the provider CLIs. Its adapters read the provider
@@ -29,34 +45,35 @@ function nodeBackend(
   roots: ProviderStoreRoots["Type"],
 ): Backend["Type"] {
   return {
-    runAgent: (prompt, options) => {
-      if (options.provider === "claude-code") {
-        return runClaudeAgent(prompt, options);
-      }
-      if (options.provider === "mistral-vibe") {
-        const entry = providerConfig.providers["mistral-vibe"];
-        if (!entry) {
-          return Effect.fail(
-            new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
-          );
+    runAgent: (prompt, options) =>
+      afterArchivingPreviousFailure(options, () => {
+        if (options.provider === "claude-code") {
+          return runClaudeAgent(prompt, options);
         }
-        return runVibeAgent(prompt, options, entry);
-      }
-      if (options.provider === "codex-cli") {
-        const entry = providerConfig.providers["codex-cli"];
-        if (!entry) {
-          return Effect.fail(
-            new AgentInvocationError({ message: "codex-cli not found in provider config" }),
-          );
+        if (options.provider === "mistral-vibe") {
+          const entry = providerConfig.providers["mistral-vibe"];
+          if (!entry) {
+            return Effect.fail(
+              new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
+            );
+          }
+          return runVibeAgent(prompt, options, entry);
         }
-        return runCodexAgent(prompt, options, entry);
-      }
-      return Effect.fail(
-        new AgentInvocationError({
-          message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
-        }),
-      );
-    },
+        if (options.provider === "codex-cli") {
+          const entry = providerConfig.providers["codex-cli"];
+          if (!entry) {
+            return Effect.fail(
+              new AgentInvocationError({ message: "codex-cli not found in provider config" }),
+            );
+          }
+          return runCodexAgent(prompt, options, entry);
+        }
+        return Effect.fail(
+          new AgentInvocationError({
+            message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
+          }),
+        );
+      }),
 
     complete: (prompt, options) => {
       if (options.provider === "claude-code") {
@@ -89,34 +106,35 @@ function nodeBackend(
 
     probe: (prompt, options) => runClaudeProbe(prompt, options),
 
-    resumeAgentSession: (sessionId, prompt, options) => {
-      if (options.provider === "claude-code") {
-        return runClaudeAgent(prompt, options, sessionId);
-      }
-      if (options.provider === "mistral-vibe") {
-        const entry = providerConfig.providers["mistral-vibe"];
-        if (!entry) {
-          return Effect.fail(
-            new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
-          );
+    resumeAgentSession: (sessionId, prompt, options) =>
+      afterArchivingPreviousFailure(options, () => {
+        if (options.provider === "claude-code") {
+          return runClaudeAgent(prompt, options, sessionId);
         }
-        return runVibeAgent(prompt, options, entry, sessionId);
-      }
-      if (options.provider === "codex-cli") {
-        const entry = providerConfig.providers["codex-cli"];
-        if (!entry) {
-          return Effect.fail(
-            new AgentInvocationError({ message: "codex-cli not found in provider config" }),
-          );
+        if (options.provider === "mistral-vibe") {
+          const entry = providerConfig.providers["mistral-vibe"];
+          if (!entry) {
+            return Effect.fail(
+              new AgentInvocationError({ message: "mistral-vibe not found in provider config" }),
+            );
+          }
+          return runVibeAgent(prompt, options, entry, sessionId);
         }
-        return runCodexAgent(prompt, options, entry, sessionId);
-      }
-      return Effect.fail(
-        new AgentInvocationError({
-          message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
-        }),
-      );
-    },
+        if (options.provider === "codex-cli") {
+          const entry = providerConfig.providers["codex-cli"];
+          if (!entry) {
+            return Effect.fail(
+              new AgentInvocationError({ message: "codex-cli not found in provider config" }),
+            );
+          }
+          return runCodexAgent(prompt, options, entry, sessionId);
+        }
+        return Effect.fail(
+          new AgentInvocationError({
+            message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
+          }),
+        );
+      }),
 
     captureTranscript: (request) => {
       switch (request.provider) {
