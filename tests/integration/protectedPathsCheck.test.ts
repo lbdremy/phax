@@ -168,6 +168,31 @@ describe("checkProtectedPaths against a real worktree", () => {
     expect(await check(["**/steme.baseline.json"], head)).toEqual([]);
   });
 
+  it("reads past a git replace of the base by a commit holding the edit", async () => {
+    write("packages/a/steme.baseline.json", '{ "package": "a", "accepted": "the agent" }\n');
+    git("add", "-A");
+    const tree = git("write-tree").trim();
+    git("reset", "-q");
+    const forged = git("commit-tree", tree, "-m", "forged base").trim();
+    git("replace", base, forged);
+
+    expect(git("diff", "--name-only", base)).toBe("");
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+      ["packages/a/steme.baseline.json", "edited"],
+    ]);
+  });
+
+  it("reads past a git replace of the base after the agent committed its edit", async () => {
+    write("packages/a/steme.baseline.json", '{ "package": "a", "accepted": "the agent" }\n');
+    commitAll("agent commit");
+    const forged = git("commit-tree", git("rev-parse", "HEAD^{tree}").trim(), "-m", "forged");
+    git("replace", base, forged.trim());
+
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+      ["packages/a/steme.baseline.json", "edited"],
+    ]);
+  });
+
   it("names nothing for a clean worktree", async () => {
     write(".phax-context/summary.md", "notes\n");
     expect(await check(["**/steme.baseline.json"])).toEqual([]);
