@@ -12,20 +12,14 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
 `oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-10-28
+## The queue, as of 2026-10-29
 
 ### Approved, not yet planned
 
-- [ ] **`provider-failures`** — `docs/specs/2610271510-provider-failures.md`, approved 2026-10-27
-      (brief `docs/briefs/provider-failures.md`), 0.30.0 with `vibe-3` (#170, merged 2026-10-28),
-      whose Vibe export it reads. Plan it next: `structured-output` builds on its reader. One session-outcome reader per provider returns the answer or a typed failure
-      (network, rate or usage limit, provider error, max turns, killed, unknown) with the
-      provider's message; a network failure exits 14 with a retry hint; the failed decision record
-      gains a required `failure`, and `review-stop.json` a `network` result (both 0.29.0);
-      `agent-error.log` holds the cause; an `unknown` visibility says why `gh` failed.
-
 - [ ] **`structured-output`** — `docs/specs/2610271515-structured-output.md`, approved 2026-10-27
-      (brief `docs/briefs/structured-output.md`), after `provider-failures`. Two validations: one
+      (brief `docs/briefs/structured-output.md`). Plan it next: it builds on `provider-failures`'
+      session-outcome reader (#172, merged 2026-10-29). Its spec still says 0.29.0; bump its version
+      references to the opened version when planning. Two validations: one
       simplified provider schema, derived from the full one, shared by Claude Code (`--json-schema`)
       and Codex (`--output-schema`, strict); phax's full decoder stays the judge, with one
       corrective resume. Six calls move to native output, plus the headless code review; the
@@ -89,6 +83,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-10-27 | `headless-code-review` plan 1, review records (#168) | 2 × sonnet-5-5 / medium | $4.20 (one $0.20 fix attempt) | 2 / 5 | The plan read the review's records target from the project the command runs in, so `phax review-compliance <ns>.<run>` from another project committed that run's review to the wrong records branch and could push it to the wrong remote (now: the run's own project, read from its main checkout); and it left the help saying "non-mutating". Execution let a by-hand rerun commit the previous invocation's `compliance-review.json`, gave a missing dedicated clone `spawn git ENOENT` instead of `deferred-destination`, hard-coded `<run>` in the retry command, embedded git's raw multi-line stderr, and printed nothing on success. The plan review caught a test judging "beside the phase records" on one tree (each records commit holds only its own files) and seven exhaustive format registries left optional. |
 | 2026-10-28 | `headless-code-review` plan 2, the headless code review (#169) | 5 × sonnet-5-5 / medium, with one oracle pair | $7.24 ($6.57 for the phases, one $0.07 fix attempt) | 2 / 5 | The plan ran the headless review under the compliance review's posture, answering through a `.phax-context/code-review.json` file: it could edit tracked files and could not run the git its prompt promised (now read-only like headless authoring, answering in its final message, with a worktree snapshot that puts back any change and refuses the answer); and it left `review.code.enabled` out of the config merge, so an overlay dropped it and the review silently never ran. Execution committed a stray `codeReviewSkillIds.test.ts-E` (macOS `sed -i -E`), could leave `code-review.json` and its session file out of step, told every provider to resume through `phax review-code` with a `<session-id>` placeholder, let `@scope` tokens in model text mention GitHub users on the PR, and named only the first allowed id in a refusal. phase-05's second gate attempt was the `releaseCut.test.ts` `afterAll` timeout. |
 | 2026-10-28 | `mistral-vibe-3` (#170) | 2 × sonnet-5-5 / high (with a reason), 1 × opus-5-5 / medium (with a reason), 2 × sonnet-5-5 / medium; first run with the headless code review on | $16.37 ($12.26 for the phases, $0.79 in fix attempts, $2.59 for the code review) | 5 / 3 | The plan passed every writable root as `--add-dir`, which Vibe trusts as a project and whose `.vibe/` hooks and agents it loads, so a phase agent could plant config a later session would run (now: no `--add-dir` in read-only sessions, writes to `.vibe/` and `.agents/` denied, a root holding one refused). It relied on `VIBE_*` variables that a person's `accept-edits` profile outranks (now refused before spawning, and every confined turn's effective config is checked from its export). It recorded a Vibe phase's usage from its first turn only, gave read-only sessions without commands no `VIBE_TOOLS`, and left MCP and connectors on. Execution wrote a real e2e whose assertions the prompt in the stream satisfied, read a stale `export.json`, and pointed three refusals at a missing `agent-error.log`. The real e2e then found the Mistral API serves only `none`/`high` reasoning, so the catalog keeps two levels. The headless code review: 7 findings, 6 confirmed and 1 partly; it missed both security bugs and MCP, which the PR review found by reading Vibe's source. phase-05 burned two gate attempts on load timeouts (`releaseCut`, `plansEstimateCommand`) and one on `knip`. |
+| 2026-10-28 | `provider-failures` (#172) | 2 × opus-5-5 / medium (with a reason), 2 × sonnet-5-5 / high (with a reason), 4 × sonnet-5-5 / medium, with one oracle pair; the headless code review on | $24.48 ($19.14 for the phases, $6.51 of it phase-03 alone; $1.05 in fix attempts, $3.29 for the code review) | 5 / 4 | The plan's oracle used an invented Claude limit wording (`Claude AI usage limit reached\|<epoch>`), so the real one ("You've hit your session limit · resets …") read as `provider-error`: exit 5 and a failed, unresumable run, where main paused it (exit 8). It named only part of Claude Code's connection wordings, read `api_retry.error` as a message when it is a category, and let an early retry the session recovered from outrank stderr. The spec's retry hint, `phax resume <run>`, only previews without `--yes`. Nothing archived `agent-error.log` and its transcript when the next session in the same folder overwrote the transcript. Execution left a closing turn's network failure without its failure block, stop-turn telemetry on the old error type, a blank Codex answer accepted, and docs that claimed a host in the message. The headless code review: 6 findings, 4 confirmed and 2 partly; it missed the three Claude format defects, which the PR review found in the `claude` binary's strings and the real-provider e2e confirmed. The e2e also found that Codex 0.165 never ends a session on network loss. phase-03 burned its gate on lint and two load timeouts (`completions`, `releaseCut`) and paused once on a usage limit. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -147,12 +142,34 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Codex never ends a session on network loss.** Codex 0.165, its API unreachable, emits
+      `Reconnecting... N/5`, then `Reconnecting... waiting for network` every ~50 s without end and no
+      `turn.failed` (2026-10-28, real e2e of `provider-failures`). A Codex phase hangs with nothing on
+      the terminal. A watchdog in the Codex adapter: after N consecutive network `error` events, end
+      the process and report `network` (exit 14). Its cost: a session Codex would have recovered after
+      a short outage.
+- [ ] **Nothing shows while a provider retries.** Claude Code retries a lost API for ~3 min, Vibe
+      ~4.5 min, before failing; phax prints nothing meanwhile. A line such as `provider unreachable,
+      retrying (3/10)` from Claude's `api_retry` events.
+- [ ] **A resume after a network pause starts a new provider session.** It keeps the worktree but
+      not the session's context; resuming the paused session would save the tokens spent before the
+      outage.
+- [ ] **A run does not keep its `--provider-priority`.** A resume without it routes by
+      `providers.json`: on 2026-10-28 a Claude run resumed on Vibe. The hints now repeat the flag;
+      persisting it with the run would make the plain resume right.
+- [ ] **Most `phax resume` hints outside network and handoff still lack `--yes`.** The
+      awaiting-review, hold-point and stop-record sections of `resume-instructions.md` and the reducer
+      trace details print `phax resume <run>`, which only previews.
+
 - [ ] **`releaseCut.test.ts` times out in `afterAll`.** Its 30 s hook failed a phase gate a third
       time on 2026-10-27 (`headless-code-review` phase-05, attempt 2); a resume passed. Find what the
       teardown waits on, or give the hook its own budget, so a green phase does not burn a gate
       attempt. A fourth hit on 2026-10-28 (`mistral-vibe-3` phase-05), with
       `plansEstimateCommand.test.ts`'s 5 s test timeout in the next attempt: both pass alone, so
-      the full suite under a phase's load is too slow for these budgets.
+      the full suite under a phase's load is too slow for these budgets. A fifth and sixth on
+      2026-10-28 (`provider-failures` phase-03): `completions.test.ts`'s fish case (5 s), then
+      `releaseCut` again. Five misses in three runs: raise the budget of the integration tests that
+      spawn a process, or run them with fewer workers.
 - [ ] **The Vibe "loose config" e2e case has never run.** `tests/e2e/vibeSecure.test.ts` checks
       that a hostile `VIBE_HOME` config cannot widen a secure session. A temporary `VIBE_HOME` has no
       sign-in (Vibe keeps it in the macOS Keychain under the real home), so the case needs
