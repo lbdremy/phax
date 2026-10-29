@@ -1,0 +1,788 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.27.0.json",
+  "kind": "spec",
+  "title": "Protected paths: files no phase of a run may write",
+  "ground": [
+    {
+      "path": "docs/briefs/protected-paths.md",
+      "note": "The brief: the steme-lab case, what phax has today, what the spec must cover, the four required arbitrations."
+    },
+    {
+      "path": "docs/security.md",
+      "note": "Configuration, Provider Capabilities, Skill edit grants (inline --settings, exit 11 preflight, skillEditGrants in security.json for every provider), Shell command execution (Claude exact allowlist, Codex OS sandbox with any command, Vibe prefix allowlist), Security Artifacts (security.json version 2, the stop section added at a close)."
+    },
+    {
+      "path": "src/domain/security/skillEditGrants.ts",
+      "note": "The inverse case: exact repo-relative files resolved from a phase's create, edit and optional lists, and the preflight refusal naming phases and files."
+    },
+    {
+      "path": "src/domain/security/phaseGuard.ts",
+      "note": "The phase guard refuses state-acting phax commands inside a phase worktree; it is a guard against mistakes, not a boundary."
+    },
+    {
+      "path": "src/domain/reconciliation/types.ts",
+      "note": "Reconciliation already classifies every added, modified, deleted and renamed path; reviewCorrections holds paths a person changed at a stop and is never a deviation."
+    },
+    {
+      "path": "src/domain/gate/fixPrompt.ts",
+      "note": "The fix prompt: failed step, findings or raw log, then a Required action section."
+    },
+    {
+      "path": "src/app/resumeInstructions.ts",
+      "note": "At gates_exhausted the run pauses and resume-instructions.md says: fix the gate manually in the worktree, then resume; the gate is re-run first."
+    },
+    {
+      "path": "src/domain/state.ts",
+      "note": "PhaseState already has gates_exhausted (non-terminal) and awaiting_review; no new state is needed."
+    },
+    {
+      "path": "src/app/loadConfig.ts",
+      "note": "A user overlay that carries assignments is refused before decode with '\"assignments\" is accepted only in phax.json'; the overlay schema accepts the whole security block."
+    },
+    {
+      "path": "src/schemas/securityConfig.ts",
+      "note": "security.filesystem holds allowRead and allowWrite only; the security block is settable from phax.local.json and ~/.phax/config.json."
+    },
+    {
+      "path": "src/schemas/securityPosture.ts",
+      "note": "security.json version 2, decoded strictly; marks, agentCommands with per-command enforcement, skillEditGrants, stop."
+    },
+    {
+      "path": "src/domain/architecture/glob.ts",
+      "note": "phax's own glob dialect: ** whole segment, * within a segment, ? one character, every other character literal, case-sensitive, same on every host."
+    },
+    {
+      "path": "src/app/securityStatus.ts",
+      "note": "phax security status prints a provider table: Available, Filesystem Jail, MCP Allowlist, Secure Default."
+    },
+    {
+      "path": "README.md",
+      "note": "Phase order: worktree, setup, agent turn, gate with same-session fix loop up to agent.maxFixAttempts, handoff turn, commit, reconciliation; interactive and held stops are closed by phax resume."
+    },
+    {
+      "path": "docs/cli/reference.md",
+      "note": "phax run, phax resume and the stop close: the close runs the gate first, a red gate returns the phase to the person with exit 4; closing-turn edits are set aside with exit 5."
+    }
+  ],
+  "context": "Some files of a project record a human decision that a gate reads. steme's debt file is one: `steme audit` exits non-zero on a violated leg unless the unit's `steme.baseline.json` accepts it, each entry carrying `acceptedAt`, `acceptedBy` and a `why`, and the gate then reports the entry as a review note. Lint-exception allowlists, accepted test snapshots and a standard's list that a gate enforces are the same kind of file: the gate's tolerance is written in them.\n\nphax today bounds a phase's writes to the worktree and the state root (the write sandbox), never to a path inside the worktree. Inside a phase, the phase guard refuses phax commands that act on state, but it is a guard against mistakes, not a boundary. Shell access differs by provider: Claude Code allowlists exactly the gate commands, Codex runs any command inside its OS sandbox, Vibe matches commands by prefix. The skill edit grants are the inverse case: Claude Code protects `.claude/` by itself, and phax opens declared skill files one by one for a run started with `--allow-skill-edits`, through an inline `--settings` JSON; a plan that declares skill files without the flag is refused before the run with exit 11, and `security.json` records the grants for every provider.\n\nphax already knows every path a phase created, edited, deleted or renamed (file reconciliation), and a path a person changed at an interactive or held stop is a `reviewCorrections` entry, never a deviation. A phase runs: worktree and setup, the agent's turn, the gate with a same-session fix loop up to `agent.maxFixAttempts`, the handoff turn, then phax commits. When the fix loop is exhausted the phase pauses in `gates_exhausted` (exit 4), and `resume-instructions.md` tells the operator to fix the gate by hand in the worktree, then `phax resume`, which re-runs the gate first.",
+  "problem": "An agent that cannot fix a hole can write its acceptance into the file the gate reads, and the gate passes. In steme-lab's run `steme-gates-steme-2` (2026-10-28), phase-05's agent (Sonnet, medium effort) wrote nine entries into `packages/rust/steme-formats/steme.baseline.json`, each signed `\"acceptedBy\": \"the author\"`. The author saw none of them before the phase committed. The plan's preamble even allowed it: an engine defect or an unfixable hole \"is accepted as debt\", in that file.\n\nNothing in phax could have stopped it. A plan's prose is not a boundary, the write sandbox lets the agent write anywhere in the worktree, and a gate command, or a script the agent runs, can rewrite the file as easily as the agent's edit tools. Once an agent may edit the file that decides whether its own work passes, the gate no longer checks the work. It checks only whether the agent agrees with itself. A project has no way to say which files are the operator's decision.",
+  "productGoal": {
+    "statement": "A project names, in its phax configuration, the files whose change is the operator's decision. No phase of a run creates, changes, deletes or renames them: not the agent, not its fix loop, not its handoff turn, not a gate or setup command. phax guarantees this by comparing the worktree with the phase's reference at every point where something other than a person could have written, on every provider and in every security mode, and putting any protected path back. Where the provider can, phax also denies the write before it happens, which spares the agent a wasted turn. A phase that would need to change a protected file fails its gate as any phase that cannot meet its gate does, and the change becomes the operator's to make, at a stop or by a commit while the run is paused. A project that declares nothing sees no change.",
+    "guidingRule": "The gate's tolerance is the operator's: what a phase cannot fix stays failing and reaches a person, it is never accepted by the phase itself."
+  },
+  "terminology": [
+    {
+      "term": "Protected path",
+      "definition": "A repository path, relative to the working-tree root in POSIX form, matched by at least one glob of the project's protected list. Matching uses phax's glob dialect (** as a whole segment for zero or more segments, * within a segment, ? one character, every other character literal, case-sensitive)."
+    },
+    {
+      "term": "Protected list",
+      "definition": "The ordered, non-empty list of globs a project declares; an entry is named by its position, protectedPaths[N], counted from 0."
+    },
+    {
+      "term": "Reference",
+      "definition": "The content each protected path must have in a phase's worktree: its content (or absence) at the phase's base commit, updated by each operator commit and by each stop close. A path absent from the reference must stay absent."
+    },
+    {
+      "term": "Protected change",
+      "definition": "A protected path whose worktree content differs from the reference: created, modified or deleted. A rename counts as the deletion of its old path and the creation of its new one; each side that is protected is a protected change. Only files git would commit count: tracked files and untracked files that are not ignored."
+    },
+    {
+      "term": "Check point",
+      "definition": "A moment at which phax compares every protected path with the reference: after setup, after the agent's turn, after each fix attempt, after each gate step, after the handoff turn, before a pause, before the phase commit, and after each step of a close's gate."
+    },
+    {
+      "term": "Refusal",
+      "definition": "A protected change found at a check point that is not the operator's: phax restores the path to the reference and records it, naming the path, the change, the check point and the matching entry."
+    },
+    {
+      "term": "Operator change",
+      "definition": "A protected change phax attributes to a person: present in the worktree when a stop is closed, before the close's gate runs, or committed on the run's branch while the run was paused. Never a refusal."
+    },
+    {
+      "term": "Enforcement",
+      "definition": "Per phase and provider, how far phax goes beyond detection: enforced (the provider's file-editing tools are denied every protected path before they write, and detection still runs) or detected-only (detection alone). Detection runs in every case."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "declare",
+      "title": "Declaring the protected list",
+      "pattern": "optional",
+      "statement": "WHERE phax.json declares `protectedPaths` THE system SHALL read it as a non-empty ordered list of globs in phax's glob dialect, each matched against working-tree-root-relative POSIX paths."
+    },
+    {
+      "id": "declare-invalid",
+      "title": "Refusing a malformed list",
+      "pattern": "unwanted",
+      "statement": "IF `protectedPaths` is empty, or an entry is not a string, is empty, is absolute or holds a `..` segment, THEN loading phax.json SHALL fail with exit 2, naming the entry as protectedPaths[N]."
+    },
+    {
+      "id": "layers",
+      "title": "The project layer only",
+      "pattern": "unwanted",
+      "statement": "IF phax.local.json or ~/.phax/config.json carries `protectedPaths` THEN loading the configuration SHALL fail with exit 2, saying that `protectedPaths` is accepted only in phax.json."
+    },
+    {
+      "id": "no-change",
+      "title": "Nothing declared, nothing changes",
+      "pattern": "state",
+      "statement": "WHILE the project declares no `protectedPaths` THE system SHALL produce the same argv, prompts, fix prompts, security.json, reconciliation, records and output as a phax without this feature."
+    },
+    {
+      "id": "every-mode",
+      "title": "Detection on every provider and mode",
+      "pattern": "ubiquitous",
+      "statement": "The system shall run every protected-path check point on every provider and in every security mode, whatever the provider's enforcement."
+    },
+    {
+      "id": "detect-turn",
+      "title": "Checking after setup and every agent turn",
+      "pattern": "event",
+      "statement": "WHEN setup, the agent's turn, a fix attempt or the handoff turn of a phase ends THE system SHALL compare every protected path with the reference before the next gate step, agent turn or commit runs."
+    },
+    {
+      "id": "detect-gate",
+      "title": "Checking after every gate step",
+      "pattern": "event",
+      "statement": "WHEN a gate step finishes THE system SHALL compare every protected path with the reference before the next step runs."
+    },
+    {
+      "id": "restore",
+      "title": "Restoring a refused change",
+      "pattern": "event",
+      "statement": "WHEN a check point finds a protected change that is not an operator change THE system SHALL restore the path to the reference, removing it where the reference has no such path, and record the refusal."
+    },
+    {
+      "id": "refusal-line",
+      "title": "Saying what was refused",
+      "pattern": "event",
+      "statement": "WHEN a refusal is recorded THE system SHALL print one line naming the phase, the path, the kind of change, the check point and the matching protectedPaths entry, and saying the path was restored."
+    },
+    {
+      "id": "gate-write-fails",
+      "title": "A gate that rewrote its tolerance cannot pass",
+      "pattern": "unwanted",
+      "statement": "IF a gate step's run produced a protected change THEN the system SHALL count that gate attempt as failed, whatever the exit codes and gate reports of its steps, naming the step and the path as the failure."
+    },
+    {
+      "id": "no-commit",
+      "title": "No phase commit carries a refused change",
+      "pattern": "event",
+      "statement": "WHEN phax is about to commit a phase THE system SHALL run a final check point, so that the commit holds every protected path at the reference except for operator changes."
+    },
+    {
+      "id": "handoff-turn",
+      "title": "A handoff turn's write is discarded",
+      "pattern": "unwanted",
+      "statement": "IF the handoff turn produced a protected change THEN the system SHALL restore it, record the refusal and commit the gated tree, without opening a fix attempt."
+    },
+    {
+      "id": "phase-prompt",
+      "title": "Telling the agent up front",
+      "pattern": "optional",
+      "statement": "WHERE `protectedPaths` is declared THE phase prompt SHALL carry a Protected paths section naming every glob, saying the files are the operator's decision, and instructing the agent that a hole it cannot fix in the code is left failing and reported in its handoff, never worked around."
+    },
+    {
+      "id": "fix-prompt",
+      "title": "Telling the agent in the fix loop",
+      "pattern": "optional",
+      "statement": "WHERE `protectedPaths` is declared THE fix prompt SHALL carry the same Protected paths section, plus each refusal recorded since the previous gate attempt with its path, change and check point."
+    },
+    {
+      "id": "exhausted",
+      "title": "What is left goes to the operator",
+      "pattern": "event",
+      "statement": "WHEN a phase with at least one refusal exhausts its fix attempts THE system SHALL pause it in gates_exhausted with exit 4 as any exhausted phase, and the pause output and resume-instructions.md SHALL name each refused path and how the operator changes one."
+    },
+    {
+      "id": "pause-restore",
+      "title": "A pause leaves the reference in place",
+      "pattern": "event",
+      "statement": "WHEN phax pauses a phase (gates exhausted, a rate or usage limit, a refused gate report) THE system SHALL run a check point first and record the head of the phase's branch."
+    },
+    {
+      "id": "operator-commit",
+      "title": "The operator's commit while paused",
+      "pattern": "event",
+      "statement": "WHEN `phax resume` restarts a paused phase THE system SHALL take each protected path changed by commits made on the phase's branch since the recorded head as an operator change, make its committed content the reference, and list it under the phase reconciliation's reviewCorrections."
+    },
+    {
+      "id": "operator-uncommitted",
+      "title": "Unattributable change at resume",
+      "pattern": "unwanted",
+      "statement": "IF at `phax resume` a protected path in the paused phase's worktree differs from the reference without a commit THEN resume SHALL refuse with exit 1, naming the path and the two remedies (commit it, or restore it), and change nothing."
+    },
+    {
+      "id": "stop-person",
+      "title": "A person's change at a stop",
+      "pattern": "event",
+      "statement": "WHEN a declared or held stop is closed THE system SHALL take each protected change present in the worktree before the close's gate runs as an operator change, list it under reviewCorrections and commit it with the close, without a refusal."
+    },
+    {
+      "id": "stop-gate",
+      "title": "A close's gate may not write",
+      "pattern": "unwanted",
+      "statement": "IF a step of a close's gate produced a protected change THEN the system SHALL restore the path to the person's content, count the close's gate as red and return the phase to the person with exit 4, the run staying in awaiting_review."
+    },
+    {
+      "id": "plan-lint",
+      "title": "Plans that plan a protected file",
+      "pattern": "unwanted",
+      "statement": "IF a phase not declared interactive lists a protected path in its files to create, edit or optionally edit THEN `phax plans lint` SHALL report an error naming the phase, the path and the matching protectedPaths entry."
+    },
+    {
+      "id": "plan-preflight",
+      "title": "Refused before the run",
+      "pattern": "unwanted",
+      "statement": "IF a phase not declared interactive lists a protected path in its planned files THEN the start and resume preflights SHALL refuse with exit 11 and \"Protected-path preflight failed\", naming each phase and path, before a run is named or a phase restarts."
+    },
+    {
+      "id": "plan-interactive",
+      "title": "An interactive phase may plan a protected file",
+      "pattern": "optional",
+      "statement": "WHERE a phase is declared interactive THE system SHALL accept a protected path among its planned files."
+    },
+    {
+      "id": "prevent-claude",
+      "title": "Prevention on Claude Code",
+      "pattern": "optional",
+      "statement": "WHERE a phase runs on claude-code in secure mode and `protectedPaths` is declared THE system SHALL deny every protected glob to Claude Code's file-editing tools in the session's settings, for the phase turn, the fix attempts and the handoff turn."
+    },
+    {
+      "id": "prevent-vibe",
+      "title": "Prevention on Mistral Vibe",
+      "pattern": "optional",
+      "statement": "WHERE a phase runs on mistral-vibe in secure mode and `protectedPaths` is declared THE system SHALL deny every protected glob to Vibe's file-writing tools in the turn's tool configuration."
+    },
+    {
+      "id": "record",
+      "title": "Recording the protection",
+      "pattern": "optional",
+      "statement": "WHERE `protectedPaths` is declared THE phase's security.json SHALL carry a protectedPaths section with the globs, the provider's enforcement (enforced or detected-only) and every refusal of the phase."
+    },
+    {
+      "id": "security-status",
+      "title": "Seeing what each provider can do",
+      "pattern": "event",
+      "statement": "WHEN `phax security status` runs THE system SHALL show, per provider, whether it enforces protected paths or detects them only, and the project's protected globs when phax.json declares any."
+    },
+    {
+      "id": "final-report",
+      "title": "Refusals in the final report",
+      "pattern": "optional",
+      "statement": "WHERE a run recorded at least one refusal THE final report's Security section SHALL list, per phase, each refused path with its change and check point."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "config: phax.json protectedPaths",
+      "summary": "A project lists, in phax.json, the files whose change is the operator's decision, and no phase of a run may create, change, delete or rename them.",
+      "binding": "indicative",
+      "before": "{\n  \"version\": 1,\n  \"gateProfiles\": {\n    \"default\": [{ \"command\": \"steme audit\" }]\n  },\n  \"security\": { \"profile\": \"secure\" }\n}",
+      "after": "{\n  \"version\": 1,\n  \"gateProfiles\": {\n    \"default\": [{ \"command\": \"steme audit\" }]\n  },\n  \"protectedPaths\": [\"**/steme.baseline.json\"],\n  \"security\": { \"profile\": \"secure\" }\n}"
+    },
+    {
+      "surface": "cli: phax validate",
+      "summary": "Running `phax validate` counts the protected globs, and refuses an empty or malformed list or one set outside phax.json.",
+      "binding": "normative",
+      "before": "$ phax validate\n✓ phax.json is valid\n2 assignment bounds (1 part, 1 globs)",
+      "after": "$ phax validate\n✓ phax.json is valid\n2 assignment bounds (1 part, 1 globs)\n1 protected path glob\n\n$ phax validate    # phax.json: \"protectedPaths\": [\"../shared/allow.json\"]\nConfig validation failed: protectedPaths[0]: \"../shared/allow.json\" holds a \"..\" segment\n$? = 2\n\n$ phax validate    # phax.local.json: \"protectedPaths\": []\nConfig validation failed: \"protectedPaths\" is accepted only in phax.json\n$? = 2"
+    },
+    {
+      "surface": "cli: phax run",
+      "summary": "During a run the operator sees each refused write to a protected file, restored on the spot, and an exhausted phase names the protected files left for them to decide.",
+      "binding": "indicative",
+      "before": "✗ phase-05 gate attempt 3 failed: steme audit (exit 1)\nThis run paused because its gate checks failed after exhausting all fix attempts.\nFix the gate manually in the worktree, then resume — the gate is re-run first on\nresume, and if it passes the phase commits with no fresh agent invocation.\n$? = 4",
+      "after": "✗ phase-05 · protected path refused: packages/rust/steme-formats/steme.baseline.json modified during fix attempt 2 (protectedPaths[0] **/steme.baseline.json) — restored\n✗ phase-05 · protected path refused: packages/rust/steme-formats/steme.baseline.json modified by gate step \"node scripts/accept-debt.js\" (protectedPaths[0] **/steme.baseline.json) — restored, gate attempt 3 failed\nThis run paused because its gate checks failed after exhausting all fix attempts.\nProtected paths the phase tried to change, left to you:\n  packages/rust/steme-formats/steme.baseline.json (fix attempt 2, gate attempt 3)\nTo change one yourself, commit it on phax/steme-gates-steme-2--phase-05 in the phase worktree,\nthen phax resume steme-gates-steme-2. Fix anything else manually in the worktree, as before.\n$? = 4"
+    },
+    {
+      "surface": "internal: phase prompt and fix prompt",
+      "summary": "The agent is told which files are the operator's and that a hole it cannot fix stays failing and is reported in its handoff, and the fix loop tells it which of its writes were put back.",
+      "binding": "indicative",
+      "before": "## Required action\n\nFix all issues revealed by the gate output above.\nMake the minimum changes required to pass the gate.",
+      "after": "## Protected paths\n\nThese files are the operator's decision. No phase may create, change, delete or rename\nthem, by any tool or command; phax puts back every change to them.\n- **/steme.baseline.json\n\nChanges put back since the last attempt:\n- packages/rust/steme-formats/steme.baseline.json (modified during fix attempt 2)\n\nIf a hole cannot be fixed in the code, leave the gate failing and report it in your\nhandoff. Never work around it.\n\n## Required action\n\nFix all issues revealed by the gate output above."
+    },
+    {
+      "surface": "file: <run>/<phase-id>/security.json",
+      "summary": "A phase's security record shows the protected globs, whether its provider prevented writes to them or only detected them, and every write that was put back.",
+      "binding": "normative",
+      "before": "{\n  \"version\": 2,\n  \"mode\": \"secure\",\n  \"provider\": \"claude-code\",\n  \"skillEditGrants\": [],\n  \"providerSkippedForSecurity\": [],\n  \"stop\": null\n}",
+      "after": "{\n  \"version\": 2,\n  \"mode\": \"secure\",\n  \"provider\": \"claude-code\",\n  \"skillEditGrants\": [],\n  \"protectedPaths\": {\n    \"globs\": [\"**/steme.baseline.json\"],\n    \"enforcement\": \"enforced\",\n    \"refusals\": [\n      { \"path\": \"packages/rust/steme-formats/steme.baseline.json\", \"change\": \"modified\", \"point\": \"fix-attempt\", \"attempt\": 2, \"entry\": 0 },\n      { \"path\": \"packages/rust/steme-formats/steme.baseline.json\", \"change\": \"modified\", \"point\": \"gate-step\", \"attempt\": 3, \"command\": \"node scripts/accept-debt.js\", \"entry\": 0 }\n    ]\n  },\n  \"providerSkippedForSecurity\": [],\n  \"stop\": null\n}"
+    },
+    {
+      "surface": "cli: phax plans lint",
+      "summary": "Linting a plan reports every headless phase that plans to touch a protected file.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax plans lint docs/plans/2610281012-steme-gates-plan.md\nerror    protected  phase-05  plans to edit packages/rust/steme-formats/steme.baseline.json, protected by protectedPaths[0] (**/steme.baseline.json); only an interactive phase may plan it\n$? = 1"
+    },
+    {
+      "surface": "cli: phax run preflight",
+      "summary": "A plan whose headless phases plan a protected file is refused before the run is named, so nothing is left behind.",
+      "binding": "normative",
+      "before": null,
+      "after": "$ phax run --plan docs/plans/2610281012-steme-gates-plan.md\nProtected-path preflight failed: these phases plan files that are the operator's decision.\n  phase-05: packages/rust/steme-formats/steme.baseline.json (protectedPaths[0])\nDeclare the phase interactive, or drop the file from its plan.\n$? = 11"
+    },
+    {
+      "surface": "cli: phax resume",
+      "summary": "Resuming a paused phase takes the operator's commits to protected files as theirs, and refuses an uncommitted change it cannot attribute.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax resume steme-gates-steme-2\n✗ phase-05: packages/rust/steme-formats/steme.baseline.json differs from its reference without a commit.\nIf the change is yours, commit it on phax/steme-gates-steme-2--phase-05; if not,\nrestore it with git checkout -- packages/rust/steme-formats/steme.baseline.json. Then resume again.\n$? = 1"
+    },
+    {
+      "surface": "cli: phax security status",
+      "summary": "Running `phax security status` shows which providers prevent writes to protected files and which only detect them, and the project's protected globs.",
+      "binding": "indicative",
+      "before": "Provider          | Available | Filesystem Jail | MCP Allowlist | Secure Default\n------------------------------------------------------------------------\nclaude-code      | ✓         | strong          | supported    | ✓\ncodex-cli        | ✓         | strong          | supported    | ✓\nmistral-vibe     | ✓         | strong          | unsupported  | ✓",
+      "after": "Provider          | Available | Filesystem Jail | MCP Allowlist | Protected Paths | Secure Default\n------------------------------------------------------------------------------------------\nclaude-code      | ✓         | strong          | supported    | enforced        | ✓\ncodex-cli        | ✓         | strong          | supported    | detected-only   | ✓\nmistral-vibe     | ✓         | strong          | unsupported  | enforced        | ✓\n\nProtected paths (phax.json): **/steme.baseline.json\n\nLegend:\n  Protected Paths: enforced = file tools denied, and detected | detected-only = detected and restored"
+    },
+    {
+      "surface": "file: final-report.md",
+      "summary": "The final report lists, per phase, each write to a protected file that was put back.",
+      "binding": "indicative",
+      "before": null,
+      "after": "### Protected Paths\n\n| Phase    | Path                                             | Change   | When                                   |\n| -------- | ------------------------------------------------ | -------- | -------------------------------------- |\n| phase-05 | packages/rust/steme-formats/steme.baseline.json  | modified | fix attempt 2                          |\n| phase-05 | packages/rust/steme-formats/steme.baseline.json  | modified | gate step node scripts/accept-debt.js  |"
+    },
+    {
+      "surface": "internal: provider prevention",
+      "summary": "Claude Code and Mistral Vibe refuse an edit to a protected file before it is written, so the agent learns at once instead of losing a turn.",
+      "binding": "indicative",
+      "before": "claude … --settings '{\"hooks\":{\"PermissionRequest\":[…]}}'",
+      "after": "claude … --settings '{\"permissions\":{\"deny\":[\"Edit(**/steme.baseline.json)\",\"Write(**/steme.baseline.json)\",\"MultiEdit(**/steme.baseline.json)\"]}}'\n\nVIBE_TOOLS='{\"write_file\":{\"deny\":[…,\"**/steme.baseline.json\"]},\"edit\":{\"deny\":[…,\"**/steme.baseline.json\"]}}'"
+    },
+    {
+      "surface": "file: phax.usage.kdl",
+      "summary": "The CLI help of run, resume, validate, plans lint and security status says how protected paths behave.",
+      "binding": "indicative",
+      "before": "cmd \"security\" {\n    cmd \"status\" {\n        help \"Show provider security capabilities and availability\"\n    }\n}",
+      "after": "cmd \"security\" {\n    cmd \"status\" {\n        help \"Show provider security capabilities and availability, including protected-path enforcement\"\n        long_help \"…Protected Paths: enforced (the provider's file tools are denied the project's protectedPaths, and phax detects) or detected-only (phax detects and restores)…\"\n    }\n}"
+    }
+  ],
+  "nonGoals": [
+    "The commands a project's own tool offers to change a protected file (steme's `debt accept` and `debt withdraw`) stay the project's.",
+    "Protecting paths outside the worktree.",
+    "Signing or attributing an operator's change beyond telling it from a phase's: phax does not record who made a commit or check its author.",
+    "Reading or validating what a protected file means.",
+    "Git-ignored files: they never enter a commit, so they are not protected.",
+    "Per-workspace protected lists: one project-level list, whose globs can name any workspace's files.",
+    "A flag that lets a headless phase write a protected file, in the manner of `--allow-skill-edits`.",
+    "A new phase or run state, or a new stop kind: refusals use gates_exhausted and awaiting_review as they are.",
+    "Preventing a gate or setup command's own writes before they happen: they are detected and restored."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-validate",
+      "name": "The list is read and counted",
+      "given": "phax.json with `\"protectedPaths\": [\"**/steme.baseline.json\"]`",
+      "when": "`phax validate` runs",
+      "then": "it exits 0 and prints `1 protected path glob`",
+      "refs": [
+        "declare"
+      ]
+    },
+    {
+      "id": "ac-invalid",
+      "name": "A malformed list is refused",
+      "given": "phax.json with `\"protectedPaths\": []`, then with `[\"../shared/allow.json\"]`, then with `[\"/abs/x.json\"]`",
+      "when": "`phax validate` runs on each",
+      "then": "each exits 2; the second and third name protectedPaths[0] and the offending rule, the first names protectedPaths",
+      "refs": [
+        "declare-invalid"
+      ]
+    },
+    {
+      "id": "ac-overlay",
+      "name": "An overlay cannot set or empty the list",
+      "given": "phax.json declaring `protectedPaths` and a phax.local.json carrying `\"protectedPaths\": []`, then the same in ~/.phax/config.json",
+      "when": "`phax validate` or `phax run` loads the configuration",
+      "then": "it exits 2 with `\"protectedPaths\" is accepted only in phax.json` naming the overlay file",
+      "refs": [
+        "layers"
+      ]
+    },
+    {
+      "id": "ac-none",
+      "name": "Nothing declared, nothing changes",
+      "given": "a project whose phax.json has no `protectedPaths`",
+      "when": "a phase runs on each provider through the fake CLIs, with a red gate then a green one",
+      "then": "the argv, phase prompt, fix prompt, security.json, file-reconciliation.json and run output equal those of the same run on the current release",
+      "refs": [
+        "no-change"
+      ]
+    },
+    {
+      "id": "ac-agent-turn",
+      "name": "An agent's edit is put back before the gate",
+      "given": "`protectedPaths` [\"**/steme.baseline.json\"] and a fake agent whose turn adds an entry to packages/rust/steme-formats/steme.baseline.json",
+      "when": "the agent's turn ends",
+      "then": "the file holds its base content before the first gate step runs, the refusal line names the path, `modified`, the agent turn and protectedPaths[0], and security.json's protectedPaths.refusals holds one entry with point `agent-turn`",
+      "refs": [
+        "detect-turn",
+        "restore",
+        "refusal-line",
+        "record"
+      ]
+    },
+    {
+      "id": "ac-create-delete-rename",
+      "name": "Creations, deletions and renames are put back",
+      "given": "the same list and a fake agent that creates packages/a/steme.baseline.json, deletes packages/b/steme.baseline.json and renames packages/c/steme.baseline.json to packages/c/old.json",
+      "when": "the agent's turn ends",
+      "then": "packages/a/steme.baseline.json no longer exists, packages/b/steme.baseline.json and packages/c/steme.baseline.json hold their base content, and three refusals are recorded (added, deleted, deleted)",
+      "refs": [
+        "restore"
+      ]
+    },
+    {
+      "id": "ac-setup",
+      "name": "A setup command's write is put back",
+      "given": "`commands.setup` running a script that rewrites packages/a/steme.baseline.json",
+      "when": "setup ends",
+      "then": "the file holds its base content before the agent's turn starts and a refusal with point `setup` is recorded",
+      "refs": [
+        "detect-turn",
+        "restore"
+      ]
+    },
+    {
+      "id": "ac-gate-write",
+      "name": "A gate command that writes a protected file fails its attempt",
+      "given": "a gate profile whose step `node scripts/accept-debt.js` writes an entry into packages/a/steme.baseline.json and exits 0, and a later step that passes",
+      "when": "the gate runs",
+      "then": "the file is restored before the later step runs, the attempt is failed although every step exited 0, the fix prompt names the step and the path, and the refusal has point `gate-step` with the attempt and the command",
+      "refs": [
+        "detect-gate",
+        "gate-write-fails",
+        "restore"
+      ]
+    },
+    {
+      "id": "ac-fix-attempt",
+      "name": "A fix attempt's edit is put back and reported",
+      "given": "a red gate and a fake agent whose first fix attempt writes packages/a/steme.baseline.json",
+      "when": "the fix attempt ends and the gate runs again",
+      "then": "the gate runs on the restored file, and the next fix prompt's Protected paths section lists the path as modified during fix attempt 1",
+      "refs": [
+        "detect-turn",
+        "fix-prompt"
+      ]
+    },
+    {
+      "id": "ac-restored-green",
+      "name": "Work that passes without the protected change goes on",
+      "given": "a fake agent that fixes the code and also writes packages/a/steme.baseline.json",
+      "when": "the restored tree passes the gate",
+      "then": "the phase commits with the file at its base content, the refusal is recorded in security.json and the final report, and no fix attempt is spent on it",
+      "refs": [
+        "restore",
+        "no-commit",
+        "final-report"
+      ]
+    },
+    {
+      "id": "ac-exhausted",
+      "name": "What the loop cannot fix reaches the operator",
+      "given": "a fake agent that writes the protected file at every attempt and never fixes the code",
+      "when": "the fix attempts are exhausted",
+      "then": "the phase is in gates_exhausted, phax exits 4, the output and resume-instructions.md name the path and the commit-then-resume route, and the worktree holds the file at its base content",
+      "refs": [
+        "exhausted",
+        "pause-restore"
+      ]
+    },
+    {
+      "id": "ac-handoff-turn",
+      "name": "A handoff turn's write never lands",
+      "given": "a green gate and a fake agent whose handoff turn writes packages/a/steme.baseline.json",
+      "when": "the phase commits",
+      "then": "the commit holds the file at its base content, a refusal with point `handoff-turn` is recorded, and no fix attempt runs",
+      "refs": [
+        "handoff-turn",
+        "no-commit"
+      ]
+    },
+    {
+      "id": "ac-codex-commit",
+      "name": "An agent's own commit does not carry it through",
+      "given": "a phase on codex-cli whose fake agent commits a change to packages/a/steme.baseline.json during its turn",
+      "when": "the phase commits",
+      "then": "the phase branch's tip holds the file at its base content, a refusal is recorded, and security.json's protectedPaths.enforcement is `detected-only`",
+      "refs": [
+        "no-commit",
+        "detect-turn",
+        "record"
+      ]
+    },
+    {
+      "id": "ac-prompt",
+      "name": "The agent is told up front",
+      "given": "`protectedPaths` [\"**/steme.baseline.json\"]",
+      "when": "phax builds a phase prompt",
+      "then": "it carries a `## Protected paths` section listing `**/steme.baseline.json` and the instruction to leave an unfixable hole failing and report it in the handoff",
+      "refs": [
+        "phase-prompt"
+      ]
+    },
+    {
+      "id": "ac-claude-deny",
+      "name": "Claude Code is denied the write up front",
+      "given": "a phase on claude-code in secure mode with the list declared",
+      "when": "phax spawns the phase turn, a fix attempt and the handoff turn",
+      "then": "each invocation's inline settings deny every protected glob to Edit, Write and MultiEdit, and security.json's protectedPaths.enforcement is `enforced`",
+      "refs": [
+        "prevent-claude",
+        "record"
+      ]
+    },
+    {
+      "id": "ac-vibe-deny",
+      "name": "Vibe is denied the write up front",
+      "given": "a phase on mistral-vibe in secure mode with the list declared",
+      "when": "phax spawns a turn",
+      "then": "the turn's tool configuration denies every protected glob to write_file and edit, and security.json's protectedPaths.enforcement is `enforced`",
+      "refs": [
+        "prevent-vibe",
+        "record"
+      ]
+    },
+    {
+      "id": "ac-unsafe",
+      "name": "Detection holds in unsafe mode",
+      "given": "`phax run --security unsafe` on claude-code with the list declared and a fake agent that writes the protected file",
+      "when": "the agent's turn ends",
+      "then": "the file is restored, the refusal is recorded, and protectedPaths.enforcement is `detected-only`",
+      "refs": [
+        "every-mode",
+        "restore"
+      ]
+    },
+    {
+      "id": "ac-operator-commit",
+      "name": "The operator's commit while paused is theirs",
+      "given": "a phase paused in gates_exhausted after a refusal, and the operator committing an entry in packages/a/steme.baseline.json on the phase branch in its worktree",
+      "when": "`phax resume` runs",
+      "then": "the gate runs with the committed content, no refusal is recorded, the phase commit keeps it, and file-reconciliation.json lists it under reviewCorrections",
+      "refs": [
+        "operator-commit"
+      ]
+    },
+    {
+      "id": "ac-operator-uncommitted",
+      "name": "An uncommitted change at resume is refused",
+      "given": "a paused phase whose worktree holds an uncommitted change to a protected path",
+      "when": "`phax resume` runs",
+      "then": "it exits 1 naming the path and both remedies, and the worktree, the run state and the records are unchanged",
+      "refs": [
+        "operator-uncommitted"
+      ]
+    },
+    {
+      "id": "ac-stop-person",
+      "name": "A person's change at a stop is theirs",
+      "given": "a held stop and a person editing packages/a/steme.baseline.json in the phase worktree",
+      "when": "`phax resume` closes the stop with a green gate",
+      "then": "the review commit carries the change, file-reconciliation.json lists it under reviewCorrections, no refusal is recorded, and the next phase's reference holds the new content",
+      "refs": [
+        "stop-person"
+      ]
+    },
+    {
+      "id": "ac-stop-gate",
+      "name": "A close's gate may not rewrite it",
+      "given": "a declared stop whose close runs the step `node scripts/accept-debt.js`, which writes the protected file",
+      "when": "`phax resume` closes the stop",
+      "then": "the file holds the person's content again, phax exits 4 and the run stays in awaiting_review",
+      "refs": [
+        "stop-gate"
+      ]
+    },
+    {
+      "id": "ac-lint",
+      "name": "Lint reports a headless phase that plans a protected file",
+      "given": "a plan whose headless phase-05 lists packages/rust/steme-formats/steme.baseline.json among its files to edit",
+      "when": "`phax plans lint` runs",
+      "then": "it reports one `protected` error naming phase-05, the path and protectedPaths[0], and exits 1",
+      "refs": [
+        "plan-lint"
+      ]
+    },
+    {
+      "id": "ac-preflight",
+      "name": "The run is refused before it is named",
+      "given": "the same plan",
+      "when": "`phax run --plan` runs, and `phax resume` runs on a run whose phax.json gained the list since it started",
+      "then": "each exits 11 with `Protected-path preflight failed` naming phase-05 and the path; `phax run` names no run and leaves nothing behind",
+      "refs": [
+        "plan-preflight"
+      ]
+    },
+    {
+      "id": "ac-interactive",
+      "name": "An interactive phase may plan it",
+      "given": "the same file listed in a phase declared `**Mode:** interactive`",
+      "when": "`phax plans lint` and `phax run --plan` run",
+      "then": "lint reports no `protected` finding and the run starts",
+      "refs": [
+        "plan-interactive"
+      ]
+    },
+    {
+      "id": "ac-security-status",
+      "name": "The operator sees each provider's enforcement",
+      "given": "a project declaring `protectedPaths`",
+      "when": "`phax security status` runs",
+      "then": "its table has a Protected Paths column reading `enforced` for claude-code and mistral-vibe and `detected-only` for codex-cli, followed by the project's globs",
+      "refs": [
+        "security-status"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-key-location",
+      "question": "Where does the key live: top level of phax.json, or inside the security block?",
+      "options": [
+        {
+          "id": "top-level",
+          "label": "A top-level `protectedPaths` list",
+          "abandons": "Grouping with the other filesystem settings, where a reader of the security block would look first."
+        },
+        {
+          "id": "security-filesystem",
+          "label": "`security.filesystem.protect`",
+          "abandons": "One layering rule for the security block (overlays may set it, except this one key) and the reading that the protection holds whatever the security mode, which a key under `security` suggests it depends on."
+        }
+      ],
+      "recommendation": "top-level",
+      "rationale": "The protection is the gate's integrity, not the sandbox's: it holds in every mode, unsafe included, and only in phax.json. A key outside the overlay-settable security block keeps both facts visible, as `assignments` does."
+    },
+    {
+      "id": "q-on-refusal",
+      "question": "What does a refused write do: restore it and let the gate and fix loop go on, or stop the phase at the first refusal?",
+      "options": [
+        {
+          "id": "restore-and-loop",
+          "label": "Restore, record, let the gate judge the restored tree and the fix loop go on",
+          "abandons": "An immediate stop that shows the operator the agent's attempt at once; the attempt is reported, and reaches a person only if the loop ends red."
+        },
+        {
+          "id": "stop-on-first",
+          "label": "Pause the phase in gates_exhausted at the first refusal",
+          "abandons": "The agent's chance to fix the hole in the code once told the file is not its own; one stray write, or a gate command that always writes, ends the phase."
+        }
+      ],
+      "recommendation": "restore-and-loop",
+      "rationale": "The guarantee is that no refused change lands, and restoring gives it as fully as stopping. The loop then does what it does for any red gate, and what it cannot fix pauses the phase as an exhausted gate does."
+    },
+    {
+      "id": "q-plan-declares",
+      "question": "What happens to a plan that lists a protected path among a phase's planned files?",
+      "options": [
+        {
+          "id": "refuse-headless",
+          "label": "Refused at lint and preflight in a headless phase, accepted in an interactive phase",
+          "abandons": "A plan's ability to have an agent make a deliberate, approved change to a protected file without a person at the keyboard."
+        },
+        {
+          "id": "refuse-always",
+          "label": "Refused in every phase",
+          "abandons": "Any plan route to a protected change: the operator must make it outside the plan, between runs."
+        },
+        {
+          "id": "allow-with-flag",
+          "label": "Allowed with a run flag, as `--allow-skill-edits`",
+          "abandons": "The protection itself: the person who passes the flag approves the whole file without seeing each entry the agent will write."
+        }
+      ],
+      "recommendation": "refuse-headless",
+      "rationale": "An interactive phase is the existing place where a person does the work and phax enforces nothing on them, so it is the plan's route to an operator change. A flag would recreate the steme-lab case with a signature on it."
+    },
+    {
+      "id": "q-layers",
+      "question": "Which configuration layers may set the protected list?",
+      "options": [
+        {
+          "id": "project-only",
+          "label": "phax.json only; overlays carrying it are refused",
+          "abandons": "A workstation's ability to add protections of its own on top of the project's."
+        },
+        {
+          "id": "project-plus-add-only",
+          "label": "phax.json, plus overlays that may add globs but never remove one",
+          "abandons": "The rule that a run's protection is the repository's alone: the same plan would be protected differently on two machines, and the merge needs a rule no other key has."
+        }
+      ],
+      "recommendation": "project-only",
+      "rationale": "The files are the project's decisions, reviewed with its code, as the assignment bounds are. An overlay that cannot empty the list could still make records differ across machines, and nobody has asked for a local addition."
+    },
+    {
+      "id": "q-operator-route",
+      "question": "How does the operator change a protected file while a run is paused?",
+      "options": [
+        {
+          "id": "commit",
+          "label": "Commit the change on the phase branch, then `phax resume`; an uncommitted change is refused at resume",
+          "abandons": "One gesture for every manual fix at a pause: other fixes stay uncommitted in the worktree, as resume-instructions.md says today."
+        },
+        {
+          "id": "uncommitted",
+          "label": "Any protected change present at resume is the person's, committed or not",
+          "abandons": "Determinism after an interrupted phase: phax cannot restore before a crash, so an agent's change left in the worktree would be taken as the person's."
+        }
+      ],
+      "recommendation": "commit",
+      "rationale": "A commit is an act a person makes on purpose and phax can date against the head it recorded at the pause, on every pause kind. The extra gesture is confined to protected files, and the refusal names it."
+    },
+    {
+      "id": "q-record-field",
+      "question": "Is the protectedPaths section of security.json present when the project declares nothing?",
+      "options": [
+        {
+          "id": "absent-when-none",
+          "label": "Present only when `protectedPaths` is declared",
+          "abandons": "The rule that new persisted fields are required: a reader cannot tell a phase with no protection from one written before this feature."
+        },
+        {
+          "id": "always-present",
+          "label": "Always present, `null` when nothing is declared",
+          "abandons": "The additive promise that a project declaring nothing sees no change: every security.json and phase record gains a field."
+        }
+      ],
+      "recommendation": "absent-when-none",
+      "rationale": "The brief makes the additive promise a constraint and adds the section at the current version. Both cases mean no protection applied, so what is lost is only telling an older file from a project that declared nothing."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "Detection by comparing the worktree with the reference at every check point is the guarantee, on every provider and in every security mode; prevention is a convenience and is recorded as enforced or detected-only.",
+      "A refused change is restored, never committed; the gate judges the restored tree; a gate attempt during which a gate step produced a protected change fails.",
+      "No new phase state, run state or stop kind: refusals end in gates_exhausted (exit 4) or, at a close, in awaiting_review with exit 4.",
+      "At a stop, protected changes present before the close's gate runs are the person's and go to reviewCorrections; at a pause, only commits on the phase branch since the recorded head are the operator's.",
+      "A rename is two changes, a deletion and a creation; only tracked and untracked-not-ignored files are protected.",
+      "Globs use phax's existing glob dialect, the one the architecture report and assignment bounds use."
+    ],
+    "open": [
+      "The six §9 questions; the key's name and place in §6 follow q-key-location.",
+      "The exact wording of the refusal line, the lint finding, the resume refusal and the prompt section; the security.json field names are normative.",
+      "How the head of the phase branch is recorded at a pause, in which persisted file, as an added field at its current version.",
+      "Whether a pending phase branches from the previous phase's branch tip or from its recorded commit, which decides whether an operator commit made between two phases reaches the next phase's base without further work."
+    ],
+    "constraints": [
+      "Additive: a project that declares no protected path sees byte-identical argv, prompts, security.json, reconciliation, records and output; persisted formats change only by adding fields, at their current version.",
+      "The real-CLI e2e suite must show that Claude Code's deny rules block Edit, Write and MultiEdit on a path matched by each glob form phax accepts, and that Vibe's write_file and edit deny lists do likewise; where a glob form cannot be expressed exactly in a provider's rule syntax, that provider records detected-only, never enforced.",
+      "Prevention is passed in secure mode only; in unsafe mode every provider records detected-only, and detection still runs.",
+      "Restoring must never touch a non-protected path, and must leave the worktree's other uncommitted changes as they are.",
+      "The overlay refusal follows the `assignments` one: refused before decode, naming the remedy.",
+      "docs/security.md gains a Protected paths section; the CLI reference, README run section and phax.usage.kdl help of run, resume, validate, plans lint and security status are updated with it."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/security.md#protected-paths",
+    "reader": "A project owner whose gates read a file in which a person records what the gate tolerates (a debt baseline, a lint allowlist, accepted snapshots), and who wants no phase of a run to rewrite it.",
+    "example": "steme-lab lists `**/steme.baseline.json` in phax.json; an agent that cannot fix a hole writes an acceptance into the baseline, phax puts the file back, the fix loop is told the file is the operator's, and the phase pauses with the path named, so the author decides whether to accept the debt and commits it before `phax resume`."
+  }
+}
