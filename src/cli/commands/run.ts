@@ -537,6 +537,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           networkPause,
           shortName,
           join(runFolder, "resume-instructions.md"),
+          opts.providerPriority ?? null,
         )) {
           out.warn(line);
         }
@@ -544,7 +545,13 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       }
       const handoffTurn = pausedHandoffFailure(err);
       if (handoffTurn !== null) {
-        for (const line of renderHandoffTurnPause(handoffTurn, shortName)) out.warn(line);
+        for (const line of renderHandoffTurnPause(
+          handoffTurn,
+          shortName,
+          opts.providerPriority ?? null,
+        )) {
+          out.warn(line);
+        }
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {

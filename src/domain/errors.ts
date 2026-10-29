@@ -295,13 +295,16 @@ export type RefusedClose = Exclude<LastClose, { readonly result: "interrupted" }
 /**
  * A close of a stop was refused: the run is back in awaiting_review, with
  * review-stop.json restored carrying `lastClose`. It exits with
- * `lastClose.exitCode` (4, 5, 1 or 8). An interrupted close never raises it.
+ * `lastClose.exitCode` (4, 5, 1, 8 or 14). An interrupted close never raises
+ * it. `sessionFailure` is the closing turn's failed session when it lost the
+ * network (its provider, session and files, for the terminal), else null.
  */
 export class StopCloseRefusedError extends Data.TaggedError("StopCloseRefusedError")<{
   message: string;
   run: string;
   phase: string;
   lastClose: RefusedClose;
+  sessionFailure: AgentSessionFailedError | null;
 }> {}
 
 /**

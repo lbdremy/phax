@@ -273,7 +273,11 @@ type Refusal = RefusedClose extends infer T ? (T extends unknown ? Omit<T, "at">
 
 class CloseRefusal {
   readonly _tag = "CloseRefusal";
-  constructor(readonly refusal: Refusal) {}
+  constructor(
+    readonly refusal: Refusal,
+    /** The closing turn's failed session, when it lost the network. */
+    readonly sessionFailure: AgentSessionFailedError | null = null,
+  ) {}
 }
 
 const now = (): string => new Date().toISOString();
@@ -294,8 +298,10 @@ function closeError(step: CloseStep, error: unknown): Refusal {
     : { result: "close-error", exitCode: 1, step, detail };
 }
 
-const refuse = (refusal: Refusal): Effect.Effect<never, CloseRefusal> =>
-  Effect.fail(new CloseRefusal(refusal));
+const refuse = (
+  refusal: Refusal,
+  sessionFailure: AgentSessionFailedError | null = null,
+): Effect.Effect<never, CloseRefusal> => Effect.fail(new CloseRefusal(refusal, sessionFailure));
 
 /** Run `effect` as part of the close's `step`: any failure is that step's close-error. */
 function at<A, E, R>(
@@ -337,6 +343,15 @@ function closingTurnRefusal(error: unknown): Refusal {
   if (isLimit(error)) return limitRefusal(error);
   if (isNetworkFailure(error)) return networkRefusal(error);
   return closeError("closing-turn", error);
+}
+
+/** A closing turn refused for `error`, keeping the failed session when it lost the network. */
+function refusedTurn(error: unknown): ClosingAttempt {
+  return {
+    kind: "refused",
+    refusal: closingTurnRefusal(error),
+    sessionFailure: isNetworkFailure(error) ? error : null,
+  };
 }
 
 function describeRefusal(lastClose: RefusedClose): string {
@@ -709,7 +724,11 @@ type ClosingAttempt =
       readonly handoff: string;
       readonly source: "closing-turn-resumed" | "closing-turn-new";
     }
-  | { readonly kind: "refused"; readonly refusal: Refusal };
+  | {
+      readonly kind: "refused";
+      readonly refusal: Refusal;
+      readonly sessionFailure: AgentSessionFailedError | null;
+    };
 
 const CLOSING_TURN_STREAM = /^closing-turn-(\d{2})\.jsonl$/;
 
@@ -806,7 +825,7 @@ function attemptClosingTurn(
       if (Either.isRight(resumed)) {
         first = { result: resumed.right, binding, source: "closing-turn-resumed", label };
       } else if (isLimit(resumed.left) || isNetworkFailure(resumed.left)) {
-        return { kind: "refused", refusal: closingTurnRefusal(resumed.left) };
+        return refusedTurn(resumed.left);
       }
     }
 
@@ -818,7 +837,11 @@ function attemptClosingTurn(
       if (newTurn !== ctx.turn) {
         const advanced = yield* Effect.either(ctx.advanceTurn(newTurn));
         if (Either.isLeft(advanced)) {
-          return { kind: "refused", refusal: closeError("files", advanced.left) };
+          return {
+            kind: "refused",
+            refusal: closeError("files", advanced.left),
+            sessionFailure: null,
+          };
         }
       }
       const newLabel = closingTurnLabel(newTurn);
@@ -838,7 +861,7 @@ function attemptClosingTurn(
         "agent.run",
       );
       if (Either.isLeft(started)) {
-        return { kind: "refused", refusal: closingTurnRefusal(started.left) };
+        return refusedTurn(started.left);
       }
       first = {
         result: started.right,
@@ -869,7 +892,7 @@ function attemptClosingTurn(
       "agent.resume",
     );
     if (Either.isLeft(retry)) {
-      return { kind: "refused", refusal: closingTurnRefusal(retry.left) };
+      return refusedTurn(retry.left);
     }
     const retried = decodeHandoffAnswer(retry.right.finalText);
     if (Either.isRight(retried)) {
@@ -886,6 +909,7 @@ function attemptClosingTurn(
         exitCode: 5,
         reason: `the first answer was refused (${answer.left}); the corrective answer was refused too (${retried.left})`,
       },
+      sessionFailure: null,
     };
   });
 }
@@ -1032,7 +1056,7 @@ function runClosingTurn(
         paths: nonEmpty(verdict.paths),
       });
     }
-    if (attempt.kind === "refused") return yield* refuse(attempt.refusal);
+    if (attempt.kind === "refused") return yield* refuse(attempt.refusal, attempt.sessionFailure);
     return attempt;
   });
 }
@@ -1538,6 +1562,7 @@ export function closeStop(
           run: input.shortName,
           phase: input.phase.id,
           lastClose,
+          sessionFailure: closed.left.sessionFailure,
         }),
       );
     }

@@ -4,11 +4,7 @@
 // (executePlan, fixLoop). The dispatcher traces the stop's state transitions.
 import { Effect, Either } from "effect";
 import type { RunId } from "../../domain/branded.js";
-import {
-  AgentInvocationError,
-  GateFailedError,
-  GateStepRefusedError,
-} from "../../domain/errors.js";
+import { GateFailedError, GateStepRefusedError } from "../../domain/errors.js";
 import type { TranscriptOutcome } from "../../domain/interactive/transcripts.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import { makeSystemErrorReport } from "../../domain/telemetry/errors.js";
@@ -24,7 +20,7 @@ import {
 } from "../../domain/telemetry/events.js";
 import { GitError } from "../../ports/git.js";
 import { SystemTelemetry } from "../../ports/systemTelemetry.js";
-import { reportAgentFailure, reportGitFailure } from "./reportBuilders.js";
+import { isAgentFailure, reportAgentFailure, reportGitFailure } from "./reportBuilders.js";
 
 export interface StopTraceContext {
   readonly runId: string;
@@ -53,9 +49,7 @@ export function tracedTurnCall<A, E, R>(
       { "phax.phase.id": ctx.phaseId },
       call.pipe(
         Effect.tapError((e) =>
-          e instanceof AgentInvocationError
-            ? telemetry.recordError(reportAgentFailure(e, at))
-            : Effect.void,
+          isAgentFailure(e) ? telemetry.recordError(reportAgentFailure(e, at)) : Effect.void,
         ),
       ),
     );

@@ -50,10 +50,11 @@ import {
   renderHandoffTurnPause,
   renderNetworkPause,
   renderSessionFailure,
+  resumeRetryCommand,
   retryCommandLine,
 } from "./sessionFailureOutput.js";
 import { reportConfigError } from "./reportConfigError.js";
-import { renderStop, renderStopClosed, renderStopCloseRefused } from "./stopOutput.js";
+import { renderStop, renderStopClosed, renderStopCloseRefusal } from "./stopOutput.js";
 import { readPackageVersion } from "./usage.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -319,7 +320,8 @@ export async function runResume(
         return exitCodeForError(err);
       }
       if (err instanceof StopCloseRefusedError) {
-        out.warn(renderStopCloseRefused(err.phase, err.lastClose));
+        const retry = resumeRetryCommand(runRefArg, opts.providerPriority ?? null);
+        for (const line of renderStopCloseRefusal(err, retry)) out.warn(line);
         out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
         return exitCodeForError(err);
       }
@@ -349,6 +351,7 @@ export async function runResume(
           networkPause,
           shortName,
           join(runPath, "resume-instructions.md"),
+          opts.providerPriority ?? null,
         )) {
           out.warn(line);
         }
@@ -356,7 +359,13 @@ export async function runResume(
       }
       const handoffTurn = pausedHandoffFailure(err);
       if (handoffTurn !== null) {
-        for (const line of renderHandoffTurnPause(handoffTurn, shortName)) out.warn(line);
+        for (const line of renderHandoffTurnPause(
+          handoffTurn,
+          shortName,
+          opts.providerPriority ?? null,
+        )) {
+          out.warn(line);
+        }
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {

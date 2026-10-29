@@ -422,13 +422,26 @@ describe("a run whose phase session loses the network", { timeout: 60_000 }, () 
       err as AgentSessionFailedError,
       SHORT,
       join(harness.runPath, "resume-instructions.md"),
+      null,
     );
     expect(lines[0]).toBe(`✗ claude-code session failed (network): ${API_ERROR}`);
     expect(lines).toContain(`  session: ${SESSION}`);
     const printed = lines.join("\n");
     expect(printed).toContain(`Run ${SHORT} is paused at phase-02.`);
-    expect(printed).toContain(`Retry once the network is back: phax resume ${SHORT}`);
+    expect(printed).toContain("Retry once the network is back");
+    expect(printed).toContain(`    phax resume ${SHORT} --yes\n`);
     expect(printed).toContain("resume-instructions.md");
+
+    // A --provider-priority given to the paused command rides on the retry.
+    const withPriority = renderNetworkPause(
+      err as AgentSessionFailedError,
+      SHORT,
+      join(harness.runPath, "resume-instructions.md"),
+      "codex-cli,claude-code",
+    ).join("\n");
+    expect(withPriority).toContain(
+      `phax resume ${SHORT} --yes --provider-priority codex-cli,claude-code`,
+    );
   });
 
   it("writes resume instructions that name the session the failure reported", async () => {
@@ -437,7 +450,7 @@ describe("a run whose phase session loses the network", { timeout: 60_000 }, () 
     const instructions = readFileSync(join(harness.runPath, "resume-instructions.md"), "utf8");
 
     expect(instructions).toContain("Network failure");
-    expect(instructions).toContain(`phax resume ${SHORT}`);
+    expect(instructions).toContain(`phax resume ${SHORT} --yes`);
     expect(instructions).toContain("phase-02");
     expect(instructions).toContain(SESSION);
     expect(instructions).toContain(API_ERROR);
@@ -489,9 +502,9 @@ describe("a phase whose handoff turn fails", { timeout: 60_000 }, () => {
     expect(status["lastError"]).toBe(`claude-code session failed (network): ${API_ERROR}`);
     expect(phaseStatus(harness, "phase-01")["state"]).toBe("handoff_failed");
 
-    const lines = renderHandoffTurnPause(failure!, SHORT);
+    const lines = renderHandoffTurnPause(failure!, SHORT, null);
     expect(lines[0]).toBe(`✗ claude-code session failed (network): ${API_ERROR}`);
-    expect(lines).toContain(`  Retry once the network is back: phax resume ${SHORT}`);
+    expect(lines).toContain(`  Retry once the network is back: phax resume ${SHORT} --yes`);
   });
 
   it("a resume re-runs only the handoff and continues to review", async () => {
@@ -521,9 +534,9 @@ describe("a phase whose handoff turn fails", { timeout: 60_000 }, () => {
 
       expect(err).toBeInstanceOf(HandoffPausedError);
       expect(exitCodeForError(err)).toBe(code);
-      const lines = renderHandoffTurnPause(pausedHandoffFailure(err)!, SHORT);
+      const lines = renderHandoffTurnPause(pausedHandoffFailure(err)!, SHORT, null);
       expect(lines[0]).toContain(`claude-code session failed (${kind})`);
-      expect(lines.join("\n")).toContain(`phax resume ${SHORT}`);
+      expect(lines.join("\n")).toContain(`phax resume ${SHORT} --yes`);
       expect(handledEvents(harness)).not.toContain("HandoffMissing");
     },
   );
