@@ -288,25 +288,27 @@ function deleteFromWorktree(worktree: string, path: string): Effect.Effect<void,
   });
 }
 
-function snapshotWorktreeEffect(
+// Stage the worktree into the index `env` names and write it as a tree. The
+// index is seeded from HEAD so a tracked file matching an ignore pattern
+// keeps its entry; `add -A` then records every change. `.phax-context/` is
+// put back to HEAD's entries afterwards rather than excluded by a pathspec:
+// `add` exits 1 on an exclude naming an ignored directory, which
+// `.phax-context/` is in every phase worktree.
+function stageWorktree(
   worktree: string,
-  extraEnv: Record<string, string> = {},
+  env: Record<string, string>,
 ): Effect.Effect<string, GitError> {
-  return withTempIndex("phax-snapshot-index-", (indexEnv) =>
-    Effect.gen(function* () {
-      const env = { ...indexEnv, ...extraEnv };
-      // Seeded from HEAD so a tracked file matching an ignore pattern keeps
-      // its entry; `add -A` then records every change. `.phax-context/` is
-      // put back to HEAD's entries afterwards rather than excluded by a
-      // pathspec: `add` exits 1 on an exclude naming an ignored directory,
-      // which `.phax-context/` is in every phase worktree.
-      yield* gitRun(["read-tree", "HEAD"], worktree, { env });
-      yield* gitRun(["add", "-A", "--", "."], worktree, { env });
-      yield* gitRun(["reset", "-q", "HEAD", "--", PHAX_CONTEXT_DIR], worktree, { env });
-      const { stdout } = yield* gitRun(["write-tree"], worktree, { env });
-      return yield* parseTreeId(stdout, "git write-tree");
-    }),
-  );
+  return Effect.gen(function* () {
+    yield* gitRun(["read-tree", "HEAD"], worktree, { env });
+    yield* gitRun(["add", "-A", "--", "."], worktree, { env });
+    yield* gitRun(["reset", "-q", "HEAD", "--", PHAX_CONTEXT_DIR], worktree, { env });
+    const { stdout } = yield* gitRun(["write-tree"], worktree, { env });
+    return yield* parseTreeId(stdout, "git write-tree");
+  });
+}
+
+function snapshotWorktreeEffect(worktree: string): Effect.Effect<string, GitError> {
+  return withTempIndex("phax-snapshot-index-", (env) => stageWorktree(worktree, env));
 }
 
 function restorePathsEffect(
@@ -548,53 +550,87 @@ function observeWorktreeEffect(
   base: string,
   isProtected: (path: string) => boolean,
 ): Effect.Effect<ProtectedObservation, GitError> {
-  return Effect.gen(function* () {
-    // Every git run of the observation reads the objects as stored: a replace
-    // ref (`git replace`) cannot stand a forged commit in for the base, or
-    // for HEAD, and hide an edit.
-    const env = { GIT_NO_REPLACE_OBJECTS: "1" };
-    const tree = yield* snapshotWorktreeEffect(worktree, env);
-    const diffArgs = ["diff-tree", "-z", "-r", "-M", "--name-status", "--no-ext-diff", base, tree];
-    const { stdout: diffOut } = yield* gitRun(diffArgs, worktree, { env });
-    const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
-    const entries = rows.map((row): ObservedEntry => {
-      switch (row.status) {
-        case "R":
-          return { status: "renamed", path: row.path, oldPath: row.oldPath };
-        case "A":
-          return { status: "added", path: row.path };
-        case "M":
-          return { status: "modified", path: row.path };
-        case "D":
-          return { status: "deleted", path: row.path };
-        case "T":
-          return { status: "type-changed", path: row.path };
-      }
-    });
+  return withTempIndex("phax-observe-index-", (indexEnv) =>
+    Effect.gen(function* () {
+      // Every git run of the observation reads the objects as stored: a
+      // replace ref (`git replace`) cannot stand a forged commit in for the
+      // base, or for HEAD, and hide an edit.
+      const stored = { GIT_NO_REPLACE_OBJECTS: "1" };
+      // The temporary index the worktree is staged into, kept for the
+      // ignored-file listing below, so the diff and the listing agree.
+      const env = { ...indexEnv, ...stored };
+      const tree = yield* stageWorktree(worktree, env);
+      const diffArgs = [
+        "diff-tree",
+        "-z",
+        "-r",
+        "-M",
+        "--name-status",
+        "--no-ext-diff",
+        base,
+        tree,
+      ];
+      const { stdout: diffOut } = yield* gitRun(diffArgs, worktree, { env });
+      const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
+      const entries = rows.map((row): ObservedEntry => {
+        switch (row.status) {
+          case "R":
+            return { status: "renamed", path: row.path, oldPath: row.oldPath };
+          case "A":
+            return { status: "added", path: row.path };
+          case "M":
+            return { status: "modified", path: row.path };
+          case "D":
+            return { status: "deleted", path: row.path };
+          case "T":
+            return { status: "type-changed", path: row.path };
+        }
+      });
 
-    // The whole base tree, read once: its protected files, submodules left out.
-    const { stdout: treeOut } = yield* gitRun(["ls-tree", "-r", "-z", base], worktree, { env });
-    const atBase = parseLsTreeZ(treeOut).filter(
-      (entry) => entry.mode !== MODE_SUBMODULE && isProtected(entry.path),
-    );
-    const fileMode =
-      atBase.length === 0
-        ? true
-        : (yield* gitRunAllowFail(["config", "--type=bool", "--get", "core.filemode"], worktree, {
-            env,
-          })).stdout.trim() !== "false";
-    const states = yield* compareTrackedFiles(worktree, atBase, fileMode, env);
-    const tracked = atBase.map((entry, i) => ({ path: entry.path, state: states[i]! }));
+      // The whole base tree, read once: its protected files, submodules left out.
+      const { stdout: treeOut } = yield* gitRun(["ls-tree", "-r", "-z", base], worktree, { env });
+      const atBase = parseLsTreeZ(treeOut).filter(
+        (entry) => entry.mode !== MODE_SUBMODULE && isProtected(entry.path),
+      );
+      const fileMode =
+        atBase.length === 0
+          ? true
+          : (yield* gitRunAllowFail(["config", "--type=bool", "--get", "core.filemode"], worktree, {
+              env,
+            })).stdout.trim() !== "false";
+      const states = yield* compareTrackedFiles(worktree, atBase, fileMode, env);
+      // A protected file the real index no longer holds (`git rm --cached`)
+      // is committed as deleted when git ignores it, whatever the disk holds:
+      // read it as missing. The real index can only add a change here.
+      const inRealIndex =
+        atBase.length === 0
+          ? new Set<string>()
+          : new Set(
+              (yield* gitRun(["ls-files", "-z", "--cached"], worktree, { env: stored })).stdout
+                .split("\0")
+                .filter((p) => p !== ""),
+            );
+      const tracked = atBase.map((entry, i) => {
+        const state = states[i]!;
+        return {
+          path: entry.path,
+          state: state === "same" && !inRealIndex.has(entry.path) ? ("missing" as const) : state,
+        };
+      });
 
-    const { stdout: ignoredOut } = yield* gitRun(
-      ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
-      worktree,
-      { env },
-    );
-    const untracked = ignoredOut.split("\0").filter((p) => p !== "" && !isInsidePhaxContext(p));
+      // Listed against the temporary index: every ignored file not in the
+      // staged tree, so a file forced into the real index (`git add -f`) and
+      // never committed is listed too.
+      const { stdout: ignoredOut } = yield* gitRun(
+        ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
+        worktree,
+        { env },
+      );
+      const untracked = ignoredOut.split("\0").filter((p) => p !== "" && !isInsidePhaxContext(p));
 
-    return { entries, tracked, untracked };
-  });
+      return { entries, tracked, untracked };
+    }),
+  );
 }
 
 export const NodeGitLayer = Layer.succeed(Git, {

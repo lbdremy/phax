@@ -156,6 +156,35 @@ describe("checkProtectedPaths against a real worktree", () => {
     expect(brief(await check(["**/allow.json"]))).toEqual([["generated/allow.json", "created"]]);
   });
 
+  it("names a protected file forced into the index under a gitignored folder", async () => {
+    write("generated/allow.json", "{}\n");
+    git("add", "-f", "generated/allow.json");
+
+    expect(brief(await check(["**/allow.json"]))).toEqual([["generated/allow.json", "created"]]);
+    // What the phase commit would land.
+    git("add", "-A");
+    expect(git("diff", "--cached", "--name-status", base)).toBe("A\tgenerated/allow.json\n");
+  });
+
+  it("names a tracked protected file under a gitignored folder dropped from the index as deleted", async () => {
+    write("generated/allow.json", "{}\n");
+    git("add", "-f", "generated/allow.json");
+    base = commitAll("tracked although ignored");
+    git("rm", "-q", "--cached", "generated/allow.json");
+
+    expect(brief(await check(["**/allow.json"]))).toEqual([["generated/allow.json", "deleted"]]);
+    // What the phase commit would land.
+    git("add", "-A");
+    expect(git("diff", "--cached", "--name-status", base)).toBe("D\tgenerated/allow.json\n");
+  });
+
+  it("names a tracked protected file dropped from the index as deleted", async () => {
+    git("rm", "-q", "--cached", "packages/a/steme.baseline.json");
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+      ["packages/a/steme.baseline.json", "deleted"],
+    ]);
+  });
+
   it("judges an edit the agent committed itself against the base, not HEAD", async () => {
     write("packages/a/steme.baseline.json", '{ "package": "a", "rules": 99 }\n');
     const head = commitAll("agent commit");
