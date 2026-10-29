@@ -165,7 +165,9 @@ desktop — none is promised by the announcement.
       that a hostile `VIBE_HOME` config cannot widen a secure session. A temporary `VIBE_HOME` has no
       sign-in (Vibe keeps it in the macOS Keychain under the real home), so the case needs
       `MISTRAL_API_KEY` and is skipped without it. The other five cases passed against Vibe 3.0.3
-      on 2026-10-28. Run it once with a key.
+      on 2026-10-28. Run it once with a key. Asked upstream on 2026-10-29 for an isolated mode that
+      ignores user and project config but keeps the sign-in, which would let this case run without a
+      key: https://github.com/mistralai/mistral-vibe/discussions/1364
 - [ ] **`phax agent setup providers --write` re-enables every installed provider.** On 2026-10-28
       it turned Codex on for an operator who wanted only Claude Code and Vibe, and it had written
       every catalog model into `providers.json`, so the three retired Mistral ids later had to be
