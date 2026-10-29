@@ -576,3 +576,96 @@ describe("a phase session whose tool output printed HTTP 429", { timeout: 60_000
     expect(handledEvents(harness)).not.toContain("NetworkFailureDetected");
   });
 });
+
+// ── Claude Code's own API-error endings, through the real node backend ──────
+
+// The synthetic API-error message and the error result Claude Code 2.1.312
+// ends a session with when the API refused or never answered.
+function claudeApiErrorStream(text: string, category: string, status: number | null) {
+  return [
+    { type: "system", subtype: "init", session_id: SESSION, tools: [] },
+    {
+      type: "assistant",
+      message: {
+        model: "<synthetic>",
+        role: "assistant",
+        type: "message",
+        content: [{ type: "text", text }],
+      },
+      session_id: SESSION,
+      error: category,
+      is_api_error_message: true,
+    },
+    {
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      num_turns: 1,
+      terminal_reason: "api_error",
+      api_error_status: status,
+      result: text,
+      session_id: SESSION,
+    },
+  ];
+}
+
+describe("a phase session Claude Code ends on an API error", { timeout: 60_000 }, () => {
+  let cli: FakeProviderCli;
+
+  beforeEach(() => {
+    cli = makeFakeProviderCli(world.root);
+    for (const [name, value] of Object.entries(cli.env)) vi.stubEnv(name, value);
+  });
+
+  it("pauses the run rate_limited and exits 8 on Claude Code's plan limit", async () => {
+    const limit = "You've hit your session limit · resets 7:50pm (Europe/Paris)";
+    cli.setScript({
+      sessionId: SESSION,
+      finalText: "",
+      stream: [
+        {
+          type: "rate_limit_event",
+          rate_limit_info: { status: "rejected", resetsAt: 1793120400, rateLimitType: "five_hour" },
+          session_id: SESSION,
+        },
+        ...claudeApiErrorStream(limit, "rate_limit", 429),
+      ],
+      exitCode: 1,
+    });
+
+    const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
+    const err = leftOf(result);
+
+    expect(exitCodeForError(err)).toBe(8);
+    expect(err).toMatchObject({
+      _tag: "UsageLimitError",
+      rawMessage: limit,
+      resetAt: new Date(1793120400 * 1000).toISOString(),
+    });
+    expect(runStatus(harness)["state"]).toBe("rate_limited");
+    expect(phaseStatus(harness, "phase-01")["state"]).toBe("rate_limited");
+    expect(handledEvents(harness)).not.toContain("RunFailed");
+  });
+
+  it("pauses the run and exits 14 on a connection failure Claude Code words its own way", async () => {
+    const apiError = "API Error: Unable to connect to API (FailedToOpenSocket)";
+    cli.setScript({
+      sessionId: SESSION,
+      finalText: "",
+      stream: claudeApiErrorStream(apiError, "server_error", null),
+      exitCode: 1,
+    });
+
+    const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
+    const err = leftOf(result);
+
+    expect(err).toBeInstanceOf(AgentSessionFailedError);
+    expect((err as AgentSessionFailedError).failure).toMatchObject({
+      kind: "network",
+      message: apiError,
+    });
+    expect(exitCodeForError(err)).toBe(14);
+    expect(runStatus(harness)["state"]).toBe("rate_limited");
+    expect(runStatus(harness)["stoppedReason"]).toBe("network_failure");
+  });
+});

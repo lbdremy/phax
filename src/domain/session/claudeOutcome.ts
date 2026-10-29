@@ -1,38 +1,111 @@
 import {
   scanClaudeOutcomeEvents,
+  type ClaudeApiRetryEvent,
   type ClaudeResultOutcomeEvent,
 } from "../../schemas/claudeOutput.js";
-import type { EndedSession, SessionFailure, SessionOutcome } from "./outcome.js";
-import { failureFromText, failureWithoutVerdict } from "./signatures.js";
+import type { EndedSession, FailureKind, SessionFailure, SessionOutcome } from "./outcome.js";
+import { classifyVerdictText, extractResetAt, failureWithoutVerdict } from "./signatures.js";
 
 const PROVIDER = "claude-code";
 const LABEL = "claude";
+
+/**
+ * The kind an error result's structured fields give when its text matches no
+ * signature: an HTTP 429, or a synthetic API-error message categorized
+ * `rate_limit`, is a rate limit; `billing_error` is a usage limit; an API error
+ * that got no HTTP response (`terminal_reason: "api_error"`,
+ * `api_error_status: null`) is a network failure.
+ */
+function structuredKind(
+  result: ClaudeResultOutcomeEvent,
+  apiErrorCategory: string | undefined,
+): FailureKind | null {
+  if (apiErrorCategory === "billing_error") return "usage-limit";
+  if (result.api_error_status === 429 || apiErrorCategory === "rate_limit") return "rate-limit";
+  if (result.terminal_reason === "api_error" && result.api_error_status === null) return "network";
+  return null;
+}
+
+/** A limit's reset time: the rejected rate-limit event's, else the one its text names. */
+function resetAtOf(kind: FailureKind, text: string, rejectedResetsAt: number | undefined) {
+  if (kind !== "rate-limit" && kind !== "usage-limit") return null;
+  if (rejectedResetsAt !== undefined) return new Date(rejectedResetsAt * 1000).toISOString();
+  return extractResetAt(text);
+}
 
 /** The failure an error result reads as, worded by the result's own text. */
 function errorResultFailure(
   result: ClaudeResultOutcomeEvent,
   sessionId: string | null,
+  apiErrorCategory: string | undefined,
+  rejectedResetsAt: number | undefined,
 ): SessionFailure {
-  const maxTurns = result.subtype === "error_max_turns";
+  const otherwise: FailureKind =
+    result.subtype === "error_max_turns" ? "max-turns" : "provider-error";
   const text = result.result;
-  if (text !== undefined && text.trim().length > 0) {
-    return failureFromText(PROVIDER, text, sessionId, maxTurns ? "max-turns" : "provider-error");
-  }
   const firstError = result.errors?.[0];
-  const message = firstError === undefined ? result.subtype : `${result.subtype}: ${firstError}`;
+  const message =
+    text !== undefined && text.trim().length > 0
+      ? text
+      : firstError === undefined
+        ? result.subtype
+        : `${result.subtype}: ${firstError}`;
+  const kind =
+    (text !== undefined ? classifyVerdictText(text) : null) ??
+    structuredKind(result, apiErrorCategory) ??
+    otherwise;
   return {
     provider: PROVIDER,
-    kind: maxTurns ? "max-turns" : "provider-error",
+    kind,
     message,
     sessionId,
-    resetAt: null,
+    resetAt: resetAtOf(kind, message, rejectedResetsAt),
   };
 }
 
 /**
+ * The failure a retry the session was still in when it ended reads as: a
+ * `rate_limit` retry is a rate limit, a retry with no HTTP status a network
+ * failure. Any other retry says nothing stderr cannot say better.
+ */
+function trailingRetryFailure(
+  retry: ClaudeApiRetryEvent,
+  sessionId: string | null,
+  rejectedResetsAt: number | undefined,
+): SessionFailure | null {
+  const attempt =
+    retry.attempt === undefined
+      ? ""
+      : retry.max_retries === undefined
+        ? ` (attempt ${retry.attempt})`
+        : ` (attempt ${retry.attempt} of ${retry.max_retries})`;
+  if (retry.error === "rate_limit") {
+    const status = retry.error_status === null ? "" : ` ${retry.error_status}`;
+    return {
+      provider: PROVIDER,
+      kind: "rate-limit",
+      message: `API Error:${status} rate limited; the session ended while retrying${attempt}`,
+      sessionId,
+      resetAt: resetAtOf("rate-limit", "", rejectedResetsAt),
+    };
+  }
+  if (retry.error_status === null) {
+    return {
+      provider: PROVIDER,
+      kind: "network",
+      message: `API Error: no response from the API (connection failed); the session ended while retrying${attempt}`,
+      sessionId,
+      resetAt: null,
+    };
+  }
+  return null;
+}
+
+/**
  * Reads an ended Claude Code session: the last decodable `result` event
- * decides, whatever the exit code; with none, the process's end, the last
- * `api_retry` error and stderr (see outcome.ts).
+ * decides, whatever the exit code; with none, the process's end, the
+ * `api_retry` the session was still in when it ended, and stderr (see
+ * outcome.ts).
  */
 export function readClaudeOutcome(ended: EndedSession): SessionOutcome {
   const events = scanClaudeOutcomeEvents(ended.lines);
@@ -54,16 +127,28 @@ export function readClaudeOutcome(ended: EndedSession): SessionOutcome {
         },
       };
     }
-    return { kind: "failure", failure: errorResultFailure(result, sessionId) };
+    return {
+      kind: "failure",
+      failure: errorResultFailure(
+        result,
+        sessionId,
+        events.apiErrorCategory,
+        events.rejectedResetsAt,
+      ),
+    };
+  }
+  const sessionId = events.initSessionId ?? null;
+  const ending = ended.end.kind;
+  if (ending === "exited" && events.trailingApiRetry !== undefined) {
+    const fromRetry = trailingRetryFailure(
+      events.trailingApiRetry,
+      sessionId,
+      events.rejectedResetsAt,
+    );
+    if (fromRetry !== null) return { kind: "failure", failure: fromRetry };
   }
   return {
     kind: "failure",
-    failure: failureWithoutVerdict(
-      PROVIDER,
-      LABEL,
-      ended,
-      events.initSessionId ?? null,
-      events.apiRetryError,
-    ),
+    failure: failureWithoutVerdict(PROVIDER, LABEL, ended, sessionId, undefined),
   };
 }

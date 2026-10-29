@@ -49,6 +49,70 @@ const claudeInit = {
   tools: ["Read", "Edit", "Bash"],
 };
 
+/** One `system`/`api_retry` event as Claude Code 2.1.312 prints it. */
+function apiRetry(attempt: number, error: string, status: number | null) {
+  return {
+    type: "system",
+    subtype: "api_retry",
+    attempt,
+    max_retries: 10,
+    retry_delay_ms: 500 * 2 ** (attempt - 1),
+    error_status: status,
+    error,
+    session_id: CLAUDE_SESSION,
+    uuid: `0d1e2f3a-4b5c-4d6e-8f70-81920a3b4c${String(attempt).padStart(2, "0")}`,
+  };
+}
+
+/** `count` retries of a request that got no HTTP response. */
+function connectionRetries(count: number) {
+  return Array.from({ length: count }, (_, index) => apiRetry(index + 1, "unknown", null));
+}
+
+/** The synthetic API-error message and the error result Claude Code ends such a session with. */
+function claudeApiError(text: string, category: string, status: number | null) {
+  return [
+    {
+      type: "assistant",
+      message: {
+        id: "5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d",
+        model: "<synthetic>",
+        role: "assistant",
+        stop_reason: "stop_sequence",
+        type: "message",
+        content: [{ type: "text", text }],
+      },
+      parent_tool_use_id: null,
+      session_id: CLAUDE_SESSION,
+      error: category,
+      is_api_error_message: true,
+    },
+    {
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      num_turns: 1,
+      duration_api_ms: 0,
+      total_cost_usd: 0,
+      stop_reason: "stop_sequence",
+      terminal_reason: "api_error",
+      api_error_status: status,
+      result: text,
+      session_id: CLAUDE_SESSION,
+    },
+  ];
+}
+
+/** A `rate_limit_event`; `resetsAt` in epoch seconds. */
+function rateLimitEvent(status: string, resetsAt: number) {
+  return {
+    type: "rate_limit_event",
+    rate_limit_info: { status, resetsAt, rateLimitType: "five_hour", isUsingOverage: false },
+    uuid: "7e8f9a0b-1c2d-4e3f-9a4b-5c6d7e8f9a0b",
+    session_id: CLAUDE_SESSION,
+  };
+}
+
 describe("readClaudeOutcome", () => {
   it("reads a success result as the answer with the result's session id", () => {
     const outcome = readClaudeOutcome(
@@ -128,39 +192,10 @@ describe("readClaudeOutcome", () => {
   it("reads the DNS outage, ten api_retry events then the synthetic API Error, as network", () => {
     const apiError =
       "API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)";
-    const retries = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((attempt) => ({
-      type: "system",
-      subtype: "api_retry",
-      attempt,
-      max_retries: 10,
-      retry_delay_ms: 500 * 2 ** (attempt - 1),
-      error_status: null,
-      error: "Connection error.",
-      session_id: CLAUDE_SESSION,
-    }));
     const failure = failureOf(
       readClaudeOutcome(
         ended(
-          [
-            claudeInit,
-            ...retries,
-            {
-              type: "assistant",
-              message: {
-                role: "assistant",
-                model: "<synthetic>",
-                content: [{ type: "text", text: apiError }],
-              },
-              session_id: CLAUDE_SESSION,
-            },
-            {
-              type: "result",
-              subtype: "success",
-              is_error: true,
-              result: apiError,
-              session_id: CLAUDE_SESSION,
-            },
-          ],
+          [claudeInit, ...connectionRetries(10), ...claudeApiError(apiError, "server_error", null)],
           exited(1),
         ),
       ),
@@ -170,6 +205,139 @@ describe("readClaudeOutcome", () => {
     expect(failure.sessionId).toEqual(CLAUDE_SESSION);
     expect(failure.resetAt).toEqual(null);
     expect(failure.message).toBe(apiError);
+  });
+
+  it("reads an API error with no HTTP status as network, whatever its wording", () => {
+    const apiError = "API Error: the line went quiet";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, ...claudeApiError(apiError, "unknown", null)], exited(1)),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "network", message: apiError });
+  });
+
+  it("reads an API error with an HTTP status and no known wording as provider-error", () => {
+    const apiError = "API Error: 500 the server had a bad day";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, ...claudeApiError(apiError, "server_error", 500)], exited(1)),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "provider-error", message: apiError });
+  });
+
+  it("reads a 429 API error with no limit wording as rate-limit", () => {
+    const apiError = "API Error: please slow down";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, ...claudeApiError(apiError, "rate_limit", 429)], exited(1)),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "rate-limit", message: apiError, resetAt: null });
+  });
+
+  it("reads a billing_error API error as usage-limit", () => {
+    const apiError = "API Error: your account needs attention";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, ...claudeApiError(apiError, "billing_error", 400)], exited(1)),
+      ),
+    );
+    expect(failure.kind).toBe("usage-limit");
+  });
+
+  it("reads Claude Code's plan limit as usage-limit, its reset time from the rejected rate-limit event", () => {
+    const limit = "You've hit your session limit · resets 7:50pm (Europe/Paris)";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            claudeInit,
+            rateLimitEvent("allowed_warning", 1793116800),
+            rateLimitEvent("rejected", 1793120400),
+            ...claudeApiError(limit, "rate_limit", 429),
+          ],
+          exited(1),
+          "Error: something else broke\n",
+        ),
+      ),
+    );
+    expect(failure.kind).toEqual("usage-limit");
+    expect(failure.sessionId).toEqual(CLAUDE_SESSION);
+    expect(failure.resetAt).toEqual(new Date(1793120400 * 1000).toISOString());
+    expect(failure.message).toBe(limit);
+  });
+
+  it("reads a session that ended while retrying a connection failure as network", () => {
+    const failure = failureOf(
+      readClaudeOutcome(ended([claudeInit, ...connectionRetries(3)], exited(1), "")),
+    );
+    expect(failure.kind).toBe("network");
+    expect(failure.sessionId).toBe(CLAUDE_SESSION);
+    expect(failure.message).toContain("attempt 3 of 10");
+  });
+
+  it("reads a session that ended while retrying a rate limit as rate-limit", () => {
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            claudeInit,
+            apiRetry(1, "rate_limit", 429),
+            rateLimitEvent("rejected", 1793120400),
+            apiRetry(2, "rate_limit", 429),
+          ],
+          exited(1),
+        ),
+      ),
+    );
+    expect(failure).toMatchObject({
+      kind: "rate-limit",
+      resetAt: new Date(1793120400 * 1000).toISOString(),
+    });
+  });
+
+  it("lets stderr word a session that ended while retrying a server error", () => {
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, apiRetry(4, "server_error", 500)], exited(1), "Error: boom\n"),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "provider-error", message: "Error: boom" });
+  });
+
+  it("lets stderr win over a retry the session got past", () => {
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            claudeInit,
+            apiRetry(1, "unknown", null),
+            {
+              type: "assistant",
+              message: { role: "assistant", content: [{ type: "text", text: "Reading files" }] },
+              session_id: CLAUDE_SESSION,
+            },
+          ],
+          exited(1),
+          "Error: the tool host crashed\n",
+        ),
+      ),
+    );
+    expect(failure).toMatchObject({
+      kind: "provider-error",
+      message: "Error: the tool host crashed",
+    });
+  });
+
+  it("reads a session killed while retrying as killed", () => {
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended([claudeInit, ...connectionRetries(2)], { kind: "signalled", signal: "SIGTERM" }),
+      ),
+    );
+    expect(failure.kind).toBe("killed");
   });
 
   it("never reads a 429 in tool output or model text as a limit", () => {
@@ -214,31 +382,6 @@ describe("readClaudeOutcome", () => {
     expect(failure.kind).toEqual("provider-error");
     expect(failure.sessionId).toEqual(CLAUDE_SESSION);
     expect(failure.resetAt).toEqual(null);
-  });
-
-  it("lets the result's usage limit win over a different error on stderr", () => {
-    const limit = "Claude AI usage limit reached|1793120400";
-    const failure = failureOf(
-      readClaudeOutcome(
-        ended(
-          [
-            {
-              type: "result",
-              subtype: "success",
-              is_error: true,
-              result: limit,
-              session_id: CLAUDE_SESSION,
-            },
-          ],
-          exited(1),
-          "Error: something else broke\n",
-        ),
-      ),
-    );
-    expect(failure.kind).toEqual("usage-limit");
-    expect(failure.sessionId).toEqual(CLAUDE_SESSION);
-    expect(failure.resetAt).toEqual(new Date(1793120400 * 1000).toISOString());
-    expect(failure.message).toBe(limit);
   });
 
   it("reads a 429 rate_limit_error API Error result as rate-limit", () => {

@@ -148,7 +148,24 @@ process.stdin.on("end", () => answer(() => {
     ...(script.claudeCodeVersion === undefined ? {} : { claude_code_version: script.claudeCodeVersion }),
   });
   if (script.rateLimit) {
-    print({ type: "result", subtype: "error", is_error: true, result: "API Error: rate limit exceeded", session_id: id });
+    // Claude Code ends a refused request with a synthetic API-error message
+    // and an error result of subtype "success".
+    print({
+      type: "assistant",
+      session_id: id,
+      message: { model: "<synthetic>", role: "assistant", type: "message", content: [{ type: "text", text: "API Error: rate limit exceeded" }] },
+      error: "rate_limit",
+      is_api_error_message: true,
+    });
+    print({
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      terminal_reason: "api_error",
+      api_error_status: 429,
+      result: "API Error: rate limit exceeded",
+      session_id: id,
+    });
     process.exit(1);
   }
   print({
