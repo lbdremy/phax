@@ -107,11 +107,17 @@ export function resumeWhenClearCommand(
   }
 }
 
-/** The recovery for a wrong oracle: correct it in the phase worktree, resume without its step. */
-function oracleCorrectionSteps(shortName: string, phaseArg: string): NextStep[] {
+/** The recovery for a wrong oracle: correct it in the phase worktree, resume
+ *  without its step. `correctionDetail` is said under the correction. */
+function oracleCorrectionSteps(
+  shortName: string,
+  phaseArg: string,
+  correctionDetail: readonly string[] = [],
+): NextStep[] {
   return [
     {
       title: "Or, if the oracle itself is wrong, correct it in the phase worktree",
+      ...(correctionDetail.length === 0 ? {} : { detail: correctionDetail }),
       command: `phax enter-phase ${shortName} ${phaseArg}`,
     },
     {
@@ -151,6 +157,56 @@ function protectedWaysOn(shortName: string, phaseArg: string): NextStep[] {
     {
       title: "Or, if the change is wanted, make it on the base branch yourself and start a new run",
     },
+  ];
+}
+
+/**
+ * The ways on from an exhausted gate that also left protected paths changed.
+ * The check alone failing gets the two protected ways on. A failed step keeps
+ * its own steps, never a phase reset, with the protected file put back in the
+ * same pass through the worktree and the base-branch way added: fixing the
+ * gate in the worktree for a configured step, the oracle correction with
+ * `--skip-oracle` for the oracle step, where the check still runs.
+ */
+function protectedExhaustionSteps(
+  shortName: string,
+  phaseArg: string,
+  failedStep: "configured" | "oracle" | "protected-paths",
+): NextStep[] {
+  if (failedStep === "protected-paths") return protectedWaysOn(shortName, phaseArg);
+  const baseBranchWay: NextStep = {
+    title:
+      "Or, if the protected change is wanted, make it on the base branch yourself and start a new run",
+  };
+  const putBack = "Put each protected file back to its content at the phase base.";
+  if (failedStep === "oracle") {
+    return [
+      {
+        title: "Put each protected file back to its content at the phase base",
+        command: `phax enter-phase ${shortName} ${phaseArg}`,
+      },
+      {
+        title:
+          "Then let the fix loop try again — the gate, oracle step and protected-path check included, is re-run first",
+        command: `phax resume ${shortName} --yes`,
+      },
+      baseBranchWay,
+      ...oracleCorrectionSteps(shortName, phaseArg, [
+        `${putBack} The protected-path check still runs without the oracle step.`,
+      ]),
+    ];
+  }
+  return [
+    {
+      title: "Fix the gate in the phase worktree",
+      detail: [putBack],
+      command: `phax enter-phase ${shortName} ${phaseArg}`,
+    },
+    {
+      title: "Resume — the gate is re-run first; if it passes the phase commits",
+      command: `phax resume ${shortName} --yes`,
+    },
+    baseBranchWay,
   ];
 }
 
@@ -215,13 +271,15 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           headline: [
             scenario.failedStep === "protected-paths"
               ? "Gates failed after all fix attempts: protected paths changed."
-              : "Gates failed after all fix attempts, and protected paths changed.",
+              : scenario.failedStep === "oracle"
+                ? "The oracle step failed after all fix attempts, and protected paths changed."
+                : "Gates failed after all fix attempts, and protected paths changed.",
             ...protectedHeadlineLines(scenario.protectedChanges),
             scenario.lastFixTranscript === null
               ? "  No fix attempt was made."
               : `  Last fix transcript: ${scenario.lastFixTranscript}`,
           ].join("\n"),
-          steps: protectedWaysOn(scenario.shortName, phaseArg),
+          steps: protectedExhaustionSteps(scenario.shortName, phaseArg, scenario.failedStep),
         };
       }
       if (scenario.failedStep === "oracle") {
