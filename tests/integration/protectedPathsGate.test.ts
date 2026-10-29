@@ -626,6 +626,11 @@ describe("a protected file the agent leaves changed at every attempt", () => {
       expect(instructions).toContain(`- ${BASELINE_RUST} — edited (protectedPaths[0] ${GLOB})`);
       expect(instructions).toContain("No phase of this run may change these paths");
       expect(instructions).toContain("fix-attempt-02.jsonl");
+      // The phase base by its hash, and the command putting the file back to it.
+      const { base } = readJson(join(observed.phaseFolder, "status.json")) as { base: string };
+      expect(instructions).toContain(`Compared with the phase base, commit ${base}:`);
+      expect(instructions).toContain(`git checkout ${base} -- '${BASELINE_RUST}'`);
+      expect(observed.prompts[1]).toContain(`to its content at base commit ${base}`);
       expect(instructions).toContain("phax resume invoice-export --yes");
       expect(instructions).toContain("make it on the base branch yourself and start a new run");
       expect(instructions).not.toContain("reset-phase");

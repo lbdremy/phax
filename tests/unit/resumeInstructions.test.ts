@@ -199,6 +199,47 @@ describe("buildResumeInstructions — protected paths", () => {
     expect(md).not.toContain("reset-phase");
   });
 
+  it("names the phase base by its hash and gives the command putting each path back", () => {
+    const commit = "0123456789abcdef0123456789abcdef01234567";
+    const md = buildResumeInstructions({
+      ...exhausted,
+      protectedChanges: [
+        baseline,
+        { ...baseline, path: "packages/b/it's.json", kind: "created" },
+        { ...baseline, path: "packages/c/steme.baseline.json", kind: "deleted" },
+        { ...baseline, path: "packages/d/steme.baseline.json", kind: "renamed" },
+      ],
+      protectedRestore: { commit, name: "phase base" },
+    });
+    expect(md).toContain(`Compared with the phase base, commit ${commit}:`);
+    expect(md).toContain(
+      [
+        "To put each path back to its content at the phase base, run in the phase worktree:",
+        "",
+        "```bash",
+        `git checkout ${commit} -- 'packages/a/steme.baseline.json'`,
+        `rm -- 'packages/b/it'\\''s.json'`,
+        `git checkout ${commit} -- 'packages/c/steme.baseline.json'`,
+        `if git cat-file -e '${commit}:packages/d/steme.baseline.json'; then git checkout ${commit} -- 'packages/d/steme.baseline.json'; else rm -- 'packages/d/steme.baseline.json'; fi`,
+        "```",
+      ].join("\n"),
+    );
+  });
+
+  it("names the phase commit after a handoff pause", () => {
+    const commit = "89abcdef0123456789abcdef0123456789abcdef";
+    const md = buildResumeInstructions({
+      ...BASE,
+      kind: "protected_paths_changed",
+      reason: "Protected paths changed after the commit",
+      phaseId: "phase-02",
+      protectedChanges: [baseline],
+      protectedRestore: { commit, name: "phase commit" },
+    });
+    expect(md).toContain(`Compared with the phase commit, commit ${commit}:`);
+    expect(md).toContain(`git checkout ${commit} -- 'packages/a/steme.baseline.json'`);
+  });
+
   it("is today's instructions with no change", () => {
     const md = buildResumeInstructions({
       ...BASE,

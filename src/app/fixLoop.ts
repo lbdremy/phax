@@ -536,6 +536,11 @@ export function runGatesWithFixLoop(
               attempt,
               failedStep: failure.failedStep,
               protectedChanges: failure.protectedChanges,
+              // Only a declared list fails an attempt on the check alone.
+              protectedBase:
+                protectedPaths === null
+                  ? yield* Effect.dieMessage("A protected-paths failure with no protected list")
+                  : protectedPaths.base,
             })
           : buildFixPrompt({
               command: failure.command,
@@ -550,6 +555,7 @@ export function runGatesWithFixLoop(
                   : yield* previousFindingIds(attempt, failure.command),
               failedStep: failure.failedStep,
               protectedChanges: failure.protectedChanges,
+              protectedBase: protectedPaths?.base ?? null,
             });
 
       yield* telemetry.recordEvent(

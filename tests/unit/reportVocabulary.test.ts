@@ -131,6 +131,7 @@ function fixPrompt(): string {
     stillFailing: new Set(["no-node-import src/greet.ts node:fs"]),
     failedStep: "configured",
     protectedChanges: [],
+    protectedBase: null,
   });
 }
 

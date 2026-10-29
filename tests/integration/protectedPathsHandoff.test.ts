@@ -183,6 +183,10 @@ describe("the handoff turn", { timeout: 60_000 }, () => {
     // The resume instructions name the path and the two ways on.
     const instructions = readFileSync(join(run.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain(BASELINE);
+    // Put back from the phase commit, named by its hash.
+    const commit = String(readPhaseStatus(run, "phase-01")["commitHash"]);
+    expect(instructions).toContain(`Compared with the phase commit, commit ${commit}:`);
+    expect(instructions).toContain(`git checkout ${commit} -- '${BASELINE}'`);
     expect(instructions).toContain("phax resume");
     expect(instructions).toContain("start a new run");
     expect(instructions).not.toContain("reset-phase");
