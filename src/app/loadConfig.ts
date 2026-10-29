@@ -1,7 +1,7 @@
-import { readFileSync, existsSync, realpathSync } from "node:fs";
+import { readFileSync, existsSync, lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
@@ -164,7 +164,8 @@ function readSubmodulePaths(
 // phax.json's raw `protectedPaths`, checked before the full decode so each
 // refusal names the entry at fault (`protectedPaths[N]`) and the dialect rule it
 // breaks, then against the submodules .gitmodules declares: a submodule's files
-// are not part of this repository's tree.
+// are not part of this repository's tree. Last, an entry naming a directory is
+// refused, since it would protect none of the files in it.
 function protectedPathsError(
   raw: unknown,
   configPath: string,
@@ -193,7 +194,45 @@ function protectedPathsError(
       `protectedPaths[${conflict.index}]: ${JSON.stringify(conflict.glob)} is inside the submodule ${conflict.submodule}`,
     );
   }
+  const directory = literalDirectory(declared as readonly string[], gitRoot);
+  if (directory !== undefined) {
+    return refuse(
+      `protectedPaths[${directory.index}]: ${JSON.stringify(directory.glob)} is a directory; protect its files with ${JSON.stringify(`${directory.glob}/**`)}`,
+    );
+  }
   return undefined;
+}
+
+// The first of `declared` that names one path (no `*` or `?`) and that path a
+// directory: a tree in HEAD, or a directory on disk now. Such an entry matches
+// no file, since a glob covers files. HEAD is read by one `git cat-file`
+// fed the paths on stdin; a repository with no commit has no tree to name.
+function literalDirectory(
+  declared: readonly string[],
+  gitRoot: string,
+): { readonly index: number; readonly glob: string } | undefined {
+  const literals = [...declared.entries()].filter(([, glob]) => !/[*?]/.test(glob));
+  if (literals.length === 0) return undefined;
+  let types: readonly string[] = [];
+  try {
+    types = execFileSync("git", ["cat-file", "--batch-check=%(objecttype)"], {
+      cwd: gitRoot,
+      encoding: "utf8",
+      input: literals.map(([, glob]) => `HEAD:${glob}\n`).join(""),
+      stdio: ["pipe", "pipe", "ignore"],
+    }).split("\n");
+  } catch {
+    types = [];
+  }
+  const found = literals.find(([, glob], i) => {
+    if (types[i] === "tree") return true;
+    try {
+      return lstatSync(join(gitRoot, glob)).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  return found === undefined ? undefined : { index: found[0], glob: found[1] };
 }
 
 function realPathOrSelf(path: string): string {

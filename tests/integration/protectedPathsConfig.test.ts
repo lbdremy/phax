@@ -140,6 +140,20 @@ describe.each(COMMANDS)(
     );
 
     it(
+      "exits 2 for a literal entry naming a directory, naming the glob to write",
+      { timeout: 60_000 },
+      () => {
+        mkdirSync(join(repo, "vendor", "rules"), { recursive: true });
+        writePhaxJson({ protectedPaths: ["vendor/rules"] });
+        const result = runCli(args);
+        expect(result.status).toBe(2);
+        expect(output(result)).toContain(
+          'protectedPaths[0]: "vendor/rules" is a directory; protect its files with "vendor/rules/**"',
+        );
+      },
+    );
+
+    it(
       "exits 2 for protectedPaths in phax.local.json, naming the overlay file",
       { timeout: 60_000 },
       () => {

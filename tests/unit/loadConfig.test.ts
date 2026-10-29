@@ -1,10 +1,11 @@
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
+import { isolateGit } from "../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import {
@@ -634,6 +635,46 @@ describe("loadConfig protectedPaths", () => {
       'protectedPaths[1]: "vendor/lint-rules/**" is inside the submodule vendor/lint-rules',
     );
     expect(error.path).toBe(join(repoDir, "phax.json"));
+  });
+
+  it("refuses a literal entry naming a directory on disk", () => {
+    mkdirSync(join(repoDir, "vendor", "rules"), { recursive: true });
+    writePhaxJson({ ...baseConfig, protectedPaths: ["**/steme.baseline.json", "vendor/rules"] });
+    const error = loadFailure(repoDir);
+    expect(error.message).toBe(
+      'protectedPaths[1]: "vendor/rules" is a directory; protect its files with "vendor/rules/**"',
+    );
+    expect(error.path).toBe(join(repoDir, "phax.json"));
+  });
+
+  it("refuses a literal entry naming a directory in HEAD, absent from disk", () => {
+    const restoreGit = isolateGit();
+    try {
+      mkdirSync(join(repoDir, "vendor", "rules"), { recursive: true });
+      writeFileSync(join(repoDir, "vendor", "rules", "a.json"), "{}\n");
+      const git = (...args: string[]): void => {
+        execFileSync("git", args, { cwd: repoDir, stdio: "ignore" });
+      };
+      git("add", "-A");
+      git("-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-qm", "rules");
+      rmSync(join(repoDir, "vendor"), { recursive: true, force: true });
+      writePhaxJson({ ...baseConfig, protectedPaths: ["vendor/rules"] });
+      expect(loadFailure(repoDir).message).toBe(
+        'protectedPaths[0]: "vendor/rules" is a directory; protect its files with "vendor/rules/**"',
+      );
+    } finally {
+      restoreGit();
+    }
+  });
+
+  it("accepts a literal file path and a glob over a directory", () => {
+    mkdirSync(join(repoDir, "vendor", "rules"), { recursive: true });
+    writeFileSync(join(repoDir, "vendor", "rules", "a.json"), "{}\n");
+    writePhaxJson({
+      ...baseConfig,
+      protectedPaths: ["vendor/rules/a.json", "vendor/rules/**", "vendor/rule?", "absent/dir"],
+    });
+    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
   });
 
   it("accepts globs outside every submodule", () => {
