@@ -7,11 +7,24 @@ const LABEL = "codex";
 
 const NO_ANSWER_MESSAGE = "codex ended its turn with no answer message: no answer was found";
 
+const noAnswer = (sessionId: string | null): SessionOutcome => ({
+  kind: "failure",
+  failure: {
+    provider: PROVIDER,
+    kind: "provider-error",
+    message: NO_ANSWER_MESSAGE,
+    sessionId,
+    resetAt: null,
+  },
+});
+
 /**
  * Reads an ended Codex session: `turn.failed` or `turn.completed` decides,
- * whatever the exit code; with neither, the process's end, the last `error`
- * event and stderr (see outcome.ts). Items other than the agent message
- * (command output, say) are never read.
+ * whatever the exit code; a completed turn whose agent messages are all blank
+ * has no answer. With neither, a stream that exited 0 has no answer either
+ * (§5.11); otherwise the process's end, the last `error` event and stderr
+ * (see outcome.ts). Items other than the agent message (command output, say)
+ * are never read.
  */
 export function readCodexOutcome(ended: EndedSession): SessionOutcome {
   const events = scanCodexOutcomeEvents(ended.lines);
@@ -25,17 +38,9 @@ export function readCodexOutcome(ended: EndedSession): SessionOutcome {
     if (events.agentMessage !== undefined) {
       return { kind: "answer", provider: PROVIDER, text: events.agentMessage, sessionId };
     }
-    return {
-      kind: "failure",
-      failure: {
-        provider: PROVIDER,
-        kind: "provider-error",
-        message: NO_ANSWER_MESSAGE,
-        sessionId,
-        resetAt: null,
-      },
-    };
+    return noAnswer(sessionId);
   }
+  if (ended.end.kind === "exited" && ended.end.code === 0) return noAnswer(sessionId);
   return {
     kind: "failure",
     failure: failureWithoutVerdict(PROVIDER, LABEL, ended, sessionId, events.errorMessage),

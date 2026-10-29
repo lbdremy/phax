@@ -540,6 +540,67 @@ describe("readCodexOutcome", () => {
     expect(failure.message).toContain("no answer");
   });
 
+  it("reads a completed turn whose agent message is blank as a provider-error with no answer", () => {
+    const failure = failureOf(
+      readCodexOutcome(
+        ended(
+          [
+            codexThread,
+            codexTurnStarted,
+            { type: "item.completed", item: { id: "item_0", type: "agent_message", text: " \n " } },
+            { type: "turn.completed", usage: { input_tokens: 900, output_tokens: 2 } },
+          ],
+          exited(0),
+        ),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "provider-error", sessionId: CODEX_THREAD });
+    expect(failure.message).toContain("no answer was found");
+  });
+
+  it("reads a stream that exits 0 with no turn end as a provider-error with no answer", () => {
+    const failure = failureOf(
+      readCodexOutcome(
+        ended(
+          [
+            codexThread,
+            codexTurnStarted,
+            { type: "item.completed", item: { id: "item_0", type: "agent_message", text: "half" } },
+          ],
+          exited(0),
+        ),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "provider-error", sessionId: CODEX_THREAD });
+    expect(failure.message).toContain("no answer was found");
+  });
+
+  it("reads a session interrupted while waiting for the network as network", () => {
+    const failure = failureOf(
+      readCodexOutcome(
+        ended(
+          [
+            codexThread,
+            codexTurnStarted,
+            {
+              type: "error",
+              message:
+                "Reconnecting... 5/5 (stream disconnected before completion: Connection refused (os error 61))",
+            },
+            {
+              type: "error",
+              message:
+                "Reconnecting... waiting for network (Connection failed: error sending request)",
+            },
+          ],
+          { kind: "exited", code: 130 },
+        ),
+      ),
+    );
+    expect(failure).toMatchObject({ kind: "network", sessionId: CODEX_THREAD });
+    expect(failure.message).toContain("waiting for network");
+  });
+
   it("reads an unsupported model in turn.failed as a provider-error with its own text", () => {
     const message = "unexpected status 400 Bad Request: model not supported";
     const failure = failureOf(
