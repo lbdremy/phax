@@ -286,6 +286,13 @@ export default definePageMap({
         "Spec Kit vs. phax, side by side: a methodology and prompt layer that runs your agent step by step, against a harness of gated, reviewable phases.",
     },
     {
+      route: "/compare/agentic-practices",
+      title: "phax and agentic practice",
+      source: "docs/comparisons/agentic-practices.md",
+      description:
+        "Where phax stands against the agentic engineering practices the literature names: what it covers, what it covers in part, and what it does not do yet.",
+    },
+    {
       route: "/blog/announcing-phax-1-0",
       title: "Announcing phax 1.0",
       source: "docs/blog/announcing-phax-1.0.md",
