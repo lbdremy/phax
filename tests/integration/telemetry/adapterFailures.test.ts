@@ -108,6 +108,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
           runPath,
           // No step declares an input, so the request is never read.
           gateRequest: "{}",
+          protectedPaths: null,
         }).pipe(Effect.provide(layer)),
       ),
     );

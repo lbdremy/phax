@@ -103,8 +103,10 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     ...base,
     type: "GateFailed",
     phase: phaseId,
+    failedStep: "configured",
     command: "pnpm test",
     exitCode: 1,
+    protectedChanges: [],
     logPath: "/tmp/gate.log",
     attempt: 0,
   },
@@ -120,6 +122,8 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     sessionId,
     command: "pnpm test",
     failedStep: "configured",
+    protectedChanges: [],
+    lastFixTranscript: null,
   },
   GateStepRefused: {
     ...base,
@@ -132,6 +136,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     reason: "the checks need hw-rules 2, and 1 is installed",
     remedy: "pnpm add -D hw-rules@2",
     failedStep: "configured",
+    protectedChanges: [],
   },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
@@ -582,6 +587,41 @@ describe("interpret — phase lifecycle within running", () => {
       expect(persistEffect.patch.run?.stoppedReason).toBe("gates_exhausted");
       expect(persistEffect.patch.run?.lastError).toBe("Gate failed: pnpm test");
     }
+  });
+
+  it("a protected-paths FixAttemptsExhausted names the paths in lastError and carries them to the resume instructions", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "gates_failed", attempt: 3 },
+    };
+    const changes = [
+      { path: "a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]", glob: "**/x" },
+      { path: "phax.json", kind: "deleted", entry: "phax.json", glob: "phax.json" },
+    ] as const;
+    const exhausted = {
+      ...sampleEvents.FixAttemptsExhausted,
+      failedStep: "protected-paths" as const,
+      protectedChanges: changes,
+      lastFixTranscript: "/runs/x/phase-01/fix-attempt-02.jsonl",
+    };
+    const { command: _command, ...withoutCommand } = exhausted as typeof exhausted & {
+      command?: string;
+    };
+    const d = interpret(state, withoutCommand);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const persist = d.effects.find((e) => e.type === "PersistState");
+    if (persist?.type !== "PersistState") throw new Error("no PersistState");
+    expect(persist.patch.run?.lastError).toBe(
+      "Gate failed: protected paths changed (a/steme.baseline.json, phax.json)",
+    );
+    const resume = d.effects.find((e) => e.type === "WriteResumeInstructions");
+    if (resume?.type !== "WriteResumeInstructions") throw new Error("no WriteResumeInstructions");
+    expect(resume.ctx).toMatchObject({
+      failedStep: "protected-paths",
+      protectedChanges: changes,
+      lastFixTranscript: "/runs/x/phase-01/fix-attempt-02.jsonl",
+    });
   });
 
   it("FixAttemptsExhausted emits WriteResumeInstructions with kind=gates_exhausted", () => {

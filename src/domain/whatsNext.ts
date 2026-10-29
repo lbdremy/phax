@@ -1,3 +1,5 @@
+import { describeProtectedChange, type ProtectedChange } from "./security/protectedPaths.js";
+
 export interface NextStep {
   readonly title: string;
   readonly detail?: readonly string[];
@@ -39,7 +41,11 @@ export type WhatsNextScenario =
       readonly kind: "gates_exhausted";
       readonly shortName: string;
       readonly phaseId?: string | undefined;
-      readonly failedStep: "configured" | "oracle";
+      readonly failedStep: "configured" | "oracle" | "protected-paths";
+      /** The protected paths still changed, possibly none. */
+      readonly protectedChanges: readonly ProtectedChange[];
+      /** The phase's last fix transcript, or null when no fix was made. */
+      readonly lastFixTranscript: string | null;
     }
   | {
       readonly kind: "gate_refused";
@@ -49,6 +55,8 @@ export type WhatsNextScenario =
       readonly command: string;
       readonly reason: string;
       readonly remedy: string;
+      /** The protected paths the same attempt found changed, possibly none. */
+      readonly protectedChanges: readonly ProtectedChange[];
     }
   | {
       readonly kind: "phase_no_changes";
@@ -103,6 +111,38 @@ function oracleCorrectionSteps(shortName: string, phaseArg: string): NextStep[] 
       title:
         "Then resume without the oracle step — the configured gate still runs, with the usual fix loop",
       command: `phax resume ${shortName} --yes --skip-oracle`,
+    },
+  ];
+}
+
+/**
+ * Each protected path still changed with its kind, and why it cannot stay:
+ * no phase of the run may change it. Indented under a headline.
+ */
+function protectedHeadlineLines(changes: readonly ProtectedChange[]): string[] {
+  return [
+    ...changes.map((change) => `  - ${describeProtectedChange(change)}`),
+    "  No phase of this run may change these paths: they are the operator's decision.",
+  ];
+}
+
+/**
+ * The two ways on from a protected change, never a phase reset: put each file
+ * back to its content at the phase base and resume, or make the change on the
+ * base branch and start a new run.
+ */
+function protectedWaysOn(shortName: string, phaseArg: string): NextStep[] {
+  return [
+    {
+      title: "Put each protected file back to its content at the phase base",
+      command: `phax enter-phase ${shortName} ${phaseArg}`,
+    },
+    {
+      title: "Then resume — the gate is re-run first; if it passes the phase commits",
+      command: `phax resume ${shortName} --yes`,
+    },
+    {
+      title: "Or, if the change is wanted, make it on the base branch yourself and start a new run",
     },
   ];
 }
@@ -163,6 +203,20 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
     }
     case "gates_exhausted": {
       const phaseArg = scenario.phaseId ?? "<phase-id>";
+      if (scenario.protectedChanges.length > 0) {
+        return {
+          headline: [
+            scenario.failedStep === "protected-paths"
+              ? "Gates failed after all fix attempts: protected paths changed."
+              : "Gates failed after all fix attempts, and protected paths changed.",
+            ...protectedHeadlineLines(scenario.protectedChanges),
+            scenario.lastFixTranscript === null
+              ? "  No fix attempt was made."
+              : `  Last fix transcript: ${scenario.lastFixTranscript}`,
+          ].join("\n"),
+          steps: protectedWaysOn(scenario.shortName, phaseArg),
+        };
+      }
       if (scenario.failedStep === "oracle") {
         return {
           headline: "The oracle step failed after all fix attempts.",
@@ -199,17 +253,36 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           `${scenario.phaseId} gate: \`${scenario.command}\` refused to run: ${scenario.reason}`,
           `  remedy: ${scenario.remedy}`,
           `  No fix attempt was made. Fix the cause, then: phax resume ${scenario.shortName} --yes`,
+          ...(scenario.protectedChanges.length === 0
+            ? []
+            : [
+                "  Protected paths also changed in the same attempt:",
+                ...protectedHeadlineLines(scenario.protectedChanges),
+              ]),
         ].join("\n"),
         steps: [
           {
             title: "Apply the remedy in the phase worktree",
-            detail: [scenario.remedy],
+            detail: [
+              scenario.remedy,
+              ...(scenario.protectedChanges.length === 0
+                ? []
+                : ["Put each protected file back to its content at the phase base."]),
+            ],
             command: `phax enter-phase ${scenario.shortName} ${scenario.phaseId}`,
           },
           {
             title: "Resume — the gate is re-run first, with the full fix budget",
             command: `phax resume ${scenario.shortName} --yes`,
           },
+          ...(scenario.protectedChanges.length === 0
+            ? []
+            : [
+                {
+                  title:
+                    "Or, if the protected change is wanted, make it on the base branch yourself and start a new run",
+                },
+              ]),
           ...(scenario.failedStep === "oracle"
             ? oracleCorrectionSteps(scenario.shortName, scenario.phaseId)
             : []),

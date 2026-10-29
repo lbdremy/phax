@@ -2314,7 +2314,15 @@ export function executePlan(
           phase.id,
           skipOracle && i === startIndex,
         );
+        // The protected list is checked against the base status.json notes,
+        // never re-derived from git; a project that declares none checks nothing.
+        const protectedBase =
+          config.protectedPaths === undefined ? null : yield* readPhaseBase(phaseFolderPath);
         const gateOutcome = yield* runGatesWithFixLoop({
+          protectedPaths:
+            config.protectedPaths === undefined || protectedBase === null
+              ? null
+              : { list: config.protectedPaths, base: protectedBase },
           steps: phaseSteps,
           cwd: worktreePath as string,
           phaseFolderPath,

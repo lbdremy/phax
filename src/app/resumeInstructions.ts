@@ -2,6 +2,10 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { type KeepAwakePlatform, type NextStep, buildWhatsNext } from "../domain/whatsNext.js";
 import type { GateRefusal } from "../domain/effects.js";
+import {
+  describeProtectedChange,
+  type ProtectedChange,
+} from "../domain/security/protectedPaths.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 
 export interface ResumeInstructionsInput {
@@ -25,7 +29,11 @@ export interface ResumeInstructionsInput {
   /** The refused step, its reason and its remedy (kind `gate_refused`). */
   readonly refusal?: GateRefusal | undefined;
   /** Which step stopped the phase (kinds `gates_exhausted` and `gate_refused`). */
-  readonly failedStep?: "configured" | "oracle" | undefined;
+  readonly failedStep?: "configured" | "oracle" | "protected-paths" | undefined;
+  /** The protected paths still changed (kinds `gates_exhausted` and `gate_refused`). */
+  readonly protectedChanges?: readonly ProtectedChange[] | undefined;
+  /** The phase's last fix transcript, or null when none was made (kind `gates_exhausted`). */
+  readonly lastFixTranscript?: string | null | undefined;
   /** Current wall time — injected so the builder stays pure/testable. */
   readonly now: Date;
   /** Host platform — injected so the builder stays pure/testable. */
@@ -53,25 +61,65 @@ function stepsToMarkdown(steps: readonly NextStep[]): string[] {
   return lines;
 }
 
+/**
+ * Each protected path still changed with its kind, why it cannot stay, and
+ * (when asked) where the last fix transcript is. Empty when none changed.
+ */
+function protectedPathsSection(
+  changes: readonly ProtectedChange[],
+  lastFixTranscript?: string | null,
+): string[] {
+  if (changes.length === 0) return [];
+  return [
+    "## Protected paths changed",
+    "",
+    ...changes.map((change) => `- ${describeProtectedChange(change)}`),
+    "",
+    "No phase of this run may change these paths: they are the operator's decision.",
+    ...(lastFixTranscript === undefined
+      ? []
+      : [
+          lastFixTranscript === null
+            ? "No fix attempt was made."
+            : `The last fix attempt's transcript: ${lastFixTranscript}`,
+        ]),
+    "",
+  ];
+}
+
 function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const failedStep = input.failedStep ?? "configured";
+  const protectedChanges = input.protectedChanges ?? [];
+  const lastFixTranscript = input.lastFixTranscript ?? null;
   const wn = buildWhatsNext(
-    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId, failedStep },
+    {
+      kind: "gates_exhausted",
+      shortName: input.shortName,
+      phaseId: input.phaseId,
+      failedStep,
+      protectedChanges,
+      lastFixTranscript,
+    },
     input.now,
   );
 
   const opening =
-    failedStep === "oracle"
+    failedStep === "protected-paths"
       ? [
-          "This run paused because the oracle step failed after exhausting all fix attempts.",
-          OracleSkipSentence,
+          "This run paused because its gate attempts changed protected paths, and the fix",
+          "attempts did not put them back. Every gate step passed.",
         ]
-      : [
-          "This run paused because its gate checks failed after exhausting all fix attempts.",
-          "Fix the gate manually in the worktree, then resume — the gate is re-run first on",
-          "resume, and if it passes the phase commits with no fresh agent invocation.",
-        ];
+      : failedStep === "oracle"
+        ? [
+            "This run paused because the oracle step failed after exhausting all fix attempts.",
+            OracleSkipSentence,
+          ]
+        : [
+            "This run paused because its gate checks failed after exhausting all fix attempts.",
+            "Fix the gate manually in the worktree, then resume — the gate is re-run first on",
+            "resume, and if it passes the phase commits with no fresh agent invocation.",
+          ];
 
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
@@ -85,6 +133,7 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
+    ...protectedPathsSection(protectedChanges, lastFixTranscript),
     ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");
@@ -97,9 +146,18 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     reason: "(not recorded)",
     remedy: "(not recorded)",
   };
-  const failedStep = input.failedStep ?? "configured";
+  // A refusal is a step's: it is never the protected-paths check.
+  const failedStep = input.failedStep === "oracle" ? "oracle" : "configured";
+  const protectedChanges = input.protectedChanges ?? [];
   const wn = buildWhatsNext(
-    { kind: "gate_refused", shortName: input.shortName, phaseId, failedStep, ...refusal },
+    {
+      kind: "gate_refused",
+      shortName: input.shortName,
+      phaseId,
+      failedStep,
+      protectedChanges,
+      ...refusal,
+    },
     input.now,
   );
 
@@ -129,6 +187,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
+    ...protectedPathsSection(protectedChanges),
     ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");
@@ -215,6 +274,8 @@ function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
       shortName: input.shortName,
       phaseId: input.phaseId,
       failedStep: "configured",
+      protectedChanges: [],
+      lastFixTranscript: null,
     },
     input.now,
   );
@@ -246,6 +307,8 @@ function buildCleanupFailedInstructions(input: ResumeInstructionsInput): string 
       shortName: input.shortName,
       phaseId: input.phaseId,
       failedStep: "configured",
+      protectedChanges: [],
+      lastFixTranscript: null,
     },
     input.now,
   );
@@ -328,6 +391,8 @@ function buildArtifactCompletionFailedInstructions(input: ResumeInstructionsInpu
       shortName: input.shortName,
       phaseId: input.phaseId,
       failedStep: "configured",
+      protectedChanges: [],
+      lastFixTranscript: null,
     },
     input.now,
   );

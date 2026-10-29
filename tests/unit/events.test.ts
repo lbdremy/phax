@@ -102,8 +102,10 @@ const samples = {
     ...base,
     type: "GateFailed",
     phase: phaseId,
+    failedStep: "configured",
     command: "pnpm test",
     exitCode: 1,
+    protectedChanges: [],
     logPath: "/tmp/gate.log",
     attempt: 0,
   },
@@ -119,6 +121,8 @@ const samples = {
     sessionId,
     command: "pnpm test",
     failedStep: "configured",
+    protectedChanges: [],
+    lastFixTranscript: null,
   },
   GateStepRefused: {
     ...base,
@@ -132,6 +136,7 @@ const samples = {
     failedStep: "configured",
     reason: "the checks need hw-rules 2, and 1 is installed",
     remedy: "pnpm add -D hw-rules@2",
+    protectedChanges: [],
   },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
@@ -290,7 +295,9 @@ function visit(event: PhaxEvent): string {
     case "GatePassed":
       return `${event.type}:${event.attempt}`;
     case "GateFailed":
-      return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}`;
+      return event.failedStep === "protected-paths"
+        ? `${event.type}:${event.failedStep}:${event.attempt}`
+        : `${event.type}:${event.command}:${event.exitCode}:${event.attempt}`;
     case "GateStepRefused":
       return `${event.type}:${event.command}:${event.remedy}`;
     case "HandoffMissing":

@@ -15,7 +15,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
-import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import type { BranchName, ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
@@ -104,6 +104,7 @@ const baseOpts = {
   phaseId: "phase-01",
   runPath,
   gateRequest,
+  protectedPaths: null,
 };
 
 /** The spec's made-up node:fs finding in src/greet.ts, at the given line. */
@@ -280,6 +281,147 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
   });
 
+  describe("with a protected list", () => {
+    const list = [{ glob: "**/steme.baseline.json", entry: "protectedPaths[0]" }];
+    /** A base commit holding the protected file, as the phase's status.json would note it. */
+    function seedBase(fakeGit: ReturnType<typeof makeLayers>["fakeGit"]): Promise<string> {
+      return Effect.runPromise(
+        fakeGit.impl.writeTreeCommit({
+          repo: cwd,
+          branch: "base" as BranchName,
+          message: "base",
+          files: [
+            {
+              path: "packages/a/steme.baseline.json",
+              content: new TextEncoder().encode("{}\n"),
+            },
+          ],
+        }),
+      );
+    }
+    const changed = {
+      entries: [{ status: "modified", path: "packages/a/steme.baseline.json" }],
+      tracked: [],
+      untracked: [],
+    } as const;
+
+    it("fails a green attempt for the check alone, with no error report, and records the result", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTelemetry } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeGit.impl.setObservation(cwd, changed);
+      const base = await seedBase(fakeGit);
+
+      const result = await Effect.runPromise(
+        Effect.either(
+          runGatesWithFixLoop({ ...baseOpts, protectedPaths: { list, base } }).pipe(
+            Effect.provide(layer),
+          ),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        const err = result.left as GateAttemptsExhaustedError;
+        expect(err.failure.failedStep).toBe("protected-paths");
+        expect(err.failure.protectedChanges).toEqual([
+          {
+            path: "packages/a/steme.baseline.json",
+            kind: "edited",
+            entry: "protectedPaths[0]",
+            glob: "**/steme.baseline.json",
+          },
+        ]);
+        expect(err.lastFixTranscript).toBeNull();
+      }
+      // The check ran after each of the two attempts, against the phase base.
+      const observed = fakeGit.impl.calls.filter((call) => call.method === "observeWorktree");
+      expect(observed).toHaveLength(2);
+      expect(observed[0]).toMatchObject({ path: cwd, base });
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+      expect(fakeBackend.impl.resumeCalls[0]!.prompt).toContain("**Failed step:** protected paths");
+
+      const rejected = fakeTelemetry.impl
+        .events()
+        .filter((e) => e.type === "gate.evaluated" && e.result === "rejected");
+      expect(rejected).toHaveLength(2);
+      expect(rejected[0]).toMatchObject({ reason: "protected paths: 1 changed" });
+      expect(fakeTelemetry.impl.errors()).toEqual([]);
+
+      const record = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`)!);
+      expect(record.protectedPaths).toEqual({
+        result: "fail",
+        changes: [
+          { path: "packages/a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]" },
+        ],
+      });
+      expect(
+        JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.attribution.json`)!),
+      ).toEqual(record);
+    });
+
+    it("keeps a failed step's own kind and carries the change too", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTelemetry } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "red" });
+      fakeBackend.impl.addResumeResponse(makeResumeResult());
+      fakeGit.impl.setObservation(cwd, changed);
+      const base = await seedBase(fakeGit);
+
+      const result = await Effect.runPromise(
+        Effect.either(
+          runGatesWithFixLoop({ ...baseOpts, protectedPaths: { list, base } }).pipe(
+            Effect.provide(layer),
+          ),
+        ),
+      );
+
+      if (Either.isRight(result)) throw new Error("the gate was expected to stay red");
+      expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
+        failedStep: "configured",
+        command: "pnpm test",
+        exitCode: 1,
+        protectedChanges: [{ path: "packages/a/steme.baseline.json" }],
+      });
+      const prompt = fakeBackend.impl.resumeCalls[0]!.prompt;
+      expect(prompt).toContain("**Failed command:** `pnpm test`");
+      expect(prompt).toContain("## Protected paths changed");
+      // The step failed, so its error report is still made.
+      expect(fakeTelemetry.impl.errors().map((e) => e.operation)).toContain("gate.pnpm test");
+    });
+
+    it("passes when nothing protected changed, and records the pass", async () => {
+      const { layer, fakeFs, fakeShell, fakeBackend, fakeGit } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+      const base = await seedBase(fakeGit);
+
+      await Effect.runPromise(
+        runGatesWithFixLoop({ ...baseOpts, protectedPaths: { list, base } }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+      const record = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`)!);
+      expect(record.protectedPaths).toEqual({ result: "pass", changes: [] });
+    });
+
+    it("observes nothing when the project declares no list", async () => {
+      const { layer, fakeFs, fakeShell, fakeGit } = makeLayers();
+      seedStatusFiles(fakeFs);
+      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+      fakeGit.impl.setObservation(cwd, changed);
+
+      await Effect.runPromise(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)));
+
+      expect(fakeGit.impl.calls.filter((call) => call.method === "observeWorktree")).toEqual([]);
+      const record = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`)!);
+      expect(record.protectedPaths).toBeNull();
+    });
+  });
+
   it("calls resumeAgentSession on gate failure and dispatches the fix-loop event sequence", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend, fakeTelemetry } = makeLayers();
 
@@ -336,9 +478,13 @@ describe("runGatesWithFixLoop", () => {
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
       const err = result.left as GateAttemptsExhaustedError;
-      expect(err.command).toBe("pnpm test");
+      expect(err.failure).toEqual({
+        failedStep: "configured",
+        command: "pnpm test",
+        exitCode: 1,
+        protectedChanges: [],
+      });
       expect(err.attempt).toBe(2);
-      expect(err.failedStep).toBe("configured");
     }
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
@@ -1146,8 +1292,10 @@ describe("runGatesWithFixLoop", () => {
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
         expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-        expect((result.left as GateAttemptsExhaustedError).command).toBe("./oracles");
-        expect((result.left as GateAttemptsExhaustedError).failedStep).toBe("oracle");
+        expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
+          failedStep: "oracle",
+          command: "./oracles",
+        });
       }
       const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
         state: string;

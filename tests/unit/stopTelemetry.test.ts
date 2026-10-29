@@ -180,6 +180,7 @@ describe("tracedCloseGate", () => {
       remedy: "made-up remedy",
       phaseId: "phase-03",
       failedStep: "configured",
+      protectedChanges: [],
     });
     const { events, errors } = traced(tracedCloseGate(ctx, Effect.fail(refusal)));
     expect(events.at(-1)).toMatchObject({ result: "rejected", reason: "refused: pnpm lint" });

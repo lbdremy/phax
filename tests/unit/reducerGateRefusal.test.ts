@@ -28,6 +28,7 @@ const refused: GateStepRefused = {
   reason: "the checks need hw-rules 2, and 1 is installed",
   remedy: "pnpm add -D hw-rules@2",
   failedStep: "configured",
+  protectedChanges: [],
 };
 
 const gatesFailed: PhaxState = { run: "running", phase: { state: "gates_failed", attempt: 1 } };
@@ -67,6 +68,7 @@ describe("GateStepRefused reducer — a refusal reuses the gate-failure pause", 
       worktreePath: "/tmp/worktrees/hello-world.greet/phase-01",
       sessionId: "session-abc123",
       failedStep: "configured",
+      protectedChanges: [],
       refusal: {
         command: "node ./audit.mjs",
         reason: "the checks need hw-rules 2, and 1 is installed",

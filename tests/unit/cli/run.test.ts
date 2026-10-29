@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import {
   ConfigValidationError,
+  GateAttemptsExhaustedError,
   GateStepRefusedError,
   ModelPreflightError,
   RecordsSyncRequiredError,
@@ -565,6 +566,7 @@ describe("runRun — a refused gate report", () => {
     logPath: "/fake-state/runs/acme.fixbug/phase-01/checks-attempt-01.log",
     phaseId: "phase-01",
     failedStep: "configured",
+    protectedChanges: [],
   });
 
   it("maps to exit 4", async () => {
@@ -594,6 +596,79 @@ describe("runRun — a refused gate report", () => {
     expect(warned).toContain("remedy: pnpm add -D hw-rules@2");
     expect(warned).toContain("No fix attempt was made. Fix the cause, then: phax resume fixbug");
     expect(warned).toContain("resume-instructions.md");
+  });
+});
+
+describe("runRun — protected paths changed at the gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const change = {
+    path: "packages/a/steme.baseline.json",
+    kind: "edited",
+    entry: "protectedPaths[0]",
+    glob: "**/steme.baseline.json",
+  } as const;
+
+  async function runWith(error: unknown): Promise<string> {
+    await setupSuccessRun();
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.fail(error as never));
+    const layers = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
+    layers.exitCodeForError.mockReturnValueOnce(4);
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, warnings } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(4);
+    return warnings.join("\n");
+  }
+
+  it("names each path, the last fix transcript and the two ways on when the loop is exhausted", async () => {
+    const warned = await runWith(
+      new GateAttemptsExhaustedError({
+        message:
+          "Gate attempts exhausted: protected paths changed (packages/a/steme.baseline.json)",
+        logPath: "/fake-state/runs/acme.fixbug/phase-01/checks-attempt-03.log",
+        attempt: 3,
+        phaseId: "phase-01",
+        failure: { failedStep: "protected-paths", protectedChanges: [change] },
+        lastFixTranscript: "/fake-state/runs/acme.fixbug/phase-01/fix-attempt-02.jsonl",
+      }),
+    );
+
+    expect(warned).toContain(
+      "packages/a/steme.baseline.json — edited (protectedPaths[0] **/steme.baseline.json)",
+    );
+    expect(warned).toContain("No phase of this run may change these paths");
+    expect(warned).toContain("fix-attempt-02.jsonl");
+    expect(warned).toContain("phax resume fixbug --yes");
+    expect(warned).toContain("start a new run");
+    expect(warned).not.toContain("reset-phase");
+    expect(warned).toContain("resume-instructions.md");
+  });
+
+  it("names both the refused step and the paths when a refusal found a change", async () => {
+    const warned = await runWith(
+      new GateStepRefusedError({
+        message: "Gate step refused",
+        command: "node ./audit.mjs",
+        reason: "the checks need hw-rules 2, and 1 is installed",
+        remedy: "pnpm add -D hw-rules@2",
+        exitCode: 0,
+        logPath: "/fake-state/runs/acme.fixbug/phase-01/checks-attempt-01.log",
+        phaseId: "phase-01",
+        failedStep: "configured",
+        protectedChanges: [change],
+      }),
+    );
+
+    expect(warned).toContain("`node ./audit.mjs` refused to run");
+    expect(warned).toContain("packages/a/steme.baseline.json — edited");
+    expect(warned).toContain("No phase of this run may change these paths");
+    expect(warned).not.toContain("reset-phase");
   });
 });
 

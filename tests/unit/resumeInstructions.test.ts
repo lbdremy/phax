@@ -134,6 +134,85 @@ describe("buildResumeInstructions — oracle step stops", () => {
   });
 });
 
+describe("buildResumeInstructions — protected paths", () => {
+  const baseline = {
+    path: "packages/a/steme.baseline.json",
+    kind: "edited",
+    entry: "protectedPaths[0]",
+    glob: "**/steme.baseline.json",
+  } as const;
+  const exhausted: ResumeInstructionsInput = {
+    ...BASE,
+    kind: "gates_exhausted",
+    reason: "Gate checks failed",
+    phaseId: "phase-02",
+    failedStep: "protected-paths",
+    protectedChanges: [baseline],
+    lastFixTranscript: "/runs/my-run/phase-02/fix-attempt-03.jsonl",
+  };
+
+  it("names each path with its kind, says no phase may change it and points to the last fix transcript", () => {
+    const md = buildResumeInstructions(exhausted);
+    expect(md).toContain(
+      "- packages/a/steme.baseline.json — edited (protectedPaths[0] **/steme.baseline.json)",
+    );
+    expect(md).toContain("No phase of this run may change these paths");
+    expect(md).toContain("/runs/my-run/phase-02/fix-attempt-03.jsonl");
+  });
+
+  it("gives the two ways on and never offers a phase reset", () => {
+    const md = buildResumeInstructions(exhausted);
+    expect(md).toContain("phax resume my-run --yes");
+    expect(md).toContain("make it on the base branch yourself and start a new run");
+    expect(md).not.toContain("reset-phase");
+  });
+
+  it("says when no fix attempt was made", () => {
+    const md = buildResumeInstructions({ ...exhausted, lastFixTranscript: null });
+    expect(md).toContain("No fix attempt was made.");
+  });
+
+  it("lists the paths of a failed step too, keeping the step's own opening", () => {
+    const md = buildResumeInstructions({ ...exhausted, failedStep: "configured" });
+    expect(md).toContain("its gate checks failed after exhausting all fix attempts");
+    expect(md).toContain("## Protected paths changed");
+  });
+
+  it("lists both the refused step and the protected paths for a refusal", () => {
+    const md = buildResumeInstructions({
+      ...BASE,
+      shortName: "my-run",
+      kind: "gate_refused",
+      reason: "Gate step refused",
+      phaseId: "phase-02",
+      failedStep: "configured",
+      refusal: {
+        command: "node ./audit.mjs",
+        reason: "needs hw-rules 2",
+        remedy: "pnpm add hw-rules@2",
+      },
+      protectedChanges: [baseline],
+    });
+    expect(md).toContain("the gate step `node ./audit.mjs` refused to run");
+    expect(md).toContain("packages/a/steme.baseline.json — edited");
+    expect(md).toContain("No phase of this run may change these paths");
+    expect(md).not.toContain("reset-phase");
+  });
+
+  it("is today's instructions with no change", () => {
+    const md = buildResumeInstructions({
+      ...BASE,
+      kind: "gates_exhausted",
+      phaseId: "phase-02",
+      failedStep: "configured",
+      protectedChanges: [],
+      lastFixTranscript: null,
+    });
+    expect(md).not.toContain("Protected paths");
+    expect(md).toContain("phax reset-phase my-run phase-02");
+  });
+});
+
 describe("buildResumeInstructions — gate_refused variant", () => {
   const refusedBase: ResumeInstructionsInput = {
     ...BASE,

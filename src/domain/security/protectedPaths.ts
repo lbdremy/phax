@@ -59,6 +59,16 @@ export interface ProtectedChange {
   readonly glob: string;
 }
 
+/** One change as the operator and the agent read it: `<path> — <kind> (<entry> <glob>)`.
+ *  The implied phax.json entry, whose glob is its entry, shows once. */
+export function describeProtectedChange(change: ProtectedChange): string {
+  const names = change.entry === change.glob ? change.entry : `${change.entry} ${change.glob}`;
+  return `${change.path} — ${change.kind} (${names})`;
+}
+
+/** At least one protected change: what a `protected-paths` failure names. */
+export type NonEmptyProtectedChanges = readonly [ProtectedChange, ...ProtectedChange[]];
+
 export type ObservedEntry =
   | { readonly status: "added" | "modified" | "deleted" | "type-changed"; readonly path: string }
   | { readonly status: "renamed"; readonly path: string; readonly oldPath: string };

@@ -83,3 +83,14 @@ export function stepRecordPathFor(attemptLogPath: string): string {
     : attemptLogPath;
   return `${base}.attribution.json`;
 }
+
+/** The name of the highest-numbered fix transcript, or undefined when no fix was made. */
+export function lastFixTranscriptName(names: readonly string[]): string | undefined {
+  return names
+    .flatMap((name) => {
+      const match = FIX_TRANSCRIPT.exec(name);
+      return match?.[1] === undefined ? [] : [{ name, attempt: Number(match[1]) }];
+    })
+    .toSorted((a, b) => a.attempt - b.attempt)
+    .at(-1)?.name;
+}

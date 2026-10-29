@@ -292,6 +292,8 @@ export function run(
           rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
           refusal: cmd.ctx.refusal,
           failedStep: cmd.ctx.failedStep,
+          protectedChanges: cmd.ctx.protectedChanges,
+          lastFixTranscript: cmd.ctx.lastFixTranscript,
           now: new Date(),
           platform,
         });

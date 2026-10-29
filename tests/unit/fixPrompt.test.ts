@@ -11,6 +11,7 @@ const baseInput = {
   reportFindings: null,
   stillFailing: new Set<string>(),
   failedStep: "configured" as const,
+  protectedChanges: [],
 };
 
 // The spec's made-up checked example: two findings, the first with a related
@@ -227,6 +228,77 @@ describe("buildFixPrompt — still failing", () => {
   it("marks nothing in the raw-log prompt", () => {
     const prompt = buildFixPrompt({ ...baseInput, stillFailing: new Set([greetFinding.id]) });
     expect(prompt).not.toContain("still failing");
+  });
+});
+
+describe("buildFixPrompt — protected paths", () => {
+  const edited = {
+    path: "packages/a/steme.baseline.json",
+    kind: "edited",
+    entry: "protectedPaths[0]",
+    glob: "**/steme.baseline.json",
+  } as const;
+  const implied = {
+    path: "phax.json",
+    kind: "deleted",
+    entry: "phax.json",
+    glob: "phax.json",
+  } as const;
+
+  it("names each change, says it is the operator's decision and asks for it back at the phase base", () => {
+    const prompt = buildFixPrompt({
+      attempt: 3,
+      failedStep: "protected-paths",
+      protectedChanges: [edited, implied],
+    });
+
+    expect(headings(prompt)).toEqual([
+      "# Gate checks failed — fix required",
+      "## Protected paths changed",
+      "## Required action",
+    ]);
+    expect(prompt).toContain("Gate run (attempt 3) failed.");
+    expect(prompt).toContain("**Failed step:** protected paths");
+    expect(prompt).toContain(
+      "- packages/a/steme.baseline.json — edited (protectedPaths[0] **/steme.baseline.json)",
+    );
+    expect(prompt).toContain("- phax.json — deleted (phax.json)");
+    expect(prompt).toContain("are the operator's decision");
+    expect(prompt).toContain("back to its content at the phase base");
+    expect(prompt).toContain("fix the hole in the code, or leave the gate failing");
+    expect(prompt).toContain("If your tools cannot put a path back, say so.");
+    expect(prompt).not.toContain("**Failed command:**");
+  });
+
+  it("keeps a failed step's prompt and inserts the section before Required action", () => {
+    const prompt = buildFixPrompt({ ...baseInput, protectedChanges: [edited] });
+
+    expect(headings(prompt)).toEqual([
+      "# Gate checks failed — fix required",
+      "## Gate output",
+      "## Protected paths changed",
+      "## Required action",
+    ]);
+    expect(prompt).toContain("**Failed command:** `pnpm test`");
+    expect(prompt).toContain("Fix all issues revealed by the gate output above.");
+    expect(prompt).toContain("back to its content at the phase base");
+  });
+
+  it("adds the section to a report step's prompt too", () => {
+    const prompt = buildFixPrompt({ ...reportInput, protectedChanges: [edited] });
+
+    expect(headings(prompt)).toEqual([
+      "# Gate checks failed — fix required",
+      "## Findings",
+      "## Protected paths changed",
+      "## Required action",
+    ]);
+  });
+
+  it("is exactly today's prompt with no change", () => {
+    const prompt = buildFixPrompt(baseInput);
+    expect(prompt).not.toContain("Protected paths");
+    expect(prompt).not.toContain("operator's decision");
   });
 });
 

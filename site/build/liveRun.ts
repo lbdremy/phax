@@ -102,8 +102,10 @@ function runEvents(): ReadonlyArray<{
         {
           ...base(phaseId),
           type: "GateFailed",
+          failedStep: "configured",
           command: "pnpm test",
           exitCode: 1,
+          protectedChanges: [],
           logPath: "checks-attempt-01.log",
           attempt: 1,
         },
