@@ -288,9 +288,13 @@ function deleteFromWorktree(worktree: string, path: string): Effect.Effect<void,
   });
 }
 
-function snapshotWorktreeEffect(worktree: string): Effect.Effect<string, GitError> {
-  return withTempIndex("phax-snapshot-index-", (env) =>
+function snapshotWorktreeEffect(
+  worktree: string,
+  extraEnv: Record<string, string> = {},
+): Effect.Effect<string, GitError> {
+  return withTempIndex("phax-snapshot-index-", (indexEnv) =>
     Effect.gen(function* () {
+      const env = { ...indexEnv, ...extraEnv };
       // Seeded from HEAD so a tracked file matching an ignore pattern keeps
       // its entry; `add -A` then records every change. `.phax-context/` is
       // put back to HEAD's entries afterwards rather than excluded by a
@@ -405,10 +409,11 @@ function relabelDiffHeader(diff: string, label: string): string {
 function gitRunAllowFail(
   args: readonly string[],
   cwd: string,
+  opts: GitRunOptions = {},
 ): Effect.Effect<{ stdout: string; stderr: string; exitCode: number }, never> {
   return Effect.sync(() => ({ stdout: "", stderr: "", exitCode: 0 })).pipe(
     Effect.flatMap(() =>
-      gitRun(args, cwd).pipe(
+      gitRun(args, cwd, opts).pipe(
         Effect.map((r) => ({ ...r, exitCode: 0 })),
         Effect.catchAll((err) =>
           Effect.succeed({ stdout: "", stderr: err.stderr ?? "", exitCode: err.exitCode ?? 1 }),
@@ -544,8 +549,11 @@ function observeWorktreeEffect(
   isProtected: (path: string) => boolean,
 ): Effect.Effect<ProtectedObservation, GitError> {
   return Effect.gen(function* () {
-    const env: Record<string, string> = {};
-    const tree = yield* snapshotWorktreeEffect(worktree);
+    // Every git run of the observation reads the objects as stored: a replace
+    // ref (`git replace`) cannot stand a forged commit in for the base, or
+    // for HEAD, and hide an edit.
+    const env = { GIT_NO_REPLACE_OBJECTS: "1" };
+    const tree = yield* snapshotWorktreeEffect(worktree, env);
     const diffArgs = ["diff-tree", "-z", "-r", "-M", "--name-status", "--no-ext-diff", base, tree];
     const { stdout: diffOut } = yield* gitRun(diffArgs, worktree, { env });
     const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
@@ -572,10 +580,9 @@ function observeWorktreeEffect(
     const fileMode =
       atBase.length === 0
         ? true
-        : (yield* gitRunAllowFail(
-            ["config", "--type=bool", "--get", "core.filemode"],
-            worktree,
-          )).stdout.trim() !== "false";
+        : (yield* gitRunAllowFail(["config", "--type=bool", "--get", "core.filemode"], worktree, {
+            env,
+          })).stdout.trim() !== "false";
     const states = yield* compareTrackedFiles(worktree, atBase, fileMode, env);
     const tracked = atBase.map((entry, i) => ({ path: entry.path, state: states[i]! }));
 
