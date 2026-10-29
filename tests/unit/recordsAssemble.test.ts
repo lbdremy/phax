@@ -78,6 +78,15 @@ describe("assembleRecord", () => {
     expect(artifactPaths).not.toContain("output.jsonl");
   });
 
+  it("carries an archived failure's log but never its archived transcript", () => {
+    const files = [...baseInput.files, "agent-error.failed-01.log", "output.failed-01.jsonl"];
+    for (const transcriptEnabled of [true, false]) {
+      const { artifactPaths } = assembleRecord({ ...baseInput, files, transcriptEnabled });
+      expect(artifactPaths).toContain("agent-error.failed-01.log");
+      expect(artifactPaths).not.toContain("output.failed-01.jsonl");
+    }
+  });
+
   it("carries every checks-attempt-NN.log from a phase that took several fix-loop attempts", () => {
     const files = [
       "prompt.md",

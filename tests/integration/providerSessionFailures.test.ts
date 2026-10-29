@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Either } from "effect";
@@ -457,5 +457,84 @@ describe("contract: the fake backend raises what the adapters raise", () => {
     );
 
     expect(shapeOf(faked as SessionError)).toEqual(shapeOf(real));
+  });
+});
+
+// A failed session's agent-error.log and transcript, archived when the next
+// session starts in the same folder, through the real node backend.
+describe("the next session in a folder archives the previous failure", () => {
+  const networkStream = [
+    claudeInit,
+    claudeResult({
+      subtype: "success",
+      terminal_reason: "api_error",
+      api_error_status: null,
+      result: "API Error: No response from API",
+    }),
+  ];
+
+  async function runAgentWith(options: AgentRunOptions) {
+    return Effect.runPromise(
+      Backend.pipe(
+        Effect.flatMap((backend) => backend.runAgent("do the phase", options)),
+        Effect.either,
+        Effect.provide(makeNodeBackendLayer(providerConfig())),
+      ),
+    );
+  }
+
+  it("renames the log and the transcript the new session overwrites, and points the log at it", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "", stream: networkStream, exitCode: 1 });
+    await runAgentFailure("claude-code");
+    const failedStream = readFileSync(transcript, "utf8");
+    mkdirSync(join(phaseFolder, "output.vibe-export"));
+    writeFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "{}\n");
+
+    cli.setScript({ sessionId: SESSION, finalText: "done" });
+    const answered = await runAgentWith(runOptions("claude-code"));
+
+    expect(Either.isRight(answered)).toBe(true);
+    expect(existsSync(logPath)).toBe(false);
+    const archivedTranscript = join(phaseFolder, "output.failed-01.jsonl");
+    const archivedLog = readFileSync(join(phaseFolder, "agent-error.failed-01.log"), "utf8");
+    expect(archivedLog).toMatch(/^failure: network\n/);
+    expect(archivedLog).toContain(`\ntranscript: ${archivedTranscript}\n`);
+    expect(readFileSync(archivedTranscript, "utf8")).toBe(failedStream);
+    expect(readFileSync(transcript, "utf8")).toContain('"result":"done"');
+    expect(existsSync(join(phaseFolder, "output.failed-01.vibe-export", "export.json"))).toBe(true);
+    expect(existsSync(join(phaseFolder, "output.vibe-export"))).toBe(false);
+  });
+
+  it("numbers a second archived failure after the first", async () => {
+    for (let n = 0; n < 2; n++) {
+      cli.setScript({ sessionId: SESSION, finalText: "", stream: networkStream, exitCode: 1 });
+      await runAgentFailure("claude-code");
+    }
+    cli.setScript({ sessionId: SESSION, finalText: "done" });
+    await runAgentWith(runOptions("claude-code"));
+
+    expect(readFileSync(join(phaseFolder, "agent-error.failed-01.log"), "utf8")).toContain(
+      "output.failed-01.jsonl",
+    );
+    expect(readFileSync(join(phaseFolder, "agent-error.failed-02.log"), "utf8")).toContain(
+      "output.failed-02.jsonl",
+    );
+    expect(existsSync(join(phaseFolder, "output.failed-02.jsonl"))).toBe(true);
+    expect(existsSync(logPath)).toBe(false);
+  });
+
+  it("leaves a transcript the new session does not write where it is", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "", stream: networkStream, exitCode: 1 });
+    await runAgentFailure("claude-code");
+
+    cli.setScript({ sessionId: SESSION, finalText: "done" });
+    const handoff = join(phaseFolder, "handoff-generation.jsonl");
+    await runAgentWith({ ...runOptions("claude-code"), outputJsonlPath: handoff });
+
+    expect(existsSync(transcript)).toBe(true);
+    expect(readFileSync(join(phaseFolder, "agent-error.failed-01.log"), "utf8")).toContain(
+      `\ntranscript: ${transcript}\n`,
+    );
+    expect(existsSync(logPath)).toBe(false);
   });
 });
