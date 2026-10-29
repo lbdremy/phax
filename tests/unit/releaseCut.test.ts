@@ -22,7 +22,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { sha256 } from "../../packages/schemas/build/generated.js";
 import { snapshotPath } from "../../packages/schemas/build/snapshots.js";
 import {
@@ -177,12 +177,11 @@ const expectedShapes = Object.fromEntries(
 );
 const expectedFirstSupported = FIRST_SUPPORTED_RELEASE ?? (renamed.length > 0 ? O : null);
 
+// Each case removes its own copies, so no single hook has to delete every copy of the
+// tree at once: under full-suite load that took over 30 s.
 afterEach(() => {
+  for (const root of copies.splice(0)) rmSync(root, { recursive: true, force: true });
   expect(hashTree(repoRoot, CUT_SCOPE)).toEqual(realBefore);
-});
-
-afterAll(() => {
-  for (const root of copies) rmSync(root, { recursive: true, force: true });
 }, 30_000);
 
 // Each case copies the tree: well under a second alone, several under full-suite load.
