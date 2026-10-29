@@ -396,14 +396,19 @@ describe("contract: the fake backend raises what the adapters raise", () => {
         finalText: "",
         stream: [
           claudeInit,
-          claudeResult({ subtype: "success", result: "API Error: Connection error." }),
+          claudeResult({
+            subtype: "success",
+            terminal_reason: "api_error",
+            api_error_status: null,
+            result: "API Error: Connection dropped (ECONNRESET)",
+          }),
         ],
         exitCode: 1,
       },
       failure: {
         provider: "claude-code",
         kind: "network",
-        message: "API Error: Connection error.",
+        message: "API Error: Connection dropped (ECONNRESET)",
         sessionId: SESSION,
         resetAt: null,
       },

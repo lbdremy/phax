@@ -14,11 +14,15 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  *    Codex `turn.failed` or `turn.completed`, or a Vibe export with an
  *    outcome. Its verdict wins over the exit code: an error result fails a
  *    session that exited 0, and a success verdict answers a session that then
- *    exited non-zero. A Codex `turn.completed` with no agent message fails as
+ *    exited non-zero. A Codex `turn.completed` with no (or a blank) agent
+ *    message, or a Codex stream that exits 0 with no turn end, fails as
  *    `provider-error` (no answer was found).
  * 2. With none, a process that ended on a signal or a timeout is `killed`.
  * 3. Otherwise the transcript's last error event: a Claude `system`/`api_retry`
- *    error, a Codex `error` event.
+ *    the session was still in when it ended (no other event after it), read
+ *    by its category and status — `rate_limit` is `rate-limit`, no HTTP status
+ *    is `network`, any other category gives way to stderr; a Codex `error`
+ *    event.
  * 4. Otherwise stderr's first non-empty lines, at most three, joined by a space.
  * 5. Otherwise `unknown`, with no session id unless an init or thread event
  *    gave one.
@@ -32,8 +36,13 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  * turn-limit verdict (Claude `error_max_turns`, Vibe `turn_limit`). Vibe's
  * `terminated` and `deadline` outcomes are `killed`, its `rate_limit` code is
  * `rate-limit` and its `invalid_api_key` code is `provider-error`; any other
- * Vibe failure is classified from its error message. `resetAt` is the limit's
- * reset time as an ISO string when the provider reported one, else null.
+ * Vibe failure is classified from its error message. A Claude error result
+ * whose text matches no signature is read from its structured fields: HTTP
+ * status 429 (or the synthetic message's `rate_limit` category) is
+ * `rate-limit`, `billing_error` is `usage-limit`, and `terminal_reason:
+ * "api_error"` with a null `api_error_status` is `network`. `resetAt` is the
+ * limit's reset time as an ISO string when the provider reported one (Claude:
+ * the last rejected `rate_limit_event`), else null.
  *
  * The session id comes from the result event, else from the Claude
  * `system`/`init` event, the Codex `thread.started` event or the Vibe export.

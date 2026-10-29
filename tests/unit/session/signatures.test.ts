@@ -29,8 +29,47 @@ describe("classifyVerdictText", () => {
     expect(classifyVerdictText("API Error: Can’t reach the API server")).toBe("network");
   });
 
+  // Claude Code 2.1.312's plan-limit wordings, as its result text carries them.
   it.each([
-    ["Claude AI usage limit reached|1793120400", "usage-limit"],
+    ["You've hit your session limit · resets 7:50pm (Europe/Paris)"],
+    ["You’ve hit your weekly limit · resets Nov 3, 9am (Europe/Paris)"],
+    ["You've hit your monthly spend limit."],
+    ["You've reached your Fable limit."],
+    ["You're out of usage credits · resets 7pm (Europe/Paris)"],
+    ["You're out of extra usage"],
+    ["Your org is out of usage · contact your admin"],
+  ])("reads Claude Code's plan limit %j as usage-limit", (text) => {
+    expect(classifyVerdictText(text)).toBe("usage-limit");
+  });
+
+  // Claude Code 2.1.312's connection wordings, from its API error formatter.
+  it.each([
+    ["API Error: Unable to connect to API"],
+    ["API Error: Unable to connect to API (FailedToOpenSocket)"],
+    ["API Error: Unable to connect to API. Check your internet connection"],
+    ["API Error: Connection lost while your computer was asleep"],
+    ["API Error: Connection closed before the response finished"],
+    ["API Error: No response from API"],
+    ["API Error: Connection dropped (EPIPE)"],
+    ["API Error: Connection dropped (ERR_SOCKET_CLOSED)"],
+    ["API Error: No internet route — check your connection or VPN (EHOSTDOWN)"],
+    ["API Error: Connection refused — a firewall or proxy may be blocking it (ECONNREFUSED)"],
+    ["API Error: Can't reach the API server — check your internet or DNS (EAI_AGAIN)"],
+    ["API Error: Request timed out. Check your internet connection and proxy settings"],
+  ])("reads Claude Code's connection wording %j as network", (text) => {
+    expect(classifyVerdictText(text)).toBe("network");
+  });
+
+  it("does not read a TLS certificate refusal as network", () => {
+    expect(
+      classifyVerdictText("API Error: Unable to connect to API: SSL certificate has expired"),
+    ).toBeNull();
+    expect(
+      classifyVerdictText("API Error: Unable to connect to API: Self-signed certificate detected"),
+    ).toBeNull();
+  });
+
+  it.each([
     ["You've hit your usage limit. Try again later.", "usage-limit"],
     ["You reached your monthly limit", "usage-limit"],
     ["quota exceeded for this project", "usage-limit"],
@@ -85,12 +124,6 @@ describe("normalizeResetAt", () => {
 });
 
 describe("extractResetAt", () => {
-  it("reads the epoch after a pipe as an ISO instant", () => {
-    expect(extractResetAt("Claude AI usage limit reached|1793120400")).toBe(
-      new Date(1793120400 * 1000).toISOString(),
-    );
-  });
-
   it.each([
     ["Your limit resets at 2026-10-27T17:00:00Z", "2026-10-27T17:00:00.000Z"],
     ["Usage limit reached. Try again at 2026-10-27T17:00:00Z", "2026-10-27T17:00:00.000Z"],
@@ -101,6 +134,7 @@ describe("extractResetAt", () => {
 
   it.each([
     ["You've hit your usage limit. Try again later."],
+    ["You've hit your session limit · resets 7:50pm (Europe/Paris)"],
     ["rate limit exceeded"],
     ["resets whenever"],
     [""],
@@ -121,13 +155,14 @@ describe("stderrMessage", () => {
 
 describe("failureFromText", () => {
   it("carries the reset time of a limit and none for other kinds", () => {
-    const limit = failureFromText("claude-code", "usage limit reached|1793120400", "s1");
+    const text = "Usage limit reached. Try again at 2026-10-27T17:00:00Z";
+    const limit = failureFromText("codex-cli", text, "s1");
     expect(limit).toEqual({
-      provider: "claude-code",
+      provider: "codex-cli",
       kind: "usage-limit",
-      message: "usage limit reached|1793120400",
+      message: text,
       sessionId: "s1",
-      resetAt: new Date(1793120400 * 1000).toISOString(),
+      resetAt: "2026-10-27T17:00:00.000Z",
     });
     expect(
       failureFromText("codex-cli", "ECONNRESET, resets at 2026-10-27T17:00:00Z", null),
@@ -148,11 +183,11 @@ const exited = (code: number) => ({ kind: "exited", code }) as const;
 describe("failureWithoutVerdict", () => {
   it("reads a signal or a timeout as killed, before any error text", () => {
     const signalled = failureWithoutVerdict(
-      "claude-code",
-      "claude",
+      "codex-cli",
+      "codex",
       { lines: [], stderr: "Error: ECONNRESET", end: { kind: "signalled", signal: "SIGKILL" } },
       "s1",
-      "Connection error.",
+      "stream disconnected before completion: error sending request",
     );
     expect(signalled).toMatchObject({ kind: "killed", sessionId: "s1" });
     expect(signalled.message).toContain("SIGKILL");
@@ -168,14 +203,15 @@ describe("failureWithoutVerdict", () => {
   });
 
   it("reads the error event's text before stderr", () => {
+    const text = "stream disconnected before completion: error sending request";
     const failure = failureWithoutVerdict(
-      "claude-code",
-      "claude",
+      "codex-cli",
+      "codex",
       { lines: [], stderr: "Error: something else", end: exited(1) },
       null,
-      "Connection error.",
+      text,
     );
-    expect(failure).toMatchObject({ kind: "network", message: "Connection error." });
+    expect(failure).toMatchObject({ kind: "network", message: text });
   });
 
   it("reads stderr's first lines, then falls to unknown", () => {

@@ -8,14 +8,34 @@ import type { EndedSession, FailureKind, SessionFailure } from "./outcome.js";
  * never to tool output or model text.
  */
 
-/** Connection wordings, matched case-insensitively as substrings. */
+/**
+ * Connection wordings, matched case-insensitively as substrings. Claude Code's
+ * own (2.1.312, its API error formatter) come first: what it prints when a
+ * request got no HTTP response, with the socket error code in parentheses.
+ */
 export const NETWORK_SIGNATURES: readonly string[] = [
+  "Unable to connect to API",
+  "Can't reach the API server",
+  "Connection refused",
+  "Connection dropped",
+  "Connection lost",
+  "Connection closed before the response finished",
+  "No response from API",
+  "No internet route",
+  "Request timed out",
+  "FailedToOpenSocket",
   "ENOTFOUND",
   "EAI_AGAIN",
   "ECONNREFUSED",
   "ECONNRESET",
+  "ECONNABORTED",
   "ETIMEDOUT",
-  "Can't reach the API server",
+  "ENETUNREACH",
+  "ENETDOWN",
+  "EHOSTUNREACH",
+  "EHOSTDOWN",
+  "ERR_SOCKET_CLOSED",
+  "UND_ERR_SOCKET",
   "Connection error",
   "error sending request",
   "stream disconnected",
@@ -24,24 +44,33 @@ export const NETWORK_SIGNATURES: readonly string[] = [
   "nodename nor servname",
   "Network is unreachable",
   "getaddrinfo",
-  "ENETUNREACH",
-  "EHOSTUNREACH",
-  "Request timed out",
   "fetch failed",
   "socket hang up",
   // The httpx wordings Vibe passes through.
   "Name or service not known",
   "Temporary failure in name resolution",
   "All connection attempts failed",
-  "Connection refused",
   "Server disconnected without sending a response",
   "Timed out connecting to the model provider",
   "Timed out waiting for the model to send its response",
   "The model request timed out",
 ];
 
+/**
+ * Wordings that contain a network signature but name a refusal waiting will
+ * not fix: Claude Code's TLS certificate failures all read
+ * `Unable to connect to API: SSL …` or `Unable to connect to API: Self-signed …`.
+ */
+const NOT_NETWORK_SIGNATURES: readonly string[] = ["Unable to connect to API:"];
+
 // Usage-limit signatures are checked first — they are the more specific case.
+// Claude Code words its plan limits "You've hit your session limit · resets
+// 7:50pm (Europe/Paris)", "You've reached your Fable limit.", "You're out of
+// usage credits", "You're out of extra usage" or "Your org is out of usage".
 const USAGE_LIMIT_PATTERNS: readonly RegExp[] = [
+  /\byou've (?:hit|reached) your\b/i,
+  /\bout of (?:usage credits|extra usage)\b/i,
+  /\bis out of usage\b/i,
   /usage limit/i,
   /monthly limit/i,
   /quota (?:exceeded|reached)/i,
@@ -60,11 +89,12 @@ const RESET_PATTERNS: readonly RegExp[] = [
   /reset(?:s|ting)?(?: at| on)?[:\s]+([^\n".]+)/i,
   /try again (?:at|after|in)[:\s]+([^\n".]+)/i,
   /available again[:\s]+([^\n".]+)/i,
-  // Claude Code emits `usage limit reached|<epoch>` — capture the digit run
-  /\|(\d{10,13})\b/,
 ];
 
 const lowerCaseNetworkSignatures = NETWORK_SIGNATURES.map((signature) => signature.toLowerCase());
+const lowerCaseNotNetworkSignatures = NOT_NETWORK_SIGNATURES.map((signature) =>
+  signature.toLowerCase(),
+);
 
 /** Typographic apostrophes read as the plain one the table is written with. */
 function foldApostrophes(text: string): string {
@@ -73,9 +103,11 @@ function foldApostrophes(text: string): string {
 
 /** The class of a provider's verdict text, or null when it matches no signature. */
 export function classifyVerdictText(text: string): "network" | "rate-limit" | "usage-limit" | null {
-  if (USAGE_LIMIT_PATTERNS.some((pattern) => pattern.test(text))) return "usage-limit";
-  if (RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(text))) return "rate-limit";
-  const folded = foldApostrophes(text).toLowerCase();
+  const plain = foldApostrophes(text);
+  if (USAGE_LIMIT_PATTERNS.some((pattern) => pattern.test(plain))) return "usage-limit";
+  if (RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(plain))) return "rate-limit";
+  const folded = plain.toLowerCase();
+  if (lowerCaseNotNetworkSignatures.some((signature) => folded.includes(signature))) return null;
   if (lowerCaseNetworkSignatures.some((signature) => folded.includes(signature))) return "network";
   return null;
 }
