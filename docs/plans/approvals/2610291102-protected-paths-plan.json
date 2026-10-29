@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610291102-protected-paths-plan.md",
+  "planFingerprint": "684ed68f0112a92bbc19984d4175216a82648c17a0bf8ffb39112e33b3c965fc",
+  "approvedAt": "2026-10-29T13:48:04.597Z",
+  "baseline": "b048a1586706cbb528c1435b1ceebe002c774c50",
+  "sourceSpec": {
+    "path": "docs/specs/2610291023-protected-paths.md",
+    "fingerprint": "50eef01a1443d34e688c0c91f4a80e96d7bffe24f2f22accec2b1d201b439db5"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

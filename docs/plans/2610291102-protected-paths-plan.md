@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610291023-protected-paths.md
 completes-spec: true
+approved:
+  date: 2026-10-29
+  baseline: b048a15
 ---
 # Protected paths
 
