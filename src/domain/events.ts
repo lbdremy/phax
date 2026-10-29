@@ -2,6 +2,7 @@ import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js
 import type { AgentSessionFailedError, RateLimitError, UsageLimitError } from "./errors.js";
 import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
+import type { NonEmptyProtectedChanges, ProtectedChange } from "./security/protectedPaths.js";
 import type { StopCause } from "./state.js";
 
 export interface PhaxEventBase {
@@ -80,13 +81,28 @@ export interface GatePassed extends PhaxEventBase {
   readonly attempt: number;
 }
 
-export interface GateFailed extends PhaxEventBase {
+interface GateFailedFields extends PhaxEventBase {
   readonly type: "GateFailed";
-  readonly command: string;
-  readonly exitCode: number;
   readonly logPath: string;
   readonly attempt: number;
 }
+
+// A failed step (configured or oracle) keeps its command and exit code and
+// carries the protected changes the same attempt found, possibly none. The
+// protected-paths variant is the check alone: no command, no exit code.
+export type GateFailed = GateFailedFields &
+  (
+    | {
+        readonly failedStep: "configured" | "oracle";
+        readonly command: string;
+        readonly exitCode: number;
+        readonly protectedChanges: readonly ProtectedChange[];
+      }
+    | {
+        readonly failedStep: "protected-paths";
+        readonly protectedChanges: NonEmptyProtectedChanges;
+      }
+  );
 
 export interface FixStarted extends PhaxEventBase {
   readonly type: "FixStarted";
@@ -98,15 +114,28 @@ export interface FixCompleted extends PhaxEventBase {
   readonly sessionId: ClaudeSessionId;
 }
 
-export interface FixAttemptsExhausted extends PhaxEventBase {
+interface FixAttemptsExhaustedFields extends PhaxEventBase {
   readonly type: "FixAttemptsExhausted";
   readonly attempt: number;
   readonly phaseId: PhaseId;
   readonly worktreePath: WorktreePath;
   readonly sessionId: ClaudeSessionId;
-  readonly command: string;
-  readonly failedStep: "configured" | "oracle";
+  /** The highest-numbered fix transcript in the phase folder, or null when none was made. */
+  readonly lastFixTranscript: string | null;
 }
+
+export type FixAttemptsExhausted = FixAttemptsExhaustedFields &
+  (
+    | {
+        readonly failedStep: "configured" | "oracle";
+        readonly command: string;
+        readonly protectedChanges: readonly ProtectedChange[];
+      }
+    | {
+        readonly failedStep: "protected-paths";
+        readonly protectedChanges: NonEmptyProtectedChanges;
+      }
+  );
 
 // A report step refused to run. Pauses the phase as FixAttemptsExhausted does,
 // with no fix attempt made.
@@ -120,6 +149,8 @@ export interface GateStepRefused extends PhaxEventBase {
   readonly reason: string;
   readonly remedy: string;
   readonly failedStep: "configured" | "oracle";
+  /** The protected changes the same attempt found, possibly none. */
+  readonly protectedChanges: readonly ProtectedChange[];
 }
 
 export interface HandoffRequested extends PhaxEventBase {

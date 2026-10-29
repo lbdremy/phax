@@ -162,8 +162,10 @@ export function adaptGateRun(
         Effect.succeed({
           ...base,
           type: "GateFailed",
+          failedStep: e.failedStep,
           command: e.command,
           exitCode: e.exitCode,
+          protectedChanges: [],
           logPath: e.logPath,
           attempt,
         }),

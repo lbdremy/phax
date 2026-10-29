@@ -161,6 +161,8 @@ describe("buildWhatsNext", () => {
           shortName: "proj",
           phaseId: "phase-03",
           failedStep: "configured",
+          protectedChanges: [],
+          lastFixTranscript: null,
         },
         NOW,
       );
@@ -172,7 +174,13 @@ describe("buildWhatsNext", () => {
 
     it("uses <phase-id> placeholder when phaseId is absent", () => {
       const wn = buildWhatsNext(
-        { kind: "gates_exhausted", shortName: "proj", failedStep: "configured" },
+        {
+          kind: "gates_exhausted",
+          shortName: "proj",
+          failedStep: "configured",
+          protectedChanges: [],
+          lastFixTranscript: null,
+        },
         NOW,
       );
       expect(wn.steps[0]?.command).toContain("phax enter-phase proj <phase-id>");
@@ -181,7 +189,14 @@ describe("buildWhatsNext", () => {
 
     it("names the oracle step and the --skip-oracle correction, and no reset, for an oracle failure", () => {
       const wn = buildWhatsNext(
-        { kind: "gates_exhausted", shortName: "proj", phaseId: "phase-03", failedStep: "oracle" },
+        {
+          kind: "gates_exhausted",
+          shortName: "proj",
+          phaseId: "phase-03",
+          failedStep: "oracle",
+          protectedChanges: [],
+          lastFixTranscript: null,
+        },
         NOW,
       );
       expect(wn.headline).toBe("The oracle step failed after all fix attempts.");
@@ -195,6 +210,70 @@ describe("buildWhatsNext", () => {
     });
   });
 
+  describe("protected changes", () => {
+    const change = {
+      path: "packages/a/steme.baseline.json",
+      kind: "edited",
+      entry: "protectedPaths[0]",
+      glob: "**/steme.baseline.json",
+    } as const;
+    const exhausted = {
+      kind: "gates_exhausted",
+      shortName: "proj",
+      phaseId: "phase-03",
+      failedStep: "protected-paths",
+      protectedChanges: [change],
+      lastFixTranscript: "/runs/proj/phase-03/fix-attempt-02.jsonl",
+    } as const;
+
+    it("names each path, says no phase may change it and gives the two ways on, with no reset", () => {
+      const wn = buildWhatsNext(exhausted, NOW);
+      expect(wn.headline).toContain("protected paths changed");
+      expect(wn.headline).toContain(
+        "packages/a/steme.baseline.json — edited (protectedPaths[0] **/steme.baseline.json)",
+      );
+      expect(wn.headline).toContain("No phase of this run may change these paths");
+      expect(wn.headline).toContain("/runs/proj/phase-03/fix-attempt-02.jsonl");
+      expect(wn.steps.map((s) => s.command)).toEqual([
+        "phax enter-phase proj phase-03",
+        "phax resume proj --yes",
+        undefined,
+      ]);
+      expect(wn.steps[2]?.title).toContain("base branch");
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
+    });
+
+    it("says when no fix attempt was made", () => {
+      const wn = buildWhatsNext({ ...exhausted, lastFixTranscript: null }, NOW);
+      expect(wn.headline).toContain("No fix attempt was made.");
+    });
+
+    it("lists the paths after a failed step's own exhaustion", () => {
+      const wn = buildWhatsNext({ ...exhausted, failedStep: "configured" }, NOW);
+      expect(wn.headline).toContain("and protected paths changed");
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
+    });
+
+    it("lists the paths after a refusal and keeps the refusal", () => {
+      const wn = buildWhatsNext(
+        {
+          kind: "gate_refused",
+          shortName: "proj",
+          phaseId: "phase-03",
+          failedStep: "configured",
+          command: "node ./audit.mjs",
+          reason: "the checks need hw-rules 2",
+          remedy: "pnpm add -D hw-rules@2",
+          protectedChanges: [change],
+        },
+        NOW,
+      );
+      expect(wn.headline).toContain("`node ./audit.mjs` refused to run");
+      expect(wn.headline).toContain("packages/a/steme.baseline.json — edited");
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
+    });
+  });
+
   describe("gate_refused scenario", () => {
     const refusal = {
       kind: "gate_refused",
@@ -204,6 +283,7 @@ describe("buildWhatsNext", () => {
       command: "node ./audit.mjs",
       reason: "the checks need hw-rules 2, and 1 is installed",
       remedy: "pnpm add -D hw-rules@2",
+      protectedChanges: [],
     } as const;
 
     it("appends the --skip-oracle correction, and no reset, for an oracle refusal", () => {

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Array as Arr, Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
@@ -16,6 +16,11 @@ import {
   type UsageLimitError,
 } from "../domain/errors.js";
 import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
+import type {
+  NonEmptyProtectedChanges,
+  ProtectedChange,
+  ProtectedList,
+} from "../domain/security/protectedPaths.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -37,12 +42,39 @@ import { reportPathFor } from "../domain/gate/reportPath.js";
 import {
   attemptLogName,
   fixTranscriptName,
+  lastFixTranscriptName,
   nextAttemptNumber,
   previousRecordedAttempt,
   stepRecordPathFor,
 } from "../domain/gate/attemptFiles.js";
 import { sameCommand } from "../domain/gate/commandWords.js";
 import { readGateAttributionFile, readGateReport } from "../schemas/persisted.js";
+import { recordProtectedPaths } from "./gateAttribution.js";
+import { checkProtectedPaths } from "./protectedPathsCheck.js";
+
+/**
+ * What failed an attempt: a configured or oracle step (with the protected
+ * changes the same attempt found, possibly none), or the protected-paths check
+ * alone, when every step passed.
+ */
+type AttemptFailure = { readonly logPath: string } & (
+  | {
+      readonly failedStep: "configured" | "oracle";
+      readonly command: string;
+      readonly exitCode: number;
+      readonly reportFindings: GateFailedError["reportFindings"];
+      readonly stderrExcerpt: string | undefined;
+      readonly protectedChanges: readonly ProtectedChange[];
+    }
+  | {
+      readonly failedStep: "protected-paths";
+      readonly protectedChanges: NonEmptyProtectedChanges;
+    }
+);
+
+function pathsOf(changes: readonly ProtectedChange[]): string {
+  return changes.map((change) => change.path).join(", ");
+}
 
 export interface RunGatesWithFixLoopOptions {
   readonly steps: readonly GateStep[];
@@ -63,6 +95,13 @@ export interface RunGatesWithFixLoopOptions {
   readonly gateRequest: string;
   /** The phase's oracle step, passed unchanged to every attempt. */
   readonly oracleStep?: OracleStep;
+  /** The protected list and the phase base to check every attempt's files
+   *  against, or null when the project declares none: then nothing is
+   *  observed and no record is rewritten. */
+  readonly protectedPaths: {
+    readonly list: ProtectedList;
+    readonly base: string;
+  } | null;
 }
 
 export function runGatesWithFixLoop(
@@ -96,6 +135,7 @@ export function runGatesWithFixLoop(
     runPath,
     gateRequest,
     oracleStep,
+    protectedPaths,
   } = opts;
   const resolvedWorktreePath = opts.worktreePath ?? cwd;
 
@@ -165,6 +205,30 @@ export function runGatesWithFixLoop(
     }).pipe(Effect.orElseSucceed(() => none));
   }
 
+  /**
+   * The attempt's protected changes against the phase base, recorded in its
+   * step record and the phase's gate-attribution.json. Nothing at all (no
+   * observation, no rewrite) when the project declares no list.
+   */
+  function checkAttempt(
+    attempt: number,
+  ): Effect.Effect<readonly ProtectedChange[], GitError | FsError, Git | FileSystem> {
+    if (protectedPaths === null) return Effect.succeed([]);
+    return Effect.gen(function* () {
+      const changes = yield* checkProtectedPaths({
+        worktree: cwd,
+        base: protectedPaths.base,
+        list: protectedPaths.list,
+      });
+      yield* recordProtectedPaths({
+        stepRecordPath: stepRecordPathFor(logPath(attempt)),
+        attributionPath: join(phaseFolderPath, "gate-attribution.json"),
+        changes,
+      });
+      return changes;
+    });
+  }
+
   function loop(
     currentSessionId: ClaudeSessionId,
     fixesUsed: number,
@@ -207,37 +271,49 @@ export function runGatesWithFixLoop(
         }),
       );
 
+      // The protected-paths check runs after the steps, whatever they did: a
+      // pass, a failure or a refusal alike. A fault of the run itself (a shell
+      // or file error) is judged by nothing and goes up unchecked.
+      const judged =
+        Either.isRight(gateResult) ||
+        gateResult.left instanceof GateFailedError ||
+        gateResult.left instanceof GateStepRefusedError;
+      const changes = judged ? yield* checkAttempt(attempt) : [];
+
+      let failure: AttemptFailure;
       if (Either.isRight(gateResult)) {
-        yield* telemetry.recordEvent(
-          makeStepCompletedTelemetryEvent({
-            runId,
-            operationId: phaseId,
-            step: `gate.run`,
-            result: "success",
-          }),
-        );
-        yield* telemetry.recordEvent(
-          makeGateEvaluatedTelemetryEvent({
-            runId,
-            operationId: phaseId,
-            gate: "checks",
-            result: "accepted",
-          }),
-        );
-        const gatePassedEvent: PhaxEvent = {
-          ...eventBase(),
-          type: "GatePassed",
-          attempt,
+        if (!Arr.isNonEmptyReadonlyArray(changes)) {
+          yield* telemetry.recordEvent(
+            makeStepCompletedTelemetryEvent({
+              runId,
+              operationId: phaseId,
+              step: `gate.run`,
+              result: "success",
+            }),
+          );
+          yield* telemetry.recordEvent(
+            makeGateEvaluatedTelemetryEvent({
+              runId,
+              operationId: phaseId,
+              gate: "checks",
+              result: "accepted",
+            }),
+          );
+          const gatePassedEvent: PhaxEvent = {
+            ...eventBase(),
+            type: "GatePassed",
+            attempt,
+          };
+          yield* dispatch(gatePassedEvent, dispatchCtx);
+          return gateResult.right;
+        }
+        // Every step passed, yet the attempt changed protected paths: it fails
+        // for the check alone. No command failed, so no error report.
+        failure = {
+          failedStep: "protected-paths",
+          protectedChanges: changes,
+          logPath: gateResult.right.attemptLogPath,
         };
-        yield* dispatch(gatePassedEvent, dispatchCtx);
-        return gateResult.right;
-      }
-
-      const error = gateResult.left;
-
-      if (error instanceof GateStepRefusedError) {
-        // A refusal goes to the operator: the gate is recorded as rejected and
-        // the phase pauses, with no fix prompt and no fix attempt counted.
         yield* telemetry.recordEvent(
           makeStepCompletedTelemetryEvent({
             runId,
@@ -252,100 +328,197 @@ export function runGatesWithFixLoop(
             operationId: phaseId,
             gate: "checks",
             result: "rejected",
-            reason: `refused: ${error.command}`,
+            reason: `protected paths: ${changes.length} changed`,
           }),
         );
-        const gateFailedEvent: PhaxEvent = {
-          ...eventBase(),
-          type: "GateFailed",
-          command: error.command,
-          exitCode: error.exitCode,
-          logPath: error.logPath,
-          attempt,
-        };
-        yield* dispatch(gateFailedEvent, dispatchCtx);
-        const refusedEvent: PhaxEvent = {
-          ...eventBase(),
-          type: "GateStepRefused",
-          attempt,
-          phaseId: phaseId as PhaseId,
-          worktreePath: resolvedWorktreePath as WorktreePath,
-          sessionId: currentSessionId,
-          command: error.command,
-          reason: error.reason,
-          remedy: error.remedy,
+      } else {
+        const error = gateResult.left;
+        if (error instanceof GateStepRefusedError) {
+          // A refusal goes to the operator: the gate is recorded as rejected and
+          // the phase pauses, with no fix prompt and no fix attempt counted.
+          yield* telemetry.recordEvent(
+            makeStepCompletedTelemetryEvent({
+              runId,
+              operationId: phaseId,
+              step: `gate.run`,
+              result: "failure",
+            }),
+          );
+          yield* telemetry.recordEvent(
+            makeGateEvaluatedTelemetryEvent({
+              runId,
+              operationId: phaseId,
+              gate: "checks",
+              result: "rejected",
+              reason: `refused: ${error.command}`,
+            }),
+          );
+          const gateFailedEvent: PhaxEvent = {
+            ...eventBase(),
+            type: "GateFailed",
+            failedStep: error.failedStep,
+            command: error.command,
+            exitCode: error.exitCode,
+            protectedChanges: changes,
+            logPath: error.logPath,
+            attempt,
+          };
+          yield* dispatch(gateFailedEvent, dispatchCtx);
+          const refusedEvent: PhaxEvent = {
+            ...eventBase(),
+            type: "GateStepRefused",
+            attempt,
+            phaseId: phaseId as PhaseId,
+            worktreePath: resolvedWorktreePath as WorktreePath,
+            sessionId: currentSessionId,
+            command: error.command,
+            reason: error.reason,
+            remedy: error.remedy,
+            failedStep: error.failedStep,
+            protectedChanges: changes,
+          };
+          yield* dispatch(refusedEvent, dispatchCtx);
+          return yield* Effect.fail(
+            new GateStepRefusedError({
+              message: error.message,
+              command: error.command,
+              reason: error.reason,
+              remedy: error.remedy,
+              exitCode: error.exitCode,
+              logPath: error.logPath,
+              phaseId: error.phaseId,
+              failedStep: error.failedStep,
+              protectedChanges: changes,
+            }),
+          );
+        }
+
+        if (!(error instanceof GateFailedError)) {
+          return yield* Effect.fail(error);
+        }
+
+        yield* telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            step: `gate.run`,
+            result: "failure",
+          }),
+        );
+        yield* telemetry.recordEvent(
+          makeGateEvaluatedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            gate: "checks",
+            result: "rejected",
+            reason: `exit ${error.exitCode}: ${error.command}`,
+          }),
+        );
+        yield* telemetry.recordError(
+          makeSystemErrorReport({
+            type: "gate.failed",
+            runId,
+            operationId: phaseId,
+            adapter: "shell",
+            operation: `gate.${error.command}`,
+            exitCode: error.exitCode,
+            ...(error.stderrExcerpt !== undefined ? { stderrExcerpt: error.stderrExcerpt } : {}),
+            cause: error,
+          }),
+        );
+        failure = {
           failedStep: error.failedStep,
-        };
-        yield* dispatch(refusedEvent, dispatchCtx);
-        return yield* Effect.fail(error);
-      }
-
-      if (!(error instanceof GateFailedError)) {
-        return yield* Effect.fail(error);
-      }
-
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: phaseId,
-          step: `gate.run`,
-          result: "failure",
-        }),
-      );
-      yield* telemetry.recordEvent(
-        makeGateEvaluatedTelemetryEvent({
-          runId,
-          operationId: phaseId,
-          gate: "checks",
-          result: "rejected",
-          reason: `exit ${error.exitCode}: ${error.command}`,
-        }),
-      );
-      yield* telemetry.recordError(
-        makeSystemErrorReport({
-          type: "gate.failed",
-          runId,
-          operationId: phaseId,
-          adapter: "shell",
-          operation: `gate.${error.command}`,
+          command: error.command,
           exitCode: error.exitCode,
-          ...(error.stderrExcerpt !== undefined ? { stderrExcerpt: error.stderrExcerpt } : {}),
-          cause: error,
-        }),
-      );
+          reportFindings: error.reportFindings,
+          stderrExcerpt: error.stderrExcerpt,
+          protectedChanges: changes,
+          logPath: error.logPath,
+        };
+      }
 
-      const gateFailedEvent: PhaxEvent = {
-        ...eventBase(),
-        type: "GateFailed",
-        command: error.command,
-        exitCode: error.exitCode,
-        logPath: error.logPath,
-        attempt,
-      };
+      const gateFailedEvent: PhaxEvent =
+        failure.failedStep === "protected-paths"
+          ? {
+              ...eventBase(),
+              type: "GateFailed",
+              failedStep: failure.failedStep,
+              protectedChanges: failure.protectedChanges,
+              logPath: failure.logPath,
+              attempt,
+            }
+          : {
+              ...eventBase(),
+              type: "GateFailed",
+              failedStep: failure.failedStep,
+              command: failure.command,
+              exitCode: failure.exitCode,
+              protectedChanges: failure.protectedChanges,
+              logPath: failure.logPath,
+              attempt,
+            };
       yield* dispatch(gateFailedEvent, dispatchCtx);
 
       if (fixesUsed >= maxFixAttempts) {
-        const exhaustedEvent: PhaxEvent = {
+        // The highest-numbered fix transcript of the phase folder, which an
+        // earlier entry into the gate may have left, or none.
+        const lastTranscript = lastFixTranscriptName(yield* phaseFolderNames());
+        const lastFixTranscript =
+          lastTranscript === undefined ? null : join(phaseFolderPath, lastTranscript);
+        const exhaustedBase = {
           ...eventBase(),
           type: "FixAttemptsExhausted",
           attempt,
           phaseId: phaseId as PhaseId,
           worktreePath: resolvedWorktreePath as WorktreePath,
           sessionId: currentSessionId,
-          command: error.command,
-          failedStep: error.failedStep,
-        };
+          lastFixTranscript,
+        } as const;
+        const exhaustedEvent: PhaxEvent =
+          failure.failedStep === "protected-paths"
+            ? {
+                ...exhaustedBase,
+                failedStep: failure.failedStep,
+                protectedChanges: failure.protectedChanges,
+              }
+            : {
+                ...exhaustedBase,
+                failedStep: failure.failedStep,
+                command: failure.command,
+                protectedChanges: failure.protectedChanges,
+              };
         yield* dispatch(exhaustedEvent, dispatchCtx);
+        const budget = `after ${maxFixAttempts} fix attempt(s)`;
         return yield* Effect.fail(
-          new GateAttemptsExhaustedError({
-            message: `Gate attempts exhausted: ${error.command} (exit ${error.exitCode}) after ${maxFixAttempts} fix attempt(s)`,
-            command: error.command,
-            exitCode: error.exitCode,
-            logPath: error.logPath,
-            attempt,
-            phaseId: phaseId as string,
-            failedStep: error.failedStep,
-          }),
+          failure.failedStep === "protected-paths"
+            ? new GateAttemptsExhaustedError({
+                message: `Gate attempts exhausted: protected paths changed (${pathsOf(failure.protectedChanges)}) ${budget}`,
+                logPath: failure.logPath,
+                attempt,
+                phaseId: phaseId as string,
+                failure: {
+                  failedStep: failure.failedStep,
+                  protectedChanges: failure.protectedChanges,
+                },
+                lastFixTranscript,
+              })
+            : new GateAttemptsExhaustedError({
+                message: `Gate attempts exhausted: ${failure.command} (exit ${failure.exitCode})${
+                  failure.protectedChanges.length === 0
+                    ? ""
+                    : ` and protected paths changed (${pathsOf(failure.protectedChanges)})`
+                } ${budget}`,
+                logPath: failure.logPath,
+                attempt,
+                phaseId: phaseId as string,
+                failure: {
+                  failedStep: failure.failedStep,
+                  command: failure.command,
+                  exitCode: failure.exitCode,
+                  protectedChanges: failure.protectedChanges,
+                },
+                lastFixTranscript,
+              }),
         );
       }
 
@@ -357,21 +530,27 @@ export function runGatesWithFixLoop(
       yield* dispatch(fixStartedEvent, dispatchCtx);
 
       const fs = yield* FileSystem;
-      const logContent = yield* fs.readText(logPath(attempt));
-      const stillFailing =
-        error.reportFindings === null
-          ? new Set<string>()
-          : yield* previousFindingIds(attempt, error.command);
-      const fixPrompt = buildFixPrompt({
-        command: error.command,
-        exitCode: error.exitCode,
-        attempt,
-        logContent,
-        logPath: error.logPath,
-        reportFindings: error.reportFindings,
-        stillFailing,
-        failedStep: error.failedStep,
-      });
+      const fixPrompt =
+        failure.failedStep === "protected-paths"
+          ? buildFixPrompt({
+              attempt,
+              failedStep: failure.failedStep,
+              protectedChanges: failure.protectedChanges,
+            })
+          : buildFixPrompt({
+              command: failure.command,
+              exitCode: failure.exitCode,
+              attempt,
+              logContent: yield* fs.readText(logPath(attempt)),
+              logPath: failure.logPath,
+              reportFindings: failure.reportFindings,
+              stillFailing:
+                failure.reportFindings === null
+                  ? new Set<string>()
+                  : yield* previousFindingIds(attempt, failure.command),
+              failedStep: failure.failedStep,
+              protectedChanges: failure.protectedChanges,
+            });
 
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: "fix-loop" }),

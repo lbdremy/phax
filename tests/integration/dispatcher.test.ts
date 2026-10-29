@@ -191,8 +191,10 @@ describe("dispatch — non-handled dispositions", () => {
     const event: PhaxEvent = {
       type: "GateFailed",
       ...baseEventFields,
+      failedStep: "configured",
       command: "pnpm test",
       exitCode: 1,
+      protectedChanges: [],
       logPath: "/tmp/log",
       attempt: 1,
     };

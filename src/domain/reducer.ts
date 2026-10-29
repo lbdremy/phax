@@ -1,6 +1,6 @@
 import type { Disposition } from "./disposition.js";
 import type { PhaxCommand } from "./effects.js";
-import type { PhaxEvent } from "./events.js";
+import type { FixAttemptsExhausted, PhaxEvent } from "./events.js";
 import type { PhaxState, StopCause } from "./state.js";
 import type { LastClose } from "../schemas/reviewStop.js";
 import { AgentInvocationError } from "./errors.js";
@@ -14,6 +14,13 @@ const ignored = (reason: string): Disposition<PhaxState> => ({ kind: "Ignored", 
 const stale = (reason: string): Disposition<PhaxState> => ({ kind: "Stale", reason });
 const rejected = (reason: string): Disposition<PhaxState> => ({ kind: "Rejected", reason });
 const unexpected = (reason: string): Disposition<PhaxState> => ({ kind: "Unexpected", reason });
+
+/** The run's `lastError` for an exhausted fix loop: the failed command, or the protected paths. */
+function exhaustedLastError(event: FixAttemptsExhausted): string {
+  return event.failedStep === "protected-paths"
+    ? `Gate failed: protected paths changed (${event.protectedChanges.map((change) => change.path).join(", ")})`
+    : `Gate failed: ${event.command}`;
+}
 
 function assertNever(x: never): never {
   throw new Error(`Unhandled discriminator: ${JSON.stringify(x)}`);
@@ -503,7 +510,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   patch: {
                     run: {
                       stoppedReason: "gates_exhausted",
-                      lastError: `Gate failed: ${event.command}`,
+                      lastError: exhaustedLastError(event),
                     },
                   },
                 },
@@ -516,6 +523,8 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                     worktreePath: event.worktreePath as string,
                     sessionId: event.sessionId as string,
                     failedStep: event.failedStep,
+                    protectedChanges: event.protectedChanges,
+                    lastFixTranscript: event.lastFixTranscript,
                   },
                 },
                 {
@@ -526,7 +535,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   details: {
                     phaseId: event.phaseId,
                     attempt: event.attempt,
-                    command: event.command,
+                    ...(event.failedStep === "protected-paths"
+                      ? { protectedPaths: event.protectedChanges.map((change) => change.path) }
+                      : { command: event.command }),
                   },
                 },
                 {
@@ -589,6 +600,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                     worktreePath: event.worktreePath as string,
                     sessionId: event.sessionId as string,
                     failedStep: event.failedStep,
+                    protectedChanges: event.protectedChanges,
                     refusal: {
                       command: event.command,
                       reason: event.reason,

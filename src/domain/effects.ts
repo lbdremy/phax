@@ -1,6 +1,7 @@
 import type { LastClose, ReviewStop } from "../schemas/reviewStop.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
+import type { ProtectedChange } from "./security/protectedPaths.js";
 
 export type { RunReviewInfo };
 
@@ -44,7 +45,11 @@ export interface ResumeContext {
   /** The refused step, its reason and its remedy; set for kind `gate_refused`. */
   readonly refusal?: GateRefusal | undefined;
   /** Which step stopped the phase; set for kinds `gates_exhausted` and `gate_refused`. */
-  readonly failedStep?: "configured" | "oracle" | undefined;
+  readonly failedStep?: "configured" | "oracle" | "protected-paths" | undefined;
+  /** The protected paths still changed; set for kinds `gates_exhausted` and `gate_refused`. */
+  readonly protectedChanges?: readonly ProtectedChange[] | undefined;
+  /** The last fix transcript of the phase, or null when none was made; set for kind `gates_exhausted`. */
+  readonly lastFixTranscript?: string | null | undefined;
 }
 
 export interface GateRefusal {

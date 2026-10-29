@@ -284,7 +284,7 @@ describe("adaptGateRun", () => {
     );
 
     expect(event.type).toBe("GateFailed");
-    if (event.type === "GateFailed") {
+    if (event.type === "GateFailed" && event.failedStep !== "protected-paths") {
       expect(event.command).toBe("pnpm typecheck");
       expect(event.exitCode).toBe(1);
       expect(event.logPath).toBe(logPath);

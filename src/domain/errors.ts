@@ -5,6 +5,7 @@ import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import type { DeclaredReviewStop, HeldReviewStop, LastClose } from "../schemas/reviewStop.js";
 import type { LintFinding } from "./plan/lint.js";
 import type { PruneRefusal } from "./prune.js";
+import type { NonEmptyProtectedChanges, ProtectedChange } from "./security/protectedPaths.js";
 import type { SessionFailure } from "./session/outcome.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
@@ -150,13 +151,26 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
 
 export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsExhaustedError")<{
   message: string;
-  command: string;
-  exitCode: number;
   logPath: string;
   attempt: number;
   phaseId: string;
-  /** Which step exhausted the fix loop: a configured gate step, or the oracle step. */
-  failedStep: "configured" | "oracle";
+  /** What exhausted the fix loop: a configured gate step or the oracle step
+   *  (with the protected changes the attempt also found, possibly none), or
+   *  the protected-paths check alone. One field, since a TaggedError cannot
+   *  take a union as its type argument. */
+  failure:
+    | {
+        readonly failedStep: "configured" | "oracle";
+        readonly command: string;
+        readonly exitCode: number;
+        readonly protectedChanges: readonly ProtectedChange[];
+      }
+    | {
+        readonly failedStep: "protected-paths";
+        readonly protectedChanges: NonEmptyProtectedChanges;
+      };
+  /** The highest-numbered fix transcript in the phase folder, or null when none was made. */
+  lastFixTranscript: string | null;
 }> {}
 
 /** A report step printed a refused gate report: the phase stops without a fix
@@ -172,6 +186,8 @@ export class GateStepRefusedError extends Data.TaggedError("GateStepRefusedError
   phaseId: string;
   /** Which step refused: a configured gate step, or the oracle step. */
   failedStep: "configured" | "oracle";
+  /** The protected changes the same attempt found, possibly none. */
+  protectedChanges: readonly ProtectedChange[];
 }> {}
 
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{

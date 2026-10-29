@@ -501,9 +501,9 @@ describe("a phase on claude-code in a project that declares protectedPaths", () 
         globs: ["**/steme.baseline.json", "phax.json"],
         enforcement: "enforced",
       });
-      // The check does not run yet: the attribution still records null.
+      // The gate checks the phase's files: nothing protected changed.
       expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toMatchObject({
-        protectedPaths: null,
+        protectedPaths: { result: "pass", changes: [] },
       });
     },
   );

@@ -510,7 +510,7 @@ describe("oracle phases in a run", () => {
 
     if (Either.isRight(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-    expect(result.left).toMatchObject({ failedStep: "oracle" });
+    expect(result.left).toMatchObject({ failure: { failedStep: "oracle" } });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("the oracle step failed after exhausting all fix attempts");
