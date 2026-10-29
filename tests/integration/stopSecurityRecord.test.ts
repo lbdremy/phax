@@ -125,7 +125,7 @@ describe(
     it("is null before the close and, after it, says the person's work ran outside phax's enforcement and names each turn phax ran", async () => {
       const run = await declaredAtPhase03();
       expect(securityOf(run, "phase-03")["stop"]).toBeNull();
-      expect(securityOf(run, "phase-03")["version"]).toBe(2);
+      expect(securityOf(run, "phase-03")["version"]).toBe(3);
       const provider = securityOf(run, "phase-03")["provider"] as string;
       correctPhase03(run);
 
@@ -178,17 +178,17 @@ describe(
       for (const turn of stop.turns) expect(turn.agentCommands).toEqual([]);
     });
 
-    it("lifts a version-1 file at the close, which becomes version 2 with the stop and nothing else changed", async () => {
+    it("lifts a version-1 file at the close, which becomes version 3 with the stop and nothing else changed", async () => {
       const run = await declaredAtPhase03();
       const current = securityOf(run, "phase-03");
-      const { stop: _stop, ...v1 } = current;
+      const { stop: _stop, protectedPaths: _protectedPaths, ...v1 } = current;
       writeFileSync(securityPath(run, "phase-03"), JSON.stringify({ ...v1, version: 1 }, null, 2));
       correctPhase03(run);
 
       expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
 
       const after = securityOf(run, "phase-03");
-      expect(after["version"]).toBe(2);
+      expect(after["version"]).toBe(3);
       expect(after["stop"]).toMatchObject({ cause: "declared" });
       expect(withoutStop({ ...after, version: 1 })).toEqual(
         withoutStop({ ...current, version: 1 }),

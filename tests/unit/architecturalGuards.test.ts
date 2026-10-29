@@ -566,6 +566,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/gate-attribution/0.17.0.ts",
   "src/schemas/history/gate-attribution/0.20.0.ts",
   "src/schemas/history/gate-attribution/0.21.0.ts",
+  "src/schemas/history/gate-attribution/0.26.0.ts",
   "src/schemas/history/gate-attribution/pre-schema.ts",
   "src/schemas/history/interactive-session/0.26.0.ts",
   "src/schemas/history/phase-file-reconciliation/0.17.0.ts",

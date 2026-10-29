@@ -21,6 +21,11 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.31.0
+
+- **Records readers: `security.json` is version 3.** Every phase's `security.json` carries a required `protectedPaths`, between `skillEditGrants` and `providerSkippedForSecurity`: `null` when `phax.json` declares none, otherwise `{ globs, enforcement }` with `enforcement` one of `enforced`, `partial` or `commit-check-only`. phax reads version 1 and 2 files as version 3.
+- **Records readers: `gate-attribution.json` is stamped 0.31.0.** It carries a required `protectedPaths`: `null`, or `{ result, changes }` (a `pass` with no change, or a `fail` with at least one `{ path, kind, entry }`). 0.26.0 documents and older still read, as `null`. An older `@lbdremy/phax-schemas` cannot read 0.31.0 attributions.
+
 ### 0.30.0
 
 - **Exit 14: the provider could not be reached.** A command whose agent cannot reach its provider (a network failure) now exits 14, which is resumable, instead of 5. Treat 14 like 8, but retry as soon as the network is back.

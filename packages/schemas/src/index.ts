@@ -558,6 +558,10 @@ export {
   type GateAttributionV0_21_0,
 } from "../../../src/schemas/history/gate-attribution/0.21.0.js";
 export {
+  GateAttributionV0_26_0Schema,
+  type GateAttributionV0_26_0,
+} from "../../../src/schemas/history/gate-attribution/0.26.0.js";
+export {
   PhaseRecordManifestV0_17_0Schema,
   type PhaseRecordManifestV0_17_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";

@@ -146,7 +146,11 @@ export function runGates(
         if (phaseId === undefined) return;
         const document = JSON.stringify(
           encodeGateAttributionFile(
-            withSchemaUrl("gate-attribution", { phase: phaseId, steps: stepResults }),
+            withSchemaUrl("gate-attribution", {
+              phase: phaseId,
+              steps: stepResults,
+              protectedPaths: null,
+            }),
           ),
           null,
           2,

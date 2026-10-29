@@ -137,6 +137,7 @@ import type {
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
+  GateAttributionV0_26_0,
   PhaseRecordManifestV0_17_0,
   PhaseRecordManifestV0_26_0,
   RecordManifest,
@@ -374,6 +375,7 @@ import type { PhaseFileReconciliationV0_17_0 as FrozenPhaseFileReconciliationV0_
 import type { CostLedgerV0_25_0 as FrozenCostLedgerV0_25_0 } from "../../src/schemas/history/cost-ledger/0.25.0.js";
 import type { CostLedgerV0_26_0 as FrozenCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0.26.0.js";
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
+import type { GateAttributionV0_26_0 as FrozenGateAttributionV0_26_0 } from "../../src/schemas/history/gate-attribution/0.26.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
@@ -716,7 +718,7 @@ const eachShapeId: [
   >,
   Equals<
     GateAttributionShape,
-    "pre-schema" | "0.17.0" | "0.20.0" | "0.21.0" | Current<"gate-attribution">
+    "pre-schema" | "0.17.0" | "0.20.0" | "0.21.0" | "0.26.0" | Current<"gate-attribution">
   >,
   Equals<
     PhaseFileReconciliationShape,
@@ -811,6 +813,7 @@ const parseValues: [
     | FrozenGateAttributionV0_17_0
     | FrozenGateAttributionV0_20_0
     | FrozenGateAttributionV0_21_0
+    | FrozenGateAttributionV0_26_0
     | PhaxGateAttributionFile
   >,
   Equals<
@@ -1512,6 +1515,7 @@ const toLatestParameters: [
         | FrozenGateAttributionV0_17_0
         | FrozenGateAttributionV0_20_0
         | FrozenGateAttributionV0_21_0
+        | FrozenGateAttributionV0_26_0
         | PhaxGateAttributionFile,
     ]
   >,
@@ -1732,6 +1736,9 @@ void gateAttributionV0_20_0IsFrozen;
 const gateAttributionV0_21_0IsFrozen: Equals<GateAttributionV0_21_0, FrozenGateAttributionV0_21_0> =
   true;
 void gateAttributionV0_21_0IsFrozen;
+const gateAttributionV0_26_0IsFrozen: Equals<GateAttributionV0_26_0, FrozenGateAttributionV0_26_0> =
+  true;
+void gateAttributionV0_26_0IsFrozen;
 const phaseFileReconciliationV0_17_0IsFrozen: Equals<
   PhaseFileReconciliationV0_17_0,
   FrozenPhaseFileReconciliationV0_17_0

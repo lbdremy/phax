@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
+import { protectedList } from "../../src/domain/security/protectedPaths.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -180,8 +181,10 @@ function planOf(model: string, effort: "medium" | "high"): { plan: PhaxPlan; pla
   return { plan, planMd };
 }
 
-function configOf(): ResolvedConfig {
+function configOf(protectedPaths?: readonly string[]): ResolvedConfig {
+  const declared = protectedPaths === undefined ? null : protectedList(protectedPaths, "phax.json");
   return {
+    ...(declared === null ? {} : { protectedPaths: declared }),
     raw: {
       version: 1,
       name: NAMESPACE,
@@ -272,7 +275,10 @@ function addedTo(
   );
 }
 
-async function runPhase(provider: ProviderName): Promise<Observed> {
+async function runPhase(
+  provider: ProviderName,
+  protectedPaths?: readonly string[],
+): Promise<Observed> {
   const vibeDir = join(world.root, "vibe-bin");
   const vibe = writeFakeVibe(vibeDir, {
     stream: vibe3StreamText([vibe3Assistant([vibe3Text("done")])]),
@@ -307,7 +313,7 @@ async function runPhase(provider: ProviderName): Promise<Observed> {
       : (["claude-sonnet-5-5", "medium"] as const);
   const { plan, planMd } = planOf(model, effort);
   const shortName = Either.getOrThrow(decodeShortName(SHORT));
-  const config = configOf();
+  const config = configOf(protectedPaths);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config).pipe(Effect.provide(NodeFileSystemLayer)),
   );
@@ -438,12 +444,12 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
         const observed = await runPhase(provider);
         if (Either.isLeft(observed.result)) throw observed.result.left as Error;
 
-        // Today's values, spelled out: phase-04 changes exactly these (security.json
-        // version 3 and gate-attribution.json 0.31.0, each with `protectedPaths: null`).
+        // The records' values, spelled out: security.json at version 3 and
+        // gate-attribution.json at 0.31.0, each with `protectedPaths: null`.
         const worktree = join(world.stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");
         const commandPrecision = provider === "codex-cli";
         expect(readJson(join(observed.phaseFolder, "security.json"))).toEqual({
-          version: 2,
+          version: 3,
           mode: "secure",
           provider,
           sandboxEnabled: true,
@@ -463,15 +469,42 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
             },
           ],
           skillEditGrants: [],
+          protectedPaths: null,
           providerSkippedForSecurity: [],
           stop: null,
         });
         expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toEqual({
-          $schema: "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          $schema: "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
           phase: "phase-01",
           steps: [{ command: "node scripts/gate.mjs", surface: "local", result: "pass" }],
+          protectedPaths: null,
         });
       },
     );
   },
 );
+
+describe("a phase on claude-code in a project that declares protectedPaths", () => {
+  it(
+    "records its globs, phax.json included, and the enforcement",
+    { timeout: 60_000 },
+    async () => {
+      const observed = await runPhase("claude-code", ["**/steme.baseline.json"]);
+      if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+
+      const posture = readJson(join(observed.phaseFolder, "security.json")) as {
+        version: number;
+        protectedPaths: unknown;
+      };
+      expect(posture.version).toBe(3);
+      expect(posture.protectedPaths).toEqual({
+        globs: ["**/steme.baseline.json", "phax.json"],
+        enforcement: "enforced",
+      });
+      // The check does not run yet: the attribution still records null.
+      expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toMatchObject({
+        protectedPaths: null,
+      });
+    },
+  );
+});

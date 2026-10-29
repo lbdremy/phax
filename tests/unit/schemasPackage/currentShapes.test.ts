@@ -322,21 +322,29 @@ const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined)
 // surface summary: phax lifts the placeholder, the package `Unknown`. A
 // pre-schema phax-plan stated no test lines: phax gives its phases no
 // `testLines` key, the package `Unknown`. All three are covered below where
-// they part.
+// they part. A pre-schema gate attribution ran no protected-paths check: phax
+// lifts it with `protectedPaths: null`, the package keeps it as recorded.
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
     BRIDGE_READERS[id] !== undefined &&
     id !== "phase-status" &&
     id !== "spec-document" &&
-    id !== "phax-plan",
+    id !== "phax-plan" &&
+    id !== "gate-attribution",
 );
 // A pre-schema phase status upgrades with `base` Unknown, a phax-written one
 // keeps its base; a pre-schema spec document upgrades with each summary
 // Unknown, a phax-written one keeps its own; a pre-schema phax-plan upgrades
 // with `testLines` Unknown, a phax-written one keeps its lines: they never
 // upgrade alike.
+// A pre-schema gate attribution keeps no `protectedPaths`, a phax-written one
+// records it.
 const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
-  (id) => id !== "phase-status" && id !== "spec-document" && id !== "phax-plan",
+  (id) =>
+    id !== "phase-status" &&
+    id !== "spec-document" &&
+    id !== "phax-plan" &&
+    id !== "gate-attribution",
 );
 
 /** Each phase without its `testLines` key. */
@@ -366,6 +374,22 @@ describe("phax's bridge and the package agree", () => {
     const document = validDocuments[id];
     expect(read(`/work/example-repo/${id}.json`, document)).toEqual(
       Either.right(PACKAGE_LATEST[id](document)),
+    );
+  });
+
+  // Where they part: a pre-schema gate attribution ran no protected-paths
+  // check. The package keeps it as recorded, without the field; phax lifts it
+  // with `protectedPaths: null`.
+  it("gate-attribution: a pre-schema document keeps no protectedPaths in the package, null in phax", () => {
+    const document = preSchemaDocuments["gate-attribution"];
+    expect(PACKAGE_LATEST["gate-attribution"](document)).not.toHaveProperty("protectedPaths");
+    expect(
+      BRIDGE_READERS["gate-attribution"]?.("/work/example-repo/gate-attribution.json", document),
+    ).toEqual(
+      Either.right({
+        ...(PACKAGE_LATEST["gate-attribution"](document) as object),
+        protectedPaths: null,
+      }),
     );
   });
 

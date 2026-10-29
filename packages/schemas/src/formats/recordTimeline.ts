@@ -37,6 +37,11 @@ import {
   type GateAttributionV0_21_0,
 } from "../../../../src/schemas/history/gate-attribution/0.21.0.js";
 import {
+  GateAttributionV0_26_0Schema,
+  decodeGateAttributionV0_26_0,
+  type GateAttributionV0_26_0,
+} from "../../../../src/schemas/history/gate-attribution/0.26.0.js";
+import {
   PhaseFileReconciliationV0_17_0Schema,
   decodePhaseFileReconciliationV0_17_0,
   type PhaseFileReconciliationV0_17_0,
@@ -71,6 +76,7 @@ export type GateAttributionShapes = {
   "0.17.0": GateAttributionV0_17_0;
   "0.20.0": GateAttributionV0_20_0;
   "0.21.0": GateAttributionV0_21_0;
+  "0.26.0": GateAttributionV0_26_0;
 } & {
   [K in CurrentShapeName<"gate-attribution">]: GateAttributionFile;
 };
@@ -86,6 +92,7 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
     ["0.17.0", { schema: GateAttributionV0_17_0Schema, decode: decodeGateAttributionV0_17_0 }],
     ["0.20.0", { schema: GateAttributionV0_20_0Schema, decode: decodeGateAttributionV0_20_0 }],
     ["0.21.0", { schema: GateAttributionV0_21_0Schema, decode: decodeGateAttributionV0_21_0 }],
+    ["0.26.0", { schema: GateAttributionV0_26_0Schema, decode: decodeGateAttributionV0_26_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["gate-attribution"],
@@ -117,31 +124,38 @@ export function toLatestGateAttribution(
   value: GateAttributionV0_21_0,
 ): Omit<GateAttributionV0_21_0, "$schema">;
 export function toLatestGateAttribution(
-  value:
-    | GateAttributionPreSchema
-    | GateAttributionV0_17_0
-    | GateAttributionV0_20_0
-    | GateAttributionV0_21_0
-    | GateAttributionFile,
-):
-  | LatestGateAttribution
-  | GateAttributionPreSchema
-  | Omit<GateAttributionV0_17_0, "$schema">
-  | Omit<GateAttributionV0_20_0, "$schema">
-  | Omit<GateAttributionV0_21_0, "$schema">;
+  value: GateAttributionV0_26_0,
+): Omit<GateAttributionV0_26_0, "$schema">;
 export function toLatestGateAttribution(
   value:
     | GateAttributionPreSchema
     | GateAttributionV0_17_0
     | GateAttributionV0_20_0
     | GateAttributionV0_21_0
+    | GateAttributionV0_26_0
     | GateAttributionFile,
 ):
   | LatestGateAttribution
   | GateAttributionPreSchema
   | Omit<GateAttributionV0_17_0, "$schema">
   | Omit<GateAttributionV0_20_0, "$schema">
-  | Omit<GateAttributionV0_21_0, "$schema"> {
+  | Omit<GateAttributionV0_21_0, "$schema">
+  | Omit<GateAttributionV0_26_0, "$schema">;
+export function toLatestGateAttribution(
+  value:
+    | GateAttributionPreSchema
+    | GateAttributionV0_17_0
+    | GateAttributionV0_20_0
+    | GateAttributionV0_21_0
+    | GateAttributionV0_26_0
+    | GateAttributionFile,
+):
+  | LatestGateAttribution
+  | GateAttributionPreSchema
+  | Omit<GateAttributionV0_17_0, "$schema">
+  | Omit<GateAttributionV0_20_0, "$schema">
+  | Omit<GateAttributionV0_21_0, "$schema">
+  | Omit<GateAttributionV0_26_0, "$schema"> {
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;

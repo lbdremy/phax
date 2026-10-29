@@ -25,9 +25,38 @@ const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStep
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
 
+/** How a protected path changed in the phase, by what the observation shows. */
+export const ProtectedChangeKindSchema = Schema.Literal("created", "edited", "deleted", "renamed");
+
+const ProtectedChangeSchema = Schema.Struct({
+  path: Schema.NonEmptyString,
+  kind: ProtectedChangeKindSchema,
+  entry: Schema.NonEmptyString,
+});
+
+export type ProtectedChange = Schema.Schema.Type<typeof ProtectedChangeSchema>;
+
+/**
+ * The protected-paths check of an attempt: `null` when it was not run (no list
+ * declared, or a stop's close), else a pass with no change or a fail with at
+ * least one.
+ */
+const ProtectedPathsResultSchema = Schema.NullOr(
+  Schema.Union(
+    Schema.Struct({ result: Schema.Literal("pass"), changes: Schema.Tuple() }),
+    Schema.Struct({
+      result: Schema.Literal("fail"),
+      changes: Schema.NonEmptyArray(ProtectedChangeSchema),
+    }),
+  ),
+);
+
+export type ProtectedPathsResult = Schema.Schema.Type<typeof ProtectedPathsResultSchema>;
+
 const gateAttributionFields = {
   phase: Schema.NonEmptyString,
   steps: Schema.Array(GateStepResultSchema),
+  protectedPaths: ProtectedPathsResultSchema,
 };
 
 export const GateAttributionSchema = Schema.Struct(gateAttributionFields);

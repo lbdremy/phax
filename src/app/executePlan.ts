@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Array as Arr, Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -94,6 +94,7 @@ import { evaluateProviderSecurity, securityFilterFor } from "../domain/security/
 import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
+import { protectedEnforcement } from "../domain/security/protectedPaths.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { writeRecord, type RecordUsageSource } from "./writeRecord.js";
@@ -826,7 +827,7 @@ export function executePlan(
         );
       }
       const securityPosture: SecurityPosture = {
-        version: 2,
+        version: 3,
         mode: securityPolicy.mode,
         provider: resolution.selected.provider,
         sandboxEnabled: securityPolicy.mode === "secure",
@@ -845,6 +846,18 @@ export function executePlan(
         marks: postureMarks,
         agentCommands: frozenResult.records,
         skillEditGrants: [...args.skillEditGrants],
+        // A declared list always holds the loaded phax.json, so it is never empty.
+        protectedPaths:
+          config.protectedPaths !== undefined && Arr.isNonEmptyReadonlyArray(config.protectedPaths)
+            ? {
+                globs: Arr.map(config.protectedPaths, (entry) => entry.glob),
+                enforcement: protectedEnforcement(
+                  config.protectedPaths,
+                  resolution.selected.provider,
+                  securityPolicy.mode,
+                ),
+              }
+            : null,
         providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
         stop: null,
       };

@@ -152,6 +152,7 @@ function attribution(phase: string, result: "pass" | "fail" | "skipped"): string
   return JSON.stringify(
     withSchemaUrl("gate-attribution", {
       phase,
+      protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "node tools/oracles.mjs", surface: "oracle", result },

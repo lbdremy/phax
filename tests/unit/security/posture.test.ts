@@ -8,7 +8,7 @@ import {
 } from "../../../src/schemas/securityPosture.js";
 
 const baseSecurePosture = {
-  version: 2 as const,
+  version: 3 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -27,12 +27,13 @@ const baseSecurePosture = {
   marks: [] as const,
   agentCommands: [] as const,
   skillEditGrants: [],
+  protectedPaths: null,
   providerSkippedForSecurity: [],
   stop: null,
 };
 
 const unsafePosture = {
-  version: 2 as const,
+  version: 3 as const,
   mode: "unsafe" as const,
   provider: "codex-cli" as const,
   sandboxEnabled: false,
@@ -51,12 +52,13 @@ const unsafePosture = {
   marks: [] as const,
   agentCommands: [] as const,
   skillEditGrants: [],
+  protectedPaths: null,
   providerSkippedForSecurity: [],
   stop: null,
 };
 
 const downgradedVibePosture = {
-  version: 2 as const,
+  version: 3 as const,
   mode: "secure" as const,
   provider: "mistral-vibe" as const,
   sandboxEnabled: true,
@@ -75,12 +77,13 @@ const downgradedVibePosture = {
   marks: ["partial-filesystem", "mcp-unenforced"] as const,
   agentCommands: [] as const,
   skillEditGrants: [],
+  protectedPaths: null,
   providerSkippedForSecurity: [],
   stop: null,
 };
 
 const withSkippedProviders = {
-  version: 2 as const,
+  version: 3 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -99,6 +102,7 @@ const withSkippedProviders = {
   marks: [] as const,
   agentCommands: [] as const,
   skillEditGrants: [],
+  protectedPaths: null,
   providerSkippedForSecurity: [
     { provider: "mistral-vibe" as const, reason: "cannot satisfy strict secure mode" },
   ],
@@ -189,7 +193,7 @@ describe("SecurityPostureSchema", () => {
     });
 
     it("rejects wrong version", () => {
-      const invalid = { ...baseSecurePosture, version: 3 };
+      const invalid = { ...baseSecurePosture, version: 2 };
       const result = decodeSecurityPosture(invalid);
       expect(Either.isLeft(result)).toBe(true);
     });
@@ -504,6 +508,7 @@ describe("SecurityPostureSchema", () => {
         | "marks"
         | "agentCommands"
         | "skillEditGrants"
+        | "protectedPaths"
         | "providerSkippedForSecurity"
         | "stop"
       >();
@@ -531,12 +536,32 @@ describe("SecurityPostureSchema", () => {
     });
 
     // oxlint-disable-next-line no-unused-vars
-    const { stop: _stop, version: _version, ...v1Fields } = baseSecurePosture;
+    const {
+      stop: _stop,
+      version: _version,
+      protectedPaths: _protectedPaths,
+      ...v1Fields
+    } = baseSecurePosture;
     const v1 = { version: 1, ...v1Fields };
+    const v2 = { version: 2, ...v1Fields, stop: null };
 
     it.each([
-      ["a version-2 file without stop", { ...v1Fields, version: 2 }],
-      ["a version-2 file with an extra key", { ...baseSecurePosture, extra: true }],
+      ["a version-3 file without protectedPaths", { ...v1Fields, version: 3, stop: null }],
+      ["a version-3 file with an extra key", { ...baseSecurePosture, extra: true }],
+      [
+        "a version-3 file with an empty globs list",
+        {
+          ...baseSecurePosture,
+          protectedPaths: { globs: [], enforcement: "enforced" },
+        },
+      ],
+      [
+        "a version-3 file with an unknown enforcement",
+        {
+          ...baseSecurePosture,
+          protectedPaths: { globs: ["phax.json"], enforcement: "full" },
+        },
+      ],
       ["a stop with an extra key", { ...baseSecurePosture, stop: { ...closedStop, extra: 1 } }],
       [
         "a turn that ran an agent command",
@@ -548,20 +573,46 @@ describe("SecurityPostureSchema", () => {
           },
         },
       ],
-      ["a version-3 file", { ...baseSecurePosture, version: 3 }],
+      ["a version-2 file with an extra key", { ...v2, extra: true }],
+      ["a version-4 file", { ...baseSecurePosture, version: 4 }],
     ])("readSecurityPosture refuses %s", (_label, input) => {
       expect(Either.isLeft(readSecurityPosture(input))).toBe(true);
     });
 
-    it("readSecurityPosture lifts a version-1 file with stop null", () => {
+    it("readSecurityPosture lifts a version-1 file with protectedPaths and stop null", () => {
       const read = readSecurityPosture(v1);
       expect(Either.isRight(read)).toBe(true);
       if (Either.isRight(read)) {
-        expect(read.right).toEqual({ ...baseSecurePosture, version: 2, stop: null });
+        expect(read.right).toEqual({ ...baseSecurePosture, stop: null, protectedPaths: null });
       }
     });
 
-    it("readSecurityPosture reads a version-2 file as decodeSecurityPosture does", () => {
+    it("readSecurityPosture lifts a version-2 file with protectedPaths null, keeping its stop", () => {
+      const read = readSecurityPosture({ ...v2, stop: closedStop });
+      expect(Either.isRight(read) && read.right).toEqual({
+        ...baseSecurePosture,
+        stop: closedStop,
+        protectedPaths: null,
+      });
+    });
+
+    it("readSecurityPosture round-trips a version-3 file that declares protected paths", () => {
+      const posture = {
+        ...baseSecurePosture,
+        protectedPaths: { globs: ["**/steme.baseline.json", "phax.json"], enforcement: "enforced" },
+      } as const;
+      const read = readSecurityPosture(encodeSecurityPosture(posture));
+      expect(Either.isRight(read) && read.right).toEqual(posture);
+    });
+
+    it("keeps the keys in order, protectedPaths before providerSkippedForSecurity", () => {
+      const keys = Object.keys(encodeSecurityPosture(baseSecurePosture));
+      expect(keys.indexOf("protectedPaths")).toBe(keys.indexOf("skillEditGrants") + 1);
+      expect(keys.indexOf("providerSkippedForSecurity")).toBe(keys.indexOf("protectedPaths") + 1);
+      expect(keys.at(-1)).toBe("stop");
+    });
+
+    it("readSecurityPosture reads a version-3 file as decodeSecurityPosture does", () => {
       const posture = { ...baseSecurePosture, stop: closedStop };
       const read = readSecurityPosture(encodeSecurityPosture(posture));
       expect(Either.isRight(read) && read.right).toEqual(posture);
