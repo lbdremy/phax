@@ -82,7 +82,7 @@ WHERE a phase's session runs on claude-code in secure mode THE system SHALL deny
 
 ### 5.6 Native rule on Mistral Vibe
 
-WHERE a phase's session runs on mistral-vibe in secure mode THE system SHALL add `<worktree>/<glob>` to the `write_file` and `edit` denylists for every glob of the protected list that holds none of `*`, `?`, `[` and `]`, and give every other glob no native rule.
+WHERE a phase's session runs on mistral-vibe in secure mode THE system SHALL add to the `write_file` and `edit` denylists `<worktree>/<glob>` for every glob of the protected list that holds none of `*`, `?`, `[` and `]`, the two entries `<worktree>/<path>` and `<worktree>/**/<path>` for every glob that is `**/` followed by such a path, and give every other glob no native rule.
 
 ### 5.7 No native rule elsewhere
 
@@ -259,7 +259,7 @@ after:
     claude -p … --permission-mode acceptEdits --allowedTools "Bash(steme audit:*)" \
       --settings '{"permissions":{"deny":["Edit(///wt/**/steme.baseline.json)","Edit(///wt/phax.json)"]}}'
 
-    VIBE_TOOLS='{…,"write_file":{"allowlist":[],"denylist":["/wt/.vibe/**","/wt/.agents/**","/wt/phax.json"],"outside_workdir":"deny"},"edit":{…}}'
+    VIBE_TOOLS='{…,"write_file":{"allowlist":[],"denylist":["/wt/.vibe/**","/wt/.agents/**","/wt/steme.baseline.json","/wt/**/steme.baseline.json","/wt/phax.json"],"outside_workdir":"deny"},"edit":{…}}'
 
 ### file: <run>/<phase-id>/security.json — normative
 
@@ -285,7 +285,7 @@ after:
       "skillEditGrants": [],
       "protectedPaths": {
         "globs": ["**/steme.baseline.json", "phax.json"],
-        "enforcement": "partial"
+        "enforcement": "enforced"
       },
       "providerSkippedForSecurity": [],
       "stop": null
@@ -334,7 +334,7 @@ after:
     | Provider       | Native rule                                   | Enforcement            |
     | -------------- | --------------------------------------------- | ---------------------- |
     | `claude-code`  | `Edit(//…)` deny, globs without `[` `]`        | enforced or partial    |
-    | `mistral-vibe` | `write_file`/`edit` denylist, literal paths    | enforced or partial    |
+    | `mistral-vibe` | `write_file`/`edit` denylist, literal and `**/` paths | enforced or partial |
     | `codex-cli`    | none (permission profiles: later)              | commit-check-only      |
 
     ### Shell command execution
@@ -417,9 +417,9 @@ Given a phase on claude-code in secure mode with `protectedPaths` ["**/steme.bas
 
 Given the real Claude Code CLI in secure mode and `protectedPaths` ["**/steme.baseline.json"], when the agent is asked to Write, Edit and MultiEdit packages/a/steme.baseline.json in the real-CLI e2e suite, then every call is denied and the file is unchanged. (refs §5.5)
 
-### Vibe gets literal paths only
+### Vibe gets literal and `**/` paths
 
-Given a phase on mistral-vibe in secure mode with `protectedPaths` ["**/steme.baseline.json", "config/allow.json"], when phax spawns a turn, then the `write_file` and `edit` denylists hold `<worktree>/config/allow.json` and `<worktree>/phax.json` after the `.vibe` and `.agents` guards, nothing for the `**` glob, the post-turn read-back accepts that list, and security.json records `"enforcement": "partial"`. (refs §5.6, §5.15)
+Given a phase on mistral-vibe in secure mode with `protectedPaths` ["**/steme.baseline.json", "config/*.json"], when phax spawns a turn, then the `write_file` and `edit` denylists hold `<worktree>/steme.baseline.json`, `<worktree>/**/steme.baseline.json` and `<worktree>/phax.json` after the `.vibe` and `.agents` guards, nothing for `config/*.json`, the post-turn read-back accepts that list, and security.json records `"enforcement": "partial"`. (refs §5.6, §5.15)
 
 ### Vibe refuses the edit natively
 
@@ -478,7 +478,7 @@ Settled:
 - A rename counts on both paths. Only tracked files and untracked files git does not ignore are protected.
 - Native rules are passed in secure mode only. Read-only sessions (a stop's first and closing turns, decide, authoring) need nothing more, as they have no writing tool.
 - Codex gets no native rule: making exact paths read-only needs permission profiles, which replace phax's `sandbox_mode` `-c` overrides, so that migration is the later route.
-- Claude Code: a glob holding `[` or `]` gets no native rule, as Claude reads them as a class. Vibe: only a glob with none of `*`, `?`, `[`, `]` gets one, as fnmatch's `*` and `?` cross `/` and a pattern is matched against the absolute path.
+- Claude Code: a glob holding `[` or `]` gets no native rule, as Claude reads them as a class. Vibe: a glob with none of `*`, `?`, `[`, `]` gets one entry, and `**/` followed by such a path gets two (`<worktree>/<path>` and `<worktree>/**/<path>`, which fnmatch matches at the root and at any depth below it); every other glob gets none, as fnmatch's `*` and `?` cross `/` and a pattern is matched against the absolute path.
 - security.json moves to version 3 with a required `protectedPaths`; version 2 and version 1 files are lifted on read, as version 1 was lifted with `stop: null`.
 - Accepted loss: on Claude Code, a protected write that got past the native rule came through the shell, and the agent has no tool to put it back, so the fix loop can only run to exhaustion.
 

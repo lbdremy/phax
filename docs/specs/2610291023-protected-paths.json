@@ -139,7 +139,7 @@
       "id": "r-vibe",
       "title": "Native rule on Mistral Vibe",
       "pattern": "optional",
-      "statement": "WHERE a phase's session runs on mistral-vibe in secure mode THE system SHALL add `<worktree>/<glob>` to the `write_file` and `edit` denylists for every glob of the protected list that holds none of `*`, `?`, `[` and `]`, and give every other glob no native rule."
+      "statement": "WHERE a phase's session runs on mistral-vibe in secure mode THE system SHALL add to the `write_file` and `edit` denylists `<worktree>/<glob>` for every glob of the protected list that holds none of `*`, `?`, `[` and `]`, the two entries `<worktree>/<path>` and `<worktree>/**/<path>` for every glob that is `**/` followed by such a path, and give every other glob no native rule."
     },
     {
       "id": "r-no-native",
@@ -242,14 +242,14 @@
       "summary": "Claude Code and Mistral Vibe refuse an edit to a protected file before it is written, for every glob they can express exactly.",
       "binding": "indicative",
       "before": "claude -p … --permission-mode acceptEdits --allowedTools \"Bash(steme audit:*)\"\n\nVIBE_TOOLS='{…,\"write_file\":{\"allowlist\":[],\"denylist\":[\"/wt/.vibe/**\",\"/wt/.agents/**\"],\"outside_workdir\":\"deny\"},\"edit\":{…}}'",
-      "after": "claude -p … --permission-mode acceptEdits --allowedTools \"Bash(steme audit:*)\" \\\n  --settings '{\"permissions\":{\"deny\":[\"Edit(///wt/**/steme.baseline.json)\",\"Edit(///wt/phax.json)\"]}}'\n\nVIBE_TOOLS='{…,\"write_file\":{\"allowlist\":[],\"denylist\":[\"/wt/.vibe/**\",\"/wt/.agents/**\",\"/wt/phax.json\"],\"outside_workdir\":\"deny\"},\"edit\":{…}}'"
+      "after": "claude -p … --permission-mode acceptEdits --allowedTools \"Bash(steme audit:*)\" \\\n  --settings '{\"permissions\":{\"deny\":[\"Edit(///wt/**/steme.baseline.json)\",\"Edit(///wt/phax.json)\"]}}'\n\nVIBE_TOOLS='{…,\"write_file\":{\"allowlist\":[],\"denylist\":[\"/wt/.vibe/**\",\"/wt/.agents/**\",\"/wt/steme.baseline.json\",\"/wt/**/steme.baseline.json\",\"/wt/phax.json\"],\"outside_workdir\":\"deny\"},\"edit\":{…}}'"
     },
     {
       "surface": "file: <run>/<phase-id>/security.json",
       "summary": "A phase's security record shows the protected paths and how much of the list its provider refused natively, or `null` when the project declares none.",
       "binding": "normative",
       "before": "{\n  \"version\": 2,\n  \"mode\": \"secure\",\n  \"provider\": \"mistral-vibe\",\n  \"skillEditGrants\": [],\n  \"providerSkippedForSecurity\": [],\n  \"stop\": null\n}",
-      "after": "{\n  \"version\": 3,\n  \"mode\": \"secure\",\n  \"provider\": \"mistral-vibe\",\n  \"skillEditGrants\": [],\n  \"protectedPaths\": {\n    \"globs\": [\"**/steme.baseline.json\", \"phax.json\"],\n    \"enforcement\": \"partial\"\n  },\n  \"providerSkippedForSecurity\": [],\n  \"stop\": null\n}\n\n\"protectedPaths\": null        (no protectedPaths in phax.json)\n\"enforcement\": \"enforced\" | \"partial\" | \"commit-check-only\""
+      "after": "{\n  \"version\": 3,\n  \"mode\": \"secure\",\n  \"provider\": \"mistral-vibe\",\n  \"skillEditGrants\": [],\n  \"protectedPaths\": {\n    \"globs\": [\"**/steme.baseline.json\", \"phax.json\"],\n    \"enforcement\": \"enforced\"\n  },\n  \"providerSkippedForSecurity\": [],\n  \"stop\": null\n}\n\n\"protectedPaths\": null        (no protectedPaths in phax.json)\n\"enforcement\": \"enforced\" | \"partial\" | \"commit-check-only\""
     },
     {
       "surface": "file: phax.usage.kdl",
@@ -263,7 +263,7 @@
       "summary": "The security guide gains a Protected paths section saying what each provider refuses natively and what the commit check catches.",
       "binding": "indicative",
       "before": "### Skill edit grants (Claude Code)\n…\n### Shell command execution",
-      "after": "### Skill edit grants (Claude Code)\n…\n### Protected paths\n\n| Provider       | Native rule                                   | Enforcement            |\n| -------------- | --------------------------------------------- | ---------------------- |\n| `claude-code`  | `Edit(//…)` deny, globs without `[` `]`        | enforced or partial    |\n| `mistral-vibe` | `write_file`/`edit` denylist, literal paths    | enforced or partial    |\n| `codex-cli`    | none (permission profiles: later)              | commit-check-only      |\n\n### Shell command execution"
+      "after": "### Skill edit grants (Claude Code)\n…\n### Protected paths\n\n| Provider       | Native rule                                   | Enforcement            |\n| -------------- | --------------------------------------------- | ---------------------- |\n| `claude-code`  | `Edit(//…)` deny, globs without `[` `]`        | enforced or partial    |\n| `mistral-vibe` | `write_file`/`edit` denylist, literal and `**/` paths | enforced or partial |\n| `codex-cli`    | none (permission profiles: later)              | commit-check-only      |\n\n### Shell command execution"
     }
   ],
   "nonGoals": [
@@ -446,10 +446,10 @@
     },
     {
       "id": "ac-vibe-flags",
-      "name": "Vibe gets literal paths only",
-      "given": "a phase on mistral-vibe in secure mode with `protectedPaths` [\"**/steme.baseline.json\", \"config/allow.json\"]",
+      "name": "Vibe gets literal and `**/` paths",
+      "given": "a phase on mistral-vibe in secure mode with `protectedPaths` [\"**/steme.baseline.json\", \"config/*.json\"]",
       "when": "phax spawns a turn",
-      "then": "the `write_file` and `edit` denylists hold `<worktree>/config/allow.json` and `<worktree>/phax.json` after the `.vibe` and `.agents` guards, nothing for the `**` glob, the post-turn read-back accepts that list, and security.json records `\"enforcement\": \"partial\"`",
+      "then": "the `write_file` and `edit` denylists hold `<worktree>/steme.baseline.json`, `<worktree>/**/steme.baseline.json` and `<worktree>/phax.json` after the `.vibe` and `.agents` guards, nothing for `config/*.json`, the post-turn read-back accepts that list, and security.json records `\"enforcement\": \"partial\"`",
       "refs": [
         "r-vibe",
         "r-record"
@@ -577,7 +577,7 @@
       "A rename counts on both paths. Only tracked files and untracked files git does not ignore are protected.",
       "Native rules are passed in secure mode only. Read-only sessions (a stop's first and closing turns, decide, authoring) need nothing more, as they have no writing tool.",
       "Codex gets no native rule: making exact paths read-only needs permission profiles, which replace phax's `sandbox_mode` `-c` overrides, so that migration is the later route.",
-      "Claude Code: a glob holding `[` or `]` gets no native rule, as Claude reads them as a class. Vibe: only a glob with none of `*`, `?`, `[`, `]` gets one, as fnmatch's `*` and `?` cross `/` and a pattern is matched against the absolute path.",
+      "Claude Code: a glob holding `[` or `]` gets no native rule, as Claude reads them as a class. Vibe: a glob with none of `*`, `?`, `[`, `]` gets one entry, and `**/` followed by such a path gets two (`<worktree>/<path>` and `<worktree>/**/<path>`, which fnmatch matches at the root and at any depth below it); every other glob gets none, as fnmatch's `*` and `?` cross `/` and a pattern is matched against the absolute path.",
       "security.json moves to version 3 with a required `protectedPaths`; version 2 and version 1 files are lifted on read, as version 1 was lifted with `stop: null`.",
       "Accepted loss: on Claude Code, a protected write that got past the native rule came through the shell, and the agent has no tool to put it back, so the fix loop can only run to exhaustion."
     ],
