@@ -677,10 +677,13 @@ export function executePlan(
     isFinal: boolean,
   ): Effect.Effect<GateRequest, FsError, FileSystem> {
     return readPhaseBase(phaseFolderPath).pipe(
-      Effect.map((base) =>
-        makeGateRequest({ phaseId, base, terminal: isFinal, phases: plan.phases }),
-      ),
+      Effect.map((base) => phaseFactsAt(base, phaseId, isFinal)),
     );
+  }
+
+  // The phase facts at a base already read.
+  function phaseFactsAt(base: string, phaseId: string, isFinal: boolean): GateRequest {
+    return makeGateRequest({ phaseId, base, terminal: isFinal, phases: plan.phases });
   }
 
   // The oracle step of a phase in an oracle pair, or undefined for any other
@@ -1983,6 +1986,13 @@ export function executePlan(
       // Built at most once per phase entry, and shared by the brief request
       // and the gate request.
       let phaseFacts: GateRequest | undefined;
+      // The phase base, read off status.json once per phase entry before any
+      // agent turn of it, and held here: the gate request and every
+      // protected-path check of the entry use this value, never a re-read the
+      // agent's turn could have rewritten. A re-entry with no turn before its
+      // check (a commit-only resume, a resume out of a failed handoff) has
+      // status.json as its only source.
+      let phaseBase: string;
 
       if (
         isResumeFromGate ||
@@ -2035,6 +2045,7 @@ export function executePlan(
           );
         }
         worktreePath = worktreePathResult.right;
+        phaseBase = yield* readPhaseBase(phaseFolderPath);
         // Only these two re-entries run the agent again; a commit, cleanup or
         // completion re-entry runs none, so it needs no fresh copy.
         if (isResumeFromGate || isResumeFromHandoff) {
@@ -2042,7 +2053,7 @@ export function executePlan(
         }
         // A resume asks no new brief (spec §5.6) but restores the request file.
         if (config.brief !== undefined) {
-          phaseFacts = yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal);
+          phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           yield* writeBriefRequestOrWarn(
             worktreePath as string,
             phase.id,
@@ -2112,6 +2123,7 @@ export function executePlan(
           preparedBranch,
           config.repoRoot,
         );
+        phaseBase = yield* readPhaseBase(phaseFolderPath);
         currentPhaseId = phase.id;
         currentPhaseFolderPath = phaseFolderPath;
         currentWorktreePath = undefined;
@@ -2168,7 +2180,7 @@ export function executePlan(
 
         let briefSection: string | undefined;
         if (config.brief !== undefined) {
-          phaseFacts = yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal);
+          phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           const briefRequest = stampBriefRequest(phaseBriefRequest(phaseFacts, null));
           yield* writeBriefRequestOrWarn(worktreePath as string, phase.id, briefRequest);
           briefSection = yield* pushBrief({
@@ -2350,22 +2362,21 @@ export function executePlan(
         // the branch — never re-derived from git — so every attempt, and a
         // resume, hands declaring steps the same facts.
         const gateRequest = serializeGateRequest(
-          phaseFacts ?? (yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal)),
+          phaseFacts ?? phaseFactsAt(phaseBase, phase.id, isFinal),
         );
         const oracleStep = yield* oracleStepFor(
           phaseFolderPath,
           phase.id,
           skipOracle && i === startIndex,
         );
-        // The protected list is checked against the base status.json notes,
-        // never re-derived from git; a project that declares none checks nothing.
-        const protectedBase =
-          config.protectedPaths === undefined ? null : yield* readPhaseBase(phaseFolderPath);
+        // The protected list is checked against the base read before the
+        // agent's turn, never re-derived from git or re-read after the turn; a
+        // project that declares none checks nothing.
         const gateOutcome = yield* runGatesWithFixLoop({
           protectedPaths:
-            config.protectedPaths === undefined || protectedBase === null
+            config.protectedPaths === undefined
               ? null
-              : { list: config.protectedPaths, base: protectedBase },
+              : { list: config.protectedPaths, base: phaseBase },
           steps: phaseSteps,
           cwd: worktreePath as string,
           phaseFolderPath,
@@ -2430,7 +2441,7 @@ export function executePlan(
         if (isResumeFromCommit && config.protectedPaths !== undefined) {
           const changes = yield* checkProtectedPaths({
             worktree: worktreePath as string,
-            base: yield* readPhaseBase(phaseFolderPath),
+            base: phaseBase,
             list: config.protectedPaths,
           });
           if (changes.length > 0) {
