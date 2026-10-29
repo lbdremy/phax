@@ -187,7 +187,7 @@ Some files of a project record a human decision, and a gate reads them. steme's 
 - at a commit-only resume (a phase paused as a failed commit), against the phase base, before anything is committed: a protected change pauses the phase as a failed commit again, naming each path;
 - after the handoff turn, at every resume out of a failed handoff, and when a held phase is re-entered at its hold point, against the phase's commit: a protected change pauses the phase as a failed handoff, before the handoff is validated and copied and without a phase record. The run's `lastError` names the paths.
 
-**A stop's close is not checked.** A person who edits a protected file at a declared or held stop changes it on purpose. The change is committed with the stop and listed under `reviewCorrections` in `file-reconciliation.json`, as any other correction.
+**A stop's close is not checked.** A person who edits a protected file at a declared or held stop changes it on purpose. The change is committed with the stop and listed under `reviewCorrections`, as any other correction: in `file-reconciliation.json` at a declared stop, in `correction-reconciliation.json` at a held one.
 
 **Two ways on after a pause.** `resume-instructions.md` names each path still changed, and both ways: put each file back to its content (at the phase base after a gate pause, in the phase commit after a handoff pause) in the phase worktree and run `phax resume <run> --yes`, or make the change on the base branch yourself and start a new run. `phax reset-phase` is not a way on: it throws the phase's work away.
 

@@ -604,7 +604,7 @@
       "name": "A stop's close is not checked",
       "given": "a held stop where a person edits packages/a/steme.baseline.json in the phase worktree",
       "when": "`phax resume` closes the stop with a green gate",
-      "then": "the close's gate passes, the review commit carries the change and file-reconciliation.json lists it under reviewCorrections",
+      "then": "the close's gate passes, the review commit carries the change and correction-reconciliation.json lists it under reviewCorrections",
       "refs": [
         "r-stop"
       ]

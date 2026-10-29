@@ -532,7 +532,7 @@ Given `protectedPaths` declared, a phase on codex-cli in secure mode, then a pha
 
 ### A stop's close is not checked
 
-Given a held stop where a person edits packages/a/steme.baseline.json in the phase worktree, when `phax resume` closes the stop with a green gate, then the close's gate passes, the review commit carries the change and file-reconciliation.json lists it under reviewCorrections. (refs §5.18)
+Given a held stop where a person edits packages/a/steme.baseline.json in the phase worktree, when `phax resume` closes the stop with a green gate, then the close's gate passes, the review commit carries the change and correction-reconciliation.json lists it under reviewCorrections. (refs §5.18)
 
 ### A skill edit grant on a protected path is refused
 
