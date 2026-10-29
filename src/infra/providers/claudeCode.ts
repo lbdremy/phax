@@ -28,7 +28,8 @@ import {
 } from "../../domain/session/claudePermissionFlags.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import { readClaudeOutcome, type SessionEnd } from "../../domain/session/outcome.js";
-import { buildSkillEditGrantSettings } from "./claudeSkillEditSettings.js";
+import { claudeProtectedDenyRules } from "../../domain/security/protectedPaths.js";
+import { buildClaudeSessionSettings } from "./claudeSkillEditSettings.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { answerSessionId, failSession, sessionEndOf, writeAgentErrorLog } from "./agentErrorLog.js";
 import {
@@ -191,14 +192,20 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
     });
   }
   const skillEditGrants = options.skillEditGrants ?? [];
+  const worktreeRoot = options.security.mode === "unsafe" ? "" : resolveWorktreeRoot(options.cwd);
+  // Protected-path rules are native only in secure mode; unsafe gets none.
+  const denyRules =
+    options.security.mode === "secure" && options.protectedPaths !== undefined
+      ? claudeProtectedDenyRules(worktreeRoot, options.protectedPaths)
+      : [];
   const modeFlags = claudePermissionFlags({
     security: options.security,
     cwd: options.cwd,
     agentCommands: options.agentCommands ?? [],
     grantSettings:
-      options.security.mode === "unsafe" || skillEditGrants.length === 0
+      options.security.mode === "unsafe"
         ? undefined
-        : buildSkillEditGrantSettings(resolveWorktreeRoot(options.cwd), skillEditGrants),
+        : buildClaudeSessionSettings(worktreeRoot, skillEditGrants, denyRules),
   });
 
   const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];

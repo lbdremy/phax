@@ -22,6 +22,7 @@ import {
   RecordsSyncRequiredError,
   SecurityPreflightError,
   type SkillEditConsentError,
+  type SkillEditProtectedError,
   UnsafeGitStateError,
 } from "../domain/errors.js";
 import { resolveHold, type HoldRequest } from "../domain/hold.js";
@@ -50,7 +51,7 @@ import { assignmentBoundFindings } from "./assignmentBounds.js";
 import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { checkRecordsRunPreflight } from "./recordsSync.js";
-import { skillEditConsentRefusal } from "./skillEditConsent.js";
+import { skillEditConsentRefusal, skillEditProtectedRefusal } from "./skillEditConsent.js";
 import { checkCleanWorkingTree } from "./worktree.js";
 
 export const RUN_PREFLIGHT_CHECKS = [
@@ -89,6 +90,7 @@ export type RunPreflightRefusal =
   | UnsafeGitStateError
   | SecurityPreflightError
   | SkillEditConsentError
+  | SkillEditProtectedError
   | RecordsSyncRequiredError
   | ModelPreflightError
   | PlanSectionsPreflightError
@@ -270,11 +272,12 @@ const checks = {
   // Phases still to run that declare `.claude/skills/**` files need skill edit
   // consent. Runs on resume too, so a run with no recorded consent is refused
   // instead of having its skill edits silently denied.
+  // A granted skill file a protected glob matches is refused with it.
   "skill-edit-consent": (input) => {
-    const refusal = skillEditConsentRefusal(
-      input.plan.phases.slice(input.startIndex),
-      input.allowSkillEdits,
-    );
+    const remaining = input.plan.phases.slice(input.startIndex);
+    const refusal =
+      skillEditConsentRefusal(remaining, input.allowSkillEdits) ??
+      skillEditProtectedRefusal(remaining, input.allowSkillEdits, input.config.protectedPaths);
     return refusal === undefined ? Effect.void : Effect.fail(refusal);
   },
 
@@ -483,6 +486,12 @@ export function freshRunPreflight(input: FreshRunPreflightInput): Effect.Effect<
   return Effect.gen(function* () {
     const refusal = skillEditConsentRefusal(input.plan.phases, input.allowSkillEdits);
     if (refusal !== undefined) return yield* Effect.fail(refusal);
+    const protectedRefusal = skillEditProtectedRefusal(
+      input.plan.phases,
+      input.allowSkillEdits,
+      input.config.protectedPaths,
+    );
+    if (protectedRefusal !== undefined) return yield* Effect.fail(protectedRefusal);
 
     const loaded = yield* Effect.all({
       routing: loadModelRouting(),

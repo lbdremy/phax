@@ -600,6 +600,55 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
   );
 
   it(
+    "protected paths: write_file and edit refuse a literal, a root **/ and a nested **/ entry",
+    { timeout: 600_000 },
+    () => {
+      const env = newEnv();
+      const protectedFiles = ["config/limits.json", "allow.json", "packages/a/allow.json"];
+      writePlan(env, [
+        "Create the file `probe.txt` in the working directory containing the word `probe`.",
+        ...protectedFiles.flatMap((file) => [
+          `Use the write_file tool to overwrite \`${file}\` with the text \`{"limit": 99}\`.`,
+          `Use the edit tool on \`${file}\`: replace the text \`1\` with \`2\`.`,
+        ]),
+        "If a call is refused, do not retry it or look for another way; carry on with the next one.",
+      ]);
+      const configPath = join(env.repoDir, "phax.json");
+      const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
+      config["protectedPaths"] = ["config/limits.json", "**/allow.json"];
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const ORIGINAL = '{"limit": 1}\n';
+      for (const file of protectedFiles) {
+        mkdirSync(join(env.repoDir, file, ".."), { recursive: true });
+        writeFileSync(join(env.repoDir, file), ORIGINAL);
+      }
+
+      const result = runPhase(env);
+      failed ||= result.exitCode !== 0;
+      expect(result.exitCode, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+
+      const worktree = worktreeOf(env);
+      expect(existsSync(join(worktree, "probe.txt")), "the unprotected file was written").toBe(
+        true,
+      );
+      const calls = toolCallsOf(phaseStreams(env));
+      for (const file of protectedFiles) {
+        expectRefused(
+          calls,
+          `a write_file of ${file}`,
+          (call) => call.tool.endsWith("write_file") && call.target.endsWith(file),
+        );
+        expectRefused(
+          calls,
+          `an edit of ${file}`,
+          (call) => call.tool.endsWith("edit") && call.target.endsWith(file),
+        );
+        expect(readFileSync(join(worktree, file), "utf8"), `${file} is unchanged`).toBe(ORIGINAL);
+      }
+    },
+  );
+
+  it(
     "refused before spawning: a user accept-edits profile would replace the built-in agent",
     { timeout: 120_000 },
     () => {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { protectedList } from "../../../src/domain/security/protectedPaths.js";
 import {
   checkSkillEditConsent,
+  formatSkillEditProtectedRefusal,
   resolveSkillEditGrants,
+  skillEditProtectedConflicts,
 } from "../../../src/domain/security/skillEditGrants.js";
 
 function phase(id: string, edit: readonly string[], create: readonly string[] = []) {
@@ -108,5 +111,51 @@ describe("resolveSkillEditGrants", () => {
         ".claude/skills/zeta/SKILL.md",
       ]),
     ).toEqual([".claude/skills/zeta/SKILL.md", ".claude/skills/alpha/references/a.md"]);
+  });
+});
+
+describe("skillEditProtectedConflicts", () => {
+  const list = protectedList([".claude/skills/release/**", "docs/*.md"], "phax.json") ?? [];
+  const phases = [
+    phase("phase-01", ["src/x.ts", ".claude/skills/foo/SKILL.md"]),
+    phase("phase-02", [".claude/skills/release/SKILL.md"], [".claude/skills/release/ref/a.md"]),
+  ];
+
+  it("names each granted file a protected glob matches, with its entry and glob", () => {
+    expect(skillEditProtectedConflicts(phases, list)).toEqual([
+      {
+        phaseId: "phase-02",
+        file: ".claude/skills/release/ref/a.md",
+        entry: "protectedPaths[0]",
+        glob: ".claude/skills/release/**",
+      },
+      {
+        phaseId: "phase-02",
+        file: ".claude/skills/release/SKILL.md",
+        entry: "protectedPaths[0]",
+        glob: ".claude/skills/release/**",
+      },
+    ]);
+  });
+
+  it("matches case-folded, like the check", () => {
+    const folded = protectedList([".CLAUDE/skills/foo/**"], "phax.json") ?? [];
+    expect(skillEditProtectedConflicts(phases, folded).map((c) => c.file)).toEqual([
+      ".claude/skills/foo/SKILL.md",
+    ]);
+  });
+
+  it("is empty when no granted file is protected", () => {
+    const other = protectedList(["docs/*.md"], "phax.json") ?? [];
+    expect(skillEditProtectedConflicts(phases, other)).toEqual([]);
+  });
+
+  it("formats one line per conflict under the preflight header", () => {
+    const conflicts = skillEditProtectedConflicts(phases.slice(1), list);
+    expect(formatSkillEditProtectedRefusal(conflicts).split("\n").slice(0, 3)).toEqual([
+      "Security preflight failed: a skill edit grant names a protected path.",
+      "  phase-02: .claude/skills/release/ref/a.md (protectedPaths[0] .claude/skills/release/**)",
+      "  phase-02: .claude/skills/release/SKILL.md (protectedPaths[0] .claude/skills/release/**)",
+    ]);
   });
 });

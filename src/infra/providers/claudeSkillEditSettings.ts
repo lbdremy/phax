@@ -33,3 +33,19 @@ export function buildSkillEditGrantSettings(
     },
   };
 }
+
+/**
+ * The one inline `--settings` object of a secure Claude session: the skill-edit
+ * hooks (when there are grants) merged with `permissions.deny` holding the
+ * protected-path rules (when there are any). Undefined when both are empty, so
+ * a session with neither passes no `--settings`.
+ */
+export function buildClaudeSessionSettings(
+  worktreeRoot: string,
+  grants: readonly string[],
+  denyRules: readonly string[],
+): object | undefined {
+  const hooks = buildSkillEditGrantSettings(worktreeRoot, grants);
+  if (denyRules.length === 0) return hooks;
+  return { ...hooks, permissions: { deny: [...denyRules] } };
+}

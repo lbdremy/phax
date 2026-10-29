@@ -340,6 +340,42 @@ describe("buildPhasePrompt", () => {
     );
   });
 
+  it("lists the protected globs right before the execution rules", () => {
+    const prompt = buildPhasePrompt({
+      ...base,
+      protectedPaths: ["**/steme.baseline.json", "config/*.json", "pkg/phax.json"],
+    });
+    expect(prompt).toContain(
+      [
+        "## Protected paths",
+        "",
+        "These files are the operator's decision. No phase may create, change, delete or rename them, by any tool or command.",
+        "",
+        "- **/steme.baseline.json",
+        "- config/*.json",
+        "- pkg/phax.json",
+        "",
+        "If a hole cannot be fixed in the code, leave the gate failing and explain the hole in your reply. Never accept it in a protected file, and never work around it.",
+        "",
+        "## Execution rules",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("puts the protected paths after a brief section", () => {
+    const briefSection = "## Brief for this phase\n\nA made-up brief.";
+    const prompt = buildPhasePrompt({ ...base, briefSection, protectedPaths: ["phax.json"] });
+    expect(prompt.indexOf(briefSection)).toBeLessThan(prompt.indexOf("## Protected paths"));
+    expect(prompt.indexOf("## Protected paths")).toBeLessThan(prompt.indexOf("## Execution rules"));
+  });
+
+  it("carries no protected-paths section, byte for byte, when nothing is declared", () => {
+    const prompt = buildPhasePrompt({ ...base, protectedPaths: undefined });
+    expect(prompt).toBe(buildPhasePrompt(base));
+    expect(prompt).not.toContain("## Protected paths");
+  });
+
   it("a null oracle role adds no section", () => {
     expect(buildPhasePrompt(base)).not.toContain("## Oracle role");
   });

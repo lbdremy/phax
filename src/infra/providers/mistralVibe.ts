@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { execFile, spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, realpathSync } from "node:fs";
 import { access, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -93,7 +93,23 @@ function vibeFlagsInputOf(entry: VibeProviderEntry, options: AgentRunOptions): V
     agentCommands: options.agentCommands ?? [],
     unsafeAgent: entry.defaultAgent,
     readOnly: options.readOnly,
+    ...(options.protectedPaths === undefined
+      ? {}
+      : {
+          protectedPaths: { root: resolveWorktreeRoot(options.cwd), list: options.protectedPaths },
+        }),
   };
+}
+
+// Vibe's fnmatch compares resolved paths (macOS `/var` is `/private/var`), so
+// the protected entries sit under the worktree's realpath. A root that cannot
+// be resolved is used as given. `cwd` and `--workdir` stay as given.
+function resolveWorktreeRoot(cwd: string): string {
+  try {
+    return realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
 }
 
 function vibeFlagsOf(entry: VibeProviderEntry, options: AgentRunOptions): VibeFlags {
@@ -448,7 +464,8 @@ export function runVibeAgent(
   let envAdditions: Readonly<Record<string, string>>;
   try {
     args = buildVibeArgs(entry, prompt, options, resumeSessionId);
-    envAdditions = vibeFlagsOf(entry, options).env;
+    // The same input the post-turn read-back compares against.
+    envAdditions = buildVibeFlags(flagsInput).env;
   } catch (err) {
     if (err instanceof SecurityEnforcementError) {
       return Effect.fail(err);

@@ -35,10 +35,11 @@ import type { SecurityPolicy } from "../security/types.js";
 //                              via --mcp-config; satisfies mcp.mode "disabled"
 //                              and constrains "allowlist")
 //   --mcp-config <path>...     (one per file when mcp.mode === "allowlist")
-//   --settings <json>          (only with skill edit grants: an inline
-//                              PermissionRequest hook allowing exactly the
-//                              granted .claude/skills files; see
-//                              claudeSkillEditSettings.ts)
+//   --settings <json>          (one inline object, passed only when it holds
+//                              something: the PermissionRequest hook allowing
+//                              exactly the granted .claude/skills files, and
+//                              the permissions.deny rules of the protected
+//                              paths; see claudeSkillEditSettings.ts)
 //
 // Network: there is no native --allowed-domains flag and no domain-allowlist
 // concept in the policy (04b confirmed no provider enforces one). The Claude CLI
@@ -72,7 +73,7 @@ export interface ClaudePermissionInput {
   readonly cwd: string;
   /** The frozen agent commands allowlisted as Bash; empty denies Bash. */
   readonly agentCommands: readonly string[];
-  /** The inline `--settings` object granting skill edits, or undefined for none. */
+  /** The inline `--settings` object (skill edit hooks, protected-path deny rules), or undefined for none. */
   readonly grantSettings: object | undefined;
 }
 
@@ -103,7 +104,8 @@ function secureClaudeFlags(input: ClaudePermissionInput): string[] {
       : ["--disallowed-tools", "Bash"];
 
   // Declared skill files get through Claude's protected-path check via an
-  // inline PermissionRequest hook; with no grants the argv is unchanged.
+  // inline PermissionRequest hook, and phax's protected paths are denied in the
+  // same object; with neither the argv is unchanged.
   const settingsFlags =
     input.grantSettings === undefined ? [] : ["--settings", JSON.stringify(input.grantSettings)];
 

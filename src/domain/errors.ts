@@ -467,6 +467,18 @@ export class SkillEditConsentError extends Data.TaggedError("SkillEditConsentErr
   phases: readonly { readonly phaseId: string; readonly files: readonly string[] }[];
 }> {}
 
+// A skill edit grant names a file a `protectedPaths` glob matches: the plan asks
+// to edit what the operator keeps for themselves.
+export class SkillEditProtectedError extends Data.TaggedError("SkillEditProtectedError")<{
+  message: string;
+  conflicts: readonly {
+    readonly phaseId: string;
+    readonly file: string;
+    readonly entry: string;
+    readonly glob: string;
+  }[];
+}> {}
+
 export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")<{
   message: string;
   failures: readonly {
