@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610291023-protected-paths.md
 completes-spec: true
 approved:
