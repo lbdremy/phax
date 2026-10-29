@@ -123,14 +123,15 @@ describe("mirroredAtTarget", () => {
   });
 });
 
+const observe = (links: ProtectedObservation["links"]): ProtectedObservation => ({
+  entries: [],
+  tracked: [],
+  untracked: [],
+  links,
+});
+
 describe("protectedChanges on links", () => {
   const list = protectedList(["config/limits.json", "**/steme.baseline.json"], "phax.json")!;
-  const observe = (links: ProtectedObservation["links"]): ProtectedObservation => ({
-    entries: [],
-    tracked: [],
-    untracked: [],
-    links,
-  });
 
   it("names each link the first reaching entry reaches below, by its type", () => {
     expect(

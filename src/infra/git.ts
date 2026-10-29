@@ -484,12 +484,15 @@ function blobId(content: Uint8Array, like: string): string {
   return hash.digest("hex");
 }
 
+function isControl(code: number): boolean {
+  return code < 0x20 || code === 0x7f;
+}
+
 // A path as one line of `git hash-object --stdin-paths`, which reads a line
 // starting with `"` as C-quoted: a path holding a newline, ending with a
 // carriage return, starting with `"` or holding a backslash or a control
 // character is quoted, every other path is written as is.
 function stdinPathLine(path: string): string {
-  const isControl = (code: number): boolean => code < 0x20 || code === 0x7f;
   const plain =
     !path.startsWith('"') &&
     ![...path].some((char) => char === "\\" || isControl(char.charCodeAt(0)));
