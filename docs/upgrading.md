@@ -24,6 +24,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 ### 0.30.0
 
 - **Exit 14: the provider could not be reached.** A command whose agent cannot reach its provider (a network failure) now exits 14, which is resumable, instead of 5. Treat 14 like 8, but retry as soon as the network is back.
+- **Tools that read a phase folder: a failed session's files are archived.** When a session starts in a folder that holds an `agent-error.log`, phax renames it `agent-error.failed-NN.log`, and the transcript the new session would overwrite `<name>.failed-NN.jsonl`. See [Troubleshooting a failed agent session](agent-session-failures.md#a-failure-after-a-retry).
 - **Review UIs: `review-stop.json` and `phax ls --json` are stamped 0.30.0.** A stop's `lastClose` gains the result `network` (`{ result, at, exitCode: 14, detail }`, no `step`) when its closing turn could not reach the provider; the run stays `awaiting_review`. 0.26.0 documents still read.
 - **Records readers: a failed decision record names its failure.** `failure` (the session's failure kind, `answer-refused`, `artifact-changed` or `commit-failed`) is required on a failed decision record, stamped `decision-record-manifest` 0.30.0. Records written earlier still read, without it.
 - **Mistral Vibe 3.0.3 or later is required.** Run `uv tool upgrade mistral-vibe`. phax checks `vibe --version` before its first Vibe session and refuses an older Vibe, naming the installed version.
