@@ -47,6 +47,11 @@ export async function runValidate(opts: ValidateOptions, out: OutputPort): Promi
     out.log(`  local:   ${sources.localOverlay ?? "(none)"}`);
     out.log(`  global:  ${sources.globalOverlay ?? "(none)"}`);
   }
+  if (config.protectedPaths !== undefined) {
+    out.log(
+      `  protected paths: ${config.protectedPaths.map((protectedEntry) => protectedEntry.glob).join(", ")}`,
+    );
+  }
   if (config.assignments !== undefined) {
     const parts = config.assignments.filter((bound) => bound.kind === "part").length;
     const globs = config.assignments.length - parts;

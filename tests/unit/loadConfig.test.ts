@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
@@ -549,6 +549,114 @@ describe("loadConfig authoring defaults", () => {
       expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
       expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
     }
+  });
+});
+
+function loadFailure(cwd: string): ConfigValidationError {
+  const result = loadConfig(cwd);
+  if (Either.isRight(result)) throw new Error("expected loadConfig to refuse the config");
+  return result.left;
+}
+
+// phax.json `protectedPaths`: the files whose change is the operator's decision.
+describe("loadConfig protectedPaths", () => {
+  it("resolves no list for a project that declares none", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    expect(Either.isRight(result) && result.right.protectedPaths).toBeUndefined();
+  });
+
+  it("resolves the declared globs, then the loaded phax.json by its repo-relative path", () => {
+    writePhaxJson({ ...baseConfig, protectedPaths: ["**/steme.baseline.json", "docs/*.md"] });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.protectedPaths).toEqual([
+      { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
+      { glob: "docs/*.md", entry: "protectedPaths[1]" },
+      { glob: "phax.json", entry: "phax.json" },
+    ]);
+  });
+
+  it("does not repeat phax.json when a declared glob is exactly its path", () => {
+    writePhaxJson({ ...baseConfig, protectedPaths: ["phax.json"] });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.protectedPaths).toEqual([
+      { glob: "phax.json", entry: "protectedPaths[0]" },
+    ]);
+  });
+
+  it("names a phax.json found below the git root by that path, not by a root phax.json", () => {
+    mkdirSync(join(repoDir, "pkg"));
+    writeFileSync(
+      join(repoDir, "pkg", "phax.json"),
+      JSON.stringify({ ...baseConfig, protectedPaths: ["**/steme.baseline.json"] }),
+    );
+    const result = loadConfig(join(repoDir, "pkg"));
+    const list = Either.isRight(result) ? result.right.protectedPaths : undefined;
+    expect(list).toEqual([
+      { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
+      { glob: "pkg/phax.json", entry: "pkg/phax.json" },
+    ]);
+  });
+
+  it.each([
+    ["an empty list", [], "protectedPaths: a non-empty list of globs is required"],
+    ["a string", "phax.json", "protectedPaths: a non-empty list of globs is required"],
+    [
+      "a .. segment",
+      ["a.json", "../shared/allow.json"],
+      'protectedPaths[1]: "../shared/allow.json" has a .. segment',
+    ],
+    ["a leading /", ["/abs/x.json"], 'protectedPaths[0]: "/abs/x.json" starts with /'],
+    ["braces", ["{a,b}.json"], 'protectedPaths[0]: "{a,b}.json" uses braces'],
+    ["a non-string entry", ["a.json", 3], "protectedPaths[1]: a glob string is required"],
+  ])(
+    "refuses %s, naming the entry and the rule, at the phax.json path",
+    (_name, value, message) => {
+      writePhaxJson({ ...baseConfig, protectedPaths: value });
+      const error = loadFailure(repoDir);
+      expect(error.message).toBe(message);
+      expect(error.path).toBe(join(repoDir, "phax.json"));
+    },
+  );
+
+  it("refuses a glob inside a submodule .gitmodules declares", () => {
+    writeFileSync(
+      join(repoDir, ".gitmodules"),
+      '[submodule "lint-rules"]\n\tpath = vendor/lint-rules\n\turl = https://example.test/lint-rules.git\n',
+    );
+    writePhaxJson({
+      ...baseConfig,
+      protectedPaths: ["**/steme.baseline.json", "vendor/lint-rules/**"],
+    });
+    const error = loadFailure(repoDir);
+    expect(error.message).toBe(
+      'protectedPaths[1]: "vendor/lint-rules/**" is inside the submodule vendor/lint-rules',
+    );
+    expect(error.path).toBe(join(repoDir, "phax.json"));
+  });
+
+  it("accepts globs outside every submodule", () => {
+    writeFileSync(join(repoDir, ".gitmodules"), '[submodule "a"]\n\tpath = vendor/lint-rules\n');
+    writePhaxJson({ ...baseConfig, protectedPaths: ["vendor/other/**", "**/lint-rules.json"] });
+    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
+  });
+
+  it("refuses protectedPaths in phax.local.json, naming the overlay file", () => {
+    writePhaxJson(baseConfig);
+    writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify({ protectedPaths: ["a.json"] }));
+    const error = loadFailure(repoDir);
+    expect(error.message).toBe('"protectedPaths" is accepted only in phax.json');
+    expect(error.path).toBe(join(repoDir, "phax.local.json"));
+  });
+
+  it("refuses protectedPaths in ~/.phax/config.json, naming the overlay file", () => {
+    writePhaxJson(baseConfig);
+    const overlay = join(home.home, ".phax", "config.json");
+    writeFileSync(overlay, JSON.stringify({ protectedPaths: ["a.json"] }));
+    const error = loadFailure(repoDir);
+    expect(error.message).toBe('"protectedPaths" is accepted only in phax.json');
+    expect(error.path).toBe(overlay);
   });
 });
 

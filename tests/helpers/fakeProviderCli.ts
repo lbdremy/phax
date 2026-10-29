@@ -18,7 +18,12 @@ import { join } from "node:path";
  *   real CLI keeps its transcript: Claude to
  *   `.claude/projects/<slug of its cwd>/<id>.jsonl`, codex to
  *   `.codex/sessions/<UTC YYYY>/<MM>/<DD>/rollout-<timestamp>-<id>.jsonl`. A
- *   resume of the same id appends to the same file.
+ *   resume of the same id appends to the same file;
+ * - appends `{ executable, stdin, env }` (the prompt it was given and its whole
+ *   environment) as one JSON line to the file named by `PHAX_FAKE_CLI_TRACE`.
+ *
+ * `setScripts` plays one script per invocation, in order, the last one for any
+ * invocation past the end.
  *
  * phax spawns `claude` by name, so a test prepends `binDir` to PATH (see
  * `env`); codex runs from its provider entry's `executable`, `codexPath`.
@@ -63,14 +68,25 @@ interface FakeCliInvocation {
   readonly cwd: string;
 }
 
+/** What an invocation was given besides its argv: the prompt on stdin and its environment. */
+interface FakeCliTrace {
+  readonly executable: "claude" | "codex";
+  readonly stdin: string;
+  readonly env: Readonly<Record<string, string>>;
+}
+
 export interface FakeProviderCli {
   readonly binDir: string;
   readonly claudePath: string;
   readonly codexPath: string;
-  /** The variables to merge over `process.env`: PATH, HOME and the two files. */
+  /** The variables to merge over `process.env`: PATH, HOME and the three files. */
   readonly env: Readonly<Record<string, string>>;
   setScript(script: FakeCliScript): void;
+  /** One script per invocation, in order; the last one plays for any invocation past the end. */
+  setScripts(scripts: readonly FakeCliScript[]): void;
   invocations(): readonly FakeCliInvocation[];
+  /** The prompt and environment of each invocation, in order. */
+  traces(): readonly FakeCliTrace[];
 }
 
 const SHARED = `
@@ -81,7 +97,10 @@ fs.appendFileSync(
   process.env.PHAX_FAKE_CLI_LOG,
   JSON.stringify({ executable, argv: process.argv.slice(2), cwd: process.cwd() }) + "\\n",
 );
-const script = JSON.parse(fs.readFileSync(process.env.PHAX_FAKE_CLI_SCRIPT, "utf8"));
+const scripted = JSON.parse(fs.readFileSync(process.env.PHAX_FAKE_CLI_SCRIPT, "utf8"));
+// A list of scripts plays one per invocation, counting this one (just logged).
+const nth = fs.readFileSync(process.env.PHAX_FAKE_CLI_LOG, "utf8").split("\\n").filter(Boolean).length;
+const script = Array.isArray(scripted) ? scripted[Math.min(nth, scripted.length) - 1] : scripted;
 const printed = [];
 const print = (event) => {
   const line = JSON.stringify(event);
@@ -125,6 +144,13 @@ function answer(stream) {
 }
 let stdin = "";
 process.stdin.on("data", (chunk) => { stdin += chunk; });
+process.stdin.on("end", () => {
+  if (process.env.PHAX_FAKE_CLI_TRACE === undefined) return;
+  fs.appendFileSync(
+    process.env.PHAX_FAKE_CLI_TRACE,
+    JSON.stringify({ executable, stdin, env: process.env }) + "\\n",
+  );
+});
 `;
 
 const CLAUDE = `${SHARED}
@@ -231,6 +257,7 @@ export function makeFakeProviderCli(root: string): FakeProviderCli {
   const home = join(root, "home");
   const logPath = join(root, "fake-cli.log.jsonl");
   const scriptPath = join(root, "fake-cli.script.json");
+  const tracePath = join(root, "fake-cli.trace.jsonl");
   mkdirSync(binDir, { recursive: true });
   mkdirSync(home, { recursive: true });
   const claudePath = join(binDir, "claude");
@@ -246,14 +273,23 @@ export function makeFakeProviderCli(root: string): FakeProviderCli {
       HOME: home,
       PHAX_FAKE_CLI_LOG: logPath,
       PHAX_FAKE_CLI_SCRIPT: scriptPath,
+      PHAX_FAKE_CLI_TRACE: tracePath,
     },
     setScript: (script) => writeFileSync(scriptPath, JSON.stringify(script)),
+    setScripts: (scripts) => writeFileSync(scriptPath, JSON.stringify(scripts)),
     invocations: () =>
       existsSync(logPath)
         ? readFileSync(logPath, "utf8")
             .split("\n")
             .filter((line) => line.length > 0)
             .map((line) => JSON.parse(line) as FakeCliInvocation)
+        : [],
+    traces: () =>
+      existsSync(tracePath)
+        ? readFileSync(tracePath, "utf8")
+            .split("\n")
+            .filter((line) => line.length > 0)
+            .map((line) => JSON.parse(line) as FakeCliTrace)
         : [],
   };
 }

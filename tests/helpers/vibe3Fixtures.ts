@@ -167,6 +167,17 @@ interface FakeVibeOptions {
    * turn that ran under auto-approve whatever phax set.
    */
   readonly configOverride?: Readonly<Record<string, unknown>>;
+  /**
+   * The files the nth `-p` turn writes in its cwd before it answers, one list
+   * per turn in order, as `{ path, content }` relative to the cwd; none by default.
+   */
+  readonly turnWrites?: readonly (readonly { readonly path: string; readonly content: string }[])[];
+}
+
+/** One `-p` turn as the fake saw it: its arguments (the prompt among them) and whole environment. */
+interface FakeVibeTrace {
+  readonly argv: readonly string[];
+  readonly env: Readonly<Record<string, string>>;
 }
 
 interface FakeVibe {
@@ -178,6 +189,8 @@ interface FakeVibe {
   turns(): number;
   /** The `VIBE_*` environment of the last `-p` turn; empty before any turn. */
   turnEnv(): Readonly<Record<string, string>>;
+  /** Every `-p` turn's arguments and environment, in order. */
+  traces(): readonly FakeVibeTrace[];
 }
 
 // The fake, a Node script run by the test's own node. Its export's `config` is
@@ -196,6 +209,16 @@ if (args[0] === "--version") {
 }
 const vibeEnv = Object.entries(process.env).filter(([key]) => key.startsWith("VIBE_"));
 writeFileSync(join(here, "turn-env.txt"), vibeEnv.map(([key, value]) => key + "=" + value + "\\n").join(""));
+appendFileSync(join(here, "trace.jsonl"), JSON.stringify({ argv: args, env: process.env }) + "\\n");
+const turnNumber = readFileSync(join(here, "trace.jsonl"), "utf8").split("\\n").filter(Boolean).length;
+const writesFile = join(here, "turn-writes.json");
+if (existsSync(writesFile)) {
+  for (const write of JSON.parse(readFileSync(writesFile, "utf8"))[turnNumber - 1] ?? []) {
+    const target = join(process.cwd(), write.path);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, write.content);
+  }
+}
 const valueOf = (flag) => { const at = args.indexOf(flag); return at === -1 ? undefined : args[at + 1]; };
 const out = valueOf("--output-dir");
 process.stdout.write(readFileSync(join(here, "stream.jsonl"), "utf8"));
@@ -247,6 +270,9 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
   if (options.configOverride !== undefined) {
     writeFileSync(join(dir, "config-override.json"), JSON.stringify(options.configOverride));
   }
+  if (options.turnWrites !== undefined) {
+    writeFileSync(join(dir, "turn-writes.json"), JSON.stringify(options.turnWrites));
+  }
   writeFileSync(executable, `#!${process.execPath}\n${FAKE_VIBE_SCRIPT}`);
   chmodSync(executable, 0o755);
   const invocations = (): readonly string[] =>
@@ -256,6 +282,14 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
     invocations,
     versionReads: () => invocations().filter((line) => line === "--version").length,
     turns: () => invocations().filter((line) => line.startsWith("-p ")).length,
+    traces: () => {
+      const file = join(dir, "trace.jsonl");
+      if (!existsSync(file)) return [];
+      return readFileSync(file, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as FakeVibeTrace);
+    },
     turnEnv: () => {
       const file = join(dir, "turn-env.txt");
       if (!existsSync(file)) return {};
