@@ -193,6 +193,13 @@ Some files of a project record a human decision, and a gate reads them. steme's 
 
 **A stop's close is not checked.** A person who edits a protected file at a declared or held stop changes it on purpose. The change is committed with the stop and listed under `reviewCorrections`, as any other correction: in `file-reconciliation.json` at a declared stop, in `correction-reconciliation.json` at a held one.
 
+**What the check does not resist.** A process that runs outside the sandbox (a gate step, an allowed command, any command in unsafe mode) and tampers on purpose can defeat the check in two ways it does not close:
+
+- a clean filter added to the repository's git config: the check hashes files as `git add` does, filters included, so a protected file can hold content on disk that the gate reads while it hashes, and is committed, as its base content;
+- an edit of the phase base recorded in `status.json` under phax's state root: phax reads the base once per phase entry, before the agent's turn, so an edit during the turn is not used, but a resume reads it again, and a commit-only resume or a resume out of a failed handoff has no other source.
+
+A replace ref (`git replace`) standing a forged commit in for the base does not work: every git call the check makes reads objects as stored.
+
 **Two ways on after a pause.** `resume-instructions.md` names each path still changed, the commit to put it back from by its hash (the phase base after a gate pause, the phase commit after a handoff pause) with the command that does it for each path (`git checkout <commit> -- <path>`, or removing a created one), and both ways: put each file back in the phase worktree and run `phax resume <run> --yes`, or make the change on the base branch yourself and start a new run. `phax reset-phase` is not a way on: it throws the phase's work away.
 
 **Refusals.** A skill edit grant (`--allow-skill-edits`) on a file a protected glob matches is refused at preflight with exit 11, naming the file and the entry, before any phase runs. A protected list in an overlay or over a submodule is refused as the key above says.
