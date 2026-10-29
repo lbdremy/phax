@@ -1,13 +1,15 @@
-import { readFileSync, existsSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { readFileSync, existsSync, realpathSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
+import { parseGitmodulesPaths } from "../domain/config/gitmodules.js";
 import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
+import { protectedList, submoduleConflict } from "../domain/security/protectedPaths.js";
 import { PHAX_CONTEXT_DIR } from "./worktree.js";
 import {
   type ResolvedConfig,
@@ -23,6 +25,7 @@ import {
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { resolveRecordsConfig } from "../schemas/recordsConfig.js";
 import { formatConfigParseError } from "../schemas/formatError.js";
+import { architectureGlobProblem } from "../schemas/architecture.js";
 
 const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`;
 
@@ -136,6 +139,76 @@ function validateUniqueGateCommands(
   return undefined;
 }
 
+// The keys only phax.json may carry; a user overlay that has one is refused.
+const PROJECT_ONLY_KEYS = ["assignments", "protectedPaths"] as const;
+
+// The submodule paths of the repository's .gitmodules; none without the file.
+function readSubmodulePaths(
+  gitRoot: string,
+  configPath: string,
+): Either.Either<readonly string[], ConfigValidationError> {
+  const file = join(gitRoot, ".gitmodules");
+  if (!existsSync(file)) return Either.right([]);
+  try {
+    return Either.right(parseGitmodulesPaths(readFileSync(file, "utf8")));
+  } catch (err) {
+    return Either.left(
+      new ConfigValidationError({
+        message: `Failed to read "${file}": ${String(err)}`,
+        path: configPath,
+      }),
+    );
+  }
+}
+
+// phax.json's raw `protectedPaths`, checked before the full decode so each
+// refusal names the entry at fault (`protectedPaths[N]`) and the dialect rule it
+// breaks, then against the submodules .gitmodules declares: a submodule's files
+// are not part of this repository's tree.
+function protectedPathsError(
+  raw: unknown,
+  configPath: string,
+  gitRoot: string,
+): ConfigValidationError | undefined {
+  if (typeof raw !== "object" || raw === null || !Object.hasOwn(raw, "protectedPaths")) {
+    return undefined;
+  }
+  const declared = (raw as Record<string, unknown>)["protectedPaths"];
+  const refuse = (message: string) => new ConfigValidationError({ message, path: configPath });
+  if (!Array.isArray(declared) || declared.length === 0) {
+    return refuse("protectedPaths: a non-empty list of globs is required");
+  }
+  for (const [index, glob] of declared.entries()) {
+    if (typeof glob !== "string") {
+      return refuse(`protectedPaths[${index}]: a glob string is required`);
+    }
+    const problem = architectureGlobProblem(glob);
+    if (problem !== undefined) return refuse(`protectedPaths[${index}]: ${problem}`);
+  }
+  const submodules = readSubmodulePaths(gitRoot, configPath);
+  if (Either.isLeft(submodules)) return submodules.left;
+  const conflict = submoduleConflict(declared as readonly string[], submodules.right);
+  if (conflict !== undefined) {
+    return refuse(
+      `protectedPaths[${conflict.index}]: ${JSON.stringify(conflict.glob)} is inside the submodule ${conflict.submodule}`,
+    );
+  }
+  return undefined;
+}
+
+function realPathOrSelf(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+// The path of the phax.json phax loaded, relative to the git root, in POSIX form.
+function repoRelativeConfigPath(configPath: string, gitRoot: string): string {
+  return relative(realPathOrSelf(gitRoot), realPathOrSelf(configPath)).split(sep).join("/");
+}
+
 function localUserConfigPath(projectConfigPath: string): string {
   return join(dirname(projectConfigPath), "phax.local.json");
 }
@@ -158,14 +231,17 @@ function readUserOverlay(
     );
   }
   // Refused before the decode, so the refusal names the remedy rather than an
-  // unknown key: the bounds are the repository's, not a workstation's.
-  if (typeof raw === "object" && raw !== null && Object.hasOwn(raw, "assignments")) {
-    return Either.left(
-      new ConfigValidationError({
-        message: '"assignments" is accepted only in phax.json',
-        path: filePath,
-      }),
-    );
+  // unknown key: the bounds and the protected files are the repository's, not a
+  // workstation's.
+  for (const key of PROJECT_ONLY_KEYS) {
+    if (typeof raw === "object" && raw !== null && Object.hasOwn(raw, key)) {
+      return Either.left(
+        new ConfigValidationError({
+          message: `"${key}" is accepted only in phax.json`,
+          path: filePath,
+        }),
+      );
+    }
   }
   const decoded = decodePhaxUserOverlay(raw);
   if (Either.isLeft(decoded)) {
@@ -300,6 +376,9 @@ export function loadConfig(
   const nameError = validateNameField(raw);
   if (nameError) return Either.left(nameError);
 
+  const protectedPathsRefusal = protectedPathsError(raw, configPath, gitRoot);
+  if (protectedPathsRefusal) return Either.left(protectedPathsRefusal);
+
   const decoded = decodePhaxConfig(raw);
   if (Either.isLeft(decoded)) {
     return Either.left(
@@ -359,6 +438,11 @@ export function loadConfig(
     DEFAULT_SECURITY_PROFILE,
   );
 
+  const protectedPaths = protectedList(
+    projectConfig.protectedPaths,
+    repoRelativeConfigPath(configPath, gitRoot),
+  );
+
   const resolved: ResolvedConfig = {
     raw: config,
     namespace: config.name,
@@ -379,6 +463,8 @@ export function loadConfig(
     authoring: resolveAuthoringConfig(config.authoring),
     records: resolveRecordsConfig(config.records),
     ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
+    // From phax.json alone: read off the decoded project layer, never an overlay.
+    ...(protectedPaths !== null ? { protectedPaths } : {}),
   };
 
   return Either.right(resolved);

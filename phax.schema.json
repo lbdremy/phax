@@ -602,6 +602,15 @@
         ]
       },
       "description": "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused."
+    },
+    "protectedPaths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/NonEmptyString",
+        "description": "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment."
+      },
+      "description": "The files whose change is the operator's decision, which no phase of a run may create, change, delete or rename. The phax.json phax loads is protected too, by its repo-relative path. Accepted in phax.json only: a user overlay that carries it is refused. Globs are written in phax's glob dialect but matched ignoring letter case: working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory."
     }
   },
   "additionalProperties": false

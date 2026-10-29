@@ -3,6 +3,8 @@ import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityCon
 import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
 import { SurfaceSchema } from "./surface.js";
 import { AssignmentsSchema, type Assignments } from "./assignments.js";
+import { ArchitectureGlobSchema, GLOB_DIALECT } from "./architecture.js";
+import type { ProtectedList } from "../domain/security/protectedPaths.js";
 
 export const PublishConfigSchema = Schema.Struct({
   auto: Schema.Boolean,
@@ -286,6 +288,9 @@ export const PhaxConfigSchema = Schema.Struct({
     description:
       "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused.",
   }),
+  protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema)).annotations({
+    description: `The files whose change is the operator's decision, which no phase of a run may create, change, delete or rename. The phax.json phax loads is protected too, by its repo-relative path. Accepted in phax.json only: a user overlay that carries it is refused. Globs are written in phax's glob dialect but matched ignoring letter case: ${GLOB_DIALECT}`,
+  }),
 });
 
 export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
@@ -334,6 +339,8 @@ export interface ResolvedConfig {
   readonly records: ResolvedRecordsConfig;
   /** From phax.json alone: no user overlay carries it. */
   readonly assignments?: Assignments;
+  /** From phax.json alone: no user overlay carries it. Absent when phax.json declares none. */
+  readonly protectedPaths?: ProtectedList;
 }
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };

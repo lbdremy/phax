@@ -78,6 +78,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "workspaces",
         "records",
         "assignments",
+        "protectedPaths",
       ].toSorted(),
     );
   });
@@ -111,6 +112,7 @@ describe("getPhaxConfigJsonSchema", () => {
       ].toSorted(),
     );
     expect(Object.keys(schema["properties"] as object)).not.toContain("assignments");
+    expect(Object.keys(schema["properties"] as object)).not.toContain("protectedPaths");
   });
 
   it.each([

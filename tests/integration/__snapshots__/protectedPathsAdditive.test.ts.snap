@@ -1,0 +1,887 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > argv 1`] = `
+[
+  [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    "acceptEdits",
+    "--allowedTools",
+    "Bash(node scripts/gate.mjs:*)",
+    "--strict-mcp-config",
+    "--model",
+    "claude-sonnet-5-5",
+    "--effort",
+    "medium",
+  ],
+  [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    "acceptEdits",
+    "--allowedTools",
+    "Bash(node scripts/gate.mjs:*)",
+    "--strict-mcp-config",
+    "--model",
+    "claude-sonnet-5-5",
+    "--effort",
+    "medium",
+    "--resume",
+    "<SESSION>",
+  ],
+  [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    "acceptEdits",
+    "--allowedTools",
+    "Bash(node scripts/gate.mjs:*)",
+    "--strict-mcp-config",
+    "--model",
+    "claude-sonnet-5-5",
+    "--effort",
+    "medium",
+    "--resume",
+    "<SESSION>",
+  ],
+]
+`;
+
+exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > environment phax adds 1`] = `
+[
+  {},
+  {},
+  {},
+]
+`;
+
+exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > gate attempt logs 1`] = `
+{
+  "checks-attempt-01.log": "$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+",
+  "checks-attempt-02.log": "$ node scripts/gate.mjs
+gate: pass
+exit 0
+",
+}
+`;
+
+exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > output 1`] = `[]`;
+
+exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > prompts 1`] = `
+[
+  "# Execute one implementation phase
+
+You are executing one phase of a multi-phase AI-assisted development workflow.
+
+You must only execute the current phase.
+
+Do not broaden the scope.
+Do not anticipate future phases unless strictly necessary to avoid breaking the current phase.
+Do not redesign unrelated parts of the system.
+Do not add speculative features.
+Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
+
+## Source intent/spec document
+
+(not provided — see the approved plan below)
+
+## Approved plan: shared preamble
+
+# Invoice export
+
+## Required commands
+
+- (none)
+
+## Plan outline
+
+- phase-01 — Export step ← current phase
+  create: \`src/phase-01.ts\`
+  edit: (none)
+
+The full plan is at \`.phax-context/plan.md\`; read it only when this phase needs another phase's detail.
+
+## Approved plan: current phase
+
+## phase-01 — Export step {#phase-01}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+### Detailed instructions
+
+Write src/phase-01.ts.
+
+## Previous phase handoff
+
+(no previous phase)
+
+## Current phase
+
+{
+  "id": "phase-01",
+  "title": "Export step",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "planMarkdownAnchor": "#phase-01",
+  "plannedFilesToCreate": [
+    "src/phase-01.ts"
+  ],
+  "plannedFilesToEdit": [],
+  "optionalFilesToEdit": [],
+  "mode": "headless",
+  "oracle": null,
+  "commit": {
+    "subject": "feat(export): step one",
+    "body": "Made-up body."
+  }
+}
+
+## Execution rules
+
+- Respect the current phase scope.
+- Preserve existing behavior unless the spec explicitly changes it.
+- Prefer small, coherent changes.
+- Keep architectural boundaries explicit.
+- Do not include unrelated refactors.
+- Do not implement excluded scope.
+- Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+node scripts/gate.mjs
+
+## Required output
+
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
+
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
+
+\`summary.md\` should use this format:
+
+# Phase summary
+
+## Completed
+
+## Decisions made
+
+## Files changed
+
+## Important constraints preserved
+
+## Known limitations
+
+## Follow-up for next phase
+
+\`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
+
+## What was delivered
+## Key decisions and why
+## Exact locations (file paths and exported names)
+## What the next phase needs to know
+
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+Keep it 150–400 words. No session transcript summaries.
+
+The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
+
+- the plan preamble;
+- its own section of the plan;
+- the plan outline;
+- \`.phax-context/plan.md\`, the full plan;
+- its phase definition;
+- this \`phase-handoff.md\`.",
+  "# Gate checks failed — fix required
+
+Gate run (attempt 1) failed.
+
+**Failed command:** \`node scripts/gate.mjs\`
+**Exit code:** 1
+
+## Gate output
+
+\`\`\`
+$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+
+\`\`\`
+
+## Required action
+
+Fix all issues revealed by the gate output above.
+Make the minimum changes required to pass the gate.
+Do not change unrelated code or introduce new features.
+
+Make sure to run the failed command after your changes to verify the gate now passes.
+The gate run will be re-attempted automatically after your changes.",
+  "# Generate phase handoff
+
+Gates have passed. Now write \`.phax-context/phase-handoff.md\` (the \`.phax-context/\` folder is gitignored phax metadata — do not write at the worktree root).
+
+The file must include these four sections in order:
+- \`## What was delivered\`
+- \`## Key decisions and why\`
+- \`## Exact locations (file paths and exported names)\`
+- \`## What the next phase needs to know\`
+
+Guidance for each section:
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+
+Be concise and precise. Focus on what the next phase needs to know.
+Do not repeat the phase instructions — only what was actually done and decided.
+Do not summarise the session transcript — write facts and decisions only.
+
+File-plan deviation report:
+phax found no file-plan deviations for this phase.",
+]
+`;
+
+exports[`a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > argv 1`] = `
+[
+  [
+    "exec",
+    "-C",
+    "<ROOT>/state/worktrees/example.invoice-export/phase-01",
+    "--json",
+    "--skip-git-repo-check",
+    "-c",
+    "sandbox_mode="workspace-write"",
+    "-c",
+    "approval_policy="never"",
+    "-c",
+    "sandbox_workspace_write.writable_roots=["<ROOT>/state/worktrees/example.invoice-export/phase-01"]",
+    "-c",
+    "sandbox_workspace_write.network_access=false",
+    "-m",
+    "gpt-6-sol",
+    "-c",
+    "model_reasoning_effort="medium"",
+  ],
+  [
+    "exec",
+    "resume",
+    "<SESSION>",
+    "--json",
+    "--skip-git-repo-check",
+    "-c",
+    "sandbox_mode="workspace-write"",
+    "-c",
+    "approval_policy="never"",
+    "-c",
+    "sandbox_workspace_write.writable_roots=["<ROOT>/state/worktrees/example.invoice-export/phase-01"]",
+    "-c",
+    "sandbox_workspace_write.network_access=false",
+    "-m",
+    "gpt-6-sol",
+    "-c",
+    "model_reasoning_effort="medium"",
+  ],
+  [
+    "exec",
+    "resume",
+    "<SESSION>",
+    "--json",
+    "--skip-git-repo-check",
+    "-c",
+    "sandbox_mode="workspace-write"",
+    "-c",
+    "approval_policy="never"",
+    "-c",
+    "sandbox_workspace_write.writable_roots=["<ROOT>/state/worktrees/example.invoice-export/phase-01"]",
+    "-c",
+    "sandbox_workspace_write.network_access=false",
+    "-m",
+    "gpt-6-sol",
+    "-c",
+    "model_reasoning_effort="medium"",
+  ],
+]
+`;
+
+exports[`a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > environment phax adds 1`] = `
+[
+  {},
+  {},
+  {},
+]
+`;
+
+exports[`a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > gate attempt logs 1`] = `
+{
+  "checks-attempt-01.log": "$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+",
+  "checks-attempt-02.log": "$ node scripts/gate.mjs
+gate: pass
+exit 0
+",
+}
+`;
+
+exports[`a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > output 1`] = `
+[
+  "[phax] Warning: phase "phase-01" — command-precision enforcement is degraded for provider "codex-cli". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.
+",
+]
+`;
+
+exports[`a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > prompts 1`] = `
+[
+  "# Execute one implementation phase
+
+You are executing one phase of a multi-phase AI-assisted development workflow.
+
+You must only execute the current phase.
+
+Do not broaden the scope.
+Do not anticipate future phases unless strictly necessary to avoid breaking the current phase.
+Do not redesign unrelated parts of the system.
+Do not add speculative features.
+Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
+
+## Source intent/spec document
+
+(not provided — see the approved plan below)
+
+## Approved plan: shared preamble
+
+# Invoice export
+
+## Required commands
+
+- (none)
+
+## Plan outline
+
+- phase-01 — Export step ← current phase
+  create: \`src/phase-01.ts\`
+  edit: (none)
+
+The full plan is at \`.phax-context/plan.md\`; read it only when this phase needs another phase's detail.
+
+## Approved plan: current phase
+
+## phase-01 — Export step {#phase-01}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+### Detailed instructions
+
+Write src/phase-01.ts.
+
+## Previous phase handoff
+
+(no previous phase)
+
+## Current phase
+
+{
+  "id": "phase-01",
+  "title": "Export step",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "planMarkdownAnchor": "#phase-01",
+  "plannedFilesToCreate": [
+    "src/phase-01.ts"
+  ],
+  "plannedFilesToEdit": [],
+  "optionalFilesToEdit": [],
+  "mode": "headless",
+  "oracle": null,
+  "commit": {
+    "subject": "feat(export): step one",
+    "body": "Made-up body."
+  }
+}
+
+## Execution rules
+
+- Respect the current phase scope.
+- Preserve existing behavior unless the spec explicitly changes it.
+- Prefer small, coherent changes.
+- Keep architectural boundaries explicit.
+- Do not include unrelated refactors.
+- Do not implement excluded scope.
+- Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+node scripts/gate.mjs
+
+## Required output
+
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
+
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
+
+\`summary.md\` should use this format:
+
+# Phase summary
+
+## Completed
+
+## Decisions made
+
+## Files changed
+
+## Important constraints preserved
+
+## Known limitations
+
+## Follow-up for next phase
+
+\`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
+
+## What was delivered
+## Key decisions and why
+## Exact locations (file paths and exported names)
+## What the next phase needs to know
+
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+Keep it 150–400 words. No session transcript summaries.
+
+The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
+
+- the plan preamble;
+- its own section of the plan;
+- the plan outline;
+- \`.phax-context/plan.md\`, the full plan;
+- its phase definition;
+- this \`phase-handoff.md\`.",
+  "# Gate checks failed — fix required
+
+Gate run (attempt 1) failed.
+
+**Failed command:** \`node scripts/gate.mjs\`
+**Exit code:** 1
+
+## Gate output
+
+\`\`\`
+$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+
+\`\`\`
+
+## Required action
+
+Fix all issues revealed by the gate output above.
+Make the minimum changes required to pass the gate.
+Do not change unrelated code or introduce new features.
+
+Make sure to run the failed command after your changes to verify the gate now passes.
+The gate run will be re-attempted automatically after your changes.",
+  "# Generate phase handoff
+
+Gates have passed. Now write \`.phax-context/phase-handoff.md\` (the \`.phax-context/\` folder is gitignored phax metadata — do not write at the worktree root).
+
+The file must include these four sections in order:
+- \`## What was delivered\`
+- \`## Key decisions and why\`
+- \`## Exact locations (file paths and exported names)\`
+- \`## What the next phase needs to know\`
+
+Guidance for each section:
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+
+Be concise and precise. Focus on what the next phase needs to know.
+Do not repeat the phase instructions — only what was actually done and decided.
+Do not summarise the session transcript — write facts and decisions only.
+
+File-plan deviation report:
+phax found no file-plan deviations for this phase.",
+]
+`;
+
+exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > argv 1`] = `
+[
+  [
+    "-p",
+    "<prompt>",
+    "--agent",
+    "accept-edits",
+    "--output",
+    "streaming",
+    "--output-dir",
+    "<ROOT>/state/runs/example.invoice-export/phase-01/output.vibe-export",
+    "--workdir",
+    "<ROOT>/state/worktrees/example.invoice-export/phase-01",
+  ],
+  [
+    "-p",
+    "<prompt>",
+    "--agent",
+    "accept-edits",
+    "--output",
+    "streaming",
+    "--output-dir",
+    "<ROOT>/state/runs/example.invoice-export/phase-01/fix-attempt-01.vibe-export",
+    "--workdir",
+    "<ROOT>/state/worktrees/example.invoice-export/phase-01",
+    "--resume",
+    "<SESSION>",
+  ],
+  [
+    "-p",
+    "<prompt>",
+    "--agent",
+    "accept-edits",
+    "--output",
+    "streaming",
+    "--output-dir",
+    "<ROOT>/state/runs/example.invoice-export/phase-01/handoff-generation.vibe-export",
+    "--workdir",
+    "<ROOT>/state/worktrees/example.invoice-export/phase-01",
+    "--resume",
+    "<SESSION>",
+  ],
+]
+`;
+
+exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > environment phax adds 1`] = `
+[
+  {
+    "VIBE_ACTIVE_MODEL": "phax-mistral-medium-3.5-high",
+    "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
+    "VIBE_ENABLE_CONNECTORS": "false",
+    "VIBE_ENABLE_MCP": "false",
+    "VIBE_OUTSIDE_WORKDIR": "deny",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+  },
+  {
+    "VIBE_ACTIVE_MODEL": "phax-mistral-medium-3.5-high",
+    "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
+    "VIBE_ENABLE_CONNECTORS": "false",
+    "VIBE_ENABLE_MCP": "false",
+    "VIBE_OUTSIDE_WORKDIR": "deny",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+  },
+  {
+    "VIBE_ACTIVE_MODEL": "phax-mistral-medium-3.5-high",
+    "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
+    "VIBE_ENABLE_CONNECTORS": "false",
+    "VIBE_ENABLE_MCP": "false",
+    "VIBE_OUTSIDE_WORKDIR": "deny",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+  },
+]
+`;
+
+exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > gate attempt logs 1`] = `
+{
+  "checks-attempt-01.log": "$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+",
+  "checks-attempt-02.log": "$ node scripts/gate.mjs
+gate: pass
+exit 0
+",
+}
+`;
+
+exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > output 1`] = `[]`;
+
+exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > prompts 1`] = `
+[
+  "# Execute one implementation phase
+
+You are executing one phase of a multi-phase AI-assisted development workflow.
+
+You must only execute the current phase.
+
+Do not broaden the scope.
+Do not anticipate future phases unless strictly necessary to avoid breaking the current phase.
+Do not redesign unrelated parts of the system.
+Do not add speculative features.
+Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
+
+## Source intent/spec document
+
+(not provided — see the approved plan below)
+
+## Approved plan: shared preamble
+
+# Invoice export
+
+## Required commands
+
+- (none)
+
+## Plan outline
+
+- phase-01 — Export step ← current phase
+  create: \`src/phase-01.ts\`
+  edit: (none)
+
+The full plan is at \`.phax-context/plan.md\`; read it only when this phase needs another phase's detail.
+
+## Approved plan: current phase
+
+## phase-01 — Export step {#phase-01}
+
+**Recommended model:** claude-sonnet-4-6
+**Recommended effort:** high
+
+### Detailed instructions
+
+Write src/phase-01.ts.
+
+## Previous phase handoff
+
+(no previous phase)
+
+## Current phase
+
+{
+  "id": "phase-01",
+  "title": "Export step",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "planMarkdownAnchor": "#phase-01",
+  "plannedFilesToCreate": [
+    "src/phase-01.ts"
+  ],
+  "plannedFilesToEdit": [],
+  "optionalFilesToEdit": [],
+  "mode": "headless",
+  "oracle": null,
+  "commit": {
+    "subject": "feat(export): step one",
+    "body": "Made-up body."
+  }
+}
+
+## Execution rules
+
+- Respect the current phase scope.
+- Preserve existing behavior unless the spec explicitly changes it.
+- Prefer small, coherent changes.
+- Keep architectural boundaries explicit.
+- Do not include unrelated refactors.
+- Do not implement excluded scope.
+- Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+node scripts/gate.mjs
+
+## Required output
+
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
+
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
+
+\`summary.md\` should use this format:
+
+# Phase summary
+
+## Completed
+
+## Decisions made
+
+## Files changed
+
+## Important constraints preserved
+
+## Known limitations
+
+## Follow-up for next phase
+
+\`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
+
+## What was delivered
+## Key decisions and why
+## Exact locations (file paths and exported names)
+## What the next phase needs to know
+
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+Keep it 150–400 words. No session transcript summaries.
+
+The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
+
+- the plan preamble;
+- its own section of the plan;
+- the plan outline;
+- \`.phax-context/plan.md\`, the full plan;
+- its phase definition;
+- this \`phase-handoff.md\`.",
+  "# Gate checks failed — fix required
+
+Gate run (attempt 1) failed.
+
+**Failed command:** \`node scripts/gate.mjs\`
+**Exit code:** 1
+
+## Gate output
+
+\`\`\`
+$ node scripts/gate.mjs
+gate: the invoice header is missing
+exit 1
+
+\`\`\`
+
+## Required action
+
+Fix all issues revealed by the gate output above.
+Make the minimum changes required to pass the gate.
+Do not change unrelated code or introduce new features.
+
+Make sure to run the failed command after your changes to verify the gate now passes.
+The gate run will be re-attempted automatically after your changes.",
+  "# Generate phase handoff
+
+Gates have passed. Now write \`.phax-context/phase-handoff.md\` (the \`.phax-context/\` folder is gitignored phax metadata — do not write at the worktree root).
+
+The file must include these four sections in order:
+- \`## What was delivered\`
+- \`## Key decisions and why\`
+- \`## Exact locations (file paths and exported names)\`
+- \`## What the next phase needs to know\`
+
+Guidance for each section:
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+
+Be concise and precise. Focus on what the next phase needs to know.
+Do not repeat the phase instructions — only what was actually done and decided.
+Do not summarise the session transcript — write facts and decisions only.
+
+File-plan deviation report:
+phax found no file-plan deviations for this phase.",
+]
+`;

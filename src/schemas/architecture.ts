@@ -34,8 +34,9 @@ export const decodeArchitectureRequestFile = Schema.decodeUnknownEither(
 // ── architecture report
 
 // The first rule a glob breaks, as a message, or undefined for a glob in phax's
-// dialect. Syntax only: src/domain/architecture/glob.ts matches it.
-function globProblem(glob: string): string | undefined {
+// dialect. Syntax only: src/domain/architecture/glob.ts matches it. Exported so
+// a caller that checks a glob before a full decode words its refusal the same way.
+export function architectureGlobProblem(glob: string): string | undefined {
   const quoted = JSON.stringify(glob);
   if (glob.startsWith("/")) return `${quoted} starts with /`;
   if (glob.includes("\\")) return `${quoted} contains a backslash`;
@@ -63,7 +64,7 @@ export const GLOB_DIALECT =
 
 /** One glob in phax's dialect: a report part's globs and a phax.json globs bound share it. */
 export const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
-  Schema.filter((glob) => globProblem(glob), {
+  Schema.filter((glob) => architectureGlobProblem(glob), {
     jsonSchema: {
       description:
         "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",

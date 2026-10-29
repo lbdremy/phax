@@ -139,6 +139,49 @@ describe("runValidate", () => {
     expect(loadPlan).not.toHaveBeenCalled();
   });
 
+  it("lists the protected paths, the loaded phax.json included, right after the global line", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    loadConfig.mockReturnValue(
+      Either.right({
+        ...makeConfig(),
+        protectedPaths: [
+          { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
+          { glob: "phax.json", entry: "phax.json" },
+        ],
+      }),
+    );
+    describeConfigSources.mockReturnValue({
+      project: "/repo/phax.json",
+      localOverlay: undefined,
+      globalOverlay: undefined,
+    });
+
+    const { out, lines, errors } = makeOutput();
+    const code = await runValidate({}, out);
+
+    expect(errors).toEqual([]);
+    expect(code).toBe(0);
+    expect(lines).toContain("  protected paths: **/steme.baseline.json, phax.json");
+    expect(lines.indexOf("  protected paths: **/steme.baseline.json, phax.json")).toBe(
+      lines.indexOf("  global:  (none)") + 1,
+    );
+  });
+
+  it("prints no protected paths line for a project that declares none", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    describeConfigSources.mockReturnValue(undefined);
+
+    const { out, lines } = makeOutput();
+    await runValidate({}, out);
+
+    expect(lines.some((l) => l.includes("protected paths"))).toBe(false);
+  });
+
   it("config invalid: returns 1, prints config error, loadPlan never called", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));

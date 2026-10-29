@@ -157,6 +157,7 @@ A `phax.json` looks like this:
       { "command": "pnpm build", "surface": "product", "firing": "terminal" }
     ]
   },
+  "protectedPaths": ["**/steme.baseline.json"],
   "review": { "compliance": { "enabled": true } },
   "publish": { "auto": true, "remote": "origin", "baseBranch": "main" }
 }
@@ -170,6 +171,7 @@ A `phax.json` looks like this:
 - **`agent.maxFixAttempts`** is how many times a failing gate goes back to the agent (1 by default).
 - **`fileReconciliation.mode`** is `report_only` (default) or `warn`, to also log each deviation from the planned files.
 - **`records`** is written by `phax records init` — see [Records](#records).
+- **`protectedPaths`** lists the files whose change is the operator's decision: no phase may create, change, delete or rename them. The `phax.json` phax loads is protected too. It is accepted in `phax.json` only, and `phax validate` lists the protected paths.
 
 **Layers.** `phax.json` is the team's baseline. Two more files can add to it: `~/.phax/config.json` for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
 
