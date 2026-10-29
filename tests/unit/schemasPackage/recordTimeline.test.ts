@@ -94,8 +94,13 @@ describe.each(FORMATS)("$id", (format) => {
     if (!pre.ok || !current.ok) throw new Error("document rejected");
     // A pre-schema document is its own latest value, but for the facts a later
     // shape added: a reconciliation written before `reviewCorrections` gets [].
+    // A gate attribution written today also records `protectedPaths`.
+    const added = format.id === "gate-attribution" ? { protectedPaths: null } : {};
     expect(format.toLatest(pre.value as never)).toEqual(latestPreSchema(format.id));
-    expect(format.toLatest(current.value as never)).toEqual(latestPreSchema(format.id));
+    expect(format.toLatest(current.value as never)).toEqual({
+      ...latestPreSchema(format.id),
+      ...added,
+    });
     expect(format.toLatest(current.value as never)).not.toHaveProperty("$schema");
   });
 
@@ -148,8 +153,32 @@ describe("gate-attribution's released shapes", () => {
     expect(parseGateAttribution(stampedAt("0.20.0", "refused"))).toMatchObject({ ok: false });
   });
 
+  it("reads a 0.26.0 attribution as shape 0.26.0, an oracle step included", () => {
+    const document = {
+      ...stampedAt("0.26.0", "refused"),
+      steps: [
+        ...attributionSteps("refused"),
+        { command: "oracles provider", surface: "oracle", result: "skipped" },
+      ],
+    };
+    const parsed = parseGateAttribution(document);
+    expect(parsed).toEqual({ ok: true, shape: "0.26.0", value: document });
+    if (!parsed.ok || parsed.shape !== "0.26.0") return;
+    const { $schema: _schema, ...recorded } = document;
+    expect(toLatestGateAttribution(parsed.value)).toEqual(recorded);
+  });
+
+  it("refuses an attribution at the current stamp without protectedPaths", () => {
+    expect(
+      parseGateAttribution(stampedAt(CURRENT_STAMPS["gate-attribution"], "refused")),
+    ).toMatchObject({ ok: false });
+  });
+
   it("reads an attribution at the current stamp, refused included, as the current shape", () => {
-    const document = stampedAt(CURRENT_STAMPS["gate-attribution"], "refused");
+    const document = {
+      ...stampedAt(CURRENT_STAMPS["gate-attribution"], "refused"),
+      protectedPaths: null,
+    };
     expect(parseGateAttribution(document)).toEqual({
       ok: true,
       shape: CURRENT_SHAPES["gate-attribution"],

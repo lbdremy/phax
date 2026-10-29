@@ -15,6 +15,7 @@ describe("GateAttributionFileSchema", () => {
   it("round-trips a record through encode/decode, $schema first", () => {
     const record: GateAttribution = {
       phase: "phase-01",
+      protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "pnpm audit:architecture", surface: "structural", result: "fail" },
@@ -32,7 +33,9 @@ describe("GateAttributionFileSchema", () => {
   });
 
   it("decodes an empty steps array", () => {
-    const decoded = decodeGateAttributionFile(stamped({ phase: "phase-01", steps: [] }));
+    const decoded = decodeGateAttributionFile(
+      stamped({ phase: "phase-01", steps: [], protectedPaths: null }),
+    );
 
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
@@ -48,6 +51,7 @@ describe("GateAttributionFileSchema", () => {
     const decoded = decodeGateAttributionFile(
       stamped({
         phase: "phase-01",
+        protectedPaths: null,
         steps: [{ command: "pnpm test", surface: "bogus", result: "pass" }],
       }),
     );
@@ -58,6 +62,7 @@ describe("GateAttributionFileSchema", () => {
   it("decodes a step a refused gate report stopped", () => {
     const record: GateAttribution = {
       phase: "phase-01",
+      protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "node ./audit.mjs", surface: "structural", result: "refused" },
@@ -72,6 +77,7 @@ describe("GateAttributionFileSchema", () => {
   it("decodes a step of the oracle surface", () => {
     const record: GateAttribution = {
       phase: "phase-02",
+      protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "oracles provider", surface: "oracle", result: "pass" },
@@ -87,6 +93,7 @@ describe("GateAttributionFileSchema", () => {
     const decoded = decodeGateAttributionFile(
       stamped({
         phase: "phase-01",
+        protectedPaths: null,
         steps: [{ command: "pnpm test", surface: "unit", result: "pass" }],
       }),
     );
@@ -98,6 +105,7 @@ describe("GateAttributionFileSchema", () => {
     const decoded = decodeGateAttributionFile(
       stamped({
         phase: "phase-01",
+        protectedPaths: null,
         steps: [{ command: "pnpm test", surface: "local", result: "skipped" }],
       }),
     );
@@ -108,6 +116,7 @@ describe("GateAttributionFileSchema", () => {
   it("round-trips an oracle step the operator skipped, after a configured step", () => {
     const record: GateAttribution = {
       phase: "phase-03",
+      protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "oracles provider", surface: "oracle", result: "skipped" },
@@ -121,7 +130,7 @@ describe("GateAttributionFileSchema", () => {
   });
 
   it("rejects a missing phase", () => {
-    const decoded = decodeGateAttributionFile(stamped({ steps: [] }));
+    const decoded = decodeGateAttributionFile(stamped({ steps: [], protectedPaths: null }));
 
     expect(Either.isLeft(decoded)).toBe(true);
   });

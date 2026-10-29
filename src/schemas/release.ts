@@ -15,7 +15,7 @@ export const CURRENT_STAMPS = {
   "spec-approvals": "0.17.0",
   "phase-record-manifest": "0.30.0",
   "authoring-record-manifest": "0.30.0",
-  "gate-attribution": "0.26.0",
+  "gate-attribution": "0.31.0",
   "phase-file-reconciliation": "0.26.0",
   "spec-document": "0.27.0",
   "plan-document": "0.28.0",

@@ -63,7 +63,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
 
 function posture(skillEditGrants: readonly string[]): SecurityPosture {
   return {
-    version: 2,
+    version: 3,
     mode: "secure",
     provider: "claude-code",
     sandboxEnabled: true,
@@ -74,6 +74,7 @@ function posture(skillEditGrants: readonly string[]): SecurityPosture {
     marks: [],
     agentCommands: [],
     skillEditGrants,
+    protectedPaths: null,
     providerSkippedForSecurity: [],
     stop: null,
   };

@@ -18,7 +18,7 @@ const WORKTREE = "/Users/ada/.phax/worktrees/invoice-export/phase-03";
 const STATE_ROOT = "/Users/ada/.phax";
 
 const securePosture: SecurityPosture = {
-  version: 2,
+  version: 3,
   mode: "secure",
   provider: "codex-cli",
   sandboxEnabled: true,
@@ -46,6 +46,7 @@ const securePosture: SecurityPosture = {
     },
   ],
   skillEditGrants: [],
+  protectedPaths: null,
   providerSkippedForSecurity: [],
   stop: null,
 };

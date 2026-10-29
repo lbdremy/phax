@@ -99,6 +99,7 @@ import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
 import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
 import { decodeDecisionRecordManifestV0_28_0 } from "./history/decision-record-manifest/0.28.0.js";
+import { decodeGateAttributionV0_26_0 } from "./history/gate-attribution/0.26.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
@@ -1118,10 +1119,20 @@ function isPassOrFail<S extends { readonly result: string }>(
 /**
  * Reads a phase's `gate-attribution.json`. It never carried a `version`: a
  * pre-schema attribution whose every step result is `pass` or `fail` is the
- * in-memory value as it is; any other is refused.
+ * in-memory value, with `protectedPaths: null`; any other is refused. One
+ * stamped below the current stamp is read by the frozen 0.26.0 decoder, which
+ * every earlier stamp's files also satisfy, and lifted with `protectedPaths: null`.
  */
-export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
-  readPersisted(input, {
+export const readGateAttributionFile: Reader<GateAttribution> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("gate-attribution", input)) {
+    const older = decodeGateAttributionV0_26_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "gate-attribution", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...attribution } = older.right;
+    return Either.right({ ...attribution, protectedPaths: null });
+  }
+  return readPersisted(input, {
     format: "gate-attribution",
     label: "gate attribution",
     file,
@@ -1130,9 +1141,10 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...attribution }) => attribution,
     fromPreSchema: ({ phase, steps }) =>
       steps.every(isPassOrFail)
-        ? Either.right({ phase, steps })
+        ? Either.right({ phase, steps, protectedPaths: null })
         : Either.left({ fact: "a pass or fail result for every step" }),
   });
+};
 
 /**
  * The stamps an answer reader accepts: from the format's current stamp

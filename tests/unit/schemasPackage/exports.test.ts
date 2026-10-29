@@ -102,6 +102,7 @@ describe("schemas package entry", () => {
       "GateAttributionV0_17_0Schema",
       "GateAttributionV0_20_0Schema",
       "GateAttributionV0_21_0Schema",
+      "GateAttributionV0_26_0Schema",
       "GateReportSchema",
       "GateRequestSchema",
       "HandDecisionAnswerSchema",

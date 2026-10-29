@@ -942,13 +942,22 @@ describe("format readers", () => {
     }
   });
 
-  it("readGateAttributionFile reads a 0.21.0-stamped attribution", () => {
-    const stamped = withKey(
-      validDocuments["gate-attribution"],
-      "$schema",
-      schemaUrl("gate-attribution", "0.21.0"),
-    );
-    right(readGateAttributionFile("run-0001/phase-01/gate-attribution.json", stamped));
+  it.each(["0.21.0", "0.26.0"])(
+    "readGateAttributionFile reads a %s-stamped attribution with protectedPaths null",
+    (release) => {
+      const { protectedPaths: _protectedPaths, ...older } = validDocuments["gate-attribution"];
+      const stamped = withKey(older, "$schema", schemaUrl("gate-attribution", release));
+      expect(
+        right(readGateAttributionFile("run-0001/phase-01/gate-attribution.json", stamped)),
+      ).toEqual(phaxLatestPreSchema("gate-attribution"));
+    },
+  );
+
+  it("readGateAttributionFile refuses a current-stamped attribution without protectedPaths", () => {
+    const { protectedPaths: _protectedPaths, ...missing } = validDocuments["gate-attribution"];
+    expect(
+      left(readGateAttributionFile("run-0001/phase-01/gate-attribution.json", missing)).message,
+    ).toContain("protectedPaths");
   });
 
   it("readRecordManifestFile refuses a non-object as a record manifest", () => {
@@ -977,7 +986,7 @@ describe("format readers", () => {
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file, wrongKey) => {
     // The pre-schema file never carried a version: it is the in-memory value as
     // it is, but for the facts a later shape added (`reviewCorrections: []`).
-    const expected = latestPreSchema(id);
+    const expected = phaxLatestPreSchema(id);
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);

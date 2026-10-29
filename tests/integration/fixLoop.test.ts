@@ -139,7 +139,12 @@ function stepRecord(
   }>,
 ) {
   return JSON.stringify(
-    { $schema: currentSchemaUrl("gate-attribution"), phase: "phase-01", steps },
+    {
+      $schema: currentSchemaUrl("gate-attribution"),
+      phase: "phase-01",
+      steps,
+      protectedPaths: null,
+    },
     null,
     2,
   );

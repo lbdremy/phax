@@ -825,7 +825,10 @@ export const EXAMPLE_SURFACE_SUMMARY = "An operator can run the example.";
  * `toLatest*` holds `Unknown` (`latestPreSchema`).
  */
 export function phaxLatestPreSchema(id: PreSchemaFormatId): Doc {
-  return liftPreSchema(id, SURFACE_SUMMARY_PLACEHOLDER);
+  const lifted = liftPreSchema(id, SURFACE_SUMMARY_PLACEHOLDER);
+  // A pre-schema attribution ran no protected-paths check: phax's reader
+  // lifts it with `null`, the package keeps the recorded value as it is.
+  return id === "gate-attribution" ? { ...lifted, protectedPaths: null } : lifted;
 }
 
 /** A latest spec document's surface elements, each with `summary` replaced. */
@@ -931,7 +934,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "gate-attribution": encoded(
     GateAttributionFileSchema,
-    withSchemaUrl("gate-attribution", gateAttribution),
+    withSchemaUrl("gate-attribution", { ...gateAttribution, protectedPaths: null }),
   ),
   "phase-file-reconciliation": encoded(
     PhaseFileReconciliationFileSchema,

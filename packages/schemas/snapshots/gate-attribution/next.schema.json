@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax gate attribution",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "phase",
+    "steps",
+    "protectedPaths"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The gate-attribution format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/gate-attribution/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "phase": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "command",
+              "surface",
+              "result"
+            ],
+            "properties": {
+              "command": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "surface": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "structural",
+                  "product"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "refused"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "command",
+              "surface",
+              "result"
+            ],
+            "properties": {
+              "command": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "surface": {
+                "type": "string",
+                "enum": [
+                  "oracle"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "refused",
+                  "skipped"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      }
+    },
+    "protectedPaths": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "result",
+                "changes"
+              ],
+              "properties": {
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "pass"
+                  ]
+                },
+                "changes": {
+                  "type": "array",
+                  "maxItems": 0
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "required": [
+                "result",
+                "changes"
+              ],
+              "properties": {
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "fail"
+                  ]
+                },
+                "changes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "kind",
+                      "entry"
+                    ],
+                    "properties": {
+                      "path": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "created",
+                          "edited",
+                          "deleted",
+                          "renamed"
+                        ]
+                      },
+                      "entry": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}
