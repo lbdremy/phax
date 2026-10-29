@@ -173,17 +173,19 @@ export interface GitOps {
    * The worktree at `path`, as it stands on disk, against commit `base`.
    * `entries` is the name-status, with renames, of `base` against a tree of
    * the worktree built in a temporary index seeded from HEAD, `.phax-context/`
-   * left out. `tracked` holds, for each of `trackedPaths` that is a file at
-   * `base`, how the file on disk compares with its blob there, in the order
-   * given; a path absent at `base`, or a submodule, is left out. `untracked`
-   * holds the untracked files git ignores, outside `.phax-context/`. The real
-   * index is never read for a verdict, so skip-worktree and assume-unchanged
-   * bits cannot hide an edit, and it is never touched.
+   * left out. `tracked` holds, for each file of `base`'s tree whose path
+   * `isProtected` accepts, in tree order, how the file on disk compares with
+   * its blob there; a submodule is left out. `base`'s tree is read once, in
+   * full, and the files are hashed by one process, so no argument list grows
+   * with their number. `untracked` holds the untracked files git ignores,
+   * outside `.phax-context/`. The real index is never read for a verdict, so
+   * skip-worktree and assume-unchanged bits cannot hide an edit, and it is
+   * never touched.
    */
   observeWorktree(
     path: string,
     base: string,
-    trackedPaths: readonly string[],
+    isProtected: (path: string) => boolean,
   ): Effect.Effect<ProtectedObservation, GitError>;
   /**
    * Bring `paths` in the worktree at `path` back to their content in `tree`:

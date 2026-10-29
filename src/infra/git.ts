@@ -1,5 +1,6 @@
 import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { lstat, mkdtemp, readlink, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -436,50 +437,117 @@ function fsError(path: string, err: unknown): GitError {
   return new GitError({ message: `Could not read ${path}: ${String(err)}`, command: "lstat" });
 }
 
-// How the file at `path` on disk compares with its blob at base, whatever the
-// real index says. A file is hashed as `git add` would (clean filters
-// included), a symbolic link by its target.
-function compareTrackedFile(
+// The blob id git gives `content`, in the object format of `like` (a 40- or
+// 64-hex id of the same repository), computed here rather than by a process.
+function blobId(content: Uint8Array, like: string): string {
+  const hash = createHash(like.length === 64 ? "sha256" : "sha1");
+  hash.update(`blob ${content.length}\0`);
+  hash.update(content);
+  return hash.digest("hex");
+}
+
+// A path as one line of `git hash-object --stdin-paths`, which reads a line
+// starting with `"` as C-quoted: a path holding a newline, ending with a
+// carriage return, starting with `"` or holding a backslash or a control
+// character is quoted, every other path is written as is.
+function stdinPathLine(path: string): string {
+  const isControl = (code: number): boolean => code < 0x20 || code === 0x7f;
+  const plain =
+    !path.startsWith('"') &&
+    ![...path].some((char) => char === "\\" || isControl(char.charCodeAt(0)));
+  if (plain) return path;
+  let quoted = "";
+  for (const char of path) {
+    const code = char.charCodeAt(0);
+    if (char === "\\" || char === '"') quoted += `\\${char}`;
+    else if (isControl(code)) quoted += `\\${code.toString(8).padStart(3, "0")}`;
+    else quoted += char;
+  }
+  return `"${quoted}"`;
+}
+
+// How each file of `entries` on disk compares with its blob at base, whatever
+// the real index says, in the order given. A file is hashed as `git add`
+// would (clean filters included), all of them by one `git hash-object
+// --stdin-paths`, so no argument list grows with their number; a symbolic
+// link is hashed here, by its target.
+function compareTrackedFiles(
   worktree: string,
-  entry: GitTreeEntry,
+  entries: readonly GitTreeEntry[],
   honourFileMode: boolean,
-): Effect.Effect<TrackedState, GitError> {
-  const path = entry.path;
-  const absolute = join(worktree, path);
-  const baseIsLink = entry.mode === MODE_SYMLINK;
+  env: Record<string, string>,
+): Effect.Effect<readonly TrackedState[], GitError> {
   return Effect.gen(function* () {
-    const stat = yield* Effect.tryPromise({
-      try: () => lstatOrNull(absolute),
-      catch: (err) => fsError(path, err),
+    const stats = yield* Effect.forEach(
+      entries,
+      (entry) =>
+        Effect.tryPromise({
+          try: () => lstatOrNull(join(worktree, entry.path)),
+          catch: (err) => fsError(entry.path, err),
+        }),
+      { concurrency: 8 },
+    );
+    const files = entries.filter((entry, i) => {
+      const stat = stats[i];
+      return stat?.isFile() === true && entry.mode !== MODE_SYMLINK;
     });
-    if (stat === null || stat.isDirectory()) return "missing";
-    if (stat.isSymbolicLink()) {
-      if (!baseIsLink) return "type";
-      const target = yield* Effect.tryPromise({
-        try: () => readlink(absolute, { encoding: "buffer" }),
-        catch: (err) => fsError(path, err),
+    const hashed = new Map<string, string>();
+    if (files.length > 0) {
+      const { stdout } = yield* gitRun(["hash-object", "--stdin-paths"], worktree, {
+        env,
+        input: files.map((entry) => `${stdinPathLine(entry.path)}\n`).join(""),
       });
-      const { stdout } = yield* gitRun(["hash-object", "--stdin"], worktree, { input: target });
-      return stdout.trim() === entry.oid ? "same" : "content";
+      const ids = stdout.split("\n").filter((line) => line !== "");
+      if (ids.length !== files.length) {
+        return yield* Effect.fail(
+          new GitError({
+            message: `git hash-object --stdin-paths gave ${ids.length} ids for ${files.length} files`,
+            command: "git hash-object --stdin-paths",
+          }),
+        );
+      }
+      files.forEach((entry, i) => hashed.set(entry.path, ids[i]!));
     }
-    if (!stat.isFile() || baseIsLink) return "type";
-    const { stdout } = yield* gitRun(["hash-object", `--path=${path}`, "--", path], worktree);
-    if (stdout.trim() !== entry.oid) return "content";
-    // git reads the owner's execute bit only, and not at all under core.fileMode=false.
-    const executable = (stat.mode & 0o100) !== 0;
-    return honourFileMode && executable !== (entry.mode === MODE_EXECUTABLE) ? "content" : "same";
+    return yield* Effect.forEach(
+      entries,
+      (entry, i) =>
+        Effect.gen(function* () {
+          const stat = stats[i] ?? null;
+          const baseIsLink = entry.mode === MODE_SYMLINK;
+          if (stat === null || stat.isDirectory()) return "missing" as const;
+          if (stat.isSymbolicLink()) {
+            if (!baseIsLink) return "type" as const;
+            const target = yield* Effect.tryPromise({
+              try: () => readlink(join(worktree, entry.path), { encoding: "buffer" }),
+              catch: (err) => fsError(entry.path, err),
+            });
+            return blobId(target, entry.oid) === entry.oid
+              ? ("same" as const)
+              : ("content" as const);
+          }
+          if (!stat.isFile() || baseIsLink) return "type" as const;
+          if (hashed.get(entry.path) !== entry.oid) return "content" as const;
+          // git reads the owner's execute bit only, and not at all under core.fileMode=false.
+          const executable = (stat.mode & 0o100) !== 0;
+          return honourFileMode && executable !== (entry.mode === MODE_EXECUTABLE)
+            ? ("content" as const)
+            : ("same" as const);
+        }),
+      { concurrency: 8 },
+    );
   });
 }
 
 function observeWorktreeEffect(
   worktree: string,
   base: string,
-  trackedPaths: readonly string[],
+  isProtected: (path: string) => boolean,
 ): Effect.Effect<ProtectedObservation, GitError> {
   return Effect.gen(function* () {
+    const env: Record<string, string> = {};
     const tree = yield* snapshotWorktreeEffect(worktree);
     const diffArgs = ["diff-tree", "-z", "-r", "-M", "--name-status", "--no-ext-diff", base, tree];
-    const { stdout: diffOut } = yield* gitRun(diffArgs, worktree);
+    const { stdout: diffOut } = yield* gitRun(diffArgs, worktree, { env });
     const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
     const entries = rows.map((row): ObservedEntry => {
       switch (row.status) {
@@ -496,17 +564,11 @@ function observeWorktreeEffect(
       }
     });
 
-    // An empty pathspec list would list the whole tree, so ask only for paths.
-    const wanted = new Set(trackedPaths);
-    const atBase =
-      wanted.size === 0
-        ? []
-        : parseLsTreeZ(
-            (yield* gitRun(["ls-tree", "-r", "-z", base, "--", ...wanted], worktree, {
-              env: { GIT_LITERAL_PATHSPECS: "1" },
-            })).stdout,
-          ).filter((entry) => wanted.has(entry.path) && entry.mode !== MODE_SUBMODULE);
-    const baseByPath = new Map(atBase.map((entry) => [entry.path, entry]));
+    // The whole base tree, read once: its protected files, submodules left out.
+    const { stdout: treeOut } = yield* gitRun(["ls-tree", "-r", "-z", base], worktree, { env });
+    const atBase = parseLsTreeZ(treeOut).filter(
+      (entry) => entry.mode !== MODE_SUBMODULE && isProtected(entry.path),
+    );
     const fileMode =
       atBase.length === 0
         ? true
@@ -514,22 +576,17 @@ function observeWorktreeEffect(
             ["config", "--type=bool", "--get", "core.filemode"],
             worktree,
           )).stdout.trim() !== "false";
-    const states = yield* Effect.forEach(
-      trackedPaths.filter((path) => baseByPath.has(path)),
-      (path) =>
-        compareTrackedFile(worktree, baseByPath.get(path)!, fileMode).pipe(
-          Effect.map((state) => ({ path, state })),
-        ),
-      { concurrency: 8 },
-    );
+    const states = yield* compareTrackedFiles(worktree, atBase, fileMode, env);
+    const tracked = atBase.map((entry, i) => ({ path: entry.path, state: states[i]! }));
 
     const { stdout: ignoredOut } = yield* gitRun(
       ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
       worktree,
+      { env },
     );
     const untracked = ignoredOut.split("\0").filter((p) => p !== "" && !isInsidePhaxContext(p));
 
-    return { entries, tracked: states, untracked };
+    return { entries, tracked, untracked };
   });
 }
 
@@ -857,7 +914,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
     );
   },
 
-  observeWorktree: (path, base, trackedPaths) => observeWorktreeEffect(path, base, trackedPaths),
+  observeWorktree: (path, base, isProtected) => observeWorktreeEffect(path, base, isProtected),
 
   restorePaths: (path, tree, paths) => restorePathsEffect(path, tree, paths),
 

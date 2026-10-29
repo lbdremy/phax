@@ -3,8 +3,8 @@
 // HEAD, so a commit the agent made during its turn is still checked.
 import { Effect } from "effect";
 import {
+  matchProtected,
   protectedChanges,
-  protectedTrackedPaths,
   type ProtectedChange,
   type ProtectedList,
 } from "../domain/security/protectedPaths.js";
@@ -21,12 +21,11 @@ export function checkProtectedPaths(
 ): Effect.Effect<readonly ProtectedChange[], GitError, Git> {
   return Effect.gen(function* () {
     const git = yield* Git;
-    const atBase = yield* git.readTree(input.worktree, input.base);
-    const tracked = protectedTrackedPaths(
-      input.list,
-      atBase.map((entry) => entry.path),
+    const observation = yield* git.observeWorktree(
+      input.worktree,
+      input.base,
+      (path) => matchProtected(input.list, path) !== undefined,
     );
-    const observation = yield* git.observeWorktree(input.worktree, input.base, tracked);
     return protectedChanges(input.list, observation);
   });
 }

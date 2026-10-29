@@ -111,14 +111,6 @@ export function matchProtected(list: ProtectedList, path: string): ProtectedEntr
   return list.find((entry) => matchesGlob(entry.glob.toLowerCase(), folded));
 }
 
-/** The paths some entry of `list` matches, in input order. */
-export function protectedTrackedPaths(
-  list: ProtectedList,
-  paths: readonly string[],
-): readonly string[] {
-  return paths.filter((path) => matchProtected(list, path) !== undefined);
-}
-
 // Higher wins when the evidence for one path disagrees: a rename's source is
 // also tracked `missing`, and stays `renamed`.
 const KIND_RANK: Record<ProtectedChangeKind, number> = {
