@@ -193,6 +193,38 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
   return lines.join("\n");
 }
 
+function buildProtectedPathsChangedInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const protectedChanges = input.protectedChanges ?? [];
+  const wn = buildWhatsNext(
+    {
+      kind: "protected_paths_changed",
+      shortName: input.shortName,
+      phaseId: input.phaseId,
+      protectedChanges,
+    },
+    input.now,
+  );
+
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused because a protected path differs from the phase commit after the",
+    "phase committed. The handoff was neither validated nor copied, and no phase record",
+    "was written.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    "",
+    ...protectedPathsSection(protectedChanges),
+    ...stepsToMarkdown(wn.steps),
+  ];
+  return lines.join("\n");
+}
+
 function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const wn = buildWhatsNext(
@@ -465,6 +497,9 @@ export function buildResumeInstructions(input: ResumeInstructionsInput): string 
   }
   if (input.kind === "gate_refused") {
     return buildGateRefusalInstructions(input);
+  }
+  if (input.kind === "protected_paths_changed") {
+    return buildProtectedPathsChangedInstructions(input);
   }
   if (input.kind === "network_failure") {
     return buildNetworkFailureInstructions(input);

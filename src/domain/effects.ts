@@ -18,6 +18,7 @@ export interface ResumeContext {
     | "No changes"
     | "Gate checks failed"
     | "Gate step refused"
+    | "Protected paths changed after the commit"
     | "Commit failed"
     | "Cleanup failed"
     | "Artifact completion failed"
@@ -31,6 +32,7 @@ export interface ResumeContext {
     | "no_changes"
     | "gates_exhausted"
     | "gate_refused"
+    | "protected_paths_changed"
     | "commit_failed"
     | "cleanup_failed"
     | "artifact_completion_failed"
@@ -46,7 +48,7 @@ export interface ResumeContext {
   readonly refusal?: GateRefusal | undefined;
   /** Which step stopped the phase; set for kinds `gates_exhausted` and `gate_refused`. */
   readonly failedStep?: "configured" | "oracle" | "protected-paths" | undefined;
-  /** The protected paths still changed; set for kinds `gates_exhausted` and `gate_refused`. */
+  /** The protected paths still changed; set for kinds `gates_exhausted`, `gate_refused` and `protected_paths_changed`. */
   readonly protectedChanges?: readonly ProtectedChange[] | undefined;
   /** The last fix transcript of the phase, or null when none was made; set for kind `gates_exhausted`. */
   readonly lastFixTranscript?: string | null | undefined;

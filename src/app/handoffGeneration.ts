@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Array as Arr, Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
@@ -8,6 +8,7 @@ import {
   type AgentInvocationError,
   type AgentSessionFailedError,
   type AgentSessionIdMissingError,
+  HandoffProtectedPathsError,
   type RateLimitError,
   type RegistryCorruptionError,
   type SecurityEnforcementError,
@@ -22,7 +23,9 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
+import type { ProtectedList } from "../domain/security/protectedPaths.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
+import { checkProtectedPaths } from "./protectedPathsCheck.js";
 
 function buildDeviationBlock(result: ReconciliationResult): string {
   if (!result.hasDeviations) {
@@ -98,6 +101,15 @@ export interface GenerateHandoffOptions {
   readonly phaseId: string;
   /** Reconciliation result computed after commit, injected into the handoff prompt. */
   readonly reconciliation: ReconciliationResult;
+  /**
+   * The protected list and the phase commit as the phase's status.json records
+   * it, or null when the project declares none. Checked right after the turn,
+   * before the handoff is read, validated or copied.
+   */
+  readonly protectedPaths: {
+    readonly list: ProtectedList;
+    readonly phaseCommit: string;
+  } | null;
 }
 
 export function generatePhaseHandoff(
@@ -115,6 +127,7 @@ export function generatePhaseHandoff(
   | UsageLimitError
   | SecurityEnforcementError
   | HandoffValidationError
+  | HandoffProtectedPathsError
   | RegistryCorruptionError,
   FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
@@ -127,6 +140,7 @@ export function generatePhaseHandoff(
     shortName,
     phaseId,
     reconciliation,
+    protectedPaths,
   } = opts;
 
   return Effect.gen(function* () {
@@ -152,6 +166,22 @@ export function generatePhaseHandoff(
         streamPath: outputJsonlPath,
       },
     );
+
+    if (protectedPaths !== null) {
+      const changes = yield* checkProtectedPaths({
+        worktree: worktreePath,
+        base: protectedPaths.phaseCommit,
+        list: protectedPaths.list,
+      });
+      if (Arr.isNonEmptyReadonlyArray(changes)) {
+        return yield* Effect.fail(
+          new HandoffProtectedPathsError({
+            message: `Protected paths changed after the commit: ${changes.map((change) => change.path).join(", ")}`,
+            changes,
+          }),
+        );
+      }
+    }
 
     const handoffPath = join(worktreePath, ".phax-context", "phase-handoff.md");
     const exists = yield* fs.exists(handoffPath);

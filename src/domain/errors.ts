@@ -233,6 +233,16 @@ export class HandoffPausedError extends Data.TaggedError("HandoffPausedError")<{
   cause: unknown;
 }> {}
 
+/**
+ * A protected path differs from the phase commit once the handoff turn
+ * returned. The handoff is neither validated nor copied; the phase pauses as
+ * a failed handoff.
+ */
+export class HandoffProtectedPathsError extends Data.TaggedError("HandoffProtectedPathsError")<{
+  message: string;
+  changes: NonEmptyProtectedChanges;
+}> {}
+
 /** A first turn at a stop that did not answer: refused for an edit, or failed. */
 export type FirstTurnProblem = Exclude<
   InteractiveSession["firstTurns"][number],

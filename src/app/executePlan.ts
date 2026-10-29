@@ -124,6 +124,7 @@ import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./p
 import { closePulledBriefs } from "./pullBrief.js";
 import { readRunHold } from "./resume.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
+import { checkProtectedPaths } from "./protectedPathsCheck.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import {
   committedHandoffIsValid,
@@ -198,6 +199,20 @@ function isGateAttemptsExhaustedError(e: unknown): e is GateAttemptsExhaustedErr
 
 function isGateStepRefusedError(e: unknown): e is GateStepRefusedError {
   return e instanceof GateStepRefusedError;
+}
+
+/**
+ * The phase commit status.json records, which a protected-path check after
+ * the commit compares against. A phase that noted none is a fault, not a pass.
+ */
+function notedPhaseCommit(phaseFolderPath: string) {
+  return readPhaseCommit(phaseFolderPath).pipe(
+    Effect.flatMap(({ phaseId, commit }) =>
+      commit === null
+        ? Effect.fail(new FsError({ message: `${phaseId} noted no commit in its status` }))
+        : Effect.succeed(commit),
+    ),
+  );
 }
 
 function isHandoffPausedError(e: unknown): e is HandoffPausedError {
@@ -1761,6 +1776,34 @@ export function executePlan(
         currentProvider = undefined;
         currentModel = undefined;
         currentEffort = undefined;
+        // The worktree may have changed since the pause: a protected path that
+        // differs from the phase commit pauses the phase as a failed handoff,
+        // before anything runs and with no stop opened.
+        if (config.protectedPaths !== undefined) {
+          const changes = yield* checkProtectedPaths({
+            worktree: holdPointReentry.worktree as string,
+            base: yield* notedPhaseCommit(heldFolder),
+            list: config.protectedPaths,
+          });
+          if (Arr.isNonEmptyReadonlyArray(changes)) {
+            yield* dispatch(
+              {
+                ...eventBase(phase.id),
+                type: "HandoffProtectedPathsChanged",
+                changes,
+                worktreePath: holdPointReentry.worktree,
+              },
+              dispatchCtx(heldFolder, phase.id),
+            );
+            return yield* Effect.fail(
+              new HandoffPausedError({
+                message: `Phase "${phase.id}" is held, but protected paths changed after the commit: ${changes.map((change) => change.path).join(", ")}`,
+                phaseId: phase.id,
+                cause: new Error("protected paths changed"),
+              }),
+            );
+          }
+        }
         // The pulled briefs land before the hold point, as on a first entry,
         // so the record written at closing lists them. A no-op when the
         // first entry already closed them.
@@ -2349,6 +2392,55 @@ export function executePlan(
         // hook rejection), dispatch CommitFailed to pause the run as `interrupted`
         // with the phase left `passed`, then re-raise as CommitPausedError so the
         // top-level guard skips RunFailed.
+        const pauseAsCommitFailed = (reason: string, cause: unknown) =>
+          Effect.gen(function* () {
+            yield* dispatch(
+              {
+                ...eventBase(phase.id),
+                type: "CommitFailed" as const,
+                phaseId: phase.id as PhaseId,
+                worktreePath,
+                sessionId,
+                reason,
+              },
+              ctx,
+            );
+            yield* telemetry.recordEvent(
+              makeAdapterCallFailedTelemetryEvent({
+                runId,
+                operationId: phase.id,
+                adapter: "git",
+                operation: "commit.create",
+                exitCode: 1,
+                stderrExcerpt: reason.slice(0, 500),
+              }),
+            );
+            return yield* Effect.fail(
+              new CommitPausedError({
+                message: `Commit step failed for phase "${phase.id}": ${reason}`,
+                phaseId: phase.id,
+                cause,
+              }),
+            );
+          });
+
+        // A commit-only resume commits what the worktree holds now, which may
+        // differ from what the gate checked before the pause: refuse a
+        // protected change against the phase base, commit nothing.
+        if (isResumeFromCommit && config.protectedPaths !== undefined) {
+          const changes = yield* checkProtectedPaths({
+            worktree: worktreePath as string,
+            base: yield* readPhaseBase(phaseFolderPath),
+            list: config.protectedPaths,
+          });
+          if (changes.length > 0) {
+            const reason = `protected paths changed: ${changes
+              .map((change) => `${change.path} (${change.kind})`)
+              .join(", ")}`;
+            return yield* pauseAsCommitFailed(reason, new Error(reason));
+          }
+        }
+
         yield* commitPhase({
           phase,
           worktreePath,
@@ -2363,38 +2455,7 @@ export function executePlan(
           Effect.catchIf(
             (e): e is Exclude<typeof e, PhaseHadNoChangesError> =>
               !(e instanceof PhaseHadNoChangesError),
-            (e) =>
-              Effect.gen(function* () {
-                const reason = e instanceof Error ? e.message : String(e);
-                yield* dispatch(
-                  {
-                    ...eventBase(phase.id),
-                    type: "CommitFailed" as const,
-                    phaseId: phase.id as PhaseId,
-                    worktreePath,
-                    sessionId,
-                    reason,
-                  },
-                  ctx,
-                );
-                yield* telemetry.recordEvent(
-                  makeAdapterCallFailedTelemetryEvent({
-                    runId,
-                    operationId: phase.id,
-                    adapter: "git",
-                    operation: "commit.create",
-                    exitCode: 1,
-                    stderrExcerpt: reason.slice(0, 500),
-                  }),
-                );
-                return yield* Effect.fail(
-                  new CommitPausedError({
-                    message: `Commit step failed for phase "${phase.id}": ${reason}`,
-                    phaseId: phase.id,
-                    cause: e,
-                  }),
-                );
-              }),
+            (e) => pauseAsCommitFailed(e instanceof Error ? e.message : String(e), e),
           ),
         );
 
@@ -2449,6 +2510,15 @@ export function executePlan(
         yield* telemetry.recordEvent(
           makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
         );
+        // The handoff turn is checked against the phase commit status.json
+        // records (the first handoff and every resume out of a failed one).
+        const handoffProtectedPaths =
+          config.protectedPaths === undefined
+            ? null
+            : {
+                list: config.protectedPaths,
+                phaseCommit: yield* notedPhaseCommit(phaseFolderPath),
+              };
         yield* generatePhaseHandoff({
           sessionId,
           agentOptions,
@@ -2458,8 +2528,36 @@ export function executePlan(
           shortName: shortName as string,
           phaseId: phase.id,
           reconciliation,
+          protectedPaths: handoffProtectedPaths,
         }).pipe(
           Effect.catchTags({
+            HandoffProtectedPathsError: (e) =>
+              Effect.gen(function* () {
+                yield* dispatch(
+                  {
+                    ...eventBase(phase.id),
+                    type: "HandoffProtectedPathsChanged",
+                    changes: e.changes,
+                    worktreePath,
+                  },
+                  ctx,
+                );
+                yield* telemetry.recordEvent(
+                  makeStepCompletedTelemetryEvent({
+                    runId,
+                    operationId: phase.id,
+                    step: "handoff.generate",
+                    result: "failure",
+                  }),
+                );
+                return yield* Effect.fail(
+                  new HandoffPausedError({
+                    message: `Phase "${phase.id}" handoff generation failed: ${e.message}`,
+                    phaseId: phase.id,
+                    cause: e,
+                  }),
+                );
+              }),
             HandoffValidationError: (e) =>
               Effect.gen(function* () {
                 yield* dispatch(

@@ -796,6 +796,66 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       }
     }
 
+    // HandoffMissing's transitions with no missing section: a protected path
+    // differs from the phase commit, so the handoff is neither validated nor
+    // copied. The paths are persisted as `lastError`, with no new stoppedReason.
+    case "HandoffProtectedPathsChanged": {
+      const persistAndExplain: readonly PhaxCommand[] = [
+        {
+          type: "PersistState",
+          patch: {
+            run: {
+              lastError: `Protected paths changed after the commit: ${event.changes.map((change) => change.path).join(", ")}`,
+            },
+          },
+        },
+        {
+          type: "WriteResumeInstructions",
+          ctx: {
+            reason: "Protected paths changed after the commit",
+            kind: "protected_paths_changed",
+            phaseId: event.phase,
+            worktreePath: event.worktreePath as string,
+            protectedChanges: event.changes,
+          },
+        },
+      ];
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "passed") {
+            return handled(
+              { run: "running", phase: { state: "handoff_failed", missing: [] } },
+              persistAndExplain,
+            );
+          }
+          if (ps === "committed" || ps === "handoff_failed") {
+            return handled(
+              { run: "interrupted", phase: { state: "handoff_failed", missing: [] } },
+              persistAndExplain,
+            );
+          }
+          return unexpected(`protected paths changed after the commit while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return unexpected("protected paths changed after the commit while run is rate_limited");
+        case "interrupted":
+          return stale("protected paths changed after the commit on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`protected paths changed after the commit while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`protected paths changed after the commit on ${state.run} run`);
+        case "awaiting_review":
+          return stale("HandoffProtectedPathsChanged while the run awaits review");
+        default:
+          return assertNever(state);
+      }
+    }
+
     case "CommitCreated":
       switch (state.run) {
         case "running": {
