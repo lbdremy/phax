@@ -28,6 +28,9 @@ interface StepFailurePromptInput {
   readonly failedStep: "configured" | "oracle";
   /** The protected paths the same attempt found changed, possibly none. */
   readonly protectedChanges: readonly ProtectedChange[];
+  /** The phase base commit the protected paths are checked against, or null
+   *  when the project declares none. */
+  readonly protectedBase: string | null;
 }
 
 /** Every step passed, yet the attempt changed protected paths. */
@@ -35,20 +38,26 @@ interface ProtectedOnlyPromptInput {
   readonly attempt: number;
   readonly failedStep: "protected-paths";
   readonly protectedChanges: NonEmptyProtectedChanges;
+  /** The phase base commit the protected paths are checked against. */
+  readonly protectedBase: string;
 }
 
 export type BuildFixPromptInput = StepFailurePromptInput | ProtectedOnlyPromptInput;
 
 /**
  * What the agent does about protected paths: they are the operator's decision,
- * so each goes back to its content at the phase base, and the hole it was
- * meant to plug is fixed in code or the gate is left failing.
+ * so each goes back to its content at the phase base, named by its commit,
+ * and the hole it was meant to plug is fixed in code or the gate is left
+ * failing. Worded for an agent that may have no shell: it restores content,
+ * whatever tool it uses.
  */
-const PUT_BACK: readonly string[] = [
-  "The paths under **Protected paths changed** are the operator's decision: no phase of this run may change them.",
-  "Put each one back to its content at the phase base: restore an edited or deleted path, remove a created one, undo a rename.",
-  "Then fix the hole in the code, or leave the gate failing. If your tools cannot put a path back, say so.",
-];
+function putBack(base: string): string[] {
+  return [
+    "The paths under **Protected paths changed** are the operator's decision: no phase of this run may change them.",
+    `Put each one back: restore an edited or deleted path to its content at base commit ${base}, remove a created one, undo a rename.`,
+    "Then fix the hole in the code, or leave the gate failing. If your tools cannot put a path back, say so.",
+  ];
+}
 
 function requiredActionTail(failedStep: "configured" | "oracle"): string[] {
   return [
@@ -62,11 +71,14 @@ function requiredActionTail(failedStep: "configured" | "oracle"): string[] {
   ];
 }
 
-/** The `## Protected paths changed` section, one line per change, or nothing. */
-function protectedSection(changes: readonly ProtectedChange[]): string[] {
-  if (changes.length === 0) return [];
+/** The `## Protected paths changed` section, naming the phase base commit
+ *  and one line per change, or nothing. */
+function protectedSection(changes: readonly ProtectedChange[], base: string | null): string[] {
+  if (changes.length === 0 || base === null) return [];
   return [
     "## Protected paths changed",
+    "",
+    `Compared with the phase base, commit ${base}:`,
     "",
     ...changes.map((change) => `- ${describeProtectedChange(change)}`),
     "",
@@ -74,8 +86,8 @@ function protectedSection(changes: readonly ProtectedChange[]): string[] {
 }
 
 /** The put-back sentences closing a step failure's required action, or nothing. */
-function putBackTail(changes: readonly ProtectedChange[]): string[] {
-  return changes.length === 0 ? [] : ["", ...PUT_BACK];
+function putBackTail(changes: readonly ProtectedChange[], base: string | null): string[] {
+  return changes.length === 0 || base === null ? [] : ["", ...putBack(base)];
 }
 
 /**
@@ -109,10 +121,10 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
       "",
       "**Failed step:** protected paths",
       "",
-      ...protectedSection(input.protectedChanges),
+      ...protectedSection(input.protectedChanges, input.protectedBase),
       "## Required action",
       "",
-      ...PUT_BACK,
+      ...putBack(input.protectedBase),
       "The gate run will be re-attempted automatically after your changes.",
     ].join("\n");
   }
@@ -126,8 +138,12 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
     reportFindings,
     stillFailing,
     protectedChanges,
+    protectedBase,
   } = input;
-  const tail = [...requiredActionTail(input.failedStep), ...putBackTail(protectedChanges)];
+  const tail = [
+    ...requiredActionTail(input.failedStep),
+    ...putBackTail(protectedChanges, protectedBase),
+  ];
 
   if (reportFindings !== null) {
     const { findings } = reportFindings;
@@ -145,7 +161,7 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
       "",
       `Full output: ${logPath}`,
       "",
-      ...protectedSection(protectedChanges),
+      ...protectedSection(protectedChanges, protectedBase),
       "## Required action",
       "",
       "Read the file each guide names before changing code, then fix every finding under **Findings**.",
@@ -167,7 +183,7 @@ export function buildFixPrompt(input: BuildFixPromptInput): string {
     logContent,
     "```",
     "",
-    ...protectedSection(protectedChanges),
+    ...protectedSection(protectedChanges, protectedBase),
     "## Required action",
     "",
     "Fix all issues revealed by the gate output above.",

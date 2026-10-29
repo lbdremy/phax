@@ -341,6 +341,9 @@ describe("runGatesWithFixLoop", () => {
       expect(observed[0]).toMatchObject({ path: cwd, base });
       expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
       expect(fakeBackend.impl.resumeCalls[0]!.prompt).toContain("**Failed step:** protected paths");
+      expect(fakeBackend.impl.resumeCalls[0]!.prompt).toContain(
+        `Compared with the phase base, commit ${base}:`,
+      );
 
       const rejected = fakeTelemetry.impl
         .events()
@@ -387,6 +390,7 @@ describe("runGatesWithFixLoop", () => {
       const prompt = fakeBackend.impl.resumeCalls[0]!.prompt;
       expect(prompt).toContain("**Failed command:** `pnpm test`");
       expect(prompt).toContain("## Protected paths changed");
+      expect(prompt).toContain(`to its content at base commit ${base}`);
       // The step failed, so its error report is still made.
       expect(fakeTelemetry.impl.errors().map((e) => e.operation)).toContain("gate.pnpm test");
     });

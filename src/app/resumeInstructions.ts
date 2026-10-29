@@ -6,6 +6,7 @@ import {
   describeProtectedChange,
   type ProtectedChange,
 } from "../domain/security/protectedPaths.js";
+import { shellQuote } from "../domain/interactive/commandLine.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 
 export interface ResumeInstructionsInput {
@@ -34,6 +35,10 @@ export interface ResumeInstructionsInput {
   readonly protectedChanges?: readonly ProtectedChange[] | undefined;
   /** The phase's last fix transcript, or null when none was made (kind `gates_exhausted`). */
   readonly lastFixTranscript?: string | null | undefined;
+  /** The commit the protected paths are put back from: the phase base after a
+   *  gate pause, the phase commit after a handoff pause. Undefined when the
+   *  phase's status.json could not be read. */
+  readonly protectedRestore?: ProtectedRestore | undefined;
   /** Current wall time — injected so the builder stays pure/testable. */
   readonly now: Date;
   /** Host platform — injected so the builder stays pure/testable. */
@@ -61,18 +66,50 @@ function stepsToMarkdown(steps: readonly NextStep[]): string[] {
   return lines;
 }
 
+/** The commit a protected path is put back from, and what it is to the phase. */
+export interface ProtectedRestore {
+  readonly commit: string;
+  readonly name: "phase base" | "phase commit";
+}
+
+/**
+ * The shell command, run in the phase worktree, that puts one protected path
+ * back to its content at `commit`: checked out of it when it was edited or
+ * deleted, removed when it was created. A renamed path is either side of the
+ * rename, so it is checked out when `commit` holds it and removed otherwise.
+ */
+function restoreCommand(change: ProtectedChange, commit: string): string {
+  const path = shellQuote(change.path);
+  const checkout = `git checkout ${commit} -- ${path}`;
+  switch (change.kind) {
+    case "edited":
+    case "deleted":
+      return checkout;
+    case "created":
+      return `rm -- ${path}`;
+    case "renamed":
+      return `if git cat-file -e ${shellQuote(`${commit}:${change.path}`)}; then ${checkout}; else rm -- ${path}; fi`;
+  }
+}
+
 /**
  * Each protected path still changed with its kind, why it cannot stay, and
- * (when asked) where the last fix transcript is. Empty when none changed.
+ * (when asked) where the last fix transcript is, then, when the commit to
+ * restore from is known, that commit and the command putting each path back.
+ * Empty when none changed.
  */
 function protectedPathsSection(
   changes: readonly ProtectedChange[],
+  restore: ProtectedRestore | undefined,
   lastFixTranscript?: string | null,
 ): string[] {
   if (changes.length === 0) return [];
   return [
     "## Protected paths changed",
     "",
+    ...(restore === undefined
+      ? []
+      : [`Compared with the ${restore.name}, commit ${restore.commit}:`, ""]),
     ...changes.map((change) => `- ${describeProtectedChange(change)}`),
     "",
     "No phase of this run may change these paths: they are the operator's decision.",
@@ -84,6 +121,16 @@ function protectedPathsSection(
             : `The last fix attempt's transcript: ${lastFixTranscript}`,
         ]),
     "",
+    ...(restore === undefined
+      ? []
+      : [
+          `To put each path back to its content at the ${restore.name}, run in the phase worktree:`,
+          "",
+          "```bash",
+          ...changes.map((change) => restoreCommand(change, restore.commit)),
+          "```",
+          "",
+        ]),
   ];
 }
 
@@ -133,7 +180,7 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
-    ...protectedPathsSection(protectedChanges, lastFixTranscript),
+    ...protectedPathsSection(protectedChanges, input.protectedRestore, lastFixTranscript),
     ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");
@@ -187,7 +234,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
-    ...protectedPathsSection(protectedChanges),
+    ...protectedPathsSection(protectedChanges, input.protectedRestore),
     ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");
@@ -219,7 +266,7 @@ function buildProtectedPathsChangedInstructions(input: ResumeInstructionsInput):
     `- **Current phase:** ${phaseId}`,
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     "",
-    ...protectedPathsSection(protectedChanges),
+    ...protectedPathsSection(protectedChanges, input.protectedRestore),
     ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");

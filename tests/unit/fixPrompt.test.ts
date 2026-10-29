@@ -12,7 +12,11 @@ const baseInput = {
   stillFailing: new Set<string>(),
   failedStep: "configured" as const,
   protectedChanges: [],
+  protectedBase: null,
 };
+
+// The phase base a protected change is compared with.
+const BASE = "0123456789abcdef0123456789abcdef01234567";
 
 // The spec's made-up checked example: two findings, the first with a related
 // location and a guide, the second with neither.
@@ -250,6 +254,7 @@ describe("buildFixPrompt — protected paths", () => {
       attempt: 3,
       failedStep: "protected-paths",
       protectedChanges: [edited, implied],
+      protectedBase: BASE,
     });
 
     expect(headings(prompt)).toEqual([
@@ -264,14 +269,21 @@ describe("buildFixPrompt — protected paths", () => {
     );
     expect(prompt).toContain("- phax.json — deleted (phax.json)");
     expect(prompt).toContain("are the operator's decision");
-    expect(prompt).toContain("back to its content at the phase base");
+    expect(prompt).toContain(`Compared with the phase base, commit ${BASE}:`);
+    expect(prompt).toContain(
+      `restore an edited or deleted path to its content at base commit ${BASE}, remove a created one`,
+    );
     expect(prompt).toContain("fix the hole in the code, or leave the gate failing");
     expect(prompt).toContain("If your tools cannot put a path back, say so.");
     expect(prompt).not.toContain("**Failed command:**");
   });
 
   it("keeps a failed step's prompt and inserts the section before Required action", () => {
-    const prompt = buildFixPrompt({ ...baseInput, protectedChanges: [edited] });
+    const prompt = buildFixPrompt({
+      ...baseInput,
+      protectedChanges: [edited],
+      protectedBase: BASE,
+    });
 
     expect(headings(prompt)).toEqual([
       "# Gate checks failed — fix required",
@@ -281,11 +293,16 @@ describe("buildFixPrompt — protected paths", () => {
     ]);
     expect(prompt).toContain("**Failed command:** `pnpm test`");
     expect(prompt).toContain("Fix all issues revealed by the gate output above.");
-    expect(prompt).toContain("back to its content at the phase base");
+    expect(prompt).toContain(`Compared with the phase base, commit ${BASE}:`);
+    expect(prompt).toContain(`to its content at base commit ${BASE}`);
   });
 
   it("adds the section to a report step's prompt too", () => {
-    const prompt = buildFixPrompt({ ...reportInput, protectedChanges: [edited] });
+    const prompt = buildFixPrompt({
+      ...reportInput,
+      protectedChanges: [edited],
+      protectedBase: BASE,
+    });
 
     expect(headings(prompt)).toEqual([
       "# Gate checks failed — fix required",

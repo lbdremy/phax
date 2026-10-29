@@ -22,7 +22,8 @@ import {
 import { encodeReviewStopFile, type LastClose, type ReviewStop } from "../schemas/reviewStop.js";
 import { encodePhaseStatus, encodeRunStatus } from "../schemas/status.js";
 import { setRunStatus } from "./registry.js";
-import { writeResumeInstructions } from "./resumeInstructions.js";
+import { readPhaseBase, readPhaseCommit } from "./phaseStatusUpdates.js";
+import { type ProtectedRestore, writeResumeInstructions } from "./resumeInstructions.js";
 import { generateReviewHandoff } from "./reviewHandoff.js";
 
 export interface EffectRunnerContext {
@@ -187,6 +188,31 @@ function stoppedPhaseWorktree(
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
+// The commit a pause's protected paths are put back from, read off the phase's
+// status.json: its base after a gate pause, its commit after a handoff pause.
+// Undefined when nothing protected changed or the status cannot say: the
+// instructions then name the paths without a commit.
+function protectedRestoreFor(
+  ctx: EffectRunnerContext,
+  cmd: Extract<PhaxCommand, { type: "WriteResumeInstructions" }>,
+): Effect.Effect<ProtectedRestore | undefined, never, FileSystem> {
+  const folder = ctx.phaseFolderPath;
+  if (folder === undefined || (cmd.ctx.protectedChanges ?? []).length === 0) {
+    return Effect.succeed(undefined);
+  }
+  const restore: Effect.Effect<ProtectedRestore | undefined, FsError, FileSystem> =
+    cmd.ctx.kind === "protected_paths_changed"
+      ? readPhaseCommit(folder).pipe(
+          Effect.map(({ commit }) =>
+            commit === null ? undefined : { commit, name: "phase commit" as const },
+          ),
+        )
+      : readPhaseBase(folder).pipe(
+          Effect.map((commit) => ({ commit, name: "phase base" as const })),
+        );
+  return restore.pipe(Effect.orElseSucceed(() => undefined));
+}
+
 function mapEmitTraceToSemantic(
   cmd: Extract<PhaxCommand, { type: "EmitTrace" }>,
   runId: RunId,
@@ -294,6 +320,7 @@ export function run(
           failedStep: cmd.ctx.failedStep,
           protectedChanges: cmd.ctx.protectedChanges,
           lastFixTranscript: cmd.ctx.lastFixTranscript,
+          protectedRestore: yield* protectedRestoreFor(ctx, cmd),
           now: new Date(),
           platform,
         });
