@@ -254,6 +254,43 @@ describe("buildWhatsNext", () => {
       expect(renderWhatsNext(wn)).not.toContain("reset-phase");
     });
 
+    it("keeps the fix-the-gate steps of a configured step's exhaustion and adds the protected ways", () => {
+      const wn = buildWhatsNext({ ...exhausted, failedStep: "configured" }, NOW);
+      expect(wn.steps.map((s) => [s.title, s.command])).toEqual([
+        ["Fix the gate in the phase worktree", "phax enter-phase proj phase-03"],
+        [
+          "Resume — the gate is re-run first; if it passes the phase commits",
+          "phax resume proj --yes",
+        ],
+        [
+          "Or, if the protected change is wanted, make it on the base branch yourself and start a new run",
+          undefined,
+        ],
+      ]);
+      expect(wn.steps[0]?.detail).toEqual([
+        "Put each protected file back to its content at the phase base.",
+      ]);
+    });
+
+    it("keeps the oracle correction with --skip-oracle after an oracle step's exhaustion", () => {
+      const wn = buildWhatsNext({ ...exhausted, failedStep: "oracle" }, NOW);
+      expect(wn.headline).toContain(
+        "The oracle step failed after all fix attempts, and protected paths changed.",
+      );
+      expect(wn.headline).toContain("packages/a/steme.baseline.json — edited");
+      expect(wn.steps.map((s) => s.command)).toEqual([
+        "phax enter-phase proj phase-03",
+        "phax resume proj --yes",
+        undefined,
+        "phax enter-phase proj phase-03",
+        "phax resume proj --yes --skip-oracle",
+      ]);
+      expect(wn.steps[2]?.title).toContain("base branch");
+      expect(wn.steps[3]?.title).toContain("the oracle itself is wrong");
+      expect(wn.steps[3]?.detail?.[0]).toContain("The protected-path check still runs");
+      expect(renderWhatsNext(wn)).not.toContain("reset-phase");
+    });
+
     it("lists the paths after a refusal and keeps the refusal", () => {
       const wn = buildWhatsNext(
         {
