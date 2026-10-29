@@ -1,9 +1,15 @@
 import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
-import { mkdtemp, rm, rmdir } from "node:fs/promises";
+import type { Stats } from "node:fs";
+import { lstat, mkdtemp, readlink, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
-import { Git, GitError } from "../ports/git.js";
+import { Git, GitError, type GitTreeEntry } from "../ports/git.js";
+import type {
+  ObservedEntry,
+  ProtectedObservation,
+  TrackedState,
+} from "../domain/security/protectedPaths.js";
 import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
@@ -196,28 +202,56 @@ function parseTreeId(stdout: string, command: string): Effect.Effect<string, Git
     : Effect.fail(new GitError({ message: `Could not parse a tree id: "${tree}"`, command }));
 }
 
+// A row of `git diff-tree -M`: one file renamed, both paths kept.
+interface RenamedPath {
+  readonly status: "R";
+  readonly oldPath: string;
+  readonly path: string;
+}
+
 // `git diff-tree -r -z --name-status` prints `<status>\0<path>\0` per entry.
 // Without rename or copy detection, a status is one of A, M, D or T; any other
-// is refused rather than guessed at.
+// is refused rather than guessed at. With `renames`, an `R<score>` status is
+// followed by two paths, the old then the new, and gives a RenamedPath; every
+// other status reads as without. Paths are kept as written.
 function parseDiffTreeNameStatusZ(
   stdout: string,
   command: string,
-): Effect.Effect<readonly ChangedPath[], GitError> {
+  renames: false,
+): Effect.Effect<readonly ChangedPath[], GitError>;
+function parseDiffTreeNameStatusZ(
+  stdout: string,
+  command: string,
+  renames: true,
+): Effect.Effect<readonly (ChangedPath | RenamedPath)[], GitError>;
+function parseDiffTreeNameStatusZ(
+  stdout: string,
+  command: string,
+  renames: boolean,
+): Effect.Effect<readonly (ChangedPath | RenamedPath)[], GitError> {
   const fields = stdout.split("\0");
   if (fields.at(-1) === "") fields.pop();
-  const entries: ChangedPath[] = [];
-  for (let i = 0; i + 1 < fields.length; i += 2) {
+  const truncated = Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
+  const entries: (ChangedPath | RenamedPath)[] = [];
+  let i = 0;
+  while (i < fields.length) {
     const status = fields[i]!;
-    const path = fields[i + 1]!;
+    const path = fields[i + 1];
+    if (path === undefined) return truncated;
+    if (renames && /^R\d*$/.test(status)) {
+      const newPath = fields[i + 2];
+      if (newPath === undefined) return truncated;
+      entries.push({ status: "R", oldPath: path, path: newPath });
+      i += 3;
+      continue;
+    }
     if (status !== "A" && status !== "M" && status !== "D" && status !== "T") {
       return Effect.fail(
         new GitError({ message: `Unexpected diff-tree status "${status}" for ${path}`, command }),
       );
     }
     entries.push({ status, path });
-  }
-  if (fields.length % 2 !== 0) {
-    return Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
+    i += 2;
   }
   return Effect.succeed(entries);
 }
@@ -381,6 +415,122 @@ function gitRunAllowFail(
       ),
     ),
   );
+}
+
+const MODE_SYMLINK = "120000";
+const MODE_EXECUTABLE = "100755";
+const MODE_SUBMODULE = "160000";
+
+// lstat that reads an absent path, or one under a file, as no file.
+async function lstatOrNull(path: string): Promise<Stats | null> {
+  try {
+    return await lstat(path);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    throw err;
+  }
+}
+
+function fsError(path: string, err: unknown): GitError {
+  return new GitError({ message: `Could not read ${path}: ${String(err)}`, command: "lstat" });
+}
+
+// How the file at `path` on disk compares with its blob at base, whatever the
+// real index says. A file is hashed as `git add` would (clean filters
+// included), a symbolic link by its target.
+function compareTrackedFile(
+  worktree: string,
+  entry: GitTreeEntry,
+  honourFileMode: boolean,
+): Effect.Effect<TrackedState, GitError> {
+  const path = entry.path;
+  const absolute = join(worktree, path);
+  const baseIsLink = entry.mode === MODE_SYMLINK;
+  return Effect.gen(function* () {
+    const stat = yield* Effect.tryPromise({
+      try: () => lstatOrNull(absolute),
+      catch: (err) => fsError(path, err),
+    });
+    if (stat === null || stat.isDirectory()) return "missing";
+    if (stat.isSymbolicLink()) {
+      if (!baseIsLink) return "type";
+      const target = yield* Effect.tryPromise({
+        try: () => readlink(absolute, { encoding: "buffer" }),
+        catch: (err) => fsError(path, err),
+      });
+      const { stdout } = yield* gitRun(["hash-object", "--stdin"], worktree, { input: target });
+      return stdout.trim() === entry.oid ? "same" : "content";
+    }
+    if (!stat.isFile() || baseIsLink) return "type";
+    const { stdout } = yield* gitRun(["hash-object", `--path=${path}`, "--", path], worktree);
+    if (stdout.trim() !== entry.oid) return "content";
+    // git reads the owner's execute bit only, and not at all under core.fileMode=false.
+    const executable = (stat.mode & 0o100) !== 0;
+    return honourFileMode && executable !== (entry.mode === MODE_EXECUTABLE) ? "content" : "same";
+  });
+}
+
+function observeWorktreeEffect(
+  worktree: string,
+  base: string,
+  trackedPaths: readonly string[],
+): Effect.Effect<ProtectedObservation, GitError> {
+  return Effect.gen(function* () {
+    const tree = yield* snapshotWorktreeEffect(worktree);
+    const diffArgs = ["diff-tree", "-z", "-r", "-M", "--name-status", "--no-ext-diff", base, tree];
+    const { stdout: diffOut } = yield* gitRun(diffArgs, worktree);
+    const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
+    const entries = rows.map((row): ObservedEntry => {
+      switch (row.status) {
+        case "R":
+          return { status: "renamed", path: row.path, oldPath: row.oldPath };
+        case "A":
+          return { status: "added", path: row.path };
+        case "M":
+          return { status: "modified", path: row.path };
+        case "D":
+          return { status: "deleted", path: row.path };
+        case "T":
+          return { status: "type-changed", path: row.path };
+      }
+    });
+
+    // An empty pathspec list would list the whole tree, so ask only for paths.
+    const wanted = new Set(trackedPaths);
+    const atBase =
+      wanted.size === 0
+        ? []
+        : parseLsTreeZ(
+            (yield* gitRun(["ls-tree", "-r", "-z", base, "--", ...wanted], worktree, {
+              env: { GIT_LITERAL_PATHSPECS: "1" },
+            })).stdout,
+          ).filter((entry) => wanted.has(entry.path) && entry.mode !== MODE_SUBMODULE);
+    const baseByPath = new Map(atBase.map((entry) => [entry.path, entry]));
+    const fileMode =
+      atBase.length === 0
+        ? true
+        : (yield* gitRunAllowFail(
+            ["config", "--type=bool", "--get", "core.filemode"],
+            worktree,
+          )).stdout.trim() !== "false";
+    const states = yield* Effect.forEach(
+      trackedPaths.filter((path) => baseByPath.has(path)),
+      (path) =>
+        compareTrackedFile(worktree, baseByPath.get(path)!, fileMode).pipe(
+          Effect.map((state) => ({ path, state })),
+        ),
+      { concurrency: 8 },
+    );
+
+    const { stdout: ignoredOut } = yield* gitRun(
+      ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
+      worktree,
+    );
+    const untracked = ignoredOut.split("\0").filter((p) => p !== "" && !isInsidePhaxContext(p));
+
+    return { entries, tracked: states, untracked };
+  });
 }
 
 export const NodeGitLayer = Layer.succeed(Git, {
@@ -701,9 +851,13 @@ export const NodeGitLayer = Layer.succeed(Git, {
   changedPathsBetween: (path, fromTree, toTree) => {
     const args = ["diff-tree", "-r", "-z", "--name-status", "--no-renames", fromTree, toTree];
     return gitRun(args, path).pipe(
-      Effect.flatMap(({ stdout }) => parseDiffTreeNameStatusZ(stdout, `git ${args.join(" ")}`)),
+      Effect.flatMap(({ stdout }) =>
+        parseDiffTreeNameStatusZ(stdout, `git ${args.join(" ")}`, false),
+      ),
     );
   },
+
+  observeWorktree: (path, base, trackedPaths) => observeWorktreeEffect(path, base, trackedPaths),
 
   restorePaths: (path, tree, paths) => restorePathsEffect(path, tree, paths),
 

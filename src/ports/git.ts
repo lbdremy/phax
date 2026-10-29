@@ -2,6 +2,7 @@ import { Context, Data, Effect } from "effect";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
 import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../domain/reconciliation/types.js";
+import type { ProtectedObservation } from "../domain/security/protectedPaths.js";
 
 export class GitError extends Data.TaggedError("GitError")<{
   message: string;
@@ -168,6 +169,22 @@ export interface GitOps {
     fromTree: string,
     toTree: string,
   ): Effect.Effect<readonly ChangedPath[], GitError>;
+  /**
+   * The worktree at `path`, as it stands on disk, against commit `base`.
+   * `entries` is the name-status, with renames, of `base` against a tree of
+   * the worktree built in a temporary index seeded from HEAD, `.phax-context/`
+   * left out. `tracked` holds, for each of `trackedPaths` that is a file at
+   * `base`, how the file on disk compares with its blob there, in the order
+   * given; a path absent at `base`, or a submodule, is left out. `untracked`
+   * holds the untracked files git ignores, outside `.phax-context/`. The real
+   * index is never read for a verdict, so skip-worktree and assume-unchanged
+   * bits cannot hide an edit, and it is never touched.
+   */
+  observeWorktree(
+    path: string,
+    base: string,
+    trackedPaths: readonly string[],
+  ): Effect.Effect<ProtectedObservation, GitError>;
   /**
    * Bring `paths` in the worktree at `path` back to their content in `tree`:
    * a path present in `tree` is checked out of it, a path absent from it is
