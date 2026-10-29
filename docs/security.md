@@ -180,6 +180,8 @@ Some files of a project record a human decision, and a gate reads them. steme's 
 
 **The check is the guarantee.** A native rule only covers a provider's own file tools. The check compares the phase's files with the phase base and runs after every gate attempt in the fix loop, whatever the steps' exit codes. It catches what a native rule misses: a shell command the agent runs, a gate step that writes the file, Codex and unsafe mode, a wildcard glob. It sees a created, edited (a type change included), deleted or renamed path, and the files git does not show: untracked and ignored files, and tracked files whose index bits hide an edit. A failed attempt goes through the usual fix loop with a prompt naming each path and the phase base commit, and asking that each be put back to its content there; the result is recorded in `gate-attribution.json`. The cost is that every check in a declaring project walks the base tree and lists every ignored file, `node_modules` included.
 
+**Prefer literal paths or narrow globs.** A `**/` glob matches at any depth, ignored folders included, and the check counts an ignored file as created. A file a setup or gate command writes there, such as a dependency's own `allow.json` under `node_modules` or a copied `.env`, then fails every phase from its first attempt, with nothing the agent can put back. Write `packages/*/steme.baseline.json` rather than `**/steme.baseline.json` when the files sit at known places.
+
 **Letter case is ignored** on every host: `**/Steme.Baseline.json` protects `steme.baseline.json`, and a path that differs only by case matches the same entry.
 
 **After the commit.** The check also runs where the fix loop does not:
