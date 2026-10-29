@@ -27,6 +27,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
+import { Backend } from "../../src/ports/backend.js";
 import { Git } from "../../src/ports/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
@@ -302,6 +303,8 @@ interface PhaseCase {
   readonly maxFixAttempts?: number;
   readonly agentCommands?: readonly string[];
   readonly git?: Layer.Layer<Git>;
+  /** Run after each agent turn and fix turn returns, with the phase folder. */
+  readonly afterTurn?: (phaseFolder: string) => void;
 }
 
 interface Observed {
@@ -336,6 +339,10 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
     ),
   );
   const providerConfig = providerConfigOf(input.provider);
+  const backend =
+    input.afterTurn === undefined
+      ? makeNodeBackendLayer(providerConfig)
+      : afterEachTurn(makeNodeBackendLayer(providerConfig), input.afterTurn);
   const result = await Effect.runPromise(
     Effect.either(
       executePlan({
@@ -356,7 +363,7 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            makeNodeBackendLayer(providerConfig),
+            backend,
             NodeFileSystemLayer,
             input.git ?? NodeGitLayer,
             NodeShellLayer,
@@ -378,6 +385,24 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
 }
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, "utf8"));
+
+// `backend` with `after` run once each agent turn returns: the phase turn and
+// each fix turn, as if the agent had done it in its turn.
+function afterEachTurn(
+  backend: Layer.Layer<Backend>,
+  after: (phaseFolder: string) => void,
+): Layer.Layer<Backend> {
+  return Layer.effect(
+    Backend,
+    Effect.map(Backend, (inner) => ({
+      ...inner,
+      runAgent: (prompt, options) =>
+        inner
+          .runAgent(prompt, options)
+          .pipe(Effect.tap(() => Effect.sync(() => after(options.phaseFolderPath!)))),
+    })),
+  ).pipe(Layer.provide(backend));
+}
 
 function exhaustedOf(observed: Observed): GateAttemptsExhaustedError {
   if (Either.isRight(observed.result)) throw new Error("the phase was expected to pause");
@@ -460,6 +485,50 @@ describe("a protected edit by the agent's own tools", () => {
       });
     },
   );
+});
+
+describe("a phase base rewritten in status.json during the agent's turn", () => {
+  it("is checked against the base read before the turn", { timeout: 60_000 }, async () => {
+    const bases: string[] = [];
+    const realGit = Effect.runSync(Effect.provide(Git, NodeGitLayer));
+    const spy = Layer.succeed(Git, {
+      ...realGit,
+      observeWorktree: (...args: Parameters<typeof realGit.observeWorktree>) => {
+        bases.push(args[1]);
+        return realGit.observeWorktree(...args);
+      },
+    });
+    let original: string | undefined;
+    const observed = await runPhase({
+      provider: "codex-cli",
+      globs: [GLOB],
+      steps: [PASS],
+      turns: [EDIT_RUST],
+      git: spy,
+      // The turn commits its edit off any branch and notes that commit as
+      // the phase base, so a check against the noted base sees no change.
+      afterTurn: (phaseFolder) => {
+        const statusPath = join(phaseFolder, "status.json");
+        const status = readJson(statusPath) as { base: string; worktreePath: string };
+        original ??= status.base;
+        const git = (...args: string[]): string =>
+          execFileSync("git", args, { cwd: status.worktreePath, encoding: "utf8" }).trim();
+        git("add", "-A");
+        const tree = git("write-tree");
+        git("reset", "-q");
+        const forged = git("commit-tree", tree, "-p", status.base, "-m", "forged base");
+        writeFileSync(statusPath, JSON.stringify({ ...status, base: forged }, null, 2));
+      },
+    });
+
+    const error = exhaustedOf(observed);
+    expect(error.failure).toMatchObject({
+      failedStep: "protected-paths",
+      protectedChanges: [{ path: BASELINE_RUST, kind: "edited" }],
+    });
+    expect(original).toBeDefined();
+    expect(bases).toEqual([original, original]);
+  });
 });
 
 describe("a protected write by a gate step", () => {
