@@ -443,6 +443,10 @@ Given `protectedPaths` ["**/steme.baseline.json"] and a fake agent that creates 
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-case — How does the protected-path check treat letter case, when phax's glob dialect matches case-sensitively?
 
 - fold-always — Ignore case on every host — abandons: One matcher for the dialect: protectedPaths matches unlike the architecture parts and assignment bounds, and a file whose name differs from a protected one only by case is protected too on a case-sensitive host.
@@ -451,12 +455,18 @@ Given `protectedPaths` ["**/steme.baseline.json"] and a fake agent that creates 
 
 Recommendation: fold-always — Git reports an existing file under its tracked spelling, so the only gap is a new case variant, and closing it everywhere costs only a name that differs from a protected one by case alone, which is suspect in itself. Native rules stay as each provider matches them: the check is the guarantee.
 
+Decision: fold-always — by operator (Rémy Loubradou), 2026-10-29
+Why: Git reports an existing file under its tracked spelling, so the only gap is a new case variant, and closing it everywhere costs only a name that differs from a protected one by case alone, which is suspect in itself. Native rules stay as each provider matches them: the check is the guarantee. Advocate: The strongest case for exact-case: it keeps one matcher for the whole dialect, so protectedPaths behaves like the architecture parts and assignment bounds, and a legitimately distinct file such as `Steme.Baseline.json` on a case-sensitive host is not swept in. Principles: S1, S2. Reversibility: cheap. Revised: none.
+
 ### q-handoff — The handoff turn runs after the phase commit. What happens to a protected path it leaves changed in the worktree?
 
 - pause-handoff — Check after the handoff turn and pause the phase as a failed handoff, naming each path — abandons: A single check point: the check runs once more, after the one turn that follows the commit.
 - leave-to-next — No check; the change stays uncommitted — abandons: A named refusal: a non-final phase pauses at cleanup on a generic dirty worktree, and after the final phase the change sits in the review worktree, where a reviewer may commit it unaware.
 
 Recommendation: pause-handoff — The handoff turn has write tools on Codex and on globs without a native rule, and the final phase's leftovers reach a person who would not know the file is protected. One more check, at the one turn after the commit, keeps the guarantee for every turn of the phase.
+
+Decision: pause-handoff — by operator (Rémy Loubradou), 2026-10-29
+Why: The handoff turn has write tools on Codex and on globs without a native rule, and the final phase's leftovers reach a person who would not know the file is protected. One more check, at the one turn after the commit, keeps the guarantee for every turn of the phase. Advocate: The strongest case for leave-to-next: the commit is already made and gated, so the check keeps a single check point, and the stray change sits uncommitted where cleanup or the reviewer sees it as a dirty worktree. Principles: S1, S3. Reversibility: cheap. Revised: none.
 
 ### q-report — No handoff turn runs at `gates_exhausted`. Where does the agent's account of a hole it could not fix reach the operator?
 
@@ -465,9 +475,8 @@ Recommendation: pause-handoff — The handoff turn has write tools on Codex and 
 
 Recommendation: paths-and-pointer — The pause file states facts phax checked, and the agent's account is one link away in the transcript phax already keeps. Quoting the reply would let the agent write into the operator's instructions.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: paths-and-pointer — by operator (Rémy Loubradou), 2026-10-29
+Why: The pause file states facts phax checked, and the agent's account is one link away in the transcript phax already keeps. Quoting the reply would let the agent write into the operator's instructions. Advocate: The strongest case for quote-reply: the operator reads the agent's reasons in the one file they open to resume, without a second hop to a transcript. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -505,3 +514,9 @@ Page: docs/security.md#protected-paths
 Reader: A project owner whose gates read a file in which a person records what the gate tolerates (a debt baseline, a lint allowlist, accepted snapshots), and who wants no phase of a run to change it.
 
 Example: steme-lab lists `**/steme.baseline.json` in phax.json. Claude Code refuses the agent's edit to the baseline; when a gate command rewrites it anyway, the gate attempt fails naming the file, the fix loop is told the file is the operator's, and the phase pauses with the path named, for the author to decide outside the run.
+
+## 12. Decision log
+
+- 2026-10-29 q-case decided fold-always — operator (Rémy Loubradou)
+- 2026-10-29 q-handoff decided pause-handoff — operator (Rémy Loubradou)
+- 2026-10-29 q-report decided paths-and-pointer — operator (Rémy Loubradou)

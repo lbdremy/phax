@@ -508,7 +508,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-case",
       "question": "How does the protected-path check treat letter case, when phax's glob dialect matches case-sensitively?",
@@ -530,7 +531,29 @@
         }
       ],
       "recommendation": "fold-always",
-      "rationale": "Git reports an existing file under its tracked spelling, so the only gap is a new case variant, and closing it everywhere costs only a name that differs from a protected one by case alone, which is suspect in itself. Native rules stay as each provider matches them: the check is the guarantee."
+      "rationale": "Git reports an existing file under its tracked spelling, so the only gap is a new case variant, and closing it everywhere costs only a name that differs from a protected one by case alone, which is suspect in itself. Native rules stay as each provider matches them: the check is the guarantee.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "fold-always",
+        "abandoned": [
+          "fold-where-insensitive",
+          "exact-case"
+        ],
+        "why": "Git reports an existing file under its tracked spelling, so the only gap is a new case variant, and closing it everywhere costs only a name that differs from a protected one by case alone, which is suspect in itself. Native rules stay as each provider matches them: the check is the guarantee.",
+        "advocate": "The strongest case for exact-case: it keeps one matcher for the whole dialect, so protectedPaths behaves like the architecture parts and assignment bounds, and a legitimately distinct file such as `Steme.Baseline.json` on a case-sensitive host is not swept in.",
+        "principles": [
+          "S1",
+          "S2"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-29T10:33:41.052Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-handoff",
@@ -548,7 +571,28 @@
         }
       ],
       "recommendation": "pause-handoff",
-      "rationale": "The handoff turn has write tools on Codex and on globs without a native rule, and the final phase's leftovers reach a person who would not know the file is protected. One more check, at the one turn after the commit, keeps the guarantee for every turn of the phase."
+      "rationale": "The handoff turn has write tools on Codex and on globs without a native rule, and the final phase's leftovers reach a person who would not know the file is protected. One more check, at the one turn after the commit, keeps the guarantee for every turn of the phase.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "pause-handoff",
+        "abandoned": [
+          "leave-to-next"
+        ],
+        "why": "The handoff turn has write tools on Codex and on globs without a native rule, and the final phase's leftovers reach a person who would not know the file is protected. One more check, at the one turn after the commit, keeps the guarantee for every turn of the phase.",
+        "advocate": "The strongest case for leave-to-next: the commit is already made and gated, so the check keeps a single check point, and the stray change sits uncommitted where cleanup or the reviewer sees it as a dirty worktree.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-29T10:33:41.052Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-report",
@@ -566,10 +610,30 @@
         }
       ],
       "recommendation": "paths-and-pointer",
-      "rationale": "The pause file states facts phax checked, and the agent's account is one link away in the transcript phax already keeps. Quoting the reply would let the agent write into the operator's instructions."
+      "rationale": "The pause file states facts phax checked, and the agent's account is one link away in the transcript phax already keeps. Quoting the reply would let the agent write into the operator's instructions.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "paths-and-pointer",
+        "abandoned": [
+          "quote-reply"
+        ],
+        "why": "The pause file states facts phax checked, and the agent's account is one link away in the transcript phax already keeps. Quoting the reply would let the agent write into the operator's instructions.",
+        "advocate": "The strongest case for quote-reply: the operator reads the agent's reasons in the one file they open to resume, without a second hop to a transcript.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-10-29T10:33:41.052Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Prevention is the providers' own; phax adds no write interception, no per-turn detection and no restore.",
