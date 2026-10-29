@@ -25,8 +25,20 @@ const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStep
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
 
-/** How a protected path changed in the phase, by what the observation shows. */
-export const ProtectedChangeKindSchema = Schema.Literal("created", "edited", "deleted", "renamed");
+/**
+ * How a protected path changed in the phase, by what the observation shows:
+ * `symlink` and `nested-repository` name a symbolic link or a nested
+ * repository a protected glob could reach below, which the check cannot see
+ * through.
+ */
+export const ProtectedChangeKindSchema = Schema.Literal(
+  "created",
+  "edited",
+  "deleted",
+  "renamed",
+  "symlink",
+  "nested-repository",
+);
 
 const ProtectedChangeSchema = Schema.Struct({
   path: Schema.NonEmptyString,

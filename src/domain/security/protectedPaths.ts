@@ -22,6 +22,20 @@
 //   - `deleted` and a tracked state of `missing` give `deleted`.
 //   When the evidence for one path disagrees, `renamed` wins over `created`,
 //   `created` over `deleted`, and `deleted` over `edited`.
+//   Then, failing closed, one change per observed link that no path change
+//   names and that an entry reaches below (`reachesBelow`): a symbolic link
+//   gives `symlink`, a nested repository `nested-repository`, with the first
+//   such entry in list order. An ignored symbolic link whose target is inside
+//   the worktree is let through for an entry its target mirrors
+//   (`mirroredAtTarget`): every file below it is checked at its real path.
+// - `reachesBelow(glob, path)`: the glob, case-folded, could match a path
+//   below `path` — some leading run of its segments matches `path` and
+//   segments are left after it, or that run ends with `**`. A glob starting
+//   with `**/` reaches below every path.
+// - `mirroredAtTarget(glob, path)`: the glob is `**/` followed by segments
+//   none of which is `**`, and no leading run of those segments, shorter than
+//   all of them, matches the last segments of `path`, case-folded. Such a
+//   glob matches `path/rest` exactly when it matches `target/rest`.
 // - Native forms: a glob holding none of `*`, `?`, `[`, `]` is a literal path;
 //   `**/` followed by such a rest is an any-depth path; any other glob has no
 //   native form.
@@ -50,7 +64,15 @@ export interface ProtectedEntry {
 
 export type ProtectedList = readonly ProtectedEntry[];
 
-export type ProtectedChangeKind = "created" | "edited" | "deleted" | "renamed";
+/** How a path changed; `symlink` and `nested-repository` name a link a
+ *  protected glob could reach below, which the check cannot see through. */
+export type ProtectedChangeKind =
+  | "created"
+  | "edited"
+  | "deleted"
+  | "renamed"
+  | "symlink"
+  | "nested-repository";
 
 export interface ProtectedChange {
   readonly path: string;
@@ -75,10 +97,30 @@ export type ObservedEntry =
 
 export type TrackedState = "same" | "content" | "type" | "missing";
 
+/**
+ * A path below which the observation sees nothing of what a reader of it
+ * would. `tree`: a symbolic link the staged tree adds, retargets or puts in
+ * place of a file. `ignored`: an untracked symbolic link git ignores, whose
+ * target resolves to a path inside the worktree (not its root, not under
+ * `.phax-context/`), or `elsewhere` (outside it, there, or nowhere). A nested
+ * repository: an untracked directory that is a repository, or a gitlink the
+ * staged tree adds.
+ */
+export type ObservedLink =
+  | { readonly type: "symlink"; readonly path: string; readonly source: "tree" }
+  | {
+      readonly type: "symlink";
+      readonly path: string;
+      readonly source: "ignored";
+      readonly into: "worktree" | "elsewhere";
+    }
+  | { readonly type: "nested-repository"; readonly path: string };
+
 export interface ProtectedObservation {
   readonly entries: readonly ObservedEntry[];
   readonly tracked: readonly { readonly path: string; readonly state: TrackedState }[];
   readonly untracked: readonly string[];
+  readonly links: readonly ObservedLink[];
 }
 
 export type ProtectedEnforcement = "enforced" | "partial" | "commit-check-only";
@@ -111,9 +153,11 @@ export function matchProtected(list: ProtectedList, path: string): ProtectedEntr
   return list.find((entry) => matchesGlob(entry.glob.toLowerCase(), folded));
 }
 
+type PathChangeKind = "created" | "edited" | "deleted" | "renamed";
+
 // Higher wins when the evidence for one path disagrees: a rename's source is
 // also tracked `missing`, and stays `renamed`.
-const KIND_RANK: Record<ProtectedChangeKind, number> = {
+const KIND_RANK: Record<PathChangeKind, number> = {
   renamed: 3,
   created: 2,
   deleted: 1,
@@ -124,8 +168,8 @@ export function protectedChanges(
   list: ProtectedList,
   observation: ProtectedObservation,
 ): readonly ProtectedChange[] {
-  const evidence = new Map<string, ProtectedChangeKind>();
-  const note = (path: string, kind: ProtectedChangeKind): void => {
+  const evidence = new Map<string, PathChangeKind>();
+  const note = (path: string, kind: PathChangeKind): void => {
     const known = evidence.get(path);
     if (known === undefined || KIND_RANK[kind] > KIND_RANK[known]) evidence.set(path, kind);
   };
@@ -160,7 +204,48 @@ export function protectedChanges(
       changes.push({ path, kind, entry: matched.entry, glob: matched.glob });
     }
   }
+  const named = new Set(changes.map((change) => change.path));
+  for (const link of observation.links) {
+    if (named.has(link.path)) continue;
+    const mirrored =
+      link.type === "symlink" && link.source === "ignored" && link.into === "worktree";
+    const reaching = list.find(
+      (entry) =>
+        reachesBelow(entry.glob, link.path) &&
+        !(mirrored && mirroredAtTarget(entry.glob, link.path)),
+    );
+    if (reaching === undefined) continue;
+    named.add(link.path);
+    changes.push({
+      path: link.path,
+      kind: link.type,
+      entry: reaching.entry,
+      glob: reaching.glob,
+    });
+  }
   return changes.toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+export function reachesBelow(glob: string, path: string): boolean {
+  const segments = glob.toLowerCase().split("/");
+  const folded = path.toLowerCase();
+  for (let run = 1; run <= segments.length; run++) {
+    if (run === segments.length && segments[run - 1] !== "**") break;
+    if (matchesGlob(segments.slice(0, run).join("/"), folded)) return true;
+  }
+  return false;
+}
+
+export function mirroredAtTarget(glob: string, path: string): boolean {
+  const segments = glob.toLowerCase().split("/");
+  if (segments[0] !== "**") return false;
+  const rest = segments.slice(1);
+  if (rest.length === 0 || rest.includes("**")) return false;
+  const folded = path.toLowerCase();
+  for (let run = 1; run < rest.length; run++) {
+    if (matchesGlob(["**", ...rest.slice(0, run)].join("/"), folded)) return false;
+  }
+  return true;
 }
 
 const WILDCARD = /[*?[\]]/;

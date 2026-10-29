@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  mirroredAtTarget,
   nativeProtectedGlobs,
   protectedChanges,
   protectedList,
+  reachesBelow,
   submoduleConflict,
   type ProtectedObservation,
 } from "../../../src/domain/security/protectedPaths.js";
@@ -40,12 +42,13 @@ describe("protectedChanges precedence", () => {
         entries: [{ status: "renamed", path: "moved.txt", oldPath: path }],
         tracked: [{ path, state: "missing" }],
         untracked: [],
+        links: [],
       },
       "renamed",
     ],
     [
       "added and untracked give created",
-      { entries: [{ status: "added", path }], tracked: [], untracked: [path] },
+      { entries: [{ status: "added", path }], tracked: [], untracked: [path], links: [] },
       "created",
     ],
     [
@@ -54,6 +57,7 @@ describe("protectedChanges precedence", () => {
         entries: [{ status: "deleted", path }],
         tracked: [{ path, state: "content" }],
         untracked: [],
+        links: [],
       },
       "deleted",
     ],
@@ -63,6 +67,7 @@ describe("protectedChanges precedence", () => {
         entries: [{ status: "modified", path }],
         tracked: [{ path, state: "missing" }],
         untracked: [],
+        links: [],
       },
       "deleted",
     ],
@@ -85,5 +90,95 @@ describe("submoduleConflict", () => {
       glob: "Vendor/lint-rules/a.json",
       submodule: "vendor/lint-rules",
     });
+  });
+});
+
+describe("reachesBelow", () => {
+  it.each([
+    ["**/steme.baseline.json", "packages/e", true],
+    ["**", "a", true],
+    ["vendor/rules/x.json", "vendor", true],
+    ["vendor/rules/x.json", "Vendor/Rules", true],
+    ["vendor/rules/x.json", "vendor/rules/x.json", false],
+    ["vendor/rules/x.json", "vendor/other", false],
+    ["src/**", "src/foo/bar", true],
+    ["src/*.json", "src/foo", false],
+    ["a/*/b.json", "a/x", true],
+    ["config/limits.json", "tools", false],
+    ["phax.json", "pkg", false],
+  ] as const)("%s below %s: %s", (glob, path, expected) => {
+    expect(reachesBelow(glob, path)).toBe(expected);
+  });
+});
+
+describe("mirroredAtTarget", () => {
+  it.each([
+    ["**/steme.baseline.json", "node_modules/pkg", true],
+    ["**/config/limits.json", "node_modules/pkg", true],
+    ["**/pkg/steme.baseline.json", "node_modules/PKG", false],
+    ["**/a/**/b.json", "x", false],
+    ["vendor/**", "vendor/x", false],
+  ] as const)("%s at %s: %s", (glob, path, expected) => {
+    expect(mirroredAtTarget(glob, path)).toBe(expected);
+  });
+});
+
+describe("protectedChanges on links", () => {
+  const list = protectedList(["config/limits.json", "**/steme.baseline.json"], "phax.json")!;
+  const observe = (links: ProtectedObservation["links"]): ProtectedObservation => ({
+    entries: [],
+    tracked: [],
+    untracked: [],
+    links,
+  });
+
+  it("names each link the first reaching entry reaches below, by its type", () => {
+    expect(
+      protectedChanges(
+        list,
+        observe([
+          { type: "symlink", path: "packages/e", source: "tree" },
+          { type: "nested-repository", path: "vendor/n" },
+          { type: "symlink", path: "config", source: "ignored", into: "elsewhere" },
+        ]),
+      ),
+    ).toEqual([
+      {
+        path: "config",
+        kind: "symlink",
+        entry: "protectedPaths[0]",
+        glob: "config/limits.json",
+      },
+      {
+        path: "packages/e",
+        kind: "symlink",
+        entry: "protectedPaths[1]",
+        glob: "**/steme.baseline.json",
+      },
+      {
+        path: "vendor/n",
+        kind: "nested-repository",
+        entry: "protectedPaths[1]",
+        glob: "**/steme.baseline.json",
+      },
+    ]);
+  });
+
+  it("lets an ignored link into the worktree through for a glob its target mirrors only", () => {
+    const into = { type: "symlink", source: "ignored", into: "worktree" } as const;
+    expect(protectedChanges(list, observe([{ ...into, path: "node_modules/pkg" }]))).toEqual([]);
+    expect(
+      protectedChanges(list, observe([{ ...into, path: "config" }])).map((c) => c.kind),
+    ).toEqual(["symlink"]);
+  });
+
+  it("names a link once, by its own change, when an entry matches its path", () => {
+    const changes = protectedChanges(list, {
+      entries: [{ status: "added", path: "a/steme.baseline.json" }],
+      tracked: [],
+      untracked: [],
+      links: [{ type: "symlink", path: "a/steme.baseline.json", source: "tree" }],
+    });
+    expect(changes.map((c) => [c.path, c.kind])).toEqual([["a/steme.baseline.json", "created"]]);
   });
 });

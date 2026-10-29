@@ -96,7 +96,7 @@ describe("protectedChanges", () => {
     const tracked: { path: string; state: TrackedState }[] = [
       { path: "packages/b/steme.baseline.json", state: "missing" },
     ];
-    const observation: ProtectedObservation = { entries, tracked, untracked: [] };
+    const observation: ProtectedObservation = { entries, tracked, untracked: [], links: [] };
     expect(protectedChanges(BASELINE_LIST, observation)).toEqual([
       change("packages/a/steme.baseline.json", "created", "protectedPaths[0]", BASELINE.glob),
       change("packages/b/steme.baseline.json", "deleted", "protectedPaths[0]", BASELINE.glob),
@@ -115,6 +115,7 @@ describe("protectedChanges", () => {
       entries: [{ status: "type-changed", path: "packages/a/steme.baseline.json" }],
       tracked: [{ path: "packages/a/steme.baseline.json", state: "type" }],
       untracked: ["packages/b/RÈGLES.json"],
+      links: [],
     };
     expect(protectedChanges(list, observation)).toEqual([
       change("packages/a/steme.baseline.json", "edited", "protectedPaths[0]", BASELINE.glob),
@@ -127,6 +128,7 @@ describe("protectedChanges", () => {
       entries: [],
       tracked: [{ path: "packages/a/steme.baseline.json", state: "content" }],
       untracked: [],
+      links: [],
     };
     expect(protectedChanges(BASELINE_LIST, observation)).toEqual([
       change("packages/a/steme.baseline.json", "edited", "protectedPaths[0]", BASELINE.glob),
@@ -139,6 +141,7 @@ describe("protectedChanges", () => {
       entries: [],
       tracked: [],
       untracked: ["generated/allow.json", "node_modules/x/index.js"],
+      links: [],
     };
     expect(protectedChanges(list, observation)).toEqual([
       change("generated/allow.json", "created", "protectedPaths[0]", "**/allow.json"),
@@ -151,6 +154,7 @@ describe("protectedChanges", () => {
       entries: [{ status: "modified", path: "phax.json" }],
       tracked: [],
       untracked: [],
+      links: [],
     };
     expect(protectedChanges(list, observation)).toEqual([
       { path: "phax.json", kind: "edited", entry: "phax.json", glob: "phax.json" },
@@ -162,6 +166,7 @@ describe("protectedChanges", () => {
       entries: [{ status: "modified", path: "src/a.ts" }],
       tracked: [],
       untracked: ["dist/b.js"],
+      links: [],
     };
     expect(protectedChanges(BASELINE_LIST, observation)).toEqual([]);
   });
@@ -171,6 +176,7 @@ describe("protectedChanges", () => {
       entries: [{ status: "modified", path: "packages/a/steme.baseline.json" }],
       tracked: [{ path: "packages/a/steme.baseline.json", state: "content" }],
       untracked: [],
+      links: [],
     };
     expect(protectedChanges(BASELINE_LIST, observation)).toEqual([
       change("packages/a/steme.baseline.json", "edited", "protectedPaths[0]", BASELINE.glob),

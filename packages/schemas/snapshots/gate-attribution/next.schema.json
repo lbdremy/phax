@@ -148,7 +148,9 @@
                           "created",
                           "edited",
                           "deleted",
-                          "renamed"
+                          "renamed",
+                          "symlink",
+                          "nested-repository"
                         ]
                       },
                       "entry": {

@@ -716,6 +716,7 @@ export class FakeGitImpl implements GitOps {
           .filter((entry) => entry.mode !== "160000" && isProtected(entry.path))
           .map((entry) => ({ path: entry.path, state: "same" as const })),
         untracked: [],
+        links: [],
       })),
     );
   }

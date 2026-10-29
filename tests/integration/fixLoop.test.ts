@@ -303,6 +303,7 @@ describe("runGatesWithFixLoop", () => {
       entries: [{ status: "modified", path: "packages/a/steme.baseline.json" }],
       tracked: [],
       untracked: [],
+      links: [],
     } as const;
 
     it("fails a green attempt for the check alone, with no error report, and records the result", async () => {
