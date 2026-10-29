@@ -284,6 +284,97 @@ describe("checkProtectedPaths against a real worktree", () => {
   });
 });
 
+describe("checkProtectedPaths on links it cannot see through", () => {
+  // A directory outside the worktree holding a baseline of the agent's.
+  let outside: string;
+  beforeEach(() => {
+    outside = realpathSync(mkdtempSync(join(tmpdir(), "phax-protected-outside-")));
+    writeFileSync(join(outside, "steme.baseline.json"), '{ "accepted": "the agent" }\n');
+  });
+  afterEach(() => removeTempDir(outside));
+
+  it("names a symbolic link to a folder inside .phax-context", async () => {
+    write(".phax-context/stash/steme.baseline.json", '{ "accepted": "the agent" }\n');
+    link(".phax-context/stash", "packages/e");
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([["packages/e", "symlink"]]);
+  });
+
+  it("names a symbolic link to a folder outside the worktree", async () => {
+    symlinkSync(outside, join(repo, "packages/e"));
+    expect(await check(["**/steme.baseline.json"])).toEqual([
+      {
+        path: "packages/e",
+        kind: "symlink",
+        entry: "protectedPaths[0]",
+        glob: "**/steme.baseline.json",
+      },
+    ]);
+  });
+
+  it("names a symbolic link a literal glob reaches below, into an ignored folder", async () => {
+    write("generated/steme.baseline.json", '{ "accepted": "the agent" }\n');
+    link("generated", "packages/e");
+    expect(brief(await check(["packages/e/steme.baseline.json"]))).toEqual([
+      ["packages/e", "symlink"],
+    ]);
+  });
+
+  it("names a symbolic link that replaces a tracked file", async () => {
+    unlinkSync(join(repo, "packages/d/x.json"));
+    symlinkSync(outside, join(repo, "packages/d/x.json"));
+    expect(brief(await check(["packages/d/x.json/*.json"]))).toEqual([
+      ["packages/d/x.json", "symlink"],
+    ]);
+  });
+
+  it("names a nested repository with a commit and one with none", async () => {
+    write("packages/n/steme.baseline.json", '{ "accepted": "the agent" }\n');
+    execFileSync("git", ["init", "-q"], { cwd: join(repo, "packages/n") });
+    write("packages/m/steme.baseline.json", '{ "accepted": "the agent" }\n');
+    execFileSync("git", ["init", "-q"], { cwd: join(repo, "packages/m") });
+    const nested = (...args: string[]): string =>
+      execFileSync("git", args, { cwd: join(repo, "packages/m"), encoding: "utf8" });
+    nested("add", "-A");
+    nested("-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-qm", "x");
+
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+      ["packages/m", "nested-repository"],
+      ["packages/n", "nested-repository"],
+    ]);
+  });
+
+  it("names a nested repository under a gitignored folder", async () => {
+    write("generated/n/steme.baseline.json", '{ "accepted": "the agent" }\n');
+    execFileSync("git", ["init", "-q"], { cwd: join(repo, "generated/n") });
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+      ["generated/n", "nested-repository"],
+    ]);
+  });
+
+  it("names an ignored symbolic link to a folder outside the worktree", async () => {
+    mkdirSync(join(repo, "generated"), { recursive: true });
+    symlinkSync(outside, join(repo, "generated/pkg"));
+    expect(brief(await check(["**/steme.baseline.json"]))).toEqual([["generated/pkg", "symlink"]]);
+  });
+
+  it("lets an ignored symbolic link into the worktree through for a **/<name> glob", async () => {
+    // A package manager's links: every file below is checked at its real path.
+    write("generated/.store/pkg@1/index.js", "module.exports = 1;\n");
+    link("generated/.store/pkg@1", "generated/pkg");
+    expect(await check(["**/steme.baseline.json"])).toEqual([]);
+    // Where the glob's own segments would cross the link, it is named.
+    expect(brief(await check(["**/pkg/steme.baseline.json"]))).toEqual([
+      ["generated/pkg", "symlink"],
+    ]);
+  });
+
+  it("lets a new symbolic link through when no glob reaches below it", async () => {
+    symlinkSync(outside, join(repo, "tools"));
+    link("src/app.ts", "src/alias.ts");
+    expect(await check(["config/limits.json", "docs/*.md"])).toEqual([]);
+  });
+});
+
 describe("Git.observeWorktree", () => {
   const observe = (tracked: readonly string[]) =>
     Effect.runPromise(
@@ -347,6 +438,7 @@ describe("Git.observeWorktree", () => {
       entries: [{ status: "modified", path: "src/app.ts" }],
       tracked: [],
       untracked: [],
+      links: [],
     });
   });
 

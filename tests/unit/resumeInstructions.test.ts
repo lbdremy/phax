@@ -220,9 +220,27 @@ describe("buildResumeInstructions — protected paths", () => {
         `git checkout ${commit} -- 'packages/a/steme.baseline.json'`,
         `rm -- 'packages/b/it'\\''s.json'`,
         `git checkout ${commit} -- 'packages/c/steme.baseline.json'`,
-        `if git cat-file -e '${commit}:packages/d/steme.baseline.json'; then git checkout ${commit} -- 'packages/d/steme.baseline.json'; else rm -- 'packages/d/steme.baseline.json'; fi`,
+        `if git cat-file -e '${commit}:packages/d/steme.baseline.json' 2>/dev/null; then git checkout ${commit} -- 'packages/d/steme.baseline.json'; else rm -- 'packages/d/steme.baseline.json'; fi`,
         "```",
       ].join("\n"),
+    );
+  });
+
+  it("removes a symbolic link or a nested repository and checks out what the base held there", () => {
+    const commit = "0123456789abcdef0123456789abcdef01234567";
+    const md = buildResumeInstructions({
+      ...exhausted,
+      protectedChanges: [
+        { ...baseline, path: "packages/e", kind: "symlink" },
+        { ...baseline, path: "vendor/n", kind: "nested-repository" },
+      ],
+      protectedRestore: { commit, name: "phase base" },
+    });
+    expect(md).toContain(
+      `rm -rf -- 'packages/e'; if git cat-file -e '${commit}:packages/e' 2>/dev/null; then git checkout ${commit} -- 'packages/e'; fi`,
+    );
+    expect(md).toContain(
+      "- vendor/n — nested-repository (protectedPaths[0] **/steme.baseline.json)",
     );
   });
 

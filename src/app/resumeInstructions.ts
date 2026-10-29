@@ -77,10 +77,13 @@ export interface ProtectedRestore {
  * back to its content at `commit`: checked out of it when it was edited or
  * deleted, removed when it was created. A renamed path is either side of the
  * rename, so it is checked out when `commit` holds it and removed otherwise.
+ * A symbolic link or a nested repository is removed, link or directory, and
+ * what `commit` holds at its path is checked out.
  */
 function restoreCommand(change: ProtectedChange, commit: string): string {
   const path = shellQuote(change.path);
   const checkout = `git checkout ${commit} -- ${path}`;
+  const atCommit = `git cat-file -e ${shellQuote(`${commit}:${change.path}`)} 2>/dev/null`;
   switch (change.kind) {
     case "edited":
     case "deleted":
@@ -88,7 +91,10 @@ function restoreCommand(change: ProtectedChange, commit: string): string {
     case "created":
       return `rm -- ${path}`;
     case "renamed":
-      return `if git cat-file -e ${shellQuote(`${commit}:${change.path}`)}; then ${checkout}; else rm -- ${path}; fi`;
+      return `if ${atCommit}; then ${checkout}; else rm -- ${path}; fi`;
+    case "symlink":
+    case "nested-repository":
+      return `rm -rf -- ${path}; if ${atCommit}; then ${checkout}; fi`;
   }
 }
 

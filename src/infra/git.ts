@@ -2,12 +2,13 @@ import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
-import { lstat, mkdtemp, readlink, rm, rmdir } from "node:fs/promises";
+import { lstat, mkdtemp, readlink, realpath, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
 import { Git, GitError, type GitTreeEntry } from "../ports/git.js";
 import type {
   ObservedEntry,
+  ObservedLink,
   ProtectedObservation,
   TrackedState,
 } from "../domain/security/protectedPaths.js";
@@ -203,58 +204,77 @@ function parseTreeId(stdout: string, command: string): Effect.Effect<string, Git
     : Effect.fail(new GitError({ message: `Could not parse a tree id: "${tree}"`, command }));
 }
 
-// A row of `git diff-tree -M`: one file renamed, both paths kept.
-interface RenamedPath {
-  readonly status: "R";
-  readonly oldPath: string;
-  readonly path: string;
-}
-
 // `git diff-tree -r -z --name-status` prints `<status>\0<path>\0` per entry.
 // Without rename or copy detection, a status is one of A, M, D or T; any other
-// is refused rather than guessed at. With `renames`, an `R<score>` status is
-// followed by two paths, the old then the new, and gives a RenamedPath; every
-// other status reads as without. Paths are kept as written.
+// is refused rather than guessed at.
 function parseDiffTreeNameStatusZ(
   stdout: string,
   command: string,
-  renames: false,
-): Effect.Effect<readonly ChangedPath[], GitError>;
-function parseDiffTreeNameStatusZ(
-  stdout: string,
-  command: string,
-  renames: true,
-): Effect.Effect<readonly (ChangedPath | RenamedPath)[], GitError>;
-function parseDiffTreeNameStatusZ(
-  stdout: string,
-  command: string,
-  renames: boolean,
-): Effect.Effect<readonly (ChangedPath | RenamedPath)[], GitError> {
+): Effect.Effect<readonly ChangedPath[], GitError> {
   const fields = stdout.split("\0");
   if (fields.at(-1) === "") fields.pop();
-  const truncated = Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
-  const entries: (ChangedPath | RenamedPath)[] = [];
-  let i = 0;
-  while (i < fields.length) {
+  const entries: ChangedPath[] = [];
+  for (let i = 0; i + 1 < fields.length; i += 2) {
     const status = fields[i]!;
-    const path = fields[i + 1];
-    if (path === undefined) return truncated;
-    if (renames && /^R\d*$/.test(status)) {
-      const newPath = fields[i + 2];
-      if (newPath === undefined) return truncated;
-      entries.push({ status: "R", oldPath: path, path: newPath });
-      i += 3;
-      continue;
-    }
+    const path = fields[i + 1]!;
     if (status !== "A" && status !== "M" && status !== "D" && status !== "T") {
       return Effect.fail(
         new GitError({ message: `Unexpected diff-tree status "${status}" for ${path}`, command }),
       );
     }
     entries.push({ status, path });
-    i += 2;
+  }
+  if (fields.length % 2 !== 0) {
+    return Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
   }
   return Effect.succeed(entries);
+}
+
+// One row of `git diff-tree -r -z -M --raw`: its status letter (a rename's
+// score dropped), the mode on the new side, and its path; a rename keeps its
+// old path too.
+interface RawDiffRow {
+  readonly status: "A" | "M" | "D" | "T" | "R";
+  readonly newMode: string;
+  readonly path: string;
+  readonly oldPath: string | null;
+}
+
+// `git diff-tree -r -z -M --raw` prints, per entry,
+// `:<old mode> <new mode> <old id> <new id> <status>\0<path>\0`, and an
+// `R<score>` status is followed by two paths, the old then the new. Any other
+// status, or a malformed header, is refused rather than guessed at.
+function parseDiffTreeRawZ(
+  stdout: string,
+  command: string,
+): Effect.Effect<readonly RawDiffRow[], GitError> {
+  const fields = stdout.split("\0");
+  if (fields.at(-1) === "") fields.pop();
+  const truncated = Effect.fail(new GitError({ message: "Truncated diff-tree output", command }));
+  const rows: RawDiffRow[] = [];
+  let i = 0;
+  while (i < fields.length) {
+    const header = /^:\d{6} (\d{6}) [0-9a-f]+ [0-9a-f]+ ([AMDT]|R\d*)$/.exec(fields[i]!);
+    if (header === null) {
+      return Effect.fail(
+        new GitError({ message: `Unexpected diff-tree row "${fields[i]!}"`, command }),
+      );
+    }
+    const newMode = header[1]!;
+    const status = header[2]!;
+    const path = fields[i + 1];
+    if (path === undefined) return truncated;
+    if (status.startsWith("R")) {
+      const newPath = fields[i + 2];
+      if (newPath === undefined) return truncated;
+      rows.push({ status: "R", newMode, path: newPath, oldPath: path });
+      i += 3;
+      continue;
+    }
+    rows.push({ status: status as RawDiffRow["status"], newMode, path, oldPath: null });
+    i += 2;
+  }
+  return Effect.succeed(rows);
 }
 
 function isInsidePhaxContext(path: string): boolean {
@@ -288,19 +308,26 @@ function deleteFromWorktree(worktree: string, path: string): Effect.Effect<void,
   });
 }
 
-// Stage the worktree into the index `env` names and write it as a tree. The
-// index is seeded from HEAD so a tracked file matching an ignore pattern
-// keeps its entry; `add -A` then records every change. `.phax-context/` is
-// put back to HEAD's entries afterwards rather than excluded by a pathspec:
-// `add` exits 1 on an exclude naming an ignored directory, which
-// `.phax-context/` is in every phase worktree.
-function stageWorktree(
+// Stage the worktree into the index `env` names, already seeded from HEAD so
+// a tracked file matching an ignore pattern keeps its entry, and write it as
+// a tree. `add -A` records every change, but for the paths of `nested`, which
+// it leaves out (an untracked repository with no commit fails `add`), given
+// on stdin so no argument list grows with them. `.phax-context/` is put back
+// to HEAD's entries afterwards rather than excluded by a pathspec: `add`
+// exits 1 on an exclude naming an ignored directory, which `.phax-context/`
+// is in every phase worktree.
+function stageSeededIndex(
   worktree: string,
   env: Record<string, string>,
+  nested: readonly string[],
 ): Effect.Effect<string, GitError> {
   return Effect.gen(function* () {
-    yield* gitRun(["read-tree", "HEAD"], worktree, { env });
-    yield* gitRun(["add", "-A", "--", "."], worktree, { env });
+    yield* gitRun(["add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul"], worktree, {
+      env,
+      input: [".", ...nested.map((path) => `:(exclude,literal)${path}`)]
+        .map((spec) => `${spec}\0`)
+        .join(""),
+    });
     yield* gitRun(["reset", "-q", "HEAD", "--", PHAX_CONTEXT_DIR], worktree, { env });
     const { stdout } = yield* gitRun(["write-tree"], worktree, { env });
     return yield* parseTreeId(stdout, "git write-tree");
@@ -308,7 +335,11 @@ function stageWorktree(
 }
 
 function snapshotWorktreeEffect(worktree: string): Effect.Effect<string, GitError> {
-  return withTempIndex("phax-snapshot-index-", (env) => stageWorktree(worktree, env));
+  return withTempIndex("phax-snapshot-index-", (env) =>
+    gitRun(["read-tree", "HEAD"], worktree, { env }).pipe(
+      Effect.zipRight(stageSeededIndex(worktree, env, [])),
+    ),
+  );
 }
 
 function restorePathsEffect(
@@ -545,6 +576,40 @@ function compareTrackedFiles(
   });
 }
 
+// Where an ignored symbolic link at `path` leads: `worktree` when its target
+// resolves to a path inside the worktree other than its root and outside
+// `.phax-context/`, else `elsewhere` (outside, there, or nowhere).
+function linkTarget(root: string, path: string): Effect.Effect<"worktree" | "elsewhere", never> {
+  return Effect.promise(async () => {
+    try {
+      const target = await realpath(join(root, path));
+      if (!target.startsWith(`${root}${sep}`)) return "elsewhere";
+      const inside = target
+        .slice(root.length + 1)
+        .split(sep)
+        .join("/");
+      return isInsidePhaxContext(inside) ? "elsewhere" : "worktree";
+    } catch {
+      return "elsewhere";
+    }
+  });
+}
+
+// `ls-files -z --others` output split into its files and the directories it
+// lists with a trailing slash, which are repositories; both outside
+// `.phax-context/`.
+function splitOthers(stdout: string): { files: string[]; repositories: string[] } {
+  const files: string[] = [];
+  const repositories: string[] = [];
+  for (const entry of stdout.split("\0")) {
+    if (entry === "") continue;
+    const path = entry.endsWith("/") ? entry.slice(0, -1) : entry;
+    if (isInsidePhaxContext(path)) continue;
+    (entry.endsWith("/") ? repositories : files).push(path);
+  }
+  return { files, repositories };
+}
+
 function observeWorktreeEffect(
   worktree: string,
   base: string,
@@ -557,25 +622,23 @@ function observeWorktreeEffect(
       // base, or for HEAD, and hide an edit.
       const stored = { GIT_NO_REPLACE_OBJECTS: "1" };
       // The temporary index the worktree is staged into, kept for the
-      // ignored-file listing below, so the diff and the listing agree.
+      // listings below, so the diff and the listings agree.
       const env = { ...indexEnv, ...stored };
-      const tree = yield* stageWorktree(worktree, env);
-      const diffArgs = [
-        "diff-tree",
-        "-z",
-        "-r",
-        "-M",
-        "--name-status",
-        "--no-ext-diff",
-        base,
-        tree,
-      ];
+      yield* gitRun(["read-tree", "HEAD"], worktree, { env });
+      // Untracked directories that are repositories are left out of the
+      // staged tree and named as links instead.
+      const { repositories: nested } = splitOthers(
+        (yield* gitRun(["ls-files", "-z", "--others", "--exclude-standard"], worktree, { env }))
+          .stdout,
+      );
+      const tree = yield* stageSeededIndex(worktree, env, nested);
+      const diffArgs = ["diff-tree", "-z", "-r", "-M", "--raw", "--no-ext-diff", base, tree];
       const { stdout: diffOut } = yield* gitRun(diffArgs, worktree, { env });
-      const rows = yield* parseDiffTreeNameStatusZ(diffOut, `git ${diffArgs.join(" ")}`, true);
+      const rows = yield* parseDiffTreeRawZ(diffOut, `git ${diffArgs.join(" ")}`);
       const entries = rows.map((row): ObservedEntry => {
         switch (row.status) {
           case "R":
-            return { status: "renamed", path: row.path, oldPath: row.oldPath };
+            return { status: "renamed", path: row.path, oldPath: row.oldPath! };
           case "A":
             return { status: "added", path: row.path };
           case "M":
@@ -586,6 +649,16 @@ function observeWorktreeEffect(
             return { status: "type-changed", path: row.path };
         }
       });
+      // A link the staged tree adds, retargets or puts in place of a file,
+      // and a gitlink it adds.
+      const links: ObservedLink[] = nested.map((path) => ({ type: "nested-repository", path }));
+      for (const row of rows) {
+        if (row.newMode === MODE_SYMLINK && row.status !== "D") {
+          links.push({ type: "symlink", path: row.path, source: "tree" });
+        } else if (row.newMode === MODE_SUBMODULE && (row.status === "A" || row.status === "T")) {
+          links.push({ type: "nested-repository", path: row.path });
+        }
+      }
 
       // The whole base tree, read once: its protected files, submodules left out.
       const { stdout: treeOut } = yield* gitRun(["ls-tree", "-r", "-z", base], worktree, { env });
@@ -620,15 +693,42 @@ function observeWorktreeEffect(
 
       // Listed against the temporary index: every ignored file not in the
       // staged tree, so a file forced into the real index (`git add -f`) and
-      // never committed is listed too.
-      const { stdout: ignoredOut } = yield* gitRun(
-        ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
-        worktree,
-        { env },
+      // never committed is listed too. An ignored repository is a link, and
+      // so is an ignored symbolic link, with where it leads.
+      const ignored = splitOthers(
+        (yield* gitRun(
+          ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
+          worktree,
+          { env },
+        )).stdout,
       );
-      const untracked = ignoredOut.split("\0").filter((p) => p !== "" && !isInsidePhaxContext(p));
+      for (const path of ignored.repositories) links.push({ type: "nested-repository", path });
+      const root = yield* Effect.tryPromise({
+        try: () => realpath(worktree),
+        catch: (err) => fsError(worktree, err),
+      });
+      const ignoredLinks = yield* Effect.forEach(
+        ignored.files,
+        (path) =>
+          Effect.tryPromise({
+            try: () => lstatOrNull(join(root, path)),
+            catch: (err) => fsError(path, err),
+          }).pipe(
+            Effect.flatMap((stat) =>
+              stat?.isSymbolicLink() === true
+                ? linkTarget(root, path).pipe(
+                    Effect.map(
+                      (into): ObservedLink => ({ type: "symlink", path, source: "ignored", into }),
+                    ),
+                  )
+                : Effect.succeed(null),
+            ),
+          ),
+        { concurrency: 32 },
+      );
+      for (const link of ignoredLinks) if (link !== null) links.push(link);
 
-      return { entries, tracked, untracked };
+      return { entries, tracked, untracked: ignored.files, links };
     }),
   );
 }
@@ -951,9 +1051,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
   changedPathsBetween: (path, fromTree, toTree) => {
     const args = ["diff-tree", "-r", "-z", "--name-status", "--no-renames", fromTree, toTree];
     return gitRun(args, path).pipe(
-      Effect.flatMap(({ stdout }) =>
-        parseDiffTreeNameStatusZ(stdout, `git ${args.join(" ")}`, false),
-      ),
+      Effect.flatMap(({ stdout }) => parseDiffTreeNameStatusZ(stdout, `git ${args.join(" ")}`)),
     );
   },
 
