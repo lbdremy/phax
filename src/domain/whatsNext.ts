@@ -59,6 +59,13 @@ export type WhatsNextScenario =
       readonly protectedChanges: readonly ProtectedChange[];
     }
   | {
+      readonly kind: "protected_paths_changed";
+      readonly shortName: string;
+      readonly phaseId?: string | undefined;
+      /** The protected paths that differ from the phase commit. */
+      readonly protectedChanges: readonly ProtectedChange[];
+    }
+  | {
       readonly kind: "phase_no_changes";
       readonly shortName: string;
       readonly phaseId: string;
@@ -300,6 +307,29 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           {
             title: "Inspect the phase",
             command: `phax enter-phase ${scenario.shortName} ${scenario.phaseId}`,
+          },
+        ],
+      };
+    }
+    case "protected_paths_changed": {
+      const phaseArg = scenario.phaseId ?? "<phase-id>";
+      return {
+        headline: [
+          "Protected paths changed after the phase committed.",
+          ...protectedHeadlineLines(scenario.protectedChanges),
+        ].join("\n"),
+        steps: [
+          {
+            title: "Put each protected file back to its content in the phase commit",
+            command: `phax enter-phase ${scenario.shortName} ${phaseArg}`,
+          },
+          {
+            title: "Then resume — the paths are checked again before the handoff is validated",
+            command: `phax resume ${scenario.shortName} --yes`,
+          },
+          {
+            title:
+              "Or, if the change is wanted, make it on the base branch yourself and start a new run",
           },
         ],
       };

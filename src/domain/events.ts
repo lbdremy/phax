@@ -247,6 +247,17 @@ export interface HandoffTurnFailed extends PhaxEventBase {
   readonly cause: AgentSessionFailedError;
 }
 
+// A protected path differs from the phase commit after the handoff turn, at a
+// resume out of a failed handoff, or at a held phase's hold-point re-entry:
+// takes the transitions HandoffMissing takes, with no missing section, and
+// persists the paths as `lastError`. No new stoppedReason.
+export interface HandoffProtectedPathsChanged extends PhaxEventBase {
+  readonly type: "HandoffProtectedPathsChanged";
+  readonly changes: NonEmptyProtectedChanges;
+  /** The phase worktree the resume instructions point at. */
+  readonly worktreePath: WorktreePath;
+}
+
 // Operator command: reset a stuck phase so the run becomes resumable.
 export interface PhaseResetRequested extends PhaxEventBase {
   readonly type: "PhaseResetRequested";
@@ -367,6 +378,7 @@ export type PhaxEvent =
   | RateLimitDetected
   | NetworkFailureDetected
   | HandoffTurnFailed
+  | HandoffProtectedPathsChanged
   | PhaseResetRequested
   | ReviewStopReached
   | StopCloseRefused

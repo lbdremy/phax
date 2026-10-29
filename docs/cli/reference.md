@@ -33,6 +33,8 @@ Format for --usage output: kdl (default, no external dependency) or json (requir
 
 Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 
+The protected paths are listed: the globs of phax.json's "protectedPaths" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.
+
 The assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.
 
 Exits 0 when everything is valid, 2 otherwise.
@@ -408,6 +410,8 @@ The preflight also checks the plan's oracle phases: a malformed declaration, a b
 A phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop.
 
 --hold [selection] stops the run for review at headless phases too: no value holds every headless phase but the final one, `--hold oracle` the plan's oracle phases, and `--hold phase-02,phase-04` the phases listed (exactly `phase-NN`, no repeats). A malformed value exits 1 before the run is named, and a selection the plan cannot honour (an unknown, interactive or final phase) exits 11 with "Hold preflight failed". A held phase does its work, passes its gate, commits and validates its handoff, then stops in awaiting_review before its record and its cleanup, with no agent turn, and exits 13. The hold is recorded with the run: phax resume takes no --hold and holds exactly those phases. A bare --hold takes the next word as its value, so put the run name before it or write --hold=<selection>. With --dry-run, the hold is resolved and printed as one line, `Hold: none` or `Hold: listed — phase-02, phase-04`, with any hold preflight errors under it; the dry run still exits 0 and names no run. A hold may stop inside an oracle pair: see phax resume. Transcripts are not part of this release.
+
+A gate attempt fails when the phase changed a path listed in phax.json "protectedPaths", or the phax.json phax loaded: the fix loop is told which paths to put back, and a phase that does not pauses as on gates_exhausted. The same check runs before a commit-only resume commits, after the handoff turn, and when a held phase is re-entered; a stop's close is not checked. A skill edit grant (--allow-skill-edits) on a protected path is refused before the run is named, with exit 11.
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 

@@ -204,6 +204,15 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     phase: phaseId,
     cause: networkFailureError,
   },
+  HandoffProtectedPathsChanged: {
+    ...base,
+    type: "HandoffProtectedPathsChanged",
+    phase: phaseId,
+    changes: [
+      { path: "a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]", glob: "**/x" },
+    ],
+    worktreePath,
+  },
   PhaseResetRequested: {
     ...base,
     type: "PhaseResetRequested",
@@ -865,6 +874,74 @@ describe("interpret — handoff turn failure", () => {
     ];
     for (const state of states) {
       expect(interpret(state, sampleEvents.HandoffTurnFailed).kind).toBe(
+        interpret(state, sampleEvents.HandoffMissing).kind,
+      );
+    }
+  });
+});
+
+describe("interpret — protected paths changed after the commit", () => {
+  const persistAndExplain = [
+    {
+      type: "PersistState",
+      patch: {
+        run: {
+          lastError: "Protected paths changed after the commit: a/steme.baseline.json",
+        },
+      },
+    },
+    {
+      type: "WriteResumeInstructions",
+      ctx: {
+        reason: "Protected paths changed after the commit",
+        kind: "protected_paths_changed",
+        phaseId,
+        worktreePath: "/tmp/wt",
+        protectedChanges: sampleEvents.HandoffProtectedPathsChanged.changes,
+      },
+    },
+  ];
+
+  it.each([
+    ["passed", { run: "running", phase: { state: "passed" } }, "running"],
+    ["committed", { run: "running", phase: { state: "committed", hash: "abc" } }, "interrupted"],
+    [
+      "handoff_failed",
+      { run: "running", phase: { state: "handoff_failed", missing: ["## Summary"] } },
+      "interrupted",
+    ],
+  ] satisfies ReadonlyArray<readonly [string, PhaxState, "running" | "interrupted"]>)(
+    "running + phase=%s × HandoffProtectedPathsChanged lands where HandoffMissing does, with no missing section",
+    (_name, state, run) => {
+      const d = interpret(state, sampleEvents.HandoffProtectedPathsChanged);
+      expect(d.kind).toBe("Handled");
+      if (d.kind !== "Handled") return;
+      expect(d.nextState).toEqual({ run, phase: { state: "handoff_failed", missing: [] } });
+      expect(d.effects).toEqual(persistAndExplain);
+      const missing = interpret(state, sampleEvents.HandoffMissing);
+      expect(missing.kind === "Handled" ? missing.nextState.run : null).toBe(run);
+    },
+  );
+
+  it("persists no stoppedReason, so run-status.json keeps its shape", () => {
+    const state: PhaxState = { run: "running", phase: { state: "committed", hash: "abc" } };
+    const d = interpret(state, sampleEvents.HandoffProtectedPathsChanged);
+    const persist = d.kind === "Handled" ? d.effects.find((e) => e.type === "PersistState") : null;
+    expect(persist?.type === "PersistState" ? persist.patch.run : null).not.toHaveProperty(
+      "stoppedReason",
+    );
+  });
+
+  it("takes HandoffMissing's disposition in every run state and phase state", () => {
+    const states: readonly PhaxState[] = [
+      ...runStateNames.map((r) => representativeState[r]),
+      { run: "running", phase: { state: "passed" } },
+      { run: "running", phase: { state: "committed", hash: "abc" } },
+      { run: "running", phase: { state: "handoff_failed", missing: [] } },
+      { run: "running", phase: { state: "awaiting_review", cause: "held" } },
+    ];
+    for (const state of states) {
+      expect(interpret(state, sampleEvents.HandoffProtectedPathsChanged).kind).toBe(
         interpret(state, sampleEvents.HandoffMissing).kind,
       );
     }

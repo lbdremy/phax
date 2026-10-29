@@ -205,6 +205,15 @@ const samples = {
     phase: phaseId,
     cause: networkFailureError,
   },
+  HandoffProtectedPathsChanged: {
+    ...base,
+    type: "HandoffProtectedPathsChanged",
+    phase: phaseId,
+    changes: [
+      { path: "a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]", glob: "**/x" },
+    ],
+    worktreePath,
+  },
   ReviewStopReached: {
     ...base,
     type: "ReviewStopReached",
@@ -302,6 +311,8 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.command}:${event.remedy}`;
     case "HandoffMissing":
       return `${event.type}:${event.missingSections.join(",")}`;
+    case "HandoffProtectedPathsChanged":
+      return `${event.type}:${event.changes.map((change) => change.path).join(",")}`;
     case "CommitCreated":
       return `${event.type}:${event.hash}`;
     case "CommitFailed":

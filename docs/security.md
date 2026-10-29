@@ -155,6 +155,44 @@ The phase, including its fix loop and handoff generation, may then edit or creat
 
 **Why not something simpler.** A `permissions.allow` rule such as `Edit(.claude/**)` has no effect, because Claude checks protected paths before it reads allow rules. A `PreToolUse` hook that returns `allow` runs, but the write is still denied. Only a `PermissionRequest` allow unblocks it. Note that `if` matches by tool name, so `Edit(...)` does not match a `Write` call, which is why each file gets one handler per tool.
 
+### Protected paths
+
+Some files of a project record a human decision, and a gate reads them. steme's `steme.baseline.json` is one: `steme audit` exits non-zero on a violated leg unless the baseline accepts it. An agent that cannot fix a hole can write its acceptance into that file, and the gate then passes. A plan's prose is not a boundary, and the write sandbox lets the agent, or any command it runs, write anywhere in the worktree. `protectedPaths` lists the files whose change is the operator's decision, and no phase of a run may land a change to them.
+
+```json
+{
+  "protectedPaths": ["**/steme.baseline.json"]
+}
+```
+
+**The key.** `protectedPaths` is a top-level key of `phax.json`: a non-empty list of globs in the dialect `assignments` globs use. A malformed entry exits 2, naming `protectedPaths[N]`. `phax.local.json` and `~/.phax/config.json` may not carry it (exit 2, naming the overlay), and a glob inside a submodule declared in `.gitmodules` is refused, since the submodule's files are not the project's tree. The `phax.json` phax loaded is protected too, by its path relative to the git root (`phax.json`, or `pkg/phax.json` for a nested config), so a phase cannot widen its own boundary. `phax validate` lists the protected paths. A project that declares nothing runs exactly as before.
+
+**Native rules.** Where the provider can refuse the write before it happens, phax asks it to, in secure mode only. The rule is passed for every glob that is a literal path or `**/` followed by one; any other glob gets no native rule.
+
+| Provider       | Native rule                                               | Enforcement                 |
+| -------------- | --------------------------------------------------------- | --------------------------- |
+| `claude-code`  | `Edit(//…)` deny rules in the inline settings              | `enforced` or `partial`     |
+| `mistral-vibe` | `write_file` and `edit` denylist entries                   | `enforced` or `partial`     |
+| `codex-cli`    | none                                                      | `commit-check-only`         |
+| unsafe mode    | none, on any provider                                     | `commit-check-only`         |
+
+`enforced` means every glob of the list has a native rule, `partial` that some do not. The enforcement is recorded in `security.json` with the protected globs (`protectedPaths`).
+
+**The check is the guarantee.** A native rule only covers a provider's own file tools. The check compares the phase's files with the phase base and runs after every gate attempt in the fix loop, whatever the steps' exit codes. It catches what a native rule misses: a shell command the agent runs, a gate step that writes the file, Codex and unsafe mode, a wildcard glob. It sees a created, edited (a type change included), deleted or renamed path, and the files git does not show: untracked and ignored files, and tracked files whose index bits hide an edit. A failed attempt goes through the usual fix loop with a prompt naming each path and asking that it be put back; the result is recorded in `gate-attribution.json`. The cost is that every check in a declaring project walks the base tree and lists every ignored file, `node_modules` included.
+
+**Letter case is ignored** on every host: `**/Steme.Baseline.json` protects `steme.baseline.json`, and a path that differs only by case matches the same entry.
+
+**After the commit.** The check also runs where the fix loop does not:
+
+- at a commit-only resume (a phase paused as a failed commit), against the phase base, before anything is committed: a protected change pauses the phase as a failed commit again, naming each path;
+- after the handoff turn, at every resume out of a failed handoff, and when a held phase is re-entered at its hold point, against the phase's commit: a protected change pauses the phase as a failed handoff, before the handoff is validated and copied and without a phase record. The run's `lastError` names the paths.
+
+**A stop's close is not checked.** A person who edits a protected file at a declared or held stop changes it on purpose. The change is committed with the stop and listed under `reviewCorrections` in `file-reconciliation.json`, as any other correction.
+
+**Two ways on after a pause.** `resume-instructions.md` names each path still changed, and both ways: put each file back to its content (at the phase base after a gate pause, in the phase commit after a handoff pause) in the phase worktree and run `phax resume <run> --yes`, or make the change on the base branch yourself and start a new run. `phax reset-phase` is not a way on: it throws the phase's work away.
+
+**Refusals.** A skill edit grant (`--allow-skill-edits`) on a file a protected glob matches is refused at preflight with exit 11, naming the file and the entry, before any phase runs. A protected list in an overlay or over a submodule is refused as the key above says.
+
 ### Shell command execution
 
 The phase prompt and the gate fix-loop both instruct the agent to run the

@@ -149,6 +149,7 @@ interface PhaxEventBase {
 | `HandoffValidated`         | handoff sections all present                                                                                              |
 | `HandoffMissing`           | handoff validation failed (carries `missingSections`)                                                                     |
 | `HandoffTurnFailed`        | the handoff turn's session failed, any kind but a limit (carries the `AgentSessionFailedError`); takes `HandoffMissing`'s transitions with `missing: []`, persists `stoppedReason: handoff_turn_failed` and `lastError` |
+| `HandoffProtectedPathsChanged` | a protected path differs from the phase commit after the handoff turn, at a resume out of a failed handoff, or at a held phase's hold-point re-entry (carries the non-empty `changes` and `worktreePath`); takes `HandoffMissing`'s transitions with `missing: []`, persists `lastError` (`Protected paths changed after the commit: <path>, …`) with no `stoppedReason`, and writes `resume-instructions.md` naming each path and the two ways on |
 | `CommitCreated`            | `git commit` succeeded (carries `hash`)                                                                                   |
 | `CleanupStarted`           | cleanup shell commands starting                                                                                           |
 | `CleanupCompleted`         | cleanup shell commands done (worktree stays on disk)                                                                      |
@@ -204,6 +205,7 @@ The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the 
 | `HandoffValidated`         | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `HandoffMissing`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `HandoffTurnFailed`        | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `HandoffProtectedPathsChanged` | U   | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CommitCreated`            | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CleanupStarted`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CleanupCompleted`         | U       | U       | S            | S           | U           | S      | S         | S       | S        |
