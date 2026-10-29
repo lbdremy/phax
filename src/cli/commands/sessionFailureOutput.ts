@@ -98,6 +98,19 @@ export function pausedHandoffFailure(err: unknown): AgentSessionFailedError | nu
 }
 
 /**
+ * The `phax resume` that retries a paused run, with the `--provider-priority`
+ * the paused invocation was given (a run does not record it), or null.
+ */
+export function resumeRetryCommand(shortName: string, providerPriority: string | null): string {
+  return retryCommandLine([
+    "resume",
+    shortName,
+    "--yes",
+    ...(providerPriority === null ? [] : ["--provider-priority", providerPriority]),
+  ]);
+}
+
+/**
  * What a run that paused on a network failure prints: the failure, the run's
  * pause with the one command to run once the network is back, and where the
  * resume instructions are.
@@ -106,8 +119,12 @@ export function renderNetworkPause(
   err: AgentSessionFailedError,
   shortName: string,
   resumeInstructionsPath: string,
+  providerPriority: string | null,
 ): readonly string[] {
-  const next = buildWhatsNext({ kind: "network", shortName, phaseId: err.phaseId }, new Date());
+  const next = buildWhatsNext(
+    { kind: "network", shortName, phaseId: err.phaseId, providerPriority },
+    new Date(),
+  );
   return [
     ...renderSessionFailure(err, null),
     renderWhatsNext(next),
@@ -122,8 +139,9 @@ export function renderNetworkPause(
 export function renderHandoffTurnPause(
   err: AgentSessionFailedError,
   shortName: string,
+  providerPriority: string | null,
 ): readonly string[] {
-  const resume = retryCommandLine(["resume", shortName]);
+  const resume = resumeRetryCommand(shortName, providerPriority);
   const lines = renderSessionFailure(err, resume);
   return err.failure.kind === "network"
     ? lines

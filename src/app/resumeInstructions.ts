@@ -189,9 +189,14 @@ function buildNetworkFailureInstructions(input: ResumeInstructionsInput): string
     "",
     "## Resume",
     "",
+    // The resume starts a new provider session in the same worktree. A
+    // --provider-priority given to the paused command is not recorded: pass
+    // it again.
     "```bash",
-    `phax resume ${input.shortName}`,
+    `phax resume ${input.shortName} --yes`,
     "```",
+    "",
+    "Pass `--provider-priority` again if the paused command was given one.",
     "",
   ];
 

@@ -15,7 +15,10 @@ import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Backend } from "../../src/ports/backend.js";
 import { Git } from "../../src/ports/git.js";
 import { Shell } from "../../src/ports/shell.js";
-import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import { NoopSystemTelemetryLayer, type SystemTelemetry } from "../../src/ports/systemTelemetry.js";
+import { makeInMemoryTelemetryLayer } from "../../src/infra/telemetry/inMemory.js";
+import { resumeRetryCommand } from "../../src/cli/commands/sessionFailureOutput.js";
+import { renderStopCloseRefusal } from "../../src/cli/commands/stopOutput.js";
 import { decodeReviewStopV0_26_0 } from "../../src/schemas/history/review-stop/0.26.0.js";
 import { decodeRunListV0_26_0 } from "../../src/schemas/history/run-list/0.26.0.js";
 import { currentSchemaUrl, readReviewStopFile } from "../../src/schemas/persisted.js";
@@ -112,15 +115,24 @@ const closeInput = (run: StoppedRun) => ({
   mainCheckout: run.world.repoRoot,
 });
 
-async function closeWithNetworkFailure(run: StoppedRun) {
+async function closeWithNetworkFailure(
+  run: StoppedRun,
+  telemetry: Layer.Layer<SystemTelemetry> = NoopSystemTelemetryLayer,
+) {
   const backend = makeFakeBackend().impl;
-  backend.failNextResumeWith({
-    provider: "claude-code",
-    kind: "network",
-    message: PROVIDER_MESSAGE,
-    sessionId: "X1",
-    resetAt: null,
-  });
+  backend.failNextResumeWith(
+    {
+      provider: "claude-code",
+      kind: "network",
+      message: PROVIDER_MESSAGE,
+      sessionId: "X1",
+      resetAt: null,
+    },
+    {
+      agentErrorLog: join(run.phaseFolder, "agent-error.log"),
+      transcript: join(run.phaseFolder, "closing-turn-01.jsonl"),
+    },
+  );
   const program = Effect.gen(function* () {
     yield* dispatch(
       {
@@ -147,7 +159,7 @@ async function closeWithNetworkFailure(run: StoppedRun) {
           NodeFileSystemLayer,
           Layer.succeed(Git, realGit),
           passingShell,
-          NoopSystemTelemetryLayer,
+          telemetry,
         ),
       ),
     ),
@@ -183,6 +195,40 @@ describe("a closing turn that loses the network", () => {
     });
     expect(Object.keys(stop["lastClose"] as object)).not.toContain("step");
     expect(Either.isRight(decodeReviewStopFile(stop))).toBe(true);
+  });
+});
+
+describe("the terminal after a closing turn that lost the network", () => {
+  it("prints the failed session, its files and the retry, then the refusal", async () => {
+    const run = await stopRun(world);
+    writeFileSync(join(run.worktree, "src/invoiceRow.ts"), "export const header = 'x';\n");
+
+    const result = await closeWithNetworkFailure(run);
+
+    if (Either.isRight(result)) throw new Error("the close was not refused");
+    const error = result.left as StopCloseRefusedError;
+    const retry = resumeRetryCommand(run.shortName, "claude-code,codex-cli");
+    expect(renderStopCloseRefusal(error, retry)).toEqual([
+      `✗ claude-code session failed (network): ${PROVIDER_MESSAGE}`,
+      "  session: X1",
+      `  See ${join(run.phaseFolder, "agent-error.log")} and closing-turn-01.jsonl`,
+      `  Retry once the network is back: phax resume ${run.shortName} --yes --provider-priority claude-code,codex-cli`,
+      expect.stringMatching(
+        /^✗ phase-03 stays awaiting review: the closing turn could not reach the provider/,
+      ),
+    ]);
+  });
+
+  it("records one adapter.agent_failed report for the failed closing turn", async () => {
+    const run = await stopRun(world);
+    writeFileSync(join(run.worktree, "src/invoiceRow.ts"), "export const header = 'x';\n");
+    const { impl, layer } = makeInMemoryTelemetryLayer();
+
+    await closeWithNetworkFailure(run, layer);
+
+    const reports = impl.errors().filter((e) => e.type === "adapter.agent_failed");
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ actual: "network" });
   });
 });
 

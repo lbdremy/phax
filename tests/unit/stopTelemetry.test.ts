@@ -12,6 +12,7 @@ import {
   GateFailedError,
   GateStepRefusedError,
 } from "../../src/domain/errors.js";
+import { sessionFailureError } from "../../src/domain/session/failureError.js";
 import { makeInMemoryTelemetryLayer } from "../../src/infra/telemetry/inMemory.js";
 import { GitError } from "../../src/ports/git.js";
 import type { SystemTelemetry } from "../../src/ports/systemTelemetry.js";
@@ -56,6 +57,33 @@ describe("tracedTurnCall", () => {
     expect(result).toEqual(Either.left(failure));
     expect(events.map((e) => e["type"])).toEqual(["adapter.call.started"]);
     expect(errors).toEqual(["adapter.agent_failed"]);
+  });
+});
+
+describe("tracedTurnCall on a failed session", () => {
+  it("reports a session that lost the network once, as adapter.agent_failed", () => {
+    const failure = sessionFailureError(
+      {
+        provider: "codex-cli",
+        kind: "network",
+        message: "stream disconnected before completion: error sending request",
+        sessionId: "0199a7c2-5e3b-7d10-8f4a-2b6c9d1e0a37",
+        resetAt: null,
+      },
+      { agentErrorLog: "/runs/r/phase-03/agent-error.log", transcript: null },
+    );
+    const { impl, layer } = makeInMemoryTelemetryLayer();
+    Effect.runSync(
+      Effect.either(
+        tracedTurnCall(
+          { ...ctx, provider: "codex-cli", operation: "agent.resume" },
+          Effect.fail(failure),
+        ).pipe(Effect.provide(layer)),
+      ),
+    );
+    const reports = impl.errors();
+    expect(reports.map((e) => e.type)).toEqual(["adapter.agent_failed"]);
+    expect(reports[0]).toMatchObject({ adapter: "codex-cli", actual: "network" });
   });
 });
 

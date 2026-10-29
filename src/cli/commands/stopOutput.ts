@@ -8,9 +8,11 @@ import type {
   DeclaredStopReport,
   HeldStopReport,
   RefusedClose,
+  StopCloseRefusedError,
   StopReport,
 } from "../../domain/errors.js";
 import { renderCommandLine } from "../../domain/interactive/commandLine.js";
+import { renderSessionFailure } from "./sessionFailureOutput.js";
 import type { ReviewStopCommand } from "../../schemas/reviewStop.js";
 
 const TRUST_NOTE =
@@ -219,4 +221,17 @@ function refusalReason(lastClose: RefusedClose): string {
 /** The line printed when a close of the stop at `phaseId` was refused. */
 export function renderStopCloseRefused(phaseId: string, lastClose: RefusedClose): string {
   return `✗ ${phaseId} stays awaiting review: ${refusalReason(lastClose)}`;
+}
+
+/**
+ * The lines printed for a refused close. A closing turn that lost the network
+ * first prints its failed session as any failed session prints (provider,
+ * kind, message, session, files) with `retry`, the command to run once the
+ * network is back.
+ */
+export function renderStopCloseRefusal(err: StopCloseRefusedError, retry: string): string[] {
+  const refused = renderStopCloseRefused(err.phase, err.lastClose);
+  return err.sessionFailure === null
+    ? [refused]
+    : [...renderSessionFailure(err.sessionFailure, retry), refused];
 }

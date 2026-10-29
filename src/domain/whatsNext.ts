@@ -29,6 +29,11 @@ export type WhatsNextScenario =
       readonly kind: "network";
       readonly shortName: string;
       readonly phaseId?: string | undefined;
+      /**
+       * The `--provider-priority` the paused invocation was given, carried
+       * into the retry (a run does not record it), or null.
+       */
+      readonly providerPriority: string | null;
     }
   | {
       readonly kind: "gates_exhausted";
@@ -142,11 +147,16 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
     }
     case "network": {
       const at = scenario.phaseId !== undefined ? ` at ${scenario.phaseId}` : "";
+      const priority =
+        scenario.providerPriority === null
+          ? ""
+          : ` --provider-priority ${scenario.providerPriority}`;
       return {
         headline: `Run ${scenario.shortName} is paused${at}.`,
         steps: [
           {
-            title: `Retry once the network is back: phax resume ${scenario.shortName}`,
+            title: "Retry once the network is back — no reset time to wait for",
+            command: `phax resume ${scenario.shortName} --yes${priority}`,
           },
         ],
       };
