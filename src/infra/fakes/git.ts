@@ -82,7 +82,7 @@ export type GitCall =
   | { method: "headTree"; path: string }
   | { method: "snapshotWorktree"; path: string }
   | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
-  | { method: "observeWorktree"; path: string; base: string; trackedPaths: readonly string[] }
+  | { method: "observeWorktree"; path: string; base: string }
   | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] }
   | { method: "diffTrees"; repo: string; fromTree: string; toTree: string }
   | { method: "commitTree"; worktree: string; tree: string; subject: string; body: string };
@@ -463,6 +463,10 @@ export class FakeGitImpl implements GitOps {
 
   readTree(repo: string, treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError> {
     this.calls.push({ method: "readTree", repo, treeish });
+    return this.treeEntriesOf(treeish);
+  }
+
+  private treeEntriesOf(treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError> {
     let treeOid: string | undefined;
     const commit = this.fakeCommits.get(treeish);
     if (commit !== undefined) {
@@ -690,23 +694,29 @@ export class FakeGitImpl implements GitOps {
 
   private readonly observations = new Map<string, ProtectedObservation>();
 
-  /** Scripts what `observeWorktree` answers for the worktree at `path`, whatever base and paths are asked. */
+  /** Scripts what `observeWorktree` answers for the worktree at `path`, whatever base is asked. */
   setObservation(path: string, observation: ProtectedObservation): void {
     this.observations.set(path, observation);
   }
 
+  /** The scripted observation, else a clean worktree: every protected file of
+   *  `base`'s tree the same, nothing else. An unknown `base` fails as `readTree` does. */
   observeWorktree(
     path: string,
     base: string,
-    trackedPaths: readonly string[],
+    isProtected: (path: string) => boolean,
   ): Effect.Effect<ProtectedObservation, GitError> {
-    this.calls.push({ method: "observeWorktree", path, base, trackedPaths: [...trackedPaths] });
-    return Effect.succeed(
-      this.observations.get(path) ?? {
+    this.calls.push({ method: "observeWorktree", path, base });
+    const scripted = this.observations.get(path);
+    if (scripted !== undefined) return Effect.succeed(scripted);
+    return this.treeEntriesOf(base).pipe(
+      Effect.map((entries) => ({
         entries: [],
-        tracked: trackedPaths.map((p) => ({ path: p, state: "same" as const })),
+        tracked: entries
+          .filter((entry) => entry.mode !== "160000" && isProtected(entry.path))
+          .map((entry) => ({ path: entry.path, state: "same" as const })),
         untracked: [],
-      },
+      })),
     );
   }
 

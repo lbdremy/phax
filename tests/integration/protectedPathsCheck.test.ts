@@ -3,6 +3,7 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   symlinkSync,
   unlinkSync,
@@ -15,6 +16,7 @@ import { Effect } from "effect";
 import { checkProtectedPaths } from "../../src/app/protectedPathsCheck.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import type { BranchName } from "../../src/domain/branded.js";
 import { Git } from "../../src/ports/git.js";
 import { protectedList, type ProtectedChange } from "../../src/domain/security/protectedPaths.js";
 import { isolateGit } from "../helpers/isolateGit.js";
@@ -176,6 +178,49 @@ describe("checkProtectedPaths against a real worktree", () => {
     expect(brief(await check(["**/steme.baseline.json"]))).toEqual([["phax.json", "edited"]]);
   });
 
+  it("hashes the protected files by one git process and reads the base tree once", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => `rules/r${i}/steme.baseline.json`);
+    for (const path of many) write(path, `{ "rule": "${path}" }\n`);
+    write("rules/odd\nname/steme.baseline.json", "{}\n");
+    write('rules/"quoted\\name\r/steme.baseline.json', "{}\n");
+    base = commitAll("many");
+    write("rules/r7/steme.baseline.json", "{}\n");
+    write("rules/odd\nname/steme.baseline.json", '{ "odd": true }\n');
+
+    // A git on PATH that logs each call's argument count and subcommand, then
+    // runs the real one.
+    const realGit = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+    const shim = realpathSync(mkdtempSync(join(tmpdir(), "phax-git-shim-")));
+    const log = join(shim, "calls.log");
+    writeFileSync(
+      join(shim, "git"),
+      `#!/bin/sh\nprintf '%s %s\\n' "$#" "$1" >> '${log}'\nexec '${realGit}' "$@"\n`,
+    );
+    chmodSync(join(shim, "git"), 0o755);
+    const path = process.env["PATH"];
+    process.env["PATH"] = `${shim}:${path ?? ""}`;
+    try {
+      expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
+        ["rules/odd\nname/steme.baseline.json", "edited"],
+        ["rules/r7/steme.baseline.json", "edited"],
+      ]);
+    } finally {
+      process.env["PATH"] = path;
+    }
+    const calls = readFileSync(log, "utf8")
+      .split("\n")
+      .filter((line) => line !== "")
+      .map((line) => {
+        const [count, command] = line.split(" ");
+        return { count: Number(count), command };
+      });
+    removeTempDir(shim);
+    expect(calls.filter((call) => call.command === "hash-object")).toHaveLength(1);
+    expect(calls.filter((call) => call.command === "ls-tree")).toHaveLength(1);
+    // No call's arguments grow with the number of protected files.
+    expect(Math.max(...calls.map((call) => call.count))).toBeLessThan(12);
+  });
+
   it("leaves the real index alone", async () => {
     write("packages/a/steme.baseline.json", "{}\n");
     write("packages/e/steme.baseline.json", "{}\n");
@@ -188,7 +233,7 @@ describe("checkProtectedPaths against a real worktree", () => {
 describe("Git.observeWorktree", () => {
   const observe = (tracked: readonly string[]) =>
     Effect.runPromise(
-      Effect.flatMap(Git, (g) => g.observeWorktree(repo, base, tracked)).pipe(
+      Effect.flatMap(Git, (g) => g.observeWorktree(repo, base, (p) => tracked.includes(p))).pipe(
         Effect.provide(NodeGitLayer),
       ),
     );
@@ -261,9 +306,16 @@ describe("Git.observeWorktree", () => {
     const tracked = ["packages/a/steme.baseline.json", "packages/b/steme.baseline.json"];
     const fake = makeFakeGit();
     const scripted = await Effect.runPromise(
-      Effect.flatMap(Git, (g) => g.observeWorktree(repo, base, tracked)).pipe(
-        Effect.provide(fake.layer),
-      ),
+      Effect.gen(function* () {
+        const g = yield* Git;
+        const fakeBase = yield* g.writeTreeCommit({
+          repo,
+          branch: "base" as BranchName,
+          message: "base",
+          files: tracked.map((path) => ({ path, content: new TextEncoder().encode("{}\n") })),
+        });
+        return yield* g.observeWorktree(repo, fakeBase, (p) => tracked.includes(p));
+      }).pipe(Effect.provide(fake.layer)),
     );
     expect(await observe(tracked)).toEqual(scripted);
   });

@@ -3,19 +3,9 @@ import {
   nativeProtectedGlobs,
   protectedChanges,
   protectedList,
-  protectedTrackedPaths,
   submoduleConflict,
   type ProtectedObservation,
 } from "../../../src/domain/security/protectedPaths.js";
-
-describe("protectedTrackedPaths", () => {
-  it("keeps the base paths some entry matches, case-folded, in input order", () => {
-    const list = protectedList(["**/steme.baseline.json"], "phax.json")!;
-    expect(protectedTrackedPaths(list, ["a/steme.baseline.json", "src/x.ts", "PHAX.json"])).toEqual(
-      ["a/steme.baseline.json", "PHAX.json"],
-    );
-  });
-});
 
 describe("nativeProtectedGlobs", () => {
   it("classifies literal and any-depth globs in list order, leaving the rest out", () => {
