@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-29
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-29
+  baseline: 501e7f0
 ---
 # Protected paths: files no phase of a run may change
 
