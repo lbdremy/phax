@@ -5,9 +5,9 @@ completes-spec: true
 ---
 # Protected paths
 
-Implements the whole of the protected-paths spec: §5.1 to §5.23, every §6 surface and every acceptance criterion. A project lists in phax.json's top-level `protectedPaths` the files whose change is the operator's decision. phax.json is protected too. No phase of a run may land a change to them. Prevention is the providers' own: Claude Code gets `Edit(//…)` deny rules and Mistral Vibe gets `write_file`/`edit` denylist entries, for every glob that is a literal path or `**/` followed by one. Codex and unsafe mode get none. The guarantee is one deterministic check of the phase's files against the phase base. It runs after every gate attempt in the fix loop, at a commit-only resume, after the handoff turn and at a held phase's hold-point re-entry, and never at a stop's close. The work runs in this order:
+Implements the whole of the protected-paths spec: §5.1 to §5.23, every §6 surface and every acceptance criterion. A project lists in phax.json's top-level `protectedPaths` the files whose change is the operator's decision. The phax.json phax loaded is protected too, by its repo-relative path. No phase of a run may land a change to them. Prevention is the providers' own: Claude Code gets `Edit(//…)` deny rules and Mistral Vibe gets `write_file`/`edit` denylist entries, for every glob that is a literal path or `**/` followed by one. Codex and unsafe mode get none. The guarantee is one deterministic check of the phase's files against the phase base. It runs after every gate attempt in the fix loop, at a commit-only resume, after the handoff turn and at a held phase's hold-point re-entry, and never at a stop's close. The work runs in this order:
 
-1. An oracle pair freezes the pure contract (phase-01, phase-02): the protected list, case-folded matching, the changes an observation yields, native rule forms, enforcement and the submodule refusal.
+1. An oracle pair freezes the pure contract (phase-01, phase-02): the protected list, case-folded matching, the changes an observation yields, the Claude Code and Vibe rule strings, enforcement and the submodule refusal. phase-02 also adds the helpers later phases use, with in-phase tests.
 2. The config key, its refusals and `phax validate`'s line land with a snapshot that pins today's behaviour for a project that declares nothing (phase-03).
 3. security.json moves to version 3 and gate-attribution.json to 0.31.0, each with a required `protectedPaths` (phase-04).
 4. The native rules, the skill-edit-grant refusal and the phase prompt's section follow (phase-05).
@@ -25,14 +25,14 @@ No new command. The configured `standard` gate verifies every phase. The phases 
 
 ## Technical arbitrations
 
-- Where the check lives. src/domain/security/protectedPaths.ts is pure. It holds the protected list, case-folded matching, the changes derived from an observation, the native rule forms, enforcement and the submodule conflict. The git reads sit behind one new Git port method, `observeWorktree(path, base, trackedPaths)` in src/ports/git.ts, implemented in src/infra/git.ts. The method builds the worktree tree the way `snapshotWorktree` does: a temporary index seeded from HEAD, so the real index's skip-worktree and assume-unchanged bits never hide an edit. It diffs that tree against the base with `git diff-tree -z -r -M --name-status`. It compares each protected tracked path of the base with its base blob by lstat and `git hash-object`. It lists untracked ignored files with `git ls-files -z --others --ignored --exclude-standard`, leaving out `.phax-context/`. The use case src/app/protectedPathsCheck.ts reads the base tree (`readTree`), keeps the protected tracked paths (domain), observes and derives the changes. A new parser, src/domain/reconciliation/parseNameStatusZ.ts, reads the NUL output. It does not reuse parseNameStatus as it is: that parser splits on newlines, trims each path, reads git's quoted non-ASCII paths as written and drops the `T` code, and file reconciliation relies on it unchanged. Loss accepted: two name-status parsers exist, and every check in a declaring project walks the base tree, rebuilds a temporary index and lists every ignored file, node_modules included.
+- Where the check lives. src/domain/security/protectedPaths.ts is pure. It holds the protected list, case-folded matching, the changes derived from an observation, the native rule forms, enforcement and the submodule conflict. The git reads sit behind one new Git port method, `observeWorktree(path, base, trackedPaths)` in src/ports/git.ts, implemented in src/infra/git.ts. The method builds the worktree tree with the effect behind `snapshotWorktree` (`snapshotWorktreeEffect`): a temporary index seeded from HEAD, so the real index's skip-worktree and assume-unchanged bits never hide an edit. It diffs that tree against the base with `git diff-tree -z -r -M --name-status`, read by the NUL parser `changedPathsBetween` already uses, `parseDiffTreeNameStatusZ` in src/infra/git.ts, which gains a rename mode: with it, an `R<score>` status carries the old and the new path; without it, the parser refuses `R` as today, and `changedPathsBetween` keeps `--no-renames` and its port signature, so its callers (closeStop, resetPhase, reviewCode, interactiveStop) never see a rename row. The adapter maps the rows to the domain's ObservedEntry. It compares each protected tracked path of the base with its base blob by lstat and `git hash-object`. It lists untracked ignored files with `git ls-files -z --others --ignored --exclude-standard`, leaving out `.phax-context/`. The use case src/app/protectedPathsCheck.ts reads the base tree (`readTree`), keeps the protected tracked paths (domain), observes and derives the changes. No name-status parser is added to the domain, and src/domain/reconciliation/parseNameStatus.ts (newline-separated and trimmed, for file reconciliation) stays as it is. Loss accepted: the one NUL parser now serves two callers in two modes, so a fault in it reaches the stop, reset and review paths as well as the check; and every check in a declaring project walks the base tree, rebuilds a temporary index and lists every ignored file, node_modules included.
 - Native rule sets come from one domain function. `nativeProtectedGlobs` classifies each glob of the list as `literal` (none of `*`, `?`, `[`, `]`) or `any-depth` (`**/` followed by such a path), or gives it no native form. `claudeProtectedDenyRules`, `vibeProtectedDenylist` and `protectedEnforcement` all read that classification, so Claude Code and Vibe never disagree on which globs are exact. Rules are passed only when the policy mode is `secure`, and enforcement reads the same condition. Loss accepted: a wildcard glob that a provider could express approximately gets no native rule. The providers' gitignore-style and fnmatch matching would refuse more than phax protects, so such a glob relies on the check alone (enforcement `partial`).
 - Where the check runs in the fix loop. It runs inside `runGatesWithFixLoop`'s loop, right after `runGates` returns, on a pass, a failure or a refusal alike, and only when the loop's new required option `protectedPaths` (`{ list, base }`) is not null. closeStop calls `runGates` directly, so a stop's close never runs the check. Loss accepted: the check is a fix-loop concern. A future caller of `runGates` that wants it has to call the use case itself.
 - How gate-attribution carries the check without an optional field. A required `protectedPaths` is one of three values: `null`, `{ result: "pass", changes: [] }`, or `{ result: "fail", changes: <non-empty> }`, each change being `{ path, kind, entry }`. Each variant is explicit, with no permissive superset. `runGates` writes `protectedPaths: null` in the attempt's step record and in the phase's gate-attribution.json. When a list is declared, the fix loop rewrites both with the check's result after each attempt. The 0.26.0 shape is frozen in src/schemas/history/gate-attribution/0.26.0.ts. A 0.26.0 or pre-schema document is lifted to `protectedPaths: null` in memory, and the `next` snapshot is stamped 0.31.0. A stop's close writes `null`, because its gate is not checked (§5.18): `null` means not checked, either because no list is declared or because the gate was a stop's close. Loss accepted: an attempt's record is written twice and reads `null` between the two writes, and the field alone cannot tell a stop's close in a declaring project from a project that declares nothing.
-- How the implied phax.json is named. A declared glob's entry is `protectedPaths[N]`, counted from 0. phax.json, appended when no declared glob is exactly `phax.json`, has the entry `phax.json`. When several globs match a path, the first in list order names it. Loss accepted: the `entry` field holds two forms.
-- How a protected failure travels in memory. The events GateFailed and FixAttemptsExhausted, and GateAttemptsExhaustedError, become unions discriminated by `failedStep`. The step variant (`configured` or `oracle`) keeps `command` and `exitCode` and gains `protectedChanges`, which may be empty. The `protected-paths` variant carries non-empty `protectedChanges` and no command or exit code. GateStepRefused and GateStepRefusedError gain `protectedChanges`. None of these is persisted: run-status.json keeps only `lastError`, so no persisted shape changes. Loss accepted: every consumer of those events and errors switches on `failedStep`.
+- How the implied phax.json is named (operator decision on q-config-path, option B). "phax.json is protected" names the config file phax actually loaded: `loadConfig`'s `findPhaxConfig` walks up from the cwd to the git root, and the implied entry is that file's path relative to the git root, in POSIX form, for example `pkg/phax.json`, and `phax.json` when it sits at the root. `protectedList(declared, configPath)` takes that path. A declared glob's entry is `protectedPaths[N]`, counted from 0. The loaded config, appended when no declared glob is exactly its path, has its path as both glob and entry. When several globs match a path, the first in list order names it. Loss accepted: the spec's literal entry name `phax.json` and the `phax validate` line show the loaded file's path instead (`pkg/phax.json` for a nested config), and the `entry` field holds two forms.
+- How a protected failure travels in memory. The events GateFailed and FixAttemptsExhausted, which are interfaces, become unions discriminated by `failedStep`. The step variant (`configured` or `oracle`) keeps `command` and `exitCode` and gains `protectedChanges`, which may be empty. The `protected-paths` variant carries non-empty `protectedChanges` and no command or exit code. GateAttemptsExhaustedError stays one `Data.TaggedError` class, since `Data.TaggedError("E")<A | B>` does not compile (TS2509): its `command`, `exitCode` and `failedStep` fields give way to one required field `failure`, a union discriminated by `failedStep`: `{ failedStep: "configured" | "oracle"; command; exitCode; protectedChanges }` or `{ failedStep: "protected-paths"; protectedChanges }` with non-empty changes. GateStepRefused and GateStepRefusedError gain `protectedChanges`. None of these is persisted: run-status.json keeps only `lastError`, so no persisted shape changes. Loss accepted: every consumer of those events switches on `failedStep`, and every reader of GateAttemptsExhaustedError reads its command, exit code and step through `failure`.
 - How a protected change after the commit pauses the phase. A new event, `HandoffProtectedPathsChanged { changes }`, takes the transitions HandoffMissing takes, to `handoff_failed`. It persists `lastError` naming the paths and no new `stoppedReason`, so run-status.json's shape does not change. The handoff check runs inside generatePhaseHandoff, between the turn and the validation, through a new required option. A hold-point re-entry runs the check before `holdPoint`. Both compare against the phase commit that status.json records. A commit-only resume checks against the phase base before `commitPhase` and pauses through the existing CommitFailed, with a reason naming each change. Loss accepted: the phase reads `handoff_failed` with no missing section, and only `lastError` says why.
-- In-memory carriers stay optional where nothing is persisted, so a project that declares nothing builds exactly today's argv, prompt and options. ResolvedConfig gains `protectedPaths?: ProtectedList`, from phax.json alone, as `assignments` is. AgentRunOptions, VibeFlagsInput and BuildPhasePromptOptions carry it optionally, beside `skillEditGrants`. Loss accepted: absence stands for nothing declared in memory, and the type does not force each caller to say so.
+- In-memory carriers stay optional where nothing is persisted, so a project that declares nothing builds exactly today's argv, prompt and options. ResolvedConfig gains `protectedPaths?: ProtectedList`, from phax.json alone, as `assignments` is. AgentRunOptions and BuildPhasePromptOptions carry it optionally, beside `skillEditGrants`, and VibeFlagsInput carries it optionally with the worktree's resolved root. Loss accepted: absence stands for nothing declared in memory, and the type does not force each caller to say so.
 - The malformed-list message. `protectedPaths` is checked before the full decode of phax.json. Each entry gets the glob dialect's own refusal text, exported from src/schemas/architecture.ts, so `phax validate` prints `protectedPaths[N]: <rule>` as §6 shows. PhaxConfigSchema also declares the key with ArchitectureGlobSchema, so phax.schema.json documents it. Loss accepted: the dialect rule is applied twice, once before the decode and once in it.
 - A skill edit grant on a protected path is refused by a new `SkillEditProtectedError`, which exits 11 beside SkillEditConsentError. It is checked in freshRunPreflight (before the run is named) and in the `skill-edit-consent` preflight (on resume), with a pure conflict function in src/domain/security/skillEditGrants.ts. Loss accepted: one more error class for one refusal.
 - The no-change guarantee (§5.5) is pinned by a snapshot written in phase-03, before any behaviour changes. Later phases may not update it. Only phase-04 changes the test's explicit expectations for security.json (version 3, `protectedPaths: null`) and gate-attribution.json (0.31.0, `protectedPaths: null`), which is exactly what the spec allows. Loss accepted: an unrelated, intended change to argv or prompts during this run would have to be split out of it.
@@ -47,14 +47,13 @@ No new command. The configured `standard` gate verifies every phase. The phases 
 **Oracle phase:** discharged by phase-02
 **Oracle files:** `tests/unit/security/protectedPaths.test.ts`
 
-Fix the pure contract the protected-path guarantee rests on, with stub functions: the protected list, case-folded matching, the changes an observation of a worktree yields, the native rule forms and strings for Claude Code and Vibe, enforcement, and the submodule refusal. Freeze its table of cases as oracles that phase-02 discharges.
+Fix the pure contract the protected-path guarantee rests on, with stub functions: the protected list, case-folded matching, the changes an observation of a worktree yields, the rule strings for Claude Code and Vibe, enforcement, and the submodule refusal. Freeze its table of cases as oracles that phase-02 discharges.
 
 ### Detailed instructions
 
 - Create `src/domain/security/protectedPaths.ts`, pure, with no I/O and no `node:` import. Its only imports are `matchesGlob` from `../architecture/glob.js`, the `ProviderId` type from `../routing/types.js` and the `SecurityMode` type from `./types.js`.
 - Export exactly these:
 
-  - `PHAX_CONFIG_PATH = "phax.json"`: a real constant, not a stub.
   - `ProtectedEntry` { glob: string; entry: string }.
   - `ProtectedList` = readonly ProtectedEntry[].
   - `ProtectedChangeKind` = `created` | `edited` | `deleted` | `renamed`.
@@ -62,37 +61,36 @@ Fix the pure contract the protected-path guarantee rests on, with stub functions
   - `ObservedEntry` = { status: `added` | `modified` | `deleted` | `type-changed`; path } | { status: `renamed`; path; oldPath }.
   - `TrackedState` = `same` | `content` | `type` | `missing`.
   - `ProtectedObservation` { entries: readonly ObservedEntry[]; tracked: readonly { path: string; state: TrackedState }[]; untracked: readonly string[] }.
-  - `NativeProtectedGlob` { glob: string; form: `literal` | `any-depth`; path: string }.
   - `ProtectedEnforcement` = `enforced` | `partial` | `commit-check-only`.
   - `SubmoduleConflict` { index: number; glob: string; submodule: string }.
+
+  The module exports no constant: knip, in the gate, fails an export nothing imports, and the oracle test imports every export. The config file's path comes in as a parameter, never as a constant.
 - Also export these functions, each with a body that throws `new Error("not implemented: <function name>")` and parameters prefixed `_`:
 
-  - `protectedList(declared: readonly string[] | undefined): ProtectedList | null`
+  - `protectedList(declared: readonly string[] | undefined, configPath: string): ProtectedList | null`
   - `matchProtected(list: ProtectedList, path: string): ProtectedEntry | undefined`
-  - `protectedTrackedPaths(list: ProtectedList, paths: readonly string[]): readonly string[]`
   - `protectedChanges(list: ProtectedList, observation: ProtectedObservation): readonly ProtectedChange[]`
-  - `nativeProtectedGlobs(list: ProtectedList): readonly NativeProtectedGlob[]`
   - `claudeProtectedDenyRules(worktreeRoot: string, list: ProtectedList): readonly string[]`
   - `vibeProtectedDenylist(worktreeRoot: string, list: ProtectedList): readonly string[]`
   - `protectedEnforcement(list: ProtectedList, provider: ProviderId, mode: SecurityMode): ProtectedEnforcement`
   - `submoduleConflict(declared: readonly string[], submodules: readonly string[]): SubmoduleConflict | undefined`
 
-  The oracles compile and load against these stubs.
+  The oracles compile and load against these stubs. The helpers later phases need (`protectedTrackedPaths`, `nativeProtectedGlobs`) are phase-02's, with their own tests.
 - Document the contract in a module comment, which phase-02 implements:
 
-  - `protectedList` gives null for undefined. Otherwise it gives each declared glob with entry `protectedPaths[N]` in order, then `{ glob: phax.json, entry: phax.json }` unless a declared glob is exactly `phax.json`.
+  - `protectedList` gives null for undefined. Otherwise it gives each declared glob with entry `protectedPaths[N]` in order, then `{ glob: configPath, entry: configPath }` unless a declared glob is exactly `configPath`. `configPath` is the repo-relative POSIX path of the phax.json phax loaded, such as `phax.json` or `pkg/phax.json`.
   - `matchProtected` gives the first entry in list order whose glob matches the path, matching phax's dialect with both glob and path lowercased (`toLowerCase`), with no Unicode normalization.
-  - `protectedTrackedPaths` keeps the paths some entry matches, in input order.
   - `protectedChanges` gives one change per protected path, sorted by path:
     - a `renamed` entry names each side that matches as `renamed`;
     - `added` gives `created`, and an untracked path gives `created`;
     - `modified` or `type-changed` gives `edited`, and a tracked state of `content` or `type` gives `edited`;
     - `deleted` gives `deleted`, and a tracked state of `missing` gives `deleted`;
-    - when evidence disagrees for a path, `renamed` wins over `created`, `created` over `deleted`, and `deleted` over `edited`;
     - the path is spelt as observed.
-  - `nativeProtectedGlobs` keeps the list's order. A glob holding none of `*`, `?`, `[`, `]` is `literal`, with path = glob. A glob that is `**/` followed by such a rest is `any-depth`, with path = the rest. Every other glob is left out.
-  - `claudeProtectedDenyRules` gives `Edit(/<root>/<glob>)` per native glob, where `<root>` is the worktree root with trailing slashes removed, so an absolute root gives `Edit(//…)`.
-  - `vibeProtectedDenylist` gives `<root>/<path>` per literal glob, and `<root>/<path>` then `<root>/**/<path>` per any-depth glob.
+
+    Which kind wins when the evidence for one path disagrees is phase-02's to fix, and no oracle pins it.
+  - Native forms: a glob holding none of `*`, `?`, `[`, `]` is a literal path. A glob that is `**/` followed by such a rest is an any-depth path. Every other glob has no native form.
+  - `claudeProtectedDenyRules` gives `Edit(/<root>/<glob>)` per glob with a native form, in list order, where `<root>` is the worktree root with trailing slashes removed, so an absolute root gives `Edit(//…)`.
+  - `vibeProtectedDenylist` gives, in list order, `<root>/<path>` per literal glob, and `<root>/<rest>` then `<root>/**/<rest>` per any-depth glob.
   - `protectedEnforcement`:
     - `commit-check-only` for codex-cli or any mode but `secure`;
     - otherwise `enforced` when every entry has a native form;
@@ -102,24 +100,23 @@ Fix the pure contract the protected-path guarantee rests on, with stub functions
 - Create `tests/unit/security/protectedPaths.test.ts`:
 
   - Every test carries the `it.fails` marker and has a distinct title.
-  - It imports only from `src/domain/security/protectedPaths.ts`, and imports every exported type and function (types with `import type`).
+  - It imports only from `src/domain/security/protectedPaths.ts`, and imports every export of it (types with `import type`), so knip sees each one used.
   - Its fixtures are written inline, with no generator and no helper module.
   - Assert with `toEqual` on whole values.
 
-  Write the cases in the next entries.
+  Write the cases in the next entries. Every list is built with config path `phax.json` unless stated. The fixtures hold no disagreeing evidence for one path: that precedence is phase-02's.
 - Cases for the list and matching:
 
-  - (a) `protectedList(["**/steme.baseline.json"])` equals `[{glob "**/steme.baseline.json", entry "protectedPaths[0]"}, {glob "phax.json", entry "phax.json"}]`. `protectedList(["phax.json", "a.json"])` holds two entries, `protectedPaths[0]` and `protectedPaths[1]`, with no extra phax.json. `protectedList(undefined)` is null.
+  - (a) `protectedList(["**/steme.baseline.json"], "phax.json")` equals `[{glob "**/steme.baseline.json", entry "protectedPaths[0]"}, {glob "phax.json", entry "phax.json"}]`. `protectedList(["phax.json", "a.json"], "phax.json")` holds two entries, `protectedPaths[0]` and `protectedPaths[1]`, with no extra phax.json. `protectedList(["a.json"], "pkg/phax.json")` equals `[{glob "a.json", entry "protectedPaths[0]"}, {glob "pkg/phax.json", entry "pkg/phax.json"}]`. `protectedList(undefined, "phax.json")` is null.
   - (b) `matchProtected` on the list from `["**/steme.baseline.json"]`:
     - `packages/a/STEME.Baseline.json` gives entry `protectedPaths[0]`;
     - `PHAX.JSON` gives entry `phax.json`;
     - `src/a.ts` gives undefined.
-  - (c) `protectedTrackedPaths` of that list over `["a/steme.baseline.json", "src/x.ts", "PHAX.json"]` equals `["a/steme.baseline.json", "PHAX.json"]`.
 - Cases for `protectedChanges`, on the list from `["**/steme.baseline.json"]` unless stated:
 
   - (d) The kinds:
     - entries: added `packages/a/steme.baseline.json`; deleted `packages/b/steme.baseline.json`; renamed from `packages/c/steme.baseline.json` to `packages/c/old.json`; renamed from `packages/d/x.json` to `packages/d/steme.baseline.json`;
-    - tracked: b `missing`, c `missing`;
+    - tracked: b `missing`;
     - untracked: none;
     - expected: exactly a `created`, b `deleted`, `packages/c/steme.baseline.json` `renamed` and `packages/d/steme.baseline.json` `renamed`, each with entry `protectedPaths[0]` and its glob, in that order, and nothing for `packages/c/old.json`.
   - (e) Type change and non-ASCII, on the list from `["**/steme.baseline.json", "**/règles.json"]`:
@@ -134,16 +131,13 @@ Fix the pure contract the protected-path guarantee rests on, with stub functions
   - (j) An entry modified `packages/a/steme.baseline.json` with tracked a `content` gives one change, not two.
 - Cases for native rules and enforcement:
 
-  - (k) `nativeProtectedGlobs` of the list from `["**/steme.baseline.json", "config/*.json", "locks/[a].json", "a/**/b.json", "**/x/?.json", "**/config/limits.json", "docs/limits.json"]` equals, in order:
-    - any-depth `steme.baseline.json`;
-    - any-depth `config/limits.json`;
-    - literal `docs/limits.json`;
-    - literal `phax.json`.
   - (l) `claudeProtectedDenyRules("/wt", …)` and `claudeProtectedDenyRules("/wt/", …)` of the list from `["**/steme.baseline.json", "config/*.json", "locks/[a].json"]` both equal `["Edit(//wt/**/steme.baseline.json)", "Edit(//wt/phax.json)"]`.
   - (m) `vibeProtectedDenylist("/wt", …)` of the list from `["**/steme.baseline.json", "config/*.json"]` equals `["/wt/steme.baseline.json", "/wt/**/steme.baseline.json", "/wt/phax.json"]`.
   - (n) One table test of `protectedEnforcement`:
     - on the list from `["**/steme.baseline.json"]`: claude-code secure and mistral-vibe secure give `enforced`; codex-cli secure, claude-code unsafe, mistral-vibe unsafe and claude-code isolated give `commit-check-only`;
     - on the list from `["**/steme.baseline.json", "config/*.json"]`: claude-code secure and mistral-vibe secure give `partial`.
+
+  `protectedTrackedPaths`, `nativeProtectedGlobs` and the precedence between disagreeing evidence are tested in phase-02, in-phase, not here.
 - Cases for the submodule refusal:
 
   - (o) `submoduleConflict(["**/allow.json", "vendor/lint-rules/allow.json"], ["vendor/lint-rules"])` gives `{ index 1, glob vendor/lint-rules/allow.json, submodule vendor/lint-rules }`.
@@ -182,8 +176,8 @@ The stable shapes are ProtectedList, ProtectedObservation and ProtectedChange. T
 ### Test strategy
 
 - a case variant of a protected path matches its entry, so packages/a/STEME.Baseline.json names protectedPaths[0] — small · example · the matching entry · oracle · ac-case
-- the protected list appends phax.json unless declared, is null when nothing is declared, and a change to phax.json is named with its entry — small · table · the expected list and change · oracle · ac-self
-- created, deleted and renamed protected paths are named, a rename on each side that matches, once per path and sorted — small · table · the expected change list · oracle · ac-kinds
+- the protected list appends the loaded phax.json by its repo-relative path unless declared, is null when nothing is declared, and a change to phax.json is named with its entry — small · table · the expected list and change · oracle · ac-self
+- created, deleted and renamed protected paths are named, a rename on each side that matches, once per path and sorted, from evidence that agrees — small · table · the expected change list · oracle · ac-kinds
 - a type change counts as edited and an untracked non-ASCII case variant as created, spelt as observed — small · example · the expected change list · oracle · ac-type-nonascii
 - a tracked protected file whose content differs from its base blob is edited although no name-status entry shows it — small · example · one edited change · oracle · ac-skip-worktree
 - an untracked ignored protected file is created, and an ignored file no glob matches is not named — small · example · one created change · oracle · ac-ignored
@@ -195,13 +189,14 @@ The stable shapes are ProtectedList, ProtectedObservation and ProtectedChange. T
 
 ### Implementation order
 
-1. Write the types, the constant and the stub functions in src/domain/security/protectedPaths.ts, with the contract comment.
+1. Write the types and the stub functions in src/domain/security/protectedPaths.ts, with the contract comment.
 2. Write the case table in tests/unit/security/protectedPaths.test.ts, every test marked it.fails.
 3. Run the gate and confirm every oracle fails on its stub and passes as marked.
 
 ### Excluded scope
 
 - Any implementation of the functions (phase-02).
+- The helpers `protectedTrackedPaths` and `nativeProtectedGlobs`, and the precedence between disagreeing evidence (phase-02, in-phase tests).
 - The config key, the git observation, provider flags, records and the fix loop (phase-03 onward).
 
 ### Verification
@@ -210,7 +205,7 @@ The `standard` gate profile in phax.json, whose oracle step the configured oracl
 
 ### Expected handoff content
 
-The exact exports of `src/domain/security/protectedPaths.ts` and their signatures. The case list of `tests/unit/security/protectedPaths.test.ts` with each expected value, and any case added beyond the plan, with the reason. Any deviation from the planned file lists, with the reason.
+The exact exports of `src/domain/security/protectedPaths.ts` and their signatures, and confirmation that the oracle test imports each one. The case list of `tests/unit/security/protectedPaths.test.ts` with each expected value, and any case added beyond the plan, with the reason. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -218,7 +213,7 @@ The exact exports of `src/domain/security/protectedPaths.ts` and their signature
 
 ### Commit body
 
-Fix the protected-path contract in src/domain/security/protectedPaths.ts, with stub functions that throw: the protected list with phax.json implied, case-folded matching, the changes an observation of a worktree yields (created, edited, deleted, renamed), the native rule forms and the Claude Code and Vibe rule strings, enforcement by provider and mode, and the submodule conflict. Freeze the case table as expected-failure oracles.
+Fix the protected-path contract in src/domain/security/protectedPaths.ts, with stub functions that throw: the protected list with the loaded phax.json implied by its repo-relative path, case-folded matching, the changes an observation of a worktree yields (created, edited, deleted, renamed), the Claude Code and Vibe rule strings, enforcement by provider and mode, and the submodule conflict. Freeze the case table as expected-failure oracles.
 
 ---
 
@@ -227,20 +222,29 @@ Fix the protected-path contract in src/domain/security/protectedPaths.ts, with s
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 
-Implement the protected-path contract so every oracle passes as written, and discharge them.
+Implement the protected-path contract so every oracle passes as written, and discharge them. Add the helpers later phases use, with in-phase tests.
 
 ### Detailed instructions
 
 - Implement every function of `src/domain/security/protectedPaths.ts` exactly as its module comment states. Keep the module pure, with the same imports.
-- `matchProtected`: call `matchesGlob(entry.glob.toLowerCase(), path.toLowerCase())` over the list in order. Do not change `src/domain/architecture/glob.ts`: the architecture parts and assignment bounds keep matching case-sensitively.
-- `protectedChanges`: collect evidence per path from `entries`, `tracked` and `untracked`. Name each path that `matchProtected` matches, with the kind the precedence gives (`renamed` over `created`, `created` over `deleted`, `deleted` over `edited`). Sort by path with the default string comparison.
+- `protectedList`: append `{ glob: configPath, entry: configPath }` unless a declared glob is exactly `configPath`. `matchProtected`: call `matchesGlob(entry.glob.toLowerCase(), path.toLowerCase())` over the list in order. Do not change `src/domain/architecture/glob.ts`: the architecture parts and assignment bounds keep matching case-sensitively.
+- `protectedChanges`: collect evidence per path from `entries`, `tracked` and `untracked`, and name each path that `matchProtected` matches. When the evidence for one path disagrees, `renamed` wins over `created`, `created` over `deleted`, and `deleted` over `edited`: a rename's source is also tracked `missing`, and it stays `renamed`. Sort by path with the default string comparison.
+- Add and export two helpers:
+
+  - `protectedTrackedPaths(list: ProtectedList, paths: readonly string[]): readonly string[]` keeps the paths some entry matches, in input order. The check use case (phase-06) calls it.
+  - `NativeProtectedGlob` { glob: string; form: `literal` | `any-depth`; path: string } and `nativeProtectedGlobs(list: ProtectedList): readonly NativeProtectedGlob[]`, in list order, with the native forms the module comment states (path = the glob, or the rest after `**/`). `claudeProtectedDenyRules`, `vibeProtectedDenylist` and `protectedEnforcement` all read it, so Claude Code and Vibe never disagree on which globs are exact.
 - `submoduleConflict`: compare case-folded paths, and require a segment boundary, so `vendor/lint-rules-extra` does not reach `vendor/lint-rules`.
+- Create `tests/unit/security/protectedPathsHelpers.test.ts`, plain tests importing from `src/domain/security/protectedPaths.ts`:
+
+  - `protectedTrackedPaths` of the list from `["**/steme.baseline.json"]` (config path `phax.json`) over `["a/steme.baseline.json", "src/x.ts", "PHAX.json"]` equals `["a/steme.baseline.json", "PHAX.json"]`.
+  - `nativeProtectedGlobs` of the list from `["**/steme.baseline.json", "config/*.json", "locks/[a].json", "a/**/b.json", "**/x/?.json", "**/config/limits.json", "docs/limits.json"]` equals, in order: any-depth `steme.baseline.json`, any-depth `config/limits.json`, literal `docs/limits.json`, literal `phax.json`.
+  - A precedence table of `protectedChanges`: renamed from `packages/c/steme.baseline.json` with tracked c `missing` gives `renamed`; added and untracked for one path gives `created`; deleted with tracked `content` gives `deleted`; modified with tracked `missing` gives `deleted`; each with one change per path.
 - Remove every `it.fails` marker from `tests/unit/security/protectedPaths.test.ts`, turning each `it.fails(` into `it(`. That is the only change allowed to that file. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.
 - Run the configured gate.
 
 ### Planned files to create
 
-- (none)
+- `tests/unit/security/protectedPathsHelpers.test.ts`
 
 ### Planned files to edit
 
@@ -253,19 +257,21 @@ Implement the protected-path contract so every oracle passes as written, and dis
 
 ### Boundary contracts
 
-Producer: src/domain/security/protectedPaths.ts, as phase-01 fixed it. No consumer changes in this phase.
+Producer: src/domain/security/protectedPaths.ts, as phase-01 fixed it, plus `protectedTrackedPaths` (consumed by the check use case, phase-06) and `nativeProtectedGlobs`. No consumer changes in this phase.
 
 ### Test strategy
 
-- (none)
+- protectedTrackedPaths keeps the base paths some entry matches, case-folded, in input order — small · example · the kept path list · in-phase
+- nativeProtectedGlobs classifies literal and **/ globs in list order, phax.json included, and leaves wildcard, bracket and inner ** globs out — small · table · the expected classification · in-phase
+- when the evidence for one path disagrees, renamed wins over created, created over deleted and deleted over edited, with one change per path — small · table · the expected change kinds · in-phase
 
 ### Implementation order
 
 1. protectedList, matchProtected and protectedTrackedPaths.
-2. protectedChanges.
+2. protectedChanges, with its precedence.
 3. nativeProtectedGlobs, then claudeProtectedDenyRules, vibeProtectedDenylist and protectedEnforcement.
 4. submoduleConflict.
-5. Remove the markers and run the gate.
+5. Write the helpers' tests, remove the markers and run the gate.
 
 ### Excluded scope
 
@@ -278,7 +284,7 @@ The `standard` gate profile in phax.json, whose oracle step the configured oracl
 
 ### Expected handoff content
 
-The implemented functions and any behaviour the module comment left implicit that you had to decide. Confirmation that the only change to tests/unit/security/protectedPaths.test.ts is the removal of the markers. Any deviation from the planned file lists, with the reason.
+The implemented functions, the two helpers and their signatures, the precedence as implemented, and any behaviour the module comment left implicit that you had to decide. Confirmation that the only change to tests/unit/security/protectedPaths.test.ts is the removal of the markers. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -286,7 +292,7 @@ The implemented functions and any behaviour the module comment left implicit tha
 
 ### Commit body
 
-Implement the protected list with phax.json implied, case-folded matching on every host, the protected changes an observation yields (a rename on both sides, a type change as edited, untracked and ignored creations), the native rule forms shared by Claude Code and Vibe with their rule strings, enforcement by provider and mode, and the submodule conflict. Discharges the oracles written in the previous phase.
+Implement the protected list with the loaded phax.json implied, case-folded matching on every host, the protected changes an observation yields (a rename on both sides, a type change as edited, untracked and ignored creations, and a precedence when evidence disagrees), the native rule forms shared by Claude Code and Vibe with their rule strings, enforcement by provider and mode, and the submodule conflict. Discharges the oracles written in the previous phase.
 
 ---
 
@@ -311,7 +317,7 @@ A project declares `protectedPaths` in phax.json. `phax validate` lists it, and 
 
   Normalize temporary paths, session ids, instants and commit hashes to placeholders. If a fake CLI does not log what you need, extend its log in tests/helpers/fakeProviderCli.ts or tests/helpers/vibe3Fixtures.ts. Also assert the phase's security.json and gate-attribution.json with explicit `toEqual` expectations of today's values, not a snapshot: phase-04 changes exactly those expectations. Run the test once, so it writes `tests/integration/__snapshots__/protectedPathsAdditive.test.ts.snap` from today's code. No later phase may change that snapshot.
 - Export the dialect's refusal text from `src/schemas/architecture.ts`. Rename `globProblem` to an exported `architectureGlobProblem`, keep its messages, and have ArchitectureGlobSchema use it as today.
-- In `src/schemas/phaxConfig.ts`, add to PhaxConfigSchema `protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema))`. Its annotation says: the files whose change is the operator's decision, which no phase of a run may create, change, delete or rename; phax.json is protected too; accepted in phax.json only; the glob dialect (GLOB_DIALECT), matched ignoring letter case. Add `readonly protectedPaths?: ProtectedList` to ResolvedConfig, documented as coming from phax.json alone. Then run `pnpm dev schema upgrade` to regenerate `phax.schema.json`. tests/unit/phaxConfigJsonSchema.test.ts compares it.
+- In `src/schemas/phaxConfig.ts`, add to PhaxConfigSchema `protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema))`. Its annotation says: the files whose change is the operator's decision, which no phase of a run may create, change, delete or rename; the phax.json phax loads is protected too, by its repo-relative path; accepted in phax.json only; the glob dialect (GLOB_DIALECT), matched ignoring letter case. Add `readonly protectedPaths?: ProtectedList` to ResolvedConfig, documented as coming from phax.json alone. Then run `pnpm dev schema upgrade` to regenerate `phax.schema.json`. tests/unit/phaxConfigJsonSchema.test.ts compares it.
 - Create `src/domain/config/gitmodules.ts`, pure, exporting `parseGitmodulesPaths(text: string): readonly string[]`. It returns the value of every `path = <value>` line, with whitespace trimmed, surrounding double quotes removed and trailing slashes dropped, in file order. It ignores comments (`#`, `;`) and every other key.
 - In `src/app/loadConfig.ts`, refuse `protectedPaths` in a user overlay in `readUserOverlay`, before its decode, beside the `assignments` refusal. The message is exactly `"protectedPaths" is accepted only in phax.json`, and the error's path is the overlay file.
 - In `src/app/loadConfig.ts`, check phax.json's raw `protectedPaths` before its full decode, when present:
@@ -320,15 +326,15 @@ A project declares `protectedPaths` in phax.json. `phax validate` lists it, and 
   - Every entry that is not a string, or for which `architectureGlobProblem` returns a message, is refused with `protectedPaths[N]: <message>`, for example `protectedPaths[0]: "../shared/allow.json" has a .. segment`.
   - Then read `<git root>/.gitmodules` when it exists, with node:fs as the loader already does, and refuse the first `submoduleConflict` with `protectedPaths[N]: "<glob>" is inside the submodule <path>`.
 
-  Each error's path is the phax.json path. Resolve `protectedPaths: protectedList(config.protectedPaths)` only when the key is declared.
-- In `src/cli/commands/validate.ts`, when `config.protectedPaths` is set, print `  protected paths: <glob>, <glob>` right after the `global:` line, with every glob of the list including phax.json, joined by `, `.
+  Each error's path is the phax.json path. Resolve `protectedPaths: protectedList(config.protectedPaths, configPath)` only when the key is declared, where `configPath` is the path of the phax.json that `findPhaxConfig` found, relative to the git root, with POSIX separators (`phax.json`, or `pkg/phax.json` for a config found below the root).
+- In `src/cli/commands/validate.ts`, when `config.protectedPaths` is set, print `  protected paths: <glob>, <glob>` right after the `global:` line, with every glob of the list including the loaded phax.json's repo-relative path, joined by `, `.
 - Tests:
 
   - Create `tests/unit/config/gitmodules.test.ts`.
-  - Extend `tests/unit/loadConfig.test.ts` with the overlay refusal for phax.local.json and for ~/.phax/config.json (HOME pointed at a temporary directory), the empty list, `../shared/allow.json`, `/abs/x.json`, the submodule refusal and the resolved list.
+  - Extend `tests/unit/loadConfig.test.ts` with the overlay refusal for phax.local.json and for ~/.phax/config.json, the empty list, `../shared/allow.json`, `/abs/x.json`, the submodule refusal, the resolved list, and the resolved list of a config found at `pkg/phax.json` from a cwd of `pkg/`, ending with `{ glob: "pkg/phax.json", entry: "pkg/phax.json" }`. For the ~/.phax/config.json case, call `isolatePhaxHome()` from tests/helpers/isolatePhaxHome.ts and write `<home>/.phax/config.json`, then `restore()`.
   - Extend `tests/unit/cli/validate.test.ts` with the `protected paths: **/steme.baseline.json, phax.json` line.
-  - Create `tests/integration/protectedPathsConfig.test.ts`: in temporary git repositories, it runs the CLI's validate and run entries, the way existing CLI integration tests do. For each refusal (overlay, submodule) it asserts exit 2 and the message on both commands, and for the declared list it asserts exit 0 and the line on validate.
-- In README.md, list `protectedPaths` where the README lists phax.json's keys, with the steme example from spec §6. Add to the `phax validate` line that it lists the protected paths and refuses `protectedPaths` in a user overlay.
+  - Create `tests/integration/protectedPathsConfig.test.ts`: in temporary git repositories, it runs the CLI's validate and run entries, the way existing CLI integration tests do. Every spawned CLI gets `env: phaxHomeEnv()` from tests/helpers/isolatePhaxHome.ts, since tests/setup/phaxHomeGuard.ts does not watch child processes; the ~/.phax/config.json overlay case calls `isolatePhaxHome()` first and writes the overlay in that home, which `phaxHomeEnv()` then hands the child. For each refusal (overlay, submodule) it asserts exit 2 and the message on both commands, and for the declared list it asserts exit 0 and the line on validate.
+- In README.md, edit only hand-written text, outside the `<!-- BEGIN GENERATED CLI REFERENCE -->` block: `pnpm docs:cli` regenerates that block and tests/integration/docsCliDrift.test.ts checks it, so phase-08 refreshes it. Add `"protectedPaths": ["**/steme.baseline.json"]` to the `phax.json` example under "Set up a project", and a `protectedPaths` bullet to the key list after it: the files whose change is the operator's decision, which no phase may create, change, delete or rename; the loaded phax.json is protected too; accepted in phax.json only; `phax validate` lists them.
 - Run the configured gate.
 
 ### Planned files to create
@@ -366,8 +372,9 @@ Config to domain: loadConfig decodes phax.json's raw `protectedPaths` and hands 
 ### Test strategy
 
 - phax validate prints protected paths: **/steme.baseline.json, phax.json and exits 0 for a declared list — medium · smoke · stdout and exit code · in-phase · ac-declare
+- a phax.json found at pkg/phax.json implies the entry pkg/phax.json, not a root phax.json — small · example · the resolved list · in-phase
 - an empty list, a .. segment and a leading / are each refused with exit 2, the last two naming protectedPaths[0] and the rule broken — medium · table · stderr and exit code · in-phase · ac-malformed
-- protectedPaths in phax.local.json or ~/.phax/config.json is refused by validate and run with exit 2, naming the overlay file — medium · table · the refusal message, its at path and exit 2 · in-phase · ac-overlay
+- protectedPaths in phax.local.json or ~/.phax/config.json is refused by validate and run with exit 2, naming the overlay file, with the CLI child's HOME in a temporary home — medium · table · the refusal message, its at path and exit 2 · in-phase · ac-overlay
 - a glob inside a .gitmodules submodule is refused by validate and by run with exit 2, naming protectedPaths[0] and vendor/lint-rules — medium · example · stderr and exit code · in-phase · ac-submodule
 - .gitmodules paths are read from path lines, quoted or not, and a file with none gives none — small · example · the parsed path list · in-phase
 - a phase on each provider through the fake CLIs, with a red then a green gate attempt, keeps its argv, environment, phase prompt, fix prompt, gate logs and output — medium · smoke · the snapshot taken before any behaviour change · in-phase · ac-nothing
@@ -392,7 +399,7 @@ The `standard` gate profile in phax.json.
 
 ### Expected handoff content
 
-The exact messages of each refusal, and where in loadConfig they sit. The `ResolvedConfig.protectedPaths` field. The path of the additive snapshot test, how it normalizes paths and ids, what it records per provider, and which helper logs you extended. Confirm that the snapshot was written before any source change. Any deviation from the planned file lists, with the reason.
+The exact messages of each refusal, and where in loadConfig they sit. The `ResolvedConfig.protectedPaths` field, and how the loaded config's repo-relative path is computed. The path of the additive snapshot test, how it normalizes paths and ids, what it records per provider, and which helper logs you extended. Confirm that the snapshot was written before any source change. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -400,7 +407,7 @@ The exact messages of each refusal, and where in loadConfig they sit. The `Resol
 
 ### Commit body
 
-phax.json gains a top-level protectedPaths list in phax's glob dialect, with phax.json itself protected. Every command that loads the configuration refuses, with exit 2, an empty list, an entry that breaks the dialect (named protectedPaths[N]), the key in phax.local.json or ~/.phax/config.json, and a glob that reaches into a submodule declared in .gitmodules. phax validate lists the protected paths. A snapshot test pins the argv, environment, prompts, gate logs and output of a phase on each provider for a project that declares nothing.
+phax.json gains a top-level protectedPaths list in phax's glob dialect, with the phax.json phax loaded protected too, named by its repo-relative path. Every command that loads the configuration refuses, with exit 2, an empty list, an entry that breaks the dialect (named protectedPaths[N]), the key in phax.local.json or ~/.phax/config.json, and a glob that reaches into a submodule declared in .gitmodules. phax validate lists the protected paths. A snapshot test pins the argv, environment, prompts, gate logs and output of a phase on each provider for a project that declares nothing.
 
 ---
 
@@ -428,7 +435,7 @@ Every phase's security.json is written at version 3, with a required `protectedP
   - Export the frozen types from `packages/schemas/src/index.ts`, and add the module to the closure allowlist in `tests/unit/architecturalGuards.test.ts`.
 - In `src/schemas/gateAttribution.ts`, add `protectedPaths` to the attribution's fields. It is required and is the union `null` | `{ result: "pass", changes: Tuple() }` | `{ result: "fail", changes: NonEmptyArray({ path: NonEmptyString, kind: Literal("created", "edited", "deleted", "renamed"), entry: NonEmptyString }) }`. Define the kind literals in this schema file, so the schemas package closure gains no domain module.
 - In `src/app/gates.ts`, `writeAttribution` writes `protectedPaths: null` in the step record and in gate-attribution.json.
-- Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/gate-attribution/next.schema.json`, the history lock entry, `src/schemas/release.ts` (gate-attribution at 0.31.0) and `packages/schemas/src/generated/index.ts`. Then make every exhaustive format registry in the schemas package tests and `tests/type/schemasPackage.ts` name the new release. `pnpm test:type` names every fixture that builds a GateAttribution or a SecurityPosture: give each `protectedPaths: null` and, for a posture, `version: 3`.
+- Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/gate-attribution/next.schema.json`, the history lock entry, `src/schemas/release.ts` (gate-attribution at 0.31.0) and `packages/schemas/src/generated/index.ts`. Then make every exhaustive format registry in the schemas package tests and `tests/type/schemasPackage.ts` name the new release. `pnpm test:type` names every fixture that builds a GateAttribution or a SecurityPosture: give each `protectedPaths: null` and, for a posture, `version: 3`. That includes the SecurityPosture fixtures of tests/unit/continueCommands.test.ts and the GateAttribution fixtures of tests/unit/verifiedSurfaces.test.ts.
 - In `tests/integration/protectedPathsAdditive.test.ts`, change only the explicit security.json and gate-attribution.json expectations: `version: 3`, `protectedPaths: null`, the 0.31.0 `$schema` and `protectedPaths: null`. Its snapshot must not change.
 - Add tests:
 
@@ -463,6 +470,8 @@ Every phase's security.json is written at version 3, with a required `protectedP
 - `tests/integration/protectedPathsAdditive.test.ts`
 - `tests/helpers/stoppedRunFixture.ts`
 - `docs/upgrading.md`
+- `tests/unit/continueCommands.test.ts`
+- `tests/unit/verifiedSurfaces.test.ts`
 
 ### Optional files that may be edited
 
@@ -530,7 +539,8 @@ security.json is written at version 3 with a required protectedPaths: null when 
 ## phase-05 — Native protected-path rules, the grant refusal and the phase prompt {#phase-05-native-rules}
 
 **Recommended model:** claude-sonnet-5-5
-**Recommended effort:** medium
+**Recommended effort:** high
+**Assignment reason:** The phase makes 19 planned edits across two providers (Claude Code's merged settings and Vibe's denylists with its resolved root and read-back), the run preflight and its exit code, the phase prompt, integration scenarios on three providers and two real-CLI e2e files.
 
 In secure mode, Claude Code's file-editing tools and Mistral Vibe's write_file and edit refuse every protected literal and `**/` path natively, in the phase turn, each fix attempt and the handoff turn. Codex and unsafe mode get no rule. A skill edit grant on a protected path is refused at preflight with exit 11. The phase prompt tells the agent which files are the operator's.
 
@@ -538,36 +548,36 @@ In secure mode, Claude Code's file-editing tools and Mistral Vibe's write_file a
 
 - `src/ports/backend.ts`: add `readonly protectedPaths?: ProtectedList | undefined` to AgentRunOptions, documented beside `skillEditGrants`: the protected list, from which the claude and Vibe adapters derive native rules in secure mode, and which codex ignores. In `src/app/executePlan.ts`, add it to every AgentRunOptions a phase builds (the places that set `skillEditGrants`), only when `config.protectedPaths` is defined. The fix loop and the handoff reuse those options, so the three turns share them.
 - Claude Code. In `src/infra/providers/claudeSkillEditSettings.ts`, add `buildClaudeSessionSettings(worktreeRoot, grants, denyRules): object | undefined`. It merges the skill-edit hooks object (or nothing) with `permissions: { deny: denyRules }` when denyRules is non-empty, and returns undefined when both are empty. With deny rules and no grants it is exactly `{"permissions":{"deny":[…]}}`. Keep `buildSkillEditGrantSettings` for the hooks part.
-- In `src/infra/providers/claudeCode.ts` `buildArgs`, pass `claudeProtectedDenyRules(resolveWorktreeRoot(options.cwd), options.protectedPaths)` only when `options.security.mode === "secure"` and a list is set. Keep today's grant condition for the hooks. Rename `grantSettings` to `settings` in `src/domain/session/claudePermissionFlags.ts` and update its comment: one inline `--settings` object holding the skill-edit hooks and the protected-path deny rules, passed only when either exists.
+- In `src/infra/providers/claudeCode.ts` `buildArgs`, pass `claudeProtectedDenyRules(resolveWorktreeRoot(options.cwd), options.protectedPaths)` only when `options.security.mode === "secure"` and a list is set. Keep today's grant condition for the hooks. Pass the merged object through the existing `grantSettings` field of `src/domain/session/claudePermissionFlags.ts`, keeping its name (src/domain/session/claude.ts sets it too), and update only its comments: one inline `--settings` object holding the skill-edit hooks and the protected-path deny rules, passed only when either exists.
 - Mistral Vibe. In `src/domain/session/vibeFlags.ts`:
 
-  - Add `readonly protectedPaths?: ProtectedList | undefined` to VibeFlagsInput.
-  - In the secure, non-read-only branch, append `vibeProtectedDenylist(cwd, list)` to the `write_file` and `edit` denylists, after the `.vibe`/`.agents` guards. Use the worktree only, not the extra roots.
+  - Add `readonly protectedPaths?: { readonly root: string; readonly list: ProtectedList } | undefined` to VibeFlagsInput, where `root` is the worktree's resolved path.
+  - In the secure, non-read-only branch, append `vibeProtectedDenylist(root, list)` to the `write_file` and `edit` denylists, after the `.vibe`/`.agents` guards. Use the worktree only, not the extra roots.
   - Read-only and unsafe sessions get nothing.
   - `vibeConfigMismatch` already rebuilds the expected tools from the input. Check that it then accepts an export whose denylists hold the protected entries.
 
-  In `src/infra/providers/mistralVibe.ts`, pass `options.protectedPaths` into every VibeFlagsInput it builds for a phase session. The codex adapter is untouched.
+  In `src/infra/providers/mistralVibe.ts`, `vibeFlagsInputOf` resolves `options.cwd` with `realpathSync`, falling back to the path as given, as claudeCode.ts's `resolveWorktreeRoot` does, and sets `protectedPaths: { root, list: options.protectedPaths }` when a list is set. Spec §10 puts the entries under the worktree's resolved path, and Vibe's fnmatch compares resolved paths (macOS `/var` is `/private/var`). Build the turn's environment from the same `flagsInput` the post-turn `vibeConfigMismatch(flagsInput, config)` reads, instead of calling `vibeFlagsOf` a second time, so both see the same resolved entries. Leave `cwd`, `--workdir` and the guards as given, so a project that declares nothing builds today's argv and environment. The codex adapter is untouched.
 - Grant refusal. In `src/domain/security/skillEditGrants.ts`, add a pure `skillEditProtectedConflicts(phases, list)`. It gives `{ phaseId, file, entry }` for each granted file (`phaseSkillEditGrants`) that `matchProtected` matches.
 - In `src/domain/errors.ts`, add `SkillEditProtectedError { message, conflicts }`. Its message starts `Security preflight failed: a skill edit grant names a protected path.` and gives one line per conflict, `  <phaseId>: <file> (<entry> <glob>)`. Add `skillEditProtectedRefusal(phases, allowSkillEdits, list)` in `src/app/skillEditConsent.ts`, which refuses only when consent is given and a list is set.
-- Call `skillEditProtectedRefusal` in `src/app/runPreflight.ts`'s `freshRunPreflight`, right after the consent refusal, and in the `skill-edit-consent` preflight entry, over the phases from `startIndex`. Map the error to exit 11 in `src/cli/commands/runLayers.ts`, beside SkillEditConsentError.
+- Call `skillEditProtectedRefusal` in `src/app/runPreflight.ts`'s `freshRunPreflight`, right after the consent refusal, and in the `skill-edit-consent` preflight entry, over the phases from `startIndex`. Map the error to exit 11 in `src/cli/commands/runLayers.ts`, beside SkillEditConsentError. `src/cli/commands/run.ts` prints SkillEditConsentError's message as is when the preflight refuses (`if (err instanceof SkillEditConsentError)`, near line 424); give SkillEditProtectedError the same branch if it would otherwise print under `phax run failed:`.
 - Phase prompt. In `src/app/promptGeneration.ts`, add `readonly protectedPaths?: readonly string[] | undefined` to BuildPhasePromptOptions. When it is set, render a `## Protected paths` section right before `## Execution rules`, with the text of spec §6:
 
   - These files are the operator's decision. No phase may create, change, delete or rename them, by any tool or command.
-  - One `- <glob>` line per glob, phax.json included.
+  - One `- <glob>` line per glob, the loaded phax.json's repo-relative path included.
   - If a hole cannot be fixed in the code, leave the gate failing and explain the hole in your reply. Never accept it in a protected file, and never work around it.
 
   Pass the list's globs from executePlan when `config.protectedPaths` is defined.
 - Tests:
 
   - `tests/unit/providers/claudeSkillEditSettings.test.ts`: the merged object for grants plus deny rules, deny rules alone, and neither.
-  - `tests/unit/session/vibeFlags.test.ts`: the denylists for `["**/steme.baseline.json", "config/*.json"]`, with phax.json implied, after the guards; nothing for unsafe and read-only sessions; `vibeConfigMismatch` accepting the matching export and naming a denylist that lacks an entry.
+  - `tests/unit/session/vibeFlags.test.ts`: the denylists for `["**/steme.baseline.json", "config/*.json"]`, with phax.json implied, after the guards and under `root`, not `cwd`; nothing for unsafe and read-only sessions; `vibeConfigMismatch` accepting the matching export and naming a denylist that lacks an entry.
   - `tests/unit/security/skillEditGrants.test.ts`: the conflict function.
   - `tests/integration/skillEditConsent.test.ts`: `phax run --allow-skill-edits` with `.claude/skills/release/SKILL.md` planned and `protectedPaths: [".claude/skills/**"]` exits 11 before any phase folder exists, naming the file and `protectedPaths[0]`.
   - `tests/unit/promptGeneration.test.ts`: the section, and its absence when nothing is declared. The existing snapshot must not change.
 - Create `tests/integration/protectedPathsNativeRules.test.ts`. Through the fake CLIs and the real backend:
 
   - A claude-code secure phase in a worktree, with `["**/steme.baseline.json", "config/*.json", "locks/[a].json"]` and one planned skill file run with `--allow-skill-edits`. Its phase turn, a fix attempt (red gate, then green) and its handoff turn each carry one `--settings` holding the hooks and exactly `Edit(//<wt>/**/steme.baseline.json)` and `Edit(//<wt>/phax.json)`, and security.json records `partial`.
-  - A mistral-vibe secure phase with `["**/steme.baseline.json", "config/*.json"]`, whose VIBE_TOOLS denylists hold the three entries after the guards, whose post-turn read-back accepts them, and whose security.json records `partial`.
+  - A mistral-vibe secure phase with `["**/steme.baseline.json", "config/*.json"]` in a temporary worktree (a symlinked path on macOS), whose VIBE_TOOLS denylists hold the three entries after the guards under the worktree's realpath, whose post-turn read-back accepts them, and whose security.json records `partial`.
   - A codex-cli secure phase and a claude-code `--security unsafe` phase, whose argv carry no protected-path rule and whose security.json files record `commit-check-only`.
 - Real-CLI e2e, which the phase gate does not run (`PHAX_E2E_RUN=1` only). Create `tests/e2e/claudeProtectedPaths.test.ts`, modelled on tests/e2e/claudeSkillEditGrant.test.ts. With `buildArgs` in secure mode and `["**/steme.baseline.json"]`, ask the real Claude Code to Write and then Edit `packages/a/steme.baseline.json`, and assert that the file is unchanged and that the transcript shows a denied tool result for each call. In `tests/e2e/vibeSecure.test.ts`, add a case with `["config/limits.json", "**/allow.json"]`: the agent is asked to write_file and edit `config/limits.json`, `allow.json` at the worktree root and `packages/a/allow.json`, and every call is refused with every file unchanged.
 - Run the configured gate. The additive snapshot of phase-03 must stay unchanged.
@@ -607,6 +617,7 @@ In secure mode, Claude Code's file-editing tools and Mistral Vibe's write_file a
 - `tests/helpers/vibe3Fixtures.ts`
 - `src/app/dryRun.ts`
 - `tests/integration/skillEditGrants.test.ts`
+- `src/cli/commands/run.ts`
 
 ### Boundary contracts
 
@@ -616,10 +627,10 @@ App to backend port: AgentRunOptions carries the protected list, and the adapter
 
 - a claude-code secure phase turn, fix attempt and handoff turn each carry one --settings with the grant hooks and the two protected deny rules, none for the wildcard or bracket glob, and security.json records partial — medium · example · the recorded argv and security.json · in-phase · ac-claude-flags
 - --settings holds only permissions.deny with protected paths and no grant, and no --settings is passed with neither — small · example · the settings object · in-phase · ac-nothing
-- a mistral-vibe secure turn's write_file and edit denylists hold the literal, root and nested entries after the guards, nothing for config/*.json, and the post-turn read-back accepts them — medium · example · VIBE_TOOLS, vibeConfigMismatch and security.json · in-phase · ac-vibe-flags
+- a mistral-vibe secure turn's write_file and edit denylists hold the literal, root and nested entries after the guards under the worktree's realpath, nothing for config/*.json, and the post-turn read-back accepts them — medium · example · VIBE_TOOLS, vibeConfigMismatch and security.json · in-phase · ac-vibe-flags
 - a codex-cli secure phase and a claude-code unsafe phase carry no protected-path rule and record commit-check-only — medium · example · the recorded argv and security.json · in-phase · ac-codex-unsafe
 - phax run --allow-skill-edits refuses with exit 11, before any phase, a granted skill file that a protected glob matches, naming the file and protectedPaths[0] — medium · example · stderr, exit code and no phase folder · in-phase · ac-grant-conflict
-- the phase prompt carries a Protected paths section listing the globs and phax.json and the instruction to leave an unfixable hole failing, and carries none when nothing is declared — small · example · the prompt text · in-phase · ac-phase-prompt
+- the phase prompt carries a Protected paths section listing the globs and the loaded phax.json and the instruction to leave an unfixable hole failing, and carries none when nothing is declared — small · example · the prompt text · in-phase · ac-phase-prompt
 - the real Claude Code CLI denies Write and Edit of a protected file and leaves it unchanged; run by the review under PHAX_E2E_RUN=1, not by the gate — large · smoke · the file content and the denied tool results · in-phase · ac-claude-e2e
 - the real Vibe CLI refuses write_file and edit of a literal, a root **/ and a nested **/ protected file; run by the review under PHAX_E2E_RUN=1, not by the gate — large · smoke · the file contents and the refused calls · in-phase · ac-vibe-e2e
 
@@ -644,7 +655,7 @@ The `standard` gate profile in phax.json. The two e2e tests are skipped without 
 
 ### Expected handoff content
 
-The AgentRunOptions field and every place executePlan sets it. The signature of buildClaudeSessionSettings and the exact --settings JSON for each case. Where the Vibe entries join the denylists. The SkillEditProtectedError message. The phase prompt section's text and its position. The names of the e2e tests, for the reviewer to run. Confirmation that the additive snapshot did not change. Any deviation from the planned file lists, with the reason.
+The AgentRunOptions field and every place executePlan sets it. The signature of buildClaudeSessionSettings and the exact --settings JSON for each case. Where the Vibe entries join the denylists, and where the adapter resolves the worktree root. The SkillEditProtectedError message. The phase prompt section's text and its position. The names of the e2e tests, for the reviewer to run. Confirmation that the additive snapshot did not change. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -660,24 +671,23 @@ In secure mode, Claude Code's file-editing tools get one Edit(//<worktree>/<glob
 
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** high
-**Assignment reason:** The phase adds a git observation no adapter method makes today: a temporary-index tree diffed with NUL paths, renames and type changes, a per-file comparison with base blobs that bypasses the index, and a listing of ignored files.
+**Assignment reason:** The phase adds a git observation no adapter method makes today: a temporary-index tree diffed with NUL paths and renames through a shared parser that must keep its current callers unchanged, a per-file comparison with base blobs that bypasses the index, and a listing of ignored files.
 
 phax can observe, through the Git port, every way a worktree differs from a commit: tracked changes with renames and type changes, read with NUL-separated paths; protected tracked files compared with their base blobs whatever the index says; and untracked ignored files. phax can also turn that observation into the phase's protected changes.
 
 ### Detailed instructions
 
-- Create `src/domain/reconciliation/parseNameStatusZ.ts`, pure, exporting `parseNameStatusZ(stdout: string): readonly ObservedEntry[]`, with ObservedEntry from src/domain/security/protectedPaths.ts. It parses `git diff-tree -z -r -M --name-status` output: NUL-separated fields, a status code then one path, or two paths for `R<score>` and `C<score>`. The codes map as follows: `A` and `C` (new path) to `added`, `M` to `modified`, `D` to `deleted`, `T` to `type-changed`, and `R` to `renamed` with `oldPath`. Paths are kept as written, with no trimming. Unknown codes are skipped. Leave src/domain/reconciliation/parseNameStatus.ts unchanged: file reconciliation relies on it as it is.
-- `src/ports/git.ts`: add `observeWorktree(path: string, base: string, trackedPaths: readonly string[]): Effect.Effect<ProtectedObservation, GitError>`. Document it: the worktree at `path`, as it stands on disk, against commit `base`. `entries` is the name-status of base against a tree of the worktree built in a temporary index seeded from HEAD, `.phax-context/` left out. `tracked` holds, for each given path, how the file on disk compares with its blob at base. `untracked` holds the untracked files git ignores, outside `.phax-context/`. The real index is never touched.
+- In `src/infra/git.ts`, give `parseDiffTreeNameStatusZ` a rename mode instead of adding a parser. With renames on, an `R<score>` status is followed by two NUL-terminated paths, the old then the new, and gives a row `{ status: "R"; oldPath; path }`; `A`, `M`, `D` and `T` read as today. With renames off, `R` and every other code stay refused with a GitError, exactly as today. `changedPathsBetween` calls it with renames off and keeps `--no-renames`, its port signature and its ChangedPath rows, so closeStop, resetPhase, reviewCode and interactiveStop see no change. Keep the rename row type local to src/infra/git.ts. Paths are kept as written, with no trimming. Leave src/domain/reconciliation/parseNameStatus.ts unchanged: file reconciliation relies on it as it is.
+- `src/ports/git.ts`: add `observeWorktree(path: string, base: string, trackedPaths: readonly string[]): Effect.Effect<ProtectedObservation, GitError>`. Document it: the worktree at `path`, as it stands on disk, against commit `base`. `entries` is the name-status, with renames, of base against a tree of the worktree built in a temporary index seeded from HEAD, `.phax-context/` left out. `tracked` holds, for each given path, how the file on disk compares with its blob at base. `untracked` holds the untracked files git ignores, outside `.phax-context/`. The real index is never touched.
 - In `src/infra/git.ts`, implement `observeWorktree`:
 
-  - Build the tree as `snapshotWorktree` does; factor out its effect rather than copying it.
-  - Run `git diff-tree -z -r -M --name-status --no-ext-diff <base> <tree>` and parse it with parseNameStatusZ.
+  - Build the tree with `snapshotWorktreeEffect`, the effect behind `snapshotWorktree`.
+  - Run `git diff-tree -z -r -M --name-status --no-ext-diff <base> <tree>` and read it with `parseDiffTreeNameStatusZ` in rename mode. Map `A` to `added`, `M` to `modified`, `D` to `deleted`, `T` to `type-changed`, and `R` to `renamed` with `oldPath`.
   - For `trackedPaths`, read their modes and blob ids at base with `git ls-tree -z <base> -- <paths>`. Then lstat each worktree file: absent gives `missing`; a symbolic link against a non-link base mode, or the reverse, gives `type`; a symbolic link gives `content` when its target, hashed as a blob, differs; a regular file gives `content` when `git hash-object --path=<path> -- <file>` differs or the executable bit differs from the base mode; otherwise `same`. Skip submodule (160000) entries.
   - Run `git ls-files -z --others --ignored --exclude-standard` for `untracked`, dropping `.phax-context/` paths.
   - Decode every path as UTF-8.
 - In `src/infra/fakes/git.ts`, implement `observeWorktree`. It records the call and returns a scripted observation per path, defaulting to the empty observation `{ entries: [], tracked: trackedPaths.map(p => ({ path: p, state: "same" })), untracked: [] }`.
 - Create `src/app/protectedPathsCheck.ts`, exporting `checkProtectedPaths({ worktree, base, list }): Effect.Effect<readonly ProtectedChange[], GitError, Git>`. It reads the base's paths with `readTree(worktree, base)`, keeps `protectedTrackedPaths(list, paths)`, calls `observeWorktree` and returns `protectedChanges(list, observation)`. Changes are judged against `base`, never HEAD, so a commit the agent made during its turn is still checked.
-- Create `tests/unit/reconciliation/parseNameStatusZ.test.ts`, a table of every code, two-path renames and copies, and names holding a tab, a newline, a leading space and non-ASCII characters.
 - Create `tests/integration/protectedPathsCheck.test.ts`, which runs `checkProtectedPaths` with the real git adapter in temporary repositories (isolateGit). Each case commits a base, then changes the worktree:
 
   - Create `packages/a/steme.baseline.json`, delete `packages/b/steme.baseline.json`, `git mv packages/c/steme.baseline.json packages/c/old.json`, and `git mv packages/d/x.json packages/d/steme.baseline.json`. Expect a created, b deleted, c renamed, d renamed.
@@ -687,14 +697,12 @@ phax can observe, through the Git port, every way a worktree differs from a comm
   - Commit an edit of the protected file in the worktree. Expect it edited against the base.
   - A clean worktree gives `[]`.
 
-  Add one contract case: the fake's default observation equals the real adapter's observation of a clean worktree for the same tracked paths.
+  Add a case whose renamed and created names hold a tab, a newline, a leading space and non-ASCII characters, which the adapter reports spelt as written. Add one contract case: the fake's default observation equals the real adapter's observation of a clean worktree for the same tracked paths.
 - Run the configured gate.
 
 ### Planned files to create
 
-- `src/domain/reconciliation/parseNameStatusZ.ts`
 - `src/app/protectedPathsCheck.ts`
-- `tests/unit/reconciliation/parseNameStatusZ.test.ts`
 - `tests/integration/protectedPathsCheck.test.ts`
 
 ### Planned files to edit
@@ -705,7 +713,6 @@ phax can observe, through the Git port, every way a worktree differs from a comm
 
 ### Optional files that may be edited
 
-- `src/domain/reconciliation/types.ts`
 - `tests/helpers/tempGit.ts`
 - `tests/helpers/isolateGit.ts`
 
@@ -720,20 +727,20 @@ App to Git port: the use case needs every difference between a worktree on disk 
 - an edit under git update-index --skip-worktree is edited although git diff shows nothing — medium · example · the change list beside an empty git diff · in-phase · ac-skip-worktree
 - a protected file created under a .gitignore folder is created — medium · example · the change list · in-phase · ac-ignored
 - a protected edit the agent committed itself is judged against the phase base, not HEAD — medium · example · the change list · in-phase
-- NUL-separated name-status output parses every code, keeps T as type-changed and both rename paths, whatever characters a name holds — small · table · the parsed entries · in-phase
+- the adapter's NUL name-status read keeps T as type-changed and both paths of a rename, whatever characters a name holds — medium · example · the observation of a temporary repository · in-phase
 - the fake git's default observation equals the real adapter's observation of a clean worktree — medium · contract · the same case run on both · in-phase
 
 ### Implementation order
 
-1. Write parseNameStatusZ and its table.
-2. Add the port method and its adapter, factoring the snapshot tree out of snapshotWorktree.
+1. Give parseDiffTreeNameStatusZ its rename mode, leaving changedPathsBetween as it is.
+2. Add the port method and its adapter, reusing snapshotWorktreeEffect.
 3. Add the fake method.
 4. Write the use case and the real-git tests, then run the gate.
 
 ### Excluded scope
 
 - Any caller of checkProtectedPaths in the run (phase-07, phase-08).
-- Any change to parseNameStatus or file reconciliation.
+- Any change to parseNameStatus, file reconciliation, or changedPathsBetween's behaviour and signature.
 
 ### Verification
 
@@ -741,7 +748,7 @@ The `standard` gate profile in phax.json.
 
 ### Expected handoff content
 
-The exact signature of `Git.observeWorktree` and `checkProtectedPaths` (src/app/protectedPathsCheck.ts). The git commands the adapter runs, and how the snapshot tree was factored out of snapshotWorktree. How the fake is scripted. The cost observed on a worktree with node_modules, if you measured it. Any deviation from the planned file lists, with the reason.
+The exact signature of `Git.observeWorktree` and `checkProtectedPaths` (src/app/protectedPathsCheck.ts). The git commands the adapter runs, how `parseDiffTreeNameStatusZ` gained its rename mode, and confirmation that `changedPathsBetween` is unchanged. How the fake is scripted. The cost observed on a worktree with node_modules, if you measured it. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -749,7 +756,7 @@ The exact signature of `Git.observeWorktree` and `checkProtectedPaths` (src/app/
 
 ### Commit body
 
-The Git port gains observeWorktree. It diffs a temporary-index tree of the worktree against a base commit, reading NUL-separated paths with renames and type changes. It compares given tracked files on disk with their base blobs, so skip-worktree and assume-unchanged bits cannot hide an edit, and it lists untracked ignored files. checkProtectedPaths turns that observation into the protected changes of a phase, judged against its base and never against HEAD.
+The Git port gains observeWorktree. It diffs a temporary-index tree of the worktree against a base commit with rename detection, read by the NUL name-status parser changedPathsBetween already uses, which gains a rename mode. It compares given tracked files on disk with their base blobs, so skip-worktree and assume-unchanged bits cannot hide an edit, and it lists untracked ignored files. checkProtectedPaths turns that observation into the protected changes of a phase, judged against its base and never against HEAD.
 
 ---
 
@@ -776,15 +783,16 @@ In a project that declares `protectedPaths`, every gate attempt of a phase check
   - A failed step keeps its own kind and carries the changes.
   - A refused step pauses as today and carries the changes.
 
-  In `src/app/executePlan.ts`, pass `{ list: config.protectedPaths, base }` when a list is declared, else null. `base` is the `base` the phase's status.json records (createPhaseFolder writes it, and phaseFactsFor reads it). Add `protectedPaths: null` in `tests/integration/fixLoop.test.ts` and every other caller.
+  In `src/app/executePlan.ts`, pass `{ list: config.protectedPaths, base }` when a list is declared, else null. `base` is the `base` the phase's status.json records (createPhaseFolder writes it, and phaseFactsFor reads it). Add `protectedPaths: null` at the other two callers, `tests/integration/fixLoop.test.ts` and `tests/integration/telemetry/adapterFailures.test.ts`.
 - Events and errors, which are in memory only:
 
-  - In `src/domain/events.ts`, GateFailed and FixAttemptsExhausted become unions discriminated by `failedStep`. The step variant (`configured` | `oracle`) keeps `command` and `exitCode` and adds `protectedChanges: readonly ProtectedChange[]`. The `protected-paths` variant has non-empty `protectedChanges` and no command or exit code. GateStepRefused gains `protectedChanges`.
-  - In `src/domain/errors.ts`, GateAttemptsExhaustedError gets the same variants, and GateStepRefusedError gains `protectedChanges`, which `src/app/gates.ts` sets to `[]`. GateFailedError stays as it is.
+  - In `src/domain/events.ts`, GateFailed and FixAttemptsExhausted, which are interfaces, become unions discriminated by `failedStep`. The step variant (`configured` | `oracle`) keeps `command` and `exitCode` and adds `protectedChanges: readonly ProtectedChange[]`. The `protected-paths` variant has non-empty `protectedChanges` and no command or exit code. GateStepRefused gains `protectedChanges`.
+  - In `src/domain/errors.ts`, GateAttemptsExhaustedError stays one `Data.TaggedError` class: `Data.TaggedError("E")<A | B>` does not compile (TS2509). Replace its `command`, `exitCode` and `failedStep` fields with one required field `failure: { readonly failedStep: "configured" | "oracle"; readonly command: string; readonly exitCode: number; readonly protectedChanges: readonly ProtectedChange[] } | { readonly failedStep: "protected-paths"; readonly protectedChanges: readonly [ProtectedChange, ...ProtectedChange[]] }`, keeping `message`, `logPath`, `attempt` and `phaseId`. Every reader of the old fields reads them through `failure`. GateStepRefusedError gains `protectedChanges`, which `src/app/gates.ts` sets to `[]`. GateFailedError stays as it is.
   - Adapt `src/app/eventAdapter.ts`.
   - In `src/domain/reducer.ts`, keep the transitions. `lastError` for the protected variant reads `Gate failed: protected paths changed (<path>, …)`.
   - Pass `protectedChanges` and the last fix transcript through the effect context in `src/domain/effects.ts` and `src/app/effectRunner.ts` to the resume instructions.
   - Widen every `"configured" | "oracle"` failedStep type that these reach to include `"protected-paths"`.
+  - Give every test fixture that builds these events or errors, or a BuildFixPromptInput, its new field: tests/unit/events.test.ts, tests/unit/reducer.test.ts, tests/unit/reducerGateRefusal.test.ts, tests/integration/dispatcher.test.ts, tests/unit/whatsNext.test.ts, tests/unit/reportVocabulary.test.ts, tests/unit/cli/run.test.ts, tests/unit/readmeExitCodes.test.ts and tests/unit/stopTelemetry.test.ts.
 - Telemetry. The gate-evaluated reason for the protected variant reads `protected paths: <n> changed`. Record no system error report for it, since no command failed.
 - Fix prompt, in `src/domain/gate/fixPrompt.ts`. BuildFixPromptInput gains `protectedChanges`, and `failedStep` admits `protected-paths`.
 
@@ -813,7 +821,7 @@ In a project that declares `protectedPaths`, every gate attempt of a phase check
   - (ac-exhausted) The agent leaves the file changed at every attempt. The phase ends in `gates_exhausted`, the command exits 4, and the output and resume-instructions.md name the path, say no phase may change it, point to the last `fix-attempt-NN.jsonl`, and give the two ways on.
   - (ac-codex-unsafe) A codex-cli secure phase and a claude-code unsafe phase each fail a protected write at the gate.
   - (ac-attribution) The phase's gate-attribution.json carries the 0.31.0 `$schema` and `protectedPaths: { result: "fail", changes: [{ path: "packages/a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]" }] }`.
-  - With no declared list, the fake git records no `observeWorktree` call.
+  - With no declared list, no `observeWorktree` call is made. Provide a spy Git that spreads `realGit` (`Effect.runSync(Effect.provide(Git, NodeGitLayer))`, as tests/integration/stopTranscripts.test.ts builds it) and overrides `observeWorktree` to count its calls before delegating; assert zero calls.
 - Extend `tests/unit/fixPrompt.test.ts` and `tests/unit/resumeInstructions.test.ts` with the protected-only, step-plus-protected and refusal-plus-protected cases. The additive snapshot of phase-03 must stay unchanged.
 - Run the configured gate.
 
@@ -841,6 +849,16 @@ In a project that declares `protectedPaths`, every gate attempt of a phase check
 - `tests/integration/fixLoop.test.ts`
 - `tests/unit/fixPrompt.test.ts`
 - `tests/unit/resumeInstructions.test.ts`
+- `tests/integration/telemetry/adapterFailures.test.ts`
+- `tests/unit/events.test.ts`
+- `tests/unit/reducer.test.ts`
+- `tests/unit/reducerGateRefusal.test.ts`
+- `tests/integration/dispatcher.test.ts`
+- `tests/unit/whatsNext.test.ts`
+- `tests/unit/reportVocabulary.test.ts`
+- `tests/unit/cli/run.test.ts`
+- `tests/unit/readmeExitCodes.test.ts`
+- `tests/unit/stopTelemetry.test.ts`
 
 ### Optional files that may be edited
 
@@ -869,7 +887,7 @@ Fix loop to check use case: the loop needs the protected changes of the worktree
 - exhausted attempts with a protected change pause in gates_exhausted with exit 4, naming the path, the last fix-attempt-NN.jsonl and the two ways on — medium · example · the phase state, exit code, output and resume-instructions.md · in-phase · ac-exhausted
 - a codex-cli secure phase and a claude-code unsafe phase each fail a protected write at the gate — medium · example · the failed attempt in both runs · in-phase · ac-codex-unsafe
 - gate-attribution.json carries the 0.31.0 $schema and the fail result with path, kind and entry for a green-stepped attempt that edited a protected file — medium · example · the written gate-attribution.json · in-phase · ac-attribution
-- with no declared list the fix loop makes no observation and the additive snapshot is unchanged — medium · smoke · the fake git's calls and the phase-03 snapshot · in-phase · ac-nothing
+- with no declared list the fix loop makes no observation and the additive snapshot is unchanged — medium · smoke · the spy Git's observeWorktree call count and the phase-03 snapshot · in-phase · ac-nothing
 
 ### Implementation order
 
@@ -891,7 +909,7 @@ The `standard` gate profile in phax.json.
 
 ### Expected handoff content
 
-The new shapes of GateFailed, FixAttemptsExhausted, GateStepRefused, GateAttemptsExhaustedError and GateStepRefusedError. The `protectedPaths` option of runGatesWithFixLoop and how executePlan reads the base. The attribution rewrite helper's name. The fix-prompt and resume-instructions wording chosen. Confirmation that closeStop is untouched and the additive snapshot unchanged. Any deviation from the planned file lists, with the reason.
+The new shapes of GateFailed, FixAttemptsExhausted, GateStepRefused, GateAttemptsExhaustedError (with its `failure` field) and GateStepRefusedError. The `protectedPaths` option of runGatesWithFixLoop and how executePlan reads the base. The attribution rewrite helper's name. The fix-prompt and resume-instructions wording chosen. Confirmation that closeStop is untouched and the additive snapshot unchanged. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -919,10 +937,10 @@ A commit-only resume refuses to commit a protected change. A protected change af
 - Hold point. In the `resumeAtHoldPoint` path, before `holdPoint` runs, check against the phase commit when a list is declared. If any change is found, dispatch the same event and pause as a failed handoff, so no stop is opened.
 - The new event, in `src/domain/events.ts`, `src/domain/reducer.ts` and `src/domain/matrix.ts`. It takes exactly HandoffMissing's transitions, from `passed`, `committed` and `handoff_failed` to `handoff_failed` with `missing: []`, in every run state. It also persists `lastError` reading `Protected paths changed after the commit: <path>, …`, as HandoffTurnFailed persists its failure line. It persists no new stoppedReason, so run-status.json's shape is unchanged. The resume instructions for this pause name each path and the two ways on, as the gates_exhausted ones do.
 - A stop's close. Leave `src/app/closeStop.ts` unchanged: its runGates call and its commit run no check, and the person's changes stay reviewCorrections.
-- Help text. In `src/cli/cliDocs.ts`, extend validate's long help to say it lists the protected paths and refuses `protectedPaths` in phax.local.json and ~/.phax/config.json. Extend run's long help to say a gate attempt fails when the phase changed a path listed in protectedPaths, and that a skill edit grant on one is refused with exit 11. Run `pnpm gen:usage-spec` and `pnpm docs:cli`. The drift tests keep `phax.usage.kdl` and `docs/cli/reference.md` in step.
+- Help text. In `src/cli/cliDocs.ts`, extend validate's long help to say it lists the protected paths and refuses `protectedPaths` in phax.local.json and ~/.phax/config.json. Extend run's long help to say a gate attempt fails when the phase changed a path listed in protectedPaths, and that a skill edit grant on one is refused with exit 11. Run `pnpm gen:usage-spec` and `pnpm docs:cli`. The drift tests keep `phax.usage.kdl`, `docs/cli/reference.md` and README.md's `<!-- BEGIN GENERATED CLI REFERENCE -->` block in step; that block changes only when a command's first help paragraph does.
 - In `docs/security.md`, add a `### Protected paths` section between `### Skill edit grants (Claude Code)` and `### Shell command execution`, written for the reader of spec §11 with its steme example. It covers:
 
-  - the phax.json key and phax.json protected itself;
+  - the phax.json key, and the phax.json phax loaded protected itself by its repo-relative path;
   - the provider table of spec §6 (native rule and enforcement per provider);
   - that the check after each gate attempt is the guarantee and catches what a native rule misses (a shell command, a gate step, Codex, unsafe mode, a wildcard glob);
   - letter case ignored on every host;
@@ -939,7 +957,7 @@ A commit-only resume refuses to commit a protected change. A protected change af
   - (ac-handoff-resume) A held phase paused as a failed handoff, with its handoff already validated and copied, and the file changed since. `phax resume` re-enters at the hold point with no handoff turn, pauses again as a failed handoff naming the path, and opens no stop.
   - (ac-stop) At a held stop, a person edits the file. `phax resume` closes the stop with a green gate, the review commit carries the change, and file-reconciliation.json lists it under reviewCorrections.
 
-  Add the new event to the transition table the state machine contract test checks.
+  Add the new event to the transition table the state machine contract test checks, to the event fixtures of tests/unit/events.test.ts and tests/unit/reducer.test.ts, and to docs/state-machine.md, as the network-failure pause did (commit 7da48d04).
 - Run the configured gate. The additive snapshot of phase-03 must stay unchanged.
 
 ### Planned files to create
@@ -959,13 +977,15 @@ A commit-only resume refuses to commit a protected change. A protected change af
 - `phax.usage.kdl`
 - `docs/cli/reference.md`
 - `docs/security.md`
+- `tests/unit/events.test.ts`
+- `tests/unit/reducer.test.ts`
+- `docs/state-machine.md`
 
 ### Optional files that may be edited
 
 - `src/domain/whatsNext.ts`
 - `src/cli/commands/run.ts`
 - `src/cli/commands/resume.ts`
-- `docs/state-machine.md`
 - `tests/integration/stateMachineContract.test.ts`
 - `tests/integration/__snapshots__/stateMachineContract.test.ts.snap`
 - `tests/integration/resumeHandoff.test.ts`
