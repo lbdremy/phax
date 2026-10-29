@@ -161,15 +161,6 @@ desktop — none is promised by the announcement.
       awaiting-review, hold-point and stop-record sections of `resume-instructions.md` and the reducer
       trace details print `phax resume <run>`, which only previews.
 
-- [ ] **`releaseCut.test.ts` times out in `afterAll`.** Its 30 s hook failed a phase gate a third
-      time on 2026-10-27 (`headless-code-review` phase-05, attempt 2); a resume passed. Find what the
-      teardown waits on, or give the hook its own budget, so a green phase does not burn a gate
-      attempt. A fourth hit on 2026-10-28 (`mistral-vibe-3` phase-05), with
-      `plansEstimateCommand.test.ts`'s 5 s test timeout in the next attempt: both pass alone, so
-      the full suite under a phase's load is too slow for these budgets. A fifth and sixth on
-      2026-10-28 (`provider-failures` phase-03): `completions.test.ts`'s fish case (5 s), then
-      `releaseCut` again. Five misses in three runs: raise the budget of the integration tests that
-      spawn a process, or run them with fewer workers.
 - [ ] **The Vibe "loose config" e2e case has never run.** `tests/e2e/vibeSecure.test.ts` checks
       that a hostile `VIBE_HOME` config cannot widen a secure session. A temporary `VIBE_HOME` has no
       sign-in (Vibe keeps it in the macOS Keychain under the real home), so the case needs
