@@ -20,8 +20,8 @@
 //   - `modified`, `type-changed` and a tracked state of `content` or `type`
 //     give `edited`;
 //   - `deleted` and a tracked state of `missing` give `deleted`.
-//   Which kind wins when the evidence for one path disagrees is not part of
-//   this contract's oracles.
+//   When the evidence for one path disagrees, `renamed` wins over `created`,
+//   `created` over `deleted`, and `deleted` over `edited`.
 // - Native forms: a glob holding none of `*`, `?`, `[`, `]` is a literal path;
 //   `**/` followed by such a rest is an any-depth path; any other glob has no
 //   native form.
@@ -39,6 +39,7 @@
 //   leading literal segments (those before the first segment holding `*` or
 //   `?`) reach a submodule: case-folded, their joined path equals the
 //   submodule's path or starts with it followed by `/`. Undefined otherwise.
+import { matchesGlob } from "../architecture/glob.js";
 import type { ProviderId } from "../routing/types.js";
 import type { SecurityMode } from "./types.js";
 
@@ -78,49 +79,152 @@ export interface SubmoduleConflict {
   readonly submodule: string;
 }
 
-export function protectedList(
-  _declared: readonly string[] | undefined,
-  _configPath: string,
-): ProtectedList | null {
-  throw new Error("not implemented: protectedList");
+export interface NativeProtectedGlob {
+  readonly glob: string;
+  readonly form: "literal" | "any-depth";
+  readonly path: string;
 }
 
-export function matchProtected(_list: ProtectedList, _path: string): ProtectedEntry | undefined {
-  throw new Error("not implemented: matchProtected");
+export function protectedList(
+  declared: readonly string[] | undefined,
+  configPath: string,
+): ProtectedList | null {
+  if (declared === undefined) return null;
+  const entries = declared.map((glob, index) => ({ glob, entry: `protectedPaths[${index}]` }));
+  return declared.includes(configPath)
+    ? entries
+    : [...entries, { glob: configPath, entry: configPath }];
 }
+
+export function matchProtected(list: ProtectedList, path: string): ProtectedEntry | undefined {
+  const folded = path.toLowerCase();
+  return list.find((entry) => matchesGlob(entry.glob.toLowerCase(), folded));
+}
+
+/** The paths some entry of `list` matches, in input order. */
+export function protectedTrackedPaths(
+  list: ProtectedList,
+  paths: readonly string[],
+): readonly string[] {
+  return paths.filter((path) => matchProtected(list, path) !== undefined);
+}
+
+// Higher wins when the evidence for one path disagrees: a rename's source is
+// also tracked `missing`, and stays `renamed`.
+const KIND_RANK: Record<ProtectedChangeKind, number> = {
+  renamed: 3,
+  created: 2,
+  deleted: 1,
+  edited: 0,
+};
 
 export function protectedChanges(
-  _list: ProtectedList,
-  _observation: ProtectedObservation,
+  list: ProtectedList,
+  observation: ProtectedObservation,
 ): readonly ProtectedChange[] {
-  throw new Error("not implemented: protectedChanges");
+  const evidence = new Map<string, ProtectedChangeKind>();
+  const note = (path: string, kind: ProtectedChangeKind): void => {
+    const known = evidence.get(path);
+    if (known === undefined || KIND_RANK[kind] > KIND_RANK[known]) evidence.set(path, kind);
+  };
+  for (const observed of observation.entries) {
+    switch (observed.status) {
+      case "renamed":
+        note(observed.path, "renamed");
+        note(observed.oldPath, "renamed");
+        break;
+      case "added":
+        note(observed.path, "created");
+        break;
+      case "deleted":
+        note(observed.path, "deleted");
+        break;
+      case "modified":
+      case "type-changed":
+        note(observed.path, "edited");
+        break;
+    }
+  }
+  for (const { path, state } of observation.tracked) {
+    if (state === "content" || state === "type") note(path, "edited");
+    else if (state === "missing") note(path, "deleted");
+  }
+  for (const path of observation.untracked) note(path, "created");
+
+  const changes: ProtectedChange[] = [];
+  for (const [path, kind] of evidence) {
+    const matched = matchProtected(list, path);
+    if (matched !== undefined) {
+      changes.push({ path, kind, entry: matched.entry, glob: matched.glob });
+    }
+  }
+  return changes.toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+const WILDCARD = /[*?[\]]/;
+
+/** The globs of `list` with a native form, in list order. */
+export function nativeProtectedGlobs(list: ProtectedList): readonly NativeProtectedGlob[] {
+  const native: NativeProtectedGlob[] = [];
+  for (const { glob } of list) {
+    if (!WILDCARD.test(glob)) {
+      native.push({ glob, form: "literal", path: glob });
+    } else if (glob.startsWith("**/") && !WILDCARD.test(glob.slice(3))) {
+      native.push({ glob, form: "any-depth", path: glob.slice(3) });
+    }
+  }
+  return native;
+}
+
+function trimTrailingSlashes(root: string): string {
+  let end = root.length;
+  while (end > 0 && root[end - 1] === "/") end--;
+  return root.slice(0, end);
 }
 
 export function claudeProtectedDenyRules(
-  _worktreeRoot: string,
-  _list: ProtectedList,
+  worktreeRoot: string,
+  list: ProtectedList,
 ): readonly string[] {
-  throw new Error("not implemented: claudeProtectedDenyRules");
+  const root = trimTrailingSlashes(worktreeRoot);
+  return nativeProtectedGlobs(list).map(({ glob }) => `Edit(/${root}/${glob})`);
 }
 
 export function vibeProtectedDenylist(
-  _worktreeRoot: string,
-  _list: ProtectedList,
+  worktreeRoot: string,
+  list: ProtectedList,
 ): readonly string[] {
-  throw new Error("not implemented: vibeProtectedDenylist");
+  const root = trimTrailingSlashes(worktreeRoot);
+  return nativeProtectedGlobs(list).flatMap(({ form, path }) =>
+    form === "literal" ? [`${root}/${path}`] : [`${root}/${path}`, `${root}/**/${path}`],
+  );
 }
 
 export function protectedEnforcement(
-  _list: ProtectedList,
-  _provider: ProviderId,
-  _mode: SecurityMode,
+  list: ProtectedList,
+  provider: ProviderId,
+  mode: SecurityMode,
 ): ProtectedEnforcement {
-  throw new Error("not implemented: protectedEnforcement");
+  if (provider === "codex-cli" || mode !== "secure") return "commit-check-only";
+  const native = nativeProtectedGlobs(list).length;
+  if (native === 0) return "commit-check-only";
+  return native === list.length ? "enforced" : "partial";
 }
 
 export function submoduleConflict(
-  _declared: readonly string[],
-  _submodules: readonly string[],
+  declared: readonly string[],
+  submodules: readonly string[],
 ): SubmoduleConflict | undefined {
-  throw new Error("not implemented: submoduleConflict");
+  for (const [index, glob] of declared.entries()) {
+    const segments = glob.toLowerCase().split("/");
+    const stop = segments.findIndex((segment) => /[*?]/.test(segment));
+    const leading = (stop === -1 ? segments : segments.slice(0, stop)).join("/");
+    if (leading === "") continue;
+    const submodule = submodules.find((candidate) => {
+      const folded = candidate.toLowerCase();
+      return leading === folded || leading.startsWith(`${folded}/`);
+    });
+    if (submodule !== undefined) return { index, glob, submodule };
+  }
+  return undefined;
 }

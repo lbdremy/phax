@@ -41,48 +41,48 @@ function change(
 }
 
 describe("protectedList", () => {
-  it.fails("appends the loaded phax.json after the declared globs", () => {
+  it("appends the loaded phax.json after the declared globs", () => {
     expect(protectedList(["**/steme.baseline.json"], "phax.json")).toEqual([
       { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
       { glob: "phax.json", entry: "phax.json" },
     ]);
   });
 
-  it.fails("does not append phax.json when a declared glob is exactly its path", () => {
+  it("does not append phax.json when a declared glob is exactly its path", () => {
     expect(protectedList(["phax.json", "a.json"], "phax.json")).toEqual([
       { glob: "phax.json", entry: "protectedPaths[0]" },
       { glob: "a.json", entry: "protectedPaths[1]" },
     ]);
   });
 
-  it.fails("names a nested loaded config by its repo-relative path", () => {
+  it("names a nested loaded config by its repo-relative path", () => {
     expect(protectedList(["a.json"], "pkg/phax.json")).toEqual([
       { glob: "a.json", entry: "protectedPaths[0]" },
       { glob: "pkg/phax.json", entry: "pkg/phax.json" },
     ]);
   });
 
-  it.fails("is null when nothing is declared", () => {
+  it("is null when nothing is declared", () => {
     expect(protectedList(undefined, "phax.json")).toEqual(null);
   });
 });
 
 describe("matchProtected", () => {
-  it.fails("matches a case variant of a protected path to its entry", () => {
+  it("matches a case variant of a protected path to its entry", () => {
     expect(matchProtected(BASELINE_LIST, "packages/a/STEME.Baseline.json")).toEqual(BASELINE);
   });
 
-  it.fails("matches a case variant of phax.json to the implied entry", () => {
+  it("matches a case variant of phax.json to the implied entry", () => {
     expect(matchProtected(BASELINE_LIST, "PHAX.JSON")).toEqual(PHAX_JSON);
   });
 
-  it.fails("matches nothing for a path no glob matches", () => {
+  it("matches nothing for a path no glob matches", () => {
     expect(matchProtected(BASELINE_LIST, "src/a.ts")).toEqual(undefined);
   });
 });
 
 describe("protectedChanges", () => {
-  it.fails("names created, deleted and renamed protected paths once each, sorted", () => {
+  it("names created, deleted and renamed protected paths once each, sorted", () => {
     const entries: readonly ObservedEntry[] = [
       { status: "added", path: "packages/a/steme.baseline.json" },
       { status: "deleted", path: "packages/b/steme.baseline.json" },
@@ -105,7 +105,7 @@ describe("protectedChanges", () => {
     ]);
   });
 
-  it.fails("counts a type change as edited and an untracked non-ASCII variant as created", () => {
+  it("counts a type change as edited and an untracked non-ASCII variant as created", () => {
     const list: ProtectedList = [
       BASELINE,
       { glob: "**/règles.json", entry: "protectedPaths[1]" },
@@ -122,7 +122,7 @@ describe("protectedChanges", () => {
     ]);
   });
 
-  it.fails("names a tracked file whose content differs although no entry shows it", () => {
+  it("names a tracked file whose content differs although no entry shows it", () => {
     const observation: ProtectedObservation = {
       entries: [],
       tracked: [{ path: "packages/a/steme.baseline.json", state: "content" }],
@@ -133,7 +133,7 @@ describe("protectedChanges", () => {
     ]);
   });
 
-  it.fails("names an untracked ignored protected file and no other ignored file", () => {
+  it("names an untracked ignored protected file and no other ignored file", () => {
     const list: ProtectedList = [{ glob: "**/allow.json", entry: "protectedPaths[0]" }, PHAX_JSON];
     const observation: ProtectedObservation = {
       entries: [],
@@ -145,7 +145,7 @@ describe("protectedChanges", () => {
     ]);
   });
 
-  it.fails("names a change to phax.json with its implied entry", () => {
+  it("names a change to phax.json with its implied entry", () => {
     const list: ProtectedList = [{ glob: "**/x.json", entry: "protectedPaths[0]" }, PHAX_JSON];
     const observation: ProtectedObservation = {
       entries: [{ status: "modified", path: "phax.json" }],
@@ -157,7 +157,7 @@ describe("protectedChanges", () => {
     ]);
   });
 
-  it.fails("yields nothing for changes to paths no glob matches", () => {
+  it("yields nothing for changes to paths no glob matches", () => {
     const observation: ProtectedObservation = {
       entries: [{ status: "modified", path: "src/a.ts" }],
       tracked: [],
@@ -166,7 +166,7 @@ describe("protectedChanges", () => {
     expect(protectedChanges(BASELINE_LIST, observation)).toEqual([]);
   });
 
-  it.fails("names a path once when an entry and its tracked state agree", () => {
+  it("names a path once when an entry and its tracked state agree", () => {
     const observation: ProtectedObservation = {
       entries: [{ status: "modified", path: "packages/a/steme.baseline.json" }],
       tracked: [{ path: "packages/a/steme.baseline.json", state: "content" }],
@@ -186,21 +186,21 @@ describe("native rule forms", () => {
     PHAX_JSON,
   ];
 
-  it.fails("gives Claude one Edit rule per literal or any-depth glob", () => {
+  it("gives Claude one Edit rule per literal or any-depth glob", () => {
     expect(claudeProtectedDenyRules("/wt", mixed)).toEqual([
       "Edit(//wt/**/steme.baseline.json)",
       "Edit(//wt/phax.json)",
     ]);
   });
 
-  it.fails("drops trailing slashes from the worktree root in Claude rules", () => {
+  it("drops trailing slashes from the worktree root in Claude rules", () => {
     expect(claudeProtectedDenyRules("/wt/", mixed)).toEqual([
       "Edit(//wt/**/steme.baseline.json)",
       "Edit(//wt/phax.json)",
     ]);
   });
 
-  it.fails("gives Vibe one entry per literal glob and two per any-depth glob", () => {
+  it("gives Vibe one entry per literal glob and two per any-depth glob", () => {
     const list: ProtectedList = [
       BASELINE,
       { glob: "config/*.json", entry: "protectedPaths[1]" },
@@ -236,7 +236,7 @@ describe("protectedEnforcement", () => {
     [partialList, "mistral-vibe", "secure", "partial"],
   ];
 
-  it.fails("follows provider, mode and the list's native forms", () => {
+  it("follows provider, mode and the list's native forms", () => {
     expect(
       table.map(([list, provider, mode]) => protectedEnforcement(list, provider, mode)),
     ).toEqual(table.map(([, , , expected]) => expected));
@@ -244,7 +244,7 @@ describe("protectedEnforcement", () => {
 });
 
 describe("submoduleConflict", () => {
-  it.fails("refuses a glob whose leading literal segments reach a submodule", () => {
+  it("refuses a glob whose leading literal segments reach a submodule", () => {
     const expected: SubmoduleConflict = {
       index: 1,
       glob: "vendor/lint-rules/allow.json",
@@ -255,7 +255,7 @@ describe("submoduleConflict", () => {
     ).toEqual(expected);
   });
 
-  it.fails("refuses a glob that is exactly the submodule path", () => {
+  it("refuses a glob that is exactly the submodule path", () => {
     expect(submoduleConflict(["vendor/lint-rules"], ["vendor/lint-rules"])).toEqual({
       index: 0,
       glob: "vendor/lint-rules",
@@ -263,7 +263,7 @@ describe("submoduleConflict", () => {
     });
   });
 
-  it.fails("refuses a case variant reaching a submodule", () => {
+  it("refuses a case variant reaching a submodule", () => {
     expect(submoduleConflict(["Vendor/Lint-Rules/a.json"], ["vendor/lint-rules"])).toEqual({
       index: 0,
       glob: "Vendor/Lint-Rules/a.json",
@@ -271,7 +271,7 @@ describe("submoduleConflict", () => {
     });
   });
 
-  it.fails("accepts globs above, beside or independent of a submodule", () => {
+  it("accepts globs above, beside or independent of a submodule", () => {
     expect(
       [["vendor/**"], ["vendor/lint-rules-extra/a.json"], ["**/allow.json"]].map((declared) =>
         submoduleConflict(declared, ["vendor/lint-rules"]),
