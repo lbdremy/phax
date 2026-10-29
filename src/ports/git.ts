@@ -177,8 +177,12 @@ export interface GitOps {
    * `isProtected` accepts, in tree order, how the file on disk compares with
    * its blob there; a submodule is left out. `base`'s tree is read once, in
    * full, and the files are hashed by one process, so no argument list grows
-   * with their number. `untracked` holds the untracked files git ignores,
-   * outside `.phax-context/`. The real index is never read for a verdict, so
+   * with their number; a protected file of `base` the real index no longer
+   * holds (`git rm --cached`) is `missing`. `untracked` holds the ignored
+   * files the staged tree does not hold, listed against the same temporary
+   * index, `.phax-context/` left out: a file forced into the real index and
+   * never committed is listed. Every git run reads objects as stored
+   * (GIT_NO_REPLACE_OBJECTS). The real index never clears a change, so
    * skip-worktree and assume-unchanged bits cannot hide an edit, and it is
    * never touched.
    */
