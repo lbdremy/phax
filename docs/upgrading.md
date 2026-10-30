@@ -31,7 +31,6 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Schema readers: new `phax-plan-extraction` format**, the answer of the plan extraction.
 - **Headless authoring answers** carry `$schema` in place of `version: 1`.
 - **Run `phax artifact migrate-documents` once.** It restamps your 0.27.0 specs and 0.28.0 plans, their bodies unchanged. Until then `approve`, `reopen` and `decide` refuse, naming the command.
-- **A person's correction handoff stamped `interactive-handoff` 0.26.0 is refused.** 0.32.0 reads only its own stamp.
 
 See [Structured answers and providers](structured-answers.md) for what each provider now checks.
 
