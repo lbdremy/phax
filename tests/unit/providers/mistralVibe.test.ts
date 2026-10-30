@@ -16,6 +16,7 @@ import {
   SecurityEnforcementError,
 } from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import {
   findVibeResultEvent,
@@ -209,6 +210,29 @@ describe("buildVibeArgs — secure mode fail-closed", () => {
       expect(e.provider).toBe("mistral-vibe");
       expect(e.mode).toBe("secure");
       expect(e.message).toMatch(/writable path/);
+    }
+  });
+});
+
+describe("buildVibeArgs — a structured call", () => {
+  const answerSchema = { call: "code-review", schema: answerJsonSchema("code-review") } as const;
+  const promptWithSchema = `Answer with this schema:\n${JSON.stringify(answerSchema.schema)}`;
+
+  it("holds no schema option and leaves the argv as it was, on a new session and a resume", () => {
+    const options = { ...baseOptions(unsafePolicy), readOnly: true };
+    for (const resume of [undefined, "sess-abc-123"]) {
+      const withSchema = buildVibeArgs(
+        baseEntry,
+        promptWithSchema,
+        { ...options, answerSchema },
+        resume,
+      );
+      const without = buildVibeArgs(baseEntry, promptWithSchema, options, resume);
+      expect(withSchema).toEqual(without);
+      expect(withSchema.filter((arg) => /schema/i.test(arg) && arg !== promptWithSchema)).toEqual(
+        [],
+      );
+      expect(withSchema).toContain(promptWithSchema);
     }
   });
 });

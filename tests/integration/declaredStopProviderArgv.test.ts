@@ -20,6 +20,7 @@ import { NodeShellLayer } from "../../src/infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
+import { claudeSchemaArgs, codexSchemaArgs, codexSchemaFile } from "../helpers/answerSchemaArgv.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
 import { createWorld, stopRun, type StoppedRun } from "../helpers/stoppedRunFixture.js";
@@ -153,6 +154,7 @@ describe("a read-only first turn on Claude Code", () => {
         "--tools",
         "Read,Grep,Glob",
         "--strict-mcp-config",
+        ...claudeSchemaArgs("first-reading"),
         "--model",
         "claude-sonnet-5-5",
         "--effort",
@@ -195,11 +197,13 @@ describe("a read-only first turn on codex", () => {
     expect(call).toEqual({
       executable: "codex",
       cwd: worktree,
+      outputSchema: codexSchemaFile("first-reading"),
       argv: [
         "exec",
         "-C",
         worktree,
         "--json",
+        ...codexSchemaArgs(),
         "--skip-git-repo-check",
         "-c",
         `sandbox_mode="read-only"`,
@@ -332,6 +336,7 @@ describe("a read-only closing turn through the provider CLIs", () => {
           "--tools",
           "Read,Grep,Glob",
           "--strict-mcp-config",
+          ...claudeSchemaArgs("interactive-handoff"),
           "--model",
           "claude-sonnet-5-5",
           "--effort",
@@ -366,11 +371,13 @@ describe("a read-only closing turn through the provider CLIs", () => {
       expect(call).toEqual({
         executable: "codex",
         cwd: run.worktree,
+        outputSchema: codexSchemaFile("interactive-handoff"),
         argv: [
           "exec",
           "resume",
           SESSION,
           "--json",
+          ...codexSchemaArgs(),
           "--skip-git-repo-check",
           "-c",
           `sandbox_mode="read-only"`,

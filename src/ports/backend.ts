@@ -11,6 +11,7 @@ import type { ProviderId } from "../domain/routing/types.js";
 import type { ProtectedList } from "../domain/security/protectedPaths.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import type { StructuredValue } from "../domain/session/outcome.js";
+import type { AnswerSchemaRequest } from "../domain/session/structuredCalls.js";
 import type { FsError } from "./fs.js";
 
 export interface CompletionOptions {
@@ -18,6 +19,15 @@ export interface CompletionOptions {
   readonly model: string;
   readonly effort: string;
   readonly cwd: string;
+  /**
+   * The published answer schema of a structured call. Only the seven
+   * structured calls set it, on their first session and on their corrective
+   * resume; phase turns, fix attempts, handoff generation, the compliance
+   * review and the probe never do. The backend hands it to the provider as a
+   * native option where the call table allows (Claude Code's `--json-schema`,
+   * Codex's `--output-schema`); Mistral Vibe never receives it.
+   */
+  readonly answerSchema?: AnswerSchemaRequest | undefined;
 }
 
 export interface CompletionResult {
@@ -80,6 +90,8 @@ export interface AgentRunOptions {
   readonly readOnly?: boolean | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
+  /** The answer schema of a structured call; see {@link CompletionOptions.answerSchema}. */
+  readonly answerSchema?: AnswerSchemaRequest | undefined;
 }
 
 export interface AgentRunResult {

@@ -1,7 +1,8 @@
 import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
@@ -26,6 +27,7 @@ import {
 } from "../../domain/session/codexFlags.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import { readCodexOutcome, type SessionEnd } from "../../domain/session/outcome.js";
+import type { AnswerSchemaRequest } from "../../domain/session/structuredCalls.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { answerSessionId, failSession, sessionEndOf, writeAgentErrorLog } from "./agentErrorLog.js";
@@ -58,10 +60,47 @@ const CODEX_READ_ONLY_FLAGS = [
   `approval_policy="never"`,
 ] as const;
 
+const ANSWER_SCHEMA_DIR_PREFIX = "phax-answer-schema-";
+const ANSWER_SCHEMA_FILENAME = "answer.schema.json";
+
+// `--output-schema` names a file, so a structured call's schema is written
+// to `answer.schema.json` in a directory of its own, created per spawn and
+// removed once the process has ended, whatever the outcome. Codex always gets
+// the schema whole, `$schema` property included.
+function withAnswerSchemaFile<A, E, R>(
+  request: AnswerSchemaRequest | undefined,
+  use: (schemaPath: string | undefined) => Effect.Effect<A, E, R>,
+): Effect.Effect<A, E | FsError, R> {
+  if (request === undefined) return use(undefined);
+  return Effect.acquireUseRelease(
+    Effect.tryPromise({
+      try: async () => {
+        const dir = await mkdtemp(join(tmpdir(), ANSWER_SCHEMA_DIR_PREFIX));
+        try {
+          const path = join(dir, ANSWER_SCHEMA_FILENAME);
+          await writeFile(path, `${JSON.stringify(request.schema)}\n`, "utf8");
+          return { dir, path };
+        } catch (err) {
+          await rm(dir, { recursive: true, force: true });
+          throw err;
+        }
+      },
+      catch: wrapFsError,
+    }),
+    ({ path }) => use(path),
+    ({ dir }) =>
+      Effect.promise(() => rm(dir, { recursive: true, force: true }).catch(() => undefined)),
+  );
+}
+
+const outputSchemaFlags = (schemaPath: string | undefined): string[] =>
+  schemaPath === undefined ? [] : ["--output-schema", schemaPath];
+
 export function buildCodexArgs(
   entry: CodexProviderEntry,
   options: AgentRunOptions,
   resumeSessionId?: string,
+  schemaPath?: string,
 ): string[] {
   const model = codexModelId(entry, options.model);
   const securityFlags =
@@ -70,6 +109,7 @@ export function buildCodexArgs(
       : buildCodexSecurityFlags(options.security);
   const commonFlags: string[] = [
     "--json",
+    ...outputSchemaFlags(schemaPath),
     "--skip-git-repo-check",
     ...securityFlags,
     "-m",
@@ -142,6 +182,7 @@ function spawnCodex(
 export function buildCodexCompletionArgs(
   entry: CodexProviderEntry,
   options: CompletionOptions,
+  schemaPath?: string,
 ): string[] {
   const model = codexModelId(entry, options.model);
   // `sandbox_mode="read-only"` is the network seal: it grants no write sandbox
@@ -155,6 +196,7 @@ export function buildCodexCompletionArgs(
     "-C",
     options.cwd,
     "--json",
+    ...outputSchemaFlags(schemaPath),
     "--skip-git-repo-check",
     "-c",
     `sandbox_mode="read-only"`,
@@ -175,7 +217,21 @@ export function runCodexCompletion(
   CompletionResult,
   AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
-  const args = buildCodexCompletionArgs(entry, options);
+  return withAnswerSchemaFile(options.answerSchema, (schemaPath) =>
+    runCodexCompletionWith(prompt, options, entry, schemaPath),
+  );
+}
+
+function runCodexCompletionWith(
+  prompt: string,
+  options: CompletionOptions,
+  entry: CodexProviderEntry,
+  schemaPath: string | undefined,
+): Effect.Effect<
+  CompletionResult,
+  AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
+> {
+  const args = buildCodexCompletionArgs(entry, options, schemaPath);
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
@@ -278,9 +334,29 @@ export function runCodexAgent(
   | SecurityEnforcementError
   | FsError
 > {
+  return withAnswerSchemaFile(options.answerSchema, (schemaPath) =>
+    runCodexSession(prompt, options, entry, resumeSessionId, schemaPath),
+  );
+}
+
+function runCodexSession(
+  prompt: string,
+  options: AgentRunOptions,
+  entry: CodexProviderEntry,
+  resumeSessionId: string | undefined,
+  schemaPath: string | undefined,
+): Effect.Effect<
+  AgentRunResult,
+  | AgentInvocationError
+  | AgentSessionFailedError
+  | RateLimitError
+  | UsageLimitError
+  | SecurityEnforcementError
+  | FsError
+> {
   let args: string[];
   try {
-    args = buildCodexArgs(entry, options, resumeSessionId);
+    args = buildCodexArgs(entry, options, resumeSessionId, schemaPath);
   } catch (err) {
     if (err instanceof SecurityEnforcementError) {
       return Effect.fail(err);

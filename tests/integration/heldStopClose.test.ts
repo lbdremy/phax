@@ -34,6 +34,7 @@ import type { InteractiveHandoff } from "../../src/schemas/interactiveHandoff.js
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
+import { claudeSchemaArgs, codexSchemaArgs, codexSchemaFile } from "../helpers/answerSchemaArgv.js";
 import { makeFakeProviderCli } from "../helpers/fakeProviderCli.js";
 import {
   SHORT,
@@ -863,11 +864,13 @@ describe("a held closing turn through the provider CLIs", () => {
     expect(call).toEqual({
       executable: "codex",
       cwd: tree(),
+      outputSchema: codexSchemaFile("interactive-handoff"),
       argv: [
         "exec",
         "resume",
         "X0",
         "--json",
+        ...codexSchemaArgs(),
         "--skip-git-repo-check",
         "-c",
         `sandbox_mode="read-only"`,
@@ -957,6 +960,7 @@ describe("a held closing turn through the provider CLIs", () => {
         "--tools",
         "Read,Grep,Glob",
         "--strict-mcp-config",
+        ...claudeSchemaArgs("interactive-handoff"),
         "--model",
         "claude-sonnet-5-5",
         "--effort",

@@ -350,6 +350,7 @@ function runAuthoringSession(
       // phax.local.json and turn the granted phax architecture into a
       // command of its own.
       readOnly: true,
+      answerSchema: { call: "authoring", schema: answerJsonSchema(`${input.kind}-document`) },
       outputJsonlPath: join(session.folder, AUTHORING_TRANSCRIPT_FILENAME),
       phaseFolderPath: session.folder,
     };

@@ -15,6 +15,7 @@ import { makeFakeSession } from "../../src/infra/fakes/session.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -307,6 +308,11 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
     expect(h.backend.resumeCalls[0]?.prompt).toContain(
       currentSchemaUrl("spec-hand-decision-answer"),
     );
+    // The handback is a structured call: the hand decision answer's schema.
+    expect(h.backend.resumeCalls[0]?.options.answerSchema).toEqual({
+      call: "decide-handback",
+      schema: answerJsonSchema("spec-hand-decision-answer"),
+    });
   });
 
   it("refuses a spec whose questions use bold headings, naming the line, with no session", async () => {

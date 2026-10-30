@@ -27,7 +27,20 @@ import {
   claudeReadOnlyFlags,
 } from "../../domain/session/claudePermissionFlags.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
-import { readClaudeOutcome, type SessionEnd } from "../../domain/session/outcome.js";
+import {
+  CLAUDE_STAMP_PROMPT_LINE,
+  claudeAnswerSchema,
+  handsSchemaNatively,
+  STRUCTURED_CALLS,
+  stampStructuredValue,
+  type AnswerSchemaRequest,
+  type StructuredCallsTable,
+} from "../../domain/session/structuredCalls.js";
+import {
+  readClaudeOutcome,
+  type SessionEnd,
+  type StructuredValue,
+} from "../../domain/session/outcome.js";
 import { claudeProtectedDenyRules } from "../../domain/security/protectedPaths.js";
 import { buildClaudeSessionSettings } from "./claudeSkillEditSettings.js";
 import { persistSessionId } from "./sessionWriter.js";
@@ -161,7 +174,42 @@ function resolveWorktreeRoot(cwd: string): string {
   }
 }
 
-export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
+/** The answer schema this spawn is handed natively, or undefined (no schema, or the call is on the prompt). */
+function nativeSchemaOf(
+  request: AnswerSchemaRequest | undefined,
+  table: StructuredCallsTable,
+): object | undefined {
+  return request !== undefined && handsSchemaNatively("claude-code", request.call, table)
+    ? request.schema
+    : undefined;
+}
+
+// Minified, and without the root `$schema` property Claude Code's API refuses.
+function schemaFlags(schema: object | undefined): string[] {
+  return schema === undefined ? [] : ["--json-schema", JSON.stringify(claudeAnswerSchema(schema))];
+}
+
+// A prompt that states the whole schema, handed a schema that lacks its stamp.
+function promptFor(prompt: string, schema: object | undefined): string {
+  return schema === undefined ? prompt : `${prompt.trimEnd()}\n\n${CLAUDE_STAMP_PROMPT_LINE}\n`;
+}
+
+// The value phax decodes: Claude Code's structured output with the call's own stamp set.
+function stampedStructured(
+  structured: StructuredValue | null,
+  schema: object | undefined,
+): StructuredValue | null {
+  return structured !== null && schema !== undefined
+    ? { value: stampStructuredValue(structured.value, schema) }
+    : structured;
+}
+
+export function buildArgs(
+  options: AgentRunOptions,
+  resumeSessionId?: string,
+  table: StructuredCallsTable = STRUCTURED_CALLS,
+): string[] {
+  const schemaArgs = schemaFlags(nativeSchemaOf(options.answerSchema, table));
   // `claude` requires `--verbose` whenever `--print` is paired with
   // `--output-format=stream-json`; without it the CLI exits with code 1.
   const common = ["--print", "--output-format", "stream-json", "--verbose"];
@@ -172,6 +220,7 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
     const args = [
       ...common,
       ...claudeReadOnlyFlags([], options.agentCommands ?? []),
+      ...schemaArgs,
       "--model",
       options.model,
       "--effort",
@@ -208,7 +257,15 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
         : buildClaudeSessionSettings(worktreeRoot, skillEditGrants, denyRules),
   });
 
-  const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];
+  const args = [
+    ...common,
+    ...modeFlags,
+    ...schemaArgs,
+    "--model",
+    options.model,
+    "--effort",
+    options.effort,
+  ];
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
   }
@@ -225,7 +282,10 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
  *   --strict-mcp-config        → no MCP servers loaded
  *   no --add-dir               → no writable paths granted
  */
-export function buildCompletionArgs(options: CompletionOptions): string[] {
+export function buildCompletionArgs(
+  options: CompletionOptions,
+  table: StructuredCallsTable = STRUCTURED_CALLS,
+): string[] {
   return [
     "--print",
     "--output-format",
@@ -238,6 +298,7 @@ export function buildCompletionArgs(options: CompletionOptions): string[] {
     "--disallowed-tools",
     "Bash,WebFetch,WebSearch",
     "--strict-mcp-config",
+    ...schemaFlags(nativeSchemaOf(options.answerSchema, table)),
     "--model",
     options.model,
     "--effort",
@@ -248,14 +309,16 @@ export function buildCompletionArgs(options: CompletionOptions): string[] {
 export function runClaudeCompletion(
   prompt: string,
   options: CompletionOptions,
+  table: StructuredCallsTable = STRUCTURED_CALLS,
 ): Effect.Effect<
   CompletionResult,
   AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
-  const args = buildCompletionArgs(options);
+  const args = buildCompletionArgs(options, table);
+  const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnClaude(args, prompt, undefined, options.cwd),
+      try: () => spawnClaude(args, promptFor(prompt, schema), undefined, options.cwd),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
@@ -269,7 +332,7 @@ export function runClaudeCompletion(
         sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-    return { finalText: outcome.text, structured: outcome.structured };
+    return { finalText: outcome.text, structured: stampedStructured(outcome.structured, schema) };
   });
 }
 
@@ -361,6 +424,7 @@ export function runClaudeAgent(
   prompt: string,
   options: AgentRunOptions,
   resumeSessionId?: string,
+  table: StructuredCallsTable = STRUCTURED_CALLS,
 ): Effect.Effect<
   AgentRunResult,
   | AgentInvocationError
@@ -372,7 +436,7 @@ export function runClaudeAgent(
 > {
   let args: string[];
   try {
-    args = buildArgs(options, resumeSessionId);
+    args = buildArgs(options, resumeSessionId, table);
   } catch (err) {
     if (err instanceof SecurityEnforcementError) {
       return Effect.fail(err);
@@ -380,9 +444,10 @@ export function runClaudeAgent(
     throw err;
   }
   const argv = ["claude", ...args];
+  const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnClaude(args, prompt, options.outputJsonlPath, options.cwd),
+      try: () => spawnClaude(args, promptFor(prompt, schema), options.outputJsonlPath, options.cwd),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
           argv,
@@ -425,7 +490,7 @@ export function runClaudeAgent(
       sessionId: capturedSessionId,
       outputPath: options.outputJsonlPath ?? "",
       finalText: outcome.text,
-      structured: outcome.structured,
+      structured: stampedStructured(outcome.structured, schema),
     };
   });
 }

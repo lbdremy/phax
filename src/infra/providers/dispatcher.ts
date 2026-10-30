@@ -2,6 +2,10 @@ import { Effect, Layer } from "effect";
 import { Backend } from "../../ports/backend.js";
 import { AgentInvocationError } from "../../domain/errors.js";
 import { ProviderStoreRoots } from "../../ports/providerStores.js";
+import {
+  STRUCTURED_CALLS,
+  type StructuredCallsTable,
+} from "../../domain/session/structuredCalls.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import {
   captureClaudeTranscript,
@@ -32,23 +36,31 @@ function afterArchivingPreviousFailure<A, E>(
  * The backend that runs the provider CLIs. Its adapters read the provider
  * store roots in context when the layer is built: the CLI provides
  * `ProviderStoreRootsLive`, and without it the default holds no root.
+ * `options.structuredCalls` says, per structured call, whether Claude Code is
+ * handed the answer schema natively; it defaults to `STRUCTURED_CALLS`, and
+ * tests inject a flipped table.
  */
-export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
+export function makeNodeBackendLayer(
+  providerConfig: ProviderConfig,
+  options?: { readonly structuredCalls?: StructuredCallsTable },
+): Layer.Layer<Backend> {
+  const table = options?.structuredCalls ?? STRUCTURED_CALLS;
   return Layer.effect(
     Backend,
-    Effect.map(ProviderStoreRoots, (roots) => nodeBackend(providerConfig, roots)),
+    Effect.map(ProviderStoreRoots, (roots) => nodeBackend(providerConfig, roots, table)),
   );
 }
 
 function nodeBackend(
   providerConfig: ProviderConfig,
   roots: ProviderStoreRoots["Type"],
+  table: StructuredCallsTable,
 ): Backend["Type"] {
   return {
     runAgent: (prompt, options) =>
       afterArchivingPreviousFailure(options, () => {
         if (options.provider === "claude-code") {
-          return runClaudeAgent(prompt, options);
+          return runClaudeAgent(prompt, options, undefined, table);
         }
         if (options.provider === "mistral-vibe") {
           const entry = providerConfig.providers["mistral-vibe"];
@@ -77,7 +89,7 @@ function nodeBackend(
 
     complete: (prompt, options) => {
       if (options.provider === "claude-code") {
-        return runClaudeCompletion(prompt, options);
+        return runClaudeCompletion(prompt, options, table);
       }
       if (options.provider === "codex-cli") {
         const entry = providerConfig.providers["codex-cli"];
@@ -109,7 +121,7 @@ function nodeBackend(
     resumeAgentSession: (sessionId, prompt, options) =>
       afterArchivingPreviousFailure(options, () => {
         if (options.provider === "claude-code") {
-          return runClaudeAgent(prompt, options, sessionId);
+          return runClaudeAgent(prompt, options, sessionId, table);
         }
         if (options.provider === "mistral-vibe") {
           const entry = providerConfig.providers["mistral-vibe"];

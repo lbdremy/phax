@@ -84,6 +84,7 @@ export function extractPlanLlm(
           model: opts.model,
           effort: opts.effort,
           cwd: dir,
+          answerSchema: { call: "plan-extraction", schema: jsonSchema },
         }),
       (dir) => fs.remove(dir).pipe(Effect.orElse(() => Effect.void)),
     );
