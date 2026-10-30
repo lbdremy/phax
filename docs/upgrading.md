@@ -21,6 +21,20 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.32.0
+
+- **Records and schema readers: `hand-decision-answer` is two formats.** `spec-hand-decision-answer` and `plan-hand-decision-answer` are each the old variant with a `$schema` const. `hand-decision-answer` stays readable at 0.25.0, and phax no longer reads or asks for it.
+- **Schema readers: `plan-document` no longer pairs `sourceSpec` and `completesSpec` in its schema.** phax checks the pair.
+- **Schema readers: every answer's `$schema` is a const of its 0.32.0 stamp.** That covers spec and plan sidecars, the two hand-decision formats, `first-reading`, `interactive-handoff`, `code-review` and `phax-plan-extraction`. An older `@lbdremy/phax-schemas` cannot read them, and the package reads a const format only at its own stamps.
+- **Schema readers: `phax-plan` is restamped 0.32.0**, its decoding unchanged. An older `@lbdremy/phax-schemas` cannot read a 0.32.0 run plan.
+- **Schema readers: the `code-review` answer and file are one shape**, `$schema` in place of `version`.
+- **Schema readers: new `phax-plan-extraction` format**, the answer of the plan extraction.
+- **Headless authoring answers** carry `$schema` in place of `version: 1`.
+- **Run `phax artifact migrate-documents` once.** It restamps your 0.27.0 specs and 0.28.0 plans, their bodies unchanged. Until then `approve`, `reopen` and `decide` refuse, naming the command.
+- **A person's correction handoff stamped `interactive-handoff` 0.26.0 is refused.** 0.32.0 reads only its own stamp.
+
+See [Structured answers and providers](structured-answers.md) for what each provider now checks.
+
 ### 0.31.0
 
 - **Records readers: `security.json` is version 3.** Every phase's `security.json` carries a required `protectedPaths`, between `skillEditGrants` and `providerSkippedForSecurity`: `null` when `phax.json` declares none, otherwise `{ globs, enforcement }` with `enforcement` one of `enforced`, `partial` or `commit-check-only`. phax reads version 1 and 2 files as version 3.
