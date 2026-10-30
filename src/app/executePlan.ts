@@ -71,6 +71,7 @@ import { publishRun } from "./publishRun.js";
 import { codeReviewFixHint, describeFindingCounts } from "../domain/review/codeReviewFindings.js";
 import { reviewCodeAndRecord } from "./reviewCode.js";
 import { reviewComplianceAndRecord } from "./reviewCompliance.js";
+import { complianceFailureReason } from "../domain/review/complianceRetry.js";
 import { reviewEntryWarnings, runEndReviewRecordTarget } from "./reviewEntry.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
@@ -2823,7 +2824,7 @@ export function executePlan(
               Effect.sync(() => {
                 if (outcome.review.kind === "failed") {
                   process.stderr.write(
-                    `[phax] Warning: compliance review failed: ${outcome.review.failureReason} — rerun it with \`phax review-compliance ${shortName}\`\n`,
+                    `[phax] Warning: compliance review failed: ${complianceFailureReason(outcome.review.failureReason, outcome.review.earlierReviewKept)} — rerun it with \`phax review-compliance ${shortName}\`\n`,
                   );
                 }
                 for (const warning of reviewEntryWarnings(

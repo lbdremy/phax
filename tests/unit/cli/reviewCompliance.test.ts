@@ -359,9 +359,31 @@ describe("runReviewCompliance", () => {
     review: {
       kind: "failed",
       failureReason: "compliance-review answer rejected twice — first answer: a; retry: b",
+      earlierReviewKept: false,
     },
     record: { kind: "no-entry" },
     push: { kind: "no-record" },
+  });
+
+  it("says the earlier review is kept when one is in place", async () => {
+    const { code, errors } = await runWith(
+      Effect.succeed({
+        review: {
+          kind: "failed",
+          failureReason: "the review could not be kept: disk full",
+          earlierReviewKept: true,
+        },
+        record: { kind: "no-entry" },
+        push: { kind: "no-record" },
+      }),
+    );
+
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "Compliance review failed: the review could not be kept: disk full; " +
+        "the earlier review is kept (the run folder and the PR body still show it). " +
+        `To retry, run: phax review-compliance ${FAKE_SHORT_NAME}`,
+    ]);
   });
 
   it("prints the failure and its retry command, exits 1 and never prints Verdict: unknown", async () => {
@@ -374,6 +396,7 @@ describe("runReviewCompliance", () => {
     ]);
     expect(lines.join("\n")).not.toContain("Verdict");
     expect(errors.join("\n")).not.toContain("unknown");
+    expect(errors.join("\n")).not.toContain("earlier review");
   });
 
   it("names the run key in the retry command of a run of another project", async () => {
@@ -397,6 +420,33 @@ describe("runReviewCompliance", () => {
     expect(
       lines.some((l) => l.includes(`rerun \`phax review-compliance other-ns.${FAKE_SHORT_NAME}\``)),
     ).toBe(true);
+  });
+
+  it("says the earlier review is kept after a failed session's lines", async () => {
+    const { code, errors } = await runWith(
+      Effect.succeed({
+        review: {
+          kind: "failed",
+          failureReason: "Agent invocation failed: crashed",
+          earlierReviewKept: true,
+          sessionFailure: {
+            provider: "claude-code",
+            kind: "provider-error",
+            message: "crashed",
+            sessionId: null,
+            resetAt: null,
+          },
+          sessionFailureFiles: { agentErrorLog: null, transcript: null },
+        },
+        record: { kind: "no-entry" },
+        push: { kind: "no-record" },
+      }),
+    );
+
+    expect(code).toBe(1);
+    expect(errors.at(-1)).toBe(
+      "  the earlier review is kept (the run folder and the PR body still show it)",
+    );
   });
 
   it("prints the verdict and the Markdown path of a generated review", async () => {

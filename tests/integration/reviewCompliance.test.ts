@@ -455,6 +455,7 @@ describe("reviewCompliance", () => {
         );
         expect(result.failureReason).toMatch(reason);
         expect(result.failureReason).toContain("; retry: ");
+        expect(result.earlierReviewKept).toBe(true);
         expect(t.backend.impl.resumeCalls).toHaveLength(1);
         expect(t.fs.impl.getFile(jsonPath)).toBe("previous json");
         expect(t.fs.impl.getFile(mdPath)).toBe("previous md");
@@ -468,7 +469,7 @@ describe("reviewCompliance", () => {
 
       const result = await t.review();
 
-      expect(result.kind).toBe("failed");
+      expect(result).toMatchObject({ kind: "failed", earlierReviewKept: false });
       expect(t.fs.impl.getFile(jsonPath)).toBeUndefined();
       expect(t.fs.impl.getFile(mdPath)).toBeUndefined();
       expect(t.filesUnder(worktreePath)).toEqual([]);
@@ -513,6 +514,7 @@ describe("reviewCompliance", () => {
       if (result.kind !== "failed") return;
       expect(result.failureReason).toMatch(/^Agent invocation failed: /);
       expect(result.failureReason).not.toMatch(/rejected twice/);
+      expect(result.earlierReviewKept).toBe(true);
       expect(t.fs.impl.getFile(jsonPath)).toBe("previous json");
       expect(t.fs.impl.getFile(mdPath)).toBe("previous md");
     });
@@ -531,6 +533,7 @@ describe("reviewCompliance", () => {
       expect(result).toEqual({
         kind: "failed",
         failureReason: expect.stringContaining("the review could not be kept: "),
+        earlierReviewKept: true,
       });
       expect(result.kind === "failed" && result.failureReason).toContain("disk full");
       expect(t.fs.impl.getFile(jsonPath)).toBe("previous json");
@@ -544,7 +547,7 @@ describe("reviewCompliance", () => {
 
       const result = await t.review();
 
-      expect(result.kind).toBe("failed");
+      expect(result).toMatchObject({ kind: "failed", earlierReviewKept: false });
       expect(t.fs.impl.getFile(jsonPath)).toBeUndefined();
       expect(t.fs.impl.getFile(mdPath)).toBeUndefined();
     });
@@ -587,6 +590,8 @@ describe("reviewCompliance", () => {
         "the review could not be kept: disk full; " +
           "restoring the earlier compliance-review.json also failed: read-only file system",
       );
+      // compliance-review.json holds this review now: the earlier one is not kept.
+      expect(result.earlierReviewKept).toBe(false);
     });
 
     it("replaces both files of an earlier review with only its own", async () => {
