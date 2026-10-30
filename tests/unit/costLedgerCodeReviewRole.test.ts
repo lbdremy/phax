@@ -106,6 +106,22 @@ describe("the code-review stream", () => {
     ]);
   });
 
+  it("is followed by the corrective resume's stream, with the same role", () => {
+    const streams = runStreamsInOrder({
+      entries: [
+        "code-review-retry.session.jsonl",
+        "code-review.session.jsonl",
+        "compliance-review.session.jsonl",
+      ],
+      phaseEntries: {},
+    });
+    expect(streams).toEqual([
+      { role: "compliance", phase: null, relativePath: "compliance-review.session.jsonl" },
+      { role: "code-review", phase: null, relativePath: "code-review.session.jsonl" },
+      { role: "code-review", phase: null, relativePath: "code-review-retry.session.jsonl" },
+    ]);
+  });
+
   it("is backfilled as an entry with phase null", () => {
     const ledger = ledgerFromStreams(
       [

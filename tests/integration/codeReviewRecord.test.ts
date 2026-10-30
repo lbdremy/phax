@@ -158,7 +158,11 @@ describe("code review entry (real git)", () => {
         resolution,
         security,
         { kind: "project", records, repoRoot: repoDir, push: null },
-        { bundledReviewSkill: "# phax review\n", nowIso: "2026-10-27T12:30:00.000Z" },
+        {
+          bundledReviewSkill: "# phax review\n",
+          nowIso: "2026-10-27T12:30:00.000Z",
+          output: { log() {}, warn() {}, error() {} },
+        },
       ).pipe(Effect.provide(layers)),
     );
   }
@@ -217,6 +221,11 @@ describe("code review entry (real git)", () => {
       outputPath: "",
       finalText: '{"version":1}',
     });
+    backend.impl.addResumeResponse({
+      sessionId: "session-bad" as ClaudeSessionId,
+      outputPath: "",
+      finalText: '{"version":1}',
+    });
     const outcome = await Effect.runPromise(
       reviewCodeAndRecord(
         info(),
@@ -224,7 +233,11 @@ describe("code review entry (real git)", () => {
         resolution,
         security,
         { kind: "project", records: RECORDS, repoRoot: repoDir, push: null },
-        { bundledReviewSkill: "# phax review\n", nowIso: "2026-10-27T12:30:00.000Z" },
+        {
+          bundledReviewSkill: "# phax review\n",
+          nowIso: "2026-10-27T12:30:00.000Z",
+          output: { log() {}, warn() {}, error() {} },
+        },
       ).pipe(
         Effect.provide(
           Layer.mergeAll(

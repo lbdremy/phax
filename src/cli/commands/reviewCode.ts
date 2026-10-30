@@ -95,7 +95,7 @@ async function runHeadless(
       resolution,
       { mode: config.security.profile, config: config.security },
       reviewRecordTargetFor({ config, namespace, info, crossProject }),
-      { bundledReviewSkill, nowIso: new Date().toISOString() },
+      { bundledReviewSkill, nowIso: new Date().toISOString(), output: out },
     );
   }).pipe(
     Effect.provide(

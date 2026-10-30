@@ -13,6 +13,7 @@ import type {
   StreamModelUsage,
 } from "../../schemas/claudeStream.js";
 import type { CostLedger, CostLedgerEntry, RateLimitSample } from "../../schemas/costLedger.js";
+import { CODE_REVIEW_RETRY_STREAM_FILENAME } from "../review/codeReviewRetry.js";
 import { listPriceFor, type ModelListPrice } from "../routing/prices.js";
 
 /** The first Claude Code release that reports a resumed session's `modelUsage` cumulatively. */
@@ -373,6 +374,13 @@ export function runStreamsInOrder(runFolder: RunFolderListing): RunStream[] {
   }
   if (runFolder.entries.includes(CODE_REVIEW_STREAM)) {
     streams.push({ role: "code-review", phase: null, relativePath: CODE_REVIEW_STREAM });
+  }
+  if (runFolder.entries.includes(CODE_REVIEW_RETRY_STREAM_FILENAME)) {
+    streams.push({
+      role: "code-review",
+      phase: null,
+      relativePath: CODE_REVIEW_RETRY_STREAM_FILENAME,
+    });
   }
   return streams;
 }
