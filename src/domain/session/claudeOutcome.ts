@@ -123,17 +123,29 @@ function trailingRetryFailure(
   return null;
 }
 
+/** What the adapter tells the reader about the session it spawned. */
+export interface ClaudeSessionReading {
+  /** Whether the spawn was handed an answer schema natively (`--json-schema`). */
+  readonly schemaHandedNatively: boolean;
+}
+
+const UNSTRUCTURED: ClaudeSessionReading = { schemaHandedNatively: false };
+
 /**
  * Reads an ended Claude Code session: the last decodable `result` event
  * decides, whatever the exit code. A success answers with its
  * `structured_output` when it carries one (its text may be empty), else with
- * its `result` when that is non-blank: a prose result with no structured
- * output is what Claude Code prints when the model could not meet the schema,
- * and it reads as text for phax's decoder to refuse; with none, the process's end, the
- * `api_retry` the session was still in when it ended, and stderr (see
- * outcome.ts).
+ * its `result` text, `""` included. Only a session handed the answer schema
+ * natively asks more: there a success with no `structured_output` answers only
+ * from a non-blank `result` (the prose Claude Code prints when the model could
+ * not meet the schema, for phax's decoder to refuse), and with neither it is a
+ * `provider-error`. With no result event, the process's end, the `api_retry`
+ * the session was still in when it ended, and stderr decide (see outcome.ts).
  */
-export function readClaudeOutcome(ended: EndedSession): SessionOutcome {
+export function readClaudeOutcome(
+  ended: EndedSession,
+  reading: ClaudeSessionReading = UNSTRUCTURED,
+): SessionOutcome {
   const events = scanClaudeOutcomeEvents(ended.lines);
   const { result } = events;
   if (result !== undefined) {
@@ -148,11 +160,12 @@ export function readClaudeOutcome(ended: EndedSession): SessionOutcome {
           sessionId,
         };
       }
-      if (result.result !== undefined && result.result.trim().length > 0) {
+      const text = result.result;
+      if (text !== undefined && (!reading.schemaHandedNatively || text.trim().length > 0)) {
         return {
           kind: "answer",
           provider: PROVIDER,
-          text: result.result,
+          text,
           structured: null,
           sessionId,
         };
