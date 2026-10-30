@@ -84,11 +84,17 @@ The CLI flag takes precedence over the configuration file.
 
 PHAX applies the strongest available provider-native controls for each provider:
 
-| Provider       | Filesystem Jail | Network control                | MCP Allowlist |
-| -------------- | --------------- | ------------------------------ | ------------- |
-| `claude-code`  | Strong          | None enforced (profile recorded) | Supported   |
-| `codex-cli`    | Strong          | On/off (sandbox egress toggle)   | Supported   |
-| `mistral-vibe` | Strong          | None                             | Unsupported (MCP off) |
+| Provider       | Filesystem Jail                         | Network control                  | MCP Allowlist         |
+| -------------- | --------------------------------------- | -------------------------------- | --------------------- |
+| `claude-code`  | Strong, file-editing tools only (no OS sandbox) | None enforced (profile recorded) | Supported   |
+| `codex-cli`    | Strong, OS sandbox                      | On/off (sandbox egress toggle)   | Supported             |
+| `mistral-vibe` | Strong, file-editing tools only (no OS sandbox) | None                     | Unsupported (MCP off) |
+
+**On Claude Code and Vibe the filesystem jail is not an OS sandbox.** There, `strong` (the
+value `security.json` records) means the file-editing tools are held to the worktree and the
+writable roots. A shell command phax allows runs as an ordinary process with your user's
+rights: it reads and writes wherever you can. Only Codex runs the agent's commands in an OS
+sandbox.
 
 **No provider enforces a domain allowlist.** `network.allowDomains` and the
 `dev-allowlist` profile are carried into the policy and recorded in `security.json`, but no
@@ -103,7 +109,7 @@ network control at all.
 **Claude Code** (`claude-code`):
 
 - Secure mode runs headless with `--permission-mode acceptEdits` (edits auto-approved within the working dirs, denied outside)
-- Filesystem restricted to configured paths via the worktree cwd + `--add-dir`
+- File-editing tools restricted to the worktree cwd + `--add-dir` paths; an allowed shell command runs with the user's rights, outside any OS sandbox
 - No native domain-allowlist flag; `network.profile` is recorded but not enforced as a per-domain filter
 - MCP disabled or allowlisted via `--strict-mcp-config`
 - Shell is denied by default; only the phase's gate commands are allowlisted (see [Shell command execution](#shell-command-execution))
@@ -132,7 +138,7 @@ network control at all.
 
 Example: with `providerPriority` `[mistral-vibe, claude-code]` in secure mode, the phase runs on Vibe, and its `security.json` shows `"provider": "mistral-vibe"`, `"downgraded": false` and `"marks": []`.
 
-**Accepted loss.** Vibe's enforcement is tool-level: code that an allowed agent command runs can still read outside the roots, as under Claude Code's allowlist.
+**Accepted loss.** Vibe's enforcement is tool-level: code that an allowed agent command runs can still read and write outside the roots, with the user's rights, as under Claude Code's allowlist.
 
 ### Skill edit grants (Claude Code)
 
@@ -210,8 +216,9 @@ The phase prompt and the gate fix-loop both instruct the agent to run the
 phase's **gate commands** (the resolved gate profile, e.g. `pnpm typecheck`,
 `pnpm test`) to verify — and fix — its own work. How that shell access is
 constrained differs by provider, because each provider exposes a different
-native control surface. The granularity differs, but in every secure-mode case
-the commands run **confined to the worktree**. The allowlisted set is every
+native control surface. On Codex the commands run in the OS sandbox; on Claude
+Code and Vibe phax controls which commands may start, and a started command runs
+with the user's rights. The allowlisted set is every
 step's command in the profile, regardless of its `firing` — terminal steps
 still execute at the last phase, so their commands must be allowlisted from
 the start:
@@ -232,6 +239,25 @@ Notes:
   the broader shell surface is documented here rather than emitted as a separate mark.
 - Vibe's allowlist is a prefix match, recorded as `prefix` enforcement. It checks the
   call, not what an allowed command goes on to do.
+
+### Read-only review sessions
+
+The headless code review and the compliance review run read-only, granted the read-only
+git commands `git log`, `git diff`, `git show`, `git status`, `git ls-files` and
+`git blame`:
+
+| Provider       | What bounds the session                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude-code`  | The shell is limited to those prefixes (`--allowedTools "Bash(git log:*)"`, …). The commands run with the user's rights; no OS sandbox. |
+| `mistral-vibe` | `bash` is prefix-allowlisted to those commands. No OS sandbox.                                                                           |
+| `codex-cli`    | The read-only OS sandbox: no writes and no network, but any reading command may run. The git list is not applied.                       |
+
+**Known residual.** A prefix allowlist checks how a command starts, not its options.
+`git diff`, `git log` and `git show` take `--output=<path>`, which writes a file anywhere the
+user can write. Reproduced on 2026-10-30 on Claude Code with phax's read-only flags:
+`Bash(git diff:*)` let `git diff --output=leak.txt` write the file, with no denial. It
+applies to both reviews on Claude Code and, by the same prefixes, on Vibe. Codex's sandbox
+blocks the write.
 
 ## Security Artifacts
 
