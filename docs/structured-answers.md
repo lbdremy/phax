@@ -23,7 +23,15 @@ Every answer has one strict schema (closed objects, every key required), publish
 
 ## The compliance review
 
-The compliance review is a read-only session, on every provider, granted the same read-only git commands as the headless code review (`git log`, `git diff`, `git show`, `git status`, `git ls-files`, `git blame`) and no other shell. It writes no file: it answers. Its answer carries the verdict, a summary, one entry per phase, the two ledgers (`unplannedChanges` and `unmetPromises`, each possibly empty), the attention points and the pointers.
+The compliance review is a read-only session: it writes no file, it answers. What it may run depends on the provider:
+
+- **Claude Code**: its shell is limited to the same read-only git prefixes as the headless code review (`--allowedTools "Bash(git log:*)"`, and likewise `git diff`, `git show`, `git status`, `git ls-files`, `git blame`). An allowed command runs unconfined, with your user's rights: there is no OS sandbox.
+- **Mistral Vibe**: `bash` is prefix-allowlisted to those git commands. There is no OS sandbox either.
+- **Codex**: the session runs in Codex's read-only OS sandbox, with no writes and no network, but any reading command may run: the git list is not applied, as Codex has no per-command allowlist.
+
+See [Read-only review sessions](security.md#read-only-review-sessions) for what this leaves open.
+
+Its answer carries the verdict, a summary, one entry per phase, the two ledgers (`unplannedChanges` and `unmetPromises`, each possibly empty), the attention points and the pointers.
 
 phax writes `compliance-review.json` (the answer as given) and renders `compliance-review.md` from the answer alone, in the run folder, replacing both together. A failed review writes neither: an earlier review's two files stay as they were, and no records entry is made. A review whose answer is refused twice is a failure, not a review with an unknown verdict.
 
