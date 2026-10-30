@@ -377,7 +377,7 @@ phax cost backfill
 
 - **Usage**: `phax cost backfill`
 
-Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.
+Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, compliance-review-retry.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.
 
 Never touches a run that already has a ledger, never rewrites a ledger and never reads a pruned run or phax/records/v1. A locked run is skipped and named, and so is a run whose folder is missing. A second pass reports nothing to backfill.
 
@@ -515,9 +515,11 @@ phax publish-pr usage-cli
 
 - **Usage**: `phax review-compliance <short-name>`
 
-Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The review is read-only on the worktree and the registry; it records its result in the run folder and, when records are enabled, in the records of the run's own project, even when the run belongs to another project.
+Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The agent session is read-only: its reading tools and read-only git (log, diff, show, status, ls-files, blame), nothing else. It answers a structured verdict with its final message, per phase, with two ledgers (unplanned changes and unmet promises). phax writes compliance-review.json (the answer as given) and compliance-review.md (rendered from it) in the run folder; when records are enabled, it also commits the review entry to the records of the run's own project, even when the run belongs to another project.
 
-Side effects: spawns a short-lived AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on.
+A refused answer, one that does not match the schema or does not name every phase of the run exactly once, is asked once more in the same session (its transcript is compliance-review-retry.session.jsonl). A review refused twice, or whose session fails, writes neither file nor a records entry, leaves an earlier review as it was, and exits 1 (14 when the provider was unreachable: a network failure), naming the retry command.
+
+Side effects: spawns a short-lived, read-only AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on.
 
 ### Arguments
 

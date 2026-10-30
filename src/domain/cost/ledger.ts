@@ -14,6 +14,10 @@ import type {
 } from "../../schemas/claudeStream.js";
 import type { CostLedger, CostLedgerEntry, RateLimitSample } from "../../schemas/costLedger.js";
 import { CODE_REVIEW_RETRY_STREAM_FILENAME } from "../review/codeReviewRetry.js";
+import {
+  COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME,
+  COMPLIANCE_REVIEW_STREAM_FILENAME,
+} from "../review/complianceRetry.js";
 import { listPriceFor, type ModelListPrice } from "../routing/prices.js";
 
 /** The first Claude Code release that reports a resumed session's `modelUsage` cumulatively. */
@@ -289,7 +293,6 @@ export type RunStream = InvocationRole & { readonly relativePath: string };
 const PHASE_FOLDER = /^phase-(\d{2,})(?:\.reset-(.+))?$/;
 const FIX_STREAM = /^fix-attempt-(\d{2,})\.jsonl$/;
 const TURN_STREAM = /^(first-turn|closing-turn)-(\d{2,})(-retry)?\.jsonl$/;
-const COMPLIANCE_STREAM = "compliance-review.session.jsonl";
 const CODE_REVIEW_STREAM = "code-review.session.jsonl";
 
 /** Whether a run folder entry is a phase folder, live (`phase-01`) or reset (`phase-01.reset-<stamp>`). */
@@ -369,8 +372,19 @@ export function runStreamsInOrder(runFolder: RunFolderListing): RunStream[] {
   const streams = folders.flatMap((folder) =>
     phaseFolderStreams(folder.name, folder.phase, runFolder.phaseEntries[folder.name] ?? []),
   );
-  if (runFolder.entries.includes(COMPLIANCE_STREAM)) {
-    streams.push({ role: "compliance", phase: null, relativePath: COMPLIANCE_STREAM });
+  if (runFolder.entries.includes(COMPLIANCE_REVIEW_STREAM_FILENAME)) {
+    streams.push({
+      role: "compliance",
+      phase: null,
+      relativePath: COMPLIANCE_REVIEW_STREAM_FILENAME,
+    });
+  }
+  if (runFolder.entries.includes(COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME)) {
+    streams.push({
+      role: "compliance",
+      phase: null,
+      relativePath: COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME,
+    });
   }
   if (runFolder.entries.includes(CODE_REVIEW_STREAM)) {
     streams.push({ role: "code-review", phase: null, relativePath: CODE_REVIEW_STREAM });
