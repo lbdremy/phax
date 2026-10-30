@@ -40,6 +40,9 @@ Ground read:
 - `src/schemas/decisionRecord.ts` — A failed decision record names its failure: a session-outcome kind (`provider-error` among them), `answer-refused`, `artifact-changed` or `commit-failed`.
 - `src/schemas/handDecisionAnswer.ts` — hand-decision-answer is a root union of a spec variant and a plan variant, exported with JSONSchema.make: the shape Codex strict refuses at the root.
 - `src/schemas/phaxPlan.ts` — ExtractionAnswerSchema: `version: 1`, run, phases; no variant for the incomplete-plan report.
+- `src/schemas/planDocument.ts` — plan-document requires `sourceSpec` and `completesSpec`, each nullable, and couples them through a root `allOf`/`oneOf` over two open objects; its test-strategy `guarantee`, `oracle` and `criterion` carry lookahead patterns stacked under `allOf`.
+- `packages/schemas/json/plan-document.schema.json` — The published plan-document schema: `minLength` throughout, `$schema` as a release pattern, the root `allOf`/`oneOf` pairing and six lookahead patterns; the extraction answer's test lines carry the same patterns.
+- `packages/schemas/json/hand-decision-answer.schema.json` — A root `anyOf` of a spec and a plan variant, each closed with every key required; `minLength` on its strings.
 - `docs/specs/archive/2610271007-headless-code-review.md` — `phax review-code --headless` decodes a version-1 code-review answer with no retry; a refused answer exits 1 with `Code review failed: answer refused: … To retry, run: …`.
 - `src/app/reviewCode.ts` — `reviewCodeHeadless`: one read-only session granted `CODE_REVIEW_AGENT_COMMANDS`; a session that changed the worktree has those paths put back and is refused; an empty answer or a refused one fails with no retry.
 - `src/domain/review/codeReviewPrompt.ts` — The headless prompt states the answer as a sketch of its keys (`{ "version": 1, "findings": [ … ] }`) with the lists of its severity, lens and escape ids, not as a JSON Schema.
@@ -53,26 +56,26 @@ Ground read:
 
 ## 2. Problem
 
-A wrong key, a wrong enum value, a wrong id or a missing `$schema` costs phax a whole session or a corrective turn, because the provider never sees the answer's schema as a constraint: the model reads it as prompt text and phax finds the mistake only once the session has ended. Both providers phax runs most can enforce a schema while generating, and phax does not use it.
+A wrong key, a wrong enum value, a wrong id or a missing `$schema` costs phax a whole session or a corrective turn, because the provider never sees the answer's schema as a constraint: the model reads it as prompt text and phax finds the mistake only once the session has ended. Both providers phax runs most can enforce a schema while generating, and phax does not use it. Nor could it hand them its answer schemas as they are: none fits Codex strict. Every one constrains strings with `minLength` and states `$schema` as a release pattern; hand-decision-answer is a root union; plan-document and the extraction answer carry lookahead patterns and stacked patterns (`allOf`) on their test lines, and plan-document pairs `sourceSpec` with `completesSpec` through a root `allOf`/`oneOf` over two open objects.
 
 The compliance review is worse off. Its JSON verdict has no retry, and a bad or missing file is reported as `Verdict: unknown` with no reason, after a full review session has been paid for. Its Markdown is free prose the agent writes to disk, so it can disagree with the verdict, and the session needs write access for a review that should only read. The headless code review refuses its answer with no second chance, and the extraction fallback's incomplete-plan report sits outside its own schema, so no schema-enforcing provider could ever return it.
 
 ## 3. Product goal
 
-Every agent call that returns a structured answer hands the provider a schema it enforces while generating, wherever the provider can, so shape mistakes are corrected by the provider inside the session instead of costing a corrective turn or a refused session. The provider schema is derived from the answer's full schema, never written by hand, and phax's own decoder, with the coherence checks no schema can express, stays the final judge on every provider. The compliance review becomes a structured answer like the others: read-only, with its corrective resume, and with both its files written by phax from the answer.
+Every agent call that returns a structured answer hands the provider the answer's own schema, enforced while the model generates, wherever the provider can, so shape mistakes are corrected by the provider inside the session instead of costing a corrective turn or a refused session. Each answer has one schema, made to fit Codex strict at the source: phax publishes it, hands it as is to Claude Code and Codex, and enforces it in its decoder together with the coherence checks no schema can express; that decoder stays the final judge on every provider. The compliance review becomes a structured answer like the others: read-only, with its corrective resume, and with both its files written by phax from the answer.
 
 > The provider may shape the answer; only phax's decoder accepts it.
 
 ## 4. Terminology
 
 - **structured answer** — The JSON document an agent call must return for phax to decode: spec-document, plan-document, the extraction answer, a revised document or hand-decision-answer (decide's handback and the `decide --verdicts` writer), first-reading, interactive-handoff, code-review and compliance-review.
-- **full schema** — The structured answer's JSON Schema as phax exports it from the schema its decoder enforces; for a published format, the one `phax artifact schema` and packages/schemas export.
-- **coherence check** — A check phax's decoder runs beyond the full schema, against the call's context: a criterion id exists in the source spec's sidecar, a verdict moves only presented questions, a revision names the sections it touches, a phase id is a phase of the run.
-- **phax's decoder** — The full schema plus the call's coherence checks; the only judge of whether an answer is accepted.
-- **provider schema** — The schema phax hands the provider for one structured answer: derived from the full schema to fit the stricter of Claude Code's and Codex's rules (Codex strict), shared by both providers.
-- **native structured output** — A provider enforcing the provider schema while the model generates: Claude Code's `--json-schema`, Codex's `--output-schema`.
+- **answer schema** — The structured answer's one JSON Schema, exported with `JSONSchema.make` from the Effect schema phax's decoder enforces, and shaped to fit Codex strict; for a published format, the one `phax artifact schema` and packages/schemas export. phax hands it as is to Claude Code and Codex and states it in every prompt.
+- **Codex strict** — OpenAI's strict structured-output subset, under which Codex sends `--output-schema`: closed objects with every key required, no root `anyOf`, no `oneOf`, `allOf`, `not` or conditionals, and strings constrained only by `pattern` and `format`.
+- **coherence check** — A check phax's decoder runs beyond the answer schema, against the call's context or for a rule Codex strict cannot express: a criterion id exists in the source spec's sidecar, a verdict moves only presented questions, a revision names the sections it touches, a phase id is a phase of the run, a plan's `sourceSpec` and `completesSpec` are both set or both null.
+- **phax's decoder** — The answer schema plus the call's coherence checks, and nothing else; the only judge of whether an answer is accepted.
+- **native structured output** — A provider enforcing the answer schema while the model generates: Claude Code's `--json-schema`, Codex's `--output-schema`.
 - **corrective resume** — The one resume of the same session that names phax's decoder refusal and asks for the whole answer again; a second refusal fails the call.
-- **schema check** — The test that keeps every provider schema inside both Claude Code's and Codex strict's accepted rules.
+- **strict check** — The test over every answer schema, each published one included, that keeps it inside both Codex strict and what Claude Code's `--json-schema` accepts.
 - **unplanned-change ledger** — The compliance answer's list of files touched beyond the plan, each with its phase and the reviewer's note.
 - **unmet-promise ledger** — The compliance answer's list of promised tests or artifacts the reviewer did not find, each with its phase and note.
 
@@ -80,27 +83,27 @@ Every agent call that returns a structured answer hands the provider a schema it
 
 ### 5.1 Native structured output on Claude Code and Codex
 
-WHERE a structured answer is asked of Claude Code or Codex THE system SHALL hand that provider the answer's provider schema, on the first session and on its corrective resume, for each of the eight calls: headless spec and plan authoring, the plan-extraction fallback, decide's headless handback, the `decide --verdicts` writer, the interactive first turn, the interactive closing turn, the headless code review and the compliance review, except on Claude Code for a call that r-claude-fallback covers.
+WHERE a structured answer is asked of Claude Code or Codex THE system SHALL hand that provider the answer schema itself, as phax publishes it and unchanged, on the first session and on its corrective resume, for each of the eight calls: headless spec and plan authoring, the plan-extraction fallback, decide's headless handback, the `decide --verdicts` writer, the interactive first turn, the interactive closing turn, the headless code review and the compliance review, except on Claude Code for a call that r-claude-fallback covers.
 
 ### 5.2 Mistral Vibe keeps the schema in the prompt
 
-WHERE a structured answer is asked of Mistral Vibe THE system SHALL state the answer's full schema in the prompt, as every structured call does on every provider, the headless code review and the compliance review included, and judge the answer with phax's decoder and the corrective resume, an empty final answer counting as a decoder refusal (not JSON).
+WHERE a structured answer is asked of Mistral Vibe THE system SHALL state the answer schema in the prompt, as every structured call does on every provider, the headless code review and the compliance review included, and judge the answer with phax's decoder and the corrective resume, an empty final answer counting as a decoder refusal (not JSON).
 
 ### 5.3 A Claude Code combination that does not work falls back to the prompt schema
 
-WHERE Claude Code's `--json-schema` does not work with what a structured call needs (its resume, its read-only tools or stream-json) THE system SHALL run that call, on Claude Code alone, with the answer's full schema in the prompt, no `--json-schema`, phax's decoder and the corrective resume, as on Mistral Vibe, while the same call on Codex keeps its provider schema.
+WHERE Claude Code's `--json-schema` does not work with what a structured call needs (its resume, its read-only tools or stream-json) THE system SHALL run that call, on Claude Code alone, with the answer schema in the prompt only, no `--json-schema`, phax's decoder and the corrective resume, as on Mistral Vibe, while the same call on Codex keeps `--output-schema`.
 
-### 5.4 The provider schema is derived
+### 5.4 Every answer schema fits Codex strict
 
-The system shall derive each provider schema from the answer's full schema, never from a hand-written one, as one closed object with every key required, no lookahead pattern, no root `anyOf` or `oneOf`, and `$schema` as a `const` wherever the answer carries a `$schema`.
+The system shall shape every answer schema to fit Codex strict at the source, in the Effect schemas: closed objects with every key required, no root `anyOf`, no `oneOf` or `allOf`, no lookaround pattern, strings constrained only by `pattern` or `format`, and `$schema` as a `const` wherever the answer carries a `$schema`.
 
-### 5.5 The provider schema never tightens
+### 5.5 The strict rewrite keeps every rule
 
-The system shall make each provider schema accept every answer that the full schema accepts for the variant the call expects.
+The system shall move no rule out of phax's decoder when it rewrites an answer schema to fit Codex strict: a rule the strict subset cannot express becomes a coherence check, never dropped, and `minLength` becomes a `pattern` that accepts exactly the same strings.
 
-### 5.6 The schema check
+### 5.6 The strict check
 
-IF a provider schema uses a construct outside Codex's strict subset or outside what Claude Code's `--json-schema` accepts THEN the schema check SHALL fail, naming the answer and the construct.
+IF an answer schema uses a construct outside Codex's strict subset or outside what Claude Code's `--json-schema` accepts THEN the strict check SHALL fail, naming the answer and the construct.
 
 ### 5.7 The structured answer is what is decoded
 
@@ -108,15 +111,15 @@ WHEN a provider returns the answer as native structured output THE system SHALL 
 
 ### 5.8 phax's decoder is the final judge
 
-The system shall accept a structured answer only once phax's decoder, full schema and coherence checks included, has accepted it, whatever the provider and whether or not the provider enforced a schema.
+The system shall accept a structured answer only once phax's decoder, answer schema and coherence checks included, has accepted it, whatever the provider and whether or not the provider enforced a schema.
 
 ### 5.9 One corrective resume on a decoder refusal
 
-WHEN phax's decoder refuses the answer of a call that has a session THE system SHALL resume that session once with the refusal, handing the same provider schema where r-native applies, and fail the call on a second refusal.
+WHEN phax's decoder refuses the answer of a call that has a session THE system SHALL resume that session once with the refusal, handing the same answer schema where r-native applies, and fail the call on a second refusal.
 
 ### 5.10 A provider that cannot meet the schema
 
-IF the provider ends a session because the answer could not meet the provider schema (Claude Code's `error_max_structured_output_retries`) THEN the system SHALL report that session failure as the Provider failures spec reports a `provider-error`, SHALL NOT run the corrective resume, and SHALL NOT start a new session: on a resumed interactive closing turn this failure, recognised by the result subtype `error_max_structured_output_retries` alone, is not a lost session, so the closing turn's lost-session fallback does not apply and the stop records `lastClose` `close-error`, step `closing-turn`, exit 5.
+IF the provider ends a session because the answer could not meet the answer schema (Claude Code's `error_max_structured_output_retries`) THEN the system SHALL report that session failure as the Provider failures spec reports a `provider-error`, SHALL NOT run the corrective resume, and SHALL NOT start a new session: on a resumed interactive closing turn this failure, recognised by the result subtype `error_max_structured_output_retries` alone, is not a lost session, so the closing turn's lost-session fallback does not apply and the stop records `lastClose` `close-error`, step `closing-turn`, exit 5.
 
 ### 5.11 The headless code review gains its corrective resume
 
@@ -124,7 +127,7 @@ WHEN phax's decoder refuses the first answer of the headless code review, at run
 
 ### 5.12 The extraction's incomplete-plan report is in its schema
 
-WHEN the plan-extraction answer reports the plan incomplete, in the shape its full schema describes, THE system SHALL fail the extraction naming what the answer says is missing.
+WHEN the plan-extraction answer reports the plan incomplete, in the shape its answer schema describes, THE system SHALL fail the extraction naming what the answer says is missing.
 
 ### 5.13 The compliance review answers
 
@@ -282,9 +285,9 @@ after:
     $ phax artifact new spec audio-export --headless --brief brief.md
     Wrote docs/specs/2610271600-audio-export.md
 
-### internal: provider schema handed to Claude Code and Codex — indicative
+### internal: answer schema handed to Claude Code and Codex — indicative
 
-Summary: Claude Code and Codex receive, with every structured call, a schema derived from the answer's published schema that they enforce while generating.
+Summary: Claude Code and Codex receive, with every structured call, the answer's published schema, which they enforce while generating.
 
 before:
 
@@ -293,9 +296,47 @@ before:
 
 after:
 
-    claude --print --output-format stream-json --verbose --json-schema '{"type":"object","additionalProperties":false,"required":["$schema","kind","decisions","markdown"],"properties":{"$schema":{"const":"https://docs.phax.run/schemas/hand-decision-answer/0.25.0.json"},"kind":{"const":"spec"},…}}' --model claude-opus-5-5 …
+    claude --print --output-format stream-json --verbose --json-schema '{"type":"object","additionalProperties":false,"required":["$schema","kind","decisions","markdown"],"properties":{"$schema":{"const":"https://docs.phax.run/schemas/hand-decision-answer/0.32.0.json"},"kind":{"const":"spec"},…}}' --model claude-opus-5-5 …
+      (the spec answer of a decide handback: its own closed object, not one branch of a root union)
     codex exec -C <worktree> --output-schema ~/.phax/decide/2610271200-audio-export/02/answer.schema.json …
+      (the file holds the same published answer schema)
     vibe … (no schema option: the schema stays in the prompt)
+
+### cli: phax artifact schema plan — indicative
+
+Summary: The published plan schema now follows the strict rules Claude Code and Codex enforce: `sourceSpec` and `completesSpec` stay required and nullable, and phax checks that they go together instead of the schema.
+
+before:
+
+    $ phax artifact schema plan
+    {
+      "$defs": { "NonEmptyString": { "type": "string", "minLength": 1 } },
+      "required": [ "$schema", "kind", "sourceSpec", "completesSpec", "run", "preamble", "phases" ],
+      "properties": {
+        "$schema": { "type": "string", "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-document\\/…\\.json$" },
+        "sourceSpec": { "anyOf": [ { "$ref": "#/$defs/NonEmptyString" }, { "type": "null" } ] },
+        "completesSpec": { "anyOf": [ { "type": "boolean" }, { "type": "null" } ] },
+        …
+      },
+      "allOf": [ { "oneOf": [
+        { "properties": { "sourceSpec": { "type": "string", "minLength": 1 }, "completesSpec": { "type": "boolean" } } },
+        { "properties": { "sourceSpec": { "type": "null" }, "completesSpec": { "type": "null" } } }
+      ] } ]
+    }
+
+after:
+
+    $ phax artifact schema plan
+    {
+      "$defs": { "NonEmptyString": { "type": "string", "pattern": "^[\\s\\S]+$" } },
+      "required": [ "$schema", "kind", "sourceSpec", "completesSpec", "run", "preamble", "phases" ],
+      "properties": {
+        "$schema": { "const": "https://docs.phax.run/schemas/plan-document/0.32.0.json" },
+        "sourceSpec": { "anyOf": [ { "$ref": "#/$defs/NonEmptyString" }, { "type": "null" } ] },
+        "completesSpec": { "anyOf": [ { "type": "boolean" }, { "type": "null" } ] },
+        …
+      }
+    }
 
 ### internal: plan-extraction answer — indicative
 
@@ -319,27 +360,27 @@ after:
 - Any change to how Mistral Vibe confines a session: Vibe honours `readOnly` since the spec "Mistral Vibe 3" (a read-only session enables only `read_file` and `grep`, plus `bash` for its granted commands), and this spec relies on it as it is.
 - A corrective turn for the plan-extraction fallback: it stays a sealed completion with no session and one attempt.
 - More than one corrective resume, or a corrective resume after a session failure: a provider failure, whether it ends the first session or the corrective resume, is reported as the Provider failures spec reports it (exit 14 for `network` on every command; otherwise exit 1 for `phax review-compliance` and `phax review-code --headless`, and 8 for a limit or 5 for any other kind on authoring and decide).
-- Hand-written provider schemas, or any change to a full schema other than the compliance review's and the extraction answer's.
+- A second schema per answer for the providers, derived or hand-written: each answer has one schema. Any change to an answer schema beyond the strictness rewrite, hand-decision-answer losing its root union, the compliance review's ledgers and the extraction answer's incomplete report.
 - Reading compliance-review files the session writes, or keeping the agent's own Markdown prose: phax writes both files.
 - Back-compat for compliance-review.json: a 0.32.0 file without the ledgers is refused, never defaulted.
 
 ## 8. Acceptance criteria
 
-### Claude Code gets the provider schema, on the resume too
+### Claude Code gets the answer schema, on the resume too
 
-Given a headless spec authoring session on Claude Code whose first answer phax's decoder refuses, when `phax artifact new spec <slug> --headless --brief <file>` runs, then both the first session's and the corrective resume's argv carry `--json-schema` with the spec-document provider schema, and the resume carries `--resume` with the first session's id. (refs §5.1, §5.9)
+Given a headless spec authoring session on Claude Code whose first answer phax's decoder refuses, when `phax artifact new spec <slug> --headless --brief <file>` runs, then both the first session's and the corrective resume's argv carry `--json-schema` with the spec-document answer schema, as published, and the resume carries `--resume` with the first session's id. (refs §5.1, §5.9)
 
-### Codex gets the provider schema on exec and exec resume
+### Codex gets the answer schema on exec and exec resume
 
-Given a `decide --verdicts` writer on a headless spec, routed to Codex, whose first answer is refused, when the writer runs, then `codex exec` and `codex exec resume` each carry `--output-schema` naming a file whose content is the provider schema of the revised spec-document it expects. (refs §5.1, §5.9)
+Given a `decide --verdicts` writer on a headless spec, routed to Codex, whose first answer is refused, when the writer runs, then `codex exec` and `codex exec resume` each carry `--output-schema` naming a file whose content is the published answer schema of the revised spec-document it expects. (refs §5.1, §5.9)
 
-### Every structured call hands a provider schema
+### Every structured call hands its answer schema
 
-Given each of the eight structured calls run against a recording fake of each provider it can be routed to (Claude Code alone for the plan-extraction fallback and decide's handback), when each call runs, then each spawn on Claude Code or Codex carries that answer's provider schema, except a Claude Code spawn of a call that falls back to the prompt schema there, and no call that returns no structured answer (phase turn, fix turn, windows probe) carries one, and every prompt, on every provider, holds the answer's full schema, the headless code review's and the compliance review's included. (refs §5.1, §5.3, §5.2)
+Given each of the eight structured calls run against a recording fake of each provider it can be routed to (Claude Code alone for the plan-extraction fallback and decide's handback), when each call runs, then each spawn on Claude Code or Codex carries that answer's schema, except a Claude Code spawn of a call that falls back to the prompt schema there, and no call that returns no structured answer (phase turn, fix turn, windows probe) carries one, and every prompt, on every provider, holds the answer schema, the headless code review's and the compliance review's included. (refs §5.1, §5.3, §5.2)
 
 ### Vibe keeps the prompt schema and the corrective resume
 
-Given a compliance review routed to Mistral Vibe whose first answer omits `unmetPromises`, when the review runs, then the prompt holds the compliance-review full schema, the argv holds no schema option, the refusal resumes the session once, and the retry's accepted answer is written. (refs §5.2, §5.9)
+Given a compliance review routed to Mistral Vibe whose first answer omits `unmetPromises`, when the review runs, then the prompt holds the compliance-review answer schema, the argv holds no schema option, the refusal resumes the session once, and the retry's accepted answer is written. (refs §5.2, §5.9)
 
 ### An empty Vibe answer is resumed once
 
@@ -347,23 +388,19 @@ Given a headless code review routed to Mistral Vibe whose first final answer is 
 
 ### A Claude Code fallback is named and keeps the corrective resume
 
-Given a structured call that falls back to the prompt schema on Claude Code, whose first answer phax's decoder refuses, when the call runs against a recording fake of Claude Code and, where it can be routed there, of Codex, then the Claude Code argv holds no `--json-schema`, its prompt holds the answer's full schema, the refusal resumes the session once, and the Codex spawn carries `--output-schema`. (refs §5.3, §5.9)
+Given a structured call that falls back to the prompt schema on Claude Code, whose first answer phax's decoder refuses, when the call runs against a recording fake of Claude Code and, where it can be routed there, of Codex, then the Claude Code argv holds no `--json-schema`, its prompt holds the answer schema, the refusal resumes the session once, and the Codex spawn carries `--output-schema`. (refs §5.3, §5.9)
 
-### Every provider schema fits Codex strict
+### Every answer schema fits Codex strict
 
-Given the full schema of every structured answer, when the schema check derives and inspects each provider schema, then each is a closed object with every key required, holds no lookahead pattern and no root `anyOf` or `oneOf`, carries `$schema` as a `const` wherever the answer has a `$schema`, and passes both Claude Code's and Codex strict's rules. (refs §5.4, §5.6)
+Given the answer schema of every structured answer, as phax publishes it and hands it to the providers, when the strict check inspects each, then each is a closed object with every key required, holds no root `anyOf`, no `oneOf` or `allOf`, no lookaround pattern and no string constraint but `pattern` or `format`, carries `$schema` as a `const` wherever the answer has a `$schema`, and passes both Claude Code's and Codex strict's rules. (refs §5.4, §5.6)
 
-### A full schema change reaches the provider schema
+### The strict rewrite keeps every rule
 
-Given a full schema that gains a required key in a test fixture, when its provider schema is derived again, then the provider schema requires the new key with no other edit. (refs §5.4)
+Given every answer fixture each answer's decoder refused or accepted before the strictness rewrite, when each fixture is decoded again by phax's decoder after it, then every fixture refused before is still refused, by the answer schema or a coherence check, naming the field, and every fixture accepted before is still accepted, except the documented shape changes: hand-decision-answer without its root union, plan-document's nullable `sourceSpec`/`completesSpec` pair checked as a coherence check, and `$schema` as a `const`. (refs §5.5)
 
-### The provider schema never refuses an accepted answer
+### The strict check names the bad construct
 
-Given every answer fixture that phax's full schema accepts, for each structured answer and for the variant its call expects, when each fixture is checked against its provider schema, then every fixture is accepted. (refs §5.5)
-
-### The schema check names the bad construct
-
-Given a full schema whose string field carries a lookahead pattern, when the schema check runs, then it fails naming the answer and the lookahead pattern. (refs §5.6)
+Given an answer schema whose string field carries a lookahead pattern, when the strict check runs, then it fails naming the answer and the lookahead pattern. (refs §5.6)
 
 ### structured_output is what phax decodes
 
@@ -371,7 +408,7 @@ Given a Claude Code result event whose `structured_output` holds a valid first-r
 
 ### A schema-valid answer can still be refused
 
-Given a compliance review on Claude Code whose answer matches the compliance-review provider schema but whose perPhase names `phase-04`, not a phase of the run, when `phax review-compliance <run>` runs, then phax refuses the answer naming `phase-04`, prints the refusal and resumes the session once, and writes compliance-review.json only from an accepted retry. (refs §5.8, §5.9, §5.17)
+Given a headless spec authoring session on Claude Code whose answer matches the spec-document answer schema but one of whose acceptance criteria refs a requirement id the document does not hold, when `phax artifact new spec <slug> --headless --brief <file>` runs, then phax refuses the answer naming that ref, prints the refusal and resumes the session once, and writes the spec only from an accepted retry. (refs §5.8, §5.9)
 
 ### A refused code review is asked once more
 
@@ -387,7 +424,7 @@ Given a Claude Code session that ends with an error result of subtype `error_max
 
 ### An incomplete plan is reported inside the schema
 
-Given a plan.md whose Test strategy item is not in the line format, and an extraction answer with `plan: null` and an `incomplete` reason, when the extraction fallback runs on Claude Code, then the call carries the extraction provider schema and phax fails with `The extraction model found the plan incomplete:` followed by that reason. (refs §5.12, §5.1)
+Given a plan.md whose Test strategy item is not in the line format, and an extraction answer with `plan: null` and an `incomplete` reason, when the extraction fallback runs on Claude Code, then the call carries the extraction answer schema and phax fails with `The extraction model found the plan incomplete:` followed by that reason. (refs §5.12, §5.1)
 
 ### The compliance session writes nothing
 
@@ -440,11 +477,13 @@ Why: The compliance review is advisory and read beside the verdict; what made it
 Settled:
 
 - Prerequisite: the spec "Provider failures" ships first; the structured answer is the answer side of its session outcome, and `error_max_structured_output_retries` stays its `provider-error`.
-- Two validations: the provider schema, enforced by Claude Code and Codex while generating, and phax's decoder (full schema plus coherence checks), the only judge on every provider.
-- One provider schema per structured answer, shared by Claude Code and Codex, fitting Codex strict: closed objects, every key required, no lookahead pattern, no root `anyOf`/`oneOf`, `$schema` as a `const`.
-- A root union whose variant the call already knows (hand-decision-answer for a spec or a plan) is narrowed to that variant in the provider schema; phax's decoder still decodes the full union.
-- The provider schema is derived from the full schema, never hand-written; keywords outside the strict subset are dropped from it and stay enforced by phax's decoder.
-- The prompt keeps stating the answer's full schema on every provider: the model must still know what the provider schema dropped. The headless code review and the compliance review, whose prompts carry only a sketch today, export their answers' JSON Schema with `JSONSchema.make` and state it in their prompts like the other calls.
+- Two validations of one schema: the answer schema, enforced by Claude Code and Codex while generating, and phax's decoder (the same answer schema plus the coherence checks, and nothing else), the only judge on every provider.
+- One schema per structured answer, the answer schema, made to fit Codex strict at the source in the Effect schemas: phax publishes it (`phax artifact schema`, packages/schemas), hands it as is to Claude Code (`--json-schema`) and Codex (`--output-schema`), and its decoder enforces it. Codex strict stays the bar: it keeps the schemas honest.
+- hand-decision-answer loses its root union: the call always knows the kind it expects, and no answer schema is a root union.
+- The strictness rewrite moves no rule out of phax's decoder: `minLength` becomes a `pattern` accepting exactly the same strings (for example `^[\s\S]+$`); plan-document's `sourceSpec`/`completesSpec` pairing becomes a coherence check, both fields staying required and nullable; each lookahead pattern on a test line's `guarantee`, `oracle` and `criterion`, in plan-document and the extraction answer, is rewritten without lookaround or moves to a coherence check, and a field's stacked patterns (`allOf`) become one.
+- `$schema` in every answer schema becomes a `const` naming the format's current stamp, in place of today's release pattern; a document stamped earlier is read through the versioned history, as today.
+- Formats whose published schema changes get a `next` snapshot stamped 0.32.0; `spec-document` and `plan-document` sidecars, if their stamps change, go through `phax artifact migrate-documents`; no shims.
+- The prompt keeps stating the answer schema on every provider, and the coherence checks in words: Vibe has no schema option, and on Claude Code and Codex the model must still know the rules no schema expresses. The headless code review and the compliance review, whose prompts carry only a sketch today, export their answers' JSON Schema with `JSONSchema.make` and state it in their prompts like the other calls.
 - Mistral Vibe stays on the prompt schema, phax's decoder and the corrective resume; an empty final answer on Vibe is a decoder refusal (not JSON), as in authoring, and gets the one corrective resume. On Claude Code and Codex an empty answer never reaches the decoder: a Claude Code success result with neither `structured_output` nor text, and a blank Codex answer, are `provider-error`s.
 - q-unsupported-combination (prompt-fallback): a structured call whose Claude Code combination fails the smoke test stays, on Claude Code only, on the prompt schema, phax's decoder and the corrective resume; the plan names each such call, the docs page's per-provider table lists it, and a test pins it; never a silent fallback.
 - The corrective resume stays one, for every call that has a session; the headless code review and the compliance review gain it; the extraction fallback keeps one attempt; the spec "headless code review" fails a refused answer (at run end and by hand) only after that resume. A code review session that changed the worktree is not a resume case: it still fails with its paths put back.
@@ -456,14 +495,17 @@ Settled:
 - compliance-review.md keeps its name and place in the run folder, so the review handoff still embeds it under `## Plan compliance review`; the pull request's verdict and `### Compliance attention points`, the headless code review's prompt and the compliance-review records entry read the 0.32.0 compliance-review.json; a 0.17.0 or pre-schema file in an older run folder still reads through the versioned history.
 - compliance-review is stamped 0.32.0, with `unplannedChanges` and `unmetPromises` required, and the answer carries `$schema` in place of `version: 1`; no shims.
 - The phase handoff stays Markdown.
+- Plans: one spec, two plans. Plan 1 ships the strict answer schemas, native structured output, the corrective resumes, the extraction answer, the Vibe empty answer and the code review's resume; it covers every criterion but the plan-2 ones below, and ac-every-call for the seven calls other than the compliance review. Plan 2 ships the structured compliance review (§5.13–§5.19, the `phax review-compliance`, compliance-review.json and compliance-review.md surfaces) and completes the spec; its criteria are ac-vibe, ac-cr-readonly, ac-cr-render, ac-cr-phases, ac-cr-refused and ac-cr-file, plus ac-every-call for the compliance review. The compliance-review answer is designed strict from the start.
 
 Left open:
 
-- How the provider schema is derived from Effect's `JSONSchema.make` output (a transform over the exported schema, or a second annotation-driven export), as long as nothing is hand-written.
 - Where Codex's schema file is written (the session or decide folder is suggested) and how a large schema is passed inline to Claude Code.
 - The extraction answer's exact shape for its incomplete report (the `version: 2` with `plan` and `incomplete` sketch is indicative).
-- Whether the schema check tests against the providers' own validators or a local encoding of their rules.
+- Whether the strict check tests against the providers' own validators or a local encoding of their rules.
 - The corrective resume's transcript for the compliance review and the headless code review: each keeps one stream file today, and a Vibe turn deletes the export beside its transcript, so the resume needs its own file (decide uses `retry-output.jsonl`, the closing turn `<label>-retry.jsonl`).
+- hand-decision-answer's exact shape without a root union: two named shapes (a spec answer and a plan answer) or one closed object.
+- For each lookahead pattern on a test line (`guarantee`, `oracle`, `criterion`, six in plan-document and the same in the extraction answer): a rewrite without lookaround, or a coherence check.
+- What Claude Code's `--json-schema` accepts beyond Codex strict: the Claude API's structured outputs refuse `minItems` above 1 (spec and plan `options` require 2) and numeric bounds (code-review `line` is `exclusiveMinimum` 0); whether Claude Code passes the schema to that API or validates the answer itself is what the smoke test finds, and a rule it refuses becomes a coherence check.
 
 Constraints:
 
@@ -472,7 +514,7 @@ Constraints:
 - Every structured call goes through the Provider failures session-outcome reader; no call reads `finalText` once a structured answer is present.
 - The compliance-review format bump goes through packages/schemas snapshots and CURRENT_STAMPS like every persisted format (a `next` snapshot, stamped with PHAX_RELEASE 0.32.0); older compliance reviews are read only through the versioned history.
 - A `compliance-review.json` stamped before 0.32.0 is read through the versioned history into its own shape, never lifted with empty ledgers; a reader that needs the ledgers treats such a file as having none and says so, and today's readers (the pull request body, the code-review prompt, the records entry) keep reading only the fields both shapes carry.
-- The full schemas `phax artifact schema` prints and packages/schemas publishes stay the contract; provider schemas are not published.
+- The answer schemas `phax artifact schema` prints and packages/schemas publishes are the contract and what the providers receive; there is no provider-only schema.
 - Keep the change to the Mistral Vibe adapter to what r-vibe needs.
 
 ## 11. Docs page
@@ -481,7 +523,7 @@ Page: Structured answers and providers
 
 Reader: An operator choosing which provider runs authoring, decide and review roles, who wants to know what each provider checks and what phax checks after it.
 
-Example: A per-provider table for the eight structured calls (Claude Code `--json-schema`, Codex `--output-schema`, Vibe schema in the prompt, and any call that falls back to the prompt schema on Claude Code), then one refused compliance answer: the provider schema let it through, phax's coherence check refused it for naming a phase that is not in the run, and the corrective resume fixed it.
+Example: A per-provider table for the eight structured calls (Claude Code `--json-schema`, Codex `--output-schema`, Vibe schema in the prompt, and any call that falls back to the prompt schema on Claude Code), then one refused compliance answer: the answer schema let it through, phax's coherence check refused it for naming a phase that is not in the run, and the corrective resume fixed it.
 
 ## 12. Decision log
 

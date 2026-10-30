@@ -13,6 +13,7 @@ Write the phax spec "Structured output". Every agent call that must return a str
    - **phax's full decoder:** the published schema, plus the internal-coherence checks no schema can express, stays the final judge on every provider. Examples of those checks: a criterion id must exist in the source spec's sidecar; a verdict moves only presented questions; a revision names the sections it touches; phase ids must exist.
    - **A refusal by phax's decoder** keeps its one corrective resume.
    - **The provider schema is derived from the full schema,** never written by hand. A test keeps each provider schema accepted by both providers' rules.
+   - *Replaced by the operator on 2026-10-30:* there is no derived provider schema. Each answer has one strict schema, made to fit Codex strict at the source; phax publishes it, hands it as is to Claude Code and Codex, and its decoder enforces it with the coherence checks.
 2. **The calls that move to native structured output:**
    - headless authoring of specs and plans (`src/app/authorArtifact.ts`);
    - the plan-extraction LLM fallback (`src/app/extractPlan.ts`), whose `{"error"}` escape is not in its schema today;
