@@ -2,10 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME,
   COMPLIANCE_REVIEW_STREAM_FILENAME,
+  complianceFailureReason,
   complianceRefusedTwiceMessage,
   complianceRetryPrompt,
   complianceRetryWarning,
 } from "../../../src/domain/review/complianceRetry.js";
+
+describe("a failed compliance review's reason", () => {
+  it("says the earlier review is kept, and where it still shows, when one is in place", () => {
+    expect(complianceFailureReason("disk full", true)).toBe(
+      "disk full; the earlier review is kept (the run folder and the PR body still show it)",
+    );
+  });
+
+  it("is the reason alone when there is no earlier review to keep", () => {
+    expect(complianceFailureReason("disk full", false)).toBe("disk full");
+  });
+});
 
 describe("the compliance review's corrective resume texts", () => {
   it("keeps the retry's transcript beside the first session's", () => {

@@ -18,6 +18,15 @@ export function complianceRetryWarning(refusal: string): string {
   return `compliance-review answer refused — ${refusal}\n  resuming the session once to ask for the whole answer again`;
 }
 
+/** What a failed review adds when an earlier review's compliance-review.json is still in place. */
+export const COMPLIANCE_EARLIER_REVIEW_KEPT =
+  "the earlier review is kept (the run folder and the PR body still show it)";
+
+/** A failed review's reason as printed: it says when an earlier review is kept. */
+export function complianceFailureReason(reason: string, earlierReviewKept: boolean): string {
+  return earlierReviewKept ? `${reason}; ${COMPLIANCE_EARLIER_REVIEW_KEPT}` : reason;
+}
+
 /** The failure reason of a review refused on its first answer and on its retry. */
 export function complianceRefusedTwiceMessage(first: string, retry: string): string {
   return `compliance-review answer rejected twice — first answer: ${first}; retry: ${retry}`;

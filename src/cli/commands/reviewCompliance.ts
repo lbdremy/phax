@@ -18,6 +18,10 @@ import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import {
+  COMPLIANCE_EARLIER_REVIEW_KEPT,
+  complianceFailureReason,
+} from "../../domain/review/complianceRetry.js";
+import {
   exitCodeForError,
   makeProviderBackendLayer,
   makeRepoRootedFileSystemLayer,
@@ -138,10 +142,14 @@ export async function runReviewCompliance(
         for (const line of renderSessionFailure(err, retryCommand)) {
           out.error(line);
         }
+        if (review.earlierReviewKept) out.error(`  ${COMPLIANCE_EARLIER_REVIEW_KEPT}`);
         return review.sessionFailure.kind === "network" ? exitCodeForError(err) : 1;
       }
     }
-    out.error(`Compliance review failed: ${review.failureReason}. To retry, run: ${retryCommand}`);
+    out.error(
+      `Compliance review failed: ${complianceFailureReason(review.failureReason, review.earlierReviewKept)}. ` +
+        `To retry, run: ${retryCommand}`,
+    );
     return 1;
   }
 

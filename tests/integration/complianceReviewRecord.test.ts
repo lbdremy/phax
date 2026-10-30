@@ -315,6 +315,8 @@ describe("compliance review entry at run end", () => {
       `[phax] Warning: compliance review failed: compliance-review answer rejected twice`,
     );
     expect(stderr).toContain(`rerun it with \`phax review-compliance ${SHORT_NAME}\``);
+    // No earlier review was there to keep.
+    expect(stderr).not.toContain("earlier review is kept");
     expect(stderr).not.toContain("unknown");
   });
 });

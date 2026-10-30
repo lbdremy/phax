@@ -32,7 +32,7 @@ import {
   type ComplianceReview,
 } from "../schemas/complianceReview.js";
 import { Backend, type AgentRunResult } from "../ports/backend.js";
-import { FileSystem, type FsError } from "../ports/fs.js";
+import { FileSystem, FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
@@ -67,6 +67,11 @@ export type ComplianceReviewResult =
   | {
       readonly kind: "failed";
       readonly failureReason: string;
+      /**
+       * An earlier review's compliance-review.json is still in place, untouched:
+       * the run folder and the PR body still show it.
+       */
+      readonly earlierReviewKept: boolean;
       /** In memory only, never persisted: the failed session, when the agent's session failed. */
       readonly sessionFailure?: SessionFailure | null;
       /** In memory only: the agent-error.log and transcript the failed session left. */
@@ -77,6 +82,12 @@ export interface ReviewComplianceOpts {
   readonly verbose?: boolean;
   /** Where the refusal of a first answer is printed before the session is resumed. */
   readonly output: OutputPort;
+}
+
+/** Why the pair could not be kept, and whether the files are as they were before the writes. */
+interface KeepFailure {
+  readonly reason: string;
+  readonly pairIntact: boolean;
 }
 
 /** A session's final answer, decoded: the review, or why phax refuses it. */
@@ -128,13 +139,28 @@ export function reviewCompliance(
       }),
     );
 
-    const fail = (reason: string) =>
-      ({ kind: "failed", failureReason: reason }) satisfies ComplianceReviewResult;
+    const jsonArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
+    const mdArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_MD_FILENAME);
+
+    /**
+     * A failed review. An earlier review is kept when its json is there and
+     * this review left the pair whole (`pairIntact`).
+     */
+    const fail = (reason: string, pairIntact = true) =>
+      Effect.map(
+        Effect.either(fs.exists(jsonArtifactPath)),
+        (exists) =>
+          ({
+            kind: "failed",
+            failureReason: reason,
+            earlierReviewKept: pairIntact && Either.isRight(exists) && exists.right,
+          }) satisfies ComplianceReviewResult,
+      );
 
     const reconciliationPath = join(info.runPath, GLOBAL_RECONCILIATION_FILENAME);
     const reconciliationExistsResult = yield* Effect.either(fs.exists(reconciliationPath));
     if (Either.isLeft(reconciliationExistsResult) || !reconciliationExistsResult.right) {
-      return fail(
+      return yield* fail(
         Either.isLeft(reconciliationExistsResult)
           ? `Could not check for global reconciliation: ${reconciliationExistsResult.left.message}`
           : `Missing global file reconciliation at "${reconciliationPath}" — cannot run compliance review`,
@@ -143,13 +169,15 @@ export function reviewCompliance(
 
     const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
     if (Either.isLeft(reconciliationReadResult)) {
-      return fail(`Could not read global reconciliation: ${reconciliationReadResult.left.message}`);
+      return yield* fail(
+        `Could not read global reconciliation: ${reconciliationReadResult.left.message}`,
+      );
     }
 
     const planPath = join(info.runPath, PLAN_FILENAME);
     const planExistsResult = yield* Effect.either(fs.exists(planPath));
     if (Either.isLeft(planExistsResult) || !planExistsResult.right) {
-      return fail(
+      return yield* fail(
         Either.isLeft(planExistsResult)
           ? `Could not check for plan.md: ${planExistsResult.left.message}`
           : `Missing plan.md at "${planPath}" — cannot run compliance review`,
@@ -158,7 +186,7 @@ export function reviewCompliance(
 
     const planReadResult = yield* Effect.either(fs.readText(planPath));
     if (Either.isLeft(planReadResult)) {
-      return fail(`Could not read plan.md: ${planReadResult.left.message}`);
+      return yield* fail(`Could not read plan.md: ${planReadResult.left.message}`);
     }
 
     const phaseHandoffs: Array<{ phaseId: string; handoffMd: string }> = [];
@@ -234,17 +262,26 @@ export function reviewCompliance(
     const session = <E extends Error, R>(
       run: Effect.Effect<AgentRunResult, E, R>,
     ): Effect.Effect<ComplianceReviewResult | AgentRunResult, never, R> =>
-      Effect.map(Effect.either(run), (outcome) => {
-        if (Either.isRight(outcome)) return outcome.right;
+      Effect.flatMap(Effect.either(run), (outcome) => {
+        if (Either.isRight(outcome)) {
+          return Effect.succeed<ComplianceReviewResult | AgentRunResult>(outcome.right);
+        }
         const sessionError = outcome.left instanceof AgentSessionFailedError ? outcome.left : null;
-        return {
-          ...fail(`Agent invocation failed: ${outcome.left.message}`),
-          sessionFailure: sessionError?.failure ?? null,
-          sessionFailureFiles:
-            sessionError === null
-              ? null
-              : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
-        } satisfies ComplianceReviewResult;
+        return Effect.map(
+          fail(`Agent invocation failed: ${outcome.left.message}`),
+          (failed) =>
+            ({
+              ...failed,
+              sessionFailure: sessionError?.failure ?? null,
+              sessionFailureFiles:
+                sessionError === null
+                  ? null
+                  : {
+                      agentErrorLog: sessionError.agentErrorLog,
+                      transcript: sessionError.transcript,
+                    },
+            }) satisfies ComplianceReviewResult,
+        );
       });
 
     const runPhaseIds = info.planPhases.map((p) => p.id);
@@ -274,18 +311,17 @@ export function reviewCompliance(
       if ("kind" in retryRun) return retryRun;
       answer = decodeComplianceAnswer(retryRun, runPhaseIds);
       if (Either.isLeft(answer)) {
-        return fail(complianceRefusedTwiceMessage(firstRefusal, answer.left));
+        return yield* fail(complianceRefusedTwiceMessage(firstRefusal, answer.left));
       }
     }
 
     const review = answer.right;
-    const jsonArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    const mdArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_MD_FILENAME);
 
     // The pair is replaced together or left as it was: a failed second write
     // puts the first file back (or removes it when there was none). When that
-    // undo fails too, the reason names both failures.
-    const keepPair: Effect.Effect<void, string> = Effect.gen(function* () {
+    // undo fails too, the reason names both failures and the pair is no
+    // longer whole: an earlier review is not kept.
+    const keepPair: Effect.Effect<void, KeepFailure> = Effect.gen(function* () {
       const previousJson = (yield* fs.exists(jsonArtifactPath))
         ? yield* fs.readText(jsonArtifactPath)
         : undefined;
@@ -304,16 +340,21 @@ export function reviewCompliance(
             previousJson === undefined
               ? `removing the new ${COMPLIANCE_REVIEW_JSON_FILENAME}`
               : `restoring the earlier ${COMPLIANCE_REVIEW_JSON_FILENAME}`;
-          return yield* Effect.fail(
-            `${mdWrite.left.message}; ${undoing} also failed: ${undo.left.message}`,
-          );
+          return yield* Effect.fail<KeepFailure>({
+            reason: `${mdWrite.left.message}; ${undoing} also failed: ${undo.left.message}`,
+            pairIntact: false,
+          });
         }
-        return yield* Effect.fail(mdWrite.left.message);
+        return yield* Effect.fail<KeepFailure>({ reason: mdWrite.left.message, pairIntact: true });
       }
-    }).pipe(Effect.mapError((error) => (typeof error === "string" ? error : error.message)));
+    }).pipe(
+      Effect.mapError((error) =>
+        error instanceof FsError ? { reason: error.message, pairIntact: true } : error,
+      ),
+    );
     const kept = yield* Effect.either(keepPair);
     if (Either.isLeft(kept)) {
-      return fail(`the review could not be kept: ${kept.left}`);
+      return yield* fail(`the review could not be kept: ${kept.left.reason}`, kept.left.pairIntact);
     }
 
     for (const [artifact, path] of [
