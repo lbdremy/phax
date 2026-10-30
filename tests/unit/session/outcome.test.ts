@@ -205,35 +205,75 @@ describe("readClaudeOutcome", () => {
     });
   });
 
+  function successWith(extra: object): EndedSession {
+    return ended(
+      [
+        claudeInit,
+        {
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          ...extra,
+          session_id: CLAUDE_SESSION,
+        },
+      ],
+      exited(0),
+    );
+  }
+
+  // Only a spawn handed the answer schema natively expects structured_output.
   it.each([
     ["no result key", {}],
     ["a blank result", { result: "  \n" }],
     ["an empty result", { result: "" }],
   ])(
-    "reads a success with neither structured_output nor text (%s) as a provider-error",
+    "reads a natively handed success with neither structured_output nor text (%s) as a provider-error",
     (_, extra) => {
       const failure = failureOf(
-        readClaudeOutcome(
-          ended(
-            [
-              claudeInit,
-              {
-                type: "result",
-                subtype: "success",
-                is_error: false,
-                ...extra,
-                session_id: CLAUDE_SESSION,
-              },
-            ],
-            exited(0),
-          ),
-        ),
+        readClaudeOutcome(successWith(extra), { schemaHandedNatively: true }),
       );
       expect(failure.kind).toBe("provider-error");
       expect(failure.message).toBe("success: the result carried no result text");
       expect(failure.sessionId).toBe(CLAUDE_SESSION);
     },
   );
+
+  it("reads a natively handed success with a prose result and no structured_output as that text", () => {
+    const outcome = readClaudeOutcome(successWith({ result: "No object, sorry." }), {
+      schemaHandedNatively: true,
+    });
+    expect(outcome).toEqual({
+      kind: "answer",
+      provider: "claude-code",
+      text: "No object, sorry.",
+      structured: null,
+      sessionId: CLAUDE_SESSION,
+    });
+  });
+
+  // A phase turn, a fix turn, a handoff turn or a prompt-fallback call: an
+  // empty result is the answer "" (a phase-05 fix attempt ended so), as on main.
+  it.each([
+    ["by default", undefined],
+    ["when no schema was handed natively", { schemaHandedNatively: false }],
+  ])("reads a success with an empty or blank result as that text %s", (_, reading) => {
+    for (const text of ["", "  \n"]) {
+      const outcome = readClaudeOutcome(successWith({ result: text }), reading);
+      expect(outcome).toEqual({
+        kind: "answer",
+        provider: "claude-code",
+        text,
+        structured: null,
+        sessionId: CLAUDE_SESSION,
+      });
+    }
+  });
+
+  it("reads a success with no result key and no schema handed as a provider-error", () => {
+    const failure = failureOf(readClaudeOutcome(successWith({})));
+    expect(failure.kind).toBe("provider-error");
+    expect(failure.message).toBe("success: the result carried no result text");
+  });
 
   // The API refuses a handed schema holding a property key outside its
   // pattern before the model answers; Claude Code ends with an error result.

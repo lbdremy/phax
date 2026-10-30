@@ -682,3 +682,62 @@ describe("a phase session Claude Code ends on an API error", { timeout: 60_000 }
     expect(runStatus(harness)["stoppedReason"]).toBe("network_failure");
   });
 });
+
+// ── An empty result is an answer on an unstructured turn ───────────────────
+
+// A Claude Code success whose `result` is "" (a phase-05 fix attempt ended so)
+// answers "": no answer schema was handed, so nothing expects structured output.
+describe("a phase or handoff turn whose Claude Code result is empty", { timeout: 60_000 }, () => {
+  let cli: FakeProviderCli;
+
+  beforeEach(() => {
+    cli = makeFakeProviderCli(world.root);
+    for (const [name, value] of Object.entries(cli.env)) vi.stubEnv(name, value);
+  });
+
+  const workTurn = (phase: string, finalText: string) => ({
+    sessionId: SESSION,
+    finalText,
+    writeFile: {
+      path: `src/${phase}.ts`,
+      content: `export const ${phase.replace("-", "")} = 1;\n`,
+    },
+  });
+  const handoffTurn = (phase: string, finalText: string) => ({
+    sessionId: SESSION,
+    finalText,
+    writeFile: { path: ".phax-context/phase-handoff.md", content: handoffOf(phase) },
+  });
+
+  it("reaches the gate when a phase turn answers an empty result", async () => {
+    cli.setScripts([
+      workTurn("phase-01", ""),
+      handoffTurn("phase-01", "Handoff written."),
+      workTurn("phase-02", ""),
+      handoffTurn("phase-02", "Handoff written."),
+    ]);
+
+    const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
+
+    expect(Either.isLeft(result) ? String(result.left) : null).toBeNull();
+    expect(handledEvents(harness)).toContain("GatePassed");
+    expect(phaseStatus(harness, "phase-01")["state"]).toBe("cleaned_up");
+    expect(runStatus(harness)["state"]).toBe("review_open");
+  });
+
+  it("does not pause when a handoff turn answers an empty result", async () => {
+    cli.setScripts([
+      workTurn("phase-01", "Done."),
+      handoffTurn("phase-01", ""),
+      workTurn("phase-02", "Done."),
+      handoffTurn("phase-02", ""),
+    ]);
+
+    const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
+
+    expect(Either.isLeft(result) ? String(result.left) : null).toBeNull();
+    expect(handledEvents(harness)).not.toContain("HandoffTurnFailed");
+    expect(runStatus(harness)["stoppedReason"]).toBeUndefined();
+    expect(runStatus(harness)["state"]).toBe("review_open");
+  });
+});

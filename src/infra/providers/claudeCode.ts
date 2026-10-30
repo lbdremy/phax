@@ -326,7 +326,10 @@ export function runClaudeCompletion(
         }),
     });
 
-    const outcome = readClaudeOutcome({ lines, stderr, end });
+    const outcome = readClaudeOutcome(
+      { lines, stderr, end },
+      { schemaHandedNatively: schema !== undefined },
+    );
     if (outcome.kind === "failure") {
       return yield* Effect.fail(
         sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
@@ -468,7 +471,10 @@ export function runClaudeAgent(
       phaseFolderPath: options.phaseFolderPath,
       transcript: options.outputJsonlPath,
     };
-    const outcome = readClaudeOutcome({ lines, stderr, end });
+    const outcome = readClaudeOutcome(
+      { lines, stderr, end },
+      { schemaHandedNatively: schema !== undefined },
+    );
     if (outcome.kind === "failure") {
       return yield* Effect.fail(failSession(outcome.failure, failed));
     }

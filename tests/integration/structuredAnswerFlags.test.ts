@@ -20,6 +20,7 @@ import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
 import { runFirstTurn } from "../../src/app/interactiveStop.js";
 import { reviewCodeHeadless } from "../../src/app/reviewCode.js";
 import type { BranchName, RunId } from "../../src/domain/branded.js";
+import { AgentSessionFailedError } from "../../src/domain/errors.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import {
@@ -315,6 +316,26 @@ describe("ac-claude-flag: headless spec authoring on Claude Code", () => {
   });
 });
 
+// A spawn handed the schema natively expects structured_output: a success
+// with neither it nor text is the provider's failure, never a refusal.
+describe("a natively handed Claude Code call whose success carries an empty result", () => {
+  it("fails as a provider-error and runs no corrective resume", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "", resultText: "" });
+
+    const { result, warnings, sidecars } = await author({});
+
+    if (Either.isRight(result)) throw new Error("authoring did not fail");
+    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
+    expect((result.left as AgentSessionFailedError).failure).toMatchObject({
+      kind: "provider-error",
+      message: "success: the result carried no result text",
+    });
+    expect(warnings).toEqual([]);
+    expect(cli.invocations()).toHaveLength(1);
+    expect(sidecars).toEqual([]);
+  });
+});
+
 // ── decide --verdicts (the writer) ─────────────────────────────────────────
 
 const AUTHORING_ID = "2610250900-log-rotation";
@@ -419,6 +440,24 @@ describe("ac-claude-fallback: a call the table puts on the prompt schema", () =>
     expect(promptOf(0)).toContain(statedSchema("spec-document"));
     expect(promptOf(0)).not.toContain(STAMP_LINE);
     expect(promptOf(1)).not.toContain(STAMP_LINE);
+  });
+
+  // On the prompt schema, as on Mistral Vibe, an empty answer reaches phax's
+  // decoder, which refuses it as not JSON and resumes once.
+  it("refuses an empty result as not JSON and resumes once", async () => {
+    cli.setScripts([
+      { sessionId: SESSION, finalText: "", resultText: "" },
+      { sessionId: SESSION, finalText: JSON.stringify(ANSWER_FOLLOW) },
+    ]);
+
+    const { h, result } = await decideVerdicts({ provider: "claude-code", table });
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(h.warnings.join("\n")).toContain("not JSON");
+    const [first, retry, ...more] = cli.invocations();
+    expect(more).toEqual([]);
+    expect(first?.argv).not.toContain("--json-schema");
+    expect(retry?.argv.slice(-2)).toEqual(["--resume", SESSION]);
   });
 
   it("still hands --output-schema to the same call on Codex", async () => {

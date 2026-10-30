@@ -15,8 +15,10 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  *    outcome. Its verdict wins over the exit code: an error result fails a
  *    session that exited 0, and a success verdict answers a session that then
  *    exited non-zero. A Claude success carrying `structured_output` answers
- *    with that value even when its text is empty; one without it answers only
- *    from a non-blank `result`; a Claude error result is a failure whatever it
+ *    with that value even when its text is empty; one without it answers
+ *    with its `result` text, `""` included, except on a spawn handed the
+ *    answer schema natively, where only a non-blank `result` answers and a
+ *    blank or absent one is `provider-error`; a Claude error result is a failure whatever it
  *    carries, `error_max_structured_output_retries` included (that failure
  *    names the subtype in `providerSubtype`). A Codex `turn.completed` with no (or a blank) agent
  *    message, or a Codex stream that exits 0 with no turn end, fails as
