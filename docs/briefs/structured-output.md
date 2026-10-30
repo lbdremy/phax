@@ -20,13 +20,13 @@ Write the phax spec "Structured output". Every agent call that must return a str
    - the `decide --verdicts` writer (`src/app/decideVerdicts.ts`);
    - the interactive first turn (`src/app/interactiveStop.ts`);
    - the interactive closing turn (`src/app/closeStop.ts`);
-   - the headless code review, whose plan is running now (`phax review-code --headless`, `code-review` answer): it gains the same path and its one corrective resume, replacing the spec `headless-code-review`'s "no retry".
+   - the headless code review, shipped in 0.29.0 (`phax review-code --headless`, `code-review` answer): it gains the same path and its one corrective resume, replacing the spec `headless-code-review`'s "no retry".
 3. **The compliance review becomes a structured answer.** Today the agent writes `compliance-review.md` and `.json` into `.phax-context/`. It has no retry, and a bad file silently becomes `verdict: unknown`. Now:
    - the session returns the compliance answer;
    - phax writes both files, rendering the Markdown from the answer;
    - the session becomes read-only like the others, and gains the corrective resume.
-   - Say what happens to the Markdown's prose, and what persisted shapes change: required fields, `$schema` at 0.29.0, no shims.
-4. **Mistral Vibe** stays on the schema in the prompt plus phax's decoder and the corrective resume, stated per provider. Vibe's ignoring `readOnly` stays as today unless V3's `--enabled-tools` fixes it; the operator reviews Vibe V3 separately.
+   - Say what happens to the Markdown's prose, and what persisted shapes change: required fields, `$schema` at 0.32.0, no shims.
+4. **Mistral Vibe** stays on the schema in the prompt plus phax's decoder and the corrective resume, stated per provider. Vibe honours `readOnly` since Vibe 3 (`--enabled-tools`, shipped in #170).
 5. **The phase handoff** stays Markdown in this spec. Making it a structured answer is a later spec, because every later phase reads it.
 
 **What exists (read it first):**
@@ -44,6 +44,6 @@ Write the phax spec "Structured output". Every agent call that must return a str
 
 **Leave §9 to at most two questions,** each framed by what it abandons.
 
-**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.29.0.
+**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.32.0.
 
 **Output:** your final message is the spec document JSON and nothing else: no sentence before or after it, and no code fence.
