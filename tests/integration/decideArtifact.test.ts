@@ -36,6 +36,7 @@ import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PlanDocument } from "../../src/schemas/planDocument.js";
 import { projectExtractedPlan } from "../../src/schemas/planDocument.js";
@@ -505,6 +506,8 @@ describe("decide — an interactive session lands the revised document", { timeo
       outputJsonlPath: join(decisionFolder(), "output.jsonl"),
       readOnly: true,
       phaseFolderPath: decisionFolder(),
+      // The handback is a structured call: the revised document's schema.
+      answerSchema: { call: "decide-handback", schema: answerJsonSchema("spec-document") },
     });
     expect(handback?.prompt).toBe(
       readFileSync(join(decisionFolder(), "handback-prompt.md"), "utf8"),

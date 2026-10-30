@@ -51,6 +51,7 @@ import type { GitHub } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
 import type { PromptError } from "../ports/prompt.js";
 import { Terminal } from "../ports/terminal.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
 import { decodeAuthoringSession } from "../schemas/authoringSession.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import { currentSchemaUrl } from "../schemas/persisted.js";
@@ -713,6 +714,14 @@ function concludeVerdicts(
         cwd: input.repoRoot,
         security,
         readOnly: true,
+        answerSchema: {
+          call: "decide-verdicts",
+          schema: answerJsonSchema(
+            ctx.snapshot.authored.variant === "hand"
+              ? `${kind}-hand-decision-answer`
+              : `${kind}-document`,
+          ),
+        },
         phaseFolderPath: folder,
       },
       observed,

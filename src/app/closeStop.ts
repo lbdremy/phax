@@ -783,6 +783,7 @@ function attemptClosingTurn(
       security: ctx.policy,
       agentCommands: [],
       readOnly: true,
+      answerSchema: { call: "closing-turn", schema: answerJsonSchema("interactive-handoff") },
       outputJsonlPath: join(input.phaseFolder, stream),
     });
     const costed = (

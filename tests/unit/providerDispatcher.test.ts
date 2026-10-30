@@ -4,7 +4,12 @@ import { makeNodeBackendLayer } from "../../src/infra/providers/dispatcher.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { AgentInvocationError } from "../../src/domain/errors.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../../src/ports/backend.js";
+import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { ProviderId } from "../../src/domain/routing/types.js";
+import {
+  STRUCTURED_CALLS,
+  type StructuredCallsTable,
+} from "../../src/domain/session/structuredCalls.js";
 import { ProviderStoreRoots } from "../../src/ports/providerStores.js";
 
 // The adapters are stubbed on purpose: this test is about the dispatch
@@ -87,9 +92,57 @@ describe("provider dispatcher", () => {
     const result = await runWithProvider(baseOptions);
 
     expect(Either.isRight(result)).toBe(true);
-    expect(claude.runClaudeAgent).toHaveBeenCalledWith("test prompt", baseOptions);
+    expect(claude.runClaudeAgent).toHaveBeenCalledWith(
+      "test prompt",
+      baseOptions,
+      undefined,
+      STRUCTURED_CALLS,
+    );
     expect(codex.runCodexAgent).not.toHaveBeenCalled();
     expect(vibe.runVibeAgent).not.toHaveBeenCalled();
+  });
+
+  it("hands the Claude adapter the structured calls table the layer was built with", async () => {
+    const { claude } = await adapters();
+    const table: StructuredCallsTable = {
+      ...STRUCTURED_CALLS,
+      "decide-verdicts": { claudeCode: "prompt" },
+    };
+    const run = (layer: Layer.Layer<Backend>) =>
+      Effect.flatMap(Backend, (backend) =>
+        Effect.all([
+          backend.runAgent("test prompt", baseOptions),
+          backend.resumeAgentSession("X1" as ClaudeSessionId, "test prompt", baseOptions),
+          backend.complete("test prompt", {
+            provider: "claude-code",
+            model: "claude-sonnet-4-6",
+            effort: "medium",
+            cwd: "/tmp",
+          }),
+        ]),
+      ).pipe(Effect.provide(layer), Effect.runPromise);
+
+    await run(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG, { structuredCalls: table }));
+
+    expect(claude.runClaudeAgent).toHaveBeenNthCalledWith(
+      1,
+      "test prompt",
+      baseOptions,
+      undefined,
+      table,
+    );
+    expect(claude.runClaudeAgent).toHaveBeenNthCalledWith(
+      2,
+      "test prompt",
+      baseOptions,
+      "X1",
+      table,
+    );
+    expect(claude.runClaudeCompletion).toHaveBeenCalledWith(
+      "test prompt",
+      expect.anything(),
+      table,
+    );
   });
 
   it("routes mistral-vibe to the Vibe adapter with its provider-config entry", async () => {

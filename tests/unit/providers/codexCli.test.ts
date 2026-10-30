@@ -1,8 +1,16 @@
-import { readFileSync } from "node:fs";
+import { Effect, Either } from "effect";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { buildCodexArgs, buildCodexCompletionArgs } from "../../../src/infra/providers/codexCli.js";
+import { basename, dirname, join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildCodexArgs,
+  buildCodexCompletionArgs,
+  runCodexAgent,
+  runCodexCompletion,
+} from "../../../src/infra/providers/codexCli.js";
+import { makeFakeProviderCli, type FakeProviderCli } from "../../helpers/fakeProviderCli.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
@@ -287,6 +295,125 @@ describe("buildCodexCompletionArgs — sealed completion", () => {
     const noFamiliesEntry = { enabled: true, executable: "codex" };
     const args = buildCodexCompletionArgs(noFamiliesEntry, completionOptions());
     expect(args[args.indexOf("-m") + 1]).toBe("gpt-5.5");
+  });
+});
+
+describe("the answer schema flag", () => {
+  const schemaPath = "/tmp/phax-answer-schema-abc/answer.schema.json";
+
+  it("sits after --json on exec", () => {
+    const args = buildCodexArgs(baseEntry, baseOptions(unsafePolicy), undefined, schemaPath);
+    expect(args.slice(0, 6)).toEqual([
+      "exec",
+      "-C",
+      "/tmp/work",
+      "--json",
+      "--output-schema",
+      schemaPath,
+    ]);
+  });
+
+  it("sits after --json on exec resume", () => {
+    const args = buildCodexArgs(baseEntry, baseOptions(unsafePolicy), "thread-1", schemaPath);
+    expect(args.slice(0, 5)).toEqual(["exec", "resume", "thread-1", "--json", "--output-schema"]);
+    expect(args[5]).toBe(schemaPath);
+  });
+
+  it("sits after --json on a completion", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions(), schemaPath);
+    expect(args.slice(3, 6)).toEqual(["--json", "--output-schema", schemaPath]);
+  });
+
+  it("is absent without a schema", () => {
+    expect(buildCodexArgs(baseEntry, baseOptions(unsafePolicy))).not.toContain("--output-schema");
+    expect(buildCodexArgs(baseEntry, baseOptions(unsafePolicy), "thread-1")).not.toContain(
+      "--output-schema",
+    );
+    expect(buildCodexCompletionArgs(baseEntry, completionOptions())).not.toContain(
+      "--output-schema",
+    );
+  });
+});
+
+describe("the answer schema file", () => {
+  let root: string;
+  let cli: FakeProviderCli;
+  const SESSION = "019a2f6e-0000-4000-8000-0000000000bb";
+  const schema = { type: "object", properties: { answer: { type: "string" } } };
+
+  beforeEach(() => {
+    root = realpathSync(mkdtempSync(join(tmpdir(), "phax-codex-schema-")));
+    cli = makeFakeProviderCli(join(root, "cli"));
+    vi.stubEnv("PHAX_FAKE_CLI_LOG", cli.env["PHAX_FAKE_CLI_LOG"] ?? "");
+    vi.stubEnv("PHAX_FAKE_CLI_SCRIPT", cli.env["PHAX_FAKE_CLI_SCRIPT"] ?? "");
+    vi.stubEnv("HOME", cli.env["HOME"] ?? "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const entry = () => ({ ...baseEntry, executable: cli.codexPath });
+  const options = (): AgentRunOptions => ({
+    ...baseOptions(unsafePolicy),
+    cwd: root,
+    answerSchema: { call: "decide-verdicts", schema },
+  });
+  const schemaPathOf = (index: number): string => {
+    const argv = cli.invocations()[index]?.argv ?? [];
+    return argv[argv.indexOf("--output-schema") + 1] ?? "";
+  };
+
+  it("holds the schema while codex runs and is gone after a success", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "{}" });
+    await Effect.runPromise(runCodexAgent("ask", options(), entry()));
+
+    const path = schemaPathOf(0);
+    expect(basename(path)).toBe("answer.schema.json");
+    expect(basename(dirname(path))).toMatch(/^phax-answer-schema-/);
+    expect(JSON.parse(cli.invocations()[0]?.outputSchema ?? "null")).toEqual(schema);
+    expect(existsSync(dirname(path))).toBe(false);
+  });
+
+  it("is gone after a resume, a completion and a session that failed", async () => {
+    cli.setScripts([
+      { sessionId: SESSION, finalText: "{}" },
+      { sessionId: SESSION, finalText: "{}" },
+      { sessionId: SESSION, finalText: "", exitCode: 1, stderr: "boom" },
+    ]);
+    await Effect.runPromise(runCodexAgent("ask", options(), entry(), SESSION));
+    await Effect.runPromise(
+      runCodexCompletion(
+        "ask",
+        {
+          provider: "codex-cli",
+          model: "gpt-5.5",
+          effort: "medium",
+          cwd: root,
+          answerSchema: { call: "plan-extraction", schema },
+        },
+        entry(),
+      ),
+    );
+    const failed = await Effect.runPromise(Effect.either(runCodexAgent("ask", options(), entry())));
+    expect(Either.isLeft(failed)).toBe(true);
+
+    const invocations = cli.invocations();
+    expect(invocations[0]?.argv.slice(0, 3)).toEqual(["exec", "resume", SESSION]);
+    for (const [index, invocation] of invocations.entries()) {
+      expect(JSON.parse(invocation.outputSchema ?? "null")).toEqual(schema);
+      expect(existsSync(dirname(schemaPathOf(index)))).toBe(false);
+    }
+  });
+
+  it("is never written for a call without an answerSchema", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "{}" });
+    await Effect.runPromise(
+      runCodexAgent("ask", { ...options(), answerSchema: undefined }, entry()),
+    );
+    expect(cli.invocations()[0]?.argv).not.toContain("--output-schema");
+    expect(cli.invocations()[0]?.outputSchema).toBeUndefined();
   });
 });
 

@@ -195,6 +195,7 @@ function attemptTurn(
       security: input.policy,
       agentCommands: [],
       readOnly: true,
+      answerSchema: { call: "first-turn", schema: answerJsonSchema("first-reading") },
       outputJsonlPath: join(input.phaseFolder, stream),
     });
     const costed = (

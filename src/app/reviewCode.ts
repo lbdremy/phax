@@ -50,6 +50,7 @@ import {
   encodeCodeReviewSession,
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
 import { readComplianceReviewFile } from "../schemas/persisted.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
@@ -507,6 +508,7 @@ export function reviewCodeHeadless(
       // The review answers and never writes: its reading tools and the
       // read-only git above, whatever the policy allows.
       readOnly: true,
+      answerSchema: { call: "code-review", schema: answerJsonSchema("code-review") },
     } as const;
     const costOf = (streamPath: string) =>
       ({

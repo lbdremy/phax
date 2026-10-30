@@ -5,7 +5,9 @@ import { join } from "node:path";
  * Fake `claude` and `codex` executables for tests that drive the real
  * backend. Each is a Node script in a temporary bin directory that:
  * - appends `{ executable, argv, cwd }` as one JSON line to the file named by
- *   `PHAX_FAKE_CLI_LOG`;
+ *   `PHAX_FAKE_CLI_LOG`, plus `outputSchema` (the content of the file named by
+ *   `--output-schema`, read while it runs, since the adapter removes the file
+ *   once the process ends) when it was given that flag;
  * - reads its stdin (the prompt) to the end;
  * - follows the JSON script file named by `PHAX_FAKE_CLI_SCRIPT`: optionally
  *   writes a file in its cwd, then prints a canned stream (Claude's
@@ -87,6 +89,8 @@ interface FakeCliInvocation {
   readonly executable: "claude" | "codex";
   readonly argv: readonly string[];
   readonly cwd: string;
+  /** Codex only: the content of the `--output-schema` file at the time of the spawn. */
+  readonly outputSchema?: string;
 }
 
 /** What an invocation was given besides its argv: the prompt on stdin and its environment. */
@@ -114,9 +118,11 @@ const SHARED = `
 const fs = require("node:fs");
 const path = require("node:path");
 const executable = path.basename(process.argv[1]);
+const schemaFlag = process.argv.indexOf("--output-schema");
+const outputSchema = schemaFlag >= 0 ? fs.readFileSync(process.argv[schemaFlag + 1], "utf8") : undefined;
 fs.appendFileSync(
   process.env.PHAX_FAKE_CLI_LOG,
-  JSON.stringify({ executable, argv: process.argv.slice(2), cwd: process.cwd() }) + "\\n",
+  JSON.stringify({ executable, argv: process.argv.slice(2), cwd: process.cwd(), outputSchema }) + "\\n",
 );
 const scripted = JSON.parse(fs.readFileSync(process.env.PHAX_FAKE_CLI_SCRIPT, "utf8"));
 // A list of scripts plays one per invocation, counting this one (just logged).

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { Effect } from "effect";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +7,16 @@ import {
   buildArgs,
   buildCompletionArgs,
   buildProbeArgs,
+  runClaudeAgent,
+  runClaudeCompletion,
 } from "../../../src/infra/providers/claudeCode.js";
+import {
+  claudeAnswerSchema,
+  STRUCTURED_CALLS,
+  type StructuredCallsTable,
+} from "../../../src/domain/session/structuredCalls.js";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
+import { makeFakeProviderCli, type FakeProviderCli } from "../../helpers/fakeProviderCli.js";
 import { PROBE_EFFORT, PROBE_MODEL } from "../../../src/domain/cost/probe.js";
 import { gateCommandAllowRules } from "../../../src/domain/session/claudePermissionFlags.js";
 import { buildSkillEditGrantSettings } from "../../../src/infra/providers/claudeSkillEditSettings.js";
@@ -454,5 +464,176 @@ describe("buildArgs — secure mode fail-closed", () => {
       expect(e.mode).toBe("secure");
       expect(e.message).toMatch(/unrestricted/i);
     }
+  });
+});
+
+// ── Native structured output (--json-schema) ───────────────────────────────
+
+const answerSchema = {
+  call: "decide-verdicts",
+  schema: answerJsonSchema("spec-document"),
+} as const;
+const promptTable: StructuredCallsTable = {
+  ...STRUCTURED_CALLS,
+  "decide-verdicts": { claudeCode: "prompt" },
+};
+const handedSchema = JSON.stringify(claudeAnswerSchema(answerSchema.schema));
+const stampOf = (schema: object): string =>
+  (schema as { properties: { $schema: { const: string } } }).properties.$schema.const;
+
+function schemaValue(args: readonly string[]): string | undefined {
+  const idx = args.indexOf("--json-schema");
+  return idx < 0 ? undefined : args[idx + 1];
+}
+
+describe("buildArgs — the answer schema", () => {
+  const readOnly = { ...baseOptions(securePolicy), readOnly: true, answerSchema };
+
+  it("hands a new session the minified schema without its $schema property, before --model", () => {
+    const args = buildArgs(readOnly);
+    expect(schemaValue(args)).toBe(handedSchema);
+    expect(args.indexOf("--json-schema")).toBe(args.indexOf("--model") - 2);
+    const handed = JSON.parse(schemaValue(args) ?? "{}") as {
+      properties: object;
+      required: string[];
+    };
+    expect(Object.keys(handed.properties)).not.toContain("$schema");
+    expect(handed.required).not.toContain("$schema");
+  });
+
+  it("hands a resume the same schema and still ends on --resume <id>", () => {
+    const args = buildArgs(readOnly, "session-abc");
+    expect(schemaValue(args)).toBe(handedSchema);
+    expect(args.slice(-2)).toEqual(["--resume", "session-abc"]);
+  });
+
+  it("hands it to a session that is not read-only too", () => {
+    const args = buildArgs({ ...baseOptions(unsafePolicy), answerSchema });
+    expect(schemaValue(args)).toBe(handedSchema);
+    expect(args.indexOf("--json-schema")).toBeLessThan(args.indexOf("--model"));
+  });
+
+  it("hands none without an answerSchema", () => {
+    expect(buildArgs(baseOptions(securePolicy))).not.toContain("--json-schema");
+    expect(buildArgs({ ...baseOptions(securePolicy), readOnly: true })).not.toContain(
+      "--json-schema",
+    );
+  });
+
+  it("hands none to a call the table puts on the prompt, new session or resume", () => {
+    expect(buildArgs(readOnly, undefined, promptTable)).not.toContain("--json-schema");
+    expect(buildArgs(readOnly, "session-abc", promptTable)).not.toContain("--json-schema");
+  });
+
+  it("leaves the argv otherwise as it was", () => {
+    const withSchema = buildArgs(readOnly, "session-abc");
+    const without = buildArgs({ ...readOnly, answerSchema: undefined }, "session-abc");
+    const flagAt = withSchema.indexOf("--json-schema");
+    expect(withSchema.filter((_, i) => i !== flagAt && i !== flagAt + 1)).toEqual(without);
+  });
+});
+
+describe("buildCompletionArgs — the answer schema", () => {
+  const extraction = answerJsonSchema("phax-plan-extraction");
+  const options: CompletionOptions = {
+    provider: "claude-code",
+    model: "claude-sonnet-4-6",
+    effort: "high",
+    cwd: "/tmp/phax-extract-abc123",
+    answerSchema: { call: "plan-extraction", schema: extraction },
+  };
+
+  it("hands the minified schema without its $schema property, before --model", () => {
+    const args = buildCompletionArgs(options);
+    expect(schemaValue(args)).toBe(JSON.stringify(claudeAnswerSchema(extraction)));
+    expect(args.indexOf("--json-schema")).toBe(args.indexOf("--model") - 2);
+  });
+
+  it("hands none without an answerSchema, to the probe, or on the prompt", () => {
+    expect(buildCompletionArgs({ ...options, answerSchema: undefined })).not.toContain(
+      "--json-schema",
+    );
+    expect(buildProbeArgs({ model: PROBE_MODEL, effort: PROBE_EFFORT })).not.toContain(
+      "--json-schema",
+    );
+    const table: StructuredCallsTable = {
+      ...STRUCTURED_CALLS,
+      "plan-extraction": { claudeCode: "prompt" },
+    };
+    expect(buildCompletionArgs(options, table)).not.toContain("--json-schema");
+  });
+});
+
+describe("runClaudeAgent — the prompt and the structured value", () => {
+  let root: string;
+  let cli: FakeProviderCli;
+  const SESSION = "019a2f6e-0000-4000-8000-0000000000aa";
+  const LINE = "phax sets the answer's `$schema` itself, so leave it out.";
+
+  beforeEach(() => {
+    root = realpathSync(mkdtempSync(join(tmpdir(), "phax-claude-schema-")));
+    cli = makeFakeProviderCli(join(root, "cli"));
+    for (const [name, value] of Object.entries(cli.env)) vi.stubEnv(name, value);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const options = (extra: Partial<AgentRunOptions>): AgentRunOptions => ({
+    ...baseOptions(securePolicy),
+    cwd: root,
+    readOnly: true,
+    ...extra,
+  });
+
+  it("appends the leave-it-out line only when the flag is there, on a new session and a resume", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "{}" });
+    await Effect.runPromise(runClaudeAgent("ask", options({ answerSchema })));
+    await Effect.runPromise(runClaudeAgent("ask", options({ answerSchema }), SESSION));
+    await Effect.runPromise(
+      runClaudeAgent("ask", options({ answerSchema }), undefined, promptTable),
+    );
+    await Effect.runPromise(runClaudeAgent("ask", options({})));
+
+    const prompts = cli.traces().map((trace) => trace.stdin);
+    expect(prompts[0]).toBe(`ask\n\n${LINE}\n`);
+    expect(prompts[1]).toBe(`ask\n\n${LINE}\n`);
+    expect(prompts[2]).toBe("ask");
+    expect(prompts[3]).toBe("ask");
+  });
+
+  it("returns the structured value with the handed schema's stamp set first", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "", structuredOutput: { title: "x" } });
+
+    const handed = await Effect.runPromise(runClaudeAgent("ask", options({ answerSchema })));
+    expect(handed.structured).toEqual({
+      value: { $schema: stampOf(answerSchema.schema), title: "x" },
+    });
+    expect(Object.keys(handed.structured?.value as object)[0]).toBe("$schema");
+
+    const onPrompt = await Effect.runPromise(
+      runClaudeAgent("ask", options({ answerSchema }), undefined, promptTable),
+    );
+    expect(onPrompt.structured).toEqual({ value: { title: "x" } });
+  });
+
+  it("appends the line to a completion's prompt and stamps its structured value", async () => {
+    cli.setScript({ sessionId: SESSION, finalText: "", structuredOutput: { kind: "complete" } });
+    const extraction = answerJsonSchema("phax-plan-extraction");
+    const result = await Effect.runPromise(
+      runClaudeCompletion("ask", {
+        provider: "claude-code",
+        model: "claude-sonnet-4-6",
+        effort: "high",
+        cwd: root,
+        answerSchema: { call: "plan-extraction", schema: extraction },
+      }),
+    );
+    expect(cli.traces()[0]?.stdin).toBe(`ask\n\n${LINE}\n`);
+    expect(result.structured).toEqual({
+      value: { $schema: stampOf(extraction), kind: "complete" },
+    });
   });
 });

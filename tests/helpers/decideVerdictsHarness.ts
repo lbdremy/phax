@@ -27,6 +27,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import type { Backend } from "../../src/ports/backend.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 import { SPEC_PATH } from "../unit/decide/verdictsFixtures.js";
@@ -100,6 +101,8 @@ export interface HarnessOptions {
   readonly resumeAnswers?: readonly string[];
   readonly terminal?: boolean;
   readonly stdin?: string;
+  /** A backend to run the writer on instead of the fake one (the real adapters, over fake CLIs). */
+  readonly backendLayer?: Layer.Layer<Backend>;
 }
 
 /**
@@ -224,7 +227,7 @@ function harnessIn(world: DecideRepo, opts: HarnessOptions) {
   const layer = Layer.mergeAll(
     makeRootedNodeFileSystemLayer(world.repoDir),
     NodeGitLayer,
-    backend.layer,
+    opts.backendLayer ?? backend.layer,
     terminal.layer,
     github.layer,
   );

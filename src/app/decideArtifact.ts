@@ -70,6 +70,7 @@ import type { OutputPort } from "../ports/output.js";
 import { Prompt, type PromptError } from "../ports/prompt.js";
 import { Session } from "../ports/session.js";
 import { Terminal } from "../ports/terminal.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
 import { decodeAuthoringSession } from "../schemas/authoringSession.js";
 import type { HandDecisionAnswer } from "../schemas/handDecisionAnswer.js";
 import { currentSchemaUrl } from "../schemas/persisted.js";
@@ -875,6 +876,14 @@ function concludeSession(
         cwd: run.session.cwd,
         security: run.security,
         readOnly: true,
+        answerSchema: {
+          call: "decide-handback",
+          schema: answerJsonSchema(
+            ctx.snapshot.authored.variant === "hand"
+              ? `${kind}-hand-decision-answer`
+              : `${kind}-document`,
+          ),
+        },
         phaseFolderPath: folder,
       },
       observed,
