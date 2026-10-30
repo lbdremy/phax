@@ -549,6 +549,46 @@ describe("reviewCompliance", () => {
       expect(t.fs.impl.getFile(mdPath)).toBeUndefined();
     });
 
+    it("names both failures when the Markdown cannot be written and the new json cannot be removed", async () => {
+      const t = setup();
+      t.fs.impl.failWriteAtomic(mdPath, "disk full");
+      t.fs.impl.failRemove(jsonPath, "permission denied");
+      t.session("sess-1", textOf(answerOf()));
+
+      const result = await t.review();
+
+      expect(result.kind).toBe("failed");
+      if (result.kind !== "failed") return;
+      expect(result.failureReason).toBe(
+        "the review could not be kept: disk full; " +
+          "removing the new compliance-review.json also failed: permission denied",
+      );
+    });
+
+    it("names both failures when the Markdown cannot be written and the earlier json cannot be restored", async () => {
+      const t = setup();
+      t.fs.impl.setFile(jsonPath, "previous json");
+      t.fs.impl.setFile(mdPath, "previous md");
+      t.fs.impl.failWriteAtomic(mdPath, "disk full");
+      // The new json is written; the write that would restore the earlier one fails.
+      const write = t.fs.impl.writeAtomic.bind(t.fs.impl);
+      t.fs.impl.writeAtomic = (path, content) => {
+        const written = write(path, content);
+        if (path === jsonPath) t.fs.impl.failWriteAtomic(jsonPath, "read-only file system");
+        return written;
+      };
+      t.session("sess-1", textOf(answerOf()));
+
+      const result = await t.review();
+
+      expect(result.kind).toBe("failed");
+      if (result.kind !== "failed") return;
+      expect(result.failureReason).toBe(
+        "the review could not be kept: disk full; " +
+          "restoring the earlier compliance-review.json also failed: read-only file system",
+      );
+    });
+
     it("replaces both files of an earlier review with only its own", async () => {
       const t = setup();
       t.session("sess-1", textOf(answerOf(["phase-01", "phase-02"], { summary: "First." })));
