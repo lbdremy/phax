@@ -1,6 +1,7 @@
 // Spec acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -10,16 +11,19 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
+import { closeStop } from "../../src/app/closeStop.js";
+import { decideArtifact } from "../../src/app/decideArtifact.js";
+import { dispatch } from "../../src/app/dispatcher.js";
 import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
 import { runFirstTurn } from "../../src/app/interactiveStop.js";
 import { reviewCodeHeadless } from "../../src/app/reviewCode.js";
-import type { BranchName, RunId } from "../../src/domain/branded.js";
+import type { BranchName, PhaseId, RunId } from "../../src/domain/branded.js";
 import { AgentSessionFailedError } from "../../src/domain/errors.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
@@ -39,8 +43,12 @@ import {
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
+import { makeFakePrompt } from "../../src/infra/fakes/prompt.js";
+import { makeFakeSession } from "../../src/infra/fakes/session.js";
+import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { NodeShellLayer } from "../../src/infra/shell.js";
 import { makeNodeBackendLayer } from "../../src/infra/providers/dispatcher.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { answerJsonSchema, type AnswerFormatId } from "../../src/schemas/answerSchemas.js";
@@ -51,6 +59,7 @@ import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js
 import type { SpecDocument } from "../../src/schemas/specDocument.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { KEPT_SESSION, SPEC_FRONTMATTER, useDecideRepo } from "../helpers/decideVerdictsHarness.js";
+import { createWorld, stopRun } from "../helpers/stoppedRunFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { ANSWER_FOLLOW, FILE_VALID, SPEC, SPEC_PATH } from "../unit/decide/verdictsFixtures.js";
 
@@ -485,17 +494,19 @@ describe("ac-claude-fallback: a call the table puts on the prompt schema", () =>
 
 // ── Every call, every provider ─────────────────────────────────────────────
 
-// One driver per call, through its real call site and the real adapters. The
-// closing turn and the decide handback resume a kept session whose setup is
-// the work of their own suites: declaredStopProviderArgv and heldStopClose pin
-// the closing turn's argv and schema file on both providers, and
-// decideArtifact pins the handback's `answerSchema`.
+// One driver per call, through its real call site and the real adapters.
 interface CallDriver {
   readonly call: StructuredCallId;
   readonly format: AnswerFormatId;
   readonly providers: readonly ProviderId[];
-  /** Runs the call once, answering with whatever the script says. */
-  readonly drive: (provider: ProviderId, table?: StructuredCallsTable) => Promise<void>;
+  /** Whether a refused first answer is resumed once: a first spawn, then its retry. */
+  readonly retries: boolean;
+  /**
+   * Runs the call once, answering with whatever the script says. Returns the
+   * prompt that states the schema when that is not the first spawn's: decide's
+   * interactive opening prompt, which the handback resumes.
+   */
+  readonly drive: (provider: ProviderId, table?: StructuredCallsTable) => Promise<string | void>;
 }
 
 async function driveFirstTurn(provider: ProviderId, table?: StructuredCallsTable): Promise<void> {
@@ -613,35 +624,239 @@ async function driveExtraction(table?: StructuredCallsTable): Promise<void> {
   );
 }
 
+// decide on a hand-authored artifact: the interactive session (the fake
+// Session port), then the handback, a resume of that session on Claude Code.
+const HAND_SPEC_PATH = "docs/specs/2610161030-log-retention.md";
+const HAND_PLAN_PATH = "docs/plans/2610161032-log-retention-plan.md";
+const HAND_SPEC = [
+  "---",
+  "status: Draft",
+  "date: 2026-10-16",
+  "audience: maintainers",
+  "scope: logs",
+  "---",
+  "# Log retention",
+  "",
+  "## 1. Context",
+  "",
+  "Every run writes one log.",
+  "",
+  "## 9. Open questions",
+  "",
+  "### Q1 — Logs: kept per run, or rotated daily?",
+  "",
+  "- per-run — Kept per run — abandons: a bounded log directory",
+  "- daily — Rotated daily — abandons: one log per run",
+  "",
+  "Recommendation: per-run — a report names its run",
+  "",
+].join("\n");
+const HAND_PLAN = [
+  "---",
+  "status: Draft",
+  "source-spec: null",
+  "---",
+  "# Rotate logs",
+  "",
+  "## Required commands",
+  "",
+  "- (none)",
+  "",
+  "## Open questions",
+  "",
+  "### q-scope — Rotate per project or globally?",
+  "",
+  "- local — Per project — abandons: one shared setting",
+  "- global — Globally — abandons: per-project limits",
+  "",
+  "Recommendation: local — projects differ",
+  "",
+  "---",
+  "",
+  "## phase-01 — Rotate {#phase-01-rotate}",
+  "",
+  "Rotate the logs.",
+  "",
+].join("\n");
+
+async function driveHandDecide(path: string, table?: StructuredCallsTable): Promise<string> {
+  world.writeRepoFile(path, path === HAND_PLAN_PATH ? HAND_PLAN : HAND_SPEC);
+  world.commitAll();
+  await Effect.runPromise(
+    Effect.either(
+      decideArtifact({
+        path,
+        question: null,
+        doctrinePath: null,
+        model: undefined,
+        effort: undefined,
+        bundledSkills: { spec: "- `S1` Adopt it.\n", plan: "- `P1` Split it.\n" },
+        security: authoringSecurity,
+        repoRoot: world.repoDir,
+        stateRoot: world.stateRoot,
+        extractPlanModel: "claude-haiku-5-5",
+        extractPlanEffort: "low",
+        nowIso: "2026-10-30T14:12:00.000Z",
+        records: recordsOff,
+        publishRemote: "origin",
+        output: { log() {}, warn() {} },
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            makeRootedNodeFileSystemLayer(world.repoDir),
+            NodeGitLayer,
+            backendLayer(table),
+            makeFakeSession().layer,
+            makeFakePrompt([true]).layer,
+            makeFakeTerminal(true).layer,
+            makeFakeGitHub().layer,
+          ),
+        ),
+      ),
+    ),
+  );
+  const decisions = join(world.stateRoot, "decide");
+  const [id] = readdirSync(decisions);
+  return readFileSync(join(decisions, id ?? "", "01", "prompt.md"), "utf8");
+}
+
+// The made-up invoice-export run stopped at its interactive phase-03 (its first
+// turn played by the fake backend), corrected, then closed through the real
+// backend: the closing turn resumes the first turn's session.
+async function driveClosingTurn(provider: ProviderId, table?: StructuredCallsTable): Promise<void> {
+  const stopped = createWorld();
+  try {
+    const run = await stopRun(stopped, {
+      provider,
+      model: provider === "codex-cli" ? "gpt-6" : "claude-sonnet-5-5",
+      sessionId: SESSION,
+    });
+    writeFileSync(
+      join(run.worktree, "src", "invoiceRow.ts"),
+      "export const header = 'Invoice number';\n",
+    );
+    const program = Effect.gen(function* () {
+      yield* dispatch(
+        {
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          run: run.shortName as unknown as RunId,
+          phase: "phase-03" as PhaseId,
+          type: "RunResumeRequested",
+        },
+        {
+          runPath: run.runPath,
+          shortName: run.shortName,
+          phaseFolderPath: run.phaseFolder,
+          phaseId: "phase-03",
+        },
+      );
+      return yield* closeStop({
+        runId: run.runId as RunId,
+        shortName: run.shortName,
+        runPath: run.runPath,
+        phase: {
+          id: "phase-03",
+          title: "Review the export record",
+          model: "claude-sonnet-5-5",
+          effort: "medium",
+          planMarkdownAnchor: "#phase-03",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          mode: "interactive",
+          oracle: null,
+          testLines: [],
+          commit: { subject: "feat(export): review the export record", body: "Made-up body." },
+        },
+        phaseFolder: run.phaseFolder,
+        worktree: run.worktree,
+        gateSteps: [
+          { command: "git status", surface: "local", firing: "every-phase", output: "log" },
+        ],
+        gateRequest: Effect.succeed("{}"),
+        fileReconciliationMode: "report_only",
+        phases: [],
+        oracles: null,
+        mainCheckout: stopped.repoRoot,
+      });
+    });
+    await Effect.runPromise(
+      Effect.either(
+        program.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              backendLayer(table),
+              NodeFileSystemLayer,
+              NodeGitLayer,
+              NodeShellLayer,
+              NoopSystemTelemetryLayer,
+            ),
+          ),
+        ),
+      ),
+    );
+  } finally {
+    stopped.cleanup();
+  }
+}
+
 const DRIVERS: readonly CallDriver[] = [
   {
     call: "authoring",
     format: "spec-document",
     providers: ["claude-code", "codex-cli"],
+    retries: true,
     drive: async (provider, table) => void (await author({ provider, table })),
   },
   {
     call: "plan-extraction",
     format: "phax-plan-extraction",
     providers: ["claude-code"],
+    retries: false,
     drive: (_provider, table) => driveExtraction(table),
+  },
+  // The handback resumes decide's interactive session, which only Claude Code runs.
+  {
+    call: "decide-handback",
+    format: "spec-hand-decision-answer",
+    providers: ["claude-code"],
+    retries: true,
+    drive: (_provider, table) => driveHandDecide(HAND_SPEC_PATH, table),
+  },
+  {
+    call: "decide-handback",
+    format: "plan-hand-decision-answer",
+    providers: ["claude-code"],
+    retries: true,
+    drive: (_provider, table) => driveHandDecide(HAND_PLAN_PATH, table),
   },
   {
     call: "decide-verdicts",
     format: "spec-document",
     providers: ["claude-code", "codex-cli"],
+    retries: true,
     drive: async (provider, table) => void (await decideVerdicts({ provider, table })),
   },
   {
     call: "first-turn",
     format: "first-reading",
     providers: ["claude-code", "codex-cli"],
+    retries: true,
     drive: (provider, table) => driveFirstTurn(provider, table),
+  },
+  {
+    call: "closing-turn",
+    format: "interactive-handoff",
+    providers: ["claude-code", "codex-cli"],
+    retries: true,
+    drive: (provider, table) => driveClosingTurn(provider, table),
   },
   {
     call: "code-review",
     format: "code-review",
     providers: ["claude-code", "codex-cli"],
+    retries: true,
     drive: (provider, table) => driveCodeReview(provider, table),
   },
 ];
@@ -657,10 +872,16 @@ describe("ac-every-call: each structured call hands its answer schema on every s
       // An answer the call refuses: only the spawns are of interest here.
       cli.setScript({ sessionId: SESSION, finalText: "No answer, only prose." });
 
-      await driver.drive(provider);
+      const opening = await driver.drive(provider);
 
+      // The first spawn, then (for a call that has one) its corrective resume.
       const invocations = cli.invocations();
-      expect(invocations.length).toBeGreaterThan(0);
+      expect(invocations).toHaveLength(driver.retries ? 2 : 1);
+      const retry = invocations[1];
+      if (retry !== undefined) {
+        if (provider === "claude-code") expect(retry.argv.slice(-2)).toEqual(["--resume", SESSION]);
+        else expect(retry.argv.slice(0, 3)).toEqual(["exec", "resume", SESSION]);
+      }
       for (const [index, call] of invocations.entries()) {
         if (provider === "claude-code") {
           expect(call.executable).toBe("claude");
@@ -671,17 +892,16 @@ describe("ac-every-call: each structured call hands its answer schema on every s
           expect(JSON.parse(call.outputSchema ?? "null")).toEqual(answerJsonSchema(driver.format));
           expect(promptOf(index)).not.toContain(STAMP_LINE);
         }
-        // Every prompt states the whole published schema, `$schema` included.
-        const stated = statedSchema(driver.format);
-        if (index === 0) expect(promptOf(index)).toContain(stated);
       }
+      // The call's prompt states the whole published schema, `$schema` included.
+      expect(opening ?? promptOf(0)).toContain(statedSchema(driver.format));
     },
   );
 
   const claudeDrivers = DRIVERS.map((driver) => ({ driver }));
 
   it.each(claudeDrivers)(
-    "flipping the $driver.call line alone puts that call on the prompt schema on Claude Code",
+    "flipping the $driver.call line alone puts that call ($driver.format) on the prompt schema on Claude Code",
     async ({ driver }) => {
       const flipped: StructuredCallsTable = {
         ...STRUCTURED_CALLS,
@@ -689,43 +909,45 @@ describe("ac-every-call: each structured call hands its answer schema on every s
       };
       cli.setScript({ sessionId: SESSION, finalText: "No answer, only prose." });
 
-      await driver.drive("claude-code", flipped);
+      const opening = await driver.drive("claude-code", flipped);
 
       const invocations = cli.invocations();
-      expect(invocations.length).toBeGreaterThan(0);
+      expect(invocations).toHaveLength(driver.retries ? 2 : 1);
       for (const [index, call] of invocations.entries()) {
         expect(call.argv).not.toContain("--json-schema");
         expect(promptOf(index)).not.toContain(STAMP_LINE);
       }
-      expect(promptOf(0)).toContain(statedSchema(driver.format));
+      expect(opening ?? promptOf(0)).toContain(statedSchema(driver.format));
     },
   );
 
-  it("hands nothing to a phase turn, a fix turn or the probe", async () => {
-    const { runClaudeAgent, buildProbeArgs } =
-      await import("../../src/infra/providers/claudeCode.js");
-    cli.setScript({ sessionId: SESSION, finalText: "done" });
-    const options = {
-      provider: "claude-code" as const,
-      model: "claude-sonnet-5-5",
-      effort: "medium",
-      cwd: root,
-      security: {
-        mode: "unsafe" as const,
-        filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "open" as const },
-        mcp: { mode: "provider-default" as const, allow: [] },
-        agentCommands: [],
-        failClosed: false,
-      },
-    };
-    await Effect.runPromise(runClaudeAgent("a phase turn", options));
-    await Effect.runPromise(runClaudeAgent("a fix turn", options, SESSION));
-
-    for (const call of cli.invocations()) expect(call.argv).not.toContain("--json-schema");
-    for (const prompt of [promptOf(0), promptOf(1)]) expect(prompt).not.toContain(STAMP_LINE);
-    expect(buildProbeArgs({ model: "claude-haiku-5-5", effort: "low" })).not.toContain(
-      "--json-schema",
+  // A phase turn, a fix turn, a handoff turn and the probe hand no schema
+  // because no call site but the seven structured calls sets `answerSchema`:
+  // a census of the source, so a new site fails here until it joins the table.
+  it("sets answerSchema at the seven structured call sites alone, one site per call", () => {
+    const srcRoot = join(import.meta.dirname, "..", "..", "src");
+    const sites: string[] = [];
+    for (const name of readdirSync(srcRoot, { recursive: true }) as string[]) {
+      if (!name.endsWith(".ts")) continue;
+      const text = readFileSync(join(srcRoot, name), "utf8");
+      for (const match of text.matchAll(/\banswerSchema\s*:/g)) {
+        const call = /^\s*\{\s*call:\s*"([a-z-]+)"/.exec(text.slice(match.index + match[0].length));
+        sites.push(`${name.split(sep).join("/")} ${call?.[1] ?? "(not a call literal)"}`);
+      }
+    }
+    expect(sites.toSorted()).toEqual(
+      [
+        "app/authorArtifact.ts authoring",
+        "app/closeStop.ts closing-turn",
+        "app/decideArtifact.ts decide-handback",
+        "app/decideVerdicts.ts decide-verdicts",
+        "app/extractPlan.ts plan-extraction",
+        "app/interactiveStop.ts first-turn",
+        "app/reviewCode.ts code-review",
+      ].toSorted(),
+    );
+    expect(sites.map((site) => site.split(" ")[1]).toSorted()).toEqual(
+      Object.keys(STRUCTURED_CALLS).toSorted(),
     );
   });
 });
