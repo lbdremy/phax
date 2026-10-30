@@ -48,10 +48,13 @@ poisoning a run later (spec §6).
 
 The prompt forbids guessing a missing field, and `claude-haiku-5-5` holds to that more
 strictly than Haiku 4.5 did. So the prompt states the fields phax derives rather than
-reads (the run's title and short name both come from the `# ` heading). A model that
-still finds a required field missing answers `{"error": …}`, and phax reports that
+reads (the run's title and short name both come from the `# ` heading). The answer is
+the `phax-plan-extraction` format (born at 0.32.0): a required `$schema`, then `plan` and
+`incomplete`, exactly one of them null. A model that still finds a required field missing
+answers `{"$schema": …, "plan": null, "incomplete": "<what>"}`, and phax reports that
 reason ("The extraction model found the plan incomplete: …") instead of a schema
-mismatch.
+mismatch. An answer that is not the format (an older `{"version": 1, …}` shape, say) is
+refused once, naming every root-level issue, with no retry.
 
 ## TODO: `assess-extract-model` command (deferred)
 

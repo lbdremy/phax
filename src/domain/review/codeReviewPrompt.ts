@@ -1,8 +1,11 @@
+import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 import {
   CODE_REVIEW_ESCAPES,
   CODE_REVIEW_LENSES,
   CODE_REVIEW_SEVERITIES,
 } from "../../schemas/codeReview.js";
+import { CURRENT_STAMPS } from "../../schemas/release.js";
+import { schemaUrl } from "../../schemas/schemaUrl.js";
 import { PHAX_REVIEW_SKILL } from "../skills/catalog.js";
 
 export const CODE_REVIEW_PROMPT_FILENAME = "code-review-prompt.md";
@@ -139,10 +142,10 @@ export function buildHeadlessCodeReviewPrompt(input: HeadlessCodeReviewPromptInp
     "",
     "## Answer",
     "",
-    "Your final message is your answer: JSON alone, in this exact shape, with every key required and no other key:",
+    "Your final message is your answer: JSON alone, valid against this JSON Schema, with every key required and no other key:",
     "",
     "```json",
-    '{ "version": 1, "findings": [ { "severity", "file", "line", "message", "lens", "escape", "criterion", "suggestion" } ] }',
+    JSON.stringify(answerJsonSchema("code-review"), null, 2),
     "```",
     "",
     `- \`severity\`: one of ${idList(CODE_REVIEW_SEVERITIES)}.`,
@@ -153,7 +156,7 @@ export function buildHeadlessCodeReviewPrompt(input: HeadlessCodeReviewPromptInp
     "- `criterion`: an acceptance-criterion id of the source spec, or null.",
     "- `message` and `suggestion`: non-empty.",
     "",
-    'When there is nothing to report, answer `{"version":1,"findings":[]}`.',
+    `When there is nothing to report, answer \`${JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings: [] })}\`.`,
   ].join("\n");
 }
 

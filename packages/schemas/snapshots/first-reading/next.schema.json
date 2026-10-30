@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax first reading",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "pattern",
+    "copiedBy",
+    "toCheck"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/first-reading/0.32.0.json"
+      ],
+      "description": "The first-reading format's shape, exactly: https://docs.phax.run/schemas/first-reading/0.32.0.json",
+      "const": "https://docs.phax.run/schemas/first-reading/0.32.0.json"
+    },
+    "pattern": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/NonEmptyString"
+      },
+      "description": "The pattern the phase introduces, one statement per item."
+    },
+    "copiedBy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "phase",
+          "what"
+        ],
+        "properties": {
+          "phase": {
+            "type": "string",
+            "description": "The phase that copied the pattern.",
+            "pattern": "^phase-\\d{2}$"
+          },
+          "what": {
+            "type": "string",
+            "description": "What it copied.",
+            "pattern": "^[\\s\\S]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "toCheck": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NonEmptyString"
+      },
+      "description": "What the person should check first."
+    }
+  },
+  "additionalProperties": false
+}

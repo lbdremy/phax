@@ -46,8 +46,10 @@ import {
 import {
   decideVerdictsFormat,
   handDecisionAnswerFormat,
+  phaxPlanExtractionFormat,
   type DecideVerdictsShapes,
   type HandDecisionAnswerShapes,
+  type PhaxPlanExtractionShapes,
 } from "./formats/answers.js";
 import {
   authoringRecordManifestFormat,
@@ -421,6 +423,20 @@ export {
   type LatestDecideVerdicts,
 } from "./formats/answers.js";
 
+// The answer the fallback extraction model gives for a plan.md: the extracted
+// plan, or why the plan is incomplete. Its schema and type are phax's own
+// file schema and type.
+export {
+  PlanExtractionAnswerSchema as PhaxPlanExtractionSchema,
+  type PlanExtractionAnswer as PhaxPlanExtraction,
+} from "../../../src/schemas/planExtraction.js";
+export {
+  parsePhaxPlanExtraction,
+  toLatestPhaxPlanExtraction,
+  type LatestPhaxPlanExtraction,
+  type PhaxPlanExtractionShape,
+} from "./formats/answers.js";
+
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
@@ -509,6 +525,18 @@ export {
   DecisionRecordManifestV0_28_0Schema,
   type DecisionRecordManifestV0_28_0,
 } from "../../../src/schemas/history/decision-record-manifest/0.28.0.js";
+export {
+  FirstReadingV0_26_0Schema,
+  type FirstReadingV0_26_0,
+} from "../../../src/schemas/history/first-reading/0.26.0.js";
+export {
+  InteractiveHandoffV0_26_0Schema,
+  type InteractiveHandoffV0_26_0,
+} from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
+export {
+  CodeReviewV0_29_0Schema,
+  type CodeReviewV0_29_0,
+} from "../../../src/schemas/history/code-review/0.29.0.js";
 export {
   InteractiveSessionV0_26_0Schema,
   type InteractiveSessionV0_26_0,
@@ -644,6 +672,7 @@ type DocumentShapes = EveryFormat<{
   "decide-verdicts": DecideVerdictsShapes;
   "cost-ledger": CostLedgerShapes;
   "code-review": CodeReviewShapes;
+  "phax-plan-extraction": PhaxPlanExtractionShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -693,4 +722,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "decide-verdicts": decideVerdictsFormat,
     "cost-ledger": costLedgerFormat,
     "code-review": codeReviewFormat,
+    "phax-plan-extraction": phaxPlanExtractionFormat,
   });

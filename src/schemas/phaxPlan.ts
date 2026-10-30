@@ -1,4 +1,4 @@
-import { JSONSchema, Schema, type Types } from "effect";
+import { Schema, type Types } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 import { TestLineSchema } from "./testLine.js";
 
@@ -65,8 +65,10 @@ export const ExtractedPhaseFields = {
 const ExtractedPhaseSchema = Schema.Struct(ExtractedPhaseFields);
 
 // What the extraction model emits per phase: the extracted fields, test lines
-// included, without the two phax reads from the header lines.
-const { mode: _mode, oracle: _oracle, ...answerPhaseFields } = ExtractedPhaseFields;
+// included, without the two phax reads from the header lines. The
+// phax-plan-extraction answer (planExtraction.ts) carries exactly these.
+const { mode: _mode, oracle: _oracle, ...answerPhaseFieldsRest } = ExtractedPhaseFields;
+export const answerPhaseFields = answerPhaseFieldsRest;
 
 export const ExtractedRunSchema = Schema.Struct({
   // Loose on purpose: the model is unreliable at emitting a valid slug, so we
@@ -102,17 +104,6 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
   phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
 });
 
-/**
- * The extraction model's answer: the extracted plan whose phases carry no
- * `mode` and no `oracle`; its `testLines` are the model's. phax adds both from plan.md's header lines
- * (`withPhaseKinds`), then decodes the result as `ExtractedPhaxPlanSchema`.
- */
-export const ExtractionAnswerSchema = Schema.Struct({
-  version: Schema.Literal(1),
-  run: ExtractedRunSchema,
-  phases: Schema.NonEmptyArray(Schema.Struct(answerPhaseFields)),
-});
-
 // The full plan, after phax merges in the deterministic fields.
 const phaxPlanFields = {
   run: Schema.Struct({
@@ -125,7 +116,6 @@ const phaxPlanFields = {
 };
 
 export type ExtractedPhaxPlan = Schema.Schema.Type<typeof ExtractedPhaxPlanSchema>;
-export type ExtractionAnswer = Schema.Schema.Type<typeof ExtractionAnswerSchema>;
 /** A run's plan in memory: never a `version`, never a `$schema`. */
 export type PhaxPlan = Types.Simplify<Schema.Struct.Type<typeof phaxPlanFields>>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
@@ -145,8 +135,3 @@ export const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanFileSchema,
   onExcessProperty: "error",
 });
 export const encodePhaxPlanFile = Schema.encodeSync(PhaxPlanFileSchema);
-
-/** The JSON Schema the extraction model is given: its answer, without `mode` and `oracle`. */
-export function getExtractedPlanJsonSchema(): object {
-  return JSONSchema.make(ExtractionAnswerSchema);
-}

@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
   CODE_REVIEW_ESCAPES,
   CODE_REVIEW_LENSES,
@@ -226,7 +229,16 @@ describe("buildHeadlessCodeReviewPrompt", () => {
     ]) {
       expect(prompt).toContain(`"${key}"`);
     }
-    expect(prompt).toContain('{"version":1,"findings":[]}');
+    const stamp = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
+    expect(prompt).toContain(`{"$schema":"${stamp}","findings":[]}`);
+    expect(prompt).not.toContain('"version"');
+  });
+
+  it("states the answer's JSON Schema, with its $schema const", () => {
+    const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
+    const stamp = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("code-review"), null, 2));
+    expect(prompt).toContain(`"const": "${stamp}"`);
   });
 
   it("lists the closed ids of the contract", () => {

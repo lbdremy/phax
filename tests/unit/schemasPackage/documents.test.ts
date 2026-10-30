@@ -15,6 +15,7 @@ import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
 import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
 import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
@@ -112,6 +113,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "review-stop": decodeReviewStopFile,
   "run-list": decodeRunListFile,
   "decide-verdicts": decodeDecideVerdictsFile,
+  "phax-plan-extraction": decodePlanExtractionAnswer,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

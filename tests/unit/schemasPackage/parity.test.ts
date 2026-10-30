@@ -18,6 +18,7 @@ import {
   parseCodeReview,
   parseCostLedger,
   parseDecideVerdicts,
+  parsePhaxPlanExtraction,
   parseDecisionRecordManifest,
   parseReviewRecordManifest,
   parseGateAttribution,
@@ -55,6 +56,7 @@ import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
 import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
 import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
@@ -398,6 +400,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeDecideVerdictsFile,
     wrongType: ["verdicts", {}],
     required: "artifact",
+    excess: "error",
+  },
+  "phax-plan-extraction": {
+    id: "phax-plan-extraction",
+    parse: parsePhaxPlanExtraction,
+    phax: decodePlanExtractionAnswer,
+    wrongType: ["plan", "no plan"],
+    required: "incomplete",
     excess: "error",
   },
 };

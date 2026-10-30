@@ -39,6 +39,7 @@ import {
   parseGateReport,
   parseGateRequest,
   parseDecideVerdicts,
+  parsePhaxPlanExtraction,
   parseHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
@@ -73,6 +74,7 @@ import {
   toLatestGateReport,
   toLatestGateRequest,
   toLatestDecideVerdicts,
+  toLatestPhaxPlanExtraction,
   toLatestHandDecisionAnswer,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -128,7 +130,9 @@ const lock = JSON.parse(
 
 interface RenderedSchema {
   readonly required?: ReadonlyArray<string>;
-  readonly properties?: Readonly<Record<string, { readonly pattern?: string }>>;
+  readonly properties?: Readonly<
+    Record<string, { readonly pattern?: string; readonly const?: string }>
+  >;
   readonly anyOf?: ReadonlyArray<RenderedSchema>;
 }
 
@@ -167,7 +171,14 @@ describe("every format's current shape", () => {
   it.each(FORMAT_IDS)("%s: requires $schema bound to its own id, and has no version", (id) => {
     for (const schema of rendered(id)) {
       expect(schema.required).toContain("$schema");
-      expect(schema.properties?.["$schema"]?.pattern).toContain(`schemas\\/${id}\\/`);
+      // An answer format (the strict leaf answers, from 0.32.0) names its
+      // current stamp as a const; every other format, any release by pattern.
+      const stamp = schema.properties?.["$schema"];
+      if (stamp?.const !== undefined) {
+        expect(stamp.const).toContain(`schemas/${id}/`);
+      } else {
+        expect(stamp?.pattern).toContain(`schemas\\/${id}\\/`);
+      }
       expect(schema.properties).not.toHaveProperty("version");
     }
   });
@@ -259,6 +270,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "review-stop": latest(parseReviewStop, toLatestReviewStop),
   "run-list": latest(parseRunList, toLatestRunList),
   "decide-verdicts": latest(parseDecideVerdicts, toLatestDecideVerdicts),
+  "phax-plan-extraction": latest(parsePhaxPlanExtraction, toLatestPhaxPlanExtraction),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
@@ -314,6 +326,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   // phax reads the verdicts file a person writes through
   // decodeCurrentDecideVerdicts, which names no file.
   "decide-verdicts": undefined,
+  // phax reads the plan extraction only as the fallback model's answer, through
+  // readPlanExtractionAnswer, which names no file.
+  "phax-plan-extraction": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

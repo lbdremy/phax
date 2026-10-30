@@ -18,6 +18,8 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 const stateRoot = "/fake-state";
@@ -90,7 +92,8 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const answerOf = (...findings: unknown[]) => JSON.stringify({ version: 1, findings });
+const answerOf = (...findings: unknown[]) =>
+  JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings });
 
 const CLAUDE_STREAM = [
   JSON.stringify({ type: "system", subtype: "init", session_id: "session-a" }),

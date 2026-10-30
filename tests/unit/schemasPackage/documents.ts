@@ -108,6 +108,7 @@ import { FirstReadingFileSchema } from "../../../src/schemas/firstReading.js";
 import { InteractiveHandoffFileSchema } from "../../../src/schemas/interactiveHandoff.js";
 import { InteractiveSessionFileSchema } from "../../../src/schemas/interactiveSession.js";
 import { OracleRequestFileSchema } from "../../../src/schemas/oracleRequest.js";
+import { PlanExtractionAnswerSchema } from "../../../src/schemas/planExtraction.js";
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
@@ -1013,6 +1014,32 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
   "code-review": encoded(CodeReviewFileSchema, withSchemaUrl("code-review", codeReview)),
+  "phax-plan-extraction": encoded(
+    PlanExtractionAnswerSchema,
+    withSchemaUrl("phax-plan-extraction", {
+      plan: {
+        run: {
+          shortName: "invoice-export",
+          title: "Invoice export",
+          requiredCommands: ["pnpm check"],
+        },
+        phases: [
+          {
+            id: "phase-01",
+            model: "claude-sonnet-5-5",
+            effort: "medium",
+            planMarkdownAnchor: "#phase-01-export-rows",
+            plannedFilesToCreate: ["src/exportRows.ts"],
+            plannedFilesToEdit: [],
+            optionalFilesToEdit: [],
+            testLines: [],
+            commit: { subject: "feat: export rows", body: "Builds the export rows." },
+          },
+        ],
+      },
+      incomplete: null,
+    }),
+  ),
   "architecture-request": encoded(
     ArchitectureRequestFileSchema,
     withSchemaUrl("architecture-request", { files: ["src/example.ts", "src/missing.ts"] }),

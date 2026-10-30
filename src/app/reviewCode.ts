@@ -535,7 +535,15 @@ export function reviewCodeHeadless(
     const finalText = agentResult.right.finalText.trim();
     if (finalText === "") return fail("the session gave no answer");
 
-    const answer = readCodeReviewAnswer(extractJsonDocumentText(finalText));
+    let parsedAnswer: unknown;
+    try {
+      parsedAnswer = JSON.parse(extractJsonDocumentText(finalText));
+    } catch (error) {
+      return fail(
+        `answer refused: not JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    const answer = readCodeReviewAnswer(parsedAnswer);
     if (Either.isLeft(answer)) return fail(`answer refused: ${answer.left}`);
 
     const review = answer.right;

@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
-import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
+import type { PlanExtractionAnswer } from "../../src/schemas/planExtraction.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // Conforming plan: extractPlanDeterministic parses this without the LLM.
 const CONFORMING_PLAN = `# Test Plan
@@ -74,26 +76,29 @@ Does the thing.
 `;
 
 // What the fake LLM backend returns for the non-conforming plan.
-const LLM_EXTRACTED: ExtractionAnswer = {
-  version: 1,
-  run: {
-    shortName: "Test Plan",
-    title: "Test Plan",
-    requiredCommands: [],
-  },
-  phases: [
-    {
-      id: "phase-01",
-      model: "claude-sonnet-4-6",
-      effort: "medium",
-      planMarkdownAnchor: "#phase-01-first",
-      plannedFilesToCreate: [],
-      plannedFilesToEdit: [],
-      optionalFilesToEdit: [],
-      testLines: [],
-      commit: { subject: "feat(test): do thing", body: "Does the thing." },
+const LLM_EXTRACTED: PlanExtractionAnswer = {
+  $schema: schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]),
+  plan: {
+    run: {
+      shortName: "Test Plan",
+      title: "Test Plan",
+      requiredCommands: [],
     },
-  ],
+    phases: [
+      {
+        id: "phase-01",
+        model: "claude-sonnet-4-6",
+        effort: "medium",
+        planMarkdownAnchor: "#phase-01-first",
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        testLines: [],
+        commit: { subject: "feat(test): do thing", body: "Does the thing." },
+      },
+    ],
+  },
+  incomplete: null,
 };
 
 const BASE_OPTS = {

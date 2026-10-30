@@ -285,7 +285,7 @@ const COMPLIANCE_VERDICT = JSON.stringify({
 });
 
 const CODE_REVIEW_ANSWER = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
   findings: [
     {
       severity: "concern",
@@ -757,8 +757,8 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   }
 
   // A headless code review with a fake agent, whose final message phax
-  // decodes. The answer carries `version`: only the run folder's
-  // code-review.json is a persisted file.
+  // decodes. The answer is the file's own shape: the run folder's
+  // code-review.json is the persisted file.
   backend.impl.addRunResponse({
     sessionId: "session-code-review" as ClaudeSessionId,
     outputPath: `${RUN_PATH}/code-review.session.jsonl`,
@@ -850,6 +850,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",
+  // phax never writes the plan extraction answer: it is the fallback
+  // extraction model's final message, read at the boundary.
+  "phax-plan-extraction",
 ];
 
 describe("every persisted file phax writes", () => {

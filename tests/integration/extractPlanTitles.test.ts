@@ -4,23 +4,28 @@ import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { PlanValidationError } from "../../src/domain/errors.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // The model emits everything except `title`; phax derives titles from headings.
 function extractedJson(phases: ReadonlyArray<{ id: string; anchor: string }>): string {
   return JSON.stringify({
-    version: 1,
-    run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
-    phases: phases.map((p) => ({
-      id: p.id,
-      model: "claude-sonnet-4-6",
-      effort: "low",
-      planMarkdownAnchor: p.anchor,
-      plannedFilesToCreate: [],
-      plannedFilesToEdit: [],
-      optionalFilesToEdit: [],
-      testLines: [],
-      commit: { subject: `feat: ${p.id}`, body: "body" },
-    })),
+    $schema: schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]),
+    plan: {
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      phases: phases.map((p) => ({
+        id: p.id,
+        model: "claude-sonnet-4-6",
+        effort: "low",
+        planMarkdownAnchor: p.anchor,
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        testLines: [],
+        commit: { subject: `feat: ${p.id}`, body: "body" },
+      })),
+    },
+    incomplete: null,
   });
 }
 
