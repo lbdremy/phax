@@ -125,6 +125,9 @@ describe("buildCompliancePrompt", () => {
       "`perPhase` names each of these phase ids exactly once, in any order: `phase-01`, `phase-02`.",
     );
     expect(prompt).toContain("`unplannedChanges` are the files touched beyond the plan");
+    expect(prompt).toContain(
+      "A file that several phases touched is one\n  entry per phase that touched it, each with that phase's `phaseId`.",
+    );
     expect(prompt).toContain("`unmetPromises` are the tests or artifacts the plan promised");
     expect(prompt).toContain("Either ledger may be `[]`");
   });
