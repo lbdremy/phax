@@ -30,7 +30,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Schema readers: the `code-review` answer and file are one shape**, `$schema` in place of `version`.
 - **Schema readers: new `phax-plan-extraction` format**, the answer of the plan extraction.
 - **Headless authoring answers** carry `$schema` in place of `version: 1`.
-- **Run `phax artifact migrate-documents` once.** It restamps your 0.27.0 specs and 0.28.0 plans, their bodies unchanged. Until then `approve`, `reopen` and `decide` refuse, naming the command.
+- **Run `phax artifact migrate-documents` once.** It restamps every live spec and plan sidecar below its current shape, their bodies unchanged. Until then `approve`, `reopen` and `decide` refuse, naming the command.
 
 See [Structured answers and providers](structured-answers.md) for what each provider now checks.
 
