@@ -283,8 +283,9 @@ export function reviewCompliance(
     const mdArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_MD_FILENAME);
 
     // The pair is replaced together or left as it was: a failed second write
-    // puts the first file back (or removes it when there was none).
-    const keepPair = Effect.gen(function* () {
+    // puts the first file back (or removes it when there was none). When that
+    // undo fails too, the reason names both failures.
+    const keepPair: Effect.Effect<void, string> = Effect.gen(function* () {
       const previousJson = (yield* fs.exists(jsonArtifactPath))
         ? yield* fs.readText(jsonArtifactPath)
         : undefined;
@@ -293,17 +294,26 @@ export function reviewCompliance(
         fs.writeAtomic(mdArtifactPath, renderComplianceReviewMarkdown(info.runId, review)),
       );
       if (Either.isLeft(mdWrite)) {
-        yield* Effect.either(
+        const undo = yield* Effect.either(
           previousJson === undefined
             ? fs.remove(jsonArtifactPath)
             : fs.writeAtomic(jsonArtifactPath, previousJson),
         );
-        return yield* Effect.fail(mdWrite.left);
+        if (Either.isLeft(undo)) {
+          const undoing =
+            previousJson === undefined
+              ? `removing the new ${COMPLIANCE_REVIEW_JSON_FILENAME}`
+              : `restoring the earlier ${COMPLIANCE_REVIEW_JSON_FILENAME}`;
+          return yield* Effect.fail(
+            `${mdWrite.left.message}; ${undoing} also failed: ${undo.left.message}`,
+          );
+        }
+        return yield* Effect.fail(mdWrite.left.message);
       }
-    });
+    }).pipe(Effect.mapError((error) => (typeof error === "string" ? error : error.message)));
     const kept = yield* Effect.either(keepPair);
     if (Either.isLeft(kept)) {
-      return fail(`the review could not be kept: ${kept.left.message}`);
+      return fail(`the review could not be kept: ${kept.left}`);
     }
 
     for (const [artifact, path] of [
