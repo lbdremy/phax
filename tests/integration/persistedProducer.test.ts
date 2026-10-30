@@ -153,7 +153,7 @@ const resolution: RoutingResolution = {
 };
 
 const SPEC_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("spec-document"),
   kind: "spec",
   title: "Example spec",
   ground: [{ path: "src/example.ts", note: "the module the spec changes" }],
@@ -196,7 +196,7 @@ const SPEC_DOCUMENT = {
 const { testLines: _planLines, ...planPhaseFields } = plan.phases[0];
 
 const PLAN_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("plan-document"),
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
   completesSpec: true,
@@ -834,8 +834,11 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "architecture-request",
   "architecture-report",
   // phax never writes a hand decision answer: it is a decide session's final
-  // message, from which phax writes the artifact itself.
+  // message, from which phax writes the artifact itself. The retired
+  // hand-decision-answer is not even read.
   "hand-decision-answer",
+  "spec-hand-decision-answer",
+  "plan-hand-decision-answer",
   // phax never writes the first reading or the interactive handoff as a file:
   // each is a declared interactive phase's turn answer, read at the boundary.
   "first-reading",

@@ -41,6 +41,8 @@ import {
   parseDecideVerdicts,
   parsePhaxPlanExtraction,
   parseHandDecisionAnswer,
+  parsePlanHandDecisionAnswer,
+  parseSpecHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -76,6 +78,8 @@ import {
   toLatestDecideVerdicts,
   toLatestPhaxPlanExtraction,
   toLatestHandDecisionAnswer,
+  toLatestPlanHandDecisionAnswer,
+  toLatestSpecHandDecisionAnswer,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -257,6 +261,8 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "gate-report": latest(parseGateReport, toLatestGateReport),
   "brief-report": latest(parseBriefReport, toLatestBriefReport),
   "hand-decision-answer": latest(parseHandDecisionAnswer, toLatestHandDecisionAnswer),
+  "spec-hand-decision-answer": latest(parseSpecHandDecisionAnswer, toLatestSpecHandDecisionAnswer),
+  "plan-hand-decision-answer": latest(parsePlanHandDecisionAnswer, toLatestPlanHandDecisionAnswer),
   "decision-record-manifest": latest(parseDecisionRecordManifest, toLatestDecisionRecordManifest),
   "review-record-manifest": latest(parseReviewRecordManifest, toLatestReviewRecordManifest),
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
@@ -278,7 +284,8 @@ type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unk
 // phax never reads gate requests back. It reads a gate report or a brief
 // report only as a provider's answer, through readGateReport and
 // readBriefReport, which name no file, and a hand decision answer only as a
-// decide session's final message, through decodeCurrentHandDecisionAnswer.
+// decide session's final message, through decodeCurrentHandDecisionAnswer
+// (the retired hand-decision-answer nowhere).
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -302,6 +309,8 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "gate-report": undefined,
   "brief-report": undefined,
   "hand-decision-answer": undefined,
+  "spec-hand-decision-answer": undefined,
+  "plan-hand-decision-answer": undefined,
   "decision-record-manifest": readRecordManifestFile,
   "review-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,

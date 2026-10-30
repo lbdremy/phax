@@ -1,0 +1,765 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan document",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "sourceSpec",
+    "completesSpec",
+    "run",
+    "preamble",
+    "phases"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/plan-document/0.32.0.json"
+      ],
+      "description": "The plan-document format's shape, exactly: https://docs.phax.run/schemas/plan-document/0.32.0.json",
+      "const": "https://docs.phax.run/schemas/plan-document/0.32.0.json"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "plan"
+      ]
+    },
+    "sourceSpec": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "completesSpec": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null."
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "shortName",
+        "title",
+        "requiredCommands"
+      ],
+      "properties": {
+        "shortName": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "requiredCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "preamble": {
+      "type": "object",
+      "required": [
+        "summary",
+        "requiredCommandsNote",
+        "technicalArbitrations",
+        "openQuestions",
+        "arbitratedQuestions"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "requiredCommandsNote": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "technicalArbitrations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "openQuestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "question",
+              "options",
+              "recommendation",
+              "rationale"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "An id: a run of characters without whitespace.",
+                "pattern": "^\\S+$"
+              },
+              "question": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "abandons"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "An id: a run of characters without whitespace.",
+                      "pattern": "^\\S+$"
+                    },
+                    "label": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "abandons": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "description": "an array of at least 2 item(s)",
+                "title": "minItems(2)",
+                "minItems": 2
+              },
+              "recommendation": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "rationale": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "arbitratedQuestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "question",
+              "options",
+              "recommendation",
+              "rationale",
+              "verdict",
+              "history"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "An id: a run of characters without whitespace.",
+                "pattern": "^\\S+$"
+              },
+              "question": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "abandons"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "An id: a run of characters without whitespace.",
+                      "pattern": "^\\S+$"
+                    },
+                    "label": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "abandons": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "description": "an array of at least 2 item(s)",
+                "title": "minItems(2)",
+                "minItems": 2
+              },
+              "recommendation": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "rationale": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "verdict": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "chosen",
+                      "abandoned",
+                      "why",
+                      "advocate",
+                      "principles",
+                      "reversibility",
+                      "by",
+                      "at",
+                      "revised",
+                      "phase"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "decided"
+                        ]
+                      },
+                      "chosen": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "abandoned": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        }
+                      },
+                      "why": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "advocate": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "principles": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        }
+                      },
+                      "reversibility": {
+                        "type": "string",
+                        "enum": [
+                          "cheap",
+                          "costly",
+                          "irreversible"
+                        ]
+                      },
+                      "by": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "name"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "operator"
+                            ]
+                          },
+                          "name": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "An ISO-8601 UTC timestamp.",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                      },
+                      "revised": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        }
+                      },
+                      "phase": {
+                        "type": "string",
+                        "description": "a string matching the pattern ^phase-\\d{2}$",
+                        "pattern": "^phase-\\d{2}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "chosen",
+                      "abandoned",
+                      "why",
+                      "at",
+                      "by"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "lifted"
+                        ]
+                      },
+                      "chosen": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "abandoned": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        }
+                      },
+                      "why": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "A date, YYYY-MM-DD.",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "by": {
+                        "type": "object",
+                        "required": [
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "unattributed"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "history": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind",
+                        "chosen",
+                        "abandoned",
+                        "why",
+                        "advocate",
+                        "principles",
+                        "reversibility",
+                        "by",
+                        "at",
+                        "revised",
+                        "phase"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "decided"
+                          ]
+                        },
+                        "chosen": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "abandoned": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          }
+                        },
+                        "why": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "advocate": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "principles": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          }
+                        },
+                        "reversibility": {
+                          "type": "string",
+                          "enum": [
+                            "cheap",
+                            "costly",
+                            "irreversible"
+                          ]
+                        },
+                        "by": {
+                          "type": "object",
+                          "required": [
+                            "kind",
+                            "name"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "operator"
+                              ]
+                            },
+                            "name": {
+                              "$ref": "#/$defs/NonEmptyString"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "at": {
+                          "type": "string",
+                          "description": "An ISO-8601 UTC timestamp.",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                        },
+                        "revised": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          }
+                        },
+                        "phase": {
+                          "type": "string",
+                          "description": "a string matching the pattern ^phase-\\d{2}$",
+                          "pattern": "^phase-\\d{2}$"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind",
+                        "chosen",
+                        "abandoned",
+                        "why",
+                        "at",
+                        "by"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "lifted"
+                          ]
+                        },
+                        "chosen": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "abandoned": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/NonEmptyString"
+                          }
+                        },
+                        "why": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "at": {
+                          "type": "string",
+                          "description": "A date, YYYY-MM-DD.",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "by": {
+                          "type": "object",
+                          "required": [
+                            "kind"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "unattributed"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "objective",
+          "detailedInstructions",
+          "planMarkdownAnchor",
+          "plannedFilesToCreate",
+          "plannedFilesToEdit",
+          "optionalFilesToEdit",
+          "mode",
+          "oracle",
+          "boundaryContracts",
+          "testStrategy",
+          "implementationOrder",
+          "excludedScope",
+          "verification",
+          "expectedHandoff",
+          "commit",
+          "assignmentReason",
+          "model",
+          "effort"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "a string matching the pattern ^phase-\\d{2}$",
+            "pattern": "^phase-\\d{2}$"
+          },
+          "title": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "objective": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "detailedInstructions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "planMarkdownAnchor": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "plannedFilesToCreate": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "plannedFilesToEdit": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "optionalFilesToEdit": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "headless",
+              "interactive"
+            ]
+          },
+          "oracle": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "dischargedBy",
+                  "files"
+                ],
+                "properties": {
+                  "dischargedBy": {
+                    "type": "string",
+                    "description": "a string matching the pattern ^phase-\\d{2}$",
+                    "pattern": "^phase-\\d{2}$"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "boundaryContracts": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "testStrategy": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "guarantee",
+                "size",
+                "technique",
+                "oracle",
+                "loop",
+                "criterion"
+              ],
+              "properties": {
+                "guarantee": {
+                  "type": "string",
+                  "description": "What the test guarantees: one non-empty, trimmed line.",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
+                },
+                "size": {
+                  "type": "string",
+                  "enum": [
+                    "small",
+                    "medium",
+                    "large"
+                  ]
+                },
+                "technique": {
+                  "type": "string",
+                  "enum": [
+                    "example",
+                    "table",
+                    "property",
+                    "metamorphic",
+                    "stateful",
+                    "fuzz",
+                    "contract",
+                    "smoke"
+                  ]
+                },
+                "oracle": {
+                  "type": "string",
+                  "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·' (these three checked by phax, not by this JSON Schema).",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
+                },
+                "loop": {
+                  "type": "string",
+                  "enum": [
+                    "oracle",
+                    "in-phase"
+                  ]
+                },
+                "criterion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
+                      "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "description": "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null."
+            },
+            "description": "The phase's test lines. Each renders as one `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]` line under `### Test strategy`; `[]` is a phase that tests nothing, rendered `- (none)`."
+          },
+          "implementationOrder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "excludedScope": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "verification": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "expectedHandoff": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "commit": {
+            "type": "object",
+            "required": [
+              "subject",
+              "body"
+            ],
+            "properties": {
+              "subject": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "body": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "additionalProperties": false
+          },
+          "assignmentReason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why this phase's model and effort depart from the assignment the phax-planning skill gives it; null when they do not. Rendered as an **Assignment reason:** line, never extracted."
+          },
+          "model": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "off",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultracode",
+              "ultra"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "description": "Checked by phax's parser, not by this JSON Schema: completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null; in the preamble, question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; no option has the id `other` and no `recommendation` is `other`, because `other` is reserved and implicit on every question; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options or the reserved `other`, and `abandoned` hold exactly the other listed options, each once (every listed option when `chosen` is `other`), and a decided verdict's `phase` names one of the plan's phases; and an authoring session's answer leaves every question open, so its preamble.arbitratedQuestions is []."
+}

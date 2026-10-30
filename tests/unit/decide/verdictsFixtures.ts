@@ -1083,7 +1083,7 @@ function handAnswer(
 
 /** The answer as the writer returns it, `$schema` first. */
 function handAnswerJson(answer: HandDecisionAnswer): Json {
-  return { $schema: currentSchemaUrl("hand-decision-answer"), ...answer };
+  return { $schema: currentSchemaUrl(`${answer.kind}-hand-decision-answer`), ...answer };
 }
 
 /** bound: BOUND_HAND_Q1. Q1 decided keep-10; the Markdown as it was. */

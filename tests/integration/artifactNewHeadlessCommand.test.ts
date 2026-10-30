@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { runCreateArtifactHeadless } from "../../src/cli/commands/artifact.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -43,7 +43,7 @@ function makeOutput() {
 }
 
 const SPEC_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("spec-document"),
   kind: "spec",
   title: "Plan Prune",
   ground: [{ path: "docs/ideas/plan-prune.md", note: "the idea this spec makes precise" }],
@@ -182,10 +182,9 @@ describe("artifact new spec --headless (command)", () => {
     expect(mdContent).toContain("status: Draft");
     expect(mdContent).toContain("# Plan Prune");
 
-    // The sidecar is written with $schema first and no version.
-    const { version: _version, ...authored } = SPEC_DOCUMENT;
+    // The sidecar is the answer itself, $schema first.
     const sidecarContent = JSON.parse(readFileSync(join(repoDir, json), "utf8"));
-    expect(sidecarContent).toEqual(withSchemaUrl("spec-document", authored));
+    expect(sidecarContent).toEqual(SPEC_DOCUMENT);
     expect(Object.keys(sidecarContent)[0]).toBe("$schema");
 
     expect(backend.impl.runCalls).toHaveLength(1);

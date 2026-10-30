@@ -90,7 +90,11 @@ import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
 import { decodeGateReportFile, type GateReportFile } from "./gateReport.js";
 import { decodeDecideVerdictsFile, type DecideVerdicts } from "./decideVerdicts.js";
-import { decodeHandDecisionAnswerFile, type HandDecisionAnswer } from "./handDecisionAnswer.js";
+import {
+  decodePlanHandDecisionAnswerFile,
+  decodeSpecHandDecisionAnswerFile,
+  type HandDecisionAnswer,
+} from "./handDecisionAnswer.js";
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestV0_23_0 } from "./history/authoring-record-manifest/0.23.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
@@ -111,6 +115,7 @@ import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
 import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
+import { decodePhaxPlanV0_28_0 } from "./history/phax-plan/0.28.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
@@ -126,6 +131,10 @@ import {
   decodePlanDocumentV0_26_0,
   type PlanDocumentV0_26_0,
 } from "./history/plan-document/0.26.0.js";
+import {
+  decodePlanDocumentV0_28_0,
+  type PlanDocumentV0_28_0,
+} from "./history/plan-document/0.28.0.js";
 import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -144,6 +153,10 @@ import {
   decodeSpecDocumentV0_25_0,
   type SpecDocumentV0_25_0,
 } from "./history/spec-document/0.25.0.js";
+import {
+  decodeSpecDocumentV0_27_0,
+  type SpecDocumentV0_27_0,
+} from "./history/spec-document/0.27.0.js";
 import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
@@ -507,8 +520,10 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan
 
 /**
  * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
- * current stamp by the current decoder (`current`); one stamped 0.26.0 or
- * later, below the current stamp, by the frozen 0.26.0 decoder (`0.26.0`); one
+ * current stamp by the current decoder (`current`); one stamped 0.28.0 or
+ * later, below the current stamp, by the frozen 0.28.0 decoder, whose plan is
+ * the current in-memory one (`current` too, so an in-flight run resumes); one
+ * stamped 0.26.0 or later by the frozen 0.26.0 decoder (`0.26.0`); one
  * stamped lower by the frozen 0.17.0 decoder (`0.17.0`); and one without
  * `$schema` by the pre-schema decoder (`pre-schema`). The two oldest are lifted
  * with `liftPhaxPlanPhases`; no older shape is given `testLines`. A caller that
@@ -519,6 +534,14 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.28.0") >= 0) {
+      const v0_28_0 = decodePhaxPlanV0_28_0(input);
+      if (Either.isLeft(v0_28_0)) {
+        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_28_0.left)));
+      }
+      const { $schema: _schema, ...plan } = v0_28_0.right;
+      return Either.right({ shape: "current", plan });
+    }
     if (compareReleases(release, "0.26.0") >= 0) {
       const v0_26_0 = decodePhaxPlanV0_26_0(input);
       if (Either.isLeft(v0_26_0)) {
@@ -650,6 +673,12 @@ export type SpecDocumentV0_17_0Value = Omit<SpecDocumentV0_17_0, "$schema">;
 export type SpecDocumentV0_25_0Value = Omit<SpecDocumentV0_25_0, "$schema">;
 
 /**
+ * A spec document in its 0.27.0 shape, as a 0.27.0 sidecar carried it: the
+ * current in-memory document under a release-pattern `$schema`, which is dropped.
+ */
+export type SpecDocumentV0_27_0Value = Omit<SpecDocumentV0_27_0, "$schema">;
+
+/**
  * A plan document in its 0.20.0 shape, as a 0.20.0 sidecar or one written
  * before `$schema` with `sourceSpec: null` carried it (its `completesSpec`
  * null): no `$schema`, no `version`.
@@ -667,6 +696,12 @@ export type PlanDocumentV0_25_0Value = DistributiveOmit<PlanDocumentV0_25_0, "$s
  * phase's `testStrategy` a string, no `$schema`, no `version`.
  */
 export type PlanDocumentV0_26_0Value = DistributiveOmit<PlanDocumentV0_26_0, "$schema">;
+
+/**
+ * A plan document in its 0.28.0 shape, as a 0.28.0 sidecar carried it: the
+ * current in-memory document under a release-pattern `$schema`, which is dropped.
+ */
+export type PlanDocumentV0_28_0Value = DistributiveOmit<PlanDocumentV0_28_0, "$schema">;
 
 /**
  * An older plan document lifted to the current in-memory shape, or the reason
@@ -691,6 +726,12 @@ export type SpecDocumentSidecar =
   | { readonly kind: "spec"; readonly shape: "current"; readonly document: SpecDocument }
   | {
       readonly kind: "spec";
+      readonly shape: "0.27.0";
+      readonly document: SpecDocument;
+      readonly older: SpecDocumentV0_27_0Value;
+    }
+  | {
+      readonly kind: "spec";
       readonly shape: "0.25.0";
       readonly document: SpecDocument;
       readonly older: SpecDocumentV0_25_0Value;
@@ -709,6 +750,12 @@ export type SpecDocumentSidecar =
  */
 export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
+  | {
+      readonly kind: "plan";
+      readonly shape: "0.28.0";
+      readonly lift: PlanDocumentLift;
+      readonly older: PlanDocumentV0_28_0Value;
+    }
   | {
       readonly kind: "plan";
       readonly shape: "0.26.0";
@@ -858,6 +905,15 @@ function readSpecDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("spec-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.27.0") >= 0) {
+      const frozen = decodeSpecDocumentV0_27_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(readError(file, "spec-document", formatFirstViolation(frozen.left)));
+      }
+      // The 0.27.0 document is the current in-memory one: nothing to lift.
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({ kind: "spec", shape: "0.27.0", document: value, older: value });
+    }
     if (compareReleases(release, "0.25.0") >= 0) {
       const frozen = decodeSpecDocumentV0_25_0(input);
       if (Either.isLeft(frozen)) {
@@ -911,6 +967,22 @@ function readPlanDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.28.0") >= 0) {
+      const frozen = decodePlanDocumentV0_28_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
+        );
+      }
+      // The 0.28.0 document is the current in-memory one: its lift is itself.
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({
+        kind: "plan",
+        shape: "0.28.0",
+        lift: { kind: "lifted", document: value },
+        older: value,
+      });
+    }
     if (compareReleases(release, "0.26.0") >= 0) {
       const frozen = decodePlanDocumentV0_26_0(input);
       if (Either.isLeft(frozen)) {
@@ -977,13 +1049,15 @@ function readPlanDocumentSidecar(
 /**
  * Reads a spec's or plan's JSON sidecar, reporting the shape it is stamped
  * at. Never throws; never rewrites the file. In order:
- * - a spec stamped 0.25.0 or later, below its current stamp, is read by the
- *   frozen 0.25.0 decoder; one stamped below 0.25.0 by the frozen 0.17.0
+ * - a spec stamped 0.27.0 or later, below its current stamp, is read by the
+ *   frozen 0.27.0 decoder, its document the current in-memory one; one stamped
+ *   0.25.0 or later by the frozen 0.25.0 decoder; one stamped below 0.25.0 by the frozen 0.17.0
  *   decoder, and one written before `$schema` by the pre-schema decoder, both
  *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
  *   on each surface element;
- * - a plan stamped 0.26.0 or later, below its current stamp, is read by the
- *   frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
+ * - a plan stamped 0.28.0 or later, below its current stamp, is read by the
+ *   frozen 0.28.0 decoder, its lift the document itself; one stamped 0.26.0 or
+ *   later by the frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
  *   decoder, stepped with each `modelReason` carried over as
  *   `assignmentReason`; one stamped below 0.25.0 by the frozen 0.20.0
  *   decoder, so one stamped 0.17.0–0.19.x, which lacks `completesSpec`, is
@@ -1062,17 +1136,26 @@ export function decodeCurrentDocumentSidecar(
 }
 
 /**
- * Decodes a parsed hand decision answer with its current file decoder only
- * and drops `$schema`. For an answer whose stamp the caller has already
- * checked: a decide session's final message over a hand-authored artifact.
- * Unknown keys are refused.
+ * Decodes a parsed hand decision answer with its kind's format only
+ * (`spec-hand-decision-answer` or `plan-hand-decision-answer`, the current
+ * file decoder) and drops `$schema`. For an answer whose stamp the caller has
+ * already checked: a decide session's final message over a hand-authored
+ * artifact. Unknown keys are refused, so a spec verdict's `phase` is named,
+ * and so is a plan verdict without one.
  */
 export function decodeCurrentHandDecisionAnswer(
   input: unknown,
+  kind: "spec" | "plan",
 ): Either.Either<HandDecisionAnswer, ParseResult.ParseError> {
+  if (kind === "spec") {
+    return Either.map(
+      decodeSpecHandDecisionAnswerFile(input),
+      ({ $schema: _schema, ...answer }): HandDecisionAnswer => answer,
+    );
+  }
   return Either.map(
-    decodeHandDecisionAnswerFile(input),
-    ({ $schema: _schema, ...answer }) => answer,
+    decodePlanHandDecisionAnswerFile(input),
+    ({ $schema: _schema, ...answer }): HandDecisionAnswer => answer,
   );
 }
 

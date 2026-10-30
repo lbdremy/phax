@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { Command } from "commander";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
   registerArtifactCommand,
   runArtifactStatus,
@@ -759,10 +761,10 @@ describe("runArtifactMigrateApprovals", () => {
 
 describe("runArtifactSchema", () => {
   it.each([
-    ["spec", "phax spec document (experimental)"],
-    ["plan", "phax plan document (experimental)"],
+    ["spec", "phax spec document"],
+    ["plan", "phax plan document"],
   ] as const)(
-    "%s: prints the document JSON Schema, titled experimental, exits 0",
+    "%s: prints the published answer schema, its $schema a const, no allOf or oneOf, exits 0",
     (kind, title) => {
       const { out, lines, errors } = makeOutput();
       const code = runArtifactSchema(kind, out);
@@ -770,8 +772,14 @@ describe("runArtifactSchema", () => {
       expect(code).toBe(0);
       expect(errors).toEqual([]);
       expect(lines).toHaveLength(1);
-      const schema = JSON.parse(lines[0]!) as { title: string; properties: { kind: unknown } };
+      const schema = JSON.parse(lines[0]!) as {
+        title: string;
+        properties: { kind: unknown; $schema: { const: string } };
+      };
+      expect(schema).toEqual(answerJsonSchema(`${kind}-document`));
       expect(schema.title).toBe(title);
+      expect(schema.properties.$schema.const).toBe(currentSchemaUrl(`${kind}-document`));
+      expect(lines[0]).not.toMatch(/"(allOf|oneOf)"/);
       expect(schema.properties.kind).toEqual({ type: "string", enum: [kind] });
       // Pretty-printed, not a single line.
       expect(lines[0]).toContain('\n  "');

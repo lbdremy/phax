@@ -85,7 +85,7 @@ export function seedPlanCache(seed: PlanCacheSeed): Effect.Effect<void, FsError,
     effort: seed.extractPlanEffort,
     extractorVersion: EXTRACTOR_VERSION,
     extractedAt: seed.nowIso,
-    extracted: projectExtractedPlan({ version: 1, ...seed.document }),
+    extracted: projectExtractedPlan(seed.document),
   });
 }
 

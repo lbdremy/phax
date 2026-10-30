@@ -1,9 +1,13 @@
 // The strict answers keep every rule of the shapes they replace. For each
 // answer, a table of fixtures is decoded by the frozen module of today's shape
-// (first-reading and interactive-handoff 0.26.0, code-review 0.29.0) and by the
-// new decoder: a fixture the frozen module refuses, the new decoder refuses
-// naming the same field; a fixture it accepts, the new decoder accepts once
-// restamped with the `$schema` const. The extraction format has no frozen
+// (first-reading and interactive-handoff 0.26.0, code-review 0.29.0,
+// spec-document 0.27.0, plan-document 0.28.0, hand-decision-answer 0.25.0) and
+// by the new decoder: a fixture the frozen module refuses, the new decoder
+// refuses naming the same field (and, for the documents, with the same
+// message); a fixture it accepts, the new decoder accepts once restamped with
+// the `$schema` const. The old hand-decision union splits in two: its spec
+// member is a spec-hand-decision-answer, its plan member a
+// plan-hand-decision-answer. The extraction format has no frozen
 // module: its fixtures record the verdicts of the answer it replaces. The
 // stricter parts — the `$schema` const, the unknown `version` — are covered in
 // their own tests.
@@ -11,13 +15,31 @@ import { Either, ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
+import { formatFirstViolation } from "../../../src/schemas/formatError.js";
+import {
+  decodePlanHandDecisionAnswerFile,
+  decodeSpecHandDecisionAnswerFile,
+} from "../../../src/schemas/handDecisionAnswer.js";
 import { decodeCodeReviewV0_29_0 } from "../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeFirstReadingV0_26_0 } from "../../../src/schemas/history/first-reading/0.26.0.js";
+import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodeInteractiveHandoffV0_26_0 } from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
+import { decodePlanDocumentV0_28_0 } from "../../../src/schemas/history/plan-document/0.28.0.js";
+import { decodeSpecDocumentV0_27_0 } from "../../../src/schemas/history/spec-document/0.27.0.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
+import {
+  decodeAuthoredPlanDocument,
+  decodePlanDocumentFile,
+} from "../../../src/schemas/planDocument.js";
 import { readPlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
+import { AUTHORING_ARBITRATED_MESSAGE } from "../../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import {
+  decodeAuthoredSpecDocument,
+  decodeSpecDocumentFile,
+} from "../../../src/schemas/specDocument.js";
+import { validDocuments } from "../schemasPackage/documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type Body = Readonly<Record<string, unknown>>;
@@ -38,6 +60,8 @@ interface Answer {
   readonly frozenStamp: string;
   readonly current: Decode;
   readonly fixtures: ReadonlyArray<readonly [string, Body]>;
+  /** Whether a refusal must also carry the frozen module's message. */
+  readonly sameMessage?: boolean;
 }
 
 const without = (body: Body, key: string): Body => {
@@ -75,7 +99,143 @@ const review = (...overrides: ReadonlyArray<Record<string, unknown>>): Body => (
   findings: overrides.map((o) => ({ ...finding, ...o })),
 });
 
+/** A current document's body: everything but its `$schema`. */
+const bodyOf = (id: FormatId): Body => without(validDocuments[id], "$schema");
+
+const spec = bodyOf("spec-document");
+const planBody = bodyOf("plan-document");
+const SPEC_PATH = "docs/specs/2610300900-invoice-export.md";
+
+const openQuestion = {
+  id: "q-scope",
+  question: "Export per invoice or per day?",
+  options: [
+    { id: "invoice", label: "per invoice", abandons: "one file a day" },
+    { id: "day", label: "per day", abandons: "one file an invoice" },
+  ],
+  recommendation: "invoice",
+  rationale: "an invoice is the unit of audit",
+};
+const oneOption = { ...openQuestion, options: [openQuestion.options[0]] };
+
+const withPreamble = (preamble: Body): Body => ({
+  ...planBody,
+  preamble: { ...(planBody["preamble"] as Body), ...preamble },
+});
+const planPhases = planBody["phases"] as ReadonlyArray<Body>;
+/** The plan with its first phase's first test line's coordinate set to `value`. */
+const withTestLine = (coordinate: string, value: unknown): Body => {
+  const [first, ...rest] = planPhases;
+  const [line, ...lines] = first!["testStrategy"] as ReadonlyArray<Body>;
+  return {
+    ...planBody,
+    phases: [{ ...first, testStrategy: [{ ...line, [coordinate]: value }, ...lines] }, ...rest],
+  };
+};
+
+const handVerdict = {
+  kind: "decided",
+  chosen: "day",
+  abandoned: ["invoice"],
+  why: "one file a day is what accounting reads",
+  advocate: "an invoice is the unit of audit",
+  principles: ["S1"],
+  reversibility: "cheap",
+  by: { kind: "operator", name: "Example Operator" },
+  at: "2026-10-30T09:00:00Z",
+  revised: [],
+};
+const specHand: Body = {
+  kind: "spec",
+  decisions: [{ id: "q-scope", verdict: handVerdict }],
+  markdown: "---\nstatus: Draft\n---\n# Invoice export\n",
+};
+const planHand: Body = {
+  kind: "plan",
+  decisions: [{ id: "q-scope", verdict: { ...handVerdict, phase: "phase-01" } }],
+  markdown: "---\nstatus: Draft\n---\n# Invoice export\n",
+};
+
 const ANSWERS: ReadonlyArray<Answer> = [
+  {
+    id: "spec-document",
+    frozen: decodeSpecDocumentV0_27_0,
+    frozenStamp: schemaUrl("spec-document", "0.27.0"),
+    current: decodeSpecDocumentFile,
+    sameMessage: true,
+    fixtures: [
+      ["a full spec", spec],
+      ["an open question", { ...spec, openQuestions: [openQuestion] }],
+      ["a question with one option", { ...spec, openQuestions: [oneOption] }],
+      [
+        "a recommendation naming no option",
+        { ...spec, openQuestions: [{ ...openQuestion, recommendation: "week" }] },
+      ],
+      ["an empty title", { ...spec, title: "" }],
+      ["no requirement", { ...spec, requirements: [] }],
+      ["no arbitratedQuestions key", without(spec, "arbitratedQuestions")],
+      ["an extra root key", { ...spec, summary: "x" }],
+    ],
+  },
+  {
+    id: "plan-document",
+    frozen: decodePlanDocumentV0_28_0,
+    frozenStamp: schemaUrl("plan-document", "0.28.0"),
+    current: decodePlanDocumentFile,
+    sameMessage: true,
+    fixtures: [
+      ["a spec-less plan", planBody],
+      ["a plan of a spec", { ...planBody, sourceSpec: SPEC_PATH, completesSpec: false }],
+      ["a boolean beside no spec", { ...planBody, completesSpec: true }],
+      ["null beside a spec path", { ...planBody, sourceSpec: SPEC_PATH }],
+      ["an empty sourceSpec", { ...planBody, sourceSpec: "", completesSpec: true }],
+      ["an open question", withPreamble({ openQuestions: [openQuestion] })],
+      ["a question with one option", withPreamble({ openQuestions: [oneOption] })],
+      ["an empty summary", withPreamble({ summary: "" })],
+      ["a multi-line guarantee", withTestLine("guarantee", "one\ntwo")],
+      ["a guarantee with a trailing space", withTestLine("guarantee", "done ")],
+      ["an oracle holding ' — '", withTestLine("oracle", "a — b")],
+      ["an oracle opening '— '", withTestLine("oracle", "— the output")],
+      ["an oracle closing ' ·'", withTestLine("oracle", "the output ·")],
+      ["a criterion 'oracle'", withTestLine("criterion", "oracle")],
+      ["a criterion 'in-phase'", withTestLine("criterion", "in-phase")],
+      ["a criterion holding a space", withTestLine("criterion", "ac one")],
+      ["a phase with no oracle key", { ...planBody, phases: [without(planPhases[0]!, "oracle")] }],
+      ["an extra root key", { ...planBody, version: 1 }],
+    ],
+  },
+  {
+    id: "spec-hand-decision-answer",
+    frozen: decodeHandDecisionAnswerV0_25_0,
+    frozenStamp: schemaUrl("hand-decision-answer", "0.25.0"),
+    current: decodeSpecHandDecisionAnswerFile,
+    fixtures: [
+      ["a spec answer", specHand],
+      ["nothing decided", { ...specHand, decisions: [] }],
+      ["an empty markdown", { ...specHand, markdown: "" }],
+      [
+        "a question id holding a space",
+        { ...specHand, decisions: [{ id: "q scope", verdict: handVerdict }] },
+      ],
+      ["an extra root key", { ...specHand, note: "x" }],
+    ],
+  },
+  {
+    id: "plan-hand-decision-answer",
+    frozen: decodeHandDecisionAnswerV0_25_0,
+    frozenStamp: schemaUrl("hand-decision-answer", "0.25.0"),
+    current: decodePlanHandDecisionAnswerFile,
+    fixtures: [
+      ["a plan answer", planHand],
+      ["nothing decided", { ...planHand, decisions: [] }],
+      ["an empty markdown", { ...planHand, markdown: "" }],
+      [
+        "an empty phase",
+        { ...planHand, decisions: [{ id: "q-scope", verdict: { ...handVerdict, phase: "" } }] },
+      ],
+      ["an extra root key", { ...planHand, note: "x" }],
+    ],
+  },
   {
     id: "first-reading",
     frozen: decodeFirstReadingV0_26_0,
@@ -203,7 +363,17 @@ describe.each(ANSWERS)(
       const current = answer.current({ $schema: stamp, ...body });
       if (Either.isLeft(frozen)) {
         expect(Either.isLeft(current)).toBe(true);
-        if (Either.isLeft(current)) expect(firstPath(current.left)).toBe(firstPath(frozen.left));
+        if (Either.isLeft(current)) {
+          // The frozen hand-decision union reports its first member's issue,
+          // so only the verdict is shared there; the per-kind table below
+          // names the paths.
+          if (!answer.id.endsWith("-hand-decision-answer")) {
+            expect(firstPath(current.left)).toBe(firstPath(frozen.left));
+          }
+          if (answer.sameMessage === true) {
+            expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+          }
+        }
       } else {
         expect(Either.isRight(current)).toBe(true);
       }
@@ -293,6 +463,131 @@ describe("phax-plan-extraction: keeps the verdicts of the extraction answer it r
     } else {
       expect(Either.isLeft(read)).toBe(true);
       if (Either.isLeft(read)) expect(read.left).toContain(refusedAt);
+    }
+  });
+});
+
+// An authoring answer leaves every question open: a non-empty
+// arbitratedQuestions is refused at its first entry, now by phax's coherence
+// check rather than the schema's maxItems.
+describe("an authoring answer with an arbitrated question", () => {
+  const arbitrated = {
+    ...openQuestion,
+    verdict: { ...handVerdict, chosen: "invoice", abandoned: ["day"] },
+    history: [],
+  };
+
+  it("is refused at its first entry, for a spec and for a plan", () => {
+    const authoredSpec = decodeAuthoredSpecDocument({
+      ...validDocuments["spec-document"],
+      arbitratedQuestions: [arbitrated, arbitrated],
+    });
+    expect(authoredSpec).toEqual(
+      Either.left(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+    );
+    const authoredPlan = decodeAuthoredPlanDocument({
+      ...validDocuments["plan-document"],
+      preamble: { ...(planBody["preamble"] as Body), arbitratedQuestions: [arbitrated] },
+    });
+    expect(authoredPlan).toEqual(
+      Either.left(`preamble.arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+    );
+  });
+
+  it("is checked before the schema, so a broken entry is still named by the authoring rule", () => {
+    const authored = decodeAuthoredSpecDocument({
+      ...validDocuments["spec-document"],
+      arbitratedQuestions: [{}],
+    });
+    expect(authored).toEqual(
+      Either.left(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+    );
+  });
+});
+
+// Each kind's format is exact: a spec verdict has no phase, a plan verdict
+// needs one, and each is refused naming the key.
+describe("the hand decision answers' verdict phase", () => {
+  it.each([
+    [
+      "a spec verdict carrying a phase",
+      decodeSpecHandDecisionAnswerFile,
+      "spec-hand-decision-answer",
+      planHand["decisions"],
+      { ...specHand },
+    ],
+    [
+      "a plan verdict without one",
+      decodePlanHandDecisionAnswerFile,
+      "plan-hand-decision-answer",
+      specHand["decisions"],
+      { ...planHand },
+    ],
+  ] as const)(
+    "refuses %s, naming decisions[0].verdict.phase",
+    (_name, decode: Decode, id, decisions, body) => {
+      const decoded = decode({ $schema: schemaUrl(id, CURRENT_STAMPS[id]), ...body, decisions });
+      expect(Either.isLeft(decoded)).toBe(true);
+      if (Either.isLeft(decoded))
+        expect(firstPath(decoded.left)).toBe("decisions[0].verdict.phase");
+    },
+  );
+});
+
+// The test line's lookahead and stacked patterns became one lookaround-free
+// pattern plus coherence filters: the frozen 0.28.0 module and the new schema
+// agree on every edge string, on every coordinate, verdict and message alike.
+describe("a test line's edge strings", () => {
+  const EDGES: ReadonlyArray<readonly [string, string]> = [
+    ["empty", ""],
+    ["one char", "x"],
+    ["a leading space", " the output"],
+    ["a trailing space", "the output "],
+    ["a leading tab", "\tthe output"],
+    ["a line separator", "the\u2028output"],
+    ["a next line", "the\u0085output"],
+    ["a line feed", "the\noutput"],
+    ["an inner ' — '", "a — b"],
+    ["a leading '— '", "— the output"],
+    ["a trailing ' ·'", "the output ·"],
+    ["a backtick", "`ac`"],
+    ["oracle", "oracle"],
+    ["in-phase", "in-phase"],
+    ["a plain id", "ac-one"],
+  ];
+  const COORDINATES = ["guarantee", "oracle", "criterion"] as const;
+  const rows = COORDINATES.flatMap((coordinate) =>
+    EDGES.map(([name, value]) => [coordinate, name, value] as const),
+  );
+
+  it.each(rows)("%s: %s", (coordinate, _name, value) => {
+    const body = withTestLine(coordinate, value);
+    const frozen = decodePlanDocumentV0_28_0({
+      $schema: schemaUrl("plan-document", "0.28.0"),
+      ...body,
+    });
+    const current = decodePlanDocumentFile({
+      $schema: validDocuments["plan-document"]["$schema"],
+      ...body,
+    });
+    expect(Either.isLeft(current)).toBe(Either.isLeft(frozen));
+    if (Either.isLeft(frozen) && Either.isLeft(current)) {
+      expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+    }
+  });
+
+  it("holds both verdicts on every coordinate", () => {
+    for (const coordinate of COORDINATES) {
+      const verdicts = EDGES.map(([, value]) =>
+        Either.isLeft(
+          decodePlanDocumentFile({
+            $schema: validDocuments["plan-document"]["$schema"],
+            ...withTestLine(coordinate, value),
+          }),
+        ),
+      );
+      expect(verdicts, coordinate).toContain(true);
+      expect(verdicts, coordinate).toContain(false);
     }
   });
 });

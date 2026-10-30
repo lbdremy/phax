@@ -19,15 +19,21 @@ import { renderDecisionLogEntry, renderVerdictDecision } from "../authoring/rend
 import type { DecideScope, RevisionRefusal } from "./revision.js";
 
 // The pure core of `phax artifact decide` for a hand-authored spec or plan,
-// which has no sidecar for the session to revise. The session answers in the
-// `hand-decision-answer` format: the verdicts it decided, by question id, and
+// which has no sidecar for the session to revise. The session answers in its
+// kind's hand decision format (`spec-hand-decision-answer` or
+// `plan-hand-decision-answer`): the verdicts it decided, by question id, and
 // the artifact's whole revised Markdown. phax checks the verdicts against the
 // parsed §9 sections, keeps only the Markdown's edits outside the
 // frontmatter, the question sections and the decision log, and writes those
 // itself: each decided block moves to the arbitrated section with its
 // Decision block, and the decision log gains an entry per verdict.
 
-const FORMAT = "hand-decision-answer";
+/** The hand decision answer format of an artifact kind. */
+function handAnswerFormat(
+  kind: ArtifactKind,
+): "spec-hand-decision-answer" | "plan-hand-decision-answer" {
+  return kind === "spec" ? "spec-hand-decision-answer" : "plan-hand-decision-answer";
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,14 +55,15 @@ function refusal(path: ReadonlyArray<PropertyKey>, message: string): RevisionRef
 // ── The answer's stamp ─────────────────────────────────────────────────────
 
 /**
- * Why a session's answer is not stamped with the hand decision answer's
- * current shape, or undefined when it is. The same by-name rule as a
+ * Why a session's answer is not stamped with its kind's hand decision answer
+ * format at its current shape, or undefined when it is. The same by-name rule as a
  * document answer's: a missing `$schema`, another format or another release
  * is refused, quoting the URL read (or saying there is none) and the URL phax
  * reads. Never lifted.
  */
-export function handAnswerStampViolation(json: unknown): string | undefined {
-  const reads = schemaUrl(FORMAT, CURRENT_STAMPS[FORMAT]);
+export function handAnswerStampViolation(json: unknown, kind: ArtifactKind): string | undefined {
+  const format = handAnswerFormat(kind);
+  const reads = schemaUrl(format, CURRENT_STAMPS[format]);
   if (!isObject(json)) return `the answer is not a JSON object — phax reads ${reads}`;
   if (!Object.hasOwn(json, "$schema")) return `the answer carries no $schema — phax reads ${reads}`;
   const read = json["$schema"];
@@ -64,11 +71,11 @@ export function handAnswerStampViolation(json: unknown): string | undefined {
   if (named === undefined) {
     return `$schema ${JSON.stringify(read)} is not a phax schema URL — phax reads ${reads}`;
   }
-  if (named.formatId !== FORMAT) {
-    return `$schema ${String(read)} names ${named.formatId}, not ${FORMAT} — phax reads ${reads}`;
+  if (named.formatId !== format) {
+    return `$schema ${String(read)} names ${named.formatId}, not ${format} — phax reads ${reads}`;
   }
-  if (named.release !== CURRENT_STAMPS[FORMAT]) {
-    return `$schema ${String(read)} names ${FORMAT} ${named.release}, not its current shape — phax reads ${reads}`;
+  if (named.release !== CURRENT_STAMPS[format]) {
+    return `$schema ${String(read)} names ${format} ${named.release}, not its current shape — phax reads ${reads}`;
   }
   return undefined;
 }
@@ -104,8 +111,10 @@ export function stampHandVerdicts(
   return { ...json, decisions };
 }
 
-/** The facts phax brings to a hand decision answer: the scope, who decides and when. */
+/** The facts phax brings to a hand decision answer: the kind, the scope, who decides and when. */
 export interface HandDecideContext {
+  /** The artifact's kind, which names the answer's format. */
+  readonly kind: ArtifactKind;
   readonly scope: DecideScope;
   readonly operator: { readonly name: string };
   /** An ISO-8601 UTC timestamp, as `Date.prototype.toISOString` prints it. */
@@ -121,20 +130,22 @@ function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
 /**
  * A session's parsed answer as a hand decision answer, or the first refusal:
  * the stamp (`handAnswerStampViolation`, at `$schema`), then
- * `stampHandVerdicts`, then the current-shape decoder (unknown keys refused,
- * never lifted). The decoded answer carries no `$schema`.
+ * `stampHandVerdicts`, then the kind's current-shape decoder (unknown keys
+ * refused, a spec verdict's `phase` among them, never lifted). The decoded
+ * answer carries no `$schema`.
  */
 export function decodeHandAnswer(
   json: unknown,
   context: HandDecideContext,
 ): Either.Either<HandDecisionAnswer, RevisionRefusal> {
-  const stampViolation = handAnswerStampViolation(json);
+  const stampViolation = handAnswerStampViolation(json, context.kind);
   if (stampViolation !== undefined) {
     return Either.left({ path: isObject(json) ? "$schema" : "", message: stampViolation });
   }
   return Either.mapLeft(
     decodeCurrentHandDecisionAnswer(
       stampHandVerdicts(json, context.scope, context.operator, context.atIso),
+      context.kind,
     ),
     firstParseIssue,
   );

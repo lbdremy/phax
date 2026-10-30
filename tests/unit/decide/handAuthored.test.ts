@@ -203,37 +203,50 @@ function write(
 }
 
 describe("handAnswerStampViolation", () => {
-  const current = currentSchemaUrl("hand-decision-answer");
+  const current = currentSchemaUrl("spec-hand-decision-answer");
 
-  it("accepts the current stamp", () => {
-    expect(handAnswerStampViolation({ $schema: current })).toBeUndefined();
+  it("accepts the current stamp of the kind's format", () => {
+    expect(handAnswerStampViolation({ $schema: current }, "spec")).toBeUndefined();
+    const plan = currentSchemaUrl("plan-hand-decision-answer");
+    expect(handAnswerStampViolation({ $schema: plan }, "plan")).toBeUndefined();
+  });
+
+  it("refuses the other kind's format and the retired hand-decision-answer by name", () => {
+    const plan = currentSchemaUrl("plan-hand-decision-answer");
+    expect(handAnswerStampViolation({ $schema: plan }, "spec")).toBe(
+      `$schema ${plan} names plan-hand-decision-answer, not spec-hand-decision-answer — phax reads ${current}`,
+    );
+    const retired = currentSchemaUrl("hand-decision-answer");
+    expect(handAnswerStampViolation({ $schema: retired }, "spec")).toBe(
+      `$schema ${retired} names hand-decision-answer, not spec-hand-decision-answer — phax reads ${current}`,
+    );
   });
 
   it("refuses an answer without $schema, naming the URL phax reads", () => {
-    expect(handAnswerStampViolation({ kind: "spec" })).toBe(
+    expect(handAnswerStampViolation({ kind: "spec" }, "spec")).toBe(
       `the answer carries no $schema — phax reads ${current}`,
     );
   });
 
   it("refuses another format and another release by name", () => {
     const spec = currentSchemaUrl("spec-document");
-    expect(handAnswerStampViolation({ $schema: spec })).toBe(
-      `$schema ${spec} names spec-document, not hand-decision-answer — phax reads ${current}`,
+    expect(handAnswerStampViolation({ $schema: spec }, "spec")).toBe(
+      `$schema ${spec} names spec-document, not spec-hand-decision-answer — phax reads ${current}`,
     );
-    const older = schemaUrl("hand-decision-answer", "0.24.0");
-    expect(handAnswerStampViolation({ $schema: older })).toBe(
-      `$schema ${older} names hand-decision-answer 0.24.0, not its current shape — phax reads ${current}`,
+    const older = schemaUrl("spec-hand-decision-answer", "0.24.0");
+    expect(handAnswerStampViolation({ $schema: older }, "spec")).toBe(
+      `$schema ${older} names spec-hand-decision-answer 0.24.0, not its current shape — phax reads ${current}`,
     );
   });
 
   it("refuses a value that is not an object", () => {
-    expect(handAnswerStampViolation([])).toMatch(/^the answer is not a JSON object/);
+    expect(handAnswerStampViolation([], "spec")).toMatch(/^the answer is not a JSON object/);
   });
 });
 
 describe("stampHandVerdicts and decodeHandAnswer", () => {
   const raw = {
-    $schema: currentSchemaUrl("hand-decision-answer"),
+    $schema: currentSchemaUrl("spec-hand-decision-answer"),
     kind: "spec",
     decisions: [
       {
@@ -267,18 +280,41 @@ describe("stampHandVerdicts and decodeHandAnswer", () => {
   });
 
   it("decodes a stamped answer without $schema", () => {
-    const decoded = decodeHandAnswer(raw, { scope: SCOPE_ALL, operator: OPERATOR, atIso: AT });
+    const decoded = decodeHandAnswer(raw, {
+      kind: "spec",
+      scope: SCOPE_ALL,
+      operator: OPERATOR,
+      atIso: AT,
+    });
     if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
     expect(decoded.right).not.toHaveProperty("$schema");
     expect(decoded.right.decisions[1]?.verdict.by.name).toBe("Grace Hopper");
   });
 
   it("refuses a wrong stamp at $schema and a schema violation by path", () => {
-    const context = { scope: SCOPE_ALL, operator: OPERATOR, atIso: AT };
+    const context = { kind: "spec" as const, scope: SCOPE_ALL, operator: OPERATOR, atIso: AT };
     const stamp = decodeHandAnswer({ ...raw, $schema: currentSchemaUrl("spec-document") }, context);
     expect(Either.isLeft(stamp) && stamp.left.path).toBe("$schema");
     const unknown = decodeHandAnswer({ ...raw, note: "extra" }, context);
     expect(Either.isLeft(unknown) && unknown.left.path).toBe("note");
+  });
+
+  it("refuses a spec verdict carrying a phase, and a plan verdict without one, by their own format", () => {
+    const context = { kind: "spec" as const, scope: SCOPE_ALL, operator: OPERATOR, atIso: AT };
+    const [first] = raw.decisions;
+    const phased = { ...first!, verdict: { ...first!.verdict, phase: "phase-01" } };
+    const spec = decodeHandAnswer({ ...raw, decisions: [phased] }, context);
+    expect(Either.isLeft(spec) && spec.left.path).toBe("decisions[0].verdict.phase");
+    const plan = decodeHandAnswer(
+      {
+        ...raw,
+        $schema: currentSchemaUrl("plan-hand-decision-answer"),
+        kind: "plan",
+        decisions: [first],
+      },
+      { ...context, kind: "plan" },
+    );
+    expect(Either.isLeft(plan) && plan.left.path).toBe("decisions[0].verdict.phase");
   });
 });
 

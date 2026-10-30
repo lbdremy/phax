@@ -49,9 +49,12 @@ import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.
 import { GateReportFileSchema, type GateReport } from "../../../src/schemas/gateReport.js";
 import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
 import {
-  HandDecisionAnswerFileSchema,
-  type HandDecisionAnswer,
+  PlanHandDecisionAnswerFileSchema,
+  SpecHandDecisionAnswerFileSchema,
+  type PlanHandDecisionAnswer,
+  type SpecHandDecisionAnswer,
 } from "../../../src/schemas/handDecisionAnswer.js";
+import { HandDecisionAnswerV0_25_0Schema } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
@@ -429,7 +432,7 @@ const briefReport: BriefReport = {
   ],
 };
 
-const handDecisionAnswer: HandDecisionAnswer = {
+const handDecisionAnswer: SpecHandDecisionAnswer = {
   kind: "spec",
   decisions: [
     {
@@ -449,6 +452,22 @@ const handDecisionAnswer: HandDecisionAnswer = {
     },
   ],
   markdown: "---\nstatus: Draft\n---\n# Example spec\n",
+};
+
+const planHandDecisionAnswer: PlanHandDecisionAnswer = {
+  kind: "plan",
+  decisions: [
+    {
+      id: "q-owner",
+      verdict: {
+        ...handDecisionAnswer.decisions[0]!.verdict,
+        chosen: "p2",
+        abandoned: ["p1"],
+        phase: "phase-02",
+      },
+    },
+  ],
+  markdown: "---\nstatus: Draft\n---\n# Example plan\n",
 };
 
 const decideVerdicts: DecideVerdicts = {
@@ -996,9 +1015,18 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "brief-record": encoded(BriefRecordFileSchema, withSchemaUrl("brief-record", briefRecord)),
   "gate-report": encoded(GateReportFileSchema, withSchemaUrl("gate-report", gateReport)),
   "brief-report": encoded(BriefReportFileSchema, withSchemaUrl("brief-report", briefReport)),
+  // Retired at 0.25.0: its frozen root union, never written by phax.
   "hand-decision-answer": encoded(
-    HandDecisionAnswerFileSchema,
+    HandDecisionAnswerV0_25_0Schema,
     withSchemaUrl("hand-decision-answer", handDecisionAnswer),
+  ),
+  "spec-hand-decision-answer": encoded(
+    SpecHandDecisionAnswerFileSchema,
+    withSchemaUrl("spec-hand-decision-answer", handDecisionAnswer),
+  ),
+  "plan-hand-decision-answer": encoded(
+    PlanHandDecisionAnswerFileSchema,
+    withSchemaUrl("plan-hand-decision-answer", planHandDecisionAnswer),
   ),
   "decide-verdicts": encoded(
     DecideVerdictsFileSchema,

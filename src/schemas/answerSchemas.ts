@@ -6,13 +6,29 @@
 // it imports them (the stamp they need lives in answerStamp.ts).
 import { CodeReviewFileSchema } from "./codeReview.js";
 import { FirstReadingFileSchema } from "./firstReading.js";
+import {
+  PlanHandDecisionAnswerFileSchema,
+  SpecHandDecisionAnswerFileSchema,
+} from "./handDecisionAnswer.js";
 import { InteractiveHandoffFileSchema } from "./interactiveHandoff.js";
+import { PlanDocumentFileSchema } from "./planDocument.js";
 import { PlanExtractionAnswerSchema } from "./planExtraction.js";
 import { renderPublishedJsonSchema } from "./publishedJsonSchema.js";
 import type { FormatId } from "./schemaUrl.js";
+import { SpecDocumentFileSchema } from "./specDocument.js";
 
 /** Every answer format, its label (the build's `phax <label>` title) and its schema. */
 export const ANSWER_FORMATS = {
+  "spec-document": { label: "spec document", schema: SpecDocumentFileSchema },
+  "plan-document": { label: "plan document", schema: PlanDocumentFileSchema },
+  "spec-hand-decision-answer": {
+    label: "spec hand decision answer",
+    schema: SpecHandDecisionAnswerFileSchema,
+  },
+  "plan-hand-decision-answer": {
+    label: "plan hand decision answer",
+    schema: PlanHandDecisionAnswerFileSchema,
+  },
   "first-reading": { label: "first reading", schema: FirstReadingFileSchema },
   "interactive-handoff": { label: "interactive handoff", schema: InteractiveHandoffFileSchema },
   "code-review": { label: "code review", schema: CodeReviewFileSchema },

@@ -1,18 +1,22 @@
-import { JSONSchema, Schema, type Types } from "effect";
+import { Either, Schema, type Types } from "effect";
+import { answerSchemaUrlField } from "./answerStamp.js";
+import { formatFirstViolation, formatViolationAt } from "./formatError.js";
 import {
   OpenQuestionSchema,
   QUESTION_CHECKS_DESCRIPTION,
   SpecArbitratedQuestionSchema,
-  SpecAuthoringArbitratedQuestionsSchema,
+  authoringArbitratedViolation,
   firstQuestionViolation,
 } from "./questions.js";
-import { schemaUrlField } from "./schemaUrl.js";
+import { NonEmptyString } from "./strictString.js";
 
-// The spec document: the JSON a headless spec authoring session returns, from
-// which phax renders the Markdown spec deterministically. Experimental — outside
-// the `version: 1` stability promise of phax.json and the run formats. Every
-// field is required; an absent section is an empty list or an explicit variant
-// (`before: null`, `docsPage.kind: "none"`), never a missing key.
+// The spec document: a spec's JSON sidecar, and the JSON a headless spec
+// authoring session returns (the same published shape), from which phax
+// renders the Markdown spec deterministically. A strict answer since 0.32.0:
+// its `$schema` is a const naming the current stamp and its strings are
+// `strictString`'s pattern. Every field is required; an absent section is an
+// empty list or an explicit variant (`before: null`, `docsPage.kind: "none"`),
+// never a missing key.
 
 const RequirementPatternSchema = Schema.Literal(
   "ubiquitous",
@@ -23,20 +27,20 @@ const RequirementPatternSchema = Schema.Literal(
 );
 
 const GroundEntrySchema = Schema.Struct({
-  path: Schema.NonEmptyString,
-  note: Schema.NonEmptyString,
+  path: NonEmptyString,
+  note: NonEmptyString,
 });
 
 const TermSchema = Schema.Struct({
-  term: Schema.NonEmptyString,
-  definition: Schema.NonEmptyString,
+  term: NonEmptyString,
+  definition: NonEmptyString,
 });
 
 const RequirementSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  title: Schema.NonEmptyString,
+  id: NonEmptyString,
+  title: NonEmptyString,
   pattern: RequirementPatternSchema,
-  statement: Schema.NonEmptyString,
+  statement: NonEmptyString,
 });
 
 /**
@@ -62,68 +66,59 @@ const SurfaceElementSchema = Schema.Struct({
   ),
   binding: Schema.Literal("normative", "indicative"),
   before: Schema.NullOr(Schema.String),
-  after: Schema.NonEmptyString,
+  after: NonEmptyString,
 });
 
 const AcceptanceCriterionSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  name: Schema.NonEmptyString,
-  given: Schema.NonEmptyString,
-  when: Schema.NonEmptyString,
+  id: NonEmptyString,
+  name: NonEmptyString,
+  given: NonEmptyString,
+  when: NonEmptyString,
   // Given/when/then is the criterion's shape; the key is data, never awaited.
   // eslint-disable-next-line unicorn/no-thenable
-  then: Schema.NonEmptyString,
-  refs: Schema.NonEmptyArray(Schema.NonEmptyString),
+  then: NonEmptyString,
+  refs: Schema.NonEmptyArray(NonEmptyString),
 });
 
 const PlanningNoteSchema = Schema.Struct({
-  settled: Schema.Array(Schema.NonEmptyString),
-  open: Schema.Array(Schema.NonEmptyString),
-  constraints: Schema.Array(Schema.NonEmptyString),
+  settled: Schema.Array(NonEmptyString),
+  open: Schema.Array(NonEmptyString),
+  constraints: Schema.Array(NonEmptyString),
 });
 
 const DocsPageSchema = Schema.Union(
   Schema.Struct({
     kind: Schema.Literal("page"),
-    page: Schema.NonEmptyString,
-    reader: Schema.NonEmptyString,
-    example: Schema.NonEmptyString,
+    page: NonEmptyString,
+    reader: NonEmptyString,
+    example: NonEmptyString,
   }),
   Schema.Struct({
     kind: Schema.Literal("none"),
-    why: Schema.NonEmptyString,
+    why: NonEmptyString,
   }),
 );
 
 const specDocumentFields = {
   kind: Schema.Literal("spec"),
-  title: Schema.NonEmptyString,
+  title: NonEmptyString,
   ground: Schema.Array(GroundEntrySchema),
-  context: Schema.NonEmptyString,
-  problem: Schema.NonEmptyString,
+  context: NonEmptyString,
+  problem: NonEmptyString,
   productGoal: Schema.Struct({
-    statement: Schema.NonEmptyString,
-    guidingRule: Schema.NonEmptyString,
+    statement: NonEmptyString,
+    guidingRule: NonEmptyString,
   }),
   terminology: Schema.Array(TermSchema),
   requirements: Schema.NonEmptyArray(RequirementSchema),
   surface: Schema.Array(SurfaceElementSchema),
-  nonGoals: Schema.Array(Schema.NonEmptyString),
+  nonGoals: Schema.Array(NonEmptyString),
   acceptanceCriteria: Schema.NonEmptyArray(AcceptanceCriterionSchema),
   openQuestions: Schema.Array(OpenQuestionSchema),
   arbitratedQuestions: Schema.Array(SpecArbitratedQuestionSchema),
   planningNote: PlanningNoteSchema,
   docsPage: DocsPageSchema,
 };
-
-// The authoring answer leaves every question open (§5.60): its
-// `arbitratedQuestions` is always empty, and a non-empty one is refused at its
-// first entry, through the invalid-document path.
-const SpecDocumentStruct = Schema.Struct({
-  version: Schema.Literal(1),
-  ...specDocumentFields,
-  arbitratedQuestions: SpecAuthoringArbitratedQuestionsSchema,
-}).annotations({ title: "phax spec document (experimental)" });
 
 /** A spec document in memory: never a `version`, never a `$schema`. */
 export type SpecDocument = Types.Simplify<Schema.Struct.Type<typeof specDocumentFields>>;
@@ -194,32 +189,19 @@ function firstTraceabilityViolation(doc: SpecDocument): Violation | undefined {
   return undefined;
 }
 
-// JSON Schema cannot express the traceability checks: the annotation declares
-// the gap in the exported schema rather than dropping the filter silently. It
-// adds no constraint, and decoding is unchanged.
-const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: requirement ids are unique; every acceptance criterion \`refs\` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; ${QUESTION_CHECKS_DESCRIPTION}.`;
-
-export const SpecDocumentSchema = SpecDocumentStruct.pipe(
-  Schema.filter(firstTraceabilityViolation, {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
-  }),
-);
-
-/** The document an authoring session returns: `version: 1`, then the spec. */
-export type AuthoredSpecDocument = Schema.Schema.Type<typeof SpecDocumentSchema>;
-
-// The document an authoring session returns: decoded with this contract, never through the bridge.
-export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema, {
-  onExcessProperty: "error",
-});
+// JSON Schema cannot express the traceability checks, nor an authoring
+// answer's empty `arbitratedQuestions`: the annotation declares the gap in the
+// exported schema rather than dropping the check silently. It adds no
+// constraint, and decoding is unchanged.
+const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: requirement ids are unique; every acceptance criterion \`refs\` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; ${QUESTION_CHECKS_DESCRIPTION}; and an authoring session's answer leaves every question open, so its arbitratedQuestions is [].`;
 
 /**
- * A spec's JSON sidecar as phax persists it: `$schema` first, then the
- * document's fields, with the same traceability checks. Unlike the authoring
- * answer, it carries arbitrated questions. Unknown keys are rejected.
+ * A spec's JSON sidecar, which is also the answer a headless authoring session
+ * and a decide session give: `$schema` first, then the document's fields, with
+ * the traceability checks. Unknown keys are rejected.
  */
 export const SpecDocumentFileSchema = Schema.Struct({
-  $schema: schemaUrlField("spec-document"),
+  $schema: answerSchemaUrlField("spec-document"),
   ...specDocumentFields,
 }).pipe(
   Schema.filter(firstTraceabilityViolation, {
@@ -229,16 +211,32 @@ export const SpecDocumentFileSchema = Schema.Struct({
 
 export type SpecDocumentFile = Schema.Schema.Type<typeof SpecDocumentFileSchema>;
 
+/** The document an authoring session returns: the sidecar's own shape, `$schema` included. */
+export type AuthoredSpecDocument = SpecDocumentFile;
+
 export const decodeSpecDocumentFile = Schema.decodeUnknownEither(SpecDocumentFileSchema, {
   onExcessProperty: "error",
 });
 export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
 
-export function getSpecDocumentJsonSchema(): object {
-  return JSONSchema.make(SpecDocumentSchema);
-}
-
-/** The JSON Schema of a spec sidecar: what a decide session returns as its revised document. */
-export function getSpecDocumentFileJsonSchema(): object {
-  return JSONSchema.make(SpecDocumentFileSchema);
+/**
+ * Decodes a headless spec authoring session's parsed answer: the authoring
+ * rule first (a non-empty `arbitratedQuestions` is refused at its first entry,
+ * `arbitratedQuestions[0]`), then the sidecar decoder. A Left is the first
+ * violation, `<path>: <message>`.
+ */
+export function decodeAuthoredSpecDocument(
+  input: unknown,
+): Either.Either<AuthoredSpecDocument, string> {
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    Array.isArray((input as { readonly arbitratedQuestions?: unknown }).arbitratedQuestions)
+  ) {
+    const arbitrated = (input as { readonly arbitratedQuestions: ReadonlyArray<unknown> })
+      .arbitratedQuestions;
+    const violation = authoringArbitratedViolation(arbitrated, []);
+    if (violation !== undefined) return Either.left(formatViolationAt(violation));
+  }
+  return Either.mapLeft(decodeSpecDocumentFile(input), formatFirstViolation);
 }

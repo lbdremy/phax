@@ -253,6 +253,19 @@ describe("the phax-plan's mode, oracle and test lines history", () => {
     expect(toLatestPhaxPlan(result.value)).toEqual(liftedCurrent());
   });
 
+  // 0.28.0 is the last shape before the strict strings: the same keys, so its
+  // lift is the document itself, `$schema` dropped.
+  it.each(["0.28.0", "0.31.0"])(
+    "parses a document stamped %s as shape 0.28.0 through the frozen module, lifting it to itself",
+    (release) => {
+      const document = withKey(current, "$schema", schemaUrl("phax-plan", release));
+      const result = parsePhaxPlan(document);
+      expect(result).toEqual({ ok: true, shape: "0.28.0", value: document });
+      if (!result.ok) throw new Error("document rejected");
+      expect(toLatestPhaxPlan(result.value)).toEqual(withoutKey(current, "$schema"));
+    },
+  );
+
   it("refuses a document at the current stamp that lacks testLines", () => {
     const phases = (current["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
     expect(parsePhaxPlan(withKey(current, "phases", phases))).toMatchObject({ ok: false });

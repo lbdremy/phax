@@ -20,8 +20,8 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * handoff, interactive session and review stop of spec interactive-phases,
  * then the decide verdicts of spec artifact-decide-verdicts, then the review
  * record manifest and the code review of spec headless-code-review,
- * then the plan extraction answer of spec structured-output,
- * appended so existing order stays stable.
+ * then the plan extraction answer and the spec and plan hand decision answers
+ * of spec structured-output, appended so existing order stays stable.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -59,6 +59,8 @@ export const FORMAT_IDS = [
   "review-record-manifest",
   "code-review",
   "phax-plan-extraction",
+  "spec-hand-decision-answer",
+  "plan-hand-decision-answer",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -88,7 +90,8 @@ export function isFormatId(value: string): value is FormatId {
  * phax/records/v1, and the code review a headless review session answers, of
  * spec headless-code-review. So is the plan extraction answer the fallback
  * extraction model returns, which phax reads but never writes, of spec
- * structured-output.
+ * structured-output, and the spec and plan hand decision answers that replace
+ * the hand decision answer's root union, of the same spec.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -113,6 +116,8 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "review-record-manifest",
   "code-review",
   "phax-plan-extraction",
+  "spec-hand-decision-answer",
+  "plan-hand-decision-answer",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

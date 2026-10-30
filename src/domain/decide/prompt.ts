@@ -1,7 +1,5 @@
-import { getHandDecisionAnswerFileJsonSchema } from "../../schemas/handDecisionAnswer.js";
-import { getPlanDocumentFileJsonSchema } from "../../schemas/planDocument.js";
+import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 import type { OpenQuestion } from "../../schemas/questions.js";
-import { getSpecDocumentFileJsonSchema } from "../../schemas/specDocument.js";
 import { type SidecarDocument, serializeSidecar } from "../artifact/sidecar.js";
 import type { ArtifactKind } from "../artifact/status.js";
 import type { Doctrine } from "./doctrine.js";
@@ -48,9 +46,10 @@ export interface DecidePromptInput {
   readonly authoring: DecideAuthoring;
 }
 
-function answerJsonSchema(kind: ArtifactKind, variant: DecideAuthoring["variant"]): object {
-  if (variant === "hand") return getHandDecisionAnswerFileJsonSchema();
-  return kind === "spec" ? getSpecDocumentFileJsonSchema() : getPlanDocumentFileJsonSchema();
+// The published answer schema the session answers: the kind's document for a
+// headless artifact, the kind's hand decision answer for a hand-authored one.
+function answerSchemaOf(kind: ArtifactKind, variant: DecideAuthoring["variant"]): object {
+  return answerJsonSchema(variant === "hand" ? `${kind}-hand-decision-answer` : `${kind}-document`);
 }
 
 function arrayPath(kind: ArtifactKind, key: "openQuestions" | "arbitratedQuestions"): string {
@@ -199,7 +198,7 @@ export function buildDecidePrompt(input: DecidePromptInput): string {
     schemaTitle,
     "",
     "```json",
-    JSON.stringify(answerJsonSchema(kind, authoring.variant), null, 2),
+    JSON.stringify(answerSchemaOf(kind, authoring.variant), null, 2),
     "```",
     "",
   ];
@@ -215,7 +214,8 @@ export interface HandbackPromptInput {
   readonly variant: DecideAuthoring["variant"];
   /**
    * The `$schema` URL the answer carries, at its format's current stamp: the
-   * document format for `headless`, `hand-decision-answer` for `hand`.
+   * document format for `headless`, the kind's hand decision answer format
+   * (`spec-hand-decision-answer` or `plan-hand-decision-answer`) for `hand`.
    */
   readonly schemaUrl: string;
 }

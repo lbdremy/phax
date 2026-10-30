@@ -1,12 +1,15 @@
-// The hand decision answer at decode level: a spec's and a plan's answer
-// decode, and every key is required, unknown keys, a lifted verdict and a plan
-// verdict without its phase are refused. Every document is made up.
+// The hand decision answers at decode level: spec-hand-decision-answer and
+// plan-hand-decision-answer each decode their own kind, every key is required,
+// and unknown keys, a lifted verdict, a spec verdict naming a phase and a plan
+// verdict without one are refused. Every document is made up.
 import { Either, ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import {
-  decodeHandDecisionAnswerFile,
-  getHandDecisionAnswerFileJsonSchema,
+  decodePlanHandDecisionAnswerFile,
+  decodeSpecHandDecisionAnswerFile,
 } from "../../../src/schemas/handDecisionAnswer.js";
+import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import {
   currentSchemaUrl,
   decodeCurrentHandDecisionAnswer,
@@ -32,7 +35,7 @@ function decided(extra: Doc = {}): Doc {
 
 function specAnswer(): Doc {
   return {
-    $schema: currentSchemaUrl("hand-decision-answer"),
+    $schema: currentSchemaUrl("spec-hand-decision-answer"),
     kind: "spec",
     decisions: [{ id: "Q2", verdict: decided() }],
     markdown: "---\nstatus: Draft\n---\n# Log rotation\n",
@@ -42,46 +45,56 @@ function specAnswer(): Doc {
 function planAnswer(): Doc {
   return {
     ...specAnswer(),
+    $schema: currentSchemaUrl("plan-hand-decision-answer"),
     kind: "plan",
     decisions: [{ id: "q-scope", verdict: decided({ phase: "phase-02" }) }],
   };
 }
 
-function firstIssue(input: unknown): { path: string; message: string } {
-  const decoded = decodeHandDecisionAnswerFile(input);
+type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+
+function firstIssue(decode: Decode, input: unknown): { path: string; message: string } {
+  const decoded = decode(input);
   if (Either.isRight(decoded)) throw new Error("expected a refusal");
   const [issue] = ParseResult.ArrayFormatter.formatErrorSync(decoded.left);
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
 
-describe("hand-decision-answer", () => {
-  it("decodes a spec's answer and a plan's answer", () => {
-    expect(Either.isRight(decodeHandDecisionAnswerFile(specAnswer()))).toBe(true);
-    expect(Either.isRight(decodeHandDecisionAnswerFile(planAnswer()))).toBe(true);
+const KINDS = [
+  { kind: "spec" as const, decode: decodeSpecHandDecisionAnswerFile as Decode, answer: specAnswer },
+  { kind: "plan" as const, decode: decodePlanHandDecisionAnswerFile as Decode, answer: planAnswer },
+];
+
+describe.each(KINDS)("$kind-hand-decision-answer", ({ kind, decode, answer }) => {
+  it("decodes its kind's answer, and one that decided nothing", () => {
+    expect(Either.isRight(decode(answer()))).toBe(true);
+    expect(Either.isRight(decode({ ...answer(), decisions: [] }))).toBe(true);
   });
 
-  it("decodes an answer that decided nothing", () => {
-    expect(Either.isRight(decodeHandDecisionAnswerFile({ ...specAnswer(), decisions: [] }))).toBe(
-      true,
-    );
+  it("refuses the other kind's answer, at $schema", () => {
+    const other = kind === "spec" ? planAnswer() : specAnswer();
+    expect(firstIssue(decode, other).path).toBe("$schema");
   });
 
-  it("the bridge drops $schema and keeps every other key", () => {
-    const decoded = decodeCurrentHandDecisionAnswer(specAnswer());
+  it("the bridge decodes with the kind's format, drops $schema and keeps every other key", () => {
+    const decoded = decodeCurrentHandDecisionAnswer(answer(), kind);
     if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-    const { $schema: _schema, ...rest } = specAnswer();
+    const { $schema: _schema, ...rest } = answer();
     expect(decoded.right).toEqual(rest);
   });
 
   it("refuses an unknown key at the root and inside a verdict", () => {
-    expect(firstIssue({ ...specAnswer(), note: "extra" }).path).toBe("note");
-    const answer = { ...specAnswer(), decisions: [{ id: "Q2", verdict: decided({ note: "x" }) }] };
-    expect(firstIssue(answer).path).toBe("decisions.0.verdict.note");
+    expect(firstIssue(decode, { ...answer(), note: "extra" }).path).toBe("note");
+    const [first] = answer()["decisions"] as Array<{ id: string; verdict: Doc }>;
+    const noted = { ...first, verdict: { ...first!.verdict, note: "x" } };
+    expect(firstIssue(decode, { ...answer(), decisions: [noted] }).path).toBe(
+      "decisions.0.verdict.note",
+    );
   });
 
   it.each(["$schema", "kind", "decisions", "markdown"])("refuses an answer without %s", (key) => {
-    const { [key]: _dropped, ...rest } = specAnswer();
-    expect(Either.isLeft(decodeHandDecisionAnswerFile(rest))).toBe(true);
+    const { [key]: _dropped, ...rest } = answer();
+    expect(Either.isLeft(decode(rest))).toBe(true);
   });
 
   it("refuses a lifted verdict", () => {
@@ -93,32 +106,67 @@ describe("hand-decision-answer", () => {
       at: "2026-09-28",
       by: { kind: "unattributed" },
     };
-    const answer = { ...specAnswer(), decisions: [{ id: "Q2", verdict: lifted }] };
-    expect(firstIssue(answer).path).toMatch(/^decisions\.0\.verdict/);
+    const refused = { ...answer(), decisions: [{ id: "Q2", verdict: lifted }] };
+    expect(firstIssue(decode, refused).path).toMatch(/^decisions\.0\.verdict/);
   });
 
-  it("refuses a plan verdict without its phase", () => {
+  it("refuses another format's $schema and an empty markdown", () => {
+    expect(
+      firstIssue(decode, { ...answer(), $schema: currentSchemaUrl("spec-document") }).path,
+    ).toBe("$schema");
+    expect(firstIssue(decode, { ...answer(), markdown: "" }).path).toBe("markdown");
+  });
+
+  it("renders one closed object, its $schema a const, with no anyOf at the root", () => {
+    const schema = answerJsonSchema(`${kind}-hand-decision-answer`) as {
+      anyOf?: unknown;
+      additionalProperties: boolean;
+      required: string[];
+      properties: { $schema: { const: string } };
+    };
+    expect(schema.anyOf).toBeUndefined();
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.required).toEqual(["$schema", "kind", "decisions", "markdown"]);
+    expect(schema.properties.$schema.const).toBe(currentSchemaUrl(`${kind}-hand-decision-answer`));
+  });
+});
+
+describe("the per-kind verdict shape", () => {
+  it("refuses a plan verdict without its phase, naming phase", () => {
     const answer = { ...planAnswer(), decisions: [{ id: "q-scope", verdict: decided() }] };
-    expect(firstIssue(answer).path).toBe("decisions.0.verdict.phase");
+    expect(firstIssue(decodePlanHandDecisionAnswerFile, answer).path).toBe(
+      "decisions.0.verdict.phase",
+    );
   });
 
-  it("refuses a spec verdict that names a phase", () => {
+  it("refuses a spec verdict that names a phase, naming phase", () => {
     const answer = {
       ...specAnswer(),
       decisions: [{ id: "Q2", verdict: decided({ phase: "phase-01" }) }],
     };
-    expect(firstIssue(answer).path).toBe("decisions.0.verdict.phase");
-  });
-
-  it("refuses another format's $schema and an empty markdown", () => {
-    expect(firstIssue({ ...specAnswer(), $schema: currentSchemaUrl("spec-document") }).path).toBe(
-      "$schema",
+    expect(firstIssue(decodeSpecHandDecisionAnswerFile, answer).path).toBe(
+      "decisions.0.verdict.phase",
     );
-    expect(firstIssue({ ...specAnswer(), markdown: "" }).path).toBe("markdown");
+  });
+});
+
+describe("hand-decision-answer, frozen at 0.25.0", () => {
+  const retired = currentSchemaUrl("hand-decision-answer");
+
+  it("still reads either member of its root union", () => {
+    for (const answer of [specAnswer(), planAnswer()]) {
+      expect(Either.isRight(decodeHandDecisionAnswerV0_25_0({ ...answer, $schema: retired }))).toBe(
+        true,
+      );
+    }
   });
 
-  it("renders a JSON Schema with a branch per kind", () => {
-    const schema = getHandDecisionAnswerFileJsonSchema() as { anyOf?: unknown[] };
-    expect(schema.anyOf).toHaveLength(2);
+  it("is not a current answer: neither kind's format reads its stamp", () => {
+    expect(
+      firstIssue(decodeSpecHandDecisionAnswerFile, { ...specAnswer(), $schema: retired }).path,
+    ).toBe("$schema");
+    expect(
+      firstIssue(decodePlanHandDecisionAnswerFile, { ...planAnswer(), $schema: retired }).path,
+    ).toBe("$schema");
   });
 });

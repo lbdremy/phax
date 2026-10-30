@@ -1,0 +1,716 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax spec document",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "title",
+    "ground",
+    "context",
+    "problem",
+    "productGoal",
+    "terminology",
+    "requirements",
+    "surface",
+    "nonGoals",
+    "acceptanceCriteria",
+    "openQuestions",
+    "arbitratedQuestions",
+    "planningNote",
+    "docsPage"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/spec-document/0.32.0.json"
+      ],
+      "description": "The spec-document format's shape, exactly: https://docs.phax.run/schemas/spec-document/0.32.0.json",
+      "const": "https://docs.phax.run/schemas/spec-document/0.32.0.json"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "spec"
+      ]
+    },
+    "title": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "ground": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "note"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "note": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "context": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "problem": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "productGoal": {
+      "type": "object",
+      "required": [
+        "statement",
+        "guidingRule"
+      ],
+      "properties": {
+        "statement": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "guidingRule": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminology": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "term",
+          "definition"
+        ],
+        "properties": {
+          "term": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "definition": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "pattern",
+          "statement"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "title": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "pattern": {
+            "type": "string",
+            "enum": [
+              "ubiquitous",
+              "event",
+              "state",
+              "unwanted",
+              "optional"
+            ]
+          },
+          "statement": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "surface": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "surface",
+          "summary",
+          "binding",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "surface": {
+            "type": "string",
+            "description": "a string matching the pattern ^(cli|config|file|api|package|internal): ",
+            "pattern": "^(cli|config|file|api|package|internal): "
+          },
+          "summary": {
+            "type": "string",
+            "description": "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
+            "pattern": "^[^\\n\\r\\u0085\\u2028\\u2029]+$"
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "normative",
+              "indicative"
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NonEmptyString"
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "given",
+          "when",
+          "then",
+          "refs"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "name": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "given": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "when": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "then": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "options",
+          "recommendation",
+          "rationale"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "An id: a run of characters without whitespace.",
+            "pattern": "^\\S+$"
+          },
+          "question": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "abandons"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "An id: a run of characters without whitespace.",
+                  "pattern": "^\\S+$"
+                },
+                "label": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "abandons": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "an array of at least 2 item(s)",
+            "title": "minItems(2)",
+            "minItems": 2
+          },
+          "recommendation": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "rationale": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "arbitratedQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "options",
+          "recommendation",
+          "rationale",
+          "verdict",
+          "history"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "An id: a run of characters without whitespace.",
+            "pattern": "^\\S+$"
+          },
+          "question": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "abandons"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "An id: a run of characters without whitespace.",
+                  "pattern": "^\\S+$"
+                },
+                "label": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "abandons": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "an array of at least 2 item(s)",
+            "title": "minItems(2)",
+            "minItems": 2
+          },
+          "recommendation": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "rationale": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "chosen",
+                  "abandoned",
+                  "why",
+                  "advocate",
+                  "principles",
+                  "reversibility",
+                  "by",
+                  "at",
+                  "revised"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "decided"
+                    ]
+                  },
+                  "chosen": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "abandoned": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "why": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "advocate": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "principles": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "reversibility": {
+                    "type": "string",
+                    "enum": [
+                      "cheap",
+                      "costly",
+                      "irreversible"
+                    ]
+                  },
+                  "by": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ]
+                      },
+                      "name": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "at": {
+                    "type": "string",
+                    "description": "An ISO-8601 UTC timestamp.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                  },
+                  "revised": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "chosen",
+                  "abandoned",
+                  "why",
+                  "at",
+                  "by"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "lifted"
+                    ]
+                  },
+                  "chosen": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "abandoned": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "why": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "at": {
+                    "type": "string",
+                    "description": "A date, YYYY-MM-DD.",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "by": {
+                    "type": "object",
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "unattributed"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "chosen",
+                    "abandoned",
+                    "why",
+                    "advocate",
+                    "principles",
+                    "reversibility",
+                    "by",
+                    "at",
+                    "revised"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "decided"
+                      ]
+                    },
+                    "chosen": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "abandoned": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "why": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "advocate": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "principles": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "reversibility": {
+                      "type": "string",
+                      "enum": [
+                        "cheap",
+                        "costly",
+                        "irreversible"
+                      ]
+                    },
+                    "by": {
+                      "type": "object",
+                      "required": [
+                        "kind",
+                        "name"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "operator"
+                          ]
+                        },
+                        "name": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "at": {
+                      "type": "string",
+                      "description": "An ISO-8601 UTC timestamp.",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+                    },
+                    "revised": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "chosen",
+                    "abandoned",
+                    "why",
+                    "at",
+                    "by"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "lifted"
+                      ]
+                    },
+                    "chosen": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "abandoned": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "why": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "at": {
+                      "type": "string",
+                      "description": "A date, YYYY-MM-DD.",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "by": {
+                      "type": "object",
+                      "required": [
+                        "kind"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "unattributed"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "planningNote": {
+      "type": "object",
+      "required": [
+        "settled",
+        "open",
+        "constraints"
+      ],
+      "properties": {
+        "settled": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "open": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "docsPage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "page",
+            "reader",
+            "example"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "page"
+              ]
+            },
+            "page": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "reader": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "example": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "why"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            },
+            "why": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "description": "Checked by phax's parser, not by this JSON Schema: requirement ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; question ids are unique across openQuestions and arbitratedQuestions, and each question's option ids are unique; no option has the id `other` and no `recommendation` is `other`, because `other` is reserved and implicit on every question; each question's `recommendation` names one of its options; and each arbitrated question's verdict, and every verdict in its history, has `chosen` name one of its options or the reserved `other`, and `abandoned` hold exactly the other listed options, each once (every listed option when `chosen` is `other`); and an authoring session's answer leaves every question open, so its arbitratedQuestions is []."
+}

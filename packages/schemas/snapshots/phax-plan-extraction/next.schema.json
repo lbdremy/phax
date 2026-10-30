@@ -4,9 +4,8 @@
   "$defs": {
     "NonEmptyString": {
       "type": "string",
-      "description": "a non empty string",
-      "title": "nonEmptyString",
-      "minLength": 1
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
     }
   },
   "type": "object",
@@ -132,12 +131,7 @@
                         "guarantee": {
                           "type": "string",
                           "description": "What the test guarantees: one non-empty, trimmed line.",
-                          "pattern": "^(?!\\s)[\\s\\S]*\\S$",
-                          "allOf": [
-                            {
-                              "pattern": "^[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*$"
-                            }
-                          ]
+                          "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
                         },
                         "size": {
                           "type": "string",
@@ -162,22 +156,8 @@
                         },
                         "oracle": {
                           "type": "string",
-                          "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·'.",
-                          "pattern": "^(?![\\s\\S]* ·$)",
-                          "allOf": [
-                            {
-                              "pattern": "^(?!— )"
-                            },
-                            {
-                              "pattern": "^(?![\\s\\S]* — )"
-                            },
-                            {
-                              "pattern": "^(?!\\s)[\\s\\S]*\\S$"
-                            },
-                            {
-                              "pattern": "^[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*$"
-                            }
-                          ]
+                          "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·' (these three checked by phax, not by this JSON Schema).",
+                          "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
                         },
                         "loop": {
                           "type": "string",
@@ -190,13 +170,8 @@
                           "anyOf": [
                             {
                               "type": "string",
-                              "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase'.",
-                              "pattern": "^(?!(?:oracle|in-phase)$)",
-                              "allOf": [
-                                {
-                                  "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$"
-                                }
-                              ]
+                              "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
+                              "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$"
                             },
                             {
                               "type": "null"

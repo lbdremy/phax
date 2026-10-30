@@ -3,22 +3,23 @@
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import {
-  decodeSpecDocument,
+  decodeAuthoredSpecDocument,
   decodeSpecDocumentFile,
   type SpecDocument,
 } from "../../src/schemas/specDocument.js";
 
 function decoded(raw: unknown): SpecDocument {
-  const result = decodeSpecDocument(raw);
-  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left.message}`);
-  return result.right;
+  const result = decodeAuthoredSpecDocument(raw);
+  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left}`);
+  const { $schema: _schema, ...document } = result.right;
+  return document;
 }
 
 function fixture(): SpecDocument {
   return decoded({
-    version: 1,
+    $schema: currentSchemaUrl("spec-document"),
     kind: "spec",
     title: "Plan Prune — `phax prune`",
     ground: [
@@ -115,8 +116,7 @@ function fixture(): SpecDocument {
 function withArbitrated(): SpecDocument {
   const [pruneMode] = fixture().openQuestions;
   if (pruneMode === undefined) throw new Error("fixture has a question");
-  // The authored fixture still carries its `version`, which a sidecar drops.
-  const { version: _version, ...base } = fixture() as SpecDocument & { readonly version?: 1 };
+  const base = fixture();
   const marked = {
     ...pruneMode,
     rationale: "Decided by the author on 2026-09-28, records already keep the trajectory",

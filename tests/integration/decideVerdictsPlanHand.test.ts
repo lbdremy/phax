@@ -226,7 +226,7 @@ describe("decide --verdicts — a plan stays executable", { timeout: 30_000 }, (
     );
     const { $schema: _schema, ...landed } = sidecar as unknown as Record<string, unknown>;
     expect(Option.getOrNull(cached)).toEqual(
-      projectExtractedPlan({ version: 1, ...(landed as unknown as PlanDocument) }),
+      projectExtractedPlan(landed as unknown as PlanDocument),
     );
     const extractor = makeFakeBackend();
     const loaded = await Effect.runPromise(
@@ -284,7 +284,7 @@ function handAnswer(
   options: { revised?: string[]; markdown?: string } = {},
 ): string {
   return JSON.stringify({
-    $schema: currentSchemaUrl("hand-decision-answer"),
+    $schema: currentSchemaUrl("spec-hand-decision-answer"),
     kind: "spec",
     decisions: [
       {

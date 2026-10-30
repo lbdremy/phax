@@ -8,8 +8,10 @@
 // 0.17.0 and 0.20.0 shapes, written before questions were arbitrated, the spec
 // document's 0.25.0 shape, written before the surface summary, the plan
 // document's 0.25.0 shape, written before `modelReason` became
-// `assignmentReason`, and its 0.26.0 shape, written before test lines, as
-// releases, and lift them as phax's reader does, except that an older test
+// `assignmentReason`, its 0.26.0 shape, written before test lines, and the
+// spec document's 0.27.0 and the plan document's 0.28.0 shapes, written before
+// the `$schema` const and the strict answer, as releases, and lift them as
+// phax's reader does, except that an older test
 // strategy that is not wholly in the line format lifts to `Unknown`. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
@@ -60,6 +62,11 @@ import {
   type PlanDocumentV0_26_0,
 } from "../../../../src/schemas/history/plan-document/0.26.0.js";
 import {
+  PlanDocumentV0_28_0Schema,
+  decodePlanDocumentV0_28_0,
+  type PlanDocumentV0_28_0,
+} from "../../../../src/schemas/history/plan-document/0.28.0.js";
+import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -79,6 +86,11 @@ import {
   decodeSpecDocumentV0_25_0,
   type SpecDocumentV0_25_0,
 } from "../../../../src/schemas/history/spec-document/0.25.0.js";
+import {
+  SpecDocumentV0_27_0Schema,
+  decodeSpecDocumentV0_27_0,
+  type SpecDocumentV0_27_0,
+} from "../../../../src/schemas/history/spec-document/0.27.0.js";
 import {
   SpecDocumentPreSchemaSchema,
   decodeSpecDocumentPreSchema,
@@ -301,6 +313,7 @@ export type SpecDocumentShapes = {
   "pre-schema": SpecDocumentPreSchema;
   "0.17.0": SpecDocumentV0_17_0;
   "0.25.0": SpecDocumentV0_25_0;
+  "0.27.0": SpecDocumentV0_27_0;
 } & {
   [K in CurrentShapeName<"spec-document">]: SpecDocumentFile;
 };
@@ -315,6 +328,7 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   releases: [
     ["0.17.0", { schema: SpecDocumentV0_17_0Schema, decode: decodeSpecDocumentV0_17_0 }],
     ["0.25.0", { schema: SpecDocumentV0_25_0Schema, decode: decodeSpecDocumentV0_25_0 }],
+    ["0.27.0", { schema: SpecDocumentV0_27_0Schema, decode: decodeSpecDocumentV0_27_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["spec-document"],
@@ -363,10 +377,16 @@ function liftSpecSurface(
  * existed, is lifted by the author's rationale marker (`liftMarkedQuestions`),
  * its marked questions arbitrated with a lifted, unattributed verdict; a
  * document written before the surface summary (0.25.0 and older) lifts each
- * surface element's `summary` as `Unknown`, never as invented text.
+ * surface element's `summary` as `Unknown`, never as invented text. A 0.27.0
+ * document is the current shape under a release-pattern `$schema`.
  */
 export function toLatestSpecDocument(
-  value: SpecDocumentPreSchema | SpecDocumentV0_17_0 | SpecDocumentV0_25_0 | SpecDocumentFile,
+  value:
+    | SpecDocumentPreSchema
+    | SpecDocumentV0_17_0
+    | SpecDocumentV0_25_0
+    | SpecDocumentV0_27_0
+    | SpecDocumentFile,
 ): LatestSpecDocument {
   if ("arbitratedQuestions" in value) {
     const { $schema: _schema, surface, ...recorded } = value;
@@ -393,6 +413,7 @@ export type PlanDocumentShapes = {
   "0.20.0": PlanDocumentV0_20_0;
   "0.25.0": PlanDocumentV0_25_0;
   "0.26.0": PlanDocumentV0_26_0;
+  "0.28.0": PlanDocumentV0_28_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -409,6 +430,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
     ["0.20.0", { schema: PlanDocumentV0_20_0Schema, decode: decodePlanDocumentV0_20_0 }],
     ["0.25.0", { schema: PlanDocumentV0_25_0Schema, decode: decodePlanDocumentV0_25_0 }],
     ["0.26.0", { schema: PlanDocumentV0_26_0Schema, decode: decodePlanDocumentV0_26_0 }],
+    ["0.28.0", { schema: PlanDocumentV0_28_0Schema, decode: decodePlanDocumentV0_28_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
@@ -524,10 +546,16 @@ type PlanDocumentParsed =
   | PlanDocumentV0_20_0
   | PlanDocumentV0_25_0
   | PlanDocumentV0_26_0
+  | PlanDocumentV0_28_0
   | PlanDocumentFile;
 
-/** Whether a parsed plan document is the current shape: only its phases carry test lines. */
-function isCurrentPlanDocument(value: PlanDocumentParsed): value is PlanDocumentFile {
+/**
+ * Whether a parsed plan document carries test lines: the current shape, or the
+ * 0.28.0 one, which is the current shape under a release-pattern `$schema`.
+ */
+function isCurrentPlanDocument(
+  value: PlanDocumentParsed,
+): value is PlanDocumentFile | PlanDocumentV0_28_0 {
   return Array.isArray(value.phases[0].testStrategy);
 }
 

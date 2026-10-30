@@ -672,7 +672,7 @@ describe("a hand-authored spec decided in place", { timeout: 30_000 }, () => {
     writeRepoFile(SPEC, HAND_SPEC);
     commitAll();
     const handAnswer = JSON.stringify({
-      $schema: currentSchemaUrl("hand-decision-answer"),
+      $schema: currentSchemaUrl("spec-hand-decision-answer"),
       kind: "spec",
       decisions: [
         { id: "Q1", verdict: verdict(question("Q1"), "per-run", { abandoned: ["daily"] }) },

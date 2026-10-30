@@ -8,7 +8,7 @@ export interface AuthoringPromptInput {
   readonly kind: ArtifactKind;
   /** The bundled skill's SKILL.md, verbatim. */
   readonly skillText: string;
-  /** The kind's document JSON Schema (`getSpecDocumentJsonSchema` / `getPlanDocumentJsonSchema`). */
+  /** The kind's published document answer schema (`answerJsonSchema("spec-document")` / `("plan-document")`). */
   readonly jsonSchema: object;
   readonly brief: string;
   /**

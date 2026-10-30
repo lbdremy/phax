@@ -95,7 +95,7 @@ describe("decide-verdicts", () => {
     ],
     [
       "a $schema naming another format",
-      { $schema: currentSchemaUrl("hand-decision-answer") },
+      { $schema: currentSchemaUrl("spec-hand-decision-answer") },
       "$schema",
     ],
   ];

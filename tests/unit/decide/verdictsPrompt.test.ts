@@ -173,12 +173,12 @@ describe("buildVerdictsPrompt — a hand-authored spec", () => {
     doctrine: doctrine(),
     bound: BOUND_HAND_Q1,
     authoring: { variant: "hand", markdown: HAND_SPEC_MD },
-    schemaUrl: currentSchemaUrl("hand-decision-answer"),
+    schemaUrl: currentSchemaUrl("spec-hand-decision-answer"),
   });
 
   it("asks for a hand decision answer: its decisions and the Markdown unchanged", () => {
     expect(prompt).toContain("hand decision answer JSON Schema");
-    expect(prompt).toContain(`set to \`${currentSchemaUrl("hand-decision-answer")}\``);
+    expect(prompt).toContain(`set to \`${currentSchemaUrl("spec-hand-decision-answer")}\``);
     expect(prompt).toContain("exactly one `{ id, verdict }` per verdict above (Q1)");
     expect(prompt).toContain(
       "When no verdict departs and every `revised` is `[]`, return the Markdown unchanged.",

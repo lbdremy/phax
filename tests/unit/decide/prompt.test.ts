@@ -248,7 +248,10 @@ describe("buildDecidePrompt — a hand-authored artifact", () => {
     expect(text).toContain(
       "`## 9. Open questions`, `## 9b. Arbitrated questions` and `## 12. Decision log`",
     );
-    expect(text.slice(schemaAt)).toContain("hand-decision-answer");
+    expect(text.slice(schemaAt)).toContain(
+      schemaUrl("spec-hand-decision-answer", CURRENT_STAMPS["spec-hand-decision-answer"]),
+    );
+    expect(text.slice(schemaAt)).not.toContain("plan-hand-decision-answer");
     expect(text).not.toContain("## Revised spec document JSON Schema");
   });
 
@@ -260,7 +263,7 @@ describe("buildDecidePrompt — a hand-authored artifact", () => {
 
 describe("buildHandbackPrompt", () => {
   it("asks a hand-authored artifact for its verdicts and its Markdown, the sections phax writes left as they were", () => {
-    const url = schemaUrl("hand-decision-answer", CURRENT_STAMPS["hand-decision-answer"]);
+    const url = schemaUrl("plan-hand-decision-answer", CURRENT_STAMPS["plan-hand-decision-answer"]);
     const text = buildHandbackPrompt({ kind: "plan", variant: "hand", schemaUrl: url });
     expect(text).toContain("final message alone");
     expect(text).toContain(`\`$schema\` first, set to \`${url}\``);

@@ -124,6 +124,18 @@ function formatIssuePath(path: ReadonlyArray<PropertyKey>): string {
     .join("");
 }
 
+/**
+ * A violation a decoder's own check found, before any schema ran, as the line
+ * `formatFirstViolation` prints for the same path and message.
+ */
+export function formatViolationAt(violation: {
+  readonly path: ReadonlyArray<PropertyKey>;
+  readonly message: string;
+}): string {
+  const path = formatIssuePath(violation.path);
+  return path.length > 0 ? `${path}: ${violation.message}` : violation.message;
+}
+
 // The first violation as one line, `<path>: <message>` (the message alone when
 // the violation is at the root). Used where a single rejection reason is
 // printed verbatim, e.g. an authored spec or plan document.

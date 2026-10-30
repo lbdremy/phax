@@ -2,19 +2,22 @@
 /* eslint-disable unicorn/no-thenable */
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import {
-  decodeSpecDocument,
+  decodeAuthoredSpecDocument,
   decodeSpecDocumentFile,
-  getSpecDocumentJsonSchema,
   SURFACE_SUMMARY_PLACEHOLDER,
   type SpecDocument,
 } from "../../src/schemas/specDocument.js";
 import { formatFirstViolation } from "../../src/schemas/formatError.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
+const decodeSpecDocument = decodeAuthoredSpecDocument;
+const getSpecDocumentJsonSchema = () => answerJsonSchema("spec-document");
+
 function validSpecDocument() {
   return {
-    version: 1,
+    $schema: currentSchemaUrl("spec-document"),
     kind: "spec",
     title: "Plan Prune",
     ground: [{ path: "docs/ideas/plan-prune.md", note: "the idea this spec makes precise" }],
@@ -102,7 +105,7 @@ type Mutable = ReturnType<typeof validSpecDocument> & Record<string, unknown>;
 function rejection(doc: unknown): string {
   const result = decodeSpecDocument(doc);
   if (Either.isRight(result)) throw new Error("expected the document to be rejected");
-  return formatFirstViolation(result.left);
+  return result.left;
 }
 
 // The valid document with its first surface element's summary replaced.
@@ -111,7 +114,13 @@ function withSummary(summary: string) {
   return { ...doc, surface: [{ ...doc.surface[0]!, summary }, ...doc.surface.slice(1)] };
 }
 
-describe("decodeSpecDocument", () => {
+describe("decodeAuthoredSpecDocument", () => {
+  it("refuses a version 1 authoring answer: the answer carries the $schema const", () => {
+    const { $schema: _schema, ...doc } = validSpecDocument();
+    expect(rejection({ version: 1, ...doc })).toMatch(/^version: is unexpected/);
+    expect(rejection(doc)).toBe("$schema: is missing");
+  });
+
   it("decodes a full valid spec document", () => {
     const result = decodeSpecDocument(validSpecDocument());
     expect(Either.isRight(result)).toBe(true);
@@ -260,8 +269,7 @@ describe("decodeSpecDocument", () => {
 
 // A sidecar of the made-up spec `plan-prune`, at the current shape.
 function sidecar(arbitratedQuestions: ReadonlyArray<unknown>) {
-  const { version: _version, ...doc } = validSpecDocument();
-  return { $schema: currentSchemaUrl("spec-document"), ...doc, arbitratedQuestions };
+  return { ...validSpecDocument(), arbitratedQuestions };
 }
 
 function liftedQuestion() {
@@ -348,14 +356,17 @@ describe("decodeSpecDocumentFile", () => {
   });
 });
 
-describe("getSpecDocumentJsonSchema", () => {
-  it("is titled experimental and closed to extra keys", () => {
+describe("the spec-document answer schema", () => {
+  it("is the published schema, closed to extra keys, its $schema a const of the current stamp", () => {
     const schema = getSpecDocumentJsonSchema() as {
       title: string;
       additionalProperties: boolean;
       required: string[];
+      properties: { $schema: { const: string } };
     };
-    expect(schema.title).toBe("phax spec document (experimental)");
+    expect(schema.title).toBe("phax spec document");
+    expect(schema.properties.$schema.const).toBe(currentSchemaUrl("spec-document"));
+    expect(schema.required[0]).toBe("$schema");
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toContain("acceptanceCriteria");
     expect(schema.required).toContain("docsPage");
@@ -397,12 +408,15 @@ describe("getSpecDocumentJsonSchema", () => {
     });
   });
 
-  it("says an authoring answer's arbitratedQuestions is empty", () => {
+  it("says an authoring answer's arbitratedQuestions is empty, a check phax runs", () => {
     const schema = getSpecDocumentJsonSchema() as {
+      description: string;
       required: string[];
       properties: Record<string, unknown>;
     };
     expect(schema.required).toContain("arbitratedQuestions");
-    expect(schema.properties["arbitratedQuestions"]).toMatchObject({ type: "array", maxItems: 0 });
+    expect(schema.properties["arbitratedQuestions"]).toMatchObject({ type: "array" });
+    expect(schema.properties["arbitratedQuestions"]).not.toHaveProperty("maxItems");
+    expect(schema.description).toContain("its arbitratedQuestions is []");
   });
 });

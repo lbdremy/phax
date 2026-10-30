@@ -39,21 +39,13 @@ import { authoringAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import type { AuthoringRecordRetry } from "../schemas/authoringRecord.js";
 import { type AuthoringSession, encodeAuthoringSession } from "../schemas/authoringSession.js";
-import { formatFirstViolation, formatPlanDocumentViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
-import {
-  decodePlanDocument,
-  getPlanDocumentJsonSchema,
-  type AuthoredPlanDocument,
-} from "../schemas/planDocument.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
+import { decodeAuthoredPlanDocument, type AuthoredPlanDocument } from "../schemas/planDocument.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
-import {
-  decodeSpecDocument,
-  getSpecDocumentJsonSchema,
-  type AuthoredSpecDocument,
-} from "../schemas/specDocument.js";
+import { decodeAuthoredSpecDocument, type AuthoredSpecDocument } from "../schemas/specDocument.js";
 import {
   planSkeleton,
   resolveArtifactTarget,
@@ -205,15 +197,9 @@ function parseAuthoredDocument(
   if (Either.isLeft(parsed)) return Either.left(parsed.left);
 
   if (kind === "spec") {
-    const decoded = decodeSpecDocument(parsed.right);
-    return Either.isLeft(decoded)
-      ? Either.left(formatFirstViolation(decoded.left))
-      : Either.right({ kind, doc: decoded.right });
+    return Either.map(decodeAuthoredSpecDocument(parsed.right), (doc) => ({ kind, doc }));
   }
-  const decoded = decodePlanDocument(parsed.right);
-  return Either.isLeft(decoded)
-    ? Either.left(formatPlanDocumentViolation(parsed.right, decoded.left))
-    : Either.right({ kind, doc: decoded.right });
+  return Either.map(decodeAuthoredPlanDocument(parsed.right), (doc) => ({ kind, doc }));
 }
 
 /** What the record needs to know of the session once the agent has returned. */
@@ -294,13 +280,14 @@ function retryRefusedDocument(
 }
 
 // The document as phax persists it (the sidecar and the session's
-// document.json): the authoring contract's `version` dropped, `$schema` first.
+// document.json): the answer is the sidecar's own shape, its `$schema` const
+// already the current stamp, which `serializeSidecar` writes first.
 function encodeDocument(authored: AuthoredDocument): string {
   if (authored.kind === "spec") {
-    const { version: _version, ...document } = authored.doc;
+    const { $schema: _schema, ...document } = authored.doc;
     return serializeSidecar({ kind: "spec", document });
   }
-  const { version: _version, ...document } = authored.doc;
+  const { $schema: _schema, ...document } = authored.doc;
   return serializeSidecar({ kind: "plan", document });
 }
 
@@ -502,7 +489,7 @@ export function authorArtifact(
     const prompt = buildAuthoringPrompt({
       kind: input.kind,
       skillText: input.skillText,
-      jsonSchema: input.kind === "spec" ? getSpecDocumentJsonSchema() : getPlanDocumentJsonSchema(),
+      jsonSchema: answerJsonSchema(`${input.kind}-document`),
       brief: input.brief.text,
       sourceSpec,
       completesSpec: target.completesSpec,

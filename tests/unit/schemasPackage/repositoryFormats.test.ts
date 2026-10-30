@@ -36,7 +36,6 @@ import {
 } from "../../../src/schemas/specApprovalRecord.js";
 import {
   SpecDocumentFileSchema,
-  SpecDocumentSchema,
   decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
 import {
@@ -452,6 +451,19 @@ describe("the plan document's question history", () => {
     expect(latest.phases[0].mode).toBe("headless");
   });
 
+  // 0.28.0 is the last shape before the strict answer: the same keys under a
+  // release-pattern `$schema`, lifted to itself.
+  it.each(["0.28.0", "0.31.0"])(
+    "parses a document stamped %s as shape 0.28.0 and lifts it to itself",
+    (release) => {
+      const v0_28_0 = withKey(current, "$schema", schemaUrl("plan-document", release));
+      const result = parsePlanDocument(v0_28_0);
+      expect(result).toEqual({ ok: true, shape: "0.28.0", value: v0_28_0 });
+      if (!result.ok) throw new Error("document rejected");
+      expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(current, "$schema"));
+    },
+  );
+
   it("refuses preamble questions in a 0.20.0 document, and a current document without them", () => {
     const preamble = v0_20_0["preamble"] as Doc;
     const withQuestions = withKey(v0_20_0, "preamble", { ...preamble, openQuestions: [] });
@@ -545,6 +557,16 @@ describe("the spec document's question history", () => {
     expect(toLatestSpecDocument(empty.value)).toMatchObject({ surface: [] });
   });
 
+  // 0.27.0 is the last shape before the strict answer: the same keys under a
+  // release-pattern `$schema`, lifted to itself.
+  it("parses a 0.27.0 document as shape 0.27.0 and lifts it to itself", () => {
+    const v0_27_0 = withKey(current, "$schema", schemaUrl("spec-document", "0.27.0"));
+    const result = parseSpecDocument(v0_27_0);
+    expect(result).toEqual({ ok: true, shape: "0.27.0", value: v0_27_0 });
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestSpecDocument(result.value)).toEqual(withoutKey(current, "$schema"));
+  });
+
   it("refuses arbitratedQuestions in a 0.17.0 document, and a current document without it", () => {
     expect(parseSpecDocument(withKey(v0_17_0, "arbitratedQuestions", [])).ok).toBe(false);
     expect(parseSpecDocument(withoutKey(current, "arbitratedQuestions")).ok).toBe(false);
@@ -570,9 +592,7 @@ describe("the spec document's traceability", () => {
   });
 
   it("declares the checks JSON Schema cannot express, in the root description", () => {
-    const contract = JSONSchema.make(SpecDocumentSchema) as { description?: string };
     const file = JSONSchema.make(SpecDocumentFileSchema) as { description?: string };
-    expect(contract.description).toContain("`refs` entry names an existing requirement");
     expect(file.description).toContain("`refs` entry names an existing requirement");
   });
 });

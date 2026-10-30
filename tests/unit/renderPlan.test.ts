@@ -8,22 +8,22 @@ import {
 import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
 import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import {
-  decodePlanDocument,
+  decodeAuthoredPlanDocument,
   decodePlanDocumentFile,
   projectExtractedPlan,
   type AuthoredPlanDocument as PlanDocument,
 } from "../../src/schemas/planDocument.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 
 function decoded(raw: unknown): PlanDocument {
-  const result = decodePlanDocument(raw);
-  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left.message}`);
+  const result = decodeAuthoredPlanDocument(raw);
+  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left}`);
   return result.right;
 }
 
 function fixture(): PlanDocument {
   return decoded({
-    version: 1,
+    $schema: currentSchemaUrl("plan-document"),
     kind: "plan",
     sourceSpec: "docs/specs/2609230835-headless-authoring.md",
     completesSpec: true,
@@ -435,13 +435,12 @@ Add the renderers.
 // decided for phase-02 after an earlier lifted verdict.
 // Read as a sidecar: an authoring answer never carries arbitrated questions.
 function withQuestions(): PlanDocument {
-  const { version, ...base } = fixture();
+  const { $schema: _schema, ...base } = fixture();
   const file = decodePlanDocumentFile(
     withSchemaUrl("plan-document", { ...base, preamble: questionPreamble(base.preamble) }),
   );
   if (Either.isLeft(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
-  const { $schema: _schema, ...doc } = file.right;
-  return { version, ...doc };
+  return file.right;
 }
 
 function questionPreamble(preamble: PlanDocument["preamble"]): unknown {

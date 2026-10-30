@@ -37,11 +37,12 @@ import {
   briefReportFormat,
   gateReportFormat,
 } from "../../../packages/schemas/src/formats/reports.js";
-import { withoutAnnotations } from "../../../packages/schemas/build/snapshots.js";
 import {
   decideVerdictsFormat,
   handDecisionAnswerFormat,
   phaxPlanExtractionFormat,
+  planHandDecisionAnswerFormat,
+  specHandDecisionAnswerFormat,
 } from "../../../packages/schemas/src/formats/answers.js";
 import {
   architectureReportFormat,
@@ -69,11 +70,8 @@ import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { getPlanDocumentJsonSchema } from "../../../src/schemas/planDocument.js";
-import {
-  SpecDocumentFileSchema,
-  getSpecDocumentJsonSchema,
-} from "../../../src/schemas/specDocument.js";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
+import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { phaseStatusStopDocuments, validDocuments, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -128,6 +126,8 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "gate-report": gateReportFormat.current.shape.decode,
   "brief-report": briefReportFormat.current.shape.decode,
   "hand-decision-answer": handDecisionAnswerFormat.current.shape.decode,
+  "spec-hand-decision-answer": specHandDecisionAnswerFormat.current.shape.decode,
+  "plan-hand-decision-answer": planHandDecisionAnswerFormat.current.shape.decode,
   "decision-record-manifest": decisionRecordManifestFormat.current.shape.decode,
   "review-record-manifest": reviewRecordManifestFormat.current.shape.decode,
   "cost-ledger": costLedgerFormat.current.shape.decode,
@@ -202,6 +202,8 @@ describe("the JSON Schema table", () => {
       gateReportFormat,
       briefReportFormat,
       handDecisionAnswerFormat,
+      specHandDecisionAnswerFormat,
+      planHandDecisionAnswerFormat,
       decisionRecordManifestFormat,
       reviewRecordManifestFormat,
       costLedgerFormat,
@@ -237,10 +239,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 36 files and no failure", () => {
+  it("renders 38 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(36);
+    expect(rendered.files.size).toBe(38);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(
@@ -272,70 +274,15 @@ describe("renderJsonSchemas over the real table", () => {
     expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
 
-  // Each document's authoring contract gains its fields with its file shape,
-  // still carries `version` where the file carries `$schema`, and holds its
-  // arbitrated questions to an empty array: an authoring session leaves every
-  // question open.
-  it("keeps the spec-document authoring contract equal to its current file snapshot, with version for $schema and no arbitrated question", () => {
-    const file = authoringContractOf(
-      readSnapshot("spec-document", CURRENT_SHAPES["spec-document"]),
-    );
-    const expected = {
-      ...file,
-      properties: { ...file.properties, arbitratedQuestions: AUTHORING_ARBITRATED_QUESTIONS },
-    };
-    // Compared without `description`, `title` and `examples`, as the snapshot
-    // tooling's sameShape does: the question checks' description moved with
-    // the reserved `other` id, and the released 0.27.0 snapshot keeps the old
-    // wording. Only the shape must match.
-    expect(withoutAnnotations(getSpecDocumentJsonSchema())).toEqual(withoutAnnotations(expected));
-  });
-
-  it("keeps the plan-document authoring contract equal to its current file snapshot, with version for $schema and no arbitrated question", () => {
-    const file = authoringContractOf(
-      readSnapshot("plan-document", CURRENT_SHAPES["plan-document"]),
-    );
-    const preamble = file.properties["preamble"] as {
-      readonly properties: Readonly<Record<string, unknown>>;
-    };
-    const expected = {
-      ...file,
-      properties: {
-        ...file.properties,
-        preamble: {
-          ...preamble,
-          properties: {
-            ...preamble.properties,
-            arbitratedQuestions: AUTHORING_ARBITRATED_QUESTIONS,
-          },
-        },
-      },
-    };
-    expect(withoutTitle(getPlanDocumentJsonSchema())).toEqual(withoutTitle(expected));
-  });
+  // A headless authoring session answers the published document schema
+  // itself: the answer schema phax states and prints is the current snapshot.
+  it.each(["spec-document", "plan-document"] as const)(
+    "%s: the authoring answer schema is its current file snapshot",
+    (format) => {
+      expect(answerJsonSchema(format)).toEqual(readSnapshot(format, CURRENT_SHAPES[format]));
+    },
+  );
 });
-
-const AUTHORING_ARBITRATED_QUESTIONS = {
-  type: "array",
-  maxItems: 0,
-  description: "Always empty: an authoring session leaves every question open, in openQuestions.",
-};
-
-interface ObjectSchema {
-  readonly required: ReadonlyArray<string>;
-  readonly properties: Readonly<Record<string, unknown>>;
-}
-
-/** A file snapshot with `version` in place of `$schema`, as the authoring contract carries it. */
-function authoringContractOf(snapshot: object): ObjectSchema {
-  const file = snapshot as ObjectSchema;
-  const { $schema: _url, ...properties } = file.properties;
-  return {
-    ...file,
-    required: ["version", ...file.required.filter((key) => key !== "$schema")],
-    properties: { version: { type: "number", enum: [1] }, ...properties },
-  };
-}
 
 function readSnapshot(id: string, name: string): object {
   return JSON.parse(

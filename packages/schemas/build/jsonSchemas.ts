@@ -46,6 +46,8 @@ import {
   decideVerdictsFormat,
   handDecisionAnswerFormat,
   phaxPlanExtractionFormat,
+  planHandDecisionAnswerFormat,
+  specHandDecisionAnswerFormat,
 } from "../src/formats/answers.js";
 import {
   codeReviewFormat,
@@ -125,6 +127,8 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "run-list": runListFormat,
   "decide-verdicts": decideVerdictsFormat,
   "phax-plan-extraction": phaxPlanExtractionFormat,
+  "spec-hand-decision-answer": specHandDecisionAnswerFormat,
+  "plan-hand-decision-answer": planHandDecisionAnswerFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -166,6 +170,8 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "run-list": "error",
   "decide-verdicts": "error",
   "phax-plan-extraction": "error",
+  "spec-hand-decision-answer": "error",
+  "plan-hand-decision-answer": "error",
   "record-manifest": "error",
 };
 

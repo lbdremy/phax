@@ -1240,7 +1240,7 @@ describe("decide — a plan stays executable", { timeout: 30_000 }, () => {
     );
     const { $schema: _schema, ...landed } = sidecar as unknown as Record<string, unknown>;
     expect(Option.getOrNull(cached)).toEqual(
-      projectExtractedPlan({ version: 1, ...(landed as unknown as PlanDocument) }),
+      projectExtractedPlan(landed as unknown as PlanDocument),
     );
     const extractor = makeFakeBackend();
     const loaded = await Effect.runPromise(

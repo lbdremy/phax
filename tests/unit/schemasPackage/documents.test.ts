@@ -29,7 +29,11 @@ import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeDecideVerdictsFile } from "../../../src/schemas/decideVerdicts.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "../../../src/schemas/reviewRecord.js";
-import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
+import {
+  decodePlanHandDecisionAnswerFile,
+  decodeSpecHandDecisionAnswerFile,
+} from "../../../src/schemas/handDecisionAnswer.js";
+import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
@@ -99,7 +103,9 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "brief-record": decodeBriefRecordFile,
   "gate-report": decodeGateReportFile,
   "brief-report": decodeBriefReportFile,
-  "hand-decision-answer": decodeHandDecisionAnswerFile,
+  "hand-decision-answer": decodeHandDecisionAnswerV0_25_0,
+  "spec-hand-decision-answer": decodeSpecHandDecisionAnswerFile,
+  "plan-hand-decision-answer": decodePlanHandDecisionAnswerFile,
   "decision-record-manifest": decodeDecisionRecordManifestFile,
   "review-record-manifest": decodeReviewRecordManifestFile,
   "cost-ledger": decodeCostLedgerFile,

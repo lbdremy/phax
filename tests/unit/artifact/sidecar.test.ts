@@ -13,11 +13,11 @@ import {
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
-import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
   SURFACE_SUMMARY_PLACEHOLDER,
-  decodeSpecDocument,
+  decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
 
 const SPEC_DOCUMENT = {
@@ -143,13 +143,13 @@ const CURRENT_PLAN_DOCUMENT = {
 };
 
 function specBody(): string {
-  const decoded = decodeSpecDocument(CURRENT_SPEC_DOCUMENT);
+  const decoded = decodeSpecDocumentFile(JSON.parse(stampedJson("spec-document")));
   if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
   return renderSpecBody(decoded.right);
 }
 
 function planBody(): string {
-  const decoded = decodePlanDocument(CURRENT_PLAN_DOCUMENT);
+  const decoded = decodePlanDocumentFile(JSON.parse(stampedJson("plan-document")));
   if (Either.isLeft(decoded)) throw new Error("fixture plan document must decode");
   return renderPlanBody(decoded.right);
 }

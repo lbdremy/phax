@@ -4,8 +4,9 @@
 // named by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own
 // schema and decoder. The package declares none of its own. phax-plan also
 // lists its 0.17.0 shape, written before phases carried `mode` and `oracle`,
-// and its 0.26.0 shape, written before phases carried `testLines`, as
-// releases, and lifts them as phax's reader does. The registry and run
+// its 0.26.0 shape, written before phases carried `testLines`, and its
+// 0.28.0 shape, the current one before the strict test lines and non-empty
+// strings restamped it, as releases, and lifts them as phax's reader does. The registry and run
 // status list their 0.17.0 shapes, and phase status its 0.20.0 shape, written
 // before `awaiting_review`; a phase status that old is lifted with
 // `mode: "headless"` and `stop: null`.
@@ -73,6 +74,11 @@ import {
   decodePhaxPlanV0_26_0,
   type PhaxPlanV0_26_0,
 } from "../../../../src/schemas/history/phax-plan/0.26.0.js";
+import {
+  PhaxPlanV0_28_0Schema,
+  decodePhaxPlanV0_28_0,
+  type PhaxPlanV0_28_0,
+} from "../../../../src/schemas/history/phax-plan/0.28.0.js";
 import {
   PhaxPlanPreSchemaSchema,
   decodePhaxPlanPreSchema,
@@ -278,6 +284,7 @@ export type PhaxPlanShapes = {
   "pre-schema": PhaxPlanPreSchema;
   "0.17.0": PhaxPlanV0_17_0;
   "0.26.0": PhaxPlanV0_26_0;
+  "0.28.0": PhaxPlanV0_28_0;
 } & {
   [K in CurrentShapeName<"phax-plan">]: PhaxPlanFile;
 };
@@ -292,6 +299,7 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
   releases: [
     ["0.17.0", { schema: PhaxPlanV0_17_0Schema, decode: decodePhaxPlanV0_17_0 }],
     ["0.26.0", { schema: PhaxPlanV0_26_0Schema, decode: decodePhaxPlanV0_26_0 }],
+    ["0.28.0", { schema: PhaxPlanV0_28_0Schema, decode: decodePhaxPlanV0_28_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["phax-plan"],
@@ -326,7 +334,7 @@ export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
  * list would invent the fact that it tested nothing.
  */
 export function toLatestPhaxPlan(
-  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanFile,
+  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanV0_28_0 | PhaxPlanFile,
 ): LatestPhaxPlan {
   if (isCurrentPhaxPlan(value)) {
     const { $schema: _schema, ...recorded } = value;
@@ -355,10 +363,13 @@ export function toLatestPhaxPlan(
   };
 }
 
-/** Whether a parsed phax-plan is the current shape: only its phases carry `testLines`. */
+/**
+ * Whether a parsed phax-plan carries test lines: the current shape, or the
+ * 0.28.0 one, which is the current shape under a release-pattern `$schema`.
+ */
 function isCurrentPhaxPlan(
-  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanFile,
-): value is PhaxPlanFile {
+  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanV0_28_0 | PhaxPlanFile,
+): value is PhaxPlanFile | PhaxPlanV0_28_0 {
   return "testLines" in value.phases[0];
 }
 

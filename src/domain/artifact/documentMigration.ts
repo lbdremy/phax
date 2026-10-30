@@ -6,7 +6,9 @@ import {
 } from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
+import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
+import { renderSpecBody } from "../authoring/renderSpec.js";
 import { renderPlanBodyV0_26_0 } from "../authoring/renderPlanV0_26_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
@@ -84,20 +86,31 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
   return kind === "spec" ? "spec-document" : "plan-document";
 }
 
-// The body the sidecar's own shape renders: the rendering frozen at
-// spec-document 0.25.0 (no `Summary:` lines), the one frozen at spec-document
-// 0.17.0 (positional questions), the one frozen at plan-document 0.26.0 (test
+// The body the sidecar's own shape renders: the current rendering for
+// spec-document 0.27.0 and plan-document 0.28.0, whose body did not change
+// when the strict answer restamped them (a migration rewrites the sidecar and
+// leaves the Markdown byte-identical); the rendering frozen at spec-document
+// 0.25.0 (no `Summary:` lines), the one frozen at spec-document 0.17.0
+// (positional questions), the one frozen at plan-document 0.26.0 (test
 // strategies as written), the one frozen at plan-document 0.25.0 (its
 // `**Model reason:**` lines), or, for the older plan shapes, the 0.26.0
 // rendering of the value stepped to 0.26.0 — headless, no oracle, no reason,
 // no questions — exactly the body phax 0.26.0 and 0.27.0 rendered for them.
 function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>): string {
   if (sidecar.kind === "spec") {
-    return sidecar.shape === "0.25.0"
-      ? renderSpecBodyV0_25_0(sidecar.older)
-      : renderSpecBodyV0_17_0(sidecar.older);
+    switch (sidecar.shape) {
+      case "0.27.0":
+        return renderSpecBody(sidecar.older);
+      case "0.25.0":
+        return renderSpecBodyV0_25_0(sidecar.older);
+      case "0.17.0":
+      case "pre-schema":
+        return renderSpecBodyV0_17_0(sidecar.older);
+    }
   }
   switch (sidecar.shape) {
+    case "0.28.0":
+      return renderPlanBody(sidecar.older);
     case "0.26.0":
       return renderPlanBodyV0_26_0(sidecar.older);
     case "0.25.0":
