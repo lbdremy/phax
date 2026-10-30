@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2610271515-structured-output.md",
+  "specFingerprint": "ddfd5066b566f04c16ae4d5f4c5ee6cf68e49db3a1273c2f0e58b62f2c468fcc",
+  "approvedAt": "2026-10-30T17:09:38.446Z",
+  "baseline": "a1c101ac6098ebe80e12d198ac98e7c115f99fbd",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

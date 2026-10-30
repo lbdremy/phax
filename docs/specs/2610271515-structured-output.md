@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-27
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-30
+  baseline: a1c101a
 ---
 # Structured output
 
