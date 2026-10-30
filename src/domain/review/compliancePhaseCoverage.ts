@@ -12,8 +12,29 @@
  * The parts are joined by '; '. The order of the answered ids is free.
  */
 export function phaseCoverageRefusal(
-  _answeredPhaseIds: readonly string[],
-  _runPhaseIds: readonly string[],
+  answeredPhaseIds: readonly string[],
+  runPhaseIds: readonly string[],
 ): string | null {
-  throw new Error("compliancePhaseCoverage: not implemented");
+  const runIds = new Set(runPhaseIds);
+  const seen = new Set<string>();
+  const reported = new Set<string>();
+  const parts: string[] = [];
+  for (const id of answeredPhaseIds) {
+    if (!runIds.has(id)) {
+      if (!reported.has(id)) {
+        reported.add(id);
+        parts.push(`perPhase: phase "${id}" is not a phase of this run`);
+      }
+      continue;
+    }
+    if (seen.has(id) && !reported.has(id)) {
+      reported.add(id);
+      parts.push(`perPhase: phase "${id}" is named more than once`);
+    }
+    seen.add(id);
+  }
+  for (const id of runPhaseIds) {
+    if (!seen.has(id)) parts.push(`perPhase: phase "${id}" is missing`);
+  }
+  return parts.length === 0 ? null : parts.join("; ");
 }
