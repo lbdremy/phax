@@ -148,6 +148,8 @@ describe("headless code review at run end", () => {
     opts: {
       readonly codeReview?: CodeReviewConfig;
       readonly answer?: string;
+      /** The final message of the code review's corrective resume (none queued when undefined). */
+      readonly retryAnswer?: string;
       readonly codeSession?: boolean;
       /** Call executePlan without `bundledReviewSkill`. */
       readonly withoutSkill?: boolean;
@@ -237,6 +239,13 @@ describe("headless code review at run end", () => {
       outputPath: "",
       finalText: "",
     });
+    if (opts.retryAnswer !== undefined) {
+      backend.impl.addResumeResponse({
+        sessionId: "session-code-review-retry" as ClaudeSessionId,
+        outputPath: "",
+        finalText: opts.retryAnswer,
+      });
+    }
     const layers = Layer.mergeAll(
       git.layer,
       shell.layer,
@@ -328,9 +337,10 @@ describe("headless code review at run end", () => {
   ])(
     "keeps %s out of the records and the description, and the run review_open",
     async (_n, answer) => {
-      const r = await runOnce({ answer });
+      const r = await runOnce({ answer, retryAnswer: answer });
 
       expect(Either.isRight(r.outcome)).toBe(true);
+      expect(r.stderr).toContain("code review failed: code-review answer rejected twice");
       expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
       expect(existsSync(join(r.runPath, "code-review-session.json"))).toBe(false);
       expect(await runState(r.runPath)).toBe("review_open");
@@ -339,6 +349,26 @@ describe("headless code review at run end", () => {
       expect(r.stderr).toContain(`phax review-code ${SHORT_NAME} --headless`);
     },
   );
+
+  it("prints the refusal, resumes the session once and keeps the retry's findings", async () => {
+    const r = await runOnce({
+      answer: answerOf(finding({ lens: "security" })),
+      retryAnswer: answerOf(finding({ message: "from the retry" })),
+    });
+
+    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(r.stderr).toContain("[phax] Warning: code-review answer refused — ");
+    expect(r.stderr).toContain("resuming the session once to ask for the whole answer again");
+    const file = JSON.parse(readFileSync(join(r.runPath, "code-review.json"), "utf8")) as {
+      findings: ReadonlyArray<{ message: string }>;
+    };
+    expect(file.findings.map((f) => f.message)).toEqual(["from the retry"]);
+    expect(
+      JSON.parse(readFileSync(join(r.runPath, "code-review-session.json"), "utf8")).sessionId,
+    ).toBe("session-code-review-retry");
+    expect(r.prBody).toContain("from the retry");
+    expect(await runState(r.runPath)).toBe("review_open");
+  });
 
   it("leaves the run review_open, the pull request written and neither review file when the session fails", async () => {
     const r = await runOnce({ codeSession: false });

@@ -216,7 +216,11 @@ describe("runReviewCode --headless", () => {
     const mocks = await setup(makeInfo());
     mocks.reviewCodeAndRecord.mockReturnValue(
       Effect.succeed({
-        review: { kind: "failed", reason: "answer refused: findings[0].lens: not a lens" },
+        review: {
+          kind: "failed",
+          reason:
+            "code-review answer rejected twice — first answer: findings[0].lens: not a lens; retry: the session's final message is not JSON",
+        },
         record: { kind: "no-entry" },
         push: { kind: "no-record" },
       } as never),
@@ -227,8 +231,10 @@ describe("runReviewCode --headless", () => {
 
     expect(code).toBe(1);
     expect(errors).toEqual([
-      `Code review failed: answer refused: findings[0].lens: not a lens. To retry, run: phax review-code ${SHORT_NAME} --headless`,
+      `Code review failed: code-review answer rejected twice — first answer: findings[0].lens: not a lens; retry: the session's final message is not JSON. To retry, run: phax review-code ${SHORT_NAME} --headless`,
     ]);
+    // The command hands its own output to the use case, for the retry warning.
+    expect(mocks.reviewCodeAndRecord.mock.calls[0]?.[5]).toMatchObject({ output: out });
   });
 
   it("names the qualified run in the retry command for a run of another project", async () => {

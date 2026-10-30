@@ -2856,7 +2856,15 @@ export function executePlan(
               codeReviewResolution,
               { mode: securityMode, config: config.security },
               runEndReviewRecordTarget(config, namespace),
-              { bundledReviewSkill: opts.bundledReviewSkill, nowIso: new Date().toISOString() },
+              {
+                bundledReviewSkill: opts.bundledReviewSkill,
+                nowIso: new Date().toISOString(),
+                output: {
+                  log: (message) => process.stderr.write(`[phax] ${message}\n`),
+                  warn: (message) => process.stderr.write(`[phax] Warning: ${message}\n`),
+                  error: (message) => process.stderr.write(`[phax] Error: ${message}\n`),
+                },
+              },
             ).pipe(
               Effect.tap((outcome) =>
                 Effect.sync(() => {

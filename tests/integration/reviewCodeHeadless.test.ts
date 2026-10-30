@@ -28,6 +28,7 @@ const worktreePath = "/fake/worktrees/my-run--phase-01";
 const reviewPath = `${runPath}/code-review.json`;
 const sessionPath = `${runPath}/code-review-session.json`;
 const streamPath = `${runPath}/code-review.session.jsonl`;
+const retryStreamPath = `${runPath}/code-review-retry.session.jsonl`;
 const nowIso = "2026-10-27T12:00:00.000Z";
 const bundledReviewSkill = "---\nname: phax-review\n---\n\n# Bundled doctrine\n";
 
@@ -55,7 +56,7 @@ const info: RunReviewInfo = {
 
 const config = { enabled: false, model: "claude-opus-5-5", effort: "high" } as const;
 
-function resolutionOn(provider: "claude-code" | "codex-cli"): RoutingResolution {
+function resolutionOn(provider: "claude-code" | "codex-cli" | "mistral-vibe"): RoutingResolution {
   return {
     requested: { model: "claude-opus-5-5", family: "claude-opus", effort: "high" },
     selected: {
@@ -128,14 +129,26 @@ function setup() {
       finalText: answer ?? "",
     });
   };
-  const review = (provider: "claude-code" | "codex-cli" = "claude-code") =>
+  /** The corrective resume: answers `answer` as its final message (none when undefined). */
+  const retry = (sessionId: string, answer: string | undefined) => {
+    backend.impl.addResumeResponse({
+      sessionId: sessionId as ClaudeSessionId,
+      outputPath: retryStreamPath,
+      finalText: answer ?? "",
+    });
+  };
+  /** What the use case printed through the output port. */
+  const warnings: string[] = [];
+  const output = { log() {}, warn: (m: string) => void warnings.push(m), error() {} };
+  const review = (provider: "claude-code" | "codex-cli" | "mistral-vibe" = "claude-code") =>
     Effect.runPromise(
       reviewCodeHeadless(info, config, resolutionOn(provider), security, {
         bundledReviewSkill,
         nowIso,
+        output,
       }).pipe(Effect.provide(layer)),
     );
-  return { fs, backend, git, github, layer, session, review };
+  return { fs, backend, git, github, layer, session, retry, review, warnings, output };
 }
 
 describe("reviewCodeHeadless", () => {
@@ -176,35 +189,124 @@ describe("reviewCodeHeadless", () => {
   });
 
   it.each([
-    ["a refused answer", answerOf(finding({ lens: "everything" })), /^answer refused: .*lens/],
-    [
-      "text that is not JSON",
-      "not json at all",
-      /^answer refused: the session's final message is not JSON/,
-    ],
+    ["a refused answer", answerOf(finding({ lens: "everything" })), /lens/],
+    ["text that is not JSON", "not json at all", /the session's final message is not JSON/],
     // An empty answer is the not-JSON refusal, like any other text that does not parse.
-    [
-      "a session that gave no answer",
-      undefined,
-      /^answer refused: the session's final message is not JSON/,
-    ],
+    ["a session that gave no answer", undefined, /the session's final message is not JSON/],
   ])(
-    "%s fails with its reason and leaves both files as they were",
+    "%s, refused twice, fails naming both refusals and leaves both files as they were",
     async (_name, answer, reason) => {
       const t = setup();
       t.fs.impl.setFile(reviewPath, "previous review");
       t.fs.impl.setFile(sessionPath, "previous session");
       t.session("session-b", answer);
+      t.retry("session-b", answer);
 
       const result = await t.review();
 
       expect(result.kind).toBe("failed");
       if (result.kind !== "failed") return;
+      expect(result.reason).toMatch(/^code-review answer rejected twice — first answer: /);
       expect(result.reason).toMatch(reason);
+      expect(result.reason).toContain("; retry: ");
+      expect(t.backend.impl.resumeCalls).toHaveLength(1);
       expect(t.fs.impl.getFile(reviewPath)).toBe("previous review");
       expect(t.fs.impl.getFile(sessionPath)).toBe("previous session");
     },
   );
+
+  it("resumes the first session once when its answer is refused, and keeps the retry's", async () => {
+    const t = setup();
+    t.session("session-a", answerOf(finding({ lens: "security" })));
+    t.retry("session-r", answerOf(finding({ message: "from the retry" })));
+
+    const result = await t.review();
+
+    expect(result.kind).toBe("accepted");
+    expect(t.warnings).toHaveLength(1);
+    expect(t.warnings[0]).toMatch(/^code-review answer refused — .*lens/);
+    expect(t.warnings[0]).toContain("resuming the session once to ask for the whole answer again");
+    expect(t.backend.impl.runCalls).toHaveLength(1);
+    expect(t.backend.impl.resumeCalls).toHaveLength(1);
+    const resume = t.backend.impl.resumeCalls[0];
+    expect(resume?.sessionId).toBe("session-a");
+    expect(resume?.prompt).toContain("Your last answer was refused");
+    expect(resume?.options.readOnly).toBe(true);
+    expect(resume?.options.agentCommands).toEqual(CODE_REVIEW_AGENT_COMMANDS);
+    expect(resume?.options.outputJsonlPath).toBe(retryStreamPath);
+    const file = JSON.parse(t.fs.impl.getFile(reviewPath) ?? "") as {
+      findings: ReadonlyArray<{ message: string }>;
+    };
+    expect(file.findings.map((f) => f.message)).toEqual(["from the retry"]);
+    expect(JSON.parse(t.fs.impl.getFile(sessionPath) ?? "").sessionId).toBe("session-r");
+  });
+
+  it("refuses an unstamped answer naming the missing $schema and the unexpected version, then resumes once", async () => {
+    const t = setup();
+    t.session("session-a", JSON.stringify({ version: 1, findings: [] }));
+    t.retry("session-a", answerOf());
+
+    const result = await t.review();
+
+    expect(result.kind).toBe("accepted");
+    expect(t.warnings[0]).toContain("$schema");
+    expect(t.warnings[0]).toContain("version");
+    expect(t.backend.impl.resumeCalls.map((c) => c.sessionId)).toEqual(["session-a"]);
+  });
+
+  it("resumes a Mistral Vibe review whose first answer is empty", async () => {
+    const t = setup();
+    t.session("session-v", undefined);
+    t.retry("session-v", answerOf(finding()));
+
+    const result = await t.review("mistral-vibe");
+
+    expect(result.kind).toBe("accepted");
+    expect(t.warnings[0]).toMatch(
+      /^code-review answer refused — the session's final message is not JSON/,
+    );
+    expect(t.backend.impl.resumeCalls).toHaveLength(1);
+    expect(t.backend.impl.resumeCalls[0]?.options.provider).toBe("mistral-vibe");
+    expect(JSON.parse(t.fs.impl.getFile(reviewPath) ?? "").findings).toHaveLength(1);
+  });
+
+  it("reports a failed resume as a session failure, never as a refusal", async () => {
+    const t = setup();
+    t.session("session-a", "not json at all");
+    // No queued resume response: the fake backend fails the call.
+
+    const result = await t.review();
+
+    expect(result.kind).toBe("failed");
+    if (result.kind !== "failed") return;
+    expect(result.reason).toMatch(/^the session failed: /);
+    expect(t.fs.impl.getFile(reviewPath)).toBeUndefined();
+  });
+
+  it("puts back what the resume changed and fails", async () => {
+    const t = setup();
+    const a = "a".repeat(40);
+    const b = "b".repeat(40);
+    const c = "c".repeat(40);
+    t.git.impl.enqueueSnapshots(worktreePath, a, a, b, c);
+    t.git.impl.setTreeChanges(b, c, [{ status: "M", path: "src/r.ts" }]);
+    t.session("session-a", "not json at all");
+    t.retry("session-a", answerOf(finding()));
+
+    const result = await t.review();
+
+    expect(result).toEqual({
+      kind: "failed",
+      reason: "the session changed the worktree (put back): src/r.ts",
+    });
+    expect(t.git.impl.calls).toContainEqual({
+      method: "restorePaths",
+      path: worktreePath,
+      tree: b,
+      paths: ["src/r.ts"],
+    });
+    expect(t.fs.impl.getFile(reviewPath)).toBeUndefined();
+  });
 
   it("a failed session says so and writes neither file on a run with no review files", async () => {
     const t = setup();
@@ -249,7 +351,7 @@ describe("reviewCodeHeadless", () => {
       { status: "M", path: "src/b.ts" },
       { status: "A", path: "src/a.ts" },
     ]);
-    t.session("session-w", answerOf(finding()));
+    t.session("session-w", "not json at all");
 
     const result = await t.review();
 
@@ -257,6 +359,7 @@ describe("reviewCodeHeadless", () => {
       kind: "failed",
       reason: "the session changed the worktree (put back): src/a.ts, src/b.ts",
     });
+    expect(t.backend.impl.resumeCalls).toHaveLength(0);
     expect(t.git.impl.calls).toContainEqual({
       method: "restorePaths",
       path: worktreePath,
@@ -415,7 +518,7 @@ describe("reviewCodeAndRecord", () => {
         resolutionOn("claude-code"),
         security,
         { kind: "project", records: recordsOff, repoRoot: "/repo", push: null },
-        { bundledReviewSkill, nowIso },
+        { bundledReviewSkill, nowIso, output: t.output },
       ).pipe(Effect.provide(t.layer)),
     );
 
@@ -427,6 +530,7 @@ describe("reviewCodeAndRecord", () => {
   it("reports a failed review as no entry and no push", async () => {
     const t = setup();
     t.session("session-i", undefined);
+    t.retry("session-i", undefined);
 
     const outcome = await Effect.runPromise(
       reviewCodeAndRecord(
@@ -435,7 +539,7 @@ describe("reviewCodeAndRecord", () => {
         resolutionOn("claude-code"),
         security,
         { kind: "project", records: recordsOff, repoRoot: "/repo", push: null },
-        { bundledReviewSkill, nowIso },
+        { bundledReviewSkill, nowIso, output: t.output },
       ).pipe(Effect.provide(t.layer)),
     );
 
@@ -455,7 +559,7 @@ describe("reviewCodeAndRecord", () => {
         resolutionOn("claude-code"),
         security,
         { kind: "unresolved", reason: "no project" },
-        { bundledReviewSkill, nowIso },
+        { bundledReviewSkill, nowIso, output: t.output },
       ).pipe(Effect.provide(t.layer)),
     );
 

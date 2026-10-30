@@ -26,7 +26,14 @@ import {
   readCodeReviewAnswer,
   type CodeReview,
 } from "../schemas/codeReview.js";
-import { Backend } from "../ports/backend.js";
+import {
+  CODE_REVIEW_RETRY_STREAM_FILENAME,
+  codeReviewRefusedTwiceMessage,
+  codeReviewRetryPrompt,
+  codeReviewRetryWarning,
+} from "../domain/review/codeReviewRetry.js";
+import { Backend, type AgentRunResult } from "../ports/backend.js";
+import type { OutputPort } from "../ports/output.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
 import { withInvocationCost } from "./costLedger.js";
@@ -408,6 +415,13 @@ export function loadCodeReviewWorklist(
   });
 }
 
+/** A headless session's final answer, decoded: the review, or why phax refuses it. */
+function decodeReviewAnswer(result: AgentRunResult): Either.Either<CodeReview, string> {
+  const parsed = answerJson(result);
+  if (Either.isLeft(parsed)) return Either.left(parsed.left);
+  return readCodeReviewAnswer(parsed.right);
+}
+
 export type HeadlessCodeReviewResult =
   | {
       readonly kind: "accepted";
@@ -437,7 +451,12 @@ export function reviewCodeHeadless(
   config: ResolvedCodeReviewConfig,
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
-  opts: { readonly bundledReviewSkill: string; readonly nowIso: string },
+  opts: {
+    readonly bundledReviewSkill: string;
+    readonly nowIso: string;
+    /** Where the refusal of a first answer is printed before the session is resumed. */
+    readonly output: OutputPort;
+  },
 ): Effect.Effect<
   HeadlessCodeReviewResult,
   FsError | GitError,
@@ -478,64 +497,99 @@ export function reviewCodeHeadless(
     const provider = resolution.selected.provider;
     const outputJsonlPath = join(info.runPath, CODE_REVIEW_STREAM_FILENAME);
 
-    const before = yield* git.snapshotWorktree(info.worktreePath);
-    const agentResult = yield* Effect.either(
-      withInvocationCost(
-        backend.runAgent(prompt, {
-          provider,
-          model: resolution.selected.concreteModel,
-          effort: resolution.selected.thinking ?? config.effort,
-          cwd: info.worktreePath,
-          security: { ...policy, agentCommands: [...CODE_REVIEW_AGENT_COMMANDS] },
-          agentCommands: CODE_REVIEW_AGENT_COMMANDS,
-          // The review answers and never writes: its reading tools and the
-          // read-only git above, whatever the policy allows.
-          readOnly: true,
-          outputJsonlPath,
-        }),
-        {
-          role: "code-review",
-          phase: null,
-          runId,
-          runPath: info.runPath,
-          provider,
-          streamPath: outputJsonlPath,
-        },
-      ),
-    );
+    const sessionOptions = {
+      provider,
+      model: resolution.selected.concreteModel,
+      effort: resolution.selected.thinking ?? config.effort,
+      cwd: info.worktreePath,
+      security: { ...policy, agentCommands: [...CODE_REVIEW_AGENT_COMMANDS] },
+      agentCommands: CODE_REVIEW_AGENT_COMMANDS,
+      // The review answers and never writes: its reading tools and the
+      // read-only git above, whatever the policy allows.
+      readOnly: true,
+    } as const;
+    const costOf = (streamPath: string) =>
+      ({
+        role: "code-review",
+        phase: null,
+        runId,
+        runPath: info.runPath,
+        provider,
+        streamPath,
+      }) as const;
 
     const fail = (reason: string) =>
       ({ kind: "failed", reason }) satisfies HeadlessCodeReviewResult;
 
-    // A provider that ignores read-only could still have written: whatever the
-    // session changed is put back, and the review is refused.
-    const after = yield* git.snapshotWorktree(info.worktreePath);
-    if (after !== before) {
-      const changed = yield* git.changedPathsBetween(info.worktreePath, before, after);
-      const paths = changed.map((c) => c.path).toSorted();
-      if (paths.length > 0) {
-        yield* git.restorePaths(info.worktreePath, before, paths);
-        return fail(`the session changed the worktree (put back): ${paths.join(", ")}`);
+    /**
+     * One session (the first, or the corrective resume) around a worktree
+     * snapshot. A provider that ignores read-only could still have written:
+     * whatever the session changed is put back, and the review is refused. A
+     * failed session is reported with its failure and files, never as a
+     * refusal. Otherwise the session's result is returned.
+     */
+    const guarded = <E extends Error, R>(
+      session: Effect.Effect<AgentRunResult, E, R>,
+    ): Effect.Effect<HeadlessCodeReviewResult | AgentRunResult, FsError | GitError, R> =>
+      Effect.gen(function* () {
+        const before = yield* git.snapshotWorktree(info.worktreePath);
+        const agentResult = yield* Effect.either(session);
+        const after = yield* git.snapshotWorktree(info.worktreePath);
+        if (after !== before) {
+          const changed = yield* git.changedPathsBetween(info.worktreePath, before, after);
+          const paths = changed.map((c) => c.path).toSorted();
+          if (paths.length > 0) {
+            yield* git.restorePaths(info.worktreePath, before, paths);
+            return fail(`the session changed the worktree (put back): ${paths.join(", ")}`);
+          }
+        }
+        if (Either.isLeft(agentResult)) {
+          const sessionError =
+            agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
+          return {
+            ...fail(`the session failed: ${agentResult.left.message}`),
+            sessionFailure: sessionError?.failure ?? null,
+            sessionFailureFiles:
+              sessionError === null
+                ? null
+                : {
+                    agentErrorLog: sessionError.agentErrorLog,
+                    transcript: sessionError.transcript,
+                  },
+          } satisfies HeadlessCodeReviewResult;
+        }
+        return agentResult.right;
+      });
+
+    const firstRun = yield* guarded(
+      withInvocationCost(backend.runAgent(prompt, { ...sessionOptions, outputJsonlPath }), {
+        ...costOf(outputJsonlPath),
+      }),
+    );
+    if ("kind" in firstRun) return firstRun;
+
+    let ran = firstRun;
+    let answer = decodeReviewAnswer(firstRun);
+    if (Either.isLeft(answer)) {
+      const firstRefusal = answer.left;
+      opts.output.warn(codeReviewRetryWarning(firstRefusal));
+      const retryPath = join(info.runPath, CODE_REVIEW_RETRY_STREAM_FILENAME);
+      const retryRun = yield* guarded(
+        withInvocationCost(
+          backend.resumeAgentSession(firstRun.sessionId, codeReviewRetryPrompt(firstRefusal), {
+            ...sessionOptions,
+            outputJsonlPath: retryPath,
+          }),
+          costOf(retryPath),
+        ),
+      );
+      if ("kind" in retryRun) return retryRun;
+      ran = retryRun;
+      answer = decodeReviewAnswer(retryRun);
+      if (Either.isLeft(answer)) {
+        return fail(codeReviewRefusedTwiceMessage(firstRefusal, answer.left));
       }
     }
-
-    if (Either.isLeft(agentResult)) {
-      const sessionError =
-        agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
-      return {
-        ...fail(`the session failed: ${agentResult.left.message}`),
-        sessionFailure: sessionError?.failure ?? null,
-        sessionFailureFiles:
-          sessionError === null
-            ? null
-            : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
-      } satisfies HeadlessCodeReviewResult;
-    }
-
-    const parsedAnswer = answerJson(agentResult.right);
-    if (Either.isLeft(parsedAnswer)) return fail(`answer refused: ${parsedAnswer.left}`);
-    const answer = readCodeReviewAnswer(parsedAnswer.right);
-    if (Either.isLeft(answer)) return fail(`answer refused: ${answer.left}`);
 
     const review = answer.right;
     const reviewPath = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
@@ -545,7 +599,7 @@ export function reviewCodeHeadless(
       shortName: info.shortName,
       runId: info.runId,
       provider,
-      sessionId: agentResult.right.sessionId,
+      sessionId: ran.sessionId,
       worktreePath: info.worktreePath,
       createdAt: opts.nowIso,
       updatedAt: opts.nowIso,
@@ -621,7 +675,11 @@ export function reviewCodeAndRecord(
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
   target: ReviewRecordTarget | ReviewRecordUnresolved,
-  opts: { readonly bundledReviewSkill: string; readonly nowIso: string },
+  opts: {
+    readonly bundledReviewSkill: string;
+    readonly nowIso: string;
+    readonly output: OutputPort;
+  },
 ): Effect.Effect<
   CodeReviewRecordOutcome,
   never,
