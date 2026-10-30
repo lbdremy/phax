@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2610301014-structured-output-plan.md",
+  "planFingerprint": "1c8f62b1196c5835ecb032a097612a0ca7a7320f5347b5211035ded659e1bf54",
+  "approvedAt": "2026-10-30T11:21:30.600Z",
+  "baseline": "a124240c1429ab1b03fa1faacc99e8776ae7c6cd",
+  "sourceSpec": {
+    "path": "docs/specs/2610271515-structured-output.md",
+    "fingerprint": "10b35e90a686c01ea4ca050f435b6036a307ef60fb3fe7a2fb8352015312e4d7"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

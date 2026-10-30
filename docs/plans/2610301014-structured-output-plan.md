@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271515-structured-output.md
 completes-spec: false
+approved:
+  date: 2026-10-30
+  baseline: a124240
 ---
 # Strict answers and native structured output
 
