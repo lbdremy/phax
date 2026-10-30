@@ -27,7 +27,10 @@ import { probeProvider } from "./helpers/providers.js";
 // `--resume` of it, with the call's own options (read-only tools and
 // stream-json; the extraction format through `complete`, which has no
 // session). The result must carry a `structured_output` that phax's decoder
-// accepts once the adapter has set the format's `$schema` stamp.
+// accepts once the adapter has set the format's `$schema` stamp. Two chains
+// then cross schemas as real sessions do: started under one call's schema,
+// resumed with none (the person's interactive resume), then resumed under
+// another call's schema.
 //
 // Target versions: Claude Code 2.1.314, codex-cli 0.165.0.
 //
@@ -121,17 +124,20 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
     if (repoDir) removeTempDir(repoDir);
   });
 
+  const reviewPolicy = () =>
+    resolveReviewSecurityPolicy({
+      mode: "secure",
+      worktreePath: repoDir,
+      config: resolveSecurityConfig(undefined, "secure"),
+    });
+
   /** The options of a call's session: read-only, with the review policy, and the schema. */
   const optionsOf = (call: StructuredCallId, schema: object): AgentRunOptions => ({
     provider: "claude-code",
     model: MODEL,
     effort: EFFORT,
     cwd: repoDir,
-    security: resolveReviewSecurityPolicy({
-      mode: "secure",
-      worktreePath: repoDir,
-      config: resolveSecurityConfig(undefined, "secure"),
-    }),
+    security: reviewPolicy(),
     readOnly: true,
     answerSchema: { call, schema },
   });
@@ -179,6 +185,92 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
       expectDecodes(format, resumed.structured);
     });
   }
+
+  // Real chains cross schema boundaries: a session started under one answer
+  // schema is resumed by the person with none (their interactive
+  // `claude --resume`, played here by a headless resume handed no schema),
+  // then by phax under another call's schema. Each step uses the options its
+  // real call site passes; the last must answer through structured_output.
+  describe("chains across schemas", () => {
+    /** The person's resume between two structured calls: read-only, no schema. */
+    const personsResume = (): AgentRunOptions => ({
+      provider: "claude-code",
+      model: MODEL,
+      effort: EFFORT,
+      cwd: repoDir,
+      security: reviewPolicy(),
+      agentCommands: [],
+      readOnly: true,
+    });
+    /** authorArtifact's session options (no granted command for a spec). */
+    const authoringOptions = (): AgentRunOptions => ({
+      ...personsResume(),
+      answerSchema: { call: "authoring", schema: answerJsonSchema("spec-document") },
+    });
+    /** decideArtifact's handback options over a hand-authored spec. */
+    const handbackOptions = (): AgentRunOptions => ({
+      ...personsResume(),
+      answerSchema: {
+        call: "decide-handback",
+        schema: answerJsonSchema("spec-hand-decision-answer"),
+      },
+    });
+    /** runFirstTurn's options: reading tools, no agent command. */
+    const firstTurnOptions = (): AgentRunOptions => ({
+      ...personsResume(),
+      answerSchema: { call: "first-turn", schema: answerJsonSchema("first-reading") },
+    });
+    /** closeStop's closing-turn options, resuming the first turn's session. */
+    const closingTurnOptions = (): AgentRunOptions => ({
+      ...personsResume(),
+      answerSchema: {
+        call: "closing-turn",
+        schema: answerJsonSchema("interactive-handoff"),
+      },
+    });
+    const talk =
+      "In one or two sentences of plain prose, not JSON, say what the document you answered with holds.";
+
+    async function chain(
+      first: { readonly format: AnswerFormatId; readonly options: AgentRunOptions },
+      last: { readonly format: AnswerFormatId; readonly options: AgentRunOptions },
+    ): Promise<void> {
+      const started = await run((backend) =>
+        backend.runAgent(askFor(fixtureOf(first.format)), first.options),
+      );
+      expectDecodes(first.format, started.structured);
+      const talked = await run((backend) =>
+        backend.resumeAgentSession(started.sessionId as ClaudeSessionId, talk, personsResume()),
+      );
+      expect(talked.structured).toBeNull();
+      expect(talked.finalText.trim()).not.toBe("");
+      const answered = await run((backend) =>
+        backend.resumeAgentSession(
+          talked.sessionId as ClaudeSessionId,
+          askFor(fixtureOf(last.format)),
+          last.options,
+        ),
+      );
+      expectDecodes(last.format, answered.structured);
+    }
+
+    it(
+      "spec authoring, the person's resume, then a hand-decision handback",
+      { timeout: 3 * TIMEOUT },
+      () =>
+        chain(
+          { format: "spec-document", options: authoringOptions() },
+          { format: "spec-hand-decision-answer", options: handbackOptions() },
+        ),
+    );
+
+    it("first turn, the person's resume, then the closing turn", { timeout: 3 * TIMEOUT }, () =>
+      chain(
+        { format: "first-reading", options: firstTurnOptions() },
+        { format: "interactive-handoff", options: closingTurnOptions() },
+      ),
+    );
+  });
 
   // Regression guard: the 2026-10-30 probe found `--json-schema` accepts and
   // enforces `minItems` and `exclusiveMinimum`, so the answer schemas keep both.
