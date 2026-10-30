@@ -40,6 +40,15 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       where review attention belongs (criteria no test proves, skipped oracles, phases that needed
       fixes, the run's review notes) and gives it to the review session. Its dependency is met:
       test lines and criterion coverage are in `phax-plan.json` and `phax plans overview`.
+- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-10-30). The cockpit starts as a
+      Claude Code mod: a pane and a band showing the current repository's inbox, specs, plans and
+      runs, read from phax's versioned JSON, writing nothing. Milestone 1, reading; it needs
+      `command-contracts` first, and a coverage level (§9 Q1).
+- [ ] **`command-contracts`** — `docs/briefs/command-contracts.md` (2026-10-30). A small command
+      library, ported to Effect 3, puts every command under contracts and forces a machine answer
+      (`--json` the runner's, errors as JSON, `$schema`, documents in by `-` or a path, files written
+      named with their digest); Commander stays under the runner. Every command moves, `artifact
+      status`, `plans overview`, `plans lint` and `runs list` first. Prerequisite of `claude-code-mod`.
 
 ### Drafts
 
