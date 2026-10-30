@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCodexArgs } from "../../src/infra/providers/codexCli.js";
 import type { AgentRunOptions } from "../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../../src/domain/security/agentCommands.js";
 
 // A read-only turn at a stop runs under codex's read-only sandbox whatever the
 // phase's policy: no writable roots, no network override, no unsafe bypass.
@@ -89,6 +90,17 @@ describe("buildCodexArgs — read-only turn", () => {
     expect(args).not.toContain("workspace-write");
     expect(args).not.toContain("writable_roots");
     expect(args).not.toContain("network_access");
+  });
+
+  it("ignores agentCommands: the read-only sandbox, not a command list, bounds the shell", () => {
+    // The compliance and code reviews pass their read-only git as agentCommands;
+    // codex has no per-command allowlist, so the docs say any reading command may run.
+    const withGit: AgentRunOptions = {
+      ...readOnly({ ...securePolicy, agentCommands: [...CODE_REVIEW_AGENT_COMMANDS] }),
+      agentCommands: CODE_REVIEW_AGENT_COMMANDS,
+    };
+    expect(buildCodexArgs(entry, withGit)).toEqual(buildCodexArgs(entry, readOnly(securePolicy)));
+    expect(buildCodexArgs(entry, withGit).join(" ")).not.toContain("git ");
   });
 
   it("leaves a headless turn's argv as the policy builds it", () => {
