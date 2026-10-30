@@ -23,6 +23,7 @@ const SOURCE_FILES = [
   "docs/assignment-bounds.md",
   "docs/upgrading.md",
   "docs/agent-session-failures.md",
+  "docs/structured-answers.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */

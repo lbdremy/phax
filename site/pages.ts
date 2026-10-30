@@ -209,6 +209,13 @@ export default definePageMap({
         "Read a failed agent session's cause, files and retry hint, and what to do for exit 5, 8 and 14.",
     },
     {
+      route: "/guide/structured-answers",
+      title: "Structured answers and providers",
+      source: "docs/structured-answers.md",
+      description:
+        "What Claude Code, Codex and Mistral Vibe each check of a structured answer, what phax checks after them, and the one corrective resume.",
+    },
+    {
       route: "/guide/plan-estimate",
       title: "Estimating a plan",
       source: "docs/plan-estimate.md",
